@@ -26,8 +26,10 @@ As of 2026-11-05, the temporary URL is deployed and verified to return HTTP 200
 with the Lune page. Public nameservers now point to Cloudflare; zone activation
 and apex TLS are pending. The apex custom domain is attached and recorded in
 Wrangler configuration. The `CLOUDFLARE_API_TOKEN` repository secret is configured,
-and a local deployment using that token succeeded. The first GitHub workflow run
-still needs verification before automatic deployments are considered operational.
+and a local deployment using that token succeeded. The
+[first GitHub run](https://github.com/leebyron/lune-browser/actions/runs/42129183746)
+passed installation, validation, and production deployment for commit `eef768a`.
+Automatic website deployments are operational; apex HTTPS is not yet verified.
 
 ## DNS activation
 
