@@ -7,11 +7,14 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-This repository contains the project definition and architecture research.
-Build scripts, component branches, CI, hosting, signing, and automatic updates
-have not been implemented. Proposed paths and commands in the docs are designs,
-not existing interfaces. The initial platform target is macOS, both arm64 and
-x86_64.
+This repository contains the project definition, architecture research, and a
+minimal website in `website/`, hosted with Cloudflare Workers Static Assets.
+Website setup and deployment status are recorded in
+[the website runbook](agent-docs/project/website.md).
+Browser build scripts, component branches, signing, and automatic updates have
+not been implemented. Proposed browser paths and commands in the docs are
+designs, not existing interfaces. The initial platform target is macOS, both
+arm64 and x86_64.
 
 ## Engineering rules
 
@@ -64,5 +67,6 @@ documentation separate when it is added.
 - [Repository and patch architecture](agent-docs/project/architecture.md)
 - [Builds, releases, and updates](agent-docs/project/releases.md)
 - [Services and website](agent-docs/project/services.md)
+- [Website deployment runbook](agent-docs/project/website.md)
 - [Implementation roadmap](agent-docs/project/roadmap.md)
 - [Research and primary sources](agent-docs/project/research.md)

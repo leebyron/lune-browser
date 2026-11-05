@@ -1,6 +1,7 @@
 # Implementation roadmap
 
-Status: documentation complete; all implementation stages below remain open.
+Status: documentation and minimal website bootstrap complete. Browser stages
+remain open; website activation and CI status are in the [runbook](website.md).
 
 ## 1. Prove the repository model
 
@@ -56,7 +57,8 @@ Acceptance: a signed/notarized app updates correctly on both architectures.
 
 ## 5. Deploy services and website
 
-- Owner supplies domain/subdomains and chooses hosting.
+- Domain selected: `lune.computer`, registered at DNSimple; website on Cloudflare
+  Workers Static Assets. Choose a separate host for the Compose services.
 - Deploy the pinned Compose stack with Lune config, TLS, secrets, and health checks.
 - Audit and change client endpoints, then verify real browser traffic.
 - Publish a website driven by the release manifest, with source and attribution.
@@ -86,9 +88,10 @@ every gate passes, and a failed candidate leaves the installed update path intac
 | Git layout | Recommended same-remote component histories; validate in stage 1 |
 | Build machines | Need capacity measurements and native Intel validation access |
 | Signing | Owner-provided Apple credentials; new Lune Sparkle keys |
-| Domain and hosting | Owner will supply domain; host remains undecided |
+| Domain and hosting | `lune.computer`; Cloudflare website, services host undecided |
 | Minimum macOS version | Derive from selected source/toolchain and test matrix |
 | Stable/preview policy | Stable first; staging required; preview optional |
 | Scheduler | GitHub Actions initially; external dispatch if reliability requires it |
 
-There is no recurring job, deployment, or release enabled by this documentation.
+The website has its own deployment workflow. No recurring browser job, service
+deployment, or browser release is enabled by this documentation.

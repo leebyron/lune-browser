@@ -1,0 +1,91 @@
+# Website deployment
+
+The website is a minimal static HTML page, deployed independently of the browser.
+No framework, Worker script, server, or paid plan is required for this bootstrap.
+
+## Resources
+
+| Resource | Value |
+| --- | --- |
+| Repository | `leebyron/lune-browser` |
+| Production branch | `main` |
+| Site source | `website/public/` |
+| Wrangler config | `website/wrangler.jsonc` |
+| GitHub workflow | `.github/workflows/website.yml` |
+| Cloudflare account | `57a79916090fa9c99c899a708e9ba22c` |
+| Worker | `lune-website` |
+| Temporary URL | <https://lune-website.lee-57a.workers.dev> |
+| Intended production URL | <https://lune.computer> |
+| Registrar | DNSimple |
+| Cloudflare zone | `2850307453708b5b5a13dff6cb0077d3` |
+| Authoritative nameservers | `gabriel.ns.cloudflare.com`, `tia.ns.cloudflare.com` |
+
+## Current status
+
+As of 2026-11-05, the temporary URL is deployed and verified to return HTTP 200
+with the Lune page. Public nameservers now point to Cloudflare; zone activation
+and apex TLS are pending. The apex custom domain is attached and recorded in
+Wrangler configuration. The `CLOUDFLARE_API_TOKEN` repository secret is configured,
+and a local deployment using that token succeeded. The first GitHub workflow run
+still needs verification before automatic deployments are considered operational.
+
+## DNS activation
+
+In DNSimple, open **lune.computer → Registration → Delegation → Edit delegation**.
+Replace all four DNSimple nameservers with the two Cloudflare nameservers above,
+then choose **Change name servers**. Do not edit DNSimple's locked system NS
+records in the DNS record editor. DNSimple remains the registrar; Cloudflare
+becomes authoritative for DNS. The initial DNS scan found no application records
+to migrate. No DNSSEC DS record was present during setup.
+
+`lune.computer` is attached as a Worker Custom Domain and recorded in Wrangler
+configuration. Cloudflare creates the DNS record and certificate; public service
+requires zone activation. Do not invent an A record or point the apex at
+the temporary workers.dev URL. Verify public HTTPS and the page content before
+marking the apex live. Reconcile DNSSEC separately after delegation if desired.
+
+## Local development and deployment
+
+From `website/`:
+
+```sh
+npm ci
+npm run dev
+npm run check
+npm run deploy
+```
+
+`check` runs Wrangler's deployment dry run. `deploy` requires Cloudflare
+authentication. Dependencies are locked; commit `package-lock.json` with dependency
+changes. Keep OAuth and API tokens outside the repository.
+
+## GitHub flow
+
+Pull requests affecting the website run installation and deployment validation
+without production credentials. Pushes to `main` affecting the website or its
+workflow additionally deploy production. Manual dispatch is available. Actions
+are pinned by commit and GitHub permissions are limited to repository read access.
+
+The dedicated token `Lune website GitHub Actions` is stored in the GitHub Actions
+repository secret `CLOUDFLARE_API_TOKEN`. The owner approved these permissions:
+
+- Account → Workers Scripts → Edit, limited to the account listed above.
+- Zone → Workers Routes → Edit, limited to `lune.computer`.
+- No expiration; no IP restriction (GitHub-hosted runners have changing addresses).
+
+Workers Scripts permission covers the entire selected account, not just this
+Worker. The route includes an explicit `zone_id` so Wrangler does not need
+zone-discovery read access. A deployment using these permissions was verified.
+Never use the Global API Key or commit the token. Do not expose deployment secrets
+to pull-request code. Rotate/revoke the token in Cloudflare and replace the GitHub
+secret if compromised. Verify GitHub runs and live content after setup.
+
+The account ID is public configuration, not a secret. The browser build and
+release pipeline remains unimplemented and does not run from this workflow.
+
+## References
+
+- [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/)
+- [Worker Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
+- [GitHub Actions deployment](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)
+- [DNSimple delegation](https://support.dnsimple.com/articles/setting-name-servers/)

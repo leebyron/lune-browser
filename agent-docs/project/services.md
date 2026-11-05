@@ -1,6 +1,8 @@
 # Self-hosted services and website
 
-Status: proposed deployment. Domains, hosting, and credentials are not configured.
+Status: browser services remain proposed. The minimal website is deployed on
+Cloudflare Workers Static Assets; `lune.computer` is registered at DNSimple.
+See the [website runbook](website.md) for activation and CI status.
 Source findings are recorded in [research](research.md).
 
 ## Start with Helium's own stack
@@ -35,7 +37,7 @@ later only after adapting repository names, artifact naming, and promotion polic
 
 ## Domain and client contract
 
-Plan distinct roles under the owner-supplied domain:
+Plan distinct roles under `lune.computer`:
 
 - Website: product information, downloads, source, release status, privacy details.
 - Services hostname: extension proxy, filters, dictionaries, bangs, connectivity.
@@ -76,9 +78,11 @@ a blanket license to mixed upstream code.
 
 ## Website
 
-Keep a small Lune-owned static website on `main`; select a framework only when
-there is a concrete need. Hosting should be independent of the browser build and
-service runtime. Display both macOS downloads, minimum OS, current Chromium
+The minimal static website lives in `website/public/` on `main`, with Cloudflare
+configuration and a pinned Wrangler dependency alongside it. A dedicated GitHub
+workflow validates changes and deploys `main`. It is independent of browser
+builds and the service runtime. Select a framework only when there is a concrete
+need. When releases exist, display both macOS downloads, minimum OS, current Chromium
 version, release date, checksums, source links, and the relationship to upstreams.
 
 Read download URLs and versions from the promoted release manifest. Detecting

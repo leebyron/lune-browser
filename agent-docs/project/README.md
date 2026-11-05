@@ -25,7 +25,7 @@ reference. Lune is an independent distribution with its own identity and service
    (x86_64)**, up to daily when inputs change and all gates pass.
 6. Use Xelium's release approach: Apple signing and notarization, DMGs, GitHub
    Releases, and Sparkle 2 updates under Lune's identity.
-7. Operate our own Helium services and website under domains the owner will supply.
+7. Operate our own Helium services and website under `lune.computer`.
 8. Keep project coordination in one repository where practical.
 
 ## Success criteria
@@ -51,10 +51,12 @@ announcements as well as the latest ungoogled-chromium release.
 The initial target is macOS on both architectures, confirmed by the owner.
 Windows and Linux are future platform adapters, not first-release requirements.
 No particular open PR has been selected for inclusion yet. The initial feature
-set, domains, runner hardware, credentials, and deployment host remain undecided.
+set, runner hardware, browser credentials, and services host remain undecided.
 
-As of 2026-11-05 this is a documentation bootstrap. No browser builds,
-infrastructure, component imports, or schedules have been created.
+As of 2026-11-05 the documentation and minimal Cloudflare website are bootstrapped.
+The owner registered `lune.computer` at DNSimple. See the
+[website runbook](website.md) for deployment and domain activation status.
+No browser builds, component imports, browser services, or schedules exist yet.
 
 ## Read next
 
