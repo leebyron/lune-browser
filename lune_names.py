@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""Apply Lune's display name through Helium's GRIT-aware substitution pipeline."""
+import os
+from pathlib import Path
+import re
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent / 'helium-chromium' / 'utils'))
+import name_substitution as names
+import name_substitution_utils as util
+
+# Preserve the upstream exclusions (Web Store, Root Program, Remote Desktop).
+# Preserve helium:// URLs and code/pref identifiers for compatibility.
+util.REPLACEMENT_REGEXES = [
+    (regex, replacement.replace('Helium', 'Lune'))
+    for regex, replacement in util.REPLACEMENT_REGEXES
+]
+util.REPLACEMENT_REGEXES.append((re.compile(r'\bHelium\b'), 'Lune'))
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        raise SystemExit('Usage: lune_names.py CHROMIUM_SOURCE')
+    names.do_substitution(Path(sys.argv[1]), None, min(os.cpu_count() or 1, 8), False)

@@ -1,0 +1,67 @@
+--- a/chrome/app/theme/chromium/BRANDING
++++ b/chrome/app/theme/chromium/BRANDING
+@@ -1,10 +1,10 @@
+-COMPANY_FULLNAME=The Helium Authors
+-COMPANY_SHORTNAME=The Helium Authors
+-PRODUCT_FULLNAME=Helium
+-PRODUCT_SHORTNAME=Helium
+-PRODUCT_INSTALLER_FULLNAME=Helium Installer
+-PRODUCT_INSTALLER_SHORTNAME=Helium Installer
++COMPANY_FULLNAME=The Lune Authors
++COMPANY_SHORTNAME=The Lune Authors
++PRODUCT_FULLNAME=Lune
++PRODUCT_SHORTNAME=Lune
++PRODUCT_INSTALLER_FULLNAME=Lune Installer
++PRODUCT_INSTALLER_SHORTNAME=Lune Installer
+ COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Helium Authors. All rights reserved.
+-MAC_BUNDLE_ID=net.imput.helium
++MAC_BUNDLE_ID=computer.lune.browser
+ MAC_CREATOR_CODE=Cr24
+-MAC_TEAM_ID=S4Q33XPHB4
++MAC_TEAM_ID=RBC9EP7948
+--- a/chrome/common/chrome_paths_mac.mm
++++ b/chrome/common/chrome_paths_mac.mm
+@@ -32,7 +32,7 @@
+     product_dir_name = [product_dir_name_ns fileSystemRepresentation];
+ 
+     if (!product_dir_name) {
+-      product_dir_name = "net.imput.helium";
++      product_dir_name = "computer.lune.browser";
+     }
+ 
+     // Leaked, but the only caller initializes a static with this result, so it
+--- a/components/os_crypt/common/keychain_password_mac.mm
++++ b/components/os_crypt/common/keychain_password_mac.mm
+@@ -31,8 +31,8 @@
+ // These two strings ARE indeed user facing.  But they are used to access
+ // the encryption keyword.  So as to not lose encrypted data when system
+ // locale changes we DO NOT LOCALIZE.
+-const char kDefaultServiceName[] = "Helium Storage Key";
+-const char kDefaultAccountName[] = "Helium";
++const char kDefaultServiceName[] = "Lune Storage Key";
++const char kDefaultAccountName[] = "Lune";
+ 
+ // These values are persisted to logs. Entries should not be renumbered and
+ // numeric values should never be reused.
+--- a/components/helium_services/helium_services_helpers.h
++++ b/components/helium_services/helium_services_helpers.h
+@@ -13,7 +13,7 @@
+ namespace helium {
+ 
+ const char kHeliumDefaultOrigin[] =
+-    "https://services.helium.imput.net";
++    "https://services.lune.computer";
+ 
+ const char kHeliumDummyOrigin[] =
+     "https://helium-services-are-disabled.qjz9zk";
+--- a/chrome/app/app-Info.plist
++++ b/chrome/app/app-Info.plist
+@@ -149,8 +149,6 @@
+ 	<string>${EXECUTABLE_NAME}</string>
+ 	<key>CFBundleIconFile</key>
+ 	<string>app.icns</string>
+-	<key>CFBundleIconName</key>
+-	<string>AppIcon</string>
+ 	<key>CFBundleIdentifier</key>
+ 	<string>${CHROMIUM_BUNDLE_ID}</string>
+ 	<key>CFBundleInfoDictionaryVersion</key>
