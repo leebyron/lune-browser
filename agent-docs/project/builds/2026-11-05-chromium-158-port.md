@@ -501,3 +501,18 @@ compiles (`mac-frame-includes-fix-compile.log`). The series remains at 404 patch
 The preceding failure is preserved under `*-before-mac-frame-includes-fix.*`;
 compilation resumed from cache. Input-method startup behavior still needs runtime
 validation.
+
+## Caption settings and disabled AI installer
+
+Ungoogled removes the AI speech-model installer from `BrowserProcess`, while
+Chromium 158's caption settings still reference it. Platform
+`c787971280052e3b3916cbea61088f706b09c233` removes the obsolete model-installation
+callbacks and observer bindings and explicitly hides those unavailable controls
+in the settings data. The model feature was already disabled by default. System
+caption settings and SODA language-pack handling remain; all 12 regular caption
+and SODA methods have byte-identical implementations before and after this patch.
+
+The patch reapplied without fuzz (**405 total**). Both the caption handler and
+shared settings-data provider compile (`captions-fix-compile.log`). This verifies
+source compatibility, not live speech recognition. The preceding failure is
+preserved under `*-before-captions-fix.*`; full compilation resumed from cache.
