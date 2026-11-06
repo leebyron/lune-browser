@@ -3,8 +3,8 @@
 Status: reviewed source port. All 47 changed native production object targets
 compile on arm64. Strict application of 160 relevant patches, focused GN header
 checks, settings TypeScript/lint, onboarding generation, and source-default checks
-pass. Svelte checking reports zero errors and warnings. Full browser compilation
-is in progress in an isolated clone. Native UI, Intel, and release validation remain
+pass. Svelte checking reports zero errors and warnings. Full arm64 browser compilation
+and the packaged headless UI smoke test pass in the isolated 157 diagnostic clone. Native UI, Intel, and release validation remain
 outstanding. This is a development candidate, not a current-security release.
 
 ## Chromium takes priority
@@ -137,3 +137,20 @@ DNS resolution. `--headed` shows the test window; neither mode automates native
 sidebar/keyboard interaction checks. The extended runner's original browsing and
 persistence checks passed against the preserved first app; the new WebUI checks
 remain pending until this candidate finishes compiling.
+
+## Packaged diagnostic build result
+
+The Chromium 157 arm64 diagnostic build completed 41,297 actions in 2h4m53s.
+`out/validation/xelium-ui-smoke.json` records a passing headless test of page
+loading, JavaScript, persistence across relaunch, all 18 expected preferences,
+Helium credits in About and onboarding, and the Kagi-first recommendation with
+its paid-account disclosure. Kagi remains an explicit user choice; DuckDuckGo is
+available and remains selected until the user changes the provider.
+
+The packaged icon matches SHA-256
+`3b6224273905dc9a7c789f9a332c81982d75becf75793e1d47e0d152692f3dc0`.
+The test uses canonical `chrome://` URLs because WebDriver bypasses the omnibox's
+`helium://` alias fixup, and reads engine-name text independently of tooltip text.
+Native control interaction is not covered by this headless report. Intel,
+signing, packaging, updates, and the [158 build](builds/2026-11-05-chromium-158-port.md)
+remain unvalidated.

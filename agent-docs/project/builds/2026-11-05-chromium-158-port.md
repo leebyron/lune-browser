@@ -1,7 +1,7 @@
 # Chromium 158 integration work
 
 Status: source inputs verified and extracted; integration incomplete. This is a
-separate workspace from the running Chromium 157 UI validation build. No build,
+separate workspace from the completed Chromium 157 UI diagnostic build. No build,
 runtime check, or release validation of 158 has passed yet. The main lock remains
 unchanged until a reviewed candidate is ready.
 
@@ -212,12 +212,41 @@ Core commit `2c8892b9` adapts nine layout and shortcut patches:
 - Ctrl/Cmd-S behavior and collapse-shortcut removal follow the reorganized
   accelerator tables; the macOS mappings remain in their platform files.
 
-The first **322 patches apply with zero fuzz**. Application currently stops at
-`helium/ui/layout/vertical.patch`, including changed layout/animation code and the
-missing old `tab_group_view_layout.cc` path. No patch has been skipped or forced.
-Full preparation, GN generation, compilation, and runtime validation remain
-incomplete for 158. The older 157 UI validation build is still a separate
-running diagnostic build.
+Core checkpoints `8838affd` and `8996e539` finish the vertical/Zen layout,
+native-frame-materials, debugger-warning, and progress-bar ports. Preserve 158's
+organizer-panel behavior, new macOS first-frame input-context deferral, current
+permission dashboard, and current GN target boundaries. The obsolete Polymer
+ripple mixin is absent from both the source archive inventory and source tree;
+the Lit and native ripple changes remain.
+
+Platform checkpoint `e07137b0` pins core `8996e539` and completes strict patch
+application. The adaptations preserve:
+
+- Keychain failure protection for both default (`v10`) and custom-profile (`v11`)
+  keys, including 158's custom salt and unavailable-default-key provider.
+  Key reads retain bounded transient retries and stop profile startup on failure.
+- Native translation menu behavior with noncolliding UMA values (175 and 37),
+  Sparkle linking, macOS fullscreen behavior, and remaining Safe Browsing guards.
+- Sidebar address-bar hit testing alongside the organizer panel; density-aware
+  group headers and pinned rows in Chromium's newly split vertical layout files.
+- Collapse sizing and frame attachment while retaining upstream animation and
+  browser-test changes. The old duplicate group-header dependency fix is already
+  included in the adapted comfortable-tab patch.
+- Visual-switcher thumbnails, command-bar ownership, and link peek. Explicit
+  `window.open()` split requests keep Chromium's split behavior instead of being
+  intercepted as featureless popup previews.
+
+**All 397 patches apply with zero fuzz.** No series entry was skipped or forced.
+Source substitutions/resources, GN generation, compilation, and runtime checks
+remain outstanding for 158. This is patch-application evidence, not proof that the
+adapted code compiles or all behavior is correct. Component branches are published
+at `integration/chromium-158/{helium,macos}`; they are not release inputs.
+
+The separate 157 UI build completed 41,297 actions in 2h4m53s. Its headless smoke
+test passed page loading, JavaScript, profile persistence, 18 default preferences,
+both Helium credits, Kagi-first recommendation with paid-account disclosure, and
+the packaged icon hash. See [UI integration](../xelium-ui.md). This does not satisfy
+the Chromium 158 build requirement.
 
 All selected UI features, Lune defaults, Kagi recommendation, Helium attribution,
 and artwork remain required in the forward-port. New immutable component tags

@@ -65,9 +65,14 @@ def check_ui(request, path):
             if result:
                 return result
             time.sleep(0.5)
-        raise RuntimeError('Packaged WebUI did not reach the expected state: ' + script)
+        diagnostic = js('''return {url: location.href, title: document.title,
+            body: document.body?.innerText.slice(0, 2000),
+            chromeKeys: Object.keys(window.chrome || {})};''')
+        raise RuntimeError('Packaged WebUI did not reach the expected state: '
+                           + script + '\n' + json.dumps(diagnostic))
 
-    request('POST', path + '/url', {'url': 'helium://settings/help'})
+    # WebDriver navigation bypasses the omnibox's helium:// alias fixup.
+    request('POST', path + '/url', {'url': 'chrome://settings/help'})
     wait_for('return !!window.chrome?.settingsPrivate;')
     prefs = js('''
         const keys = arguments[0], done = arguments[arguments.length - 1];
@@ -80,12 +85,12 @@ def check_ui(request, path):
     # Width and collapsed state are not exposed through settingsPrivate.
     for key, value in {'vertical_tabs.uncollapsed_width': 200,
                        'vertical_tabs.collapsed_state': False}.items():
-        request('POST', path + '/url', {'url': 'helium://prefs-internals/' + key})
+        request('POST', path + '/url', {'url': 'chrome://prefs-internals/' + key})
         actual = json.loads(js('return document.body.innerText;'))
         if actual != value:
             raise RuntimeError(f'Fresh-profile {key}: expected {value}, got {actual}')
         prefs[key] = actual
-    request('POST', path + '/url', {'url': 'helium://settings/help'})
+    request('POST', path + '/url', {'url': 'chrome://settings/help'})
     wait_for('return !!window.chrome?.settingsPrivate;')
     # Navigation past the services page records consent. Disable services first,
     # only in this disposable profile, so the test cannot opt into remote services.
@@ -107,7 +112,7 @@ def check_ui(request, path):
         return find(document);
     '''
     about = wait_for(credit_script)
-    request('POST', path + '/url', {'url': 'helium://setup/'})
+    request('POST', path + '/url', {'url': 'chrome://setup/'})
     onboarding = wait_for(credit_script)
     for name, credit in [('About', about), ('onboarding', onboarding)]:
         if ('Built on Helium, with thanks to its authors and contributors.' not in credit['text']
@@ -120,7 +125,9 @@ def check_ui(request, path):
     engines = wait_for('''
         const cards = [...document.querySelectorAll('#search-engines-page button')];
         return cards.length ? cards.map(card => ({
-          name: card.querySelector('.engine-name')?.textContent.trim(),
+          name: [...(card.querySelector('.engine-name')?.childNodes || [])]
+            .filter(node => node.nodeType === Node.TEXT_NODE)
+            .map(node => node.textContent).join('').trim(),
           text: card.textContent.trim(), selected: card.getAttribute('aria-pressed')
         })) : null;
     ''')
