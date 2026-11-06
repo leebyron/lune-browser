@@ -59,8 +59,9 @@ As of 2026-11-05 the documentation and minimal Cloudflare website are bootstrapp
 The owner registered `lune.computer` at DNSimple. See the
 [website runbook](website.md) for deployment and domain activation status.
 Component histories, exact inputs, local build tooling, and configuration CI are
-bootstrapped; see [building](building.md). No browser binary, deployed browser
-services, or recurring browser schedules exist yet.
+bootstrapped; see [building](building.md). The first arm64 browser build and
+headless smoke test passed; see [the evidence](builds/2026-11-05-arm64.md).
+No public browser release, deployed browser services, or recurring browser schedule exists yet.
 
 ## Read next
 

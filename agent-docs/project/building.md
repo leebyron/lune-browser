@@ -1,8 +1,8 @@
 # First browser build
 
-Status: development bootstrap, 2026-11-05. No Lune binary has been compiled,
-signed, notarized, or released. Preparation/build commands below are implemented
-but still need their first end-to-end run on a ready Mac.
+Status: first arm64 development build and headless runtime smoke test passed,
+2026-11-05. See [the recorded evidence](builds/2026-11-05-arm64.md). No Developer ID
+signing, notarization, public release, Intel validation, or update validation has occurred.
 
 ## Tracked inputs
 
@@ -42,7 +42,7 @@ and both architectures' runtime checks remain release blockers.
 ## Prepare this Mac
 
 The owner selected this Mac mini (M4 Pro, 64 GB RAM). At the latest check it has
-about 245 GiB free after installing Xcode and Metal. Storage and toolchain now
+about 297 GiB free after the first successful build. Storage and toolchain now
 pass preflight. The wrapper requires at
 least 200 GiB free before preparation, a conservative local policy rather than a
 measured guarantee. Two source/output trees and peak build usage may require more.
@@ -51,10 +51,10 @@ Free space manually; the tooling never removes personal data or old workspaces.
 The installed development toolchain is pinned to Xcode **27.2 (27B52)**, SDK
 **27.2**, and Metal **27B47**. Helium CI uses Xcode 26.5; we reviewed the pinned
 [Chromium SDK configuration](https://github.com/chromium/chromium/blob/157.0.8103.38/build/config/mac/mac_sdk.gni),
-which includes Xcode 27 support, and its SDK minimum of 15. This permits an
-experimental development attempt, not a claim of tested toolchain compatibility.
-Compilation and runtime checks remain required. Future Xcode/SDK changes fail
-preflight until reviewed and repinned. The check executes the Metal compiler,
+which includes Xcode 27 support, and its SDK minimum of 15. This permits a
+development build. Arm64 compilation and headless smoke checks subsequently passed
+with this exact toolchain; native UI, Intel, and release validation remain open.
+Future Xcode/SDK changes fail preflight until reviewed and repinned. The check executes the Metal compiler,
 rather than merely locating the shim supplied by Xcode.
 
 On a new host, install the pinned Xcode, complete first-launch setup, then:
@@ -148,7 +148,11 @@ the document element. Platform commit `2300b549` adds `ignoreDeclaration: true`.
 The exact failed command now passes, and `scripts/check-onboarding.py` verifies
 all 79 messages generate identical header/TypeScript output with and without the
 declaration. CI runs that regression check before compiling. A fresh source
-preparation with the new locked patch is required; no successful browser yet.
+preparation with the new locked patch was used for the
+[successful retry](https://github.com/leebyron/lune-browser/actions/runs/42140697247).
+It completed 57,716 actions in 2h21m29s and produced `Lune.app` and ChromeDriver.
+The app's identity, arm64 architecture, headless page loading, JavaScript, and
+local-storage persistence across relaunch passed; see [evidence](builds/2026-11-05-arm64.md).
 
 [GitHub documents self-hosted runner compute as free](https://docs.github.com/en/actions/concepts/billing-and-usage).
 The private repository's hosted compute and artifact/cache storage still have
@@ -177,10 +181,11 @@ to prevent idle sleep, and limits each run to six hours. A timed-out compilation
 can resume from the validated preparation record on the next dispatch. A failed
 partial source preparation requires inspection and is never automatically deleted.
 No pull-request workflow targets this Mac. For future unattended operation,
-keep the Mac awake while jobs run, and retain local compilation caches. Establish
-one successful arm64 build before scheduling recurring jobs or running the Intel
-target. The owner can keep using the GitHub Actions UI for triggering and reading
-logs, but the Mac must remain online for jobs to execute.
+keep the Mac awake while jobs run, and retain local compilation caches. Use the
+successful arm64 baseline for comparison when running the Intel target. Recurring
+jobs still require explicit activation and the release gates described below.
+The owner can keep using the GitHub Actions UI for triggering and reading logs,
+but the Mac must remain online for jobs to execute.
 
 Stock GitHub-hosted macOS builds remain a possible future experiment. The pinned
 [Helium workflow](https://github.com/imputnet/helium-macos/blob/37efe2c65dccc21aaf1d8ea66fd35d1348c386a8/.github/workflows/building.yml)
@@ -232,13 +237,12 @@ download parsing accepts both flattened manifests; text-level name substitution
 checks preserve the Web Store, Root Program, and internal URL scheme.
 The Lune identity patch applied without fuzz to targeted files reconstructed from
 Chromium plus their preceding upstream patches. Full-stack source preparation and GN generation subsequently passed in the first
-CI run; compilation failed as documented above. This is not proof of a working
-browser. Python requirements match the
+CI run; the parser fix then passed a fresh preparation, full compilation, and
+headless app smoke test in the successful retry. Python requirements match the
 installed environment. A GitHub Actions check validates the lock, ancestry, and
 fresh recursive checkout without signing credentials or Chromium downloads.
 
-Before the first usable browser: run the new CI workflow to prepare and compile
-arm64, inspect identity/branding and service behavior, run smoke tests, repeat for
-x86_64, then implement and validate signing/packaging. Before public updates:
+Next: validate the native browser UI, default profile isolation, branding and service
+behavior; build and test x86_64; then implement and validate signing/packaging. Before public updates:
 provision services, finish versioning/branding, and test two signed/notarized
 releases through architecture-specific staging feeds. See [roadmap](roadmap.md).

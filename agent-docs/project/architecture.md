@@ -1,7 +1,8 @@
 # Repository and patch architecture
 
 Status: component histories and locked checkout/bootstrap tooling implemented.
-Full build, replay, and release orchestration remain planned. Based on the
+The first arm64 build and headless runtime smoke test passed; replay and release
+orchestration remain planned. Based on the
 [upstream source review](research.md) dated 2026-11-05.
 
 ## Recommendation: one remote, preserved component histories
@@ -54,7 +55,8 @@ out/                    ignored artifacts and reports
 
 Documentation, website, config/manifests, local build tooling, and validation CI
 exist. Deployment overlays and browser release jobs remain planned. Commands
-that prepare or compile Chromium are implemented but await end-to-end validation.
+that prepare and compile Chromium passed their first arm64 end-to-end run; see
+[build evidence](builds/2026-11-05-arm64.md). Intel and release validation remain outstanding.
 
 Use worktrees for core/services topic development when suitable. For macOS
 packaging, prefer an ordinary isolated clone with its `helium-chromium` submodule:

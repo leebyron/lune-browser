@@ -13,9 +13,11 @@ are published on `component/helium`, `component/macos`, and `component/services`
 permanent `inputs/bootstrap-1/*` tags retain the first development inputs.
 Read [the build runbook](agent-docs/project/building.md) before running the tools.
 
-Lune's first full source preparation and GN generation passed. Compilation stopped
-on an onboarding XML declaration parsing error; a tested fix is now pinned under
-`inputs/bootstrap-2/macos`. Compilation and browser runtime still need validation.
+Lune's first arm64 development build passed full source preparation, GN generation,
+compilation, and a headless app smoke test (page loading, JavaScript, and profile
+persistence). The onboarding XML parser fix is pinned under `inputs/bootstrap-2/macos`.
+See [the first build evidence](agent-docs/project/builds/2026-11-05-arm64.md).
+Native UI, Intel runtime, signing, packaging, and update validation remain outstanding.
 The local Mac passes storage and toolchain preflight. Xcode 27.2/27B52 and SDK
 27.2 are pinned for an experimental development build after Chromium source review.
 The owner requires no additional CI spend: use this Mac as a self-hosted GitHub

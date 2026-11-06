@@ -1,7 +1,8 @@
 # Implementation roadmap
 
 Status: documentation, website, component imports, locked checkout/build tooling,
-and local signing identities are bootstrapped. No browser has been compiled.
+and local signing identities are bootstrapped. The first arm64 build and headless
+smoke test passed; [evidence](builds/2026-11-05-arm64.md). Intel and release validation remain.
 See [build readiness](building.md) and [website status](website.md).
 
 ## 1. Prove the repository model
@@ -26,6 +27,10 @@ input commits are durable and inspectable. Fall back to separate component forks
 if same-remote branches complicate this unnecessarily.
 
 ## 2. Build the baseline on both architectures
+
+Arm64 compilation, app identity, headless page loading, JavaScript, and profile
+persistence passed on 2026-11-05. Native UI behavior, default profile isolation,
+Intel compilation/runtime, and the full baseline acceptance criteria remain open.
 
 - Use the complete compatible Helium stack first, without extra experimental PRs.
 - Build arm64 and x86_64; measure disk, memory, cache effectiveness, and elapsed time.
@@ -91,7 +96,7 @@ every gate passes, and a failed candidate leaves the installed update path intac
 | Helium selection | Full stack selected for first development build |
 | Additional PRs/features | Not selected |
 | Git layout | Same-remote component branches and permanent input tags published |
-| Build machines | No added CI spend; this Mac as a self-hosted Actions runner. Storage/Xcode/Metal ready; first CI build and Intel runtime validation pending |
+| Build machines | No added CI spend; this Mac as a self-hosted Actions runner. Arm64 CI build and headless smoke test passed; Intel build/runtime pending |
 | Signing | Developer ID and Sparkle keys in local Keychain; notarization setup pending |
 | Domain and hosting | `lune.computer`; Cloudflare website, services host undecided |
 | Minimum macOS version | Derive from selected source/toolchain and test matrix |

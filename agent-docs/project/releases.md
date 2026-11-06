@@ -41,10 +41,10 @@ the same locked candidate, without reusing a published build number.
 
 The owner requires no additional CI spend. Start with this Mac as a self-hosted
 GitHub Actions runner and keep download/compiler caches on local disk. The manual development browser workflow exists; storage/Xcode/Metal preflight
-passes. Runner job pickup and source download are verified; first compilation remains
-to be validated.
-Measure storage, memory, build duration, and cost before promising a daily cadence;
-this research did not benchmark hardware. Pin Xcode/SDK, compilers, Python,
+passes. The first arm64 build and headless runtime smoke test passed, with
+compilation/linking taking 2h21m29s on this Mac; see [build evidence](builds/2026-11-05-arm64.md).
+Continue measuring storage, memory, build duration, and cost before promising a daily cadence;
+one successful development run does not establish unattended release reliability. Pin Xcode/SDK, compilers, Python,
 Sparkle, source archives, and relevant build tools. Namespace caches by toolchain,
 architecture, flags, and source inputs, and periodically verify clean builds.
 
