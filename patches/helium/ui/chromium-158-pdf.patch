@@ -1,0 +1,41 @@
+--- a/chrome/browser/resources/pdf/pdf_viewer.ts
++++ b/chrome/browser/resources/pdf/pdf_viewer.ts
+@@ -6,7 +6,6 @@
+ // <if expr="enable_pdf_ink2">
+ import 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
+ // </if>
+-import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+ import './elements/viewer_error_dialog.js';
+ import './elements/viewer_password_dialog.js';
+ // <if expr="enable_pdf_ink2">
+@@ -27,7 +26,6 @@
+ import './elements/viewer_toolbar.js';
+ 
+ import {PdfHelpBubbleProxyImpl} from 'chrome://resources/cr_components/help_bubble/pdf_help_bubble_proxy.js';
+-import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+ import {assert, assertNotReached, assertNotReachedCase} from 'chrome://resources/js/assert.js';
+ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+ import type {LoadTimeDataRaw} from 'chrome://resources/js/load_time_data.js';
+@@ -242,7 +240,6 @@
+     scroller: HTMLElement,
+     sizer: HTMLElement,
+     toolbar: ViewerToolbarElement,
+-    searchifyProgress: CrToastElement,
+   };
+ }
+ 
+@@ -1220,13 +1217,7 @@
+         this.hasSearchifyText_ = true;
+         return;
+       case 'showSearchifyInProgress':
+-        if ((data as unknown as {
+-              show: boolean,
+-            }).show) {
+-          this.$.searchifyProgress.show();
+-        } else {
+-          this.$.searchifyProgress.hide();
+-        }
++        // OCR is disabled; its progress UI is omitted by disable-ai.patch.
+         return;
+       // <if expr="enable_pdf_ink2">
+       case 'startInkStroke':
