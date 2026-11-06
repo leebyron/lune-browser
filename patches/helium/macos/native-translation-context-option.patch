@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -6042,6 +6042,9 @@ are declared in tools/grit/grit_args.gni
+@@ -6051,6 +6051,9 @@
          <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_POLICY_LABEL_INSTALLED_TEXT" desc="The text in the card that shows up on mouse hover of a toolbar action when extension was installed by the administrator.">
            Installed by your administrator
          </message>
@@ -12,7 +12,7 @@
              Site permissions
 --- a/chrome/browser/ui/cocoa/BUILD.gn
 +++ b/chrome/browser/ui/cocoa/BUILD.gn
-@@ -110,6 +110,10 @@ source_set("cocoa") {
+@@ -110,6 +110,10 @@
      "main_menu_item.h",
      "profiles/profile_menu_controller.mm",
      "renderer_context_menu/chrome_swizzle_services_menu_updater.mm",
@@ -23,7 +23,7 @@
      "renderer_context_menu/render_view_context_menu_mac.mm",
      "renderer_context_menu/render_view_context_menu_mac_cocoa.mm",
      "renderer_context_menu/render_view_context_menu_mac_remote_cocoa.mm",
-@@ -162,10 +166,12 @@ source_set("cocoa") {
+@@ -162,10 +166,12 @@
      "//chrome/browser/profiles:profile_manager",
      "//chrome/browser/profiles:profile_util",
      "//chrome/browser/profiles/keep_alive",
@@ -36,7 +36,7 @@
      "//chrome/browser/ui:accelerator_utils_headers",
      "//chrome/browser/ui:browser_command_controller",
      "//chrome/browser/ui:browser_commands",
-@@ -204,7 +210,9 @@ source_set("cocoa") {
+@@ -204,7 +210,9 @@
      "//components/startup_metric_utils",
      "//components/tab_groups",
      "//components/tabs:impl",
@@ -518,7 +518,7 @@
 +@end
 --- a/chrome/app/chrome_command_ids.h
 +++ b/chrome/app/chrome_command_ids.h
-@@ -408,6 +408,7 @@
+@@ -399,6 +399,7 @@
  #define IDC_CONTENT_CONTEXT_USE_PASSKEY_FROM_ANOTHER_DEVICE 50194
  // Listen to this page context menu.
  #define IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE 50195
@@ -528,64 +528,64 @@
  // Context menu items that provide fast access to input methods.
 --- a/chrome/browser/ui/actions/chrome_action_id.h
 +++ b/chrome/browser/ui/actions/chrome_action_id.h
-@@ -297,6 +297,8 @@
-     IDC_CONTENT_CONTEXT_REMOVELINKTOTEXT) \
-   /* Other items. */ \
-   E(kActionContentContextTranslate, IDC_CONTENT_CONTEXT_TRANSLATE) \
+@@ -239,6 +239,8 @@
+     IDC_CONTENT_CONTEXT_ASK_GOOGLE_ABOUT_THIS_PAGE) \
+   E(kActionAiMode) \
+   E(kActionLensOverlayHomework) \
 +  E(kActionContentContextSystemTranslate, \
 +    IDC_CONTENT_CONTEXT_SYSTEM_TRANSLATE) \
-   E(kActionContentContextInspectElement, IDC_CONTENT_CONTEXT_INSPECTELEMENT) \
-   E(kActionContentContextLanguageSettings, \
-     IDC_CONTENT_CONTEXT_LANGUAGE_SETTINGS) \
+   /* Context menu items in the status tray */ \
+   E(kActionStatusTrayKeepChromeRunningInBackground, \
+     IDC_STATUS_TRAY_KEEP_CHROME_RUNNING_IN_BACKGROUND) \
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
-@@ -677,13 +677,14 @@ int UmaEnumForCommand(int key, UmaEnumId
-        {IDC_CONTENT_CONTEXT_CONTEXTUAL_TASKS_SUBMENU, 171},
+@@ -688,13 +688,14 @@
         {IDC_CONTENT_CONTEXT_GLIC_SMART_SUGGESTION, 172},
-        {IDC_CONTENT_CONTEXT_FORCE_PASTE, 173},
-+       {IDC_CONTENT_CONTEXT_SYSTEM_TRANSLATE, 174},
+        {IDC_CONTENT_CONTEXT_INDIGO, 173},
+        {IDC_CONTENT_CONTEXT_FORCE_PASTE, 174},
++       {IDC_CONTENT_CONTEXT_SYSTEM_TRANSLATE, 175},
         // To add new items:
         //   - Add one more line above this comment block, using the UMA value
         //     from the line below this comment block.
         //   - Increment the UMA value in that latter line.
         //   - Add the new item to the RenderViewContextMenuItem enum in
         //     tools/metrics/histograms/metadata/ui/enums.xml.
--       {kUmaMaxValueKey, 174}});
-+       {kUmaMaxValueKey, 175}});
+-       {kUmaMaxValueKey, 175}});
++       {kUmaMaxValueKey, 176}});
    // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:RenderViewContextMenuItem)
  
    // LINT.IfChange(ContextMenuOptionDesktop)
-@@ -725,13 +726,14 @@ int UmaEnumForCommand(int key, UmaEnumId
-        {IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY, 33},
+@@ -737,13 +738,14 @@
         {IDC_CONTENT_CONTEXT_OPENLINK_ISOLATED, 34},
         {IDC_CONTENT_CONTEXT_ASK_GOOGLE_ABOUT_THIS_PAGE, 35},
-+       {IDC_CONTENT_CONTEXT_SYSTEM_TRANSLATE, 36},
+        {IDC_CONTENT_CONTEXT_INDIGO, 36},
++       {IDC_CONTENT_CONTEXT_SYSTEM_TRANSLATE, 37},
         // To add new items:
         //   - Add one more line above this comment block, using the UMA value
         //     from the line below this comment block.
         //   - Increment the UMA value in that latter line.
         //   - Add the new item to the ContextMenuOptionDesktop enum in
         //     tools/metrics/histograms/metadata/ui/enums.xml.
--       {kUmaMaxValueKey, 36}});
-+       {kUmaMaxValueKey, 37}});
+-       {kUmaMaxValueKey, 37}});
++       {kUmaMaxValueKey, 38}});
    // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:ContextMenuOptionDesktop)
  
    switch (type) {
 --- a/tools/metrics/histograms/metadata/ui/enums.xml
 +++ b/tools/metrics/histograms/metadata/ui/enums.xml
-@@ -81,6 +81,7 @@ chromium-metrics-reviews@google.com.
-   <int value="33" label="Remove from dictionary"/>
+@@ -82,6 +82,7 @@
    <int value="34" label="Open link in isolated window"/>
    <int value="35" label="Ask Google about this page"/>
-+  <int value="36" label="Translate with macOS system translation"/>
+   <int value="36" label="Try it on (Indigo)"/>
++  <int value="37" label="Translate with macOS system translation"/>
  </enum>
  
  <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:ContextMenuOptionDesktop) -->
-@@ -443,6 +444,7 @@ chromium-metrics-reviews@google.com.
-   <int value="171" label="IDC_CONTENT_CONTEXT_CONTEXTUAL_TASKS_SUBMENU"/>
+@@ -453,6 +454,7 @@
    <int value="172" label="IDC_CONTENT_CONTEXT_GLIC_SMART_SUGGESTION"/>
-   <int value="173" label="IDC_CONTENT_CONTEXT_FORCE_PASTE"/>
-+  <int value="174" label="IDC_CONTENT_CONTEXT_SYSTEM_TRANSLATE"/>
+   <int value="173" label="IDC_CONTENT_CONTEXT_INDIGO"/>
+   <int value="174" label="IDC_CONTENT_CONTEXT_FORCE_PASTE"/>
++  <int value="175" label="IDC_CONTENT_CONTEXT_SYSTEM_TRANSLATE"/>
  </enum>
  
  <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:RenderViewContextMenuItem) -->
@@ -600,7 +600,7 @@
  #include "chrome/browser/renderer_context_menu/render_view_context_menu.h"
  #include "ui/menus/cocoa/text_services_context_menu.h"
  
-@@ -30,6 +32,7 @@ class RenderViewContextMenuMac : public
+@@ -30,6 +32,7 @@
  
    // SimpleMenuModel::Delegate:
    bool IsCommandIdChecked(int command_id) const override;
@@ -608,7 +608,7 @@
    bool IsCommandIdEnabled(int command_id) const override;
  
    // TextServicesContextMenu::Delegate:
-@@ -65,6 +68,14 @@ class RenderViewContextMenuMac : public
+@@ -65,6 +68,14 @@
    // Handler for the "Remove from Dictionary" menu item.
    void RemoveFromDictionary();
  
@@ -623,7 +623,7 @@
    // Returns the ContextMenuParams value associated with |direction|.
    int ParamsForTextDirection(base::i18n::TextDirection direction) const;
  
-@@ -74,6 +85,8 @@ class RenderViewContextMenuMac : public
+@@ -74,6 +85,8 @@
    // The word under the cursor that the user has manually added to their
    // dictionary. This will be empty if the word is not in the user dictionary.
    std::u16string user_added_word_;
@@ -634,7 +634,7 @@
  #endif  // CHROME_BROWSER_UI_COCOA_RENDERER_CONTEXT_MENU_RENDER_VIEW_CONTEXT_MENU_MAC_H_
 --- a/components/translate/core/browser/translate_manager.cc
 +++ b/components/translate/core/browser/translate_manager.cc
-@@ -298,6 +298,7 @@ bool TranslateManager::CanPartiallyTrans
+@@ -298,6 +298,7 @@
        target_lang);
  }
  
@@ -644,7 +644,7 @@
      return false;
 --- a/components/translate/core/browser/translate_manager.h
 +++ b/components/translate/core/browser/translate_manager.h
-@@ -148,7 +148,7 @@ class TranslateManager {
+@@ -148,7 +148,7 @@
    // but shares a target language with full page translation.
    bool CanPartiallyTranslateTargetLanguage();
  
@@ -684,7 +684,7 @@
  #include "third_party/blink/public/common/context_menu_data/context_menu_data.h"
  #include "ui/base/l10n/l10n_util.h"
  #include "ui/base/resource/resource_bundle.h"
-@@ -109,6 +118,9 @@ bool RenderViewContextMenuMac::ExecPlatf
+@@ -109,6 +118,9 @@
      case IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY:
        RemoveFromDictionary();
        return true;
@@ -694,7 +694,7 @@
      default:
        return false;
    }
-@@ -124,9 +136,21 @@ bool RenderViewContextMenuMac::IsCommand
+@@ -124,9 +136,21 @@
      return false;
    }
  
@@ -716,7 +716,7 @@
  bool RenderViewContextMenuMac::IsCommandIdEnabled(int command_id) const {
    if (text_services_context_menu_.SupportsCommand(command_id)) {
      return text_services_context_menu_.IsCommandIdEnabled(command_id);
-@@ -137,6 +161,8 @@ bool RenderViewContextMenuMac::IsCommand
+@@ -137,6 +161,8 @@
        return true;
      case IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY:
        return !user_added_word_.empty();
@@ -725,7 +725,7 @@
      default:
        return RenderViewContextMenu::IsCommandIdEnabled(command_id);
    }
-@@ -218,6 +244,20 @@ void RenderViewContextMenuMac::InitToolk
+@@ -218,6 +244,20 @@
          index++, IDC_CONTENT_CONTEXT_LOOK_UP,
          l10n_util::GetStringFUTF16(IDS_CONTENT_CONTEXT_LOOK_UP,
                                     printable_selection_text));
@@ -746,7 +746,7 @@
      menu_model_.InsertSeparatorAt(index++, ui::NORMAL_SEPARATOR);
    }
  
-@@ -247,6 +287,69 @@ void RenderViewContextMenuMac::RemoveFro
+@@ -247,6 +287,69 @@
                                    user_added_word_);
  }
  

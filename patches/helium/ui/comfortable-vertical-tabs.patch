@@ -12,9 +12,9 @@
      case LayoutConstant::kVerticalTabMinWidth:
        return 30;
      case LayoutConstant::kVerticalTabStripHorizontalPadding:
---- a/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc
-+++ b/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc
-@@ -28,9 +28,12 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
+@@ -21,9 +21,12 @@
  constexpr int kTabVerticalPadding = 2;
  constexpr int kGroupLineWidth = 2;
  constexpr int kGroupLineCollapsedLeadingPadding = 2;
@@ -27,8 +27,17 @@
 +}
  }  // namespace
  
- TabGroupViewLayout::TabGroupViewLayout(TabStripOrientation orientation)
-@@ -106,7 +109,7 @@
+ TabGroupViewVerticalLayout::TabGroupViewVerticalLayout() = default;
+@@ -60,7 +63,7 @@
+       gfx::Rect unfocus_bounds;
+       unfocus_bounds.set_x(header_bounds.x());
+       unfocus_bounds.set_y(height);
+-      unfocus_bounds.set_height(kGroupHeaderHeight);
++      unfocus_bounds.set_height(GetGroupHeaderHeight());
+       if (size_bounds.width().is_bounded()) {
+         unfocus_bounds.set_width(size_bounds.width().value() -
+                                  unfocus_bounds.x());
+@@ -76,7 +79,7 @@
    }
  
    header_bounds.set_y(height);

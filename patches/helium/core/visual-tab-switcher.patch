@@ -1,6 +1,6 @@
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -327,6 +327,10 @@
+@@ -328,6 +328,10 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kTabCyclingMRU] =
        settings_api::PrefType::kBoolean;
@@ -37,7 +37,7 @@
  // menu handlers and show the browser context menu.
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
-@@ -4574,6 +4574,14 @@
+@@ -4630,6 +4630,14 @@
    mru_cycle_list_.clear();
  }
  
@@ -52,8 +52,8 @@
  void TabStripModel::SelectRelativeTab(TabRelativeDirection direction,
                                        TabStripUserGestureDetails detail) {
    // This may happen during automated testing or if a user somehow buffers
-@@ -4590,27 +4598,14 @@
-   // fallback on activating the active tab.
+@@ -4648,27 +4656,14 @@
+   // confident it won't be triggered.
    DCHECK(!start_group.has_value() || !IsGroupCollapsed(start_group.value()));
  
 -  std::optional<tab_groups::TabGroupId> focused_group = GetFocusedGroup();

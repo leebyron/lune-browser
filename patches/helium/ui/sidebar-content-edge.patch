@@ -52,14 +52,12 @@
  
 -void ContentsContainerOutline::SetContentInset(int inset) {
 -  if (content_inset_ == inset) {
--    return;
--  }
--  content_inset_ = inset;
 +void ContentsContainerOutline::SetContentInsets(
 +    std::optional<gfx::Insets> insets) {
 +  if (content_insets_ == insets) {
-+    return;
-+  }
+     return;
+   }
+-  content_inset_ = inset;
 +  content_insets_ = insets;
    SchedulePaint();
  }
@@ -135,7 +133,7 @@
    bool round_bottom_left_window_corner_ = false;
 --- a/chrome/browser/ui/views/frame/contents_container_view.cc
 +++ b/chrome/browser/ui/views/frame/contents_container_view.cc
-@@ -225,7 +225,7 @@
+@@ -222,7 +222,7 @@
  
    if (!should_round_contents) {
      if (split_changed || rounded_contents_changed) {
@@ -144,7 +142,7 @@
        UpdateBorderRoundedCorners();
  
        container_outline_->SetVisible(false);
-@@ -234,15 +234,8 @@
+@@ -231,15 +231,8 @@
        }
      }
    } else {
@@ -161,7 +159,7 @@
      }
      if (split_changed || rounded_contents_changed || corner_state_changed ||
          native_materials_changed) {
-@@ -351,6 +344,60 @@
+@@ -348,6 +341,60 @@
    }
  }
  
@@ -222,7 +220,7 @@
  void ContentsContainerView::UpdateBorderRoundedCorners() {
    if (!should_round_contents_) {
      SetBorderRoundedCornersFrom(rounded_corner_radii_);
-@@ -369,44 +416,66 @@
+@@ -366,44 +413,66 @@
    const int upper_right_radius =
        round_top_right_window_corner_ ? frame_radius : generic_radius;
  
@@ -375,7 +373,7 @@
      return;
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -33,6 +33,7 @@
+@@ -34,6 +34,7 @@
  #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
  #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -383,7 +381,7 @@
  #include "chrome/browser/ui/views/frame/custom_corners.h"
  #include "chrome/browser/ui/views/frame/custom_corners_background.h"
  #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
-@@ -946,6 +947,31 @@
+@@ -959,6 +960,31 @@
    const bool infobar_visible = delegate().IsInfobarVisible();
    const bool should_use_rounded_frame =
        views().multi_contents_view->ShouldUseRoundedFrame();
@@ -415,7 +413,7 @@
    const BrowserLayoutParams top_container_parent_params = params;
    const bool vertical_right_aligned =
        delegate().IsVerticalTabStripRightAligned();
-@@ -1050,6 +1076,15 @@
+@@ -1063,6 +1089,15 @@
          last_vertical_tab_strip_width_ = vertical_tab_strip_width;
        }
  
@@ -431,10 +429,10 @@
        const int vertical_tab_strip_x =
            vertical_right_aligned
                ? params.visual_client_area.right() -
-@@ -1121,13 +1156,17 @@
-                 TabStripAnimations::kCollapse;
+@@ -1130,13 +1165,17 @@
          clip_content_for_animation =
-             clip_content_for_animation || vertical_tab_strip_resize_animation;
+             clip_content_for_animation ||
+             vertical_tab_strip_animation.is_expanding_or_collapsing();
 -        InsetHorizontal(unclipped_contents_region,
 -                        tabs::kVerticalTabStripCollapsedWidth,
 -                        !vertical_right_aligned);
@@ -455,11 +453,10 @@
        }
      }
      layout.AddChild(views().vertical_tab_strip_region_view,
-@@ -1398,6 +1437,14 @@
-       leading_vertical_tab_strip_attached = true;
+@@ -1408,6 +1447,14 @@
      }
    }
-+
+ 
 +  views().multi_contents_view->SetVerticalTabStripAttachment(
 +      leading_vertical_tab_strip_attached &&
 +          vertical_tab_strip_content_frame_thickness > 0,
@@ -467,6 +464,7 @@
 +          vertical_tab_strip_content_frame_thickness > 0);
 +  views().multi_contents_view->SetTopChromeAttachment(
 +      top_chrome_content_frame_thickness > 0);
- 
++
    // Lay out infobar container.
    if (IsParentedTo(views().infobar_container, views().browser_view)) {
+     views().infobar_container->SetRoundedFrameState(

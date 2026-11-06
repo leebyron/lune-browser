@@ -1,18 +1,18 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -332,6 +332,9 @@
-     </message>
+@@ -390,6 +390,9 @@
      <message name="IDS_SETTINGS_ZEN_PIN_SIDEBAR" desc="Description for the toggle to pin the sidebar (vertical tab strip) when in Zen mode.">
        Always show the sidebar
-+    </message>
+     </message>
 +    <message name="IDS_SETTINGS_ZEN_ADDRESS_BAR_IN_SIDEBAR" desc="Label for the toggle that places the address bar and navigation controls inside the vertical sidebar.">
 +      Show address bar in sidebar
-     </message>
++    </message>
      <message name="IDS_SETTINGS_ZEN_PIN_TOP_TOOLBAR" desc="Description for the toggle to pin the top bar when in Zen mode.">
        Always show the top bar
+     </message>
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -622,6 +622,7 @@
+@@ -640,6 +640,7 @@
        {"browserZenMode", IDS_SETTINGS_BROWSER_ZEN_MODE},
        {"browserZenModeDescription", IDS_SETTINGS_BROWSER_ZEN_MODE_DESCRIPTION},
        {"zenModePinSidebar", IDS_SETTINGS_ZEN_PIN_SIDEBAR},
@@ -22,18 +22,18 @@
        {"verticalCollapseShortcut", IDS_SETTINGS_VERTICAL_COLLAPSE_SHORTCUT},
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -644,6 +644,11 @@
- // A boolean pref set to true if the top toolbar is pinned in zen mode.
+@@ -645,6 +645,11 @@
  inline constexpr char kHeliumZenModeTopChromePinned[] =
      "helium.browser.zen_mode_top_chrome_pinned";
-+
+ 
 +// A boolean pref set to true if the address bar and navigation buttons are
 +// embedded in the vertical sidebar.
 +inline constexpr char kHeliumVerticalAddressBarInSidebar[] =
 +    "helium.browser.vertical_address_bar_in_sidebar";
- 
++
  // A boolean pref set to true if the address bar should be centered.
  // When false, the address bar uses the full available width.
+ inline constexpr char kHeliumCenteredLocationBar[] =
 --- a/chrome/browser/ui/tabs/tab_strip_prefs.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_prefs.cc
 @@ -40,6 +40,8 @@
@@ -47,7 +47,7 @@
  void MigrateHoverCardMemoryPref(PrefService* local_prefs) {
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -225,6 +225,8 @@
+@@ -226,6 +226,8 @@
    (*s_allowlist)[::prefs::kHeliumLayout] = settings_api::PrefType::kNumber;
    (*s_allowlist)[::prefs::kHeliumVerticalRightAligned] =
        settings_api::PrefType::kBoolean;
@@ -125,7 +125,7 @@
    if (!delegate_) {
      return;
    }
-@@ -415,6 +419,13 @@
+@@ -414,6 +418,13 @@
    }
  }
  
@@ -141,7 +141,7 @@
  void VerticalTabStripStateControllerImpl::MaybeShowDelayedToast(
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
-@@ -741,6 +741,12 @@
+@@ -757,6 +757,12 @@
        ToggleVerticalTabs(browser_);
        break;
      case IDC_TOGGLE_VERTICAL_TABS_COLLAPSE:
@@ -619,16 +619,16 @@
  class ShadowFrameView;
  
  namespace tabs {
-@@ -76,6 +78,9 @@
-   VerticalTabStripBottomContainer* GetBottomContainer() {
+@@ -77,6 +79,9 @@
      return bottom_button_container_;
    }
-+
+ 
 +  LocationBarView* GetLocationBarView() const;
 +  VerticalTabStripHeaderView* header_view() const { return header_view_; }
- 
++
    bool IsPositionInWindowCaption(const gfx::Point& point) override;
  
+   void SetHasLeadingExclusionForLayout(bool has_leading_exclusion);
 @@ -236,6 +241,7 @@
    // Padding around the content area, set by UpdateInteriorMargin().
    gfx::Insets interior_margin_;
@@ -639,7 +639,7 @@
    raw_ptr<views::ResizeArea> resize_area_ = nullptr;
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-@@ -55,6 +55,7 @@
+@@ -56,6 +56,7 @@
  #include "chrome/browser/ui/views/tabs/shared/drop_arrow.h"
  #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
  #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_focus_swipe_controller.h"
@@ -647,7 +647,7 @@
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/grit/generated_resources.h"
  #include "components/tabs/public/tab_group.h"
-@@ -153,6 +154,9 @@
+@@ -154,6 +155,9 @@
    content_area_view_->SetPaintToLayer();
    content_area_view_->layer()->SetFillsBoundsOpaquely(false);
  
@@ -657,20 +657,21 @@
    // --------------
    // Views that go into the content area below
  
-@@ -301,6 +305,12 @@
+@@ -302,6 +306,13 @@
      return false;
    }
  
-+  if (IsHitInView(header_view_, point)) {
++  if (content_area_view_->GetVisible() && header_view_->GetVisible() &&
++      IsHitInView(header_view_, point)) {
 +    gfx::Point point_in_header = point;
 +    views::View::ConvertPointToTarget(this, header_view_, &point_in_header);
 +    return header_view_->IsPositionInWindowCaption(point_in_header);
 +  }
 +
-   if (IsHitInView(bottom_button_container_, point)) {
+   if (content_area_view_->GetVisible() &&
+       IsHitInView(bottom_button_container_, point)) {
      gfx::Point point_in_child = point;
-     views::View::ConvertPointToTarget(this, bottom_button_container_,
-@@ -494,9 +504,13 @@
+@@ -512,9 +523,13 @@
  
  gfx::Size VerticalTabStripRegionView::GetMinimumSize() const {
    auto min_size = BaseTabStripRegionView::GetMinimumSize();
@@ -685,7 +686,7 @@
    return min_size;
  }
  
-@@ -507,9 +521,13 @@
+@@ -525,9 +540,13 @@
        BrowserAnimationController::From(browser_view()->browser());
    const auto motion =
        controller->GetCurrentMotion(TabStripAnimations::kVerticalTabStrip);
@@ -701,7 +702,7 @@
    const double expand_percent =
        *controller->GetCurrentValue(TabStripAnimations::kVerticalTabStrip,
                                     TabStripAnimations::kTabStripWidth);
-@@ -716,14 +734,20 @@
+@@ -737,14 +756,20 @@
      state_controller_->SetIsResizing(false);
    }
  
@@ -726,7 +727,7 @@
      if (std::abs(new_state.uncollapsed_width -
                   tabs::kVerticalTabStripDefaultUncollapsedWidth) <
          kSnapDistance) {
-@@ -917,6 +941,10 @@
+@@ -939,6 +964,10 @@
    // the collapsing state.
    bool collapsed = state != tabs::VerticalTabStripCollapseState::kExpanded;
  
@@ -737,7 +738,7 @@
    UpdateResizeAreaVisibility();
  
    resize_area_width_ = collapsed ? kCollapsedResizeAreaWidth : kResizeAreaWidth;
-@@ -1235,5 +1263,9 @@
+@@ -1257,5 +1286,9 @@
    }
  }
  
@@ -770,7 +771,7 @@
  }  // namespace views
  
  ///////////////////////////////////////////////////////////////////////////////
-@@ -440,6 +443,13 @@
+@@ -444,6 +447,13 @@
    float GetSideChromeRevealRatio() const;
    bool IsZenModeSideChromePinned() const;
    bool IsZenModeTopChromePinned() const;
@@ -784,7 +785,7 @@
  
    // Toggles the side chrome (VTS) visibility in zen mode.
    void ToggleZenModeSideChrome();
-@@ -963,12 +973,14 @@
+@@ -970,12 +980,14 @@
    void UpdateZenModeRevealFromCursor();
    void UpdateZenModeReveal(bool reveal_top, bool reveal_side);
    void RevealZenModeTopChromeImmediately();
@@ -799,7 +800,7 @@
    bool GetCursorLocationInBrowserView(gfx::Point* cursor_location) const;
  
    // Callback for the loading animation(s) associated with this view.
-@@ -1502,6 +1514,7 @@
+@@ -1509,6 +1521,7 @@
    bool zen_mode_enabled_ = false;
    // Ignore hover changes during native macOS fullscreen transitions.
    bool zen_reveal_paused_ = false;
@@ -809,7 +810,7 @@
  };
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -229,6 +229,7 @@
+@@ -231,6 +231,7 @@
  #include "chrome/browser/ui/views/tabs/tab.h"
  #include "chrome/browser/ui/views/tabs/tab/tab_accessibility.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -817,7 +818,7 @@
  #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
  #include "chrome/browser/ui/views/theme_copying_widget.h"
  #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
-@@ -362,6 +363,7 @@
+@@ -363,6 +364,7 @@
  #include "ui/views/accessibility/view_accessibility.h"
  #include "ui/views/accessibility/view_accessibility_utils.h"
  #include "ui/views/animation/compositor_animation_runner.h"
@@ -825,7 +826,7 @@
  #include "ui/views/bubble/bubble_dialog_delegate_view.h"
  #include "ui/views/controls/button/menu_button.h"
  #include "ui/views/controls/textfield/textfield.h"
-@@ -441,6 +443,7 @@
+@@ -444,6 +446,7 @@
  // treated as clicks to the frame, rather than clicks to the tab.
  const int kTabShadowSize = 2;
  constexpr int kZenModeRevealTriggerThickness = 6;
@@ -833,7 +834,7 @@
  constexpr int kZenModeChromeHoverLeeway = 8;
  constexpr base::TimeDelta kZenModeRevealAnimationDuration =
      base::Milliseconds(200);
-@@ -1220,6 +1223,10 @@
+@@ -1232,6 +1235,10 @@
  }
  
  BrowserView::~BrowserView() {
@@ -844,7 +845,7 @@
    if (browser_shortcut_service_) {
      browser_shortcut_service_->RemoveObserver(this);
      browser_shortcut_service_ = nullptr;
-@@ -1740,6 +1747,72 @@
+@@ -1756,6 +1763,72 @@
                                    prefs::kHeliumZenModeTopChromePinned);
  }
  
@@ -917,24 +918,12 @@
  void BrowserView::ToggleZenModeSideChrome() {
    if (!IsZenModeEnabled() || !ShouldDrawVerticalTabStrip()) {
      return;
-@@ -1818,26 +1891,52 @@
+@@ -1834,26 +1907,52 @@
  
  void BrowserView::OnToolbarTabStripStateChanged(
      HeliumLayoutStateController* controller) {
 -  if (!horizontal_tab_strip_region_view_) {
 -    return;
--  }
--
--  if (controller && controller->IsCompactLayout() && GetIsNormalType()) {
--    toolbar_->AttachTabStripRegionView(horizontal_tab_strip_region_view_);
--  } else if (horizontal_tab_strip_region_view_->parent() != this) {
--    if (horizontal_tab_strip_region_insertion_index_) {
--      AddChildViewAt(horizontal_tab_strip_region_view_.get(),
--                     horizontal_tab_strip_region_insertion_index_.value());
--    } else {
--      AddChildView(horizontal_tab_strip_region_view_.get());
--    }
--    horizontal_tab_strip_region_view_->DestroyLayer();
 +  if (horizontal_tab_strip_region_view_) {
 +    if (controller && controller->IsCompactLayout() && GetIsNormalType()) {
 +      toolbar_->AttachTabStripRegionView(horizontal_tab_strip_region_view_);
@@ -947,8 +936,16 @@
 +      }
 +      horizontal_tab_strip_region_view_->DestroyLayer();
 +    }
-+  }
-+
+   }
+ 
+-  if (controller && controller->IsCompactLayout() && GetIsNormalType()) {
+-    toolbar_->AttachTabStripRegionView(horizontal_tab_strip_region_view_);
+-  } else if (horizontal_tab_strip_region_view_->parent() != this) {
+-    if (horizontal_tab_strip_region_insertion_index_) {
+-      AddChildViewAt(horizontal_tab_strip_region_view_.get(),
+-                     horizontal_tab_strip_region_insertion_index_.value());
+-    } else {
+-      AddChildView(horizontal_tab_strip_region_view_.get());
 +  if (controller && controller->IsVerticalAddressBarInSidebar()) {
 +    auto* vertical_tabs_controller =
 +        tabs::VerticalTabStripStateController::From(browser_);
@@ -973,7 +970,8 @@
 +    }
 +    if (toolbar_) {
 +      toolbar_->RestoreToolbarControls();
-+    }
+     }
+-    horizontal_tab_strip_region_view_->DestroyLayer();
    }
  
    if (toolbar_) {
@@ -984,7 +982,7 @@
    UpdateZenModeState();
    UpdateTabSearchBubbleHost();
    InvalidateLayout();
-@@ -1930,13 +2029,23 @@
+@@ -1946,13 +2045,23 @@
      // Unpinned chrome should slide out from its current position.
      if (IsZenModeSideChromePinned()) {
        zen_side_chrome_animation_.Reset(1);
@@ -994,9 +992,6 @@
  
      if (IsZenModeTopChromePinned()) {
        zen_top_chrome_animation_.Reset(1);
--    }
--
--    UpdateZenModeReveal(/*reveal_top=*/false, /*reveal_side=*/false);
 +      if (auto* frame_view = GetFrameView()) {
 +        frame_view->SetCaptionButtonsOpacity(1.0f);
 +      }
@@ -1005,13 +1000,14 @@
 +      if (auto* frame_view = GetFrameView()) {
 +        frame_view->SetCaptionButtonsOpacity(0.0f);
 +      }
-+    }
-+
+     }
+ 
+-    UpdateZenModeReveal(/*reveal_top=*/false, /*reveal_side=*/false);
 +    UpdateZenModeRevealFromCursor();
    }
  
    UpdateZenModeExpandOnHoverLock();
-@@ -1957,6 +2066,7 @@
+@@ -1973,6 +2082,7 @@
    if (multi_contents_view_) {
      multi_contents_view_->MaybeUpdateContentsBorderAndOverlay();
    }
@@ -1019,7 +1015,7 @@
  }
  
  void BrowserView::UpdateZenModeEventMonitor() {
-@@ -2014,6 +2124,9 @@
+@@ -2030,6 +2140,9 @@
    zen_hover_bounds.Outset(gfx::Outsets::VH(0, kZenModeRevealTriggerThickness));
    if (!GetCursorLocationInBrowserView(&cursor) ||
        !zen_hover_bounds.Contains(cursor)) {
@@ -1029,7 +1025,7 @@
      zen_last_cursor_.reset();
      StartZenCollapseTimer(kZenModeCursorExitGracePeriod);
      return;
-@@ -2039,6 +2152,22 @@
+@@ -2055,6 +2168,22 @@
    // Defer the collapse briefly so quick excursions don't cause the
    // chrome to snap closed.
    if (!reveal_top && !reveal_side) {
@@ -1052,7 +1048,7 @@
      StartZenCollapseTimer(kZenModeHoverExitGracePeriod);
      return;
    }
-@@ -2067,7 +2196,8 @@
+@@ -2083,7 +2212,8 @@
    }
  
    // Keep the top chrome visible while the omnibox is focused.
@@ -1062,7 +1058,7 @@
                                 toolbar_->location_bar_view()->HasFocus();
    if (omnibox_focused) {
      reveal_top = true;
-@@ -2081,13 +2211,34 @@
+@@ -2097,16 +2227,37 @@
  
    // Menus are not BubbleDialogDelegate widgets, so handle the app menu
    // explicitly.
@@ -1081,9 +1077,9 @@
 +      reveal_side = true;
 +    } else {
        reveal_top = true;
-+    }
-+  }
-+
+     }
+   }
+ 
 +  // Keep the sidebar visible while a bubble/popup anchored inside the sidebar
 +  // is open, or when the omnibox/sidebar controls have focus.
 +  if (!reveal_side && HasOpenBubbleFromSidebar()) {
@@ -1100,23 +1096,26 @@
 +            GetFocusManager()->GetFocusedView());
 +    if (sidebar_omnibox_focused || focus_in_sidebar) {
 +      reveal_side = true;
-     }
-   }
++    }
++  }
++
+   if (reveal_top) {
+     if (!zen_top_chrome_animation_.IsShowing()) {
+       zen_top_chrome_animation_.Show();
+@@ -2142,6 +2293,12 @@
+   DeprecatedLayoutImmediately();
+ }
  
-@@ -2122,6 +2273,12 @@
-   if (auto* frame_view = GetFrameView()) {
-     frame_view->SetCaptionButtonsOpacity(1.0f);
-   }
++void BrowserView::RevealZenModeSideChromeImmediately() {
++  zen_side_chrome_animation_.Reset(1);
 +  InvalidateLayout();
 +  DeprecatedLayoutImmediately();
 +}
 +
-+void BrowserView::RevealZenModeSideChromeImmediately() {
-+  zen_side_chrome_animation_.Reset(1);
-   InvalidateLayout();
-   DeprecatedLayoutImmediately();
- }
-@@ -2144,7 +2301,10 @@
+ bool BrowserView::IsZenModeEnabled() const {
+   auto* controller = HeliumLayoutStateController::From(browser_);
+   bool allow_fullscreen = false;
+@@ -2160,7 +2317,10 @@
  }
  
  bool BrowserView::IsPointInZenTopTrigger(const gfx::Point& point) const {
@@ -1128,7 +1127,7 @@
  }
  
  bool BrowserView::IsPointInZenSideTrigger(const gfx::Point& point) const {
-@@ -2162,8 +2322,8 @@
+@@ -2178,8 +2338,8 @@
  namespace {
  
  bool IsOpenBubbleAnchoredInViewSubtree(views::Widget* widget,
@@ -1139,7 +1138,7 @@
      return false;
    }
  
-@@ -2211,6 +2371,15 @@
+@@ -2227,6 +2387,15 @@
    if (IsSidePanelOpen(side_panel_)) {
      return true;
    }
@@ -1155,7 +1154,7 @@
    if (!top_container_ || !GetWidget()) {
      return false;
    }
-@@ -2223,9 +2392,35 @@
+@@ -2239,9 +2408,35 @@
    return false;
  }
  
@@ -1192,19 +1191,19 @@
    }
  }
  
-@@ -2237,6 +2432,11 @@
- 
- bool BrowserView::IsPointInZenTopChromeBounds(const gfx::Point& point) const {
+@@ -2255,6 +2450,11 @@
    if (!top_container_ || !top_container_->parent()) {
-+    return false;
-+  }
+     return false;
+   }
 +  if (IsVerticalAddressBarInSidebar() &&
 +      !zen_top_chrome_animation_.IsShowing() &&
 +      zen_top_chrome_animation_.GetCurrentValue() == 0.0f) {
-     return false;
-   }
++    return false;
++  }
    gfx::Rect bounds = views::View::ConvertRectToTarget(
-@@ -3012,6 +3212,10 @@
+       top_container_->parent(), this, top_container_->bounds());
+   // Extend the hit region to always include the full area from the top of
+@@ -3028,6 +3228,10 @@
  }
  
  LocationBar* BrowserView::GetLocationBar() const {
@@ -1215,7 +1214,7 @@
    return toolbar_ ? toolbar_->location_bar() : nullptr;
  }
  
-@@ -3044,16 +3248,22 @@
+@@ -3060,16 +3264,22 @@
      return;
    }
  
@@ -1244,17 +1243,17 @@
  }
  
  void BrowserView::UpdateReloadStopState(bool is_loading, bool force) {
-@@ -3711,6 +3921,9 @@
- bool BrowserView::IsBookmarkBarVisible() const {
-   if (!WindowFeatureController::From(browser_)->SupportsWindowFeature(
+@@ -3730,6 +3940,9 @@
            WindowFeatureController::WindowFeature::kFeatureBookmarkBar)) {
-+    return false;
-+  }
-+  if (IsVerticalAddressBarInSidebar()) {
      return false;
    }
++  if (IsVerticalAddressBarInSidebar()) {
++    return false;
++  }
    if (!bookmark_bar_view_) {
-@@ -4144,6 +4357,10 @@
+     return false;
+   }
+@@ -4162,6 +4375,10 @@
  }
  
  LocationBarView* BrowserView::GetLocationBarView() const {
@@ -1265,7 +1264,7 @@
    return toolbar_ ? toolbar_->location_bar_view() : nullptr;
  }
  
-@@ -6114,7 +6331,7 @@
+@@ -6142,7 +6359,7 @@
  
  bool BrowserView::MaybeShowBookmarkBar(WebContents* contents) {
    const bool show_bookmark_bar =
@@ -1284,18 +1283,18 @@
  
  namespace views {
  class FlexLayout;
-@@ -192,6 +193,10 @@
- 
+@@ -193,6 +194,10 @@
    // Updates the vertical tabs collapse button visibility and icon.
    void UpdateVerticalTabsCollapseButton();
-+
+ 
 +  // Moves toolbar controls into `host`. Passing nullptr restores them.
 +  void SetSidebarControlsHost(VerticalTabStripHeaderView* host);
 +  void RestoreToolbarControls();
- 
++
    // Accessors.
    BrowserWindowInterface* browser() const { return browser_; }
-@@ -579,6 +584,14 @@
+   views::Button* GetChromeLabsButton() const;
+@@ -582,6 +587,14 @@
    bool should_display_vertical_tabs_ = false;
    bool should_show_glic_button_ = false;
    bool should_show_glic_actor_ = false;
@@ -1312,7 +1311,7 @@
  };
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -103,6 +103,7 @@
+@@ -104,6 +104,7 @@
  #include "chrome/browser/ui/views/tabs/glic/glic_and_actor_buttons_container.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
  #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
@@ -1320,7 +1319,7 @@
  #include "chrome/browser/ui/views/toolbar/app_menu.h"
  #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
  #include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
-@@ -409,6 +410,8 @@
+@@ -414,6 +415,8 @@
  }
  
  ToolbarView::~ToolbarView() {
@@ -1329,7 +1328,7 @@
    if (glic_split_button_controller_) {
      glic_split_button_controller_->SetVerticalTabsDelegate(nullptr);
    }
-@@ -1695,19 +1698,27 @@
+@@ -1700,19 +1703,27 @@
        size = location_bar_->PreferredSize();
        break;
      case DisplayMode::kNormal:
@@ -1369,7 +1368,7 @@
    }
    size.set_height(size.height() * size_animation_.GetCurrentValue());
    return size;
-@@ -1723,29 +1734,37 @@
+@@ -1728,29 +1739,37 @@
        size = location_bar_->MinimumSize();
        break;
      case DisplayMode::kNormal:
@@ -1386,6 +1385,15 @@
 -                     GetBackForwardButtonSize(/*minimum_size=*/true).height()) +
 -            layout_manager_->interior_margin().height();
 -        size.SetToMin({size.width(), max_height});
+-      }
+-      // Overflow button must be part of minimum size calculation.
+-      if (overflow_button_ &&
+-          browser_->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL &&
+-          !overflow_button_->GetVisible()) {
+-        const int default_margin =
+-            GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
+-        size.Enlarge(
+-            default_margin + overflow_button_->GetMinimumSize().width(), 0);
 +      if (sidebar_controls_host_) {
 +        const int default_height =
 +            GetLayoutConstant(LayoutConstant::kToolbarButtonHeight) +
@@ -1416,20 +1424,11 @@
 +              default_margin + overflow_button_->GetMinimumSize().width(), 0);
 +        }
        }
--      // Overflow button must be part of minimum size calculation.
--      if (overflow_button_ &&
--          browser_->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL &&
--          !overflow_button_->GetVisible()) {
--        const int default_margin =
--            GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
--        size.Enlarge(
--            default_margin + overflow_button_->GetMinimumSize().width(), 0);
--      }
 +      break;
    }
    size.set_height(size.height() * size_animation_.GetCurrentValue());
    return size;
-@@ -1810,6 +1829,9 @@
+@@ -1815,6 +1834,9 @@
  }
  
  void ToolbarView::VerticalTabsCollapseButtonPressed(const ui::Event& event) {
@@ -1439,7 +1438,7 @@
    auto* controller =
        tabs::VerticalTabStripStateController::From(browser_view_->browser());
    if (!controller) {
-@@ -2240,6 +2262,101 @@
+@@ -2243,6 +2265,101 @@
    InvalidateLayout();
  }
  
@@ -1541,11 +1540,10 @@
  void ToolbarView::UpdateToolbarLayout() {
    if (!location_bar_) {
      return;
-@@ -2247,6 +2364,26 @@
- 
+@@ -2251,6 +2368,26 @@
    UpdateVerticalTabsCollapseButton();
    UpdateDynamicNewTabButton();
-+
+ 
 +  if (sidebar_controls_host_) {
 +    auto hide_if_child = [this](views::View* view) {
 +      if (view && view->parent() == this) {
@@ -1565,10 +1563,11 @@
 +    hide_if_child(overflow_button_);
 +    return;
 +  }
- 
++
    if (vertical_tabs_collapse_button_) {
      const size_t target_index =
-@@ -2340,14 +2477,17 @@
+         IsVerticalLayout() && IsVerticalTabsRightAligned()
+@@ -2343,14 +2480,17 @@
        tabs::VerticalTabStripStateController::From(browser_view_->browser());
    const bool zen_hide = browser_view_->IsZenModeEnabledForLayout() &&
                          !browser_view_->IsZenModeSideChromePinned();
@@ -1587,7 +1586,7 @@
  
    if (!should_show) {
      return;
-@@ -2644,8 +2784,12 @@
+@@ -2647,8 +2787,12 @@
  }
  
  void ToolbarView::OnShowMediaButtonChanged() {
@@ -1604,7 +1603,7 @@
  
 --- a/chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h
 +++ b/chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h
-@@ -52,7 +52,7 @@
+@@ -43,7 +43,7 @@
  
    views::View* main_item() { return main_item_; }
  
@@ -1615,7 +1614,7 @@
    void OnThemeChanged() override;
 --- a/chrome/browser/ui/views/toolbar/app_menu.cc
 +++ b/chrome/browser/ui/views/toolbar/app_menu.cc
-@@ -1034,9 +1034,12 @@
+@@ -1049,9 +1049,12 @@
    UMA_HISTOGRAM_ENUMERATION("WrenchMenu.MenuAction", MENU_ACTION_MENU_OPENED,
                              LIMIT_MENU_ACTION);
  
@@ -1629,7 +1628,7 @@
                            /*native_view_for_gestures=*/gfx::NativeView(),
                            /*corners=*/std::nullopt,
                            "Chrome.AppMenu.MenuHostInitToNextFramePresented");
-@@ -1049,8 +1052,12 @@
+@@ -1064,8 +1067,12 @@
    UMA_HISTOGRAM_ENUMERATION("WrenchMenu.MenuAction", MENU_ACTION_MENU_OPENED,
                              LIMIT_MENU_ACTION);
  
@@ -1703,7 +1702,7 @@
  void ExtensionsToolbarDesktop::UpdateAllIcons() {
    UpdateControlsVisibility();
  
-@@ -688,6 +697,15 @@
+@@ -689,6 +698,15 @@
      // `close_side_panel_button_` exists, or second to last otherwise.
      ReorderChildView(request_access_button_, button_index);
    }
@@ -1719,7 +1718,7 @@
  }
  
  void ExtensionsToolbarDesktop::CreateActionViewForId(
-@@ -933,6 +951,7 @@
+@@ -935,6 +953,7 @@
        current_web_contents ? current_web_contents->GetWeakPtr() : nullptr;
  
    UpdateAllIcons();
@@ -1727,7 +1726,7 @@
    MaybeShowIPH();
  }
  
-@@ -1129,9 +1148,11 @@
+@@ -1131,9 +1150,11 @@
  
  bool ExtensionsToolbarDesktop::ShouldContainerBeVisible() const {
    if (!browser_->GetProfile()->GetPrefs()->GetBoolean(
@@ -1757,7 +1756,7 @@
    bubble_delegate->SetOwnedByWidget(
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view_browsertest.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view_browsertest.cc
-@@ -43,6 +43,7 @@
+@@ -51,6 +51,7 @@
  #include "chrome/grit/generated_resources.h"
  #include "chrome/test/base/in_process_browser_test.h"
  #include "chrome/test/base/ui_test_utils.h"
@@ -1765,7 +1764,7 @@
  #include "components/tab_groups/tab_group_id.h"
  #include "components/tabs/public/tab_group.h"
  #include "content/public/browser/web_contents.h"
-@@ -1608,6 +1609,34 @@
+@@ -1841,6 +1842,34 @@
    EXPECT_LE(current_offset, active_bounds.y());
  }
  
@@ -1816,7 +1815,7 @@
  <!--_html_template_end_-->`;
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -539,7 +539,11 @@
+@@ -528,7 +528,11 @@
  
  source_set("vertical_tab_strip_region_view") {
    public = [ "vertical_tab_strip_region_view.h" ]

@@ -13,7 +13,7 @@
  
  namespace crypto::apple {
  class KeychainV2;
-@@ -36,6 +39,10 @@ class KeychainPassword {
+@@ -36,6 +39,10 @@
    // empty string is returned.
    std::string GetPassword() const;
  
@@ -26,7 +26,7 @@
    static KeychainNameType& GetAccountName();
 --- a/components/os_crypt/common/keychain_password_mac.mm
 +++ b/components/os_crypt/common/keychain_password_mac.mm
-@@ -44,9 +44,8 @@ enum class FindGenericPasswordResult {
+@@ -44,9 +44,8 @@
  };
  
  // Generates a random password and adds it to the Keychain.  The added password
@@ -38,7 +38,7 @@
                                          const std::string& service_name,
                                          const std::string& account_name) {
    // Generate a password with 128 bits of randomness.
-@@ -58,7 +57,7 @@ std::string AddRandomPasswordToKeychain(
+@@ -58,7 +57,7 @@
  
    if (error != noErr) {
      OSSTATUS_DLOG(ERROR, error) << "Keychain add failed";
@@ -47,7 +47,7 @@
    }
  
    return password;
-@@ -84,6 +83,11 @@ KeychainPassword::KeychainPassword(Keych
+@@ -84,6 +83,11 @@
  KeychainPassword::~KeychainPassword() = default;
  
  std::string KeychainPassword::GetPassword() const {
@@ -59,7 +59,7 @@
    FindGenericPasswordResult uma_result;
    absl::Cleanup log_uma_result = [&uma_result] {
      base::UmaHistogramEnumeration("OSCrypt.Mac.FindGenericPasswordResult",
-@@ -108,5 +112,5 @@ std::string KeychainPassword::GetPasswor
+@@ -108,5 +112,5 @@
    uma_result = FindGenericPasswordResult::kErrorOccurred;
    base::UmaHistogramSparse("OSCrypt.Mac.FindGenericPasswordError",
                             password.error());
@@ -68,12 +68,17 @@
  }
 --- a/components/os_crypt/async/browser/keychain_key_provider.h
 +++ b/components/os_crypt/async/browser/keychain_key_provider.h
-@@ -5,8 +5,12 @@
+@@ -5,14 +5,17 @@
  #ifndef COMPONENTS_OS_CRYPT_ASYNC_BROWSER_KEYCHAIN_KEY_PROVIDER_H_
  #define COMPONENTS_OS_CRYPT_ASYNC_BROWSER_KEYCHAIN_KEY_PROVIDER_H_
  
 +#include <Security/Security.h>
-+
+ #include <stdint.h>
+ 
+ #include <string>
+ #include <vector>
+ 
+ #include "base/containers/span.h"
 +#include "base/functional/callback.h"
  #include "base/gtest_prod_util.h"
  #include "base/memory/raw_ptr.h"
@@ -81,21 +86,20 @@
  #include "base/types/expected.h"
  #include "components/os_crypt/async/browser/key_provider.h"
  
-@@ -22,6 +26,13 @@ class COMPONENT_EXPORT(OS_CRYPT_ASYNC) K
+@@ -28,6 +31,12 @@
      : public KeyProvider {
   public:
    KeychainKeyProvider();
-+
-+  // Retries failed reads before invoking `on_failure` once on the calling
-+  // sequence.
-+  // On failure, key initialization remains pending so consumers cannot discard
-+  // data that they cannot decrypt. The caller must handle the startup failure.
++  // On failure, leave initialization pending to protect encrypted profile data
++  // while the caller handles the startup failure. Retry transient errors only.
 +  explicit KeychainKeyProvider(base::OnceClosure on_failure);
-+
++  KeychainKeyProvider(std::string key_tag,
++                      base::span<const uint8_t> pbkdf2_salt,
++                      base::OnceClosure on_failure);
+   KeychainKeyProvider(std::string key_tag,
+                       base::span<const uint8_t> pbkdf2_salt);
    KeychainKeyProvider(const KeychainKeyProvider&) = delete;
-   KeychainKeyProvider& operator=(const KeychainKeyProvider&) = delete;
-   ~KeychainKeyProvider() override;
-@@ -40,7 +51,16 @@ class COMPONENT_EXPORT(OS_CRYPT_ASYNC) K
+@@ -52,9 +61,18 @@
    void GetKey(KeyCallback callback) override;
    bool UseForEncryption() override;
  
@@ -105,6 +109,8 @@
 +                     base::expected<Encryptor::Key, OSStatus> key);
 +
    raw_ptr<crypto::apple::KeychainV2> keychain_for_testing_ = nullptr;
+   const std::string key_tag_;
+   const std::vector<uint8_t> pbkdf2_salt_;
 +  // Keep the failure policy after the one-shot notification is consumed.
 +  const bool fail_closed_on_error_ = false;
 +  base::OnceClosure on_failure_;
@@ -114,14 +120,9 @@
  }  // namespace os_crypt_async
 --- a/components/os_crypt/async/browser/keychain_key_provider.mm
 +++ b/components/os_crypt/async/browser/keychain_key_provider.mm
-@@ -6,11 +6,15 @@
- 
- #include <array>
- #include <memory>
-+#include <utility>
- 
- #include "base/apple/osstatus_logging.h"
- #include "base/command_line.h"
+@@ -15,7 +15,10 @@
+ #include "base/containers/span.h"
+ #include "base/containers/to_vector.h"
  #include "base/functional/bind.h"
 +#include "base/location.h"
 +#include "base/task/sequenced_task_runner.h"
@@ -130,20 +131,20 @@
  #include "base/types/expected.h"
  #include "components/os_crypt/async/common/algorithm.mojom.h"
  #include "components/os_crypt/common/keychain_password_mac.h"
-@@ -31,8 +35,11 @@ constexpr auto kSalt =
+@@ -35,9 +38,11 @@
+ constexpr auto kDefaultSalt =
      std::to_array<uint8_t>({'s', 'a', 'l', 't', 'y', 's', 'a', 'l', 't'});
  constexpr size_t kIterations = 1003;
- 
 +constexpr int kMaxKeychainRetries = 3;
 +constexpr base::TimeDelta kKeychainRetryDelay = base::Seconds(1);
-+
+ 
  // This function runs on a worker thread and performs blocking Keychain IO.
 -base::expected<Encryptor::Key, KeyProvider::KeyError> GetKeyTask(
 +base::expected<Encryptor::Key, OSStatus> GetKeyTask(
      crypto::SubtlePassKey subtle_passkey,
+     base::span<const uint8_t> pbkdf2_salt,
      crypto::apple::KeychainV2* keychain_for_testing) {
-   std::unique_ptr<crypto::apple::FakeKeychainV2> scoped_fake_keychain;
-@@ -49,17 +56,18 @@ base::expected<Encryptor::Key, KeyProvid
+@@ -55,17 +60,17 @@
    }
  
    KeychainPassword keychain_password(*keychain_to_use);
@@ -161,25 +162,29 @@
 +    return base::unexpected(errSecDecode);
    }
  
-+  // Derive the key here so the Keychain secret stays local to this worker task.
    std::array<uint8_t, kDerivedKeySize> key_bytes;
    crypto::kdf::Pbkdf2HmacSha1({.iterations = kIterations},
--                              base::as_byte_span(password), kSalt, key_bytes,
-+                              base::as_byte_span(*password), kSalt, key_bytes,
-                               subtle_passkey);
+-                              base::as_byte_span(password), pbkdf2_salt,
++                              base::as_byte_span(*password), pbkdf2_salt,
+                               key_bytes, subtle_passkey);
  
    return Encryptor::Key(key_bytes, mojom::Algorithm::kAES128CBC);
-@@ -69,6 +77,9 @@ base::expected<Encryptor::Key, KeyProvid
- 
- KeychainKeyProvider::KeychainKeyProvider() = default;
+@@ -92,9 +97,26 @@
+       key_tag_(std::move(key_tag)),
+       pbkdf2_salt_(base::ToVector(pbkdf2_salt)) {}
  
 +KeychainKeyProvider::KeychainKeyProvider(base::OnceClosure on_failure)
-+    : fail_closed_on_error_(true), on_failure_(std::move(on_failure)) {}
++    : KeychainKeyProvider(kDefaultKeyTag, kDefaultSalt, std::move(on_failure)) {}
 +
- KeychainKeyProvider::KeychainKeyProvider(
-     crypto::apple::KeychainV2* keychain_for_testing)
-     : keychain_for_testing_(keychain_for_testing) {}
-@@ -76,6 +87,11 @@ KeychainKeyProvider::KeychainKeyProvider
++KeychainKeyProvider::KeychainKeyProvider(
++    std::string key_tag,
++    base::span<const uint8_t> pbkdf2_salt,
++    base::OnceClosure on_failure)
++    : key_tag_(std::move(key_tag)),
++      pbkdf2_salt_(base::ToVector(pbkdf2_salt)),
++      fail_closed_on_error_(true),
++      on_failure_(std::move(on_failure)) {}
++
  KeychainKeyProvider::~KeychainKeyProvider() = default;
  
  void KeychainKeyProvider::GetKey(KeyCallback callback) {
@@ -191,11 +196,11 @@
    // Apple's documentation [1] recommends accessing the keychain on a worker
    // thread. [1]
    // https://developer.apple.com/documentation/security/secitemcopymatching%28_%3A_%3A%29#Performance-considerations
-@@ -83,7 +99,45 @@ void KeychainKeyProvider::GetKey(KeyCall
+@@ -102,7 +124,45 @@
        FROM_HERE, {base::TaskPriority::USER_BLOCKING, base::MayBlock()},
-       base::BindOnce(&GetKeyTask, crypto::SubtlePassKey{},
+       base::BindOnce(&GetKeyTask, crypto::SubtlePassKey{}, pbkdf2_salt_,
                       keychain_for_testing_),
--      base::BindOnce(std::move(callback), kKeyTag));
+-      base::BindOnce(std::move(callback), key_tag_));
 +      base::BindOnce(&KeychainKeyProvider::OnKeyReceived,
 +                     weak_factory_.GetWeakPtr(), std::move(callback),
 +                     retries_remaining));
@@ -206,13 +211,13 @@
 +    int retries_remaining,
 +    base::expected<Encryptor::Key, OSStatus> key) {
 +  if (key.has_value()) {
-+    std::move(callback).Run(kKeyTag, std::move(*key));
++    std::move(callback).Run(key_tag_, std::move(*key));
 +    return;
 +  }
 +
 +  if (!fail_closed_on_error_) {
 +    std::move(callback).Run(
-+        kKeyTag, base::unexpected(KeyError::kTemporarilyUnavailable));
++        key_tag_, base::unexpected(KeyError::kTemporarilyUnavailable));
 +    return;
 +  }
 +
@@ -240,7 +245,7 @@
  bool KeychainKeyProvider::UseForEncryption() {
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -12087,6 +12087,9 @@ Check your passwords anytime in <ph name
+@@ -12163,6 +12163,9 @@
        </if> <!-- not is_android -->
  
        <if expr="is_macosx">
@@ -252,25 +257,23 @@
            Hold <ph name="KEY_EQUIVALENT">$1<ex>⌘Q</ex></ph> to Quit
 --- a/chrome/browser/browser_process_impl.cc
 +++ b/chrome/browser/browser_process_impl.cc
-@@ -287,6 +287,11 @@ void OnLocalStatePrefsLoaded();
+@@ -291,7 +291,12 @@
  #endif
  
  #if BUILDFLAG(IS_MAC)
 +#include <stdlib.h>
 +
 +#include "base/process/process.h"
+ #include "base/types/expected.h"
 +#include "chrome/browser/ui/simple_message_box.h"
 +#include "chrome/grit/generated_resources.h"
+ #include "chrome/common/chrome_paths_internal.h"
+ #include "components/os_crypt/async/browser/key_provider.h"
  #include "components/os_crypt/async/browser/keychain_key_provider.h"
- #endif
+@@ -323,6 +328,17 @@
+ #if BUILDFLAG(IS_MAC)
+ namespace {
  
-@@ -316,6 +321,23 @@ static constexpr base::TimeDelta kEndSes
- using content::BrowserThread;
- using content::ChildProcessSecurityPolicy;
- 
-+#if BUILDFLAG(IS_MAC)
-+namespace {
-+
 +void ShowKeychainStartupError() {
 +  chrome::ShowWarningMessageBoxAsync(
 +      gfx::NativeWindow(), l10n_util::GetStringUTF16(IDS_PRODUCT_NAME),
@@ -282,22 +285,26 @@
 +      }));
 +}
 +
-+}  // namespace
-+#endif  // BUILDFLAG(IS_MAC)
-+
- BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
-     : startup_data_(startup_data),
-       browser_policy_connector_(startup_data->chrome_feature_list_creator()
-@@ -1664,9 +1686,10 @@ void BrowserProcessImpl::PreMainMessageL
- 
- #if BUILDFLAG(IS_MAC)
-   if (base::FeatureList::IsEnabled(features::kUseKeychainKeyProvider)) {
--    providers.emplace_back(std::make_pair(
-+    providers.emplace_back(
-         /*precedence=*/10u,
--        std::make_unique<os_crypt_async::KeychainKeyProvider>()));
-+        std::make_unique<os_crypt_async::KeychainKeyProvider>(
-+            base::BindOnce(&ShowKeychainStartupError)));
+ // A KeyProvider that always reports `kTemporarilyUnavailable` for a given tag
+ // and is never used for encryption. Used when running with a non-default user
+ // data directory so that default user data directory ("v10") encrypted data
+@@ -1706,7 +1722,8 @@
+         chrome::IsUsingDefaultDataDirectory().value_or(false)) {
+       providers.emplace_back(
+           /*precedence=*/10u,
+-          std::make_unique<os_crypt_async::KeychainKeyProvider>());
++          std::make_unique<os_crypt_async::KeychainKeyProvider>(
++              base::BindOnce(&ShowKeychainStartupError)));
+     } else {
+       constexpr auto kCustomUserDataSalt =
+           std::to_array<uint8_t>({'p', 'e', 'p', 'p', 'e', 'r'});
+@@ -1715,7 +1732,8 @@
+       providers.emplace_back(
+           /*precedence=*/15u,
+           std::make_unique<os_crypt_async::KeychainKeyProvider>(
+-              "v11", kCustomUserDataSalt));
++              "v11", kCustomUserDataSalt,
++              base::BindOnce(&ShowKeychainStartupError)));
+     }
    }
  #endif  // BUILDFLAG(IS_MAC)
- 

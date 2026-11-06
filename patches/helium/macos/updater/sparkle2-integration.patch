@@ -18,7 +18,7 @@
 +Patches are applied to integrate Sparkle into Chromium and hide the Sparkle UI.
 --- a/build/apple/tweak_info_plist.py
 +++ b/build/apple/tweak_info_plist.py
-@@ -216,6 +216,21 @@ def _IsValidBundleId(bundle_identifier):
+@@ -216,6 +216,21 @@
      return re.match(r'^[0-9a-zA-Z-.]+$', bundle_identifier) is not None
  
  
@@ -40,7 +40,7 @@
  def _TagSuffixes():
      # Keep this list sorted in the order that tag suffix components are to
      # appear in a tag value. That is to say, it should be sorted per ASCII.
-@@ -359,6 +374,36 @@ def Main(argv):
+@@ -359,6 +374,36 @@
          help='Use staging breakpad to upload reports. Ignored if --breakpad=0.',
      )
      parser.add_option(
@@ -77,7 +77,7 @@
          '--keystone',
          dest='use_keystone',
          action='store',
-@@ -535,6 +580,20 @@ def Main(argv):
+@@ -535,6 +580,20 @@
      else:
          _RemoveKeystoneKeys(plist)
  
@@ -100,7 +100,7 @@
          return 3
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
-@@ -51,6 +51,7 @@ if (is_android) {
+@@ -51,6 +51,7 @@
    import("//build/util/branding.gni")
    import("//chrome/browser/buildflags.gni")
    import("//chrome/updater/branding.gni")
@@ -108,7 +108,7 @@
    import("//chrome/version.gni")
    import("//content/public/app/mac_helpers.gni")
    import("//media/cdm/library_cdm/cdm_paths.gni")
-@@ -537,6 +538,20 @@ if (is_win) {
+@@ -537,6 +538,20 @@
      } else {
        args += [ "--keystone=0" ]
      }
@@ -129,7 +129,7 @@
    }
  
    mac_app_bundle("chrome_app") {
-@@ -1351,6 +1366,10 @@ if (is_win) {
+@@ -1366,6 +1381,10 @@
  
      if (is_component_build) {
        frameworks = [ "Carbon.framework" ]
@@ -140,7 +140,7 @@
      }
  
      ldflags = [ "-ObjC" ]
-@@ -1405,6 +1424,12 @@ if (is_win) {
+@@ -1420,6 +1439,12 @@
        bundle_deps += [ ":chrome_renderer_library" ]
      }
  
@@ -358,7 +358,7 @@
  #include "chrome/browser/policy/chrome_browser_policy_connector.h"
  #include "chrome/browser/prefs/incognito_mode_prefs.h"
  #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
-@@ -932,6 +936,9 @@ class AppControllerProfileObserver : pub
+@@ -932,6 +936,9 @@
    NSWindow.allowsAutomaticWindowTabbing = NO;
  
    [self initShareMenu];
@@ -380,7 +380,7 @@
  #include "chrome/browser/ui/cocoa/main_menu_builder.h"
  #include "chrome/browser/ui/cocoa/renderer_context_menu/chrome_swizzle_services_menu_updater.h"
  #include "chrome/browser/updater/updater.h"
-@@ -178,6 +181,14 @@ void ChromeBrowserMainPartsMac::PreProfi
+@@ -178,6 +181,14 @@
  
  void ChromeBrowserMainPartsMac::PostProfileInit(Profile* profile,
                                                  bool is_initial_profile) {
@@ -397,7 +397,7 @@
  
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -57,6 +57,10 @@ if (is_win) {
+@@ -57,6 +57,10 @@
    import("//build/config/win/manifest.gni")
  }
  
@@ -408,7 +408,7 @@
  assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
  
  declare_args() {
-@@ -103,6 +107,10 @@ buildflag_header("buildflags") {
+@@ -103,6 +107,10 @@
      flags += [ "ENABLE_SEGMENT_HEAP=$enable_segment_heap" ]
    }
  
@@ -419,7 +419,7 @@
    # Android and ChromeOS don't support multiple browser processes, so they don't
    # employ ProcessSingleton.
    if (is_android || is_chromeos) {
-@@ -1787,6 +1795,21 @@ source_set("core") {
+@@ -1889,6 +1897,21 @@
        "UniformTypeIdentifiers.framework",
        "VideoToolbox.framework",
      ]
@@ -441,7 +441,7 @@
    }
  
    if (!is_win && !is_android) {
-@@ -4580,6 +4603,10 @@ source_set("browser") {
+@@ -4067,6 +4090,10 @@
        "Carbon.framework",
        "Quartz.framework",
      ]
@@ -449,9 +449,9 @@
 +    if (enable_sparkle) {
 +      public_configs = [ "//third_party/sparkle:sparkle_link_test" ]
 +    }
+   } else {
+     public_deps += [ "//chrome/browser/privacy:traffic_annotation_proto" ]
    }
- 
-   if (is_win) {
 --- a/chrome/browser/ui/webui/help/BUILD.gn
 +++ b/chrome/browser/ui/webui/help/BUILD.gn
 @@ -3,6 +3,7 @@
@@ -462,7 +462,7 @@
  
  source_set("help") {
    public = [ "version_updater.h" ]
-@@ -35,7 +36,7 @@ source_set("help") {
+@@ -39,7 +40,7 @@
      ]
    }
  
@@ -484,7 +484,7 @@
  source_set("build_state_observer") {
    public = [ "build_state_observer.h" ]
  
-@@ -132,6 +136,10 @@ source_set("impl") {
+@@ -132,6 +136,10 @@
        "get_installed_version_mac.mm",
      ]
      deps += [ "//chrome/browser/updater" ]
@@ -497,7 +497,7 @@
    if (is_linux) {
 --- a/third_party/sparkle/Sparkle/SPUAutomaticUpdateDriver.m
 +++ b/third_party/sparkle/Sparkle/SPUAutomaticUpdateDriver.m
-@@ -152,4 +152,24 @@ static BOOL SPUUpdateRequiresUserAttenti
+@@ -152,4 +152,24 @@
      [_coreDriver abortUpdateAndShowNextUpdateImmediately:showNextUpdateImmediately error:error];
  }
  
@@ -532,7 +532,7 @@
  
  # IMPORTANT
  # We are not accepting any new build flags in //chrome. See
-@@ -17,5 +18,5 @@ declare_args() {
+@@ -17,5 +18,5 @@
  
    # Detect updates and notify the user for Google Chrome across all platforms.
    # Chromium does not use an auto-updater.
@@ -541,7 +541,7 @@
  }
 --- a/third_party/sparkle/Configurations/strip-framework.sh
 +++ b/third_party/sparkle/Configurations/strip-framework.sh
-@@ -40,6 +40,11 @@ if [[ "$SPARKLE_BUILD_UI_BITS" -eq 0 ]];
+@@ -40,6 +40,11 @@
      rm -rf "${FRAMEWORK_PATH}"/"Versions/"${FRAMEWORK_VERSION}"/Resources"/"ReleaseNotesColorStyle.css"
  fi
  
@@ -563,7 +563,7 @@
  #include "chrome/browser/download/download_core_service.h"
  #include "chrome/browser/global_features.h"
  #include "chrome/browser/lifetime/application_lifetime.h"
-@@ -75,6 +76,10 @@
+@@ -76,6 +77,10 @@
  #include "chrome/browser/sessions/session_data_service_factory.h"
  #endif  // BUILDFLAG(ENABLE_SESSION_SERVICE)
  
@@ -574,7 +574,7 @@
  namespace chrome {
  
  namespace {
-@@ -286,8 +291,19 @@ void AttemptRestartInternal(IgnoreUnload
+@@ -324,8 +329,19 @@
    content::GetUIThreadTaskRunner({})->PostTask(
        FROM_HERE, base::BindOnce(&ExitIgnoreUnloadHandlers));
  #else   // !BUILDFLAG(IS_CHROMEOS).

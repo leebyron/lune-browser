@@ -1,18 +1,18 @@
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -638,6 +638,12 @@
- // A boolean pref set to true if vertical tabs should be on the right side.
+@@ -639,6 +639,12 @@
  inline constexpr char kHeliumVerticalRightAligned[] =
      "helium.browser.vertical_right_aligned";
-+
+ 
 +// The maximum number of pinned tabs shown per row in the vertical tab strip.
 +// Zero means uncapped: each row fits as many pinned tabs as the available
 +// width allows.
 +inline constexpr char kHeliumVerticalPinnedTabsPerRow[] =
 +    "helium.browser.vertical_pinned_tabs_per_row";
- 
++
  // A boolean pref set to true if zen mode is enabled.
  inline constexpr char kHeliumZenMode[] = "helium.browser.zen_mode";
+ 
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
 @@ -147,6 +147,8 @@
@@ -26,7 +26,7 @@
    registry->RegisterBooleanPref(prefs::kShowHomeButton, false,
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -233,6 +233,8 @@
+@@ -234,6 +234,8 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kHeliumShowProgressBar] =
        settings_api::PrefType::kBoolean;
@@ -35,35 +35,27 @@
    (*s_allowlist)[::prefs::kHeliumZenMode] = settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kHeliumZenModeSidebarPinned] =
        settings_api::PrefType::kBoolean;
---- a/chrome/browser/ui/views/tabs/common/pinned_tab_container_view.cc
-+++ b/chrome/browser/ui/views/tabs/common/pinned_tab_container_view.cc
-@@ -5,8 +5,12 @@
- #include "chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h"
+--- a/chrome/browser/ui/views/tabs/common/pinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/pinned_tab_container_view_vertical_layout.cc
+@@ -8,7 +8,13 @@
+ #include <cmath>
  
- #include "base/i18n/rtl.h"
-+#include "chrome/browser/browser_process.h"
+ #include "base/numerics/safe_conversions.h"
 +#include "chrome/browser/profiles/profile.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #include "chrome/browser/ui/layout_constants.h"
- #include "chrome/browser/ui/tabs/tab_style.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
- #include "chrome/browser/ui/views/tabs/common/dragged_tabs_container.h"
- #include "chrome/browser/ui/views/tabs/common/split_tab_view.h"
- #include "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h"
-@@ -14,6 +18,8 @@
- #include "chrome/browser/ui/views/tabs/common/tab_drag_handler.h"
- #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
- #include "chrome/browser/ui/views/tabs/common/tab_view.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
 +#include "chrome/common/pref_names.h"
 +#include "components/prefs/pref_service.h"
- #include "content/public/browser/navigation_controller.h"
- #include "ui/base/metadata/metadata_impl_macros.h"
- #include "ui/gfx/geometry/rect.h"
-@@ -27,6 +33,27 @@
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+@@ -17,6 +23,29 @@
+ #include "ui/views/layout/proposed_layout.h"
+ #include "ui/views/view.h"
  
- namespace {
- constexpr int kTabPadding = 4;
-+
++namespace {
 +// Reads the user-configured maximum number of pinned tabs per row in the
 +// vertical tab strip. Returns 0 when uncapped.
 +int GetMaxPinnedTabsPerRow(const TabStripCollectionController* controller) {
@@ -84,24 +76,28 @@
 +  }
 +  return max_per_row > 4 ? 4 : max_per_row;
 +}
- }  // namespace
- 
- PinnedTabContainerView::PinnedTabContainerView(
-@@ -419,6 +446,14 @@
-                                               (child_width + kTabPadding)) +
-                                    1));
++}  // namespace
++
+ PinnedTabContainerViewVerticalLayout::PinnedTabContainerViewVerticalLayout() =
+     default;
+ PinnedTabContainerViewVerticalLayout::~PinnedTabContainerViewVerticalLayout() =
+@@ -100,6 +129,16 @@
+                                        PinnedTabContainerView::kTabPadding)) +
+                            1));
  
 +    // Cap the number of pinned tabs per row when the user set a maximum.
 +    // Zero means uncapped: keep the width-based fit.
 +    const int max_per_row = GetMaxPinnedTabsPerRow(
-+        collection_node_ ? collection_node_->GetController() : nullptr);
++        PinnedTabContainerView().collection_node_
++            ? PinnedTabContainerView().collection_node_->GetController()
++            : nullptr);
 +    if (max_per_row > 0 && children_on_row > max_per_row) {
 +      children_on_row = max_per_row;
 +    }
 +
      // Allocate extra space to the tabs.
      available_width -=
-         (children_on_row * child_width) + (kTabPadding * (children_on_row - 1));
+         (children_on_row * child_width) +
 --- a/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
 @@ -213,13 +213,19 @@
@@ -128,22 +124,22 @@
    SetNotifyEnterExitOnChild(true);
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -260,6 +260,12 @@
-     </message>
+@@ -318,6 +318,12 @@
      <message name="IDS_SETTINGS_UI_DENSITY_COMFORTABLE" desc="Comfortable option in the interface size dropdown, which makes tabs, toolbar buttons and the address bar larger.">
        Comfortable
-+    </message>
+     </message>
 +    <message name="IDS_SETTINGS_PINNED_TABS_PER_ROW" desc="Label for the dropdown which controls the maximum number of pinned tabs shown per row in the vertical tab strip.">
 +      Maximum pinned tabs per row
 +    </message>
 +    <message name="IDS_SETTINGS_PINNED_TABS_PER_ROW_UNCAPPED" desc="Option in the pinned tabs per row dropdown which does not limit how many pinned tabs fit on a row.">
 +      Uncapped
-     </message>
++    </message>
      <message name="IDS_SETTINGS_CUSTOMIZE_TOOLBAR" desc="Text of the button which allows you to customize your toolbar.">
        Customize your toolbar
+     </message>
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -600,6 +600,9 @@
+@@ -618,6 +618,9 @@
        {"uiDensity", IDS_SETTINGS_UI_DENSITY},
        {"uiDensityStandard", IDS_SETTINGS_UI_DENSITY_STANDARD},
        {"uiDensityComfortable", IDS_SETTINGS_UI_DENSITY_COMFORTABLE},
@@ -191,18 +187,18 @@
        zenModePref_: {type: Object},
        zenModeSidebarPinnedPref_: {type: Object},
        forcedExpandOnHoverPref_: {type: Object},
-@@ -91,6 +94,14 @@
-       name: loadTimeData.getString('browserLayoutVertical'),
-       preview: 'vertical',
+@@ -93,6 +96,14 @@
      },
-+  ];
-+
+   ];
+ 
 +  protected accessor pinnedTabsPerRowOptions_: DropdownMenuOptionList = [
 +    {value: 0, name: loadTimeData.getString('pinnedTabsPerRowUncapped')},
 +    {value: 1, name: '1'},
 +    {value: 2, name: '2'},
 +    {value: 3, name: '3'},
 +    {value: 4, name: '4'},
-   ];
++  ];
++
  
- 
+   override connectedCallback() {
+     super.connectedCallback();

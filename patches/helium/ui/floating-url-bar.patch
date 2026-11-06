@@ -1,6 +1,6 @@
 --- a/chrome/app/chrome_command_ids.h
 +++ b/chrome/app/chrome_command_ids.h
-@@ -298,6 +298,7 @@
+@@ -289,6 +289,7 @@
  #define IDC_SHOW_TTC_MENU 40306
  
  #define IDC_HELIUM_SERVICES_OPEN 40700
@@ -10,11 +10,10 @@
  #define IDC_SPELLCHECK_SUGGESTION_0     41000
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -359,6 +359,18 @@
-     </message>
+@@ -417,6 +417,18 @@
      <message name="IDS_SETTINGS_SHOW_PROGRESS_BAR" desc="Label for the toggle that shows loading progress in the address bar.">
        Show loading progress in the address bar
-+    </message>
+     </message>
 +    <message name="IDS_SETTINGS_COMMAND_BAR" desc="Label for the toggle that enables the native command bar.">
 +      Command bar
 +    </message>
@@ -26,16 +25,16 @@
 +    </message>
 +    <message name="IDS_SETTINGS_LINK_PEEK_DESCRIPTION" desc="Description for the link peek toggle in appearance settings.">
 +      Preview Shift+click and force-new-tab links in a floating window instead of opening them right away
-     </message>
++    </message>
      <message name="IDS_SETTINGS_BROWSER_ZEN_MODE" desc="Label for the toggle that enables zen mode, hiding browser chrome until hover.">
        Frameless mode
+     </message>
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -678,6 +678,16 @@
- // location bar.
+@@ -679,6 +679,16 @@
  inline constexpr char kHeliumShowProgressBar[] =
      "helium.browser.show_progress_bar";
-+
+ 
 +// A boolean pref set to true if the native command bar is enabled. When on,
 +// Cmd+T / Cmd+L open the bar instead of their built-in actions.
 +inline constexpr char kHeliumCommandBarEnabled[] = "helium.command_bar.enabled";
@@ -45,9 +44,10 @@
 +// preview instead of navigating immediately. Middle-click keeps its native
 +// background-tab behavior.
 +inline constexpr char kHeliumLinkPeekEnabled[] = "helium.link_peek.enabled";
- 
++
  // A boolean pref set to true if a Home button to open the Home pages should be
  // visible on the toolbar.
+ inline constexpr char kShowHomeButton[] = "browser.show_home_button";
 --- a/chrome/browser/ui/helium/BUILD.gn
 +++ b/chrome/browser/ui/helium/BUILD.gn
 @@ -16,6 +16,92 @@
@@ -154,8 +154,8 @@
  class HistoryClustersSidePanelCoordinator;
  class HistorySidePanelCoordinator;
  class ImmersiveModeController;
-@@ -469,6 +471,12 @@
-       send_tab_to_self_iph_controller_;
+@@ -462,6 +464,12 @@
+   std::unique_ptr<TabGroupFocusIphController> tab_group_focus_iph_controller_;
    std::unique_ptr<VerticalTabIphController> vertical_tab_iph_controller_;
    std::unique_ptr<HeliumLayoutStateController> helium_layout_state_controller_;
 +  // Per-window native command bar. Owned here so the command handler can
@@ -178,7 +178,7 @@
  #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
  #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
  #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
-@@ -646,6 +648,14 @@
+@@ -626,6 +628,14 @@
          GetUserDataFactory().CreateInstance<HeliumLayoutStateController>(
              *browser, browser, profile->GetPrefs());
  
@@ -193,7 +193,7 @@
      vertical_tab_strip_state_controller_ =
          GetUserDataFactory()
              .CreateInstance<tabs::VerticalTabStripStateControllerImpl>(
-@@ -840,6 +850,9 @@
+@@ -820,6 +830,9 @@
          std::make_unique<ExtensionKeybindingRegistryViews>(
              browser, extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
              focus_manager);
@@ -216,7 +216,7 @@
        "//chrome/browser/ui/send_tab_to_self",
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
-@@ -73,6 +73,7 @@
+@@ -74,6 +74,7 @@
  #include "chrome/browser/ui/dialogs/browser_dialogs.h"
  #include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
  #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
@@ -224,7 +224,7 @@
  #include "chrome/browser/ui/lens/lens_overlay_controller.h"
  #include "chrome/browser/ui/managed_ui.h"
  #include "chrome/browser/ui/navigator/browser_navigator.h"
-@@ -871,6 +872,16 @@
+@@ -887,6 +888,16 @@
            TabStripUserGestureDetails(
                TabStripUserGestureDetails::GestureType::kKeyboard, time_stamp));
        break;
@@ -241,16 +241,16 @@
      case IDC_DUPLICATE_TAB:
        DuplicateTab(browser_);
        break;
-@@ -2152,6 +2163,9 @@
+@@ -2169,6 +2180,9 @@
+ 
    // These are always enabled; the menu determines their menu item visibility.
-   command_updater_->UpdateCommandEnabled(IDC_UPGRADE_DIALOG, true);
    command_updater_->UpdateCommandEnabled(IDC_HELIUM_SERVICES_OPEN, true);
 +  // Provisional shortcut; the Cmd+T / Cmd+L takeover arrives with the results
 +  // list.
 +  command_updater_->UpdateCommandEnabled(IDC_HELIUM_COMMAND_BAR, true);
    command_updater_->UpdateCommandEnabled(IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN,
                                           false);
-   command_updater_->UpdateCommandEnabled(IDC_SET_BROWSER_AS_DEFAULT, true);
+   command_updater_->UpdateCommandEnabled(IDC_UPGRADE_DIALOG, true);
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
 @@ -149,6 +149,14 @@
@@ -293,7 +293,7 @@
  ui::Accelerator AcceleratorForCloseWindow() {
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -641,6 +641,10 @@
+@@ -659,6 +659,10 @@
        {"verticalCollapseShortcut", IDS_SETTINGS_VERTICAL_COLLAPSE_SHORTCUT},
        {"minimalLocationBar", IDS_SETTINGS_MINIMAL_LOCATION_BAR},
        {"showProgressBar", IDS_SETTINGS_SHOW_PROGRESS_BAR},
@@ -325,7 +325,7 @@
        sub-label="$i18n{browserZenModeDescription}">
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -331,6 +331,10 @@
+@@ -332,6 +332,10 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kVisualTabSwitcherList] =
        settings_api::PrefType::kBoolean;

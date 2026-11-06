@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -538,11 +538,13 @@
+@@ -527,11 +527,13 @@
  }
  
  source_set("vertical_tab_strip_region_view") {
@@ -16,7 +16,7 @@
    ]
    public_deps = [
      ":base_tab_strip_region_view",
-@@ -563,6 +565,13 @@
+@@ -552,6 +554,13 @@
      "//ui/views",
    ]
    deps = [
@@ -30,9 +30,9 @@
      ":browser_view_header",
      ":custom_corners_background",
      ":frame",
-@@ -784,6 +793,7 @@
-     "//chrome/browser:browser_public_dependencies",
+@@ -770,6 +779,7 @@
    ]
+   public_deps = [ ":browser_view_header" ]
    deps = [
 +    "//chrome/browser/ui:tab_ui_helper",
      ":app_menu_button",
@@ -96,7 +96,7 @@
  #endif  // CHROME_BROWSER_UI_LAYOUT_CONSTANTS_H_
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac_interactive_uitest.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac_interactive_uitest.mm
-@@ -702,7 +702,7 @@
+@@ -718,7 +718,7 @@
  
    const int corner_padding = GetGlassCornerPadding();
    const int expected_collapsed_width =
@@ -126,7 +126,7 @@
  
 --- a/chrome/browser/ui/views/tabs/common/tab_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
-@@ -1424,7 +1424,7 @@
+@@ -1434,7 +1434,7 @@
  
  // static
  int TabView::CollapsedWidth() {
@@ -148,24 +148,13 @@
      // Use the largest tab in the tab strip when determining the delay so that
 --- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
 +++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
-@@ -148,7 +148,8 @@
+@@ -136,7 +136,8 @@
    // orientation in order to have smooth transition during animation.
-   if (!is_segmented_expand_on_hover &&
+   if (!keep_horizontal_layout &&
        (trailing_control_width >= available_width ||
 -       available_width < VerticalTabStripRegionView::CollapseSnapWidth() ||
 +       available_width < GetHeliumVerticalTabStripCollapseSnapWidth(
 +           tabs::kVerticalTabStripUncollapsedMinWidth) ||
-        is_collapsed_with_combo)) {
+        is_collapsed)) {
      combo_button_orientation_ = views::LayoutOrientation::kVertical;
      int current_y = 0;
---- a/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc
-+++ b/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc
-@@ -93,7 +93,7 @@
-       gfx::Rect unfocus_bounds;
-       unfocus_bounds.set_x(header_bounds.x());
-       unfocus_bounds.set_y(height);
--      unfocus_bounds.set_height(kGroupHeaderHeight);
-+      unfocus_bounds.set_height(GetGroupHeaderHeight());
-       if (size_bounds.width().is_bounded()) {
-         unfocus_bounds.set_width(size_bounds.width().value() -
-                                  unfocus_bounds.x());
