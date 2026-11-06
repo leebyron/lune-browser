@@ -457,3 +457,17 @@ The patch reapplied without fuzz and the prepared handler matches the isolated
 result. The affected object compiles (`toolbar-label-fix-compile.log`). All 403
 patches remain selected. The preceding full-build failure is preserved under
 `*-before-toolbar-label-fix.*`, and compilation resumed from cache.
+
+## Filtered flag-list initialization
+
+Chromium 158 rejects the global constructor introduced by the filtered flag list.
+Core `6fb39b67efedb92b29bdf98ae82a97972c86ddbd` initializes the same filtered vector in a
+function-local `NoDestructor` and returns a const reference to callers. Platform
+`9fe85b49247314b2ffa19fc6f6814a5fb558c3db` pins it. Flag exclusions, iteration order,
+and process-lifetime storage remain unchanged.
+
+The refreshed patch reapplied without fuzz. The prepared file matches its isolated
+result after applying the existing domain-substitution rules; no substitutions
+were reverted. `about_flags.o` compiles (`flags-init-fix-compile.log`). The series
+remains at 403 patches. The preceding failure is preserved under
+`*-before-flags-init-fix.*`; compilation resumed from cache.
