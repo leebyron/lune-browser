@@ -415,3 +415,15 @@ and lint pass (`settings-fix-targets.log`). Full compilation resumed from cached
 outputs; the preceding failure is preserved under `*-before-settings-fix.*`.
 Runtime interaction with the migrated settings remains to be verified in the new
 app.
+
+## Device-info sync namespace
+
+The subsequent build reached 8,580 more actions before finding an unqualified
+Helium `private_sync_prefs` reference in `DeviceInfoSyncClientImpl`. Core commit
+`60b1a6f6c3374e4ff30abb3c29d63c98c7fbd18d` qualifies it with `browser_sync::`;
+platform `d9ea2beeea2bc8946bf4bae13d67901c2216bfdd` pins that core. The private-sync
+condition and returned sign-in metadata are unchanged. The refreshed original
+patch reapplied without fuzz, and its resulting file matches the prepared source.
+The affected object compiles (`sync-namespace-fix-compile.log`). The series remains
+at 403 patches; prior failure evidence is retained under
+`*-before-sync-namespace-fix.*`. Full compilation resumed from cache.
