@@ -509,7 +509,7 @@
    base::WeakPtrFactory<BrowserNativeWidgetMac> weak_ptr_factory_{this};
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-@@ -4,10 +4,7 @@
+@@ -4,10 +4,8 @@
  
  #import "chrome/browser/ui/views/frame/browser_native_widget_mac.h"
  
@@ -517,14 +517,11 @@
 -
  #import "base/apple/foundation_util.h"
 -#include "base/check_op.h"
++#include "base/feature_list.h"
  #include "base/functional/bind.h"
  #include "base/i18n/rtl.h"
  #include "base/memory/raw_ptr.h"
-@@ -41,13 +38,16 @@
- #include "chrome/browser/ui/tabs/vertical_tab_strip_metrics.h"
- #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
- #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
--#include "chrome/browser/ui/ui_features.h"
+@@ -45,9 +43,13 @@
  #include "chrome/browser/ui/views/frame/browser_frame_view.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/ui/views/frame/browser_widget.h"
@@ -539,7 +536,7 @@
  #include "chrome/common/pref_names.h"
  #include "chrome/grit/generated_resources.h"
  #include "components/bookmarks/common/bookmark_pref_names.h"
-@@ -71,11 +71,8 @@
+@@ -71,11 +73,8 @@
  #import "ui/base/cocoa/window_size_constants.h"
  #include "ui/base/l10n/l10n_util.h"
  #include "ui/base/mojom/window_show_state.mojom.h"
@@ -551,7 +548,7 @@
  #import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
  #include "ui/views/interaction/element_tracker_views.h"
  
-@@ -111,22 +108,22 @@
+@@ -111,22 +110,22 @@
    return event.os_event && event.os_event.Get().type == NSEventTypeKeyDown;
  }
  
@@ -589,7 +586,7 @@
  }
  
  bool IsCommandTriggeredFromMacMenu(NSInteger parent_menu_tag, int command_id) {
-@@ -143,40 +140,8 @@
+@@ -143,40 +142,8 @@
    return is_mouse_click || is_menu_item_focused;
  }
  
@@ -630,7 +627,7 @@
  // Bridge Obj-C class for WindowTouchBarDelegate and
  // BrowserWindowTouchBarController.
  @interface BrowserWindowTouchBarViewsDelegate
-@@ -222,33 +187,18 @@
+@@ -222,33 +189,18 @@
      : views::NativeWidgetMac(browser_widget), browser_view_(browser_view) {
    CHECK(browser_widget);
    CHECK(browser_view);
@@ -670,7 +667,7 @@
  }
  
  BrowserNativeWidgetMac::~BrowserNativeWidgetMac() = default;
-@@ -294,60 +244,6 @@
+@@ -294,60 +246,6 @@
    }
  }
  
@@ -731,7 +728,7 @@
  void BrowserNativeWidgetMac::OnFocusWindowToolbar() {
    if (browser_view_) {
      chrome::ExecuteCommand(browser_view_->browser(), IDC_FOCUS_TOOLBAR);
-@@ -366,18 +262,6 @@
+@@ -366,18 +264,6 @@
    }
  }
  
@@ -750,7 +747,7 @@
  void BrowserNativeWidgetMac::OnWidgetDestroyed(views::Widget* widget) {
    widget->RemoveObserver(this);
    CHECK(browser_view_);
-@@ -386,25 +270,14 @@
+@@ -386,25 +272,14 @@
      chrome::RemoveCommandObserver(browser_view_->browser(), IDC_FORWARD, this);
    }
    touch_bar_delegate_ = nullptr;
@@ -782,7 +779,7 @@
    NativeWidgetMac::OnWidgetDestroyed(widget);
  }
  
-@@ -760,6 +633,8 @@
+@@ -760,6 +635,8 @@
      const remote_cocoa::mojom::CreateWindowParams* params) {
    CHECK(browser_view_);
    NativeWidgetMacNSWindow* ns_window = NativeWidgetMac::CreateNSWindow(params);
@@ -791,7 +788,7 @@
    touch_bar_delegate_ = [[BrowserWindowTouchBarViewsDelegate alloc]
        initWithBrowser:browser_view_->browser()
                 window:ns_window];
-@@ -797,22 +672,7 @@
+@@ -797,22 +674,7 @@
        GetWidget()->RegisterPaintAsActiveChangedCallback(
            base::BindRepeating(&BrowserNativeWidgetMac::UpdateBackgroundColor,
                                base::Unretained(this)));
@@ -815,7 +812,7 @@
  
    // The location bar takes focus inside Widget::Show(), and with an input
    // method such as Japanese, AppKit then activates that input method for the
-@@ -856,7 +716,7 @@
+@@ -856,7 +718,7 @@
  
  void BrowserNativeWidgetMac::OnWidgetThemeChanged(views::Widget* widget) {
    NativeWidgetMac::OnWidgetThemeChanged(widget);
@@ -824,7 +821,7 @@
  }
  
  void BrowserNativeWidgetMac::OnWindowDestroying(
-@@ -875,8 +735,7 @@
+@@ -875,8 +737,7 @@
  
  void BrowserNativeWidgetMac::OnWidgetActivationChanged(views::Widget* widget,
                                                         bool active) {
@@ -834,7 +831,7 @@
  }
  
  void BrowserNativeWidgetMac::EnabledStateChangedForCommand(int id,
-@@ -977,29 +836,15 @@
+@@ -977,29 +838,15 @@
    }
  }
  
@@ -870,7 +867,7 @@
    if (!GetNSWindowHost()) {
      return;
    }
-@@ -1009,234 +854,63 @@
+@@ -1009,234 +856,63 @@
      return;
    }
  
