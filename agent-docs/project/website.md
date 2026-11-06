@@ -36,7 +36,9 @@ cyanotype desktop and continuous scroll-driven browser story, with draft securit
 and privacy sections credited to both upstream projects. Section heights and
 the reading distance follow the content rather than a fixed page count. The
 browser uses the mounted-left Figma layout and a reversible scroll-driven cursor
-that collapses its sidebar during the minimal-UI section. Browser screenshots remain
+that unpins its sidebar during the minimal-UI section. The floating panel then
+slides away as the cursor leaves; hovering the left rail slides it back over the
+content. Browser screenshots remain
 placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
 architecture hints, otherwise offering both choices. Downloads remain disabled
 and labeled Coming soon pending validated public releases.

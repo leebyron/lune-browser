@@ -27,13 +27,21 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   200px sidebar, compact system-font tabs/favorites, an 8px inset content pane,
   and floating glass toolbar groups. The site retains its blue palette and
   monochrome window controls. Below 540px, the sidebar floats over the content.
-- During “Just the page,” a scroll-driven cursor follows a cubic path into the
-  sidebar toggle, presses it, and fades away as the sidebar withdraws. CSS scroll
-  timelines animate the cursor and registered `--sidebar-fold` property; the
-  existing JavaScript fallback handles browsers without scroll timelines. The
-  animation reverses when scrolling back. Reduced motion omits the cursor and
-  changes the sidebar at the click boundary. The toggle also works directly;
-  subsequent scrolling resumes the illustrated sequence.
+- During “Just the page,” the sidebar starts pinned. A scroll-driven cursor
+  follows a cubic path into its toggle and clicks to unpin it. The content
+  expands behind the still-visible floating panel; the cursor then follows a
+  second curve out of the window. As it leaves, the panel slides off the left
+  edge (260ms, eased translation without a fade). Scrolling back restores the
+  floating panel, then the pinned layout. CSS scroll timelines animate the
+  cursor and registered `--sidebar-fold` property; JavaScript coordinates the
+  pinned/floating/hidden states and supplies the scroll-timeline fallback.
+- Hovering the 8px left rail reveals the floating sidebar without resizing the
+  content. It stays open across the rail and panel, then slides away on exit.
+  The rail also supports keyboard focus and tapping; Escape or tapping content
+  dismisses it. The toggle pins/unpins the panel; subsequent scrolling resumes
+  the illustrated sequence. Reduced motion omits cursor and slide animations.
+  This is an Arc-style interaction approximation, not a claim to reproduce its
+  private animation constants; [Arc documents the sidebar toggle](https://start.arc.net/find-focus).
 - The content keeps a stable reading width while the pane expands, preventing
   text reflow from moving the animation's scroll boundaries.
 - Close and minimize return to the desktop. The third control uses the browser's

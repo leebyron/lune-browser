@@ -4,7 +4,8 @@
   const hero=root.querySelector('.hero'),learn=root.querySelector('.learn'),pages=root.querySelector('.pages');
   const sidebar=root.querySelector('.browser-sidebar'),sidebarToggle=root.querySelector('.sidebar-toggle');
   const demoCursor=root.querySelector('.demo-cursor'),demoClick=root.querySelector('.demo-click');
-  let demoStart=0,demoDistance=320,sidebarOverride=null;
+  const sidebarRegion=root.querySelector('.sidebar-region'),sidebarRail=root.querySelector('.sidebar-rail');
+  let demoStart=0,demoDistance=460,cursorStop=50,sidebarOverride=null,sidebarHovered=false;
   const dock=root.querySelector('.dock'),items=[...dock.querySelectorAll('.dock-item')];
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
   const nativeTimeline=CSS.supports('animation-timeline:scroll()');
@@ -21,10 +22,19 @@
     root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 16 - (compact ? 0 : sidebarWidth))}px`);
     const minimal = root.querySelector('.minimal-story');
     demoStart = readingStart + minimal.offsetTop - pageHeight * .4;
-    demoDistance = Math.min(340, pageHeight * .48);
+    demoDistance = Math.min(460, pageHeight * .65);
     root.style.setProperty('--demo-start', `${demoStart}px`);
     root.style.setProperty('--demo-end', `${demoStart + demoDistance}px`);
-    win.style.setProperty('--cursor-path', `path("M ${win.clientWidth + 28} ${pageHeight * .68} C ${win.clientWidth * .44} ${pageHeight * .88}, 18 167, 102 27")`);
+    const incoming = `M ${win.clientWidth + 28} ${pageHeight * .68} C ${win.clientWidth * .44} ${pageHeight * .88}, 18 167, 102 27`;
+    const outgoing = ` C 200 8, ${win.clientWidth * .5} ${pageHeight * .36}, ${win.clientWidth + 28} ${pageHeight * .58}`;
+    // Pause precisely at the toggle, regardless of viewport or curve length.
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', incoming);
+    const incomingLength = path.getTotalLength();
+    path.setAttribute('d', incoming + outgoing);
+    cursorStop = incomingLength / path.getTotalLength() * 100;
+    win.style.setProperty('--cursor-stop', `${cursorStop}%`);
+    win.style.setProperty('--cursor-path', `path("${incoming + outgoing}")`);
     reading = Math.max(0, pages.scrollHeight - pageHeight);
     root.style.setProperty('--reading', `${reading}px`);
     root.style.setProperty('--thumb-size', `${pageHeight / pages.scrollHeight * 100}%`);
@@ -48,28 +58,60 @@
   scroll.addEventListener('scroll',()=>{sidebarOverride=null;delete win.dataset.sidebarOverride;if(nativeTimeline&&!reduce.matches)win.style.removeProperty('--sidebar-fold');if(!queued){queued=true;requestAnimationFrame(update);}},{passive:true});
   function updateSidebar(y) {
     const progress = clamp((y - demoStart) / demoDistance);
-    const animatedFold = reduce.matches ? Number(progress >= .6) : clamp((progress - .6) / .3);
+    const animatedFold = reduce.matches ? Number(progress >= .5) : clamp((progress - .5) / .14);
     const fold = sidebarOverride ?? animatedFold;
     if (!nativeTimeline || reduce.matches || sidebarOverride !== null) win.style.setProperty('--sidebar-fold', fold);
-    const collapsed = fold >= .95;
-    sidebar.inert = collapsed;
-    sidebar.setAttribute('aria-hidden', String(collapsed));
-    sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-    sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-    win.dataset.sidebar = collapsed ? 'collapsed' : 'expanded';
+    const floating = sidebarOverride !== null ? Boolean(sidebarOverride) : progress >= .5;
+    const demoHolding = sidebarOverride === null && progress < .78;
+    const keyboardFocus = Boolean(sidebarRegion.querySelector(':focus-visible'));
+    const visible = !floating || demoHolding || sidebarHovered || keyboardFocus;
+    sidebar.inert = !visible;
+    sidebar.setAttribute('aria-hidden', String(!visible));
+    sidebarRail.setAttribute('aria-expanded', String(visible));
+    sidebarToggle.setAttribute('aria-pressed', String(!floating));
+    sidebarToggle.setAttribute('aria-label', floating ? 'Pin sidebar' : 'Unpin sidebar');
+    win.dataset.sidebar = !floating ? 'pinned' : visible ? 'floating' : 'hidden';
     if (!nativeTimeline) {
-      demoCursor.style.offsetDistance = `${clamp(progress / .52) * 100}%`;
-      demoCursor.style.opacity = Math.min(clamp(progress / .08), 1 - clamp((progress - .66) / .14));
-      const press = progress <= .6 ? clamp((progress - .56) / .04) : 1 - clamp((progress - .6) / .06);
+      const distance = progress <= .44 ? clamp(progress / .44) * cursorStop : cursorStop + clamp((progress - .64) / .36) * (100 - cursorStop);
+      demoCursor.style.offsetDistance = `${distance}%`;
+      demoCursor.style.opacity = Math.min(clamp(progress / .06), 1 - clamp((progress - .94) / .06));
+      const press = progress <= .5 ? clamp((progress - .46) / .04) : 1 - clamp((progress - .5) / .06);
       demoCursor.style.transform = `scale(${1 - .16 * press})`;
-      const click = clamp((progress - .56) / .22);
-      demoClick.style.opacity = click > 0 && click < 1 ? .7 * Math.sin(Math.PI * click) : 0;
+      const click = clamp((progress - .46) / .18);
+      demoClick.style.opacity = progress <= .5 ? .7 * clamp((progress - .46) / .04) : .7 * (1 - clamp((progress - .5) / .14));
       demoClick.style.transform = `scale(${.5 + click * 1.2})`;
     }
   }
   sidebarToggle.addEventListener('click', () => {
-    sidebarOverride = sidebarToggle.getAttribute('aria-expanded') === 'true' ? 1 : 0;
+    sidebarOverride = sidebarToggle.getAttribute('aria-pressed') === 'true' ? 1 : 0;
     win.dataset.sidebarOverride = String(sidebarOverride);
+    updateSidebar(scroll.scrollTop);
+  });
+  sidebarRegion.addEventListener('pointerenter', event => {
+    if (event.pointerType === 'touch') return;
+    sidebarHovered = true;
+    updateSidebar(scroll.scrollTop);
+  });
+  sidebarRegion.addEventListener('pointerleave', () => {
+    sidebarHovered = false;
+    updateSidebar(scroll.scrollTop);
+  });
+  sidebarRail.addEventListener('click', () => {
+    sidebarHovered = true;
+    updateSidebar(scroll.scrollTop);
+  });
+  sidebarRegion.addEventListener('focusin', () => updateSidebar(scroll.scrollTop));
+  sidebarRegion.addEventListener('focusout', () => queueMicrotask(() => updateSidebar(scroll.scrollTop)));
+  sidebarRegion.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    sidebarHovered = false;
+    scroll.focus({preventScroll:true});
+    updateSidebar(scroll.scrollTop);
+  });
+  win.addEventListener('pointerdown', event => {
+    if (sidebarRegion.contains(event.target)) return;
+    sidebarHovered = false;
+    if (sidebarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
     updateSidebar(scroll.scrollTop);
   });
   function launch(){
