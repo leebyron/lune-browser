@@ -1,6 +1,6 @@
 --- a/components/helium_services/pref_names.h
 +++ b/components/helium_services/pref_names.h
-@@ -13,12 +13,20 @@ inline constexpr char kHeliumSchemaVersi
+@@ -13,12 +13,20 @@
  inline constexpr char kHeliumDisableSchemaAlerts[] =
      "helium.services.disable_schema_alerts";
  
@@ -23,7 +23,7 @@
  #endif  // COMPONENTS_HELIUM_SERVICES_PREF_NAMES_H_
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -230,6 +230,8 @@ void RegisterBrowserUserPrefs(user_prefs
+@@ -230,6 +230,8 @@
      registry->RegisterBooleanPref(prefs::kHeliumDisableSchemaAlerts, false);
      registry->RegisterBooleanPref(prefs::kHeliumServicesEnabled, true);
      registry->RegisterStringPref(prefs::kHeliumServicesOrigin, "");
@@ -42,7 +42,7 @@
  #include "components/prefs/pref_service.h"
  #include "components/signin/public/base/signin_switches.h"
  #include "components/tab_groups/tab_group_id.h"
-@@ -637,6 +638,15 @@ StartupBrowserCreatorImpl::DetermineStar
+@@ -634,6 +635,15 @@
    LaunchResult launch_result =
        tabs.empty() ? LaunchResult::kNormally : LaunchResult::kWithGivenUrls;
  
@@ -60,7 +60,7 @@
      whats_new::LogStartupType(whats_new::StartupType::kIneligible);
 --- a/tools/gritsettings/resource_ids.spec
 +++ b/tools/gritsettings/resource_ids.spec
-@@ -1405,6 +1405,10 @@
+@@ -1417,6 +1417,10 @@
      "META": {"sizes": {"includes": [50]}},
      "includes": [7505],
    },
@@ -73,17 +73,17 @@
    # START ios/ section.
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -5445,6 +5445,7 @@ group("browser_generated_files") {
-     "//chrome/browser/ui/webui/user_education_internals:mojo_bindings",
+@@ -2254,6 +2254,7 @@
      "//chrome/browser/web_applications/mojom:mojom_web_apps_enum",
+     "//chrome/common",
      "//chrome/common/request_header_integrity:buildflags",
 +    "//components/helium_onboarding:generated_resources",
      "//components/autofill/core/browser/ml_model/logging:mojo_bindings",
      "//components/enterprise/connectors:mojom",
-     "//components/webui/chrome_urls/mojom:mojo_bindings",
+     "//components/input",
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
-@@ -494,11 +494,13 @@ template("chrome_extra_paks") {
+@@ -511,11 +511,13 @@
          "$root_gen_dir/chrome/default_browser_modal_resources.pak",
          "$root_gen_dir/chrome/intro_resources.pak",
          "$root_gen_dir/chrome/profile_picker_resources.pak",
@@ -99,7 +99,7 @@
  
 --- a/chrome/common/webui_url_constants.cc
 +++ b/chrome/common/webui_url_constants.cc
-@@ -173,6 +173,7 @@ base::span<const base::cstring_view> Chr
+@@ -173,6 +173,7 @@
        kChromeUIPrefsInternalsHost,
        kChromeUIProfileInternalsHost,
        content::kChromeUIQuotaInternalsHost,
@@ -109,18 +109,18 @@
  #endif
 --- a/chrome/common/webui_url_constants.h
 +++ b/chrome/common/webui_url_constants.h
-@@ -514,6 +514,8 @@ inline constexpr char kChromeUIProfilePi
+@@ -518,6 +518,8 @@
  inline constexpr char kChromeUIProfilePickerOmniboxEverywhereQuery[] =
      "omnibox-everywhere";
  inline constexpr char kChromeUIProfilePickerUrl[] = "chrome://profile-picker/";
 +inline constexpr char kHeliumSetupHost[] = "setup";
 +inline constexpr char kHeliumSetupURL[] = "chrome://setup";
  inline constexpr char kChromeUIHistorySyncOptinHost[] = "history-sync-optin";
+ inline constexpr char kChromeUIHistorySyncOptinLoadingPath[] = "loading";
  inline constexpr char kChromeUIHistorySyncOptinURL[] =
-     "chrome://history-sync-optin/";
 --- a/chrome/browser/ui/webui/BUILD.gn
 +++ b/chrome/browser/ui/webui/BUILD.gn
-@@ -44,6 +44,7 @@ source_set("configs") {
+@@ -44,6 +44,7 @@
      ":gcm_internals_ui",
      ":net_export_ui",
      ":ntp_tiles_internals_ui",
@@ -128,7 +128,7 @@
      ":signin_internals_ui",
      ":webui",
      "//chrome/browser/actor/ui:actor_overlay",
-@@ -690,6 +691,36 @@ source_set("chrome_web_ui_controller_fac
+@@ -705,6 +706,36 @@
    }
  }
  
@@ -175,7 +175,7 @@
  #include "chrome/browser/ui/webui/policy/policy_ui.h"
  #include "chrome/browser/ui/webui/predictors/predictors_ui.h"
  #include "chrome/browser/ui/webui/regional_capabilities_internals/regional_capabilities_internals_ui.h"
-@@ -504,6 +505,7 @@ void RegisterChromeWebUIConfigs() {
+@@ -506,6 +507,7 @@
    map.AddWebUIConfig(std::make_unique<DefaultBrowserModalUIConfig>());
    map.AddWebUIConfig(std::make_unique<ManagedUserProfileNoticeUIConfig>());
    map.AddWebUIConfig(std::make_unique<IntroUIConfig>());
@@ -670,7 +670,7 @@
 +#endif  // CHROME_BROWSER_UI_WEBUI_ONBOARDING_ONBOARDING_HANDLER_H_
 --- a/components/helium_services/helium_services_helpers.cc
 +++ b/components/helium_services/helium_services_helpers.cc
-@@ -53,12 +53,14 @@ GURL GetDummyURL() {
+@@ -53,12 +53,14 @@
  }
  
  bool ShouldAccessServices(const PrefService& prefs) {
@@ -688,7 +688,7 @@
    registrar.Add(pref_name, observer);
 --- a/chrome/browser/ui/incognito_allowed_url.cc
 +++ b/chrome/browser/ui/incognito_allowed_url.cc
-@@ -52,7 +52,8 @@ bool IsHostAllowedInIncognito(const GURL
+@@ -52,7 +52,8 @@
           host != chrome::kChromeUIHelpHost &&
           host != chrome::kChromeUIHistoryHost &&
           host != chrome::kChromeUIExtensionsHost &&
@@ -700,7 +700,7 @@
  }  // namespace
 --- a/chrome/browser/ui/webui/settings/search_engines_handler.cc
 +++ b/chrome/browser/ui/webui/settings/search_engines_handler.cc
-@@ -579,7 +579,10 @@ void SearchEnginesHandler::HandleSetDefa
+@@ -624,7 +624,10 @@
    CHECK(choice_made_location ==
              search_engines::ChoiceMadeLocation::kSearchSettings ||
          choice_made_location ==
@@ -714,7 +714,7 @@
    std::optional<bool> save_guest_choice = args[2].GetIfBool();
 --- a/chrome/browser/favicon/favicon_utils.cc
 +++ b/chrome/browser/favicon/favicon_utils.cc
-@@ -169,6 +169,7 @@ bool ShouldThemifyFavicon(GURL url) {
+@@ -169,6 +169,7 @@
           url.host() != chrome::kChromeUIVersionHost &&
           url.host() != chrome::kChromeUINetExportHost &&
           url.host() != chrome::kChromeUINewTabHost &&
@@ -724,7 +724,7 @@
  }
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -1594,6 +1594,12 @@
+@@ -1653,6 +1653,12 @@
      <message name="IDS_SETTINGS_HELIUM_SCHEMA_IGNORE" desc="Checkbox label to ignore any future services change alerts">
        Don't notify me again
      </message>
@@ -739,7 +739,7 @@
      </message>
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -446,6 +446,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -447,6 +447,8 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kHeliumServicesOrigin] =
        settings_api::PrefType::kString;
@@ -750,7 +750,7 @@
    (*s_allowlist)[::prefs::kPrivacyGuideViewed] =
 --- a/chrome/browser/resources/settings/privacy_page/services_page.ts
 +++ b/chrome/browser/resources/settings/privacy_page/services_page.ts
-@@ -94,6 +94,10 @@ export class SettingsHeliumServicesPageE
+@@ -94,6 +94,10 @@
  
      this.setPrefValue('helium.services.origin_override', target.value);
    }
@@ -811,7 +811,7 @@
  
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -2600,6 +2600,8 @@ void AddPrivacyStrings(content::WebUIDat
+@@ -2617,6 +2617,8 @@
        {"securityPageDescription", IDS_SETTINGS_SECURITY_DESCRIPTION},
        {"heliumServicesTitle", IDS_SETTINGS_HELIUM_SERVICES},
        {"heliumServicesDescription", IDS_SETTINGS_HELIUM_SERVICES_DESCRIPTION},
@@ -822,7 +822,7 @@
          IDS_SETTINGS_HELIUM_SERVICES_TOGGLE_DESCRIPTION},
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -295,6 +295,9 @@ are declared in tools/grit/grit_args.gni
+@@ -295,6 +295,9 @@
        <!-- Global Media Controls specific strings -->
        <part file="gmc_strings.grdp" />
  
@@ -834,14 +834,14 @@
  
 --- a/chrome/app/generated_resources.grd.gritdeps
 +++ b/chrome/app/generated_resources.grd.gritdeps
-@@ -108,3 +108,4 @@ chrome/app/skills_strings.grdp
+@@ -109,3 +109,4 @@
  chrome/app/support_tool_strings.grdp
  chrome/app/vr_strings.grdp
  chrome/app/whats_new_strings.grdp
 +components/helium_onboarding/helium_onboarding_strings.grdp
 --- a/chrome/browser/ui/startup/first_run_service.cc
 +++ b/chrome/browser/ui/startup/first_run_service.cc
-@@ -47,16 +47,8 @@ bool IsFirstRunEligibleProfile(Profile*
+@@ -47,16 +47,8 @@
  }
  
  bool IsFirstRunEligibleProcess() {
@@ -862,7 +862,7 @@
  void SetFirstRunFinished(ProfilePicker::FirstRunFinishReason reason) {
 --- a/base/mac/mac_util.h
 +++ b/base/mac/mac_util.h
-@@ -145,6 +145,9 @@ enum class SystemSettingsPane {
+@@ -145,6 +145,9 @@
    // Privacy & Security > Camera
    kPrivacySecurity_Camera,
  
@@ -874,7 +874,7 @@
  
 --- a/base/mac/mac_util.mm
 +++ b/base/mac/mac_util.mm
-@@ -521,6 +521,10 @@ void OpenSystemSettingsPane(SystemSettin
+@@ -521,6 +521,10 @@
        url = @"x-apple.systempreferences:com.apple.settings.PrivacySecurity."
              @"extension?Privacy_Camera";
        break;
@@ -887,7 +887,7 @@
              @"extension?Privacy_LocationServices";
 --- a/chrome/browser/ui/webui/settings/BUILD.gn
 +++ b/chrome/browser/ui/webui/settings/BUILD.gn
-@@ -353,6 +353,7 @@ source_set("impl") {
+@@ -356,6 +356,7 @@
      "//components/wallet/core/common:features",
      "//components/webapps/isolated_web_apps:scheme",
      "//components/webauthn/core/browser:passkey_model",
@@ -923,7 +923,7 @@
  #include "ui/shell_dialogs/selected_file_info.h"
  
  using content::BrowserThread;
-@@ -38,6 +42,18 @@ using content::BrowserThread;
+@@ -38,6 +42,18 @@
  namespace settings {
  
  namespace {
@@ -942,7 +942,7 @@
  const char kImportStatusInProgress[] = "inProgress";
  const char kImportStatusSucceeded[] = "succeeded";
  const char kImportStatusFailed[] = "failed";
-@@ -225,6 +241,7 @@ void ImportDataHandler::SendBrowserProfi
+@@ -225,6 +241,7 @@
      uint16_t browser_services = source_profile.services_supported;
  
      base::DictValue browser_profile;
