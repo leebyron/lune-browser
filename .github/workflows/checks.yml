@@ -34,8 +34,14 @@ jobs:
       - name: Validate pinned configuration
         run: python3 scripts/lune.py validate
       - name: Fetch permanent component inputs
-        run: git -c fetch.prune=false fetch --no-prune --no-tags origin 'refs/tags/inputs/*:refs/tags/inputs/*'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          git -c fetch.prune=false fetch --no-prune --no-tags origin 'refs/tags/inputs/*:refs/tags/inputs/*'
       - name: Verify upstream ancestry and platform gitlink
         run: python3 scripts/lune.py validate --git-objects
       - name: Reconstruct platform and core from GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python3 scripts/lune.py checkout --arch arm64

@@ -90,6 +90,11 @@ Build requires its successful preparation record and unchanged lock, GN argument
 and Xcode version. These checks do not attest to arbitrary manual changes inside
 the generated source tree: use a fresh preparation for release validation.
 
+This GitHub repository currently requires authentication. Local HTTPS clones use
+the owner's existing Git credential helper. CI supplies the job's read-only
+`GITHUB_TOKEN` through `gh` only for fetching/checkout; credentials are not stored
+in the source tree, and browser signing credentials are never supplied to checks.
+
 Prepared/built state is saved under `.work/<arch>/`; build outputs are inside the
 platform's `build/src/out/Default/`. A successful compile must produce `Lune.app`.
 `built.json` records `validated_for_release: false`. Nothing publishes automatically.
