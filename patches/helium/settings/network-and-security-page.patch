@@ -1,6 +1,6 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -1898,6 +1898,33 @@
+@@ -1914,6 +1914,33 @@
      <message name="IDS_SETTINGS_UNIVERSAL_OPT_OUT_SUB_LABEL" desc="Subtitle of a setting. It appears below the title: ‘Send an opt-out request to sites regarding use of your data’. Users choose whether they want to send a request to sites about how to treat their user data. This string explains that sites may not respond to the user’s request even when this toggle is on; and, even when they do respond, sites may handle opt-out requests differently based on regional laws. On desktop computers, this string appears in the ‘Site requests’ section of the ‘Third-party cookies and site data’ page. On mobile devices, this string appears on its own subpage. The tone should be informative.">
        The sites you visit, including Google, are responsible for determining how they respond to this request. Depending on the laws in your region, sites may respond by limiting the sale and sharing of your data or its use for personalized ads.
      </message>
@@ -34,7 +34,7 @@
      <message name="IDS_SETTINGS_PERMISSIONS_DESCRIPTION" desc="Description of the controls available on the permissions and site content settings page">
        Controls what information sites can use and show (location, camera, pop-ups, and more)
      </message>
-@@ -2071,13 +2098,13 @@
+@@ -1973,13 +2000,13 @@
        Don't see any warnings before going to insecure sites
      </message>
      <message name="IDS_SETTINGS_HTTPS_FIRST_MODE_ENABLED_STRICT_LABEL" desc="Label for radio button to enable the stricter form of HTTPS-First Mode">
@@ -52,7 +52,7 @@
        Doesn’t warn you for private sites, such as your company’s intranet
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -2600,14 +2600,20 @@ void AddPrivacyStrings(content::WebUIDat
+@@ -2617,14 +2617,20 @@
        {"newBadgeLabel", IDS_NEW_BADGE},
        {"privacyPageTitle", IDS_SETTINGS_PRIVACY},
        {"privacyPageMore", IDS_SETTINGS_PRIVACY_MORE},
@@ -82,7 +82,7 @@
        {"noiseToggleDescription", IDS_SETTINGS_NOISE_TOGGLE_DESCRIPTION},
 --- a/chrome/browser/resources/settings/privacy_page/cookies_page.html
 +++ b/chrome/browser/resources/settings/privacy_page/cookies_page.html
-@@ -10,9 +10,6 @@ import {ThirdPartyCookieBlockingSetting}
+@@ -10,9 +10,6 @@
        search-term="${this.searchTerm}"
        @search-term-changed="${this.onSearchTermChanged_}"
        route-path="${this.routePath}">
@@ -92,7 +92,7 @@
      <div id="explanationText" class="secondary">
        $i18n{thirdPartyCookiesPageDescription}
      </div>
-@@ -138,28 +135,6 @@ import {ThirdPartyCookieBlockingSetting}
+@@ -138,28 +135,6 @@
          </settings-radio-group>
        ` : ''}
      </div>
@@ -123,7 +123,7 @@
          role-description="$i18n{subpageArrowRoleDescription}">
 --- a/chrome/browser/resources/settings/privacy_page/cookies_page.ts
 +++ b/chrome/browser/resources/settings/privacy_page/cookies_page.ts
-@@ -20,7 +20,6 @@ import '../icons.html.js';
+@@ -20,7 +20,6 @@
  import '../privacy_icons.html.js';
  import '../settings_page/settings_subpage.js';
  import '../site_settings/site_list.js';
@@ -144,7 +144,7 @@
 -}
 --- a/chrome/browser/resources/settings/privacy_page/do_not_track_toggle.html.ts
 +++ b/chrome/browser/resources/settings/privacy_page/do_not_track_toggle.html.ts
-@@ -8,34 +8,11 @@ import type {SettingsDoNotTrackToggleEle
+@@ -8,34 +8,11 @@
  
  export function getHtml(this: SettingsDoNotTrackToggleElement) {
    return html`<!--_html_template_start_-->
@@ -219,7 +219,7 @@
    static get is() {
      return 'settings-do-not-track-toggle';
    }
-@@ -41,83 +24,9 @@ export class SettingsDoNotTrackToggleEle
+@@ -41,83 +24,9 @@
      return getHtml.bind(this)();
    }
  
@@ -306,17 +306,17 @@
  
 --- a/chrome/browser/resources/settings/privacy_page/security/secure_dns.html
 +++ b/chrome/browser/resources/settings/privacy_page/security/secure_dns.html
-@@ -4,7 +4,6 @@ import {SecureDnsResolverType} from './s
+@@ -4,7 +4,6 @@
  
      <settings-toggle-button
          id="secureDnsToggle"
 -        class="hr"
-         .pref="${this.secureDnsToggle_}"
+         pref-key="synthetic.settings.dns_over_https.secure_dns_toggle"
          label="$i18n{secureDns}"
          sub-label="${this.secureDnsDescription_}"
 --- a/chrome/browser/resources/settings/privacy_page/security/security_page.ts
 +++ b/chrome/browser/resources/settings/privacy_page/security/security_page.ts
-@@ -13,6 +13,7 @@ import '../../controls/settings_toggle_b
+@@ -13,6 +13,7 @@
  import '../../icons.html.js';
  import '../../settings_page/settings_subpage.js';
  import '../../simple_confirmation_dialog.js';
@@ -326,7 +326,7 @@
  import {PrefService} from '/shared/settings/prefs2/pref_service.js';
 --- a/chrome/browser/resources/settings/privacy_page/security/security_page.html
 +++ b/chrome/browser/resources/settings/privacy_page/security/security_page.html
-@@ -6,10 +6,12 @@ import {HttpsFirstModeSetting} from './s
+@@ -6,10 +6,12 @@
    <settings-subpage page-title="$i18n{securityPageTitle}"
        learn-more-url="$i18n{safeBrowsingHelpCenterURL}"
        route-path="${this.routePath}">
@@ -341,7 +341,7 @@
              pref-key="generated.https_first_mode_enabled"
              label="$i18n{httpsOnlyModeTitle}"
              sub-label="${this.getHttpsFirstModeSubLabel_()}"
-@@ -32,27 +34,21 @@ import {HttpsFirstModeSetting} from './s
+@@ -32,27 +34,21 @@
                    pref-key="generated.https_first_mode_enabled"
                    label="$i18n{httpsFirstModeEnabledStrictLabel}"
                    class="list-item">
@@ -371,7 +371,7 @@
          </settings-secure-dns>
        ` : ''}
      ` : ''}
-@@ -62,12 +58,28 @@ import {HttpsFirstModeSetting} from './s
+@@ -62,12 +58,28 @@
      ` : ''}
  <if expr="is_chromeos">
      ${this.showSecureDnsSettingLink_ ? html`
@@ -434,7 +434,7 @@
  }
 --- a/chrome/browser/resources/settings/privacy_page/security/security_page.css
 +++ b/chrome/browser/resources/settings/privacy_page/security/security_page.css
-@@ -60,17 +60,27 @@ settings-toggle-button:not([disabled]) {
+@@ -60,17 +60,27 @@
        var(--cr-radio-button-checked-ripple-color);
  }
  

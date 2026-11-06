@@ -1,6 +1,6 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -3788,6 +3788,21 @@
+@@ -3691,6 +3691,21 @@
        <message name="IDS_SETTINGS_PICK_AN_AVATAR" desc="Title of the edit avatar selection section on the manage profile page.">
          Pick an avatar
        </message>
@@ -24,7 +24,7 @@
        </message>
 --- a/chrome/browser/resources/settings/people_page/manage_profile.css
 +++ b/chrome/browser/resources/settings/people_page/manage_profile.css
-@@ -56,6 +56,10 @@ cr-theme-color-picker {
+@@ -56,6 +56,10 @@
    display: inline-block;
  }
  
@@ -37,7 +37,7 @@
    --avatar-spacing: var(--icon-grid-gap);
 --- a/chrome/browser/resources/settings/people_page/manage_profile.html.ts
 +++ b/chrome/browser/resources/settings/people_page/manage_profile.html.ts
-@@ -38,6 +38,37 @@ export function getHtml(this: SettingsMa
+@@ -38,6 +38,37 @@
  </div>
  <div class="cr-row manage-profile-section">
    <h1 class="cr-title-text">$i18n{pickAvatar}</h1>
@@ -86,7 +86,7 @@
  import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
  import 'chrome://resources/cr_elements/cr_input/cr_input.js';
  import 'chrome://resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.js';
-@@ -17,6 +19,7 @@ import '../settings_page/settings_subpag
+@@ -17,6 +19,7 @@
  
  import type {ProfileInfo} from '/shared/settings/people_page/profile_info_browser_proxy.js';
  import {ProfileInfoBrowserProxyImpl} from '/shared/settings/people_page/profile_info_browser_proxy.js';
@@ -94,7 +94,7 @@
  import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
  import type {AvatarIcon} from 'chrome://resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.js';
  import {WebUiListenerMixinLit} from 'chrome://resources/cr_elements/web_ui_listener_mixin_lit.js';
-@@ -40,6 +43,9 @@ const SettingsManageProfileElementBase =
+@@ -40,6 +43,9 @@
  export interface SettingsManageProfileElement {
    $: {
      nameInput: CrInputElement,
@@ -104,7 +104,7 @@
    };
  }
  
-@@ -77,6 +83,12 @@ export class SettingsManageProfileElemen
+@@ -77,6 +83,12 @@
        hasProfileShortcut_: {type: Boolean},
  
        /**
@@ -117,7 +117,7 @@
         * The available icons for selection.
         */
        availableIcons: {type: Array},
-@@ -102,6 +114,7 @@ export class SettingsManageProfileElemen
+@@ -102,6 +114,7 @@
    protected accessor profileName_: string = '';
    protected accessor hasProfileShortcut_: boolean = false;
    accessor availableIcons: AvatarIcon[] = [];
@@ -125,7 +125,7 @@
    protected accessor isProfileShortcutSettingVisible_: boolean = false;
    protected accessor hasEnterpriseLabel_: boolean =
        loadTimeData.getBoolean('hasEnterpriseLabel');
-@@ -114,15 +127,29 @@ export class SettingsManageProfileElemen
+@@ -114,15 +127,29 @@
  
      const setIcons = (icons: AvatarIcon[]) => {
        this.availableIcons = icons;
@@ -155,7 +155,7 @@
    }
  
    override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
-@@ -162,6 +189,52 @@ export class SettingsManageProfileElemen
+@@ -162,6 +189,52 @@
      this.profileName_ = info.name;
    }
  
@@ -208,7 +208,7 @@
    /**
     * Handler for when the profile name field is changed, then blurred.
     */
-@@ -195,6 +268,10 @@ export class SettingsManageProfileElemen
+@@ -195,6 +268,10 @@
  
      if (this.profileAvatar_.isGaiaAvatar) {
        this.browserProxy_.setProfileIconToGaiaAvatar();
@@ -221,7 +221,7 @@
            this.profileAvatar_.index);
 --- a/chrome/browser/resources/settings/people_page/manage_profile_browser_proxy.ts
 +++ b/chrome/browser/resources/settings/people_page/manage_profile_browser_proxy.ts
-@@ -40,6 +40,22 @@ export interface ManageProfileBrowserPro
+@@ -40,6 +40,22 @@
    setProfileIconToDefaultAvatar(index: number): void;
  
    /**
@@ -244,7 +244,7 @@
     * Sets the profile's name.
     */
    setProfileName(name: string): void;
-@@ -74,6 +90,18 @@ export class ManageProfileBrowserProxyIm
+@@ -74,6 +90,18 @@
      chrome.send('setProfileIconToDefaultAvatar', [index]);
    }
  
@@ -265,7 +265,7 @@
    }
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -2484,6 +2484,10 @@ void AddPeopleStrings(content::WebUIData
+@@ -2501,6 +2501,10 @@
        {"nameYourProfile", IDS_SETTING_NAME_YOUR_PROFILE},
        {"pickThemeColor", IDS_SETTINGS_PICK_A_THEME_COLOR},
        {"pickAvatar", IDS_SETTINGS_PICK_AN_AVATAR},
@@ -313,7 +313,7 @@
  
  namespace settings {
  
-@@ -44,6 +56,47 @@ const char kProfileShortcutSettingHidden
+@@ -44,6 +56,47 @@
  const char kProfileShortcutFound[] = "profileShortcutFound";
  const char kProfileShortcutNotFound[] = "profileShortcutNotFound";
  
@@ -361,7 +361,7 @@
  }  // namespace
  
  ManageProfileHandler::ManageProfileHandler(Profile* profile)
-@@ -67,6 +120,19 @@ void ManageProfileHandler::RegisterMessa
+@@ -67,6 +120,19 @@
            &ManageProfileHandler::HandleSetProfileIconToDefaultAvatar,
            base::Unretained(this)));
    web_ui()->RegisterMessageCallback(
@@ -381,7 +381,7 @@
        "setProfileName",
        base::BindRepeating(&ManageProfileHandler::HandleSetProfileName,
                            base::Unretained(this)));
-@@ -150,6 +216,7 @@ void ManageProfileHandler::HandleSetProf
+@@ -150,6 +216,7 @@
  
    pref_service->SetBoolean(prefs::kProfileUsingDefaultAvatar, false);
    pref_service->SetBoolean(prefs::kProfileUsingGAIAAvatar, true);
@@ -389,7 +389,7 @@
    if (!previously_using_gaia_icon) {
      // Only log if they changed to the GAIA photo.
      // Selection of GAIA photo as avatar is logged as part of the function
-@@ -168,6 +235,87 @@ void ManageProfileHandler::HandleSetProf
+@@ -168,6 +235,87 @@
        profile_, profiles::GetSanitizedAvatarIndex(args[0].GetInt()));
  }
  
@@ -475,11 +475,11 @@
 +}
 +
  void ManageProfileHandler::HandleSetProfileName(const base::ListValue& args) {
-   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+   CHECK_CURRENTLY_ON(content::BrowserThread::UI, base::NotFatalUntil::M162);
    CHECK_EQ(1u, args.size());
 --- a/chrome/browser/ui/webui/settings/settings_manage_profile_handler.h
 +++ b/chrome/browser/ui/webui/settings/settings_manage_profile_handler.h
-@@ -67,6 +67,18 @@ class ManageProfileHandler : public sett
+@@ -67,6 +67,18 @@
    // Callback for the "setProfileIconToDefaultAvatar" message.
    void HandleSetProfileIconToDefaultAvatar(const base::ListValue& args);
  
@@ -498,7 +498,7 @@
    // Callback for the "setProfileName" message.
    void HandleSetProfileName(const base::ListValue& args);
  
-@@ -100,6 +112,7 @@ class ManageProfileHandler : public sett
+@@ -100,6 +112,7 @@
  
    // For generating weak pointers to itself for callbacks.
    base::WeakPtrFactory<ManageProfileHandler> weak_factory_{this};
@@ -508,7 +508,7 @@
  }  // namespace settings
 --- a/ui/webui/resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.ts
 +++ b/ui/webui/resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.ts
-@@ -25,6 +25,8 @@ export interface AvatarIcon {
+@@ -25,6 +25,8 @@
    label: string;
    index: number;
    isGaiaAvatar: boolean;
@@ -517,7 +517,7 @@
    selected: boolean;
  }
  
-@@ -111,9 +113,7 @@ export class CrProfileAvatarSelectorElem
+@@ -111,9 +113,7 @@
    }
  
    protected isAvatarSelected_(avatarItem: AvatarIcon): boolean {
@@ -528,7 +528,7 @@
    }
  
    protected onAvatarClick_(e: Event) {
-@@ -121,7 +121,21 @@ export class CrProfileAvatarSelectorElem
+@@ -121,7 +121,21 @@
      // component.
      const target = e.currentTarget as HTMLElement;
      const index = Number(target.dataset['index']);
@@ -568,7 +568,7 @@
  }
 --- a/ui/webui/resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.html.ts
 +++ b/ui/webui/resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.html.ts
-@@ -16,7 +16,8 @@ export function getHtml(this: CrProfileA
+@@ -16,7 +16,8 @@
      <!-- Wrapper div is needed so that only a single node is slotted in
          cr-grid for each avatar. -->
      <div>
@@ -578,7 +578,7 @@
          <cr-button class="avatar" role="radio" id="${this.getAvatarId_(index)}"
              data-index="${index}" aria-label="${item.label}"
              tabindex="${this.getTabIndex_(index, item)}"
-@@ -25,6 +26,9 @@ export function getHtml(this: CrProfileA
+@@ -25,6 +26,9 @@
              aria-checked="${this.isAvatarSelected_(item)}">
          </cr-button>
          <cr-icon icon="cr:check" class="checkmark"></cr-icon>

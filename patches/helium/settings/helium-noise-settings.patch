@@ -1,6 +1,6 @@
 --- a/chrome/browser/resources/settings/site_settings/constants.ts
 +++ b/chrome/browser/resources/settings/site_settings/constants.ts
-@@ -30,6 +30,7 @@ export enum ContentSettingsTypes {
+@@ -30,6 +30,7 @@
    FILE_SYSTEM_WRITE = 'file-system-write',
    GEOLOCATION = 'location',
    HAND_TRACKING = 'hand-tracking',
@@ -10,7 +10,7 @@
    IMAGES = 'images',
 --- a/chrome/browser/ui/webui/settings/site_settings_helper.cc
 +++ b/chrome/browser/ui/webui/settings/site_settings_helper.cc
-@@ -261,7 +261,7 @@ constexpr auto kContentSettingsTypeGroup
+@@ -261,7 +261,7 @@
      {ContentSettingsType::SUSPICIOUS_NOTIFICATION_SHOW_ORIGINAL, nullptr},
      {ContentSettingsType::LOCAL_NETWORK_ACCESS, nullptr},
      {ContentSettingsType::SUB_APPS_WITHOUT_PROMPTS, nullptr},
@@ -21,7 +21,7 @@
  
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -2186,6 +2186,32 @@
+@@ -2068,6 +2068,32 @@
      <message name="IDS_SETTINGS_CLEAR_DATA_DESCRIPTION" desc="Description for delete browsing data button in Privacy options. 'History' refers to browsing history. 'Cookies' refers to the technical meaning of a cookie, i.e. data saved by a website on the user's computer, as in when a website saves your preferences.">
        Delete history, cookies, cache, and more
      </message>
@@ -56,7 +56,7 @@
      </message>
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -128,6 +128,7 @@
+@@ -127,6 +127,7 @@
  #include "net/base/url_util.h"
  #include "net/net_buildflags.h"
  #include "services/device/public/cpp/device_features.h"
@@ -64,7 +64,7 @@
  #include "third_party/blink/public/common/features_generated.h"
  #include "ui/accessibility/accessibility_features.h"
  #include "ui/accessibility/accessibility_switches.h"
-@@ -2607,6 +2608,14 @@ void AddPrivacyStrings(content::WebUIDat
+@@ -2624,6 +2625,14 @@
        {"siteSettingsSublabel", IDS_SETTINGS_PERMISSIONS_DESCRIPTION_NORMAL},
        {"securityPageTitle", IDS_SETTINGS_SECURITY},
        {"securityPageDescription", IDS_SETTINGS_SECURITY_DESCRIPTION},
@@ -79,9 +79,9 @@
        {"heliumServicesTitle", IDS_SETTINGS_HELIUM_SERVICES},
        {"heliumServicesDescription", IDS_SETTINGS_HELIUM_SERVICES_DESCRIPTION},
        {"heliumCrashReportingTitle",
-@@ -2924,6 +2933,9 @@ void AddPrivacyStrings(content::WebUIDat
-       {"securityJavascriptGuardrailsManageSiteExceptionsDesc",
-        IDS_SETTINGS_SECURITY_JAVASCRIPT_GUARDRAILS_MANAGE_SITE_EXCEPTIONS_DESCRIPTION}};
+@@ -2855,6 +2864,9 @@
+       {"safeBrowsingEnhancedLearnMoreLabel",
+        IDS_SETTINGS_SAFEBROWSING_ENHANCED_LEARN_MORE_LABEL}};
    html_source->AddLocalizedStrings(kLocalizedStrings);
 +  html_source->AddBoolean(
 +      "heliumNoiseAvailable",
@@ -91,7 +91,7 @@
                           chrome::kCookiesSettingsHelpCenterURL);
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -616,6 +616,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -617,6 +617,8 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[safety_hub_prefs::kUnusedSitePermissionsRevocationEnabled] =
        settings_api::PrefType::kBoolean;
@@ -197,7 +197,7 @@
 +customElements.define(SettingsNoisePageElement.is, SettingsNoisePageElement);
 --- a/chrome/browser/resources/settings/BUILD.gn
 +++ b/chrome/browser/resources/settings/BUILD.gn
-@@ -58,6 +58,7 @@ build_webui("build") {
+@@ -58,6 +58,7 @@
      "controls/settings_radio_group.ts",
      "controls/settings_toggle_button.ts",
      "privacy_page/cookies_page.ts",
@@ -207,7 +207,7 @@
      "privacy_page/privacy_page_index.ts",
 --- a/chrome/browser/resources/settings/lazy_load.ts
 +++ b/chrome/browser/resources/settings/lazy_load.ts
-@@ -27,6 +27,7 @@ import './clear_browsing_data_dialog/cle
+@@ -27,6 +27,7 @@
  import './clear_browsing_data_dialog/clear_browsing_data_time_picker.js';
  import './glic_page/glic_login_permissions_page.js';
  import './privacy_page/cookies_page.js';
@@ -215,7 +215,7 @@
  import './privacy_page/privacy_guide/privacy_guide_dialog.js';
  import './privacy_page/privacy_guide/privacy_guide_page.js';
  import './privacy_page/security/security_keys_subpage.js';
-@@ -257,6 +258,7 @@ export {SettingsSyncEncryptionOptionsEle
+@@ -257,6 +258,7 @@
  export {NetworkPredictionOptions} from './performance_page/constants.js';
  export {SettingsCookiesPageElement} from './privacy_page/cookies_page.js';
  export {SettingsDoNotTrackToggleElement} from './privacy_page/do_not_track_toggle.js';
@@ -225,7 +225,7 @@
  export {PrivacyGuideCompletionFragmentElement} from './privacy_page/privacy_guide/privacy_guide_completion_fragment.js';
 --- a/chrome/browser/resources/settings/router.ts
 +++ b/chrome/browser/resources/settings/router.ts
-@@ -33,6 +33,7 @@ export interface SettingsRoutes {
+@@ -33,6 +33,7 @@
    DICTATION: Route;
    DOWNLOADS: Route;
    EDIT_DICTIONARY: Route;
@@ -235,7 +235,7 @@
    GEMINI_LOGIN: Route;
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
-@@ -18,6 +18,10 @@ function addPrivacyChildRoutes(r: Partia
+@@ -18,6 +18,10 @@
    r.CLEAR_BROWSER_DATA = r.PRIVACY.createChild('/clearBrowserData');
    r.CLEAR_BROWSER_DATA.isNavigableDialog = true;
  
@@ -267,7 +267,7 @@
          start-icon="privacy:cookie"
 --- a/chrome/browser/resources/settings/privacy_page/privacy_page.ts
 +++ b/chrome/browser/resources/settings/privacy_page/privacy_page.ts
-@@ -76,6 +76,8 @@ export class SettingsPrivacyPageElement
+@@ -76,6 +76,8 @@
        showClearBrowsingDataDialog_: {type: Boolean},
        showPrivacyGuideDialog_: {type: Boolean},
  
@@ -276,7 +276,7 @@
        // The label of the confirmation toast that is displayed after deletion
        // from 'Delete Browsing data' is completed.
        dbdDeletionConfirmationToastLabel_: {type: String},
-@@ -88,6 +90,8 @@ export class SettingsPrivacyPageElement
+@@ -88,6 +90,8 @@
  
    protected accessor showClearBrowsingDataDialog_: boolean = false;
    protected accessor showPrivacyGuideDialog_: boolean = false;
@@ -285,7 +285,7 @@
    protected accessor dbdDeletionConfirmationToastLabel_: string = '';
    private accessor showUniversalOptOutSettings_: boolean =
        loadTimeData.getBoolean('showUniversalOptOutSettings');
-@@ -126,6 +130,12 @@ export class SettingsPrivacyPageElement
+@@ -126,6 +130,12 @@
      Router.getInstance().navigateTo(routes.COOKIES);
    }
  
@@ -298,7 +298,7 @@
    protected onCbdDialogClose_() {
      Router.getInstance().navigateTo(routes.CLEAR_BROWSER_DATA.parent!);
  
-@@ -222,6 +232,10 @@ export class SettingsPrivacyPageElement
+@@ -222,6 +232,10 @@
    override getFocusConfig() {
      const map = new Map();
  
@@ -309,7 +309,7 @@
      if (routes.HELIUM_SERVICES) {
        map.set(routes.HELIUM_SERVICES.path, '#heliumServicesLinkRow');
      }
-@@ -249,6 +263,9 @@ export class SettingsPrivacyPageElement
+@@ -249,6 +263,9 @@
    override getAssociatedControlFor(childViewId: string): HTMLElement {
      let triggerId: string|null = null;
      switch (childViewId) {
@@ -321,7 +321,7 @@
          break;
 --- a/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
 +++ b/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
-@@ -41,6 +41,18 @@
+@@ -40,6 +40,18 @@
      </settings-cookies-page>
    </template>
  
@@ -342,7 +342,7 @@
      <settings-security-page slot="view"
 --- a/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
 +++ b/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
-@@ -120,6 +120,12 @@ export class SettingsPrivacyPageIndexEle
+@@ -117,6 +117,12 @@
          value: () => loadTimeData.getBoolean('enablePersistentPermissions'),
        },
  
@@ -355,7 +355,7 @@
        enableSecurityKeysSubpage_: {
          type: Boolean,
          readOnly: true,
-@@ -181,6 +187,7 @@ export class SettingsPrivacyPageIndexEle
+@@ -179,6 +185,7 @@
    declare private pageVisibility_: PageVisibility;
    declare private routes_: SettingsRoutes;
    declare private showPrivacyGuidePromo_: boolean;
@@ -365,11 +365,11 @@
    declare private enableExperimentalWebPlatformFeatures_: boolean;
 --- a/chrome/common/webui_url_constants.h
 +++ b/chrome/common/webui_url_constants.h
-@@ -564,6 +564,7 @@ inline constexpr char kDownloadsSubPage[
+@@ -570,6 +570,7 @@
  inline constexpr char kExperimentalAISettingsSubPage[] = "ai";
  inline constexpr char kFileSystemSettingsSubpage[] =
      "content/filesystem/siteDetails";
 +inline constexpr char kNoiseSubPage[] = "privacy/noise";
+ inline constexpr char kFontsSubPage[] = "fonts";
  inline constexpr char kGlicSettingsSubpage[] = "ai/gemini";
  inline constexpr char kGlicEnterpriseSettingsSubpage[] = "ai/geminienterprise";
- inline constexpr char kGlicLoginSettingsSubpage[] = "ai/gemini/login";
