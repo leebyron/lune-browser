@@ -175,8 +175,46 @@ Core commit `1375f659` adapts ten Settings patches:
   avatars, privacy noise, and network/security settings follow changed imports,
   checks, string declarations, and the Secure DNS toggle's synthetic pref binding.
 
-The first **244 patches apply with zero fuzz**. Application currently stops at
-`helium/ui/clean-new-tab-page.patch`. No patch has been skipped or forced.
+Core commit `29259af3` adapts eight new-tab and tab-chrome patches:
+
+- The clean new-tab page follows upstream composebox/import changes while keeping
+  Helium shortcuts, customization, and theme attribution. TypeScript parser checks
+  passed for the new-tab entry point, app, and Lit template; this is syntax-only
+  evidence, not type checking or runtime validation.
+- Tab sizing and group-header padding preserve the new upstream unfocus chip.
+  Toolbar tab search preserves the separate organizer action when enabled.
+- App-menu changes retain the new scheduled-restart menu entry. Toolbar categories,
+  multi-contents GN dependencies, frame corners, and panel clipping follow the
+  current source structure.
+
+Core commit `dc415a20` adapts seven notification and styling patches:
+
+- Dead-toolbar-action removal preserves the new tabs-from-other-devices action and
+  keeps the autofill action-existence guard with the new controller accessor.
+- Helium's disabled-extension-download command uses value 24, preserving upstream
+  Windows OPEN_WITH value 23. The corresponding metrics enum is updated too.
+- Toasts retain Helium's scale/fade animation and remove the replacement upstream
+  vertical-offset animation fields. The window-movement regression test now drives
+  the layer animator; the width test uses Helium's shadow-free margin. These test
+  adaptations have not yet been compiled or run.
+- Compact infobars preserve upstream queued-count pill handling and focus
+  restoration. Color mixers, status-bubble setup, and incognito text are adapted
+  without changing their intended Helium behavior.
+
+Core commit `2c8892b9` adapts nine layout and shortcut patches:
+
+- Custom shortcuts retain Chromium's macOS-only Escape handling and ChromeOS
+  unified-lock-controller logic. Vertical layout state keeps the collapse-action
+  refresh when releasing its state lock.
+- Layout settings, horizontal tabs, toolbar dependencies, dynamic and compact
+  layouts follow current source locations. The minimal location bar keeps the new
+  upstream placeholder refresh before updating steady-state text alignment.
+- Ctrl/Cmd-S behavior and collapse-shortcut removal follow the reorganized
+  accelerator tables; the macOS mappings remain in their platform files.
+
+The first **322 patches apply with zero fuzz**. Application currently stops at
+`helium/ui/layout/vertical.patch`, including changed layout/animation code and the
+missing old `tab_group_view_layout.cc` path. No patch has been skipped or forced.
 Full preparation, GN generation, compilation, and runtime validation remain
 incomplete for 158. The older 157 UI validation build is still a separate
 running diagnostic build.
