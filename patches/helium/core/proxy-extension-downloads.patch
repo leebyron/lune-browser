@@ -1,15 +1,15 @@
 --- a/extensions/common/extension_urls.cc
 +++ b/extensions/common/extension_urls.cc
-@@ -44,7 +44,7 @@ const char kModernWebGuidanceURL[] =
-     "https://developer.chrome.com/docs/extensions/ai/"
-     "build-with-ai#modern_web_guidance";
+@@ -63,7 +63,7 @@
+ const char kChromeWebstoreBaseURL[] = "https://chrome.google.com/webstore";
+ const char kNewChromeWebstoreBaseURL[] = "https://chromewebstore.google.com/";
  const char kChromeWebstoreUpdateURL[] =
 -    "https://clients2.google.com/service/update2/crx";
 +    "https://update-url-to-be-replaced.qjz9zk";
  const char kChromeWebstoreApiURL[] = "https://chromewebstore.googleapis.com/";
  
  const char kAppMenuUtmSource[] = "ext_app_menu";
-@@ -81,7 +81,7 @@ GURL GetNewWebstoreLaunchURL() {
+@@ -96,7 +96,7 @@
  }
  
  GURL AppendUtmSource(const GURL& url, std::string_view utm_source_value) {
@@ -18,7 +18,7 @@
  }
  
  GURL GetWebstoreExtensionsCategoryURL() {
-@@ -94,18 +94,7 @@ std::string GetWebstoreItemDetailURLPref
+@@ -109,18 +109,7 @@
  }
  
  GURL GetWebstoreItemSnippetURL(const extensions::ExtensionId& extension_id) {
@@ -38,7 +38,7 @@
  }
  
  GURL GetWebstoreBlockStatusURL() {
-@@ -123,9 +112,6 @@ GURL GetDefaultWebstoreUpdateUrl() {
+@@ -138,9 +127,6 @@
  }
  
  GURL GetWebstoreUpdateUrl() {
@@ -58,7 +58,7 @@
  #include "extensions/strings/grit/extensions_strings.h"
  #include "ui/base/l10n/l10n_util.h"
  
-@@ -60,8 +61,14 @@ GURL ManifestURL::GetWebStoreURL(const E
+@@ -60,8 +61,14 @@
  }
  
  // static
@@ -138,7 +138,7 @@
 +#endif  // EXTENSIONS_COMMON_MANIFEST_HANDLERS_MANIFEST_URL_PATCHER_H_
 --- a/extensions/common/BUILD.gn
 +++ b/extensions/common/BUILD.gn
-@@ -466,6 +466,8 @@ static_library("common") {
+@@ -468,6 +468,8 @@
      "manifest_handlers/kiosk_mode_info.h",
      "manifest_handlers/manifest_url_handlers.cc",
      "manifest_handlers/manifest_url_handlers.h",
@@ -149,7 +149,7 @@
      "manifest_handlers/mime_types_handler.cc",
 --- a/extensions/common/manifest_handlers/manifest_url_handlers.h
 +++ b/extensions/common/manifest_handlers/manifest_url_handlers.h
-@@ -43,7 +43,7 @@ struct ManifestURL : public Extension::M
+@@ -43,7 +43,7 @@
    static GURL GetWebStoreURL(const Extension* extension);
  
    // Returns the Update URL for this extension.
@@ -160,7 +160,7 @@
    static bool UpdatesFromGallery(const Extension* extension);
 --- a/chrome/browser/extensions/updater/chrome_extension_downloader_factory.cc
 +++ b/chrome/browser/extensions/updater/chrome_extension_downloader_factory.cc
-@@ -53,7 +53,7 @@ ChromeExtensionDownloaderFactory::Create
+@@ -53,7 +53,7 @@
      manifest_query_params += "&testrequest=1";
    }
    downloader->set_manifest_query_params(manifest_query_params);
@@ -171,7 +171,7 @@
  
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -444,6 +444,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -445,6 +445,8 @@
    // Helium services page
    (*s_allowlist)[::prefs::kHeliumServicesEnabled] =
        settings_api::PrefType::kBoolean;
@@ -182,7 +182,7 @@
    (*s_allowlist)[::prefs::kHeliumServicesConsented] =
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -233,6 +233,7 @@ void RegisterBrowserUserPrefs(user_prefs
+@@ -233,6 +233,7 @@
      registry->RegisterIntegerPref(prefs::kHeliumSchemaVersion, 0);
      registry->RegisterBooleanPref(prefs::kHeliumDisableSchemaAlerts, false);
      registry->RegisterBooleanPref(prefs::kHeliumServicesEnabled, true);
@@ -206,7 +206,7 @@
      </template>
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -2611,6 +2611,10 @@ void AddPrivacyStrings(content::WebUIDat
+@@ -2628,6 +2628,10 @@
          IDS_SETTINGS_HELIUM_SCHEMA_NOTICE_DESCRIPTION},
        {"heliumGotIt", IDS_SETTINGS_GOT_IT},
        {"heliumSchemaIgnore", IDS_SETTINGS_HELIUM_SCHEMA_IGNORE},
@@ -219,7 +219,7 @@
          IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION},
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -1612,6 +1612,12 @@
+@@ -1671,6 +1671,12 @@
      <message name="IDS_SETTINGS_HELIUM_SERVICES_TOGGLE_DESCRIPTION" desc="Description of the toggle for enabling/disabling of all Helium services">
        When enabled, Helium will be able to connect to anonymous web services to provide additional functionality. When disabled, additional features will not work.
      </message>
@@ -234,7 +234,7 @@
      </message>
 --- a/components/helium_services/pref_names.h
 +++ b/components/helium_services/pref_names.h
-@@ -27,6 +27,9 @@ inline constexpr char kHeliumServicesCon
+@@ -27,6 +27,9 @@
  inline constexpr char kHeliumDidOnboarding[] =
      "helium.completed_onboarding";
  
@@ -254,7 +254,7 @@
  #include "components/helium_services/pref_names.h"
  #include "components/prefs/pref_service.h"
  #include "net/base/url_util.h"
-@@ -57,6 +58,28 @@ bool ShouldAccessServices(const PrefServ
+@@ -57,6 +58,28 @@
             prefs.GetBoolean(prefs::kHeliumServicesConsented);
  }
  
@@ -285,7 +285,7 @@
    registrar.Add(prefs::kHeliumServicesEnabled, observer);
 --- a/components/helium_services/helium_services_helpers.h
 +++ b/components/helium_services/helium_services_helpers.h
-@@ -20,8 +20,11 @@ const char kHeliumDummyOrigin[] =
+@@ -20,8 +20,11 @@
  
  bool ShouldAccessServices(const PrefService& prefs);
  
@@ -299,7 +299,7 @@
                              PrefChangeRegistrar& registrar, const base::RepeatingClosure& observer);
 --- a/chrome/browser/extensions/BUILD.gn
 +++ b/chrome/browser/extensions/BUILD.gn
-@@ -597,6 +597,7 @@ source_set("extensions") {
+@@ -596,6 +596,7 @@
      "//components/favicon/content",
      "//components/guest_view/buildflags",
      "//components/guest_view/common",
@@ -324,7 +324,7 @@
  #include "url/gurl.h"
  
  namespace {
-@@ -213,11 +216,11 @@ bool PendingExtensionManager::AddFromExt
+@@ -213,11 +216,11 @@
                            creation_flags, mark_acknowledged, kRemoteInstall);
  }
  
@@ -339,7 +339,7 @@
      ManifestLocation install_source = it.second.install_source();
  
      // Some install sources read a CRX from the filesystem.  They can
-@@ -229,6 +232,17 @@ std::list<std::string> PendingExtensionM
+@@ -229,6 +232,17 @@
        continue;
      }
  
@@ -370,7 +370,7 @@
  #include "components/update_client/update_query_params.h"
  #include "content/public/browser/browser_context.h"
  #include "content/public/browser/browser_task_traits.h"
-@@ -214,9 +217,6 @@ void ExtensionUpdater::EnsureDownloaderC
+@@ -214,9 +217,6 @@
    if (!downloader_.get()) {
      downloader_ = downloader_factory_.Run(this);
    }
@@ -380,7 +380,7 @@
  }
  
  void ExtensionUpdater::Start() {
-@@ -235,6 +235,15 @@ void ExtensionUpdater::Start() {
+@@ -235,6 +235,15 @@
      CheckSoon();
      ScheduleNextCheck();
    }
@@ -396,7 +396,7 @@
  }
  
  void ExtensionUpdater::Stop() {
-@@ -566,7 +575,7 @@ void ExtensionUpdater::CheckNow(CheckPar
+@@ -566,7 +575,7 @@
    // OnExtensionDownloadFinished for each extension that was checked.
    downloader_->StartAllPending(extension_cache_);
  
@@ -405,7 +405,7 @@
      update_service_->StartUpdateCheck(
          update_check_params, params.update_found_callback,
          base::BindOnce(&ExtensionUpdater::OnUpdateServiceFinished,
-@@ -789,8 +798,8 @@ void ExtensionUpdater::CleanUpCrxFileIfN
+@@ -789,8 +798,8 @@
  bool ExtensionUpdater::CanUseUpdateService(
      const Extension* extension,
      const PendingExtensionInfo* info) const {
@@ -428,7 +428,7 @@
  #include "content/public/browser/browser_context.h"
  #include "content/public/browser/browser_thread.h"
  #include "content/public/browser/download_manager.h"
-@@ -157,7 +159,6 @@ std::string GetErrorMessageForDownloadIn
+@@ -157,7 +159,6 @@
  
  }  // namespace
  
@@ -436,7 +436,7 @@
  GURL WebstoreInstaller::GetWebstoreInstallURL(const std::string& extension_id,
                                                InstallSource source) {
    std::string install_source;
-@@ -188,7 +189,10 @@ GURL WebstoreInstaller::GetWebstoreInsta
+@@ -188,7 +189,10 @@
      params.push_back(installsource_param);
    }
    params.push_back("uc");
@@ -450,7 +450,7 @@
        url_string + "?response=redirect&" +
 --- a/extensions/browser/webstore_installer.h
 +++ b/extensions/browser/webstore_installer.h
-@@ -113,7 +113,7 @@ class WebstoreInstaller : public Extensi
+@@ -113,7 +113,7 @@
    friend class base::DeleteHelper<WebstoreInstaller>;
  
    // Helper to get install URL.
@@ -461,7 +461,7 @@
    // Appends or replaces the authuser query parameter in the URL.
 --- a/chrome/browser/extensions/extension_management.cc
 +++ b/chrome/browser/extensions/extension_management.cc
-@@ -45,6 +45,8 @@
+@@ -44,6 +44,8 @@
  #include "chrome/common/extensions/extension_constants.h"
  #include "chrome/common/pref_names.h"
  #include "components/crx_file/id_util.h"
@@ -470,7 +470,7 @@
  #include "components/enterprise/browser/reporting/common_pref_names.h"
  #include "components/pref_registry/pref_registry_syncable.h"
  #include "components/prefs/pref_service.h"
-@@ -146,6 +148,11 @@ ExtensionManagement::ExtensionManagement
+@@ -145,6 +147,11 @@
        pref_change_callback);
  #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
  
@@ -482,7 +482,7 @@
    // Note that both |global_settings_| and |default_settings_| will be null
    // before first call to Refresh(), so in order to resolve this, Refresh() must
    // be called in the initialization of ExtensionManagement.
-@@ -345,12 +352,20 @@ GURL ExtensionManagement::GetEffectiveUp
+@@ -344,12 +351,20 @@
          << "Update URL cannot be overridden to be the webstore URL!";
      return update_url;
    }
@@ -515,7 +515,7 @@
  #include "components/keyed_service/core/keyed_service.h"
  #include "extensions/browser/extension_registry_observer.h"
  #include "extensions/browser/extension_system.h"
-@@ -407,6 +408,8 @@ class ExtensionUpdater : public KeyedSer
+@@ -407,6 +408,8 @@
    raw_ptr<PrefService> prefs_ = nullptr;
    raw_ptr<Profile> profile_ = nullptr;
  
@@ -526,7 +526,7 @@
    raw_ptr<DelayedInstallManager> delayed_install_manager_ = nullptr;
 --- a/extensions/browser/pending_extension_info.h
 +++ b/extensions/browser/pending_extension_info.h
-@@ -60,6 +60,8 @@ class PendingExtensionInfo {
+@@ -60,6 +60,8 @@
    const base::Version& version() const { return version_; }
    const std::string& install_parameter() const { return install_parameter_; }
  
@@ -537,7 +537,7 @@
    // this function is run. If it returns true, the extension is installed.
 --- a/extensions/browser/pending_extension_manager.h
 +++ b/extensions/browser/pending_extension_manager.h
-@@ -145,7 +145,7 @@ class PendingExtensionManager : public K
+@@ -145,7 +145,7 @@
    // Get the list of pending IDs that should be installed from an update URL.
    // Pending extensions that will be installed from local files will not be
    // included in the set.
@@ -548,7 +548,7 @@
    void AddObserver(Observer* observer);
 --- a/extensions/browser/webstore_data_fetcher.cc
 +++ b/extensions/browser/webstore_data_fetcher.cc
-@@ -91,7 +91,8 @@ void WebstoreDataFetcher::SetMockItemSni
+@@ -91,7 +91,8 @@
  }
  
  void WebstoreDataFetcher::Start(
@@ -558,7 +558,7 @@
    if (g_mock_item_snippet_response_) {
      g_mock_item_snippet_response_->set_item_id(id_);
      delegate_->OnFetchItemSnippetParseSuccess(id_,
-@@ -99,7 +100,9 @@ void WebstoreDataFetcher::Start(
+@@ -99,7 +100,9 @@
      return;
    }
  
@@ -571,7 +571,7 @@
    // A POST request is sent with an override to GET due to server requirements.
 --- a/extensions/browser/webstore_data_fetcher.h
 +++ b/extensions/browser/webstore_data_fetcher.h
-@@ -51,7 +51,8 @@ class WebstoreDataFetcher {
+@@ -51,7 +51,8 @@
        FetchItemSnippetResponse* mock_response);
  
    // Starts the request to fetch web store data using the item snippets API.
@@ -591,7 +591,7 @@
  #include "content/public/browser/storage_partition.h"
  #include "content/public/browser/web_contents.h"
  #include "extensions/browser/blocklist_extension_prefs.h"
-@@ -76,9 +77,12 @@ void WebstoreStandaloneInstaller::BeginI
+@@ -76,9 +77,12 @@
    webstore_data_fetcher_ =
        std::make_unique<WebstoreDataFetcher>(this, GURL(), id_);
  
@@ -607,7 +607,7 @@
  //
 --- a/extensions/browser/BUILD.gn
 +++ b/extensions/browser/BUILD.gn
-@@ -930,8 +930,10 @@ source_set("webstore_installer") {
+@@ -931,8 +931,10 @@
      ":cws_item_service_proto",
      "//base",
      "//components/download/public/common:public",

@@ -1,6 +1,6 @@
 --- a/chrome/browser/helium_flag_choices.h
 +++ b/chrome/browser/helium_flag_choices.h
-@@ -29,6 +29,9 @@ constexpr const FeatureEntry::Choice kCh
+@@ -29,6 +29,9 @@
  
  constexpr const char kUpdateServerUrlCommandLine[] = "custom-update-server-url";
  
@@ -25,15 +25,15 @@
      // platform
 --- a/third_party/blink/public/common/features.h
 +++ b/third_party/blink/public/common/features.h
-@@ -40,6 +40,8 @@ BLINK_COMMON_EXPORT extern const base::F
+@@ -40,6 +40,8 @@
  // `RuntimeEnabledFeatures)`, they should still be ordered in this section based
  // on the identifier name of the generated feature.
  
 +BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumMiddleClickAutoscroll);
 +
- // Controls whether to include information about the page's open popup in
- // AIPageContent.
- BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAIPageContentIncludePopupWindows);
+ // Controls whether the ad highlight is annotated with a label describing the
+ // type of ad such as popup, sticky, or video.
+ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAdHighlightLabel);
 --- a/third_party/blink/common/features.cc
 +++ b/third_party/blink/common/features.cc
 @@ -19,6 +19,15 @@
@@ -54,7 +54,7 @@
  BASE_FEATURE(kRemoveClientHints, "RemoveClientHints", base::FEATURE_DISABLED_BY_DEFAULT);
 --- a/third_party/blink/renderer/core/exported/web_view_impl.cc
 +++ b/third_party/blink/renderer/core/exported/web_view_impl.cc
-@@ -1941,9 +1941,9 @@ void WebView::ApplyWebPreferences(const
+@@ -1945,9 +1945,9 @@
        prefs.default_maximum_page_scale_factor);
  #endif
  

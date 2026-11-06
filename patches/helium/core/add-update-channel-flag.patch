@@ -63,7 +63,7 @@
 +#endif  /* CHROME_BROWSER_CHANNEL_SELECTION_H_ */
 --- a/chrome/browser/helium_flag_choices.h
 +++ b/chrome/browser/helium_flag_choices.h
-@@ -21,6 +21,12 @@ constexpr const FeatureEntry::Choice kEn
+@@ -21,6 +21,12 @@
      {"Disabled", kEnergySaverFrameRateCommandLine, "9001"},
  };
  
@@ -90,7 +90,7 @@
      // platform
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -290,6 +290,12 @@ source_set("chained_back_navigation_trac
+@@ -289,6 +289,12 @@
    ]
  }
  
@@ -103,9 +103,9 @@
  source_set("child_process_host_flags") {
    public = [ "child_process_host_flags.h" ]
    deps = [ "//content/public/browser" ]
-@@ -1056,6 +1062,7 @@ source_set("core") {
+@@ -1057,6 +1063,7 @@
      ":browser_process_platform_part",
-     ":browser_public_dependencies",
+     ":buildflags",
      ":chained_back_navigation_tracker",
 +    ":channel_selection",
      ":child_process_host_flags",
