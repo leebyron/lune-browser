@@ -485,3 +485,19 @@ All four affected objects compile (`navigation-enum-fix-compile.log`), and a sou
 scan finds no old uppercase disposition names in Chrome or component C++/Objective-C++
 files. The preceding failure is preserved under `*-before-navigation-enum-fix.*`;
 full compilation resumed from cache.
+
+## macOS first-paint feature declarations
+
+The native-frame patch removed `ui_features.h`, which Chromium 158 still needs
+for `kMacDeferInputContextUntilFirstPaint`. Core
+`fd5342cd999dcc9e4d9083cf54182d00e73e7a5d` retains that include and adds the direct
+`base/feature_list.h` include. Platform `4d87fd0a52e501f6b758761289b8de38bc9aa121`
+pins it. Input-context deferral, presentation callbacks, and visual-switcher
+keyboard handling are unchanged.
+
+The core patch reapplied without fuzz; applying the existing visual-switcher
+patch afterward produces the prepared source exactly. The macOS frame object
+compiles (`mac-frame-includes-fix-compile.log`). The series remains at 404 patches.
+The preceding failure is preserved under `*-before-mac-frame-includes-fix.*`;
+compilation resumed from cache. Input-method startup behavior still needs runtime
+validation.
