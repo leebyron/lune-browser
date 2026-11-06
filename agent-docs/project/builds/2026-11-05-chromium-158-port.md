@@ -427,3 +427,18 @@ patch reapplied without fuzz, and its resulting file matches the prepared source
 The affected object compiles (`sync-namespace-fix-compile.log`). The series remains
 at 403 patches; prior failure evidence is retained under
 `*-before-sync-namespace-fix.*`. Full compilation resumed from cache.
+
+## Sync-vault extension event arguments
+
+Chromium 158's extension `Event` constructor takes reference-counted `EventArgs`
+instead of a `base::ListValue`. Core `6dcde0fc736157833bb24f2655b3092db01e3d94` wraps the
+request and release event payloads with `base::MakeRefCounted<EventArgs>` and
+includes the current declarations. Platform `827621d6e711f62df838047f01e698c59b70b770`
+pins the change. Provider selection, browser-context restrictions, request limits,
+and dispatch callbacks are preserved.
+
+The original patch was refreshed in isolation and reapplied without fuzz; the
+result matches the prepared source. `sync_vault_provider_service.o` compiles
+(`sync-events-fix-compile.log`). The series remains at 403 patches. The preceding
+full-build failure is preserved under `*-before-sync-events-fix.*`; compilation
+resumed from cache. End-to-end sync-vault behavior has not been tested.
