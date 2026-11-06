@@ -1,0 +1,114 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -4804,4 +4804,13 @@
+   <message name="IDS_LUNE_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
+     Built on Helium, with thanks to its authors and contributors.
+   </message>
++  <message name="IDS_LUNE_SERVICES_PROVIDER" desc="Lune service provider and update disclosure.">
++    Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates. Browser updates are provided by Lune at lune.computer.
++  </message>
++  <message name="IDS_LUNE_SERVICES_CONSENT" desc="Lune service provider and update disclosure.">
++    Allow Lune to connect to Helium-hosted services and to Lune for browser updates. These requests stay disabled until you consent. Turning this off also disables automatic browser updates.
++  </message>
++  <message name="IDS_LUNE_SERVICES_UPDATES" desc="Lune service provider and update disclosure.">
++    Lune checks lune.computer for browser updates and Helium services for component updates. Keep this enabled to receive security fixes.
++  </message>
+ </grit-part>
+\ No newline at end of file
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -2690,7 +2690,7 @@
+       {"noiseCustomDescription", IDS_SETTINGS_NOISE_CUSTOM_DESCRIPTION},
+       {"noiseAllowOverridesTitle", IDS_SETTINGS_NOISE_ALLOW_OVERRIDES_TITLE},
+       {"heliumServicesTitle", IDS_SETTINGS_HELIUM_SERVICES},
+-      {"heliumServicesDescription", IDS_SETTINGS_HELIUM_SERVICES_DESCRIPTION},
++      {"heliumServicesDescription", IDS_LUNE_SERVICES_PROVIDER},
+       {"heliumCrashReportingTitle",
+        IDS_SETTINGS_HELIUM_CRASH_REPORTING_TITLE},
+       {"heliumCrashReportingDescription",
+@@ -2704,7 +2704,7 @@
+       {"heliumServicesSetupPendingButton", IDS_SETTINGS_HELIUM_SERVICES_SETUP_PENDING_BUTTON},
+       {"heliumServicesToggle", IDS_SETTINGS_HELIUM_SERVICES_TOGGLE},
+       {"heliumServicesToggleDescription",
+-        IDS_SETTINGS_HELIUM_SERVICES_TOGGLE_DESCRIPTION},
++        IDS_LUNE_SERVICES_CONSENT},
+       {"heliumSchemaUpdatedTitle", IDS_SETTINGS_HELIUM_SCHEMA_NOTICE_TITLE},
+       {"heliumSchemaUpdatedDescription",
+         IDS_SETTINGS_HELIUM_SCHEMA_NOTICE_DESCRIPTION},
+@@ -2722,7 +2722,7 @@
+         IDS_SETTINGS_HELIUM_SERVICES_SPELLCHECK_TOGGLE_DESCRIPTION},
+       {"heliumUpdatesToggle", IDS_SETTINGS_HELIUM_SERVICES_UPDATE},
+       {"heliumUpdatesToggleDescription",
+-        IDS_SETTINGS_HELIUM_SERVICES_UPDATE_DESCRIPTION},
++        IDS_LUNE_SERVICES_UPDATES},
+       {"heliumUboToggle",
+         IDS_SETTINGS_HELIUM_SERVICES_UBO},
+       {"heliumUboToggleDescription",
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -252,4 +252,16 @@
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
+   Built on Helium, with thanks to its authors and contributors.
+ </message>
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_PROVIDER" desc="Lune service provider and update disclosure.">
++  Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates. Browser updates are provided by Lune at lune.computer.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_CONSENT" desc="Lune service provider and update disclosure.">
++  Allow Lune to connect to Helium-hosted services and to Lune for browser updates. These requests stay disabled until you consent. Turning this off also disables automatic browser updates.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_PROVIDER" desc="Lune service provider and update disclosure.">
++  You can host your own Helium services instance and select it in Lune settings. Browser updates will still come from Lune.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_LUNE_UPDATES" desc="Lune service provider and update disclosure.">
++  Lune checks lune.computer for browser updates and Helium services for component updates. Keep this enabled to receive security fixes.
++</message>
+ </grit-part>
+\ No newline at end of file
+--- a/components/helium_onboarding/src/pages/HeliumServices.svelte
++++ b/components/helium_onboarding/src/pages/HeliumServices.svelte
+@@ -36,7 +36,7 @@
+                 : s.services.autoupdatesTitle,
+             desc: platform.is.linux
+                 ? s.services.autoupdatesDescLinux
+-                : s.services.autoupdatesDesc,
++                : s.services.luneUpdates,
+             prefName: "services.browser_updates",
+             available: !platform.is.android,
+         },
+@@ -53,14 +53,14 @@
+     <div class="scrollable-page">
+         <PageHeader
+             title={s.services.title}
+-            subtitle={s.services.subtitle}
++            subtitle={s.services.provider}
+             Icon={LuneLogo}
+             iconHeight="32px"
+         />
+         <div class="page-content">
+             <PreferenceToggle
+                 title={s.services.connectionTitle}
+-                desc={s.services.connectionDesc}
++                desc={s.services.consent}
+                 prefName="services.enabled"
+             />
+             <div class="toggle-separator"></div>
+@@ -81,7 +81,7 @@
+                 >
+                     <CardLink
+                         title={s.services.instanceTitle}
+-                        desc={s.services.instanceDesc}
++                        desc={s.services.instanceProvider}
+                         href="chrome://settings/privacy/services"
+                         disabled={!servicesEnabled}
+                     />
+--- a/components/helium_services/helium_services_helpers.h
++++ b/components/helium_services/helium_services_helpers.h
+@@ -13,7 +13,7 @@
+ namespace helium {
+ 
+ const char kHeliumDefaultOrigin[] =
+-    "https://services.lune.computer";
++    "https://services.helium.imput.net";
+ 
+ const char kHeliumDummyOrigin[] =
+     "https://helium-services-are-disabled.qjz9zk";

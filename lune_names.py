@@ -24,11 +24,28 @@ UPSTREAM_CREDITS = {
     'IDS_HELIUM_ONBOARDING_PARTNER_TOOLTIP',
     'IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT',
 }
+# Service providers keep their own identity, including translated labels.
+# Explicit Lune disclosures can name both the product and its provider.
+PROVIDER_DISCLOSURES = {
+    'IDS_LUNE_SERVICES_PROVIDER', 'IDS_LUNE_SERVICES_CONSENT',
+    'IDS_LUNE_SERVICES_UPDATES', 'IDS_HELIUM_ONBOARDING_SERVICES_PROVIDER',
+    'IDS_HELIUM_ONBOARDING_SERVICES_CONSENT',
+    'IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_PROVIDER',
+    'IDS_HELIUM_ONBOARDING_SERVICES_LUNE_UPDATES',
+}
+
+
+def preserve_provider(message):
+    text = ''.join(message.itertext())
+    return (message.get('name') in PROVIDER_DISCLOSURES or
+            'Helium services' in text or 'Helium servers' in text)
+
+
 _replace_grit_message = util.replace_grit_message
 
 
 def replace_grit_message(message):
-    if message.get('name') in UPSTREAM_CREDITS:
+    if message.get('name') in UPSTREAM_CREDITS or preserve_provider(message):
         return False
     return _replace_grit_message(message)
 
@@ -46,7 +63,7 @@ def replace_grit_tree(text):
     result, fingerprint_map = _replace_grit_tree(text)
     tree = util.xml.fromstring(text, util.get_parser())
     for message in tree.findall('.//message'):
-        if message.get('name') in UPSTREAM_CREDITS:
+        if message.get('name') in UPSTREAM_CREDITS or preserve_provider(message):
             fingerprint = util.compute_fp(message)
             if fingerprint_map.get(fingerprint, fingerprint) != fingerprint:
                 raise ValueError('Upstream attribution conflicts with a renamed message')
