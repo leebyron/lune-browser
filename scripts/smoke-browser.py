@@ -289,6 +289,52 @@ def check_settings(request, path):
     return result
 
 
+def check_appearance(request, path):
+    """Switch the real browser preference and inspect packaged color tokens."""
+    def js(script, args=None):
+        return request('POST', path + '/execute/sync', {'script': script, 'args': args or []})
+
+    results = {}
+    for mode, value, ground, text in (
+            ('light', 1, '#e7ede3ff', '#234550ff'),
+            ('dark', 2, '#10354fff', '#dde7eaff')):
+        request('POST', path + '/url', {'url': 'chrome://settings/appearance'})
+        for _ in range(60):
+            if js(FIND + 'return !!find("settings-appearance-page")?.colorSchemeModeBrowserProxy_;'):
+                break
+            time.sleep(.25)
+        else:
+            raise RuntimeError('Appearance settings did not load')
+        js(FIND + 'find("settings-appearance-page").colorSchemeModeBrowserProxy_.handler.setColorSchemeMode(arguments[0]);', [value])
+        for _ in range(60):
+            colors = js('''const s = getComputedStyle(document.documentElement);
+                return {ground:s.getPropertyValue('--color-sys-base').trim(),
+                        text:s.getPropertyValue('--color-sys-on-surface').trim(),
+                        dark:matchMedia('(prefers-color-scheme:dark)').matches};''')
+            if colors['ground'] == ground and colors['text'] == text:
+                break
+            time.sleep(.25)
+        else:
+            raise RuntimeError(f'{mode} browser palette mismatch: {colors}')
+        request('POST', path + '/url', {'url': 'chrome://setup/'})
+        for _ in range(60):
+            onboarding = js('''const s=getComputedStyle(document.documentElement);
+                return {ground:s.getPropertyValue('--bg-gradient-start').trim(),
+                        text:s.getPropertyValue('--primary').trim(),
+                        dark:matchMedia('(prefers-color-scheme:dark)').matches};''')
+            if onboarding['ground']:
+                break
+            time.sleep(.25)
+        expected_ground = '#10354F' if mode == 'dark' else '#E7EDE3'
+        expected_text = '#DDE7EA' if mode == 'dark' else '#234550'
+        if (onboarding['ground'].upper() != expected_ground
+                or onboarding['text'].upper() != expected_text
+                or onboarding['dark'] != (mode == 'dark')):
+            raise RuntimeError(f'{mode} onboarding palette mismatch: {onboarding}')
+        results[mode] = {'settings': colors, 'onboarding': onboarding}
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('build_output', type=Path)
@@ -299,6 +345,8 @@ def main():
     parser.add_argument('--services', action='store_true',
                         help='Opt into live Helium services only in the disposable test profile; requires --settings.')
     parser.add_argument('--headed', action='store_true', help='Show the isolated browser window.')
+    parser.add_argument('--appearance', action='store_true',
+                        help='Verify light/dark browser and onboarding palettes; requires --ui.')
     parser.add_argument('--internal-icons', action='store_true',
                         help='Require complete Lune branding, including packaged WebUI and helper icons.')
     parser.add_argument('--arch', choices=('arm64', 'x86_64'), default='arm64',
@@ -310,8 +358,8 @@ def main():
     args = parser.parse_args()
     if args.services and not args.settings:
         parser.error('--services requires --settings')
-    if (args.internal_icons or args.settings) and not args.ui:
-        parser.error('--internal-icons and --settings require --ui')
+    if (args.internal_icons or args.settings or args.appearance) and not args.ui:
+        parser.error('--internal-icons, --settings and --appearance require --ui')
     root = Path(__file__).resolve().parents[1]
     lock = json.loads((root / 'manifests/browser.lock.json').read_text())
     expected_version = args.chromium_version or lock['chromium_version']
@@ -371,6 +419,15 @@ def main():
         if actual_icon != expected_icon or 'CFBundleIconName' in info:
             raise RuntimeError('App icon does not match the pinned Lune artwork or is overridden by an asset catalog.')
         report['icon_sha256'] = hashlib.sha256(actual_icon).hexdigest()
+        if args.appearance:
+            report['appearance_icons'] = {}
+            for mode in ('light', 'dark'):
+                name = f'app-{mode}.icns'
+                expected = subprocess.check_output(['git', 'show', component + ':resources/assets/' + name], cwd=root)
+                actual = (app / 'Contents/Resources' / name).read_bytes()
+                if expected != actual:
+                    raise RuntimeError(f'Packaged {mode} icon differs from the input')
+                report['appearance_icons'][mode] = hashlib.sha256(actual).hexdigest()
         if args.internal_icons:
             assets = {'about': {32: 'product_logo_32.png', 64: 'product_logo_64.png'},
                       'welcome': {1024: 'product_logo.svg'}, 'services': {1024: 'product_logo.svg'}}
@@ -445,6 +502,8 @@ def main():
                         report['ui'] = check_ui(request, path, args.internal_icons, icon_hashes)
                         if args.settings:
                             report['ui'].update(check_settings(request, path))
+                        if args.appearance:
+                            report['appearance'] = check_appearance(request, path)
                         if args.services:
                             from release.check_services import check_services
                             report['services'] = check_services(request, path, f'http://127.0.0.1:{server.server_port}/write')

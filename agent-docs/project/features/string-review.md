@@ -46,3 +46,7 @@ Evidence is under ignored `.work/string-review/`: `strict-replay-matching-build.
 independent `verify/` resource. No Chromium compilation, packaged runtime check,
 signing, release, or deployment was performed for this text-only change. Existing
 published builds and input tags remain unchanged.
+
+The subsequent [day/night branding rebuild](day-night-branding.md) includes this
+label on both architectures. The validation boundary above describes the original
+text-only increment.

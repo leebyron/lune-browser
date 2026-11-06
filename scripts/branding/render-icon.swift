@@ -1,14 +1,26 @@
-// Reproduce branding/lune.svg as sRGB PNGs and a macOS iconset, using AppKit.
+// Rasterize the shared Lune geometry and light/dark palettes with AppKit.
 import AppKit
 let output = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "out/branding"
+let data = try Data(contentsOf: URL(fileURLWithPath: "branding/palettes.json"))
+let config = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+let geometry = config["geometry"] as! [String: Double]
+let radius = geometry["outer_radius"]!
+let offset = geometry["center_offset"]!
+let halfHeight = sqrt(radius * radius - offset * offset)
+let innerReach = radius + offset - 2 * offset * geometry["width_multiplier"]!
+let innerRadius = (innerReach * innerReach + halfHeight * halfHeight) / (2 * innerReach)
+let innerOffset = innerRadius - innerReach
+func ink(_ mode: String, _ name: String) -> UInt32 {
+    let palette = config[mode] as! [String: String]
+    return UInt32(palette[name]!.dropFirst(), radix: 16)!
+}
 let fm = FileManager.default
-try fm.createDirectory(atPath: output + "/Lune.iconset", withIntermediateDirectories: true)
 func color(_ hex: UInt32) -> NSColor {
     NSColor(srgbRed: CGFloat((hex >> 16) & 255) / 255,
             green: CGFloat((hex >> 8) & 255) / 255,
             blue: CGFloat(hex & 255) / 255, alpha: 1)
 }
-func render(_ size: Int, _ file: String, mono: Bool = false, wordmark: Bool = false, white: Bool = false) throws {
+func render(_ size: Int, _ file: String, mono: Bool = false, wordmark: Bool = false, white: Bool = false, mode: String = "dark", opaque: Bool = false) throws {
     let width = wordmark ? size * 140 / 32 : size
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: size,
         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -19,74 +31,51 @@ func render(_ size: Int, _ file: String, mono: Bool = false, wordmark: Bool = fa
     let cg = context.cgContext
     cg.scaleBy(x: CGFloat(size) / 1024, y: CGFloat(size) / 1024)
     cg.saveGState()
+    if opaque {
+        color(ink(mode, "ground")).setFill()
+        NSRect(x: 0, y: 0, width: 1024, height: 1024).fill()
+    }
     if !mono {
-        color(0x10354F).setFill()
+        color(ink(mode, "ground")).setFill()
         NSBezierPath(roundedRect: NSRect(x: 64, y: 64, width: 896, height: 896), xRadius: 200, yRadius: 200).fill()
     }
     cg.translateBy(x: 152, y: 152); cg.scaleBy(x: 2.4, y: 2.4)
-    for (center, cutout, ink) in [(136.0, 164.0, UInt32(0x00A7BE)), (164.0, 136.0, UInt32(0x5386BF))] {
+    for (center, cutout, ink) in [(150-offset, 150+innerOffset, ink(mode, "left")), (150+offset, 150-innerOffset, ink(mode, "right"))] {
         cg.saveGState()
         cg.addRect(CGRect(x: 0, y: 0, width: 300, height: 300))
-        cg.addEllipse(in: CGRect(x: cutout - 111, y: 39, width: 222, height: 222))
+        cg.addEllipse(in: CGRect(x: cutout - innerRadius, y: 150-innerRadius, width: 2*innerRadius, height: 2*innerRadius))
         cg.clip(using: .evenOdd)
         color(mono ? (white ? 0xFFFFFF : 0x000000) : ink).setFill()
-        NSBezierPath(ovalIn: NSRect(x: center - 111, y: 39, width: 222, height: 222)).fill()
+        NSBezierPath(ovalIn: NSRect(x: center - radius, y: 150-radius, width: 2*radius, height: 2*radius)).fill()
         cg.restoreGState()
     }
     cg.restoreGState()
     if wordmark {
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 768, weight: .medium),
-            .foregroundColor: color(white ? 0xFFFFFF : 0x000000),
+            .foregroundColor: color(ink(mode, "text")),
         ]
         ("Lune" as NSString).draw(at: NSPoint(x: 1152, y: 48), withAttributes: attrs)
     }
     NSGraphicsContext.restoreGraphicsState()
     try rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: file))
 }
-for size in [16, 32, 128, 256, 512] {
-    try render(size, output + "/Lune.iconset/icon_\(size)x\(size).png")
-    try render(size * 2, output + "/Lune.iconset/icon_\(size)x\(size)@2x.png")
+for mode in ["light", "dark"] {
+    let iconset = output + "/Lune-" + mode + ".iconset"
+    try fm.createDirectory(atPath: iconset, withIntermediateDirectories: true)
+    for size in [16, 32, 128, 256, 512] {
+        try render(size, iconset + "/icon_\(size)x\(size).png", mode: mode)
+        try render(size * 2, iconset + "/icon_\(size)x\(size)@2x.png", mode: mode)
+    }
+    try render(1024, output + "/lune-" + mode + ".png", mode: mode)
 }
-try render(1024, output + "/lune.png")
 try fm.createDirectory(atPath: output + "/internal", withIntermediateDirectories: true)
 for size in [16, 24, 32, 48, 64, 128, 256] {
     try render(size, output + "/internal/product_logo_\(size).png")
 }
 try render(22, output + "/internal/product_logo_22_mono.png", mono: true)
 for (size, suffix) in [(32, ""), (64, "_200")] {
-    try render(size, output + "/internal/product_logo\(suffix).png", wordmark: true)
-    try render(size, output + "/internal/product_logo_white\(suffix).png", mono: true, wordmark: true, white: true)
+    try render(size, output + "/internal/product_logo\(suffix).png", wordmark: true, mode: "light")
+    try render(size, output + "/internal/product_logo_white\(suffix).png", wordmark: true, mode: "dark")
 }
-
-// Native Chromium vectors use exactly the circle intersections in lune.svg.
-// Monochrome paths inherit the UI's foreground color for light/dark themes.
-let intersection = sqrt(111.0 * 111.0 - 14.0 * 14.0)
-func number(_ value: Double) -> String { String(format: "%.6ff", locale: Locale(identifier: "en_US_POSIX"), value) }
-func vector(_ colored: Bool) -> String {
-    let scale = colored ? 0.6 : 1.0
-    let offset = colored ? 38.0 : 0.0
-    let x = number(offset + 150 * scale)
-    let top = number(offset + (150 - intersection) * scale)
-    let bottom = number(offset + (150 + intersection) * scale)
-    let radius = number(111 * scale)
-    var result = "// Lune / Pelagic Signal. Generated by scripts/branding/render-icon.swift.\nCANVAS_DIMENSIONS, \(colored ? 256 : 300),\n"
-    if colored {
-        result += "PATH_COLOR_ARGB, 0xFF, 0x10, 0x35, 0x4F,\nROUND_RECT, 16, 16, 224, 224, 50,\n"
-    }
-    for (sweep, ink) in [(0, "0x00, 0xA7, 0xBE"), (1, "0x53, 0x86, 0xBF")] {
-        result += "NEW_PATH,\n"
-        if colored { result += "PATH_COLOR_ARGB, 0xFF, \(ink),\n" }
-        result += "MOVE_TO, \(x), \(top),\nARC_TO, \(radius), \(radius), 0, 1, \(sweep), \(x), \(bottom),\nARC_TO, \(radius), \(radius), 0, 0, \(1 - sweep), \(x), \(top),\nCLOSE,\n"
-    }
-    return result
-}
-try vector(false).write(toFile: output + "/internal/product_logo.icon", atomically: true, encoding: .utf8)
-try vector(true).write(toFile: output + "/internal/product_logo_color.icon", atomically: true, encoding: .utf8)
-let top = number(150 - intersection).dropLast()
-let bottom = number(150 + intersection).dropLast()
-let monoPath = (0...1).map { sweep in
-    "M150 \(top) A111 111 0 1 \(sweep) 150 \(bottom) A111 111 0 0 \(1 - sweep) 150 \(top) Z"
-}.joined(separator: " ")
-let monoSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 300 300\"><path fill=\"currentColor\" d=\"\(monoPath)\"/></svg>\n"
-try monoSVG.write(toFile: output + "/internal/product_logo_mono.svg", atomically: true, encoding: .utf8)
+try render(180, output + "/apple-touch-icon.png", opaque: true)

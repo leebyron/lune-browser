@@ -1,38 +1,46 @@
-# Lune / Pelagic Signal
+# Lune / Day and night
 
-The paired lunes preserve the geometry from **Lune / Color Atlas**, version 3,
-[Pelagic Signal](https://lune-color-atlas-lee.leebyron.chatgpt.site), created for
-Lee Byron. The macOS tile uses the palette's night background, without glow.
+The approved paired lunes are 30% wider at their horizontal midpoint: 36.4
+instead of 28 source units. Their outside silhouette and pointed endpoints
+stay fixed. The geometry and sRGB palettes live in [`palettes.json`](palettes.json).
+`lune.svg` follows appearance; `lune-light.svg` and `lune-dark.svg` are fixed variants.
 
-| Role | sRGB fallback | Display P3 source |
+The dark palette comes from **Lune / Color Atlas**, version 3,
+[Pelagic Signal](https://lune-color-atlas-lee.leebyron.chatgpt.site).
+The approved light palette, **Chlorophyll Daylight**, carries its cool teal into
+pale green paper and leaf green. No glow is added.
+
+| Role | Light | Dark |
 | --- | --- | --- |
-| Night | `#10354F` | — |
-| Left lune | `#00A7BE` | `0.06 0.66 0.78` |
-| Right lune | `#5386BF` | `0.37 0.52 0.73` |
-| Signal accent | `#00D5C6` | `0.04 0.85 0.79` |
+| Ground | `#E7EDE3` | `#10354F` |
+| Left lune | `#258D91` | `#00A7BE` |
+| Right lune | `#789751` | `#5386BF` |
+| Signal | `#C4D95A` | `#00D5C6` |
+| Text | `#234550` | `#DDE7EA` |
+| Action | `#276C69` | `#00D5C6` |
 
-The icon uses the Atlas's gamut-mapped sRGB fallbacks (OKLab chroma reduction,
-preserving lightness and hue), so its PNG and SVG versions agree on ordinary
-screens. The brighter signal accent is reserved for future UI use.
+Use the darker teal action color for readable light-mode buttons; the yellow-green
+signal is a decorative accent. Raster and vector outputs share the sRGB values.
+The website retains its Syne wordmark and Inter text.
 
-`lune.svg` is the editable master. `scripts/branding/render-icon.swift` renders
-the same circle geometry with AppKit, including transparent macOS icon margins.
-Run from the repository root:
+Run from the repository root on macOS:
 
 ```sh
-swift scripts/branding/render-icon.swift
-iconutil -c icns out/branding/Lune.iconset -o out/branding/app.icns
+python3 scripts/branding/render-assets.py
+python3 scripts/branding/generate-assets.py --check
 ```
 
-The generated `.icns` is an input in the macOS component's resources; it is not
-regenerated during a browser build. Source and renderer changes must be reviewed
-and the component asset updated together.
+The renderer produces both iconsets and `.icns` files in `out/branding/`, all
+internal PNG sizes, wordmarks, monochrome artwork, and Chromium `.icon` vectors
+in `out/branding/internal/`. It also updates website SVGs and raster favicons.
+Copy internal files into the macOS component's `resources/lune/`, copy both
+`.icns` files into `resources/assets/`, and use `app-dark.icns` as `app.icns`.
+These reviewed assets are pinned build inputs; browser builds do not regenerate them.
 
-The renderer also produces `out/branding/internal/`: all internal PNG sizes,
-light/dark wordmarks, a monochrome mark, and Chromium `.icon` vectors. Copy these
-files into the platform component's `resources/lune/`, together with `lune.svg`
-as `product_logo.svg`. The color vector uses the same circle intersections and
-tile geometry as the master; monochrome vectors inherit the UI foreground color.
+The running Dock icon follows macOS appearance. Finder and legacy raster icon
+surfaces use the dark tile. Web SVGs, onboarding and default browser colors
+follow light/dark mode. Custom themes, chosen accent colors and accessibility
+palettes retain precedence. See [implementation and validation](../agent-docs/project/features/day-night-branding.md).
 
 `resources/lune_resources.txt` runs after upstream resource replacement. The
 Chromium 158 integration candidate overrides all 34 upstream browser-logo

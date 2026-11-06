@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "5d9c3fc7e710515d3dcf184b9970f3693cb5ae4b",
+    "commit": "20231c574761dd463b4567fb10a4beda68a92dd9",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -197,6 +197,11 @@
       {
         "path": "patches/helium/ui/frame-thickness-label.patch",
         "sha256": "d7f6efdabe3819ad607e27e50210827fb5452f917b827120556db2965a4d8488"
+      },
+      {
+        "path": "patches/lune/day-night-branding.patch",
+        "sha256": "b68dddcd681addc26112b6307da593256b6f1752ca4d3a29b222f7039e8639e7",
+        "source_sha256": "b68dddcd681addc26112b6307da593256b6f1752ca4d3a29b222f7039e8639e7"
       }
     ]
   },
@@ -429,6 +434,18 @@
       "review_status": "reviewed-port",
       "rationale": "Restore the explicit restart explanation without changing the frame control or restart behavior.",
       "adaptation": "Text-only quilt restoration in 5d9c3fc7e710515d3dcf184b9970f3693cb5ae4b; source replay and XML comparison recorded in agent-docs/project/features/string-review.md. Remaining localization is tracked in GitHub issue #4."
+    },
+    {
+      "id": "lune-day-night",
+      "depends_on": [
+        "lune-internal-artwork"
+      ],
+      "patches": [
+        "patches/lune/day-night-branding.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the approved 30% wider lunes and coordinated light/dark website and app palettes.",
+      "adaptation": "Distribution-only quilt patch and artwork in 20231c574761dd463b4567fb10a4beda68a92dd9; see agent-docs/project/features/day-night-branding.md."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."

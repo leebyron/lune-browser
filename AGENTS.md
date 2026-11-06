@@ -66,9 +66,16 @@ This is not in published builds 1 or 2 and is not release-accepted.
 
 The current development macOS input adds a text-only frame-thickness label
 restoration under `inputs/frame-label-1/macos`. Patch replay and XML checks pass;
-it has not been rebuilt. Source-string coverage is advisory while accepted English
+it is included in the day/night development rebuild. Source-string coverage remains
+advisory while accepted English
 fallbacks are reconciled in GitHub issue #4. See
 [the string review](agent-docs/project/features/string-review.md).
+
+The development macOS input now includes the approved 30% wider Lune artwork,
+Chlorophyll Daylight / Pelagic Signal palettes, and appearance-aware Dock icons
+under `inputs/day-night-2/macos`. Website and app validation is recorded in
+[day/night branding](agent-docs/project/features/day-night-branding.md).
+These assets are not in published builds 1 or 2.
 
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
