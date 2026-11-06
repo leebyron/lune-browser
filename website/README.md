@@ -66,6 +66,11 @@ All runtime assets are served locally; no font or icon CDN requests are needed.
   the app-icon tile for the intro and final page.
 - `public/assets/wallpaper.jpg`: the cyanotype-inspired artwork generated for
   this website's design exploration.
+- `public/favicon.svg`: the original paired-lune geometry and colors, with a
+  tighter square canvas for legibility in tabs. The 32px PNG and multi-resolution
+  ICO (16, 32, 48, 64, 128, 256px) are supersampled from this vector. The 180px
+  Apple touch icon uses the same mark on an opaque Prussian-blue background;
+  the OS supplies its corner mask. Rasterized with Sharp using Lanczos resizing.
 - `public/assets/favicons/`: the same Gmail, Google Calendar, YouTube, Reddit,
   Wikipedia, and Google icons used in the Figma sidebar, copied from the local
   design-source assets. These belong to their respective sites; they illustrate
