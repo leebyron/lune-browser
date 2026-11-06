@@ -17,6 +17,22 @@ util.REPLACEMENT_REGEXES = [
 ]
 util.REPLACEMENT_REGEXES.append((re.compile(r'\bHelium\b'), 'Lune'))
 
+# These attribution messages deliberately name the upstream project.
+UPSTREAM_CREDITS = {
+    'IDS_LUNE_UPSTREAM_CREDIT',
+    'IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT',
+}
+_replace_grit_message = util.replace_grit_message
+
+
+def replace_grit_message(message):
+    if message.get('name') in UPSTREAM_CREDITS:
+        return False
+    return _replace_grit_message(message)
+
+
+util.replace_grit_message = replace_grit_message
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         raise SystemExit('Usage: lune_names.py CHROMIUM_SOURCE')

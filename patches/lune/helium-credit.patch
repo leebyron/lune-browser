@@ -1,0 +1,57 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -4919,4 +4919,7 @@
+   <message name="IDS_SETTINGS_DICTATION_SHORTCUT_CLEAR_LABEL" translateable="false" desc="Accessibility label for the clear keyboard shortcut button icon.">
+     Clear keyboard shortcut
+   </message>
++  <message name="IDS_LUNE_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
++    Built on Helium, with thanks to its authors and contributors.
++  </message>
+ </grit-part>
+--- a/chrome/browser/resources/settings/about_page/about_page.html.ts
++++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
+@@ -94,6 +94,11 @@
+ 
+ <settings-section>
+   <div class="info-sections">
++    <div class="info-section" id="upstream-credit">
++      <div class="secondary">$i18n{luneUpstreamCredit}
++        <a href="https://helium.computer/" target="_blank" rel="noopener noreferrer">helium.computer</a>
++      </div>
++    </div>
+     <div class="info-section">
+       <div class="secondary">$i18n{aboutProductCopyright}</div>
+     </div>
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -327,6 +327,7 @@
+       {"aboutGetHelpUsingChrome", IDS_SETTINGS_GET_HELP_USING_CHROME},
+       {"aboutPageTitle", IDS_SETTINGS_ABOUT_PROGRAM},
+       {"aboutProductTitle", IDS_PRODUCT_NAME},
++      {"luneUpstreamCredit", IDS_LUNE_UPSTREAM_CREDIT},
+       {"aboutLearnMoreUpdatingErrors",
+        IDS_SETTINGS_ABOUT_PAGE_LEARN_MORE_UPDATE_ERRORS},
+       {"aboutLearnMoreSystemRequirements",
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -249,4 +249,7 @@
+   Free, local, and open-source password manager for advanced users. Requires technical knowledge to set up and use. Cannot sync without extra software.
+ </message>
+ 
++<message name="IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
++  Built on Helium, with thanks to its authors and contributors.
++</message>
+ </grit-part>
+--- a/components/helium_onboarding/src/pages/Welcome.svelte
++++ b/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -94,6 +94,10 @@
+                     <p>
+                         {s.welcome.body}
+                     </p>
++                    <p id="upstream-credit">
++                        {s.welcome.upstreamCredit}
++                        <a href="https://helium.computer/" target="_blank" rel="noopener noreferrer">helium.computer</a>
++                    </p>
+                 </div>
+             </div>
+             <div id="welcome-buttons" class="action-buttons">
