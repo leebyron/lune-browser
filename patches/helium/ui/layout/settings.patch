@@ -1,6 +1,6 @@
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -221,6 +221,11 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -222,6 +222,11 @@
    }
    s_allowlist = new PrefsUtil::TypedPrefMap();
  
@@ -14,7 +14,7 @@
        settings_api::PrefType::kBoolean;
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -271,6 +271,27 @@
+@@ -327,6 +327,27 @@
      <message name="IDS_SETTINGS_ROUNDED_FRAME" desc="Label for the toggle which enables or disables a rounded frame around web contents.">
        Show a rounded frame around web contents
      </message>
@@ -44,7 +44,7 @@
      </message>
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -605,6 +605,13 @@ void AddAppearanceStrings(content::WebUI
+@@ -623,6 +623,13 @@
        {"openNewTabNextToActive", IDS_SETTINGS_NEW_TAB_NEXT_TO_ACTIVE_BUTTON},
        {"cycleTabsInMRUOrder", IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER},
        {"roundedFrame", IDS_SETTINGS_ROUNDED_FRAME},
@@ -60,7 +60,7 @@
        {"showHomeButton", IDS_SETTINGS_SHOW_HOME_BUTTON},
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
-@@ -149,7 +149,6 @@ export class SettingsAppearancePageEleme
+@@ -149,7 +149,6 @@
        sidePanelIsRightAlignedPref_: {type: Object},
        themeIdPref_: {type: Object},
        themePolicyColorPref_: {type: Object},
@@ -68,7 +68,7 @@
  
        // <if expr="is_linux">
        themeSystemThemePref_: {type: Object},
-@@ -215,8 +214,6 @@ export class SettingsAppearancePageEleme
+@@ -215,8 +214,6 @@
    protected accessor themeIdPref_: PrefObject<string>|undefined = undefined;
    protected accessor themePolicyColorPref_: PrefObject<number>|undefined =
        undefined;
@@ -77,7 +77,7 @@
  
    // <if expr="is_linux">
    protected accessor themeSystemThemePref_: PrefObject<number>|undefined =
-@@ -344,7 +341,6 @@ export class SettingsAppearancePageEleme
+@@ -344,7 +341,6 @@
        'side_panel.alignment_overrides': 'sidePanelAlignmentOverridesPref_',
        'side_panel.is_right_aligned': 'sidePanelIsRightAlignedPref_',
        'toolbar.pinned_actions': 'pinnedActionsPref_',
@@ -85,7 +85,7 @@
        'webkit.webprefs.default_font_size': 'defaultFontSizePref_',
      });
  
-@@ -702,14 +698,6 @@ export class SettingsAppearancePageEleme
+@@ -702,14 +698,6 @@
      this.appearanceBrowserProxy_.recordHoverCardMemoryUsageEnabledChanged(enabled);
    }
  
@@ -102,7 +102,7 @@
      this.showManagedThemeDialog_ = false;
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
-@@ -142,60 +142,6 @@ export function getHtml(this: SettingsAp
+@@ -142,60 +142,6 @@
      ` : ''}
  </if>
  
@@ -148,7 +148,7 @@
 -    ${this.showOrganizerPanelEnabled_ ? html`
 -      <settings-toggle-button id="showOrganizerPanelButton"
 -          pref-key="tab_search.pinned_to_tabstrip"
--          label="$i18n{showOrganizerPanelButton}"
+-          label="$i18n{showTabSearchButton}"
 -          @change="${this.onShowOrganizerPanelButtonChange_}">
 -      </settings-toggle-button>
 -    ` : html`
@@ -165,7 +165,7 @@
          label="$i18n{showTabGroupsInBookmarksBar}"
 --- a/chrome/browser/resources/settings/BUILD.gn
 +++ b/chrome/browser/resources/settings/BUILD.gn
-@@ -202,6 +202,8 @@ build_webui("build") {
+@@ -202,6 +202,8 @@
      "appearance_page/appearance_browser_proxy.ts",
      "appearance_page/appearance_fonts_page.html.ts",
      "appearance_page/appearance_fonts_page.ts",
@@ -174,7 +174,7 @@
      "appearance_page/appearance_page.html.ts",
      "appearance_page/appearance_page.ts",
      "appearance_page/appearance_page_index.html.ts",
-@@ -592,6 +594,7 @@ build_webui("build") {
+@@ -594,6 +596,7 @@
      "a11y_page/live_translate.css",
      "about_page/about_page.css",
      "appearance_page/appearance_fonts_page.css",
@@ -462,7 +462,7 @@
 +    SettingsAppearanceLayoutPageElement);
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page_index.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page_index.html.ts
-@@ -11,6 +11,9 @@ export function getHtml(this: SettingsAp
+@@ -11,6 +11,9 @@
    return html`<!--_html_template_start_-->
  <cr-view-manager id="viewManager" class="cr-centered-card-container"
      ?show-all="${this.shouldShowAll}">

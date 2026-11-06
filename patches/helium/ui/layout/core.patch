@@ -1,6 +1,6 @@
 --- a/chrome/browser/sync/prefs/chrome_syncable_prefs_database.cc
 +++ b/chrome/browser/sync/prefs/chrome_syncable_prefs_database.cc
-@@ -393,7 +393,6 @@ enum {
+@@ -393,7 +393,6 @@
    kPinSplitTabButton = 100327,
    kGlicRolloutEligibility = 100328,
    kShelfNotebookLmAppPinRolls = 100329,
@@ -18,7 +18,7 @@
  #include "chrome/browser/user_education/user_education_service.h"
  #include "chrome/browser/user_education/user_education_service_factory.h"
  #include "chrome/common/pref_names.h"
-@@ -35,7 +36,8 @@ VerticalTabsState TabMetricsProvider::Ge
+@@ -35,7 +36,8 @@
    size_t vertical_tab_profiles = 0;
    for (Profile* profile : profiles) {
      if (profile->GetPrefs() &&
@@ -28,7 +28,7 @@
        vertical_tab_profiles++;
      }
    }
-@@ -77,9 +79,4 @@ void TabMetricsProvider::OnProfileAdded(
+@@ -77,9 +79,4 @@
                                base::Unretained(this), profile)));
  }
  
@@ -49,7 +49,7 @@
  #include "chrome/browser/ui/tabs/features.h"
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
-@@ -25,14 +26,17 @@ void RegisterProfilePrefs(user_prefs::Pr
+@@ -25,14 +26,17 @@
    registry->RegisterBooleanPref(prefs::kOrganizerPanelPinnedToTabstrip, true);
    registry->RegisterBooleanPref(prefs::kEverythingMenuPinnedToTabstrip, true);
    registry->RegisterBooleanPref(prefs::kTabScrollButtonsPinnedToTabstrip, true);
@@ -72,7 +72,7 @@
  void MigrateHoverCardMemoryPref(PrefService* local_prefs) {
 --- a/chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h
 +++ b/chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h
-@@ -60,6 +60,8 @@ class VerticalTabStripStateController {
+@@ -60,6 +60,8 @@
  
    virtual bool ShouldDisplayVerticalTabs() const = 0;
    virtual void SetVerticalTabsEnabled(bool enabled) = 0;
@@ -83,7 +83,7 @@
  
 --- a/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.h
 +++ b/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.h
-@@ -47,6 +47,8 @@ class VerticalTabStripStateControllerImp
+@@ -47,6 +47,8 @@
  
    bool ShouldDisplayVerticalTabs() const override;
    void SetVerticalTabsEnabled(bool enabled) override;
@@ -92,7 +92,7 @@
  
    std::unique_ptr<ScopedEnableStateLock> GetEnableStateLock() override;
  
-@@ -127,6 +129,7 @@ class VerticalTabStripStateControllerImp
+@@ -127,6 +129,7 @@
  
    bool is_vertical_tabs_enabled_ = false;
    int enable_state_lock_count_ = 0;
@@ -110,7 +110,7 @@
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
  #include "chrome/browser/ui/toasts/api/toast_id.h"
  #include "chrome/browser/ui/toasts/toast_controller.h"
-@@ -58,10 +59,11 @@ VerticalTabStripStateControllerImpl::Ver
+@@ -58,10 +59,11 @@
    pref_change_registrar_.Init(pref_service_);
  
    is_vertical_tabs_enabled_ =
@@ -125,7 +125,7 @@
        base::BindRepeating(&VerticalTabStripStateControllerImpl::OnModeChanged,
                            base::Unretained(this)));
  
-@@ -168,12 +170,24 @@ void VerticalTabStripStateControllerImpl
+@@ -168,12 +170,24 @@
    // If the user already has a pending mode switch, but tries to change tab
    // strip mode again, ensure the toast is displayed.
    if (enable_state_lock_count_ > 0 && enabled != is_vertical_tabs_enabled_ &&
@@ -152,7 +152,7 @@
  }
  
  bool VerticalTabStripStateControllerImpl::IsCollapsed() const {
-@@ -259,17 +273,13 @@ void VerticalTabStripStateControllerImpl
+@@ -259,17 +273,13 @@
  
  void VerticalTabStripStateControllerImpl::OnModeChanged() {
    const bool new_enabled =
@@ -173,7 +173,7 @@
      return;
    }
  
-@@ -313,12 +323,13 @@ void VerticalTabStripStateControllerImpl
+@@ -313,13 +323,13 @@
    CHECK_GT(enable_state_lock_count_, 0);
    enable_state_lock_count_--;
  
@@ -182,6 +182,7 @@
 -    if (new_state != is_vertical_tabs_enabled_) {
 -      is_vertical_tabs_enabled_ = new_state;
 -      NotifyModeChanged();
+-      UpdateCollapseActionItem();
 -    }
 +  if (enable_state_lock_count_ == 0 && mode_changed_while_locked_) {
 +    mode_changed_while_locked_ = false;
@@ -193,7 +194,7 @@
    }
  }
  
-@@ -344,8 +355,10 @@ void VerticalTabStripStateControllerImpl
+@@ -345,8 +355,10 @@
  void VerticalTabStripStateControllerImpl::UpdateCollapseActionItem() {
    const bool is_collapsed =
        GetCollapseState() != VerticalTabStripCollapseState::kExpanded;
@@ -205,7 +206,7 @@
                                      ? features::IsRoundedIconsEnabled()
                                            ? views::kMenuOpenIcon
                                            : views::kMenuOpenOldIcon
-@@ -402,16 +415,7 @@ void VerticalTabStripStateControllerImpl
+@@ -402,16 +414,7 @@
    }
  }
  
@@ -225,7 +226,7 @@
      bool new_enabled) {
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -617,6 +617,13 @@ inline constexpr char kShiftRightClickCo
+@@ -617,6 +617,13 @@
  // frame.
  inline constexpr char kHeliumRoundedFrame[] = "helium.browser.rounded_frame";
  
@@ -239,7 +240,7 @@
  // A boolean pref set to true if a Home button to open the Home pages should be
  // visible on the toolbar.
  inline constexpr char kShowHomeButton[] = "browser.show_home_button";
-@@ -1328,18 +1335,10 @@ inline constexpr char kEverythingMenuPin
+@@ -1304,18 +1311,10 @@
  inline constexpr char kTabScrollButtonsPinnedToTabstrip[] =
      "tab_scroll_buttons.pinned_to_tabstrip";
  
@@ -405,7 +406,7 @@
 +}
 --- a/chrome/browser/ui/browser_window/public/browser_window_features.h
 +++ b/chrome/browser/ui/browser_window/public/browser_window_features.h
-@@ -80,6 +80,7 @@ class ExtensionKeybindingRegistryViews;
+@@ -80,6 +80,7 @@
  class FindBarController;
  class FindBarOwner;
  class FullscreenControlHost;
@@ -413,9 +414,9 @@
  class HistoryClustersSidePanelCoordinator;
  class HistorySidePanelCoordinator;
  class ImmersiveModeController;
-@@ -467,6 +468,8 @@ class BrowserWindowFeatures {
-   std::unique_ptr<send_tab_to_self::SendTabToSelfIphController>
+@@ -460,6 +461,8 @@
        send_tab_to_self_iph_controller_;
+   std::unique_ptr<TabGroupFocusIphController> tab_group_focus_iph_controller_;
    std::unique_ptr<VerticalTabIphController> vertical_tab_iph_controller_;
 +  std::unique_ptr<HeliumLayoutStateController> helium_layout_state_controller_;
 +
@@ -432,7 +433,7 @@
  #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
  #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
  #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
-@@ -641,6 +642,10 @@ void BrowserWindowFeatures::Init(Browser
+@@ -621,6 +622,10 @@
            profile->GetPrefs()->GetInteger(prefs::kVerticalTabsUncollapsedWidth);
      }
  
@@ -445,7 +446,7 @@
              .CreateInstance<tabs::VerticalTabStripStateControllerImpl>(
 --- a/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h
-@@ -40,6 +40,7 @@ class BrowserViewLayoutDelegate {
+@@ -40,6 +40,7 @@
  
    virtual TabStripType GetTabStripType() const = 0;
    virtual bool IsVerticalTabStripCollapsed() const = 0;
@@ -455,7 +456,7 @@
    virtual BrowserLayoutParams GetBrowserLayoutParams(
 --- a/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.cc
-@@ -85,6 +85,12 @@ bool BrowserViewLayoutDelegateImpl::IsVe
+@@ -85,6 +85,12 @@
    return browser_view_->IsVerticalTabStripCollapsed();
  }
  
@@ -470,7 +471,7 @@
  }
 --- a/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.h
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.h
-@@ -24,6 +24,7 @@ class BrowserViewLayoutDelegateImpl : pu
+@@ -24,6 +24,7 @@
  
    TabStripType GetTabStripType() const override;
    bool IsVerticalTabStripCollapsed() const override;
@@ -489,7 +490,7 @@
  #include "base/token.h"
  #include "base/uuid.h"
  #include "base/values.h"
-@@ -37,7 +35,6 @@
+@@ -38,7 +36,6 @@
  #include "chrome/browser/ui/tabs/tab_group_model.h"
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "chrome/browser/ui/tabs/tab_strip_model_selection_state.h"
@@ -497,7 +498,7 @@
  #include "chrome/browser/ui/ui_features.h"
  #include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
  #include "chrome/browser/web_applications/web_app_helpers.h"
-@@ -217,15 +214,6 @@ std::map<std::string, std::string>
+@@ -224,15 +221,6 @@
  BrowserLiveTabContext::GetExtraDataForWindow() const {
    std::map<std::string, std::string> data;
  
@@ -512,8 +513,8 @@
 -
    if (base::FeatureList::IsEnabled(features::kTabGroupsFocusing)) {
      if (std::optional<tab_groups::TabGroupId> focused_group =
-             tab_strip_model_->GetFocusedGroup()) {
-@@ -561,24 +549,6 @@ sessions::LiveTabContext* BrowserLiveTab
+             tab_strip_model_->GetFocusedGroup();
+@@ -579,24 +567,6 @@
    create_params->initial_workspace = workspace;
    create_params->user_title = user_title;
  
@@ -550,7 +551,7 @@
  #include "chrome/common/pref_names.h"
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -283,8 +283,6 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -284,8 +284,6 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kSidePanelAlignmentOverrides] =
        settings_api::PrefType::kDictionary;
@@ -572,7 +573,7 @@
  // Delay before showing the IPH to avoid interrupting the user's immediate flow.
  constexpr base::TimeDelta kPromoDelay = base::Seconds(3);
  
-@@ -33,15 +29,7 @@ DEFINE_USER_DATA(VerticalTabIphControlle
+@@ -33,15 +29,7 @@
  VerticalTabIphController::VerticalTabIphController(
      BrowserWindowInterface* interface)
      : browser_window_interface_(interface),
@@ -589,7 +590,7 @@
  
  VerticalTabIphController::~VerticalTabIphController() = default;
  
-@@ -56,46 +44,7 @@ void VerticalTabIphController::OnTabStri
+@@ -56,46 +44,7 @@
    }
  }
  
@@ -639,7 +640,7 @@
    if (!tab) {
 --- a/chrome/browser/ui/webui/browser_command/browser_command_handler.cc
 +++ b/chrome/browser/ui/webui/browser_command/browser_command_handler.cc
-@@ -246,7 +246,6 @@ void BrowserCommandHandler::HandleComman
+@@ -246,7 +246,6 @@
        OpenSplitView();
        break;
      case Command::kEnableVerticalTabs:
@@ -647,7 +648,7 @@
        break;
      default:
        NOTREACHED() << "Unspecified behavior for command " << id;
-@@ -399,13 +398,6 @@ void BrowserCommandHandler::OpenSplitVie
+@@ -399,13 +398,6 @@
    }
  }
  
@@ -663,7 +664,7 @@
                             feedback_settings_.source,
 --- a/chrome/browser/ui/webui/browser_command/browser_command_handler.h
 +++ b/chrome/browser/ui/webui/browser_command/browser_command_handler.h
-@@ -99,7 +99,6 @@ class BrowserCommandHandler : public Com
+@@ -99,7 +99,6 @@
    virtual void OpenGlic();
    virtual void OpenGlicSettings();
    virtual void OpenSplitView();
@@ -673,7 +674,7 @@
    void StartPasswordManagerTutorial();
 --- a/chrome/browser/glic/suggestions/contextual_cueing_helper.cc
 +++ b/chrome/browser/glic/suggestions/contextual_cueing_helper.cc
-@@ -466,10 +466,6 @@ ContextualCueingHelper::AutoOpenGlicSide
+@@ -466,10 +466,6 @@
    Profile* profile =
        Profile::FromBrowserContext(web_contents()->GetBrowserContext());
    bool vertical_tabs_enabled = false;
@@ -686,7 +687,7 @@
      return RecordAutoOpenResult(GlicAutoOpenResult::kPreventedFromVerticalTabs);
 --- a/chrome/browser/metrics/BUILD.gn
 +++ b/chrome/browser/metrics/BUILD.gn
-@@ -380,6 +380,7 @@ source_set("impl") {
+@@ -385,6 +385,7 @@
        "//chrome/browser:after_startup_task_utils",
        "//chrome/browser/performance_manager/public/user_tuning",
        "//chrome/browser/ui:browser_window_header",
@@ -696,7 +697,7 @@
        "//chrome/browser/ui/tabs",
 --- a/chrome/browser/ui/browser_window/internal/BUILD.gn
 +++ b/chrome/browser/ui/browser_window/internal/BUILD.gn
-@@ -112,6 +112,7 @@ source_set("internal") {
+@@ -112,6 +112,7 @@
        "//chrome/browser/ui/find_bar",
        "//chrome/browser/ui/focus",
        "//chrome/browser/ui/fullscreen",
@@ -730,15 +731,15 @@
 +}
 --- a/chrome/browser/ui/tabs/BUILD.gn
 +++ b/chrome/browser/ui/tabs/BUILD.gn
-@@ -407,6 +407,7 @@ if (!is_android) {
+@@ -412,6 +412,7 @@
        "//chrome/browser/ui:ui_features",
        "//chrome/browser/ui/browser_window",
        "//chrome/browser/ui/commerce",
 +      "//chrome/browser/ui/helium:helium_layout_state_controller",
        "//chrome/browser/ui/send_tab_to_self",
+       "//chrome/browser/ui/tabs/alert:tab_alert",
        "//chrome/browser/ui/thumbnails",
-       "//chrome/browser/ui/user_education",
-@@ -637,6 +638,7 @@ if (!is_android) {
+@@ -650,6 +651,7 @@
        "//chrome/browser/ui/context_highlight",
        "//chrome/browser/ui/contextual_search",
        "//chrome/browser/ui/find_bar",
@@ -748,7 +749,7 @@
        "//chrome/browser/ui/lens",
 --- a/chrome/browser/ui/browser_shortcuts/BUILD.gn
 +++ b/chrome/browser/ui/browser_shortcuts/BUILD.gn
-@@ -30,6 +30,7 @@ source_set("browser_shortcuts") {
+@@ -30,6 +30,7 @@
      "//chrome/app:command_ids",
      "//chrome/app:generated_resources",
      "//chrome/browser/ui:accelerator_table",
