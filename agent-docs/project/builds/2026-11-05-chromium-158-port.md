@@ -380,3 +380,23 @@ warnings. Main's current renderer hash is refreshed and all 29 orchestration
 tests pass. A candidate input lock is staged locally by `stage-lock.py`; it is
 not promoted, and its proposed permanent refs have not been created. Refresh
 that staging after any further source or review-document change.
+
+## Shared encryptor compatibility
+
+The next full-build failure was a stale `encryptors[1]` reference in Helium's
+custom sync backend initialization. Chromium 158 removed the two-request barrier
+and passes one `scoped_refptr<Encryptor>` instead. Source inspection confirms
+`OSCryptAsync::GetInstance()` returns the same reference-counted instance, so
+the custom backend now receives `encryptor` alongside the existing sync engine
+and crypto initialization. No encryption provider, key selection, or failure
+handling changes.
+
+Core commit `0afa9ac4de2f328a61af6439b52d6a114e0d23f3` contains this one-line
+adaptation; platform `f4d1aa063531f5f580f6e35cbd227283d5d89359` pins it. Quilt
+refresh used an isolated reconstruction of the original patch's input files
+because later patches shadow other files in that patch. The refreshed patch
+reapplied with zero fuzz, and the resulting sync source is byte-identical to the
+prepared build source. The previously failing object compiled successfully
+(`sync-fix-compile.log`). Full compilation resumed from cache; the preceding
+failure evidence is saved under `*-before-sync-fix.*`. The series remains at
+402 patches. Sync runtime behavior has not been validated by this object build.
