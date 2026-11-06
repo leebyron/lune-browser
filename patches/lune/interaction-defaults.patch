@@ -1,0 +1,20 @@
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -149,13 +149,13 @@
+ 
+   registry->RegisterBooleanPref(prefs::kHeliumShowProgressBar, true);
+ 
+-  // Native command bar (Settings > Appearance > Command bar), off by default.
++  // Native command bar (Settings > Appearance > Command bar), on by default.
+   // With it on, Cmd+T / Cmd+L open the bar instead of new-tab / focus-bar.
+-  registry->RegisterBooleanPref(prefs::kHeliumCommandBarEnabled, false);
++  registry->RegisterBooleanPref(prefs::kHeliumCommandBarEnabled, true);
+ 
+-  // Native link peek (Settings > Appearance > Link peek), on by default.
++  // Native link peek (Settings > Appearance > Link peek), off by default.
+   // With it on, new-tab clicks open a floating preview instead of navigating.
+-  registry->RegisterBooleanPref(prefs::kHeliumLinkPeekEnabled, true);
++  registry->RegisterBooleanPref(prefs::kHeliumLinkPeekEnabled, false);
+ 
+   registry->RegisterIntegerPref(prefs::kHeliumVerticalPinnedTabsPerRow, 4);
+ 

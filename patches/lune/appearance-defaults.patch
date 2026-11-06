@@ -1,0 +1,80 @@
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -96,7 +96,7 @@
+   registry->RegisterBooleanPref(prefs::kHeliumDefaultBrowserRejected, false);
+   registry->RegisterIntegerPref(prefs::kHeliumUiDensity,
+                                 static_cast<int>(HeliumUiDensity::kStandard));
+-  registry->RegisterIntegerPref(prefs::kHeliumRoundedFrameThickness, 1);
++  registry->RegisterIntegerPref(prefs::kHeliumRoundedFrameThickness, 4);
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+   registry->RegisterTimePref(prefs::kPdfInfoBarLastShown, base::Time());
+@@ -131,8 +131,8 @@
+ 
+   registry->RegisterBooleanPref(prefs::kNewTabNextToActive, false);
+ 
+-  registry->RegisterBooleanPref(prefs::kTabCyclingMRU, false);
+-  registry->RegisterBooleanPref(prefs::kVisualTabSwitcher, false);
++  registry->RegisterBooleanPref(prefs::kTabCyclingMRU, true);
++  registry->RegisterBooleanPref(prefs::kVisualTabSwitcher, true);
+   registry->RegisterBooleanPref(prefs::kVisualTabSwitcherList, false);
+ 
+   registry->RegisterBooleanPref(prefs::kShiftRightClickContextMenu, true);
+@@ -143,7 +143,7 @@
+ 
+   registry->RegisterBooleanPref(prefs::kHeliumNativeFrameMaterials, true);
+ 
+-  registry->RegisterBooleanPref(prefs::kHeliumCenteredLocationBar, false);
++  registry->RegisterBooleanPref(prefs::kHeliumCenteredLocationBar, true);
+ 
+   registry->RegisterBooleanPref(prefs::kHeliumMinimalLocationBar, false);
+ 
+@@ -157,7 +157,7 @@
+   // With it on, new-tab clicks open a floating preview instead of navigating.
+   registry->RegisterBooleanPref(prefs::kHeliumLinkPeekEnabled, true);
+ 
+-  registry->RegisterIntegerPref(prefs::kHeliumVerticalPinnedTabsPerRow, 0);
++  registry->RegisterIntegerPref(prefs::kHeliumVerticalPinnedTabsPerRow, 4);
+ 
+   registry->RegisterBooleanPref(prefs::kHomePageIsNewTabPage, true,
+                                 pref_registration_flags);
+@@ -180,7 +180,7 @@
+ 
+   registry->RegisterBooleanPref(prefs::kShowBackButton, true);
+   registry->RegisterBooleanPref(prefs::kShowReloadButton, true);
+-  registry->RegisterBooleanPref(prefs::kShowAvatarButton, true);
++  registry->RegisterBooleanPref(prefs::kShowAvatarButton, false);
+   registry->RegisterBooleanPref(prefs::kShowExtensionsButton, true);
+   registry->RegisterBooleanPref(prefs::kShowMenuButton, true);
+   registry->RegisterBooleanPref(prefs::kShowMediaButton, true);
+--- a/chrome/browser/ui/tabs/tab_strip_prefs.cc
++++ b/chrome/browser/ui/tabs/tab_strip_prefs.cc
+@@ -27,21 +27,21 @@
+   registry->RegisterBooleanPref(prefs::kEverythingMenuPinnedToTabstrip, true);
+   registry->RegisterBooleanPref(prefs::kTabScrollButtonsPinnedToTabstrip, true);
+   registry->RegisterBooleanPref(prefs::kVerticalTabsExpandOnHoverEnabled,
+-                                false);
++                                true);
+   registry->RegisterBooleanPref(prefs::kVerticalTabsCollapsedState, false);
+   registry->RegisterIntegerPref(prefs::kVerticalTabsUncollapsedWidth,
+-                                kVerticalTabStripDefaultUncollapsedWidth);
++                                200);
+   registry->RegisterTimePref(prefs::kVerticalTabsEverythingMenuLastPressed,
+                              base::Time());
+ 
+   registry->RegisterIntegerPref(prefs::kHeliumLayout,
+-                                std::to_underlying(HeliumLayoutType::kClassic));
+-  registry->RegisterBooleanPref(prefs::kHeliumVerticalRightAligned, false);
+-  registry->RegisterBooleanPref(prefs::kHeliumZenMode, false);
+-  registry->RegisterBooleanPref(prefs::kHeliumZenModeSidebarPinned, false);
++                                std::to_underlying(HeliumLayoutType::kVertical));
++  registry->RegisterBooleanPref(prefs::kHeliumVerticalRightAligned, true);
++  registry->RegisterBooleanPref(prefs::kHeliumZenMode, true);
++  registry->RegisterBooleanPref(prefs::kHeliumZenModeSidebarPinned, true);
+   registry->RegisterBooleanPref(prefs::kHeliumZenModeTopChromePinned, false);
+   registry->RegisterBooleanPref(prefs::kHeliumVerticalAddressBarInSidebar,
+-                                false);
++                                true);
+ }
+ 
+ void MigrateHoverCardMemoryPref(PrefService* local_prefs) {
