@@ -5,11 +5,24 @@ and local signing identities are bootstrapped. The first arm64 build and headles
 smoke test passed; [evidence](builds/2026-11-05-arm64.md). Intel and release validation remain.
 See [build readiness](building.md) and [website status](website.md).
 
+## Immediate priority: latest stable Chromium
+
+The owner confirmed that tracking Chromium stable is the project's primary goal,
+independent of ungoogled, Helium, and Xelium release timing. Discovery currently
+reports macOS stable **158.0.8127.18** against locked **157.0.8103.38**. Finish the
+running UI candidate as compatibility evidence, then forward-port the required
+stack to stable 158 with fresh source preparation, compilation, and runtime checks.
+Do not treat that older development build as satisfying the current-version goal.
+Recheck stable when selecting inputs and before any future release promotion;
+do not permanently encode 158 as the target. Failed ports block promotion and
+report the exact conflict while preserving the last good artifacts.
+
 ## 1. Prove the repository model
 
 Imported branches and permanent input tags are published. Lock validation, numeric
 discovery, and workspace guardrails are implemented. PR replay/retirement and
-automated composition remain stage 3 work; nonempty selections currently fail.
+automated composition remain stage 3 work. Reviewed, locked Xelium UI composition
+is implemented; see [UI integration](xelium-ui.md).
 
 - Define manifest schemas and a small local command interface for fetching,
   composing, validating, building, and releasing.
@@ -94,7 +107,7 @@ every gate passes, and a failed candidate leaves the installed update path intac
 | --- | --- |
 | Platforms | Confirmed: macOS arm64 and x86_64 |
 | Helium selection | Full stack selected for first development build |
-| Additional PRs/features | Not selected |
+| Additional PRs/features | Xelium stable UI ports and Helium PRs #2747, #2367, and #2539 selected and pinned; full app validation in progress |
 | Git layout | Same-remote component branches and permanent input tags published |
 | Build machines | No added CI spend; this Mac as a self-hosted Actions runner. Arm64 CI build and headless smoke test passed; Intel build/runtime pending |
 | Signing | Developer ID and Sparkle keys in local Keychain; notarization setup pending |

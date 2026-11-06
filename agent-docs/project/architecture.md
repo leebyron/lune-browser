@@ -84,10 +84,14 @@ mean applying a complete ungoogled series followed by a complete Helium series.
 
 ## Integration sequence
 
-1. Fetch ungoogled-chromium stable tags, Helium core/platform refs, and explicitly
+1. Discover the latest stable Chromium independently of downstream releases.
+   Fetch ungoogled-chromium stable tags, Helium core/platform refs, and explicitly
    selected PR refs. Resolve names to full commit IDs before composing anything.
-2. Select a stable ungoogled release by parsed Chromium version and revision,
-   not lexicographic tag ordering. Pin Chromium source and matching dependencies.
+2. Set the integration target to that Chromium stable version. Select the newest
+   compatible ungoogled release by parsed Chromium version and revision, not
+   lexicographic tag ordering. If ungoogled itself is behind, forward-port its
+   required patch/configuration stack rather than lowering the Chromium target.
+   Pin Chromium source and matching dependencies.
 3. Prefer a Helium core revision that already incorporates that release. Check
    ancestry and `chromium_version.txt`; a matching version string alone does not
    prove the ungoogled changes are present.
@@ -95,7 +99,9 @@ mean applying a complete ungoogled series followed by a complete Helium series.
    merge the selected ungoogled commit into the Helium-derived core, reconcile
    version/download/toolchain metadata, and validate the combined patch stack.
    Failed merges or source preparation block that candidate. Do not silently
-   substitute an older release and call it current.
+   substitute an older release and call it current. Optional UI compatibility
+   must not determine the Chromium version; conflicting features require explicit
+   review and adaptation, never silent removal or a Chromium downgrade.
 5. Apply reviewed PR commits in declared dependency order with
    `git cherry-pick -x`. Store explicit commit lists; blindly picking
    `base..head` can include unrelated history or merges. Preserve attribution.

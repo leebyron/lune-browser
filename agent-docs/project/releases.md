@@ -12,6 +12,14 @@ lock. Skip rebuilding when all effective inputs are unchanged. Allow manual
 dispatch for urgent fixes. Deduplicate candidates by input hash and serialize
 promotion per release channel.
 
+Chromium stable determines the target, independently of downstream release
+cadence. Before promotion, query stable again and require the candidate to match
+or supersede it; an unavailable freshness check blocks promotion. A newer stable
+release discovered during compilation requires a new integration candidate.
+Older development builds may finish for diagnostic evidence, but cannot be
+promoted as current releases. This is the required release policy; automatic
+promotion and its final freshness gate are not yet implemented.
+
 GitHub Actions can coordinate the jobs; a reliable external cron can dispatch the
 same workflow if needed. Use an off-hour-minute schedule and a missed-run monitor:
 [GitHub documents](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
