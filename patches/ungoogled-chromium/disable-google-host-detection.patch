@@ -2,7 +2,7 @@
 
 --- a/chrome/browser/glic/glic_user_status_request.cc
 +++ b/chrome/browser/glic/glic_user_status_request.cc
-@@ -64,11 +64,6 @@ std::vector<std::string> GlicUserStatusR
+@@ -64,11 +64,6 @@
      return headers;
    }
  
@@ -16,7 +16,7 @@
  }
 --- a/chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc
 +++ b/chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc
-@@ -70,9 +70,6 @@ void SuggestInternalsHandler::OnRequestC
+@@ -70,9 +70,6 @@
        suggest_internals::mojom::Request::New();
    mojom_request->id = request_id;
    mojom_request->url = request->url;
@@ -39,7 +39,7 @@
  #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
  #include "chrome/common/bound_session_request_throttled_handler.h"
  #include "net/cookies/cookie_util.h"
-@@ -73,6 +69,7 @@ RequestBoundSessionStatus GetRequestSing
+@@ -73,6 +69,7 @@
    return RequestBoundSessionStatus::kCoveredWithMissingCookie;
  }
  
@@ -47,7 +47,7 @@
  bool IsCoveredRequestBoundSessionStatus(RequestBoundSessionStatus status) {
    switch (status) {
      case RequestBoundSessionStatus::kNotCovered:
-@@ -174,71 +171,6 @@ void GoogleURLLoaderThrottle::DetachFrom
+@@ -174,71 +171,6 @@
  void GoogleURLLoaderThrottle::WillStartRequest(
      network::ResourceRequest* request,
      bool* defer) {
@@ -119,7 +119,7 @@
  }
  
  void GoogleURLLoaderThrottle::WillRedirectRequest(
-@@ -246,102 +178,12 @@ void GoogleURLLoaderThrottle::WillRedire
+@@ -246,102 +178,12 @@
      const network::mojom::URLResponseHead& response_head,
      bool* defer,
      network::HttpRequestHeadersUpdateParams* headers_update_params) {
@@ -224,7 +224,7 @@
  #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 --- a/chrome/common/google_url_loader_throttle.h
 +++ b/chrome/common/google_url_loader_throttle.h
-@@ -86,7 +86,6 @@ class GoogleURLLoaderThrottle final : pu
+@@ -86,7 +86,6 @@
        bound_session_request_throttled_handler_;
    std::optional<base::TimeTicks> bound_session_request_throttled_start_time_;
    bool is_main_frame_navigation_ = false;
@@ -234,7 +234,7 @@
    bool is_deferred_for_bound_session_ = false;
 --- a/components/google/core/common/google_util.cc
 +++ b/components/google/core/common/google_util.cc
-@@ -35,116 +35,6 @@ namespace google_util {
+@@ -36,154 +36,6 @@
  
  namespace {
  
@@ -314,6 +314,11 @@
 -  if (base_url.is_valid() && (canonical_host == base_url.host())) {
 -    return true;
 -  }
+-  const GURL& base_suggestion_url(CommandLineGoogleBaseSuggestionURL());
+-  if (base_suggestion_url.is_valid() &&
+-      (canonical_host == base_suggestion_url.host())) {
+-    return true;
+-  }
 -
 -  static constexpr auto google_tlds =
 -      base::MakeFixedFlatSet<std::string_view>({GOOGLE_TLD_LIST});
@@ -348,10 +353,43 @@
 -  return google_subdomains.contains(host);
 -}
 -
+-// Reads and caches a URL from a CommandLine switch, re-parsing if the switch
+-// value changes (e.g. in unit tests).
+-//
+-// Use as a static base::NoDestructor<CommandLineURLFetcher>.
+-class CommandLineURLFetcher {
+- public:
+-  explicit CommandLineURLFetcher(std::string_view switch_name)
+-      : switch_name_(switch_name) {}
+-
+-  // Return the GURL from command-line. As unit tests may change the
+-  // command-line after the first call to this method, cache the command-line
+-  // value and update the GURL if it changed.
+-  const GURL& GetFromCommandLine(base::CommandLine* command_line) {
+-    std::string switch_value =
+-        command_line->GetSwitchValueASCII(switch_name_);
+-    if (cached_switch_value_ != switch_value) {
+-      cached_switch_value_ = std::move(switch_value);
+-      cached_url_value_ = url_formatter::FixupURL(cached_switch_value_);
+-      if (!cached_url_value_.is_valid() || cached_url_value_.has_query() ||
+-          cached_url_value_.has_ref()) {
+-        cached_url_value_ = GURL();
+-      }
+-    }
+-
+-    return cached_url_value_;
+-  }
+-
+- private:
+-  const std::string_view switch_name_;
+-  std::string cached_switch_value_;
+-  GURL cached_url_value_;
+-};
+-
  }  // namespace
  
  BASE_FEATURE(kIsViewerGoogleSearchUrl, base::FEATURE_ENABLED_BY_DEFAULT);
-@@ -155,14 +45,6 @@ const char kGoogleHomepageURL[] = "https
+@@ -194,14 +46,6 @@
  const char kGoogleSearchPrewarmPath[] = "/search/warmup.html";
  
  bool HasGoogleSearchQueryParam(std::string_view str) {
@@ -366,7 +404,7 @@
    return false;
  }
  
-@@ -173,186 +55,57 @@ std::string GetGoogleLocale(const std::s
+@@ -212,179 +56,61 @@
  
  GURL AppendGoogleLocaleParam(const GURL& url,
                               const std::string& application_locale) {
@@ -413,23 +451,19 @@
  }
  
  const GURL& CommandLineGoogleBaseURL() {
--  // Unit tests may add command-line flags after the first call to this
--  // function, so we don't simply initialize a static |base_url| directly and
--  // then unconditionally return it.
--  static base::NoDestructor<std::string> switch_value;
-   static base::NoDestructor<GURL> base_url;
--  std::string current_switch_value(
--      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
--          switches::kGoogleBaseURL));
--  if (current_switch_value != *switch_value) {
--    *switch_value = current_switch_value;
--    *base_url = url_formatter::FixupURL(*switch_value);
--    if (!base_url->is_valid() || base_url->has_query() || base_url->has_ref()) {
--      *base_url = GURL();
--    }
--  }
-+  *base_url = GURL();
-   return *base_url;
+-  static base::NoDestructor<CommandLineURLFetcher> kFetcher(
+-      switches::kGoogleBaseURL);
+-  return kFetcher->GetFromCommandLine(base::CommandLine::ForCurrentProcess());
++  static const base::NoDestructor<GURL> base_url;
++  return *base_url;
+ }
+ 
+ const GURL& CommandLineGoogleBaseSuggestionURL() {
+-  static base::NoDestructor<CommandLineURLFetcher> kFetcher(
+-      switches::kGoogleBaseSuggestionURL);
+-  return kFetcher->GetFromCommandLine(base::CommandLine::ForCurrentProcess());
++  static const base::NoDestructor<GURL> base_url;
++  return *base_url;
  }
  
  bool StartsWithCommandLineGoogleBaseURL(const GURL& url) {
@@ -502,11 +536,12 @@
 -  if (!IsGoogleDomainUrl(url, DISALLOW_SUBDOMAIN,
 -                         DISALLOW_NON_STANDARD_PORTS) &&
 -      !IsGoogleSearchSubdomainUrl(url)) {
-     return false;
+-    return false;
 -  }
 -
 -  return base::EndsWith(url.path(), kGoogleSearchPrewarmPath,
 -                        base::CompareCase::INSENSITIVE_ASCII);
++  return false;
  }
  
  bool IsYoutubeDomainUrl(const GURL& url,
@@ -606,7 +641,7 @@
  }
  
  bool IsGoogleHostname(const GURL& url) {
-@@ -57,9 +24,7 @@ bool IsGoogleHostname(const GURL& url) {
+@@ -57,9 +24,7 @@
  }
  
  bool IsGoogleSearchHostname(const GURL& url) {
@@ -619,7 +654,7 @@
  bool IsProbablyGoogleSearchUrl(const GURL& url) {
 --- a/components/search_engines/template_url.cc
 +++ b/components/search_engines/template_url.cc
-@@ -710,10 +710,7 @@ std::u16string TemplateURLRef::SearchTer
+@@ -710,10 +710,7 @@
  bool TemplateURLRef::HasGoogleBaseURLs(
      const SearchTermsData& search_terms_data) const {
    ParseIfNecessary(search_terms_data);
@@ -644,7 +679,7 @@
  namespace {
  
  // The result of checking whether a request to a URL should have variations
-@@ -124,16 +120,7 @@ URLValidationResult GetUrlValidationResu
+@@ -124,16 +120,7 @@
  // rather than `headers`, to be exempted from CORS checks, and to avoid exposing
  // the header to service workers.
  bool ShouldAppendVariationsHeader(const GURL& url, InIncognito incognito) {
@@ -662,7 +697,7 @@
  }
  
  // Returns non-empty `std::string` if `variations_headers` has a header value
-@@ -141,19 +128,7 @@ bool ShouldAppendVariationsHeader(const
+@@ -141,19 +128,7 @@
  std::optional<std::string> GetHeaderValue(
      const variations::mojom::VariationsHeaders* variations_headers,
      bool is_first_party_context) {
@@ -682,7 +717,7 @@
  }
  
  // Returns true if the request is sent from a Google web property, i.e. from a
-@@ -289,15 +264,6 @@ bool AppendVariationsHeader(const GURL&
+@@ -289,15 +264,6 @@
                              InIncognito incognito,
                              SignedIn signed_in,
                              network::ResourceRequest* request) {
@@ -698,7 +733,7 @@
    return false;
  }
  
-@@ -321,14 +287,6 @@ bool AppendVariationsHeaderWithCustomVal
+@@ -321,14 +287,6 @@
      const variations::mojom::VariationsHeaders* variations_headers,
      Owner owner,
      network::ResourceRequest* request) {
@@ -713,7 +748,7 @@
    return false;
  }
  
-@@ -361,9 +319,6 @@ void RemoveVariationsHeaderIfNeeded(
+@@ -361,9 +319,6 @@
      const network::mojom::URLResponseHead& response_head,
      InIncognito incognito,
      std::vector<std::string>* to_be_removed_headers) {
@@ -723,7 +758,7 @@
  }
  
  std::unique_ptr<network::SimpleURLLoader>
-@@ -400,28 +355,21 @@ CreateSimpleURLLoaderWithVariationsHeade
+@@ -400,28 +355,21 @@
  }
  
  bool HasVariationsHeader(const network::ResourceRequest& request) {
@@ -757,7 +792,7 @@
  }  // namespace variations
 --- a/content/browser/preloading/prefetch/prefetch_resource_request_utils.cc
 +++ b/content/browser/preloading/prefetch/prefetch_resource_request_utils.cc
-@@ -167,41 +167,11 @@ void AddVariationsHeaderForPrefetch(
+@@ -167,41 +167,11 @@
      bool is_first_party_context_for_variations) {
    CHECK(prefetch_request.browser_context());
  
@@ -801,7 +836,7 @@
                                   IsFirstPartyContext(resource_request));
 --- a/net/base/url_util.cc
 +++ b/net/base/url_util.cc
-@@ -550,28 +550,6 @@ bool HasGoogleHost(const GURL& url) {
+@@ -550,28 +550,6 @@
  }
  
  bool IsGoogleHost(std::string_view host) {
