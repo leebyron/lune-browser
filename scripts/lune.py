@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = ROOT / 'manifests/browser.lock.json'
@@ -85,9 +86,102 @@ def discover(_args):
     result = {'ungoogled_tag': tag[len(prefix):], 'ungoogled_commit': commit,
               'helium_head': core, 'included_in_helium': ancestors(commit, core),
               'locked_ungoogled_is_current': read_json(LOCK)['ungoogled']['commit'] == commit}
+    # Track Chromium independently: latest ungoogled is not necessarily current stable.
+    with urllib.request.urlopen(
+            'https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1',
+            timeout=30) as response:
+        stable = json.load(response)[0]['version']
+    version_tuple(stable + '-1')
+    result['chromium_stable_mac'] = stable
+    result['locked_chromium'] = read_json(LOCK)['chromium_version']
+    result['locked_chromium_is_current'] = (
+        version_tuple(result['locked_chromium'] + '-1') >= version_tuple(stable + '-1'))
     print(json.dumps(result, indent=2))
+    if not result['locked_chromium_is_current']:
+        raise ValueError('Locked Chromium is behind macOS stable; do not call this candidate current. Forward-port required.')
     if not result['included_in_helium']:
         raise ValueError('New ungoogled input requires reviewed integration; lock was not changed.')
+
+
+def validate_selections(lock, selections, git_objects=False):
+    """Validate reviewed quilt ports already composed into an immutable component.
+
+    This is deliberately not arbitrary PR replay: updating a PR requires a new
+    reviewed component commit and patch hashes before the builder can use it.
+    """
+    if selections.get('schema_version') != 2 or selections.get('mode') != 'composed-quilt':
+        raise ValueError('Selections require the composed-quilt schema.')
+    if selections.get('helium_stack') != 'complete':
+        raise ValueError('The complete Helium stack is required.')
+    integration = selections.get('integration', {})
+    component = integration.get('component')
+    if component not in lock['components'] or integration.get('commit') != lock['components'][component]['commit']:
+        raise ValueError('Selections must match the locked integration commit.')
+    patches = integration.get('patches', [])
+    paths = [p.get('path', '') for p in patches]
+    if not paths or len(set(paths)) != len(paths):
+        raise ValueError('Composed patches must be nonempty and unique.')
+    for p in patches:
+        path = Path(p['path'])
+        if path.is_absolute() or '..' in path.parts or not p['path'].startswith('patches/') or path.suffix != '.patch':
+            raise ValueError('Invalid composed patch path.')
+        if not re.fullmatch(r'[0-9a-f]{64}', p.get('sha256', '')):
+            raise ValueError('Composed patches need SHA-256 hashes.')
+    ids = set()
+    covered = set()
+    for topic in selections['pull_requests'] + selections['feature_topics']:
+        if not topic.get('id') or topic['id'] in ids or topic.get('review_status') != 'reviewed-port':
+            raise ValueError('Each selection needs a unique ID and reviewed-port status.')
+        if not set(topic.get('depends_on', [])).issubset(ids):
+            raise ValueError('Selection dependencies must precede the selection.')
+        ids.add(topic['id'])
+        if not topic.get('rationale') or not topic.get('adaptation'):
+            raise ValueError('Selections need rationale and adaptation provenance.')
+        if not topic.get('patches') or not set(topic['patches']).issubset(paths):
+            raise ValueError('Selection patches are missing from the composition.')
+        covered.update(topic['patches'])
+        if 'number' in topic:
+            if topic.get('repository') != 'https://github.com/imputnet/helium':
+                raise ValueError('Unexpected PR source repository.')
+            commits = topic.get('commits', [])
+            if (not commits or len(set(commits)) != len(commits) or
+                    any(not SHA.fullmatch(c) for c in commits) or
+                    not SHA.fullmatch(topic.get('base', '')) or
+                    not SHA.fullmatch(topic.get('head', '')) or commits[-1] != topic['head']):
+                raise ValueError('PRs need full base/head and ordered commit IDs.')
+    if covered != set(paths):
+        raise ValueError('Every composed patch needs selection provenance.')
+    source = selections.get('source', {})
+    if (source.get('repository') != 'https://github.com/minervanet/xelium-macos' or
+            not SHA.fullmatch(source.get('commit', '')) or
+            source.get('ref') != 'refs/tags/inputs/xelium-ui-1/xelium'):
+        raise ValueError('Xelium source needs a pinned commit and permanent ref.')
+    if git_objects:
+        for topic in selections['pull_requests']:
+            expected_ref = f"refs/tags/inputs/xelium-pr-{topic['number']}/helium"
+            if topic.get('ref') != expected_ref or git('rev-parse', expected_ref + '^{commit}') != topic['head']:
+                raise ValueError('PR input tag differs from the reviewed head.')
+            for sha in [topic['base'], *topic['commits']]:
+                if git('cat-file', '-t', sha) != 'commit':
+                    raise ValueError('PR provenance references a missing commit.')
+        commit = integration['commit']
+        if git('rev-parse', source['ref'] + '^{commit}') != source['commit']:
+            raise ValueError('Xelium source tag differs from the selection.')
+        series = [line.split(' #')[0].strip() for line in git('show', commit + ':patches/series').splitlines()
+                  if line.strip() and not line.startswith('#')]
+        previous = -1
+        for p in patches:
+            name = p['path'].removeprefix('patches/')
+            if series.count(name) != 1 or series.index(name) <= previous:
+                raise ValueError('Composed patch order differs from the selection.')
+            previous = series.index(name)
+            blob = subprocess.check_output(['git', 'show', commit + ':' + p['path']], cwd=ROOT)
+            if hashlib.sha256(blob).hexdigest() != p['sha256']:
+                raise ValueError('Composed patch hash differs from the selection.')
+            if 'source_sha256' in p:
+                blob = subprocess.check_output(['git', 'show', source['commit'] + ':' + p['path']], cwd=ROOT)
+                if hashlib.sha256(blob).hexdigest() != p['source_sha256']:
+                    raise ValueError('Xelium source patch hash differs from the selection.')
 
 
 def validate_lock(lock):
@@ -121,10 +215,7 @@ def validate_lock(lock):
         if digest(path) != expected:
             raise ValueError(f'Locked input changed: {name}. Review and update the lock.')
     selections = read_json(ROOT / 'manifests/patches.json')
-    if selections['pull_requests'] or selections['feature_topics']:
-        raise ValueError('PR/topic replay is not implemented for bootstrap; do not silently ignore selections.')
-    if selections['helium_stack'] != 'complete':
-        raise ValueError('The bootstrap requires the complete Helium stack.')
+    validate_selections(lock, selections)
     for name in lock['download_configs']:
         parser = configparser.ConfigParser(interpolation=None)
         parser.read(ROOT / name)
@@ -145,6 +236,7 @@ def validate(args):
     lock = read_json(LOCK)
     validate_lock(lock)
     if args.git_objects:
+        validate_selections(lock, read_json(ROOT / 'manifests/patches.json'), git_objects=True)
         for name, component in lock['components'].items():
             if not ancestors(component['upstream_commit'], component['commit']):
                 raise ValueError(f'{name} lost upstream ancestry.')

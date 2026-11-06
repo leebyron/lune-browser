@@ -28,6 +28,10 @@ public browser releases, services deployment, and recurring browser builds are
 not enabled. Targets are macOS arm64 and x86_64. Website status is recorded in
 [the website runbook](agent-docs/project/website.md).
 
+The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
+Target the latest stable Chromium independently of upstream browser release cadence;
+never downgrade Chromium to satisfy optional UI patches. Discovery reports stable lag.
+
 ## Engineering rules
 
 - Prefer native Git fetch, merge, cherry-pick, rebase, and worktree operations

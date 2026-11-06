@@ -12,15 +12,17 @@ product configuration, patch selections, Homebrew/Python requirements, and both
 host download manifests. Every source download has a fixed SHA-256 or SHA-512;
 we resolved upstream's mutable hash-file URLs when creating this lock.
 
-The complete Helium stack is selected; no additional PRs or feature topics are
-selected. The ungoogled commit is already an ancestor of the selected core, and
+The complete Helium stack plus reviewed Xelium UI ports are selected; see
+[the composition and validation status](xelium-ui.md). The ungoogled commit is already an ancestor of the selected core, and
 the macOS gitlink matches that core. No duplicate ungoogled series is applied.
 
 Published histories are `component/helium`, `component/macos`, and
 `component/services`. Permanent `inputs/bootstrap-1/{helium,macos,services,ungoogled}`
-tags retain the original inputs. The current macOS fix is pinned separately at
-`inputs/bootstrap-2/macos`; original tags are never rewritten. Core and services are unchanged imports. Lune changes
-are a separate macOS commit descended from upstream:
+tags retain the original inputs. The first-build macOS fix remains pinned at `inputs/bootstrap-2/macos`; original
+tags are never rewritten. The UI candidate is pinned at `inputs/xelium-ui-1/macos`,
+with Xelium and PR provenance under corresponding `inputs/xelium-*` tags. Core
+and services are unchanged imports. Lune identity changes remain separate commits
+descended from upstream:
 
 - Same-repository core submodule URL, preserving its exact gitlink.
 - `Lune` product name, `computer.lune.browser` bundle/profile identity,
@@ -30,13 +32,14 @@ are a separate macOS commit descended from upstream:
 - Lune service origin `https://services.lune.computer`, currently **not deployed**.
 - Hash-locked source download override and strict patch application without fuzz.
 - Removal of the upstream asset-catalog icon name so the bundle uses its `.icns`.
-  Original Lune artwork and a complete branding/link audit remain outstanding.
+  Pelagic Signal artwork is included in the UI candidate; a complete branding/link
+  audit remains outstanding.
 
 The first development build explicitly disables Sparkle and special branded
 entitlements. Product metadata records a dedicated Sparkle public key, but the
 updater is not yet configured or enabled in a browser. Do not publish this input
 set as a finished distribution. The browser still inherits upstream versioning;
-Lune build numbering, artwork, help/onboarding URLs, service behavior, packaging,
+Lune build numbering, the full branding/link audit, service behavior, packaging,
 and both architectures' runtime checks remain release blockers.
 
 ## Prepare this Mac
@@ -126,7 +129,10 @@ global prune settings, and rejects moved tags. Discovery compares numeric stable
 versions and checks ungoogled ancestry in Helium. It reports whether the locked
 release is current; it does not change the lock or compose a new candidate.
 A newer ungoogled release absent from Helium requires reviewed integration.
-PR/topic replay is not implemented yet; nonempty selections fail validation.
+Reviewed PR ports are composed into the pinned macOS component. Validation checks
+selection provenance, patch hashes, and series order. Arbitrary automatic PR
+replay remains unimplemented. Discovery also reports independent Chromium stable
+lag; having the newest ungoogled release is not sufficient.
 
 Always push core inputs before platform inputs, then publish exact input tags
 and the main lock. Use explicit push refspecs with `-c push.followTags=false` so

@@ -1,7 +1,303 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "mode": "composed-quilt",
   "helium_stack": "complete",
-  "pull_requests": [],
-  "feature_topics": [],
-  "policy": "Review and explicitly pin each PR's base, head, ordered commits, dependencies, and rationale before inclusion. No moving PR refs in build locks."
+  "source": {
+    "repository": "https://github.com/minervanet/xelium-macos",
+    "commit": "c5a6bfbeb2ec1b8caa33fa987b0947d771f7ea42",
+    "ref": "refs/tags/inputs/xelium-ui-1/xelium",
+    "chromium_version": "156.0.8078.79"
+  },
+  "integration": {
+    "component": "macos",
+    "commit": "5bc330d2303b349d918e9a48e9732054894513ec",
+    "patches": [
+      {
+        "path": "patches/helium/core/ui-density-prefs.patch",
+        "sha256": "32ee83e12cd4eb3177663e141235d3c93e6e238eb30f10ef9ab979b9e136baf7",
+        "source_sha256": "32ee83e12cd4eb3177663e141235d3c93e6e238eb30f10ef9ab979b9e136baf7"
+      },
+      {
+        "path": "patches/helium/settings/ui-density-settings.patch",
+        "sha256": "dc005c33d562631c7bea524e7807085ee7754a948642dd2c114580eca3c1a0af",
+        "source_sha256": "b0eb294502be782ee7980207b732b0b30b33165241532e64917744f4004f4ffb"
+      },
+      {
+        "path": "patches/helium/ui/layout/address-bar-in-sidebar.patch",
+        "sha256": "6dcf00ac770c73627ed04ab72790410288b72f47fa0146db80a82968d82ecea5",
+        "source_sha256": "bb9123384a4ed4cb0dd9c23d8f775c492b16b8c0baaeb3584e7670b247a37fac"
+      },
+      {
+        "path": "patches/helium/ui/comfortable-vertical-tabs.patch",
+        "sha256": "0cc19269a02e99b088c5cdae03e11e34b0aa54ce7542cde0a75a118b590c7069",
+        "source_sha256": "aa4ca59e094fd06a2a2a36834d0e10f21b4667831fa4075c546a8a6515a74641"
+      },
+      {
+        "path": "patches/helium/ui/rounded-frame-thickness.patch",
+        "sha256": "533756fedbf3fdde6c4d1c0bfaaa8c3d8f48deb87a570b6b300a0a25b6bcdb43",
+        "source_sha256": "37b3c39d742079b63716b1360e28de4b7d849994cefc1ec8d771b86e38ca7d0e"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-min-width.patch",
+        "sha256": "c4b2d4c09bf8d6c44e067a9fb74a424726984571d403d00b19c36d00abe13bfd",
+        "source_sha256": "7d25af11fdd936c9c6ace3caeffdaabeba253dc1f0172f5608be28e57a1c5c0b"
+      },
+      {
+        "path": "patches/helium/ui/compact-toolbar-vertical.patch",
+        "sha256": "5b78b746152b51c8afd7185cc7c8c41d5d936404b321fac68901777e057f2d30",
+        "source_sha256": "7595f052efd94dd1175591ebf783ba6c6162d175cfbe42b82f85935654b4fbed"
+      },
+      {
+        "path": "patches/helium/ui/native-frame-materials-default.patch",
+        "sha256": "c90f605aadad44413feeffe07804dfba21a3c06f799611cbfc70b9ae7fad6fab",
+        "source_sha256": "c335e2e3602aed1e192c17008704ca59226d499a2d60c2ade9c0d045a1af8b7d"
+      },
+      {
+        "path": "patches/helium/ui/frame-content-edge.patch",
+        "sha256": "d6628ade15e51d2484bd9da295fc01dfd18feef48cff8ec1e44c3a784d24732f",
+        "source_sha256": "faa34f5739fa01159ff5771c6bc90688748255a3b21cfb9e349f39075e00f321"
+      },
+      {
+        "path": "patches/helium/ui/frame-thickness-caption.patch",
+        "sha256": "34c0d24b95ac7f5e5e77a0d4624c70a912d99503f40f924fa501ac318afd8715",
+        "source_sha256": "8e9ff1525893c7134a2e0d36c0a79be6687d1a742ebba7bcfd750d61157bb0b8"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-content-edge.patch",
+        "sha256": "3f9f9f66696505c51cc5be4775423059bc4c63a259dd99464b3f61b3ee5a9a8e",
+        "source_sha256": "ff90d4f1582fcdbebc69aa41a9a13f70d9b128cd598261c5abe5e9ca44d6e848"
+      },
+      {
+        "path": "patches/helium/ui/vts-collapse-fix.patch",
+        "sha256": "ff4f28e694a331b43d2ba6efe82ffc499ec04022935c58241bf63ee6ecf237b6",
+        "source_sha256": "0bc2ea8b0f948b3c63314d672eac04749c4306bc4e6c047fda4846f686f4b503"
+      },
+      {
+        "path": "patches/helium/ui/vertical-pinned-tab-rows.patch",
+        "sha256": "0a4ede54629cf6529c39eb2932caf78a02ada228c3214ac2469dd5539fde8ba7",
+        "source_sha256": "af81689ac614bb0bca7ba6fa008448f0464c6098ad1fc4c6cade39599df7e918"
+      },
+      {
+        "path": "patches/helium/ui/frame-thickness-restart.patch",
+        "sha256": "658328ab09eb668428a434a6bb7444d2368038e63c9ca1619813b7ed936cb213",
+        "source_sha256": "f25a339761b91e0a0358625debfb00cce651f374a7f580ed1db5c9656f20940f"
+      },
+      {
+        "path": "patches/helium/ui/toolbar-top-bar-split.patch",
+        "sha256": "785b170bb03f9d44e066c5ada7504fa31b128694054201c35fba3fc5c658ce0d",
+        "source_sha256": "3d01a9ad7fd240db41a26ab156397dc2c7003d24b08776c53c84f8d8bbdec22f"
+      },
+      {
+        "path": "patches/helium/ui/zen-app-menu-reveal.patch",
+        "sha256": "2982aa234b73d85a047556dc8ae6c3a4ff03a572fb606a1eb6286e58b89efc08",
+        "source_sha256": "7ca3018186777ac65fbd0aa3f25f7804be5f1d33d3ea6a9abf3a6372940e62dc"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-pin-button.patch",
+        "sha256": "c3bd12d9b8a5241c5a9bd7433bf5b04f8580b841afb113b1515cda66d9e2bbf9",
+        "source_sha256": "4d33fcae0ee249ae0cb807d3649b1de9cb0e7fd14a21c1d2d71a9360f8c00629"
+      },
+      {
+        "path": "patches/helium/core/visual-tab-switcher.patch",
+        "sha256": "a34496c5e3b93b7c9dd88632b65d003bcbf63ad39b027cad7788b116fe8de566",
+        "source_sha256": "f77fbd031ccae15182ce1a8855225b8c63bb9cb88e79083a6ecc3dc1b1e18620"
+      },
+      {
+        "path": "patches/helium/ui/visual-tab-switcher.patch",
+        "sha256": "47fd686e1eb305ea4e5b2cdd830d96d3b07267d4149d0f4c808b3c5b5ae3f141",
+        "source_sha256": "4b57297e0243a913ad4d98b9040603f624f982634bff7fadd316d0c9aec3cf37"
+      },
+      {
+        "path": "patches/helium/settings/visual-tab-switcher.patch",
+        "sha256": "aac91ae06ac9bf1bb2a66fba16db7fa087f95e0b70ee33ad2211507d9d37f8d4",
+        "source_sha256": "8c7996810f65e74aca14c03e00107207155169942cbd461103c030703da55ca2"
+      },
+      {
+        "path": "patches/helium/ui/floating-url-bar.patch",
+        "sha256": "ee5dcda326077f54bc11369ffadfba997429e7cb4fcbc526396e9374b35d9aed",
+        "source_sha256": "14c892c4373a6477a76206c525312a3ec848652d23a3361d1c30486a26da80f7"
+      },
+      {
+        "path": "patches/helium/ui/link-peek.patch",
+        "sha256": "834e245074d16efa0f721c9427bf98a87e9b833c8db25cca54e153cf0c1fcb3f",
+        "source_sha256": "50da79f2e778052d37e5e6f2ce6ffc79538142fcfe7a001c60ceae4f5f5fc9cf"
+      },
+      {
+        "path": "patches/helium/ui/chromium-157-build.patch",
+        "sha256": "8c8dbfe065fda54a8a7c3c584c36a31c250ce9c388fd104be6fd62c76c33b770"
+      },
+      {
+        "path": "patches/lune/appearance-defaults.patch",
+        "sha256": "66a661a2c71a138566b5be9de450d11cd6d1546d8d85c8ff00b444889587d567"
+      },
+      {
+        "path": "patches/lune/interaction-defaults.patch",
+        "sha256": "9e80088c7556ff6264d158e0aa9d4184909427753df68199296bcd0e4116cc46"
+      },
+      {
+        "path": "patches/lune/onboarding-kagi.patch",
+        "sha256": "b5b315016dbf3ce00a44d6e9a6494b42e4d52fff280bafff32b3439769fc24cc"
+      },
+      {
+        "path": "patches/lune/helium-credit.patch",
+        "sha256": "bd7f1b83febca75893c9be97a0765be7c280d4a4b5b9a761a3c59669632be55a"
+      },
+      {
+        "path": "patches/helium/ui/chromium-157-dependencies.patch",
+        "sha256": "3ff9ed6486dca08fa8f1723fd6ec172c3a2ab5f300777612d1537617a03eb611"
+      }
+    ]
+  },
+  "pull_requests": [
+    {
+      "number": 2747,
+      "title": "helium/ui: add \"comfortable\" interface size",
+      "state": "open",
+      "merged": false,
+      "html_url": "https://github.com/imputnet/helium/pull/2747",
+      "base": "2f81b9cafa38a95071e20de3f9cd6b0aca6d3c65",
+      "head": "c0ba3d247c01e5f77ccd726247275153d2f1be32",
+      "author": "dumbmoron",
+      "commits": [
+        "c0ba3d247c01e5f77ccd726247275153d2f1be32"
+      ],
+      "id": "helium-2747",
+      "repository": "https://github.com/imputnet/helium",
+      "ref": "refs/tags/inputs/xelium-pr-2747/helium",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/core/ui-density-prefs.patch",
+        "patches/helium/settings/ui-density-settings.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "helium/ui: add \"comfortable\" interface size",
+      "adaptation": "Ships the Xelium c5a6bfbeb2ec implementation, not a direct replay of the current PR head. The base/head/commit list records the reviewed upstream PR snapshot. See agent-docs/project/xelium-ui.md for Chromium 157 adaptations and validation limits."
+    },
+    {
+      "number": 2367,
+      "title": "helium/ui/layout: add show address bar in sidebar",
+      "state": "closed",
+      "merged": false,
+      "html_url": "https://github.com/imputnet/helium/pull/2367",
+      "base": "3eb149f54bc5b7db3bf61b1db6303d5c773d04bd",
+      "head": "ffb1e05af047f48c385cbcbf0fe7521d02158e2b",
+      "author": "heloess",
+      "commits": [
+        "ffb1e05af047f48c385cbcbf0fe7521d02158e2b"
+      ],
+      "id": "helium-2367",
+      "repository": "https://github.com/imputnet/helium",
+      "ref": "refs/tags/inputs/xelium-pr-2367/helium",
+      "depends_on": [
+        "helium-2747"
+      ],
+      "patches": [
+        "patches/helium/ui/layout/address-bar-in-sidebar.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "helium/ui/layout: add show address bar in sidebar",
+      "adaptation": "Ships the Xelium c5a6bfbeb2ec implementation, not a direct replay of the current PR head. The base/head/commit list records the reviewed upstream PR snapshot. See agent-docs/project/xelium-ui.md for Chromium 157 adaptations and validation limits."
+    },
+    {
+      "number": 2539,
+      "title": "helium/ui: Add visual tab switcher",
+      "state": "open",
+      "merged": false,
+      "html_url": "https://github.com/imputnet/helium/pull/2539",
+      "base": "b5145ab1047297970aceb9ca9f48722f6926cc66",
+      "head": "83e306bf9b971f641c4ce5f7a063d2070da447b3",
+      "author": "beeltec",
+      "commits": [
+        "ba4b0b33e7fe52419f3822b150891e4dc671ed81",
+        "998aba45392f51070d035367003d3d9308c5b8cf",
+        "e6cc807209403cd74710fd702dda03d63f11d541",
+        "83e306bf9b971f641c4ce5f7a063d2070da447b3"
+      ],
+      "id": "helium-2539",
+      "repository": "https://github.com/imputnet/helium",
+      "ref": "refs/tags/inputs/xelium-pr-2539/helium",
+      "depends_on": [
+        "helium-2747"
+      ],
+      "patches": [
+        "patches/helium/core/visual-tab-switcher.patch",
+        "patches/helium/ui/visual-tab-switcher.patch",
+        "patches/helium/settings/visual-tab-switcher.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "helium/ui: Add visual tab switcher",
+      "adaptation": "Ships the Xelium c5a6bfbeb2ec implementation, not a direct replay of the current PR head. The base/head/commit list records the reviewed upstream PR snapshot. See agent-docs/project/xelium-ui.md for Chromium 157 adaptations and validation limits."
+    }
+  ],
+  "feature_topics": [
+    {
+      "id": "xelium-support",
+      "depends_on": [
+        "helium-2747",
+        "helium-2367",
+        "helium-2539"
+      ],
+      "patches": [
+        "patches/helium/ui/comfortable-vertical-tabs.patch",
+        "patches/helium/ui/rounded-frame-thickness.patch",
+        "patches/helium/ui/sidebar-min-width.patch",
+        "patches/helium/ui/compact-toolbar-vertical.patch",
+        "patches/helium/ui/native-frame-materials-default.patch",
+        "patches/helium/ui/frame-content-edge.patch",
+        "patches/helium/ui/frame-thickness-caption.patch",
+        "patches/helium/ui/sidebar-content-edge.patch",
+        "patches/helium/ui/vts-collapse-fix.patch",
+        "patches/helium/ui/vertical-pinned-tab-rows.patch",
+        "patches/helium/ui/frame-thickness-restart.patch",
+        "patches/helium/ui/toolbar-top-bar-split.patch",
+        "patches/helium/ui/zen-app-menu-reveal.patch",
+        "patches/helium/ui/sidebar-pin-button.patch",
+        "patches/helium/ui/floating-url-bar.patch",
+        "patches/helium/ui/link-peek.patch",
+        "patches/helium/ui/chromium-157-build.patch",
+        "patches/helium/ui/chromium-157-dependencies.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match Xelium stable UI behavior, with Chromium 157 compatibility.",
+      "adaptation": "See agent-docs/project/xelium-ui.md; distribution defaults and attribution stay separate from reusable features."
+    },
+    {
+      "id": "lune-defaults",
+      "depends_on": [
+        "xelium-support"
+      ],
+      "patches": [
+        "patches/lune/appearance-defaults.patch",
+        "patches/lune/interaction-defaults.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match the owner's local Xelium appearance without copying private profile data or consent.",
+      "adaptation": "See agent-docs/project/xelium-ui.md; distribution defaults and attribution stay separate from reusable features."
+    },
+    {
+      "id": "lune-kagi",
+      "depends_on": [
+        "xelium-support"
+      ],
+      "patches": [
+        "patches/lune/onboarding-kagi.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Recommend Kagi during onboarding while preserving explicit search-engine choice.",
+      "adaptation": "See agent-docs/project/xelium-ui.md; distribution defaults and attribution stay separate from reusable features."
+    },
+    {
+      "id": "lune-credit",
+      "depends_on": [
+        "xelium-support"
+      ],
+      "patches": [
+        "patches/lune/helium-credit.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Credit and link to Helium in onboarding and About.",
+      "adaptation": "See agent-docs/project/xelium-ui.md; distribution defaults and attribution stay separate from reusable features."
+    }
+  ],
+  "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."
 }

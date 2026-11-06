@@ -1,8 +1,8 @@
 # Repository and patch architecture
 
 Status: component histories and locked checkout/bootstrap tooling implemented.
-The first arm64 build and headless runtime smoke test passed; replay and release
-orchestration remain planned. Based on the
+The first arm64 build and headless runtime smoke test passed. Reviewed Xelium UI composition is implemented
+in a development candidate; generic replay and release orchestration remain planned. Based on the
 [upstream source review](research.md) dated 2026-11-05.
 
 ## Recommendation: one remote, preserved component histories

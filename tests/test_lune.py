@@ -1,6 +1,8 @@
 """Fail-closed checks for the development input lock and checkout guardrails."""
 import argparse
 import importlib.util
+import io
+import json
 from pathlib import Path
 import shutil
 import tempfile
@@ -59,13 +61,45 @@ class LockTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing required downloads"):
             lune.validate_lock(self.lock)
 
-    def test_unimplemented_pr_is_not_silently_ignored(self):
+    def test_invalid_pr_is_not_silently_ignored(self):
         name = "manifests/patches.json"
         data = lune.read_json(self.root / name)
         data["pull_requests"] = [{"number": 123}]
         lune.write_json(self.root / name, data)
         self.update_hash(name)
-        with self.assertRaisesRegex(ValueError, "replay is not implemented"):
+        with self.assertRaisesRegex(ValueError, "unique ID"):
+            lune.validate_lock(self.lock)
+
+    def change_selections(self, fn):
+        name = "manifests/patches.json"
+        data = lune.read_json(self.root / name)
+        fn(data)
+        lune.write_json(self.root / name, data)
+        self.update_hash(name)
+
+    def test_selection_cannot_point_at_another_component_commit(self):
+        self.change_selections(lambda d: d["integration"].update(commit="a" * 40))
+        with self.assertRaisesRegex(ValueError, "locked integration commit"):
+            lune.validate_lock(self.lock)
+
+    def test_unpinned_pr_rejected_after_manifest_rehash(self):
+        self.change_selections(lambda d: d["pull_requests"][0].update(head="main"))
+        with self.assertRaisesRegex(ValueError, "full base/head"):
+            lune.validate_lock(self.lock)
+
+    def test_missing_composed_patch_rejected(self):
+        self.change_selections(lambda d: d["integration"]["patches"].pop(0))
+        with self.assertRaisesRegex(ValueError, "missing from the composition"):
+            lune.validate_lock(self.lock)
+
+    def test_dependency_order_is_enforced(self):
+        self.change_selections(lambda d: d["pull_requests"][0].update(depends_on=["missing"]))
+        with self.assertRaisesRegex(ValueError, "dependencies must precede"):
+            lune.validate_lock(self.lock)
+
+    def test_duplicate_patch_rejected(self):
+        self.change_selections(lambda d: d["integration"]["patches"].append(d["integration"]["patches"][0]))
+        with self.assertRaisesRegex(ValueError, "nonempty and unique"):
             lune.validate_lock(self.lock)
 
     def test_short_commit_rejected(self):
@@ -84,6 +118,21 @@ class LockTests(unittest.TestCase):
         for version, sdk in [("Xcode 27.3\nBuild version 27C1", "27.2"), ("Xcode 27.2\nBuild version 27B52", "27.3")]:
             with self.assertRaisesRegex(ValueError, "Toolchain differs"):
                 lune.check_toolchain(version, sdk, product)
+
+    def test_discovery_detects_chromium_lag_even_with_latest_ungoogled(self):
+        response = io.BytesIO(json.dumps([{"version": "158.0.8127.18"}]).encode())
+        with patch.object(lune, "git", side_effect=[
+                "upstream/ungoogled/157.0.8103.38-1",
+                self.lock["ungoogled"]["commit"],
+                self.lock["components"]["helium"]["commit"]]), \
+                patch.object(lune, "ancestors", return_value=True), \
+                patch.object(lune.urllib.request, "urlopen", return_value=response), \
+                patch("sys.stdout", new_callable=io.StringIO) as output:
+            with self.assertRaisesRegex(ValueError, "behind macOS stable"):
+                lune.discover(None)
+            report = json.loads(output.getvalue())
+            self.assertTrue(report["locked_ungoogled_is_current"])
+            self.assertFalse(report["locked_chromium_is_current"])
 
     def test_numeric_release_order(self):
         tags = ["99.0.4844.84-1", "157.0.8103.38-2", "157.0.8103.38-10"]

@@ -12,7 +12,9 @@ reference. Lune is an independent distribution with its own identity and service
 
 ## Goals
 
-1. Discover new stable ungoogled-chromium releases daily and attempt integration
+1. Target the latest stable Chromium, independently of Helium and Xelium release
+   cadence. Never downgrade Chromium to accommodate optional UI patches. Discover
+   new stable Chromium and ungoogled-chromium releases daily and attempt integration
    with the matching Chromium source and a compatible Helium patch/configuration
    stack, without waiting indefinitely for a Helium binary release.
 2. Support an explicit selection of Helium functionality and open upstream PRs.
@@ -41,6 +43,11 @@ reference. Lune is an independent distribution with its own identity and service
 - A Lune feature can be isolated onto an upstream-based branch without branding,
   unrelated PRs, or release infrastructure mixed into the diff.
 
+If ungoogled-chromium or Helium lags Chromium stable, report the gap explicitly
+and forward-port the required patch stack. An older development candidate is not
+a current-security release. Compatibility conflicts block that candidate; they
+never silently pin the project to an older Chromium.
+
 Daily polling reduces avoidable delay; it cannot promise the latest security
 fixes at all times. Chromium, ungoogled-chromium, Helium compatibility, build
 capacity, and failed validation can each introduce lag. Track Chromium stable
@@ -50,8 +57,9 @@ announcements as well as the latest ungoogled-chromium release.
 
 The initial target is macOS on both architectures, confirmed by the owner.
 Windows and Linux are future platform adapters, not first-release requirements.
-No particular open PR has been selected for inclusion yet. The initial feature
-set is the full Helium stack. Keep CI free: this Mac is the first build host, with
+The full Helium stack plus selected Xelium UI patches and Helium PRs #2747, #2367,
+and #2539 are recorded in the [UI integration notes](xelium-ui.md). The candidate
+is under development validation and remains behind Chromium stable 158. Keep CI free: this Mac is the first build host, with
 a registered GitHub Actions self-hosted runner and a manual development workflow. The services host remains
 undecided. Signing identities are provisioned locally.
 
