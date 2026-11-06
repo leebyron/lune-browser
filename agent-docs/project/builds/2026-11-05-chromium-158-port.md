@@ -63,12 +63,36 @@ hunks were retired after checking both implementation and declarations. The
 remaining survey handler is still disabled by the original patch. The cloud
 content-scanning test dependency moved into a conditional and is removed there.
 
-The first **23 patches apply with zero fuzz**. Application currently stops at
-`ungoogled-chromium/remove-unused-preferences-fields.patch`, with conflicts in
-20 files requiring review. No patch has been skipped or forced. Full preparation,
+Core commit `3fb9b0b3` ports the unused-preferences cleanup across 20 conflicting
+files and removes six newly introduced syncable Safe Browsing preferences plus
+the new settings allowlist entry. Three obsolete TurnSyncOnHelper file sections
+were retired after confirming those files are absent from the verified source
+archive inventory and the replacement helpers do not contain those pref uses.
+
+The first **28 patches apply with zero fuzz**. Application currently stops at
+`ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch`: the settings page
+moved from a computed label to a preference observer, which needs adaptation. No patch has been skipped or forced. Full preparation,
 GN generation, compilation, and runtime validation remain incomplete for 158.
 The older 157 UI validation build is still a separate diagnostic build.
 
 All selected UI features, Lune defaults, Kagi recommendation, Helium attribution,
 and artwork remain required in the forward-port. New immutable component tags
 and the main lock will be published only when the candidate is ready.
+
+## Upstream work-in-progress check
+
+Checked 2026-11-05: the upstream repository exposes only `master`,
+`PF4Public-patch-1`, and `pf-bin`; none is a Chromium 158 port. The six open PRs
+contain no version-update PR. `master` is still `de09e0c7` (Chromium
+157.0.8103.38). Ahrotahn authored the recent version updates; their public
+`major` branch has the same 157 commit, `refresh` remains at the previous 156
+update, and the `bugfix` branch contains older work. No publicly available 158
+port was identified in these sources; this does not rule out unpublished work
+or work elsewhere in the fork network.
+
+Sources: [upstream branches](https://github.com/ungoogled-software/ungoogled-chromium/branches),
+[open PRs](https://github.com/ungoogled-software/ungoogled-chromium/pulls),
+[latest major update PR](https://github.com/ungoogled-software/ungoogled-chromium/pull/4032),
+and [Ahrotahn's major branch](https://github.com/Ahrotahn/ungoogled-chromium/tree/major).
+Prefer reviewing and incorporating an upstream 158 port when one is published;
+retain Lune's independent stable target and full feature scope.
