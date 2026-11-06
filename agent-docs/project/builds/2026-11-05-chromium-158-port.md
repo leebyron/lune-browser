@@ -124,8 +124,21 @@ Core commit `72de29a6` adapts twelve further patches:
 - Toolbar cleanup preserves newly inserted upstream actions while removing the
   same unsupported actions as before; a complete toolbar audit remains pending.
 
-The first **160 patches apply with zero fuzz**. Application currently stops at
-`helium/core/ublock-install-as-component.patch`. No patch has been skipped or forced.
+Core commit `1a7f116a` adapts seven further patches:
+
+- uBlock component registration and allowlisting retain the same IDs and resources
+  alongside Chromium's new WebUI NTP declarations.
+- Core, canvas, audio, and hardware-concurrency noise retain their implementations
+  across changed Blink feature declarations and header lists.
+- Offline audio noise runs before resolving the rendered buffer promise, retaining
+  Chromium 158's new queue ownership and teardown/reentrancy guards around Resolve.
+- Global Privacy Control keeps its independent per-context setting alongside the
+  upstream UnboundedElementPrivilege enum, without changing that privilege model.
+- The adjacent-new-tab preference retains its insertion behavior with updated
+  includes.
+
+The first **181 patches apply with zero fuzz**. Application currently stops at
+`helium/core/disable-update-toast.patch`. No patch has been skipped or forced.
 Full preparation, GN generation, compilation, and runtime validation remain
 incomplete for 158. The older 157 UI validation build is still a separate
 running diagnostic build.
