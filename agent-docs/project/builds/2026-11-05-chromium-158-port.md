@@ -106,8 +106,26 @@ Core commit `7f44b696` adapts eleven more patches:
   Helium's disabled Google-upload check now applies at that new location, covering
   both construction and subsequent sync-state changes.
 
-The first **125 patches apply with zero fuzz**. Application currently stops at
-`helium/core/keyboard-shortcuts.patch`. No patch has been skipped or forced.
+Core commit `72de29a6` adapts twelve further patches:
+
+- Reserved keyboard shortcuts now live in Chromium's shared accelerator command
+  table. The copy/inspect, DevTools, DevTools toggle, and tab-search reservations
+  remain. Native shortcut behavior and the upstream accelerator unit-test
+  expectations still need validation/adaptation before the final build gate.
+- Default-browser rejection, extension downloads, bangs, update-channel selection,
+  autoscroll, and uBlock resources retain their features across changed contexts.
+- Spellcheck's Helium services dependency follows its new `spellchecker:impl`
+  target; that target already depends on the profile implementation.
+- Chromium removed the Journeys flag and hardcoded the desktop default in Config.
+  Helium's disabled default now applies there, retaining the service's early exit
+  before backend/observer setup.
+- Context-menu cleanup includes the newly inserted Indigo entry in the simplified
+  page-menu block and follows the new reading-mode visibility helper.
+- Toolbar cleanup preserves newly inserted upstream actions while removing the
+  same unsupported actions as before; a complete toolbar audit remains pending.
+
+The first **160 patches apply with zero fuzz**. Application currently stops at
+`helium/core/ublock-install-as-component.patch`. No patch has been skipped or forced.
 Full preparation, GN generation, compilation, and runtime validation remain
 incomplete for 158. The older 157 UI validation build is still a separate
 running diagnostic build.
