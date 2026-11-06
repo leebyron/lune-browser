@@ -342,7 +342,7 @@
 +
 +  std::unique_ptr<CustomSyncBackend> custom_sync_backend;
 +  if (backend_type_ == SyncBackendType::kCustom) {
-+    custom_sync_backend = sync_client_->CreateCustomSyncBackend(encryptors[1]);
++    custom_sync_backend = sync_client_->CreateCustomSyncBackend(encryptor);
 +    if (!custom_sync_backend) {
 +      DLOG(ERROR) << "The configured custom Sync backend is unavailable.";
 +      return;
