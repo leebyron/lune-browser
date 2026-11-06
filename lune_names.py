@@ -35,18 +35,33 @@ def replace_grit_message(message):
 
 util.replace_grit_message = replace_grit_message
 
-# A translation has an ID, not a message name. Only rewrite it when the
-# corresponding source message changed. Otherwise excluded upstream credits
-# acquire Lune's name while retaining the original Helium fingerprint.
+# Carry protected fingerprints through the existing worker map as identity
+# entries. Ordinary substitutions never add an identity entry, and the map is
+# already serialized to the XTB workers on spawn-based platforms such as macOS.
+_replace_grit_tree = util.replace_grit_tree
 _replace_xtb_translation = util.replace_xtb_translation
 
 
+def replace_grit_tree(text):
+    result, fingerprint_map = _replace_grit_tree(text)
+    tree = util.xml.fromstring(text, util.get_parser())
+    for message in tree.findall('.//message'):
+        if message.get('name') in UPSTREAM_CREDITS:
+            fingerprint = util.compute_fp(message)
+            if fingerprint_map.get(fingerprint, fingerprint) != fingerprint:
+                raise ValueError('Upstream attribution conflicts with a renamed message')
+            fingerprint_map[fingerprint] = fingerprint
+    return result, fingerprint_map
+
+
 def replace_xtb_translation(message, fingerprint_map):
-    if message.get('id') not in fingerprint_map:
+    fingerprint = message.get('id')
+    if fingerprint_map.get(fingerprint) == fingerprint:
         return False
     return _replace_xtb_translation(message, fingerprint_map)
 
 
+util.replace_grit_tree = replace_grit_tree
 util.replace_xtb_translation = replace_xtb_translation
 
 if __name__ == '__main__':
