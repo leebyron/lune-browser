@@ -70,7 +70,7 @@ PRUNING_EXCLUDE_PATTERNS = [
     # Exclusion for performance tracing
     'third_party/perfetto/src/trace_processor/importers/proto/atoms.descriptor',
     # Exclusion for jxl blue noise dither table
-    'third_party/rust/chromium_crates_io/vendor/jxl-v0_7/src/util/dither_32x32.bin',
+    'third_party/rust/chromium_crates_io/vendor/jxl-v0_8/src/util/dither_32x32.bin',
     # Exclusion for zoneinfo64
     'third_party/rust/chromium_crates_io/vendor/zoneinfo64-v0_3/src/data/zoneinfo64.res',
     # Exclusions for uBlock Origin
@@ -137,7 +137,6 @@ DOMAIN_EXCLUDE_PREFIXES = [
     'build/linux/sysroot_scripts/sysroots.json',
     # Exclusion to allow download of libclang with gsutil
     'third_party/depot_tools/gsutil.py',
-    'third_party/depot_tools/win_toolchain/get_toolchain_if_necessary.py',
     # Licenses and credits
     'tools/licenses/licenses.py',
     # Google Web Store extension stuff
