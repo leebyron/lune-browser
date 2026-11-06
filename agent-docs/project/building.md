@@ -209,8 +209,13 @@ The private repository's hosted compute and artifact/cache storage still have
 allowances and possible overage charges. Keep large source trees, compiler caches,
 and initial browser outputs on local disk; do not upload multi-gigabyte checkpoints
 to Actions artifacts by default. Do not provision paid runners, purchase storage,
-or assume an unverified account billing cap. Existing lightweight checks remain
-subject to the account's included allowance.
+or assume an unverified account billing cap. Setup checks and website deployments now use this same Mac, without hosted
+compute or Actions cache uploads. They run only for owner-triggered main-branch
+pushes or manual dispatch while the repository remains private. PR events do not
+run on the persistent signing host. All three workflows share the
+`lune-browser-local` concurrency group. Setup/website checkout subdirectories are
+cleaned independently; browser build caches are preserved. The runner must be
+started for each job with `run.sh --once` or kept running for a reviewed batch.
 
 The workflow is manual-only, restricted to the owner on `main` while the repo
 remains private. Runner `lune-mac-mini` is scoped to this repository. The official

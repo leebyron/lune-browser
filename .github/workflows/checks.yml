@@ -9,26 +9,29 @@ on:
       - manifests/**
       - tests/**
       - .github/workflows/checks.yml
-  pull_request:
-    paths:
-      - scripts/**
-      - config/**
-      - manifests/**
-      - tests/**
-      - .github/workflows/checks.yml
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: lune-browser-local
+  cancel-in-progress: false
+
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.actor == 'leebyron' && github.event.repository.private
+    runs-on: [self-hosted, macOS, ARM64, lune-build]
+    defaults:
+      run:
+        shell: bash
+        working-directory: setup-checks
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          path: setup-checks
       - name: Test lock validation and workspace safeguards
         run: python3 -m unittest discover -s tests -v
       - name: Validate pinned configuration
@@ -36,12 +39,21 @@ jobs:
       - name: Fetch permanent component inputs
         env:
           GH_TOKEN: ${{ github.token }}
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_0: ''
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
         run: |
-          gh auth setup-git
           git -c fetch.prune=false fetch --no-prune --no-tags origin 'refs/tags/inputs/*:refs/tags/inputs/*'
       - name: Verify upstream ancestry and platform gitlink
         run: python3 scripts/lune.py validate --git-objects
       - name: Reconstruct platform and core from GitHub
         env:
           GH_TOKEN: ${{ github.token }}
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_0: ''
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
         run: python3 scripts/lune.py checkout --arch arm64

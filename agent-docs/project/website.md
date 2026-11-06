@@ -67,9 +67,11 @@ changes. Keep OAuth and API tokens outside the repository.
 
 ## GitHub flow
 
-Pull requests affecting the website run installation and deployment validation
-without production credentials. Pushes to `main` affecting the website or its
-workflow additionally deploy production. Manual dispatch is available. Actions
+Owner pushes to `main` affecting the website or its workflow run validation and
+production deployment on the existing Mac runner. Owner manual dispatch is also
+available while the repository remains private. PR jobs are disabled on this
+persistent signing host; validate proposed website changes locally. Website,
+setup checks, and browser builds share one concurrency group. Actions
 are pinned by commit and GitHub permissions are limited to repository read access.
 
 The dedicated token `Lune website GitHub Actions` is stored in the GitHub Actions
