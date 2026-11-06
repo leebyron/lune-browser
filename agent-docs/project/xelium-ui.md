@@ -1,6 +1,12 @@
 # Xelium UI integration — 2026-11-05
 
-Status: reviewed source port. All 47 changed native production object targets
+The original 157 integration is documented below. The subsequent
+[Chromium 158 candidate](builds/2026-11-05-chromium-158-port.md) has passed the
+full arm64 build, headless/headed smoke tests, internal artwork checks, and focused
+native sidebar, tab-switcher, and link-preview inspection. Intel compilation
+is in progress; the main lock remains on 157 pending promotion.
+
+Status of the original 157 port: reviewed source port. All 47 changed native production object targets
 compile on arm64. Strict application of 160 relevant patches, focused GN header
 checks, settings TypeScript/lint, onboarding generation, and source-default checks
 pass. Svelte checking reports zero errors and warnings. Full arm64 browser compilation

@@ -599,3 +599,20 @@ network-error page. Fix and retest command-bar URL classification/disposition
 before treating the full UI as validated. Onboarding still inherits upstream
 policy/terms links; those also require the planned branding/services review
 before a public release.
+
+
+Further native arm64 checks passed with disposable loopback-only fixtures:
+Shift-click opens the opt-in link preview, and its button promotes the preview
+to a normal tab. A tab can be pinned; unpinning the sidebar hides it after focus
+moves into the page; the settings toggle pins it again. Ordinary HTTP URLs load
+through the command bar. Ctrl-Tab shows cached page thumbnails, Return activates
+the selected tab, and the list-mode setting produces the alternate list UI.
+Escape dismisses either switcher. Native evidence is recorded separately in
+`out/validation/chromium-158-arm64-native-inspection.json`; the automated smoke
+report deliberately does not claim to automate these controls.
+
+Source inspection confirms the command-bar limitation is inherited from the
+selected Xelium patch, not introduced by the 158 port: `UrlOrSearchForQuery`
+accepts HTTP(S) URLs only, and `OpenUrl` explicitly chooses a new foreground tab
+unless the active tab is a blank new-tab page. This remains a documented
+limitation of the development candidate, separate from icon verification.
