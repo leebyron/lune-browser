@@ -292,3 +292,17 @@ Local evidence: `.work/chromium-158/post-patches.log`, `gn-gen.log`,
 `05f104d8ff57cff89116b982222f7b7b99e2ba7587d1d328a116f865370b5de6`.
 Compilation and 158 runtime checks remain incomplete; the main lock still pins
 the earlier development candidate.
+
+Focused GN header checks identified two missing direct dependencies in the
+browser-view and link-peek targets. Platform commit
+`d48a5b3e8f55ead37f1840f4fbbd09dd8d119b50` adds those dependencies in a separate
+patch (399 total). Checks now pass for OSCrypt async providers, browser view,
+vertical-tab-strip region, common tab views, and all Helium UI targets.
+Compilation was deliberately interrupted for this fix and resumed from cache;
+the first log and build metadata remain under `*-before-dependency-fix.*`.
+
+The main orchestration validator now supports an explicit, hash-reviewed
+Chromium forward-port without relabeling the upstream ungoogled version. It
+also rejects source archives for a different version/host. All 29 guardrail
+tests and validation of the unchanged current lock pass. The actual 158 input
+lock remains pending build/runtime verification.

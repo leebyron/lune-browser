@@ -184,6 +184,39 @@ def validate_selections(lock, selections, git_objects=False):
                     raise ValueError('Xelium source patch hash differs from the selection.')
 
 
+def validate_chromium_port(lock, git_objects=False):
+    """Keep the upstream ungoogled identity separate from a reviewed forward-port."""
+    upstream_version = lock['ungoogled']['tag'].rsplit('-', 1)[0]
+    upstream = version_tuple(lock['ungoogled']['tag'])[:4]
+    target = version_tuple(lock['chromium_version'] + '-1')[:4]
+    port = lock.get('chromium_forward_port')
+    if target == upstream:
+        if port is not None:
+            raise ValueError('Remove stale forward-port metadata when Chromium versions match.')
+        return
+    if target < upstream:
+        raise ValueError('A forward-port cannot downgrade Chromium below its ungoogled input.')
+    if not isinstance(port, dict) or port.get('review_status') != 'reviewed-port':
+        raise ValueError('Chromium and ungoogled versions differ; a reviewed forward-port is required.')
+    for field in ('base_core_commit', 'chromium_commit'):
+        if not SHA.fullmatch(port.get(field, '')):
+            raise ValueError('A forward-port needs full base core and Chromium commit IDs.')
+    review = port.get('review', '')
+    if (not isinstance(review, str) or not review.startswith('agent-docs/project/builds/')
+            or not review.endswith('.md') or '..' in Path(review).parts
+            or review not in lock['files']):
+        raise ValueError('A forward-port needs a hash-locked build review document.')
+    if git_objects:
+        base = port['base_core_commit']
+        core = lock['components']['helium']['commit']
+        if (not ancestors(lock['ungoogled']['commit'], base)
+                or not ancestors(base, core)):
+            raise ValueError('Forward-port ancestry must retain ungoogled and the reviewed core base.')
+        if (git('show', base + ':chromium_version.txt') != upstream_version
+                or git('show', lock['ungoogled']['commit'] + ':chromium_version.txt') != upstream_version):
+            raise ValueError('Forward-port base version differs from the recorded ungoogled release.')
+
+
 def validate_lock(lock):
     if lock.get('schema_version') != 1 or lock.get('stage') != 'development':
         raise ValueError('Unsupported lock schema or build stage.')
@@ -196,9 +229,7 @@ def validate_lock(lock):
                       'manifests/upstreams.json', 'manifests/patches.json', *expected_downloads}
     if not required_files.issubset(lock['files']) or lock['download_configs'] != expected_downloads:
         raise ValueError('Lock is missing required configuration hashes or host download manifests.')
-    version_tuple(lock['ungoogled']['tag'])
-    if lock['ungoogled']['tag'].rsplit('-', 1)[0] != lock['chromium_version']:
-        raise ValueError('Chromium and ungoogled versions differ.')
+    validate_chromium_port(lock)
     for name in ('helium', 'macos', 'services'):
         component = lock['components'][name]
         for field in ('commit', 'upstream_commit'):
@@ -222,6 +253,16 @@ def validate_lock(lock):
         if set(parser.sections()) != {'chromium', 'chromium-mac', 'sparkle',
                                       'search_engines_data', 'onboarding', 'ublock_origin'}:
             raise ValueError(f'{name} is missing required downloads or adds unreviewed inputs.')
+        # A bumped version string must not silently download the old source tree.
+        version = lock['chromium_version']
+        host = 'arm64' if name.endswith('downloads-arm64.ini') else 'x64'
+        for section, suffix in [('chromium', 'base'), ('chromium-mac', 'mac-' + host)]:
+            record = parser[section]
+            filename = f'chromium-{version}-{suffix}.tar.zst'
+            if (record.get('download_filename') != filename
+                    or record.get('strip_leading_dirs') != f'chromium-{version}'
+                    or record.get('url') != f'https://tarballs.imput.net/chromium-{version}/{filename}'):
+                raise ValueError(f'{name}:{section} source archive differs from the locked Chromium version or host.')
         for section in parser.sections():
             record = parser[section]
             if 'hash_url' in record or not any(
@@ -236,6 +277,7 @@ def validate(args):
     lock = read_json(LOCK)
     validate_lock(lock)
     if args.git_objects:
+        validate_chromium_port(lock, git_objects=True)
         validate_selections(lock, read_json(ROOT / 'manifests/patches.json'), git_objects=True)
         for name, component in lock['components'].items():
             if not ancestors(component['upstream_commit'], component['commit']):

@@ -161,6 +161,18 @@ service protocol/config version. A service outage or website edit should not
 force a Chromium rebuild. Release reports add artifact hashes, signatures,
 provenance, and validation results; they do not mutate the input lock.
 
+The development validator supports an explicit `chromium_forward_port` record
+when Chromium is newer than the recorded ungoogled release. It requires
+`review_status: reviewed-port`, full `base_core_commit` and `chromium_commit`
+IDs, and a `review` Markdown path under `agent-docs/project/builds/` included in
+the lock's file hashes. Git validation checks ungoogled-to-base-to-integrated-core
+ancestry and the original base version; the existing checks still require the
+final core version, permanent tags, tree hashes, and platform gitlink to match.
+Both host download manifests must name the exact target version and host archive.
+Unrecorded mismatches and downgrades fail. Remove the forward-port record once a
+matching upstream release is adopted. This supports documenting a reviewed port;
+it does not establish successful compilation or runtime validation by itself.
+
 ## Alternatives considered
 
 | Layout | Benefit | Cost / decision |

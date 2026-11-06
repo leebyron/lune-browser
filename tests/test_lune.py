@@ -36,6 +36,89 @@ class LockTests(unittest.TestCase):
     def test_repository_lock_is_valid(self):
         lune.validate_lock(self.lock)
 
+    def forward_port(self, update_archives=True):
+        previous = self.lock['chromium_version']
+        major = max(int(previous.split('.')[0]),
+                    int(self.lock['ungoogled']['tag'].split('.')[0])) + 1
+        target = f'{major}.0.9999.1'
+        self.lock['chromium_version'] = target
+        review = 'agent-docs/project/builds/forward-port-test.md'
+        path = self.root / review
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('Reviewed test fixture, not release evidence.\n')
+        self.update_hash(review)
+        self.lock['chromium_forward_port'] = {
+            'review_status': 'reviewed-port',
+            'base_core_commit': self.lock['components']['helium']['upstream_commit'],
+            'chromium_commit': 'a' * 40,
+            'review': review,
+        }
+        if update_archives:
+            for name in self.lock['download_configs']:
+                path = self.root / name
+                path.write_text(path.read_text().replace(previous, target))
+                self.update_hash(name)
+
+    def test_reviewed_forward_port_is_valid(self):
+        self.forward_port()
+        lune.validate_lock(self.lock)
+
+    def test_unreviewed_version_mismatch_is_rejected(self):
+        self.forward_port()
+        del self.lock['chromium_forward_port']
+        with self.assertRaisesRegex(ValueError, 'reviewed forward-port is required'):
+            lune.validate_lock(self.lock)
+
+    def test_forward_port_cannot_reuse_old_archives(self):
+        self.forward_port(update_archives=False)
+        with self.assertRaisesRegex(ValueError, 'source archive differs'):
+            lune.validate_lock(self.lock)
+
+    def test_forward_port_cannot_downgrade(self):
+        self.forward_port()
+        major = int(self.lock['ungoogled']['tag'].split('.')[0]) - 1
+        self.lock['chromium_version'] = f'{major}.0.0.1'
+        with self.assertRaisesRegex(ValueError, 'cannot downgrade'):
+            lune.validate_lock(self.lock)
+
+    def test_forward_port_metadata_cannot_survive_matching_upstream(self):
+        self.forward_port()
+        self.lock['chromium_version'] = self.lock['ungoogled']['tag'].rsplit('-', 1)[0]
+        with self.assertRaisesRegex(ValueError, 'stale forward-port metadata'):
+            lune.validate_lock(self.lock)
+
+    def test_forward_port_requires_immutable_commits_and_review(self):
+        self.forward_port()
+        port = self.lock['chromium_forward_port']
+        for field in ('base_core_commit', 'chromium_commit'):
+            original = port[field]
+            port[field] = 'main'
+            with self.assertRaisesRegex(ValueError, 'full base core and Chromium commit'):
+                lune.validate_lock(self.lock)
+            port[field] = original
+        del self.lock['files'][port['review']]
+        with self.assertRaisesRegex(ValueError, 'hash-locked build review'):
+            lune.validate_lock(self.lock)
+
+    def test_forward_port_review_edits_require_rehash(self):
+        self.forward_port()
+        (self.root / self.lock['chromium_forward_port']['review']).write_text('changed')
+        with self.assertRaisesRegex(ValueError, 'Locked input changed'):
+            lune.validate_lock(self.lock)
+
+    def test_forward_port_cannot_lose_base_ancestry(self):
+        self.forward_port()
+        with patch.object(lune, 'ancestors', side_effect=[True, False]):
+            with self.assertRaisesRegex(ValueError, 'ancestry must retain'):
+                lune.validate_chromium_port(self.lock, git_objects=True)
+
+    def test_forward_port_base_must_match_ungoogled_version(self):
+        self.forward_port()
+        with patch.object(lune, 'ancestors', return_value=True), \
+                patch.object(lune, 'git', return_value='156.0.8078.79'):
+            with self.assertRaisesRegex(ValueError, 'base version differs'):
+                lune.validate_chromium_port(self.lock, git_objects=True)
+
     def test_modified_product_rejected(self):
         (self.root / "config/product.json").write_text("{}")
         with self.assertRaisesRegex(ValueError, "Locked input changed"):
@@ -120,12 +203,14 @@ class LockTests(unittest.TestCase):
                 lune.check_toolchain(version, sdk, product)
 
     def test_discovery_detects_chromium_lag_even_with_latest_ungoogled(self):
+        self.lock['chromium_version'] = '157.0.8103.38'
         response = io.BytesIO(json.dumps([{"version": "158.0.8127.18"}]).encode())
         with patch.object(lune, "git", side_effect=[
                 "upstream/ungoogled/157.0.8103.38-1",
                 self.lock["ungoogled"]["commit"],
                 self.lock["components"]["helium"]["commit"]]), \
                 patch.object(lune, "ancestors", return_value=True), \
+                patch.object(lune, "read_json", return_value=self.lock), \
                 patch.object(lune.urllib.request, "urlopen", return_value=response), \
                 patch("sys.stdout", new_callable=io.StringIO) as output:
             with self.assertRaisesRegex(ValueError, "behind macOS stable"):
