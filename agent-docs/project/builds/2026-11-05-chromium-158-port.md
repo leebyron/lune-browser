@@ -671,3 +671,12 @@ After it reaches a terminal result, fast-forward the build component to `d44db70
 reconcile the affected catalogs against the verified fresh source, rebuild both
 apps from cache, and rerun runtime checks including localized attribution before
 publishing permanent input refs or promoting the main lock.
+
+The packaged regression is also reproduced with
+`scripts/branding/check-runtime-credits.py`: the existing arm64 app selects French
+and displays `Découvrez Lune`, but its partner messages fall back to English
+instead of the prepared French translations. The rendered upstream credit remains
+present. This expected failure is recorded in
+`out/validation/chromium-158-runtime-credits-before-refresh.json`; positive French
+and German checks must follow the final resource refresh. The test changes only
+its disposable process/profile, not the system language or normal browser profile.

@@ -70,3 +70,19 @@ python3 scripts/branding/check-names.py PLATFORM_CHECKOUT CHROMIUM_SOURCE --prep
 
 This also runs a synthetic regression through the multiprocessing entry point
 and verifies ordinary localized branding still changes to Lune.
+
+After compilation, compare packaged French and German partner strings with the
+prepared translation catalogs:
+
+```sh
+python3 scripts/branding/check-runtime-credits.py BUILD_OUTPUT --source CHROMIUM_SOURCE \
+  --locale fr --report out/validation/credits-fr.json
+python3 scripts/branding/check-runtime-credits.py BUILD_OUTPUT --source CHROMIUM_SOURCE \
+  --locale de --report out/validation/credits-de.json
+```
+
+The check uses a disposable profile and process-local macOS language override,
+blocks external DNS, and uses a mock Keychain. It verifies the actual selected UI
+language, exact partner translations, rendered Helium credit, Lune greeting, and
+browser/source version match. These two runtime locales complement the full
+source-catalog audit; they do not establish runtime coverage of every locale.
