@@ -5,6 +5,9 @@
   const sidebar=root.querySelector('.browser-sidebar'),sidebarToggle=root.querySelector('.sidebar-toggle');
   const demoCursor=root.querySelector('.demo-cursor'),demoClick=root.querySelector('.demo-click');
   const sidebarRegion=root.querySelector('.sidebar-region'),sidebarRail=root.querySelector('.sidebar-rail');
+  const toolbarRegion=root.querySelector('.toolbar-region'),toolbarRail=root.querySelector('.toolbar-rail'),toolbar=root.querySelector('.browser-toolbar');
+  root.dataset.toolbarMotion = new URLSearchParams(location.search).get('toolbar') === 'fade' ? 'fade' : 'slide';
+  let toolbarHideTimer=0,toolbarHovered=false;
   let demoStart=0,demoDistance=460,cursorStop=50,sidebarOverride=null,sidebarHovered=false;
   const dock=root.querySelector('.dock'),items=[...dock.querySelectorAll('.dock-item')];
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
@@ -114,6 +117,53 @@
     if (sidebarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
     updateSidebar(scroll.scrollTop);
   });
+  function showToolbar() {
+    if (!appVisible) return;
+    clearTimeout(toolbarHideTimer);
+    toolbarRegion.dataset.open = '';
+    toolbar.inert = false;
+    toolbar.setAttribute('aria-hidden', 'false');
+    toolbarRail.setAttribute('aria-expanded', 'true');
+  }
+  function hideToolbar() {
+    clearTimeout(toolbarHideTimer);
+    toolbarHovered = false;
+    delete toolbarRegion.dataset.open;
+    toolbar.inert = true;
+    toolbar.setAttribute('aria-hidden', 'true');
+    toolbarRail.setAttribute('aria-expanded', 'false');
+  }
+  function scheduleToolbarHide() {
+    clearTimeout(toolbarHideTimer);
+    if (toolbarHovered || toolbarRegion.contains(document.activeElement)) return;
+    // Match the native prototype: a fresh, uninterrupted 700ms away.
+    toolbarHideTimer = setTimeout(hideToolbar, 700);
+  }
+  toolbarRegion.addEventListener('pointerenter', event => {
+    if (event.pointerType === 'touch') return;
+    toolbarHovered = true;
+    showToolbar();
+  });
+  toolbarRegion.addEventListener('pointerleave', () => {
+    toolbarHovered = false;
+    scheduleToolbarHide();
+  });
+  toolbarRail.addEventListener('click', showToolbar);
+  toolbarRegion.addEventListener('focusin', showToolbar);
+  toolbarRegion.addEventListener('focusout', () => queueMicrotask(scheduleToolbarHide));
+  toolbarRegion.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    scroll.focus({preventScroll:true});
+    hideToolbar();
+  });
+  win.addEventListener('pointerdown', event => {
+    if (toolbarRegion.contains(event.target)) return;
+    if (toolbarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
+    if (event.pointerType === 'touch') hideToolbar();
+    else scheduleToolbarHide();
+  });
+  window.addEventListener('blur', hideToolbar);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) hideToolbar(); });
   function launch(){
     if(launched)return;launched=true;
     if(!reduce.matches)root.querySelector('.lune').classList.add('launching');
@@ -127,7 +177,7 @@
     root.classList.add('app-open');
   }
   function close(){
-    if(!launched&&!appVisible)return;clearTimeout(showTimer);launched=false;appVisible=false;
+    if(!launched&&!appVisible)return;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
     root.classList.remove('app-open','app-fast');root.querySelector('.lune').classList.remove('launching');
   }
   root.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>{scroll.scrollTo({top:opening,behavior:reduce.matches?'instant':'smooth'});}));

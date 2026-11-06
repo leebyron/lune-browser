@@ -79,10 +79,18 @@ svg { display: block; }
   #lune .sidebar-tabs { padding:8px 0 0; border-top:1px solid #DDE7EA1F; margin-right:8px; }
   #lune .browser-tab { display:flex; align-items:center; gap:8px; height:32px; border-radius:7px; padding:0 8px; white-space:nowrap; color:#C9D9E3; }
   #lune .browser-tab.selected { background:#DDE7EA20; }
-  #lune .browser-toolbar { position:absolute; z-index:20; left:calc(var(--sidebar-width) + 20px); right:20px; top:14px; display:flex; justify-content:space-between; gap:12px; pointer-events:none; opacity:clamp(0,calc(1 - var(--sidebar-fold) * 2),1); }
+  #lune .toolbar-region { position:absolute; z-index:25; top:0; left:calc(8px + var(--sidebar-width) * (1 - var(--sidebar-fold))); right:8px; height:58px; pointer-events:none; }
+  #lune .toolbar-rail { position:absolute; inset:0 0 auto; height:8px; padding:0; border:0; background:transparent; cursor:default; pointer-events:auto; }
+  #lune .toolbar-rail:focus-visible { outline-offset:-2px; }
+  #lune .toolbar-region[data-open] { pointer-events:auto; }
+  #lune .browser-toolbar { position:absolute; left:12px; right:12px; top:12px; height:36px; display:flex; align-items:center; justify-content:space-between; gap:12px; opacity:0; visibility:hidden; transform:translateY(-56px); transition:transform 180ms cubic-bezier(.4,0,1,1),opacity 120ms ease-out,visibility 180ms; pointer-events:none; }
+  #lune .toolbar-region[data-open] .browser-toolbar { opacity:1; visibility:visible; transform:translateY(0); transition:transform 220ms cubic-bezier(.2,.8,.2,1),opacity 120ms ease-out,visibility 0s; pointer-events:auto; }
+  #lune[data-toolbar-motion="fade"] .browser-toolbar { transform:none; transition:opacity 120ms ease-out,visibility 120ms; }
+  #lune[data-toolbar-motion="fade"] .toolbar-region[data-open] .browser-toolbar { transition:opacity 120ms ease-out,visibility 0s; }
   #lune .glass-pill { display:flex; align-items:center; gap:12px; min-height:34px; padding:6px 12px; border-radius:22px; background:linear-gradient(#9FC1D22E,#20455AC9); border:1px solid #DCEAF230; box-shadow:0 2px 8px #04152120,inset 0 .5px #F3FAFF55; backdrop-filter:blur(18px); color:#BBD2DF; }
-  #lune .browser-address { flex:1; max-width:460px; min-width:0; font:400 12px/1.3 -apple-system,BlinkMacSystemFont,sans-serif; }
-  #lune .browser-address span { flex:1; text-align:center; overflow:hidden; white-space:nowrap; }
+  #lune .browser-address { position:absolute; left:50%; transform:translateX(-50%); width:min(480px,calc(100% - 224px)); height:36px; min-width:0; font:400 12px/1.3 -apple-system,BlinkMacSystemFont,sans-serif; }
+  #lune .address-display { flex:1; min-width:0; width:100%; padding:0; border:0; outline:none; background:transparent; color:inherit; font:inherit; text-align:center; text-overflow:ellipsis; }
+  #lune .browser-address:focus-within { box-shadow:0 2px 8px #04152120,inset 0 0 0 1px #C9D9E380; }
   #lune .browser-address svg { flex:none; width:16px; height:16px; }
   #lune .browser-tools img { object-fit:contain; }
   #lune .demo-cursor { position:absolute; left:0; top:0; z-index:50; pointer-events:none; opacity:0; offset-path:var(--cursor-path); offset-rotate:0deg; offset-anchor:2px 1.5px; transform-origin:2px 1.5px; filter:drop-shadow(0 2px 3px #04152155); }
@@ -165,7 +173,8 @@ svg { display: block; }
 @supports (height:100dvh) { #lune { --stage:100dvh; } }
 
 @media(max-width:700px) {
-  #lune .browser-tools { display:none; }
+  #lune .browser-tools,#lune .browser-navigation { display:none; }
+  #lune .browser-address { width:min(480px,100%); }
   #lune .browser-navigation { gap:4px; padding-inline:8px; }
   #lune .browser-address { padding-inline:8px; }
 }
@@ -173,7 +182,6 @@ svg { display: block; }
   #lune { --sidebar-width:176px; }
   #lune .browser-sidebar { z-index:25; background:#2A4C62F5; border-radius:10px; box-shadow:4px 0 16px #04152125; padding-left:4px; }
   #lune .viewport { left:8px; }
-  #lune .browser-toolbar { left:calc(var(--sidebar-width) + 20px); }
   #lune .browser-navigation { display:none; }
   #lune .browser-address svg { display:none; }
   #lune .sidebar-new-tab { right:12px; }
@@ -182,4 +190,5 @@ svg { display: block; }
   #lune .window { animation:none; }
   #lune .demo-cursor,#lune .demo-click { display:none; animation:none; }
   #lune .browser-sidebar { transition:none; }
+  #lune .browser-toolbar,#lune .toolbar-region[data-open] .browser-toolbar { transform:none; transition:opacity 100ms linear,visibility 100ms; }
 }

@@ -42,6 +42,20 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   the illustrated sequence. Reduced motion omits cursor and slide animations.
   This is an Arc-style interaction approximation, not a claim to reproduce its
   private animation constants; [Arc documents the sidebar toggle](https://start.arc.net/find-focus).
+- The glass address toolbar starts hidden. An 8px top rail reveals it; the full
+  58px top area, including gaps and all three capsules, holds it open. Leaving
+  starts a 700ms one-shot timer; reentry cancels it. Keyboard focus holds it open,
+  the rail supports tapping, and Escape/outside taps dismiss it. Closing the
+  illustrated app, changing tabs, or deactivating the browser resets it.
+- The default toolbar motion slides down from above in 220ms and back up in
+  180ms, with a subtle 120ms fade and no bounce. `?toolbar=fade` uses only a
+  120ms fade; `?toolbar=slide` explicitly selects the default. Reduced Motion
+  removes translation. Both variants interrupt/reverse immediately on reentry.
+  These timings are our choices informed by [Apple's motion HIG](https://developer.apple.com/design/human-interface-guidelines/motion),
+  which calls for brief, precise, interruptible motion and consistent entry/exit
+  directions, not a prescribed toolbar duration. The rail/cooldown and centered
+  480×36px address capsule follow the native browser prototype; the address is a
+  read-only illustration, while navigation/extension glyphs remain decorative.
 - The content keeps a stable reading width while the pane expands, preventing
   text reflow from moving the animation's scroll boundaries.
 - Close and minimize return to the desktop. The third control uses the browser's
