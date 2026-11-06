@@ -138,8 +138,10 @@ Owner decision, 2026-11-05: keep CI free; use this Mac when required. Target
 GitHub Actions orchestration with a repository-scoped self-hosted macOS runner
 on this Mac. The manual `Development browser` workflow is implemented in
 `.github/workflows/browser.yml`; it targets the `lune-build` runner label.
-Xcode and Metal preflight now pass. Initial runner registration/dispatch is being
-validated before claiming a successful CI build.
+Xcode and Metal preflight pass. Runner registration and job pickup are verified.
+The [first arm64 CI run](https://github.com/leebyron/lune-browser/actions/runs/42138206769)
+passed component checkout/validation and started source downloads. Full preparation
+and compilation are still pending; this is not a successful browser build yet.
 
 [GitHub documents self-hosted runner compute as free](https://docs.github.com/en/actions/concepts/billing-and-usage).
 The private repository's hosted compute and artifact/cache storage still have

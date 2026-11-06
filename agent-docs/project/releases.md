@@ -41,7 +41,8 @@ the same locked candidate, without reusing a published build number.
 
 The owner requires no additional CI spend. Start with this Mac as a self-hosted
 GitHub Actions runner and keep download/compiler caches on local disk. The manual development browser workflow exists; storage/Xcode/Metal preflight
-passes. First compilation and runner operation remain to be validated.
+passes. Runner job pickup and source download are verified; first compilation remains
+to be validated.
 Measure storage, memory, build duration, and cost before promising a daily cadence;
 this research did not benchmark hardware. Pin Xcode/SDK, compilers, Python,
 Sparkle, source archives, and relevant build tools. Namespace caches by toolchain,
