@@ -89,7 +89,7 @@ Index: prepared/chrome/browser/ui/color/chrome_color_mixers.cc
 ===================================================================
 --- prepared.orig/chrome/browser/ui/color/chrome_color_mixers.cc
 +++ prepared/chrome/browser/ui/color/chrome_color_mixers.cc
-@@ -23,10 +23,77 @@
+@@ -23,10 +23,84 @@
  #include "chrome/browser/ui/color/omnibox_color_mixer.h"
  #include "chrome/browser/ui/color/product_specifications_color_mixer.h"
  #include "chrome/browser/ui/color/tab_strip_color_mixer.h"
@@ -106,8 +106,7 @@ Index: prepared/chrome/browser/ui/color/chrome_color_mixers.cc
 +                          const ui::ColorProviderKey& key) {
 +  if (!ShouldApplyChromeMaterialOverrides(key) || key.app_controller ||
 +      key.forced_colors != ui::ColorProviderKey::ForcedColors::kNone ||
-+      (key.user_color.has_value() &&
-+       key.user_color_source != ui::ColorProviderKey::UserColorSource::kGrayscale)) {
++      key.user_color_source == ui::ColorProviderKey::UserColorSource::kAccent) {
 +    return;
 +  }
 +  const bool dark = key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
@@ -162,12 +161,20 @@ Index: prepared/chrome/browser/ui/color/chrome_color_mixers.cc
 +  mixer[kColorTabForegroundInactiveFrameInactive] = {dark ? 0xFF96AFBE : 0xFF526B65};
 +  mixer[ui::kColorSysPrimary] = {dark ? 0xFF00D5C6 : 0xFF276C69};
 +  mixer[ui::kColorSysOnPrimary] = {dark ? 0xFF10354F : 0xFFFFFFFF};
++
++  // macOS Graphite applies a final grayscale transform to the upstream default
++  // theme. Preserve Lune's explicit brand colors while leaving native controls
++  // and all user-selected themes under their existing appearance rules.
++  auto& postprocessing = provider->AddPostprocessingMixer();
++  for (const auto id : mixer.GetDefinedColorIds()) {
++    postprocessing[id] = mixer[id];
++  }
 +}
 +
  class ChromeColorProviderUtilsCallbacks
      : public ui::ColorProviderUtilsCallbacks {
   public:
-@@ -87,6 +154,7 @@ void AddChromeColorMixers(ui::ColorProvi
+@@ -87,6 +161,7 @@ void AddChromeColorMixers(ui::ColorProvi
  
    // Must be the last one in order to override other mixer colors.
    AddNativeChromeColorMixer(provider, key);
