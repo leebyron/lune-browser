@@ -58,3 +58,15 @@ color data must match. This avoids fingerprinting noise from canvas readback.
 For an integration candidate, supply `--platform-commit` with its full macOS
 component SHA. Source coverage, the full Chromium 158 arm64 build, and headless
 runtime checks have passed. The older 157 diagnostic app does not contain this fix.
+
+
+Name substitution must preserve upstream credits in translated strings as well
+as English messages. After source preparation, check the component helper and
+its actual XTB output:
+
+```sh
+python3 scripts/branding/check-names.py PLATFORM_CHECKOUT CHROMIUM_SOURCE --prepared
+```
+
+This also runs a synthetic regression through the multiprocessing entry point
+and verifies ordinary localized branding still changes to Lune.

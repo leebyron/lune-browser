@@ -629,3 +629,45 @@ order, and provenance checks. Evidence:
 `out/validation/chromium-158-input-checks.json`. This verifies reconstruction
 of the component repositories, not a second fresh Chromium preparation/build.
 Permanent 158 input tags and main-lock promotion remain pending Intel validation.
+
+
+## Full source replay and localized attribution
+
+A clean source preparation from the published `84ee191` platform, pinned archives,
+and exact core completed with all **406 patches** applied strictly, followed by
+substitutions, localization, resources, and GN. Fresh arm64 and Intel GN arguments
+match the active builds exactly. Both target graphs generate successfully from
+the arm64 host archive, including their bundled PGO profiles. The UI/onboarding
+and resource validators pass on the fresh tree. Reports and logs are under
+`.work/chromium-158/fresh-preparation.json`, `fresh-prepare.log`, and
+`fresh-intel-gn.json`.
+
+A full checksum dry run against the incremental build source found only
+translation-catalog differences plus generated caches/onboarding strings and
+modification times; it did not modify either tree. The catalog differences
+exposed a name-substitution bug: protected English partner messages retained
+Helium, but translations were still renamed to Lune. The previous incremental
+catalogs also retained stale fingerprints for these messages after the branding
+patch was added. This must be reconciled before final lock promotion.
+
+Platform fix **`d44db707dc84799b09f4ddf7bef2498ced44ab74`**, published on
+`fix/upstream-credit-localization`, carries protected message fingerprints through
+the existing worker map as identity mappings. XTB substitution skips precisely
+those IDs; ordinary localized branding retains its existing behavior. The first
+broader approach was superseded after full-output comparison showed unrelated
+changes; do not use its intermediate `1eb6ed0` commit alone.
+
+The final fix passed another clean preparation and GN generation, again with all
+406 patches and unchanged build arguments. `scripts/branding/check-names.py`
+checks source IDs, protected translations, ordinary branding, unmapped translation
+behavior, and the actual multiprocessing command. Its `--prepared` audit verifies
+**162 protected translations**. Comparing all 1,390 files written by either name
+substitution run found exactly **151 intended translation changes in 77 XTB files**,
+with no other changes. Evidence: `fresh-preparation-credit-final.json`,
+`fresh-credit-diff.json`, and `out/validation/chromium-158-credit-final-check.log`.
+
+The active Intel compilation still uses `84ee191` and is intentionally untouched.
+After it reaches a terminal result, fast-forward the build component to `d44db70`,
+reconcile the affected catalogs against the verified fresh source, rebuild both
+apps from cache, and rerun runtime checks including localized attribution before
+publishing permanent input refs or promoting the main lock.
