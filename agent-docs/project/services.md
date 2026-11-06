@@ -1,6 +1,10 @@
-# Self-hosted services and website
+# Browser services and website
 
-Status: browser services remain proposed. The minimal website is deployed on
+Status (2026-11-06): the owner selected Helium-hosted services for the first
+release. Use `https://services.helium.imput.net` and disclose Helium as the
+provider in onboarding and settings. Lune hosts its own browser-update feeds.
+The self-hosting design below remains future work; do not deploy it as part of
+the release bootstrap. The website is deployed on
 Cloudflare Workers Static Assets; `lune.computer` is registered at DNSimple.
 See the [website runbook](website.md) for activation and CI status.
 Source findings are recorded in [research](research.md).
@@ -51,7 +55,8 @@ The example environment configures `SERVICES_HOSTNAME`, `PROXY_BASE_URL`,
 Audit browser service preferences, extension/updater URLs, bundled uBlock settings,
 onboarding links, and privacy/help links. Set Lune defaults in a small distribution
 layer; do not rewrite all domains mechanically. Keep service consent controls
-working and prevent an accidental fallback to Helium's production endpoints.
+working. Helium's production endpoint is the deliberate default for the first
+release; a future self-hosted deployment must be validated before switching it.
 Validate the actual outbound requests of a packaged browser, not just config text.
 
 ## Deployment and validation
