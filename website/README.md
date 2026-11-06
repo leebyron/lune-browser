@@ -29,22 +29,27 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   Chlorophyll Daylight and Pelagic Signal palettes and monochrome window controls. Below 540px, the sidebar floats over the content.
 - During “Just the page,” the sidebar starts pinned. A scroll-driven cursor
   follows a cubic path into its toggle and clicks to unpin it. The content
-  expands behind the still-visible floating panel; the cursor then follows a
-  second curve out of the window. As it leaves, the panel slides off the left
+  snaps to full width behind the still-visible floating panel; the cursor then
+  follows a second curve out of the window. Once it is more than 48px beyond
+  the panel, the panel slides off the left
   edge (260ms, eased translation without a fade). Scrolling back restores the
   floating panel, then the pinned layout. CSS scroll timelines animate the
   cursor and registered `--sidebar-fold` property; JavaScript coordinates the
   pinned/floating/hidden states and supplies the scroll-timeline fallback.
 - Hovering the 8px left rail reveals the floating sidebar without resizing the
-  content. It stays open across the rail and panel, then slides away on exit.
+  content. It stays open until the pointer is more than 48px from the panel's
+  outer rectangle (Euclidean distance, including corners), then slides away.
+  The floating surface extends 4px beyond the content pane on its top, bottom,
+  and left; tabs and favorites retain equal 8px inner margins in both modes.
   The rail also supports keyboard focus and tapping; Escape or tapping content
   dismisses it. The toggle pins/unpins the panel; subsequent scrolling resumes
   the illustrated sequence. Reduced motion omits cursor and slide animations.
   This is an Arc-style interaction approximation, not a claim to reproduce its
   private animation constants; [Arc documents the sidebar toggle](https://start.arc.net/find-focus).
 - The glass address toolbar starts hidden. An 8px top rail reveals it; the full
-  58px top area, including gaps and all three capsules, holds it open. Leaving
-  starts a 700ms one-shot timer; reentry cancels it. Keyboard focus holds it open,
+  58px top area, including gaps and all three capsules, holds it open. It dismisses
+  once the pointer is more than 48px from the bar's resting outer rectangle;
+  there is no timer. Reenter the rail to reveal it again. Keyboard focus holds it open,
   the rail supports tapping, and Escape/outside taps dismiss it. Closing the
   illustrated app, changing tabs, or deactivating the browser resets it.
 - The default toolbar motion slides down from above in 220ms and back up in
@@ -53,9 +58,13 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   removes translation. Both variants interrupt/reverse immediately on reentry.
   These timings are our choices informed by [Apple's motion HIG](https://developer.apple.com/design/human-interface-guidelines/motion),
   which calls for brief, precise, interruptible motion and consistent entry/exit
-  directions, not a prescribed toolbar duration. The rail/cooldown and centered
-  480×36px address capsule follow the native browser prototype; the address is a
+  directions, not a prescribed toolbar duration. The rail and centered 480×36px
+  address capsule follow the native browser prototype; the site's distance-based
+  dismissal supersedes that prototype's earlier cooldown. The address is a
   read-only illustration, while navigation/extension glyphs remain decorative.
+- Mounting/unmounting snaps the content pane width at the click, without a layout
+  tween. The window uses one subtle hairline and a soft shadow; the content pane
+  shadow is restrained to avoid a stacked, beveled outline.
 - The content keeps a stable reading width while the pane expands, preventing
   text reflow from moving the animation's scroll boundaries.
 - Close and minimize return to the desktop. The third control uses the browser's

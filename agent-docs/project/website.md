@@ -38,7 +38,9 @@ the reading distance follow the content rather than a fixed page count. The
 browser uses the mounted-left Figma layout and a reversible scroll-driven cursor
 that unpins its sidebar during the minimal-UI section. The floating panel then
 slides away as the cursor leaves; hovering the left rail slides it back over the
-content. The glass toolbar appears over the top rail and hides after 700ms away,
+content. The pane snaps to width when pinning changes. Both floating panels
+dismiss beyond a 48px pointer-distance boundary; no cooldown timer remains.
+The glass toolbar appears over the top rail,
 with a default slide and a `?toolbar=fade` comparison. Browser screenshots remain
 placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
 architecture hints, otherwise offering both choices. Downloads remain disabled

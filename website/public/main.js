@@ -7,7 +7,8 @@
   const sidebarRegion=root.querySelector('.sidebar-region'),sidebarRail=root.querySelector('.sidebar-rail');
   const toolbarRegion=root.querySelector('.toolbar-region'),toolbarRail=root.querySelector('.toolbar-rail'),toolbar=root.querySelector('.browser-toolbar');
   root.dataset.toolbarMotion = new URLSearchParams(location.search).get('toolbar') === 'fade' ? 'fade' : 'slide';
-  let toolbarHideTimer=0,toolbarHovered=false;
+  let panelPointer=null,cursorPath=null,cursorPathLength=0;
+  const panelDismissDistance=48;
   let demoStart=0,demoDistance=460,cursorStop=50,sidebarOverride=null,sidebarHovered=false;
   const dock=root.querySelector('.dock'),items=[...dock.querySelectorAll('.dock-item')];
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
@@ -35,7 +36,9 @@
     path.setAttribute('d', incoming);
     const incomingLength = path.getTotalLength();
     path.setAttribute('d', incoming + outgoing);
-    cursorStop = incomingLength / path.getTotalLength() * 100;
+    cursorPath = path;
+    cursorPathLength = path.getTotalLength();
+    cursorStop = incomingLength / cursorPathLength * 100;
     win.style.setProperty('--cursor-stop', `${cursorStop}%`);
     win.style.setProperty('--cursor-path', `path("${incoming + outgoing}")`);
     reading = Math.max(0, pages.scrollHeight - pageHeight);
@@ -61,11 +64,14 @@
   scroll.addEventListener('scroll',()=>{sidebarOverride=null;delete win.dataset.sidebarOverride;if(nativeTimeline&&!reduce.matches)win.style.removeProperty('--sidebar-fold');if(!queued){queued=true;requestAnimationFrame(update);}},{passive:true});
   function updateSidebar(y) {
     const progress = clamp((y - demoStart) / demoDistance);
-    const animatedFold = reduce.matches ? Number(progress >= .5) : clamp((progress - .5) / .14);
+    const animatedFold = Number(progress >= .5);
     const fold = sidebarOverride ?? animatedFold;
     if (!nativeTimeline || reduce.matches || sidebarOverride !== null) win.style.setProperty('--sidebar-fold', fold);
     const floating = sidebarOverride !== null ? Boolean(sidebarOverride) : progress >= .5;
-    const demoHolding = sidebarOverride === null && progress < .78;
+    const cursorDistance = progress <= .44 ? clamp(progress / .44) * cursorStop : cursorStop + clamp((progress - .64) / .36) * (100 - cursorStop);
+    const cursorPoint = cursorPath.getPointAtLength(cursorDistance / 100 * cursorPathLength);
+    const demoHolding = sidebarOverride === null && (progress < .5 || distanceFromPanel(cursorPoint,
+      {left:4,right:4 + sidebar.offsetWidth,top:4,bottom:win.clientHeight - 4}) <= panelDismissDistance);
     const keyboardFocus = Boolean(sidebarRegion.querySelector(':focus-visible'));
     const visible = !floating || demoHolding || sidebarHovered || keyboardFocus;
     sidebar.inert = !visible;
@@ -75,8 +81,7 @@
     sidebarToggle.setAttribute('aria-label', floating ? 'Pin sidebar' : 'Unpin sidebar');
     win.dataset.sidebar = !floating ? 'pinned' : visible ? 'floating' : 'hidden';
     if (!nativeTimeline) {
-      const distance = progress <= .44 ? clamp(progress / .44) * cursorStop : cursorStop + clamp((progress - .64) / .36) * (100 - cursorStop);
-      demoCursor.style.offsetDistance = `${distance}%`;
+      demoCursor.style.offsetDistance = `${cursorDistance}%`;
       demoCursor.style.opacity = Math.min(clamp(progress / .06), 1 - clamp((progress - .94) / .06));
       const press = progress <= .5 ? clamp((progress - .46) / .04) : 1 - clamp((progress - .5) / .06);
       demoCursor.style.transform = `scale(${1 - .16 * press})`;
@@ -95,16 +100,13 @@
     sidebarHovered = true;
     updateSidebar(scroll.scrollTop);
   });
-  sidebarRegion.addEventListener('pointerleave', () => {
-    sidebarHovered = false;
-    updateSidebar(scroll.scrollTop);
-  });
+  sidebarRegion.addEventListener('pointerleave', trackPanelPointer);
   sidebarRail.addEventListener('click', () => {
     sidebarHovered = true;
     updateSidebar(scroll.scrollTop);
   });
   sidebarRegion.addEventListener('focusin', () => updateSidebar(scroll.scrollTop));
-  sidebarRegion.addEventListener('focusout', () => queueMicrotask(() => updateSidebar(scroll.scrollTop)));
+  sidebarRegion.addEventListener('focusout', () => queueMicrotask(() => { dismissDistantPanels();updateSidebar(scroll.scrollTop); }));
   sidebarRegion.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     sidebarHovered = false;
@@ -113,44 +115,66 @@
   });
   win.addEventListener('pointerdown', event => {
     if (sidebarRegion.contains(event.target)) return;
-    sidebarHovered = false;
+    if (event.pointerType === 'touch') sidebarHovered = false;
     if (sidebarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
     updateSidebar(scroll.scrollTop);
   });
   function showToolbar() {
     if (!appVisible) return;
-    clearTimeout(toolbarHideTimer);
     toolbarRegion.dataset.open = '';
     toolbar.inert = false;
     toolbar.setAttribute('aria-hidden', 'false');
     toolbarRail.setAttribute('aria-expanded', 'true');
   }
   function hideToolbar() {
-    clearTimeout(toolbarHideTimer);
-    toolbarHovered = false;
     delete toolbarRegion.dataset.open;
     toolbar.inert = true;
     toolbar.setAttribute('aria-hidden', 'true');
     toolbarRail.setAttribute('aria-expanded', 'false');
   }
-  function scheduleToolbarHide() {
-    clearTimeout(toolbarHideTimer);
-    if (toolbarHovered || toolbarRegion.contains(document.activeElement)) return;
-    // Match the native prototype: a fresh, uninterrupted 700ms away.
-    toolbarHideTimer = setTimeout(hideToolbar, 700);
+  function distanceFromPanel(point, rect) {
+    const dx = Math.max(rect.left - point.x, 0, point.x - rect.right);
+    const dy = Math.max(rect.top - point.y, 0, point.y - rect.bottom);
+    return Math.hypot(dx, dy);
   }
+  function dismissDistantPanels() {
+    if (!panelPointer) return;
+    const sidebarArea = sidebarRegion.getBoundingClientRect();
+    const sidebarBounds = {left:sidebarArea.left + 4,right:sidebarArea.left + 4 + sidebar.offsetWidth,
+      top:sidebarArea.top + 4,bottom:sidebarArea.bottom - 4};
+    if (sidebarHovered && !sidebarRegion.querySelector(':focus-visible') &&
+        distanceFromPanel(panelPointer, sidebarBounds) > panelDismissDistance) {
+      sidebarHovered = false;
+      updateSidebar(scroll.scrollTop);
+    }
+    // Measure the resting toolbar bounds, not its animated slide position.
+    // Treat its capsules and the gaps between them as one floating top bar.
+    const area = toolbarRegion.getBoundingClientRect();
+    const rect = {left:area.left + 12,right:area.right - 12,top:area.top + 12,bottom:area.top + 48};
+    if (toolbarRegion.hasAttribute('data-open') && !toolbarRegion.contains(document.activeElement) &&
+        distanceFromPanel(panelPointer, rect) > panelDismissDistance) hideToolbar();
+  }
+  function trackPanelPointer(event) {
+    if (event.pointerType === 'touch') return;
+    panelPointer = {x:event.clientX,y:event.clientY};
+    dismissDistantPanels();
+  }
+  document.addEventListener('pointermove', trackPanelPointer, {passive:true});
+  document.documentElement.addEventListener('pointerleave', () => {
+    panelPointer = null;
+    sidebarHovered = false;
+    updateSidebar(scroll.scrollTop);
+    hideToolbar();
+  });
   toolbarRegion.addEventListener('pointerenter', event => {
     if (event.pointerType === 'touch') return;
-    toolbarHovered = true;
+    panelPointer = {x:event.clientX,y:event.clientY};
     showToolbar();
   });
-  toolbarRegion.addEventListener('pointerleave', () => {
-    toolbarHovered = false;
-    scheduleToolbarHide();
-  });
+  toolbarRegion.addEventListener('pointerleave', trackPanelPointer);
   toolbarRail.addEventListener('click', showToolbar);
   toolbarRegion.addEventListener('focusin', showToolbar);
-  toolbarRegion.addEventListener('focusout', () => queueMicrotask(scheduleToolbarHide));
+  toolbarRegion.addEventListener('focusout', () => queueMicrotask(dismissDistantPanels));
   toolbarRegion.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     scroll.focus({preventScroll:true});
@@ -160,9 +184,9 @@
     if (toolbarRegion.contains(event.target)) return;
     if (toolbarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
     if (event.pointerType === 'touch') hideToolbar();
-    else scheduleToolbarHide();
+    else trackPanelPointer(event);
   });
-  window.addEventListener('blur', hideToolbar);
+  window.addEventListener('blur', () => { panelPointer=null;sidebarHovered=false;updateSidebar(scroll.scrollTop);hideToolbar(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) hideToolbar(); });
   function launch(){
     if(launched)return;launched=true;
@@ -177,7 +201,7 @@
     root.classList.add('app-open');
   }
   function close(){
-    if(!launched&&!appVisible)return;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
+    if(!launched&&!appVisible)return;sidebarHovered=false;panelPointer=null;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
     root.classList.remove('app-open','app-fast');root.querySelector('.lune').classList.remove('launching');
   }
   root.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>{scroll.scrollTo({top:opening,behavior:reduce.matches?'instant':'smooth'});}));
