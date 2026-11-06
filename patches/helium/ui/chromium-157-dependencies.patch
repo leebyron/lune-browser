@@ -1,0 +1,171 @@
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -538,11 +538,13 @@
+ }
+ 
+ source_set("vertical_tab_strip_region_view") {
+-  public = [ "vertical_tab_strip_region_view.h" ]
++  public = [
++    "vertical_tab_strip_region_view.h",
++    "../tabs/vertical/vertical_tab_strip_header_view.h",
++  ]
+   sources = [
+     "vertical_tab_strip_region_view.cc",
+     "../tabs/vertical/vertical_tab_strip_header_view.cc",
+-    "../tabs/vertical/vertical_tab_strip_header_view.h",
+   ]
+   public_deps = [
+     ":base_tab_strip_region_view",
+@@ -563,6 +565,13 @@
+     "//ui/views",
+   ]
+   deps = [
++    "//chrome/browser/ui/views/download:download",
++    "//chrome/browser/ui/views/extensions:extensions_toolbar_desktop",
++    "//chrome/browser/ui/views/location_bar:location_bar",
++    "//chrome/browser/ui/views/profiles:avatar_toolbar_button",
++    "//chrome/browser/ui/views/toolbar:toolbar",
++    "//chrome/browser/ui/views/toolbar:toolbar_button",
++
+     ":browser_view_header",
+     ":custom_corners_background",
+     ":frame",
+@@ -784,6 +793,7 @@
+     "//chrome/browser:browser_public_dependencies",
+   ]
+   deps = [
++    "//chrome/browser/ui:tab_ui_helper",
+     ":app_menu_button",
+     ":browser_frame_view",
+     ":browser_native_widget",
+--- a/chrome/browser/ui/views/tabs/visual_tab_switcher.cc
++++ b/chrome/browser/ui/views/tabs/visual_tab_switcher.cc
+@@ -14,7 +14,7 @@
+ #include "base/task/single_thread_task_runner.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/profiles/profile.h"
+-#include "chrome/browser/ui/browser.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/tab_ui_helper.h"
+ #include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+@@ -135,7 +135,7 @@
+ bool VisualTabSwitcher::Cycle(bool reverse) {
+   const bool starting = tabs_.empty();
+   if (starting) {
+-    auto* model = browser_view_->browser()->tab_strip_model();
++    auto* model = browser_view_->browser()->GetTabStripModel();
+     const bool mru = browser_view_->GetProfile()->GetPrefs()->GetBoolean(
+         prefs::kTabCyclingMRU);
+     list_mode_ = browser_view_->GetProfile()->GetPrefs()->GetBoolean(
+@@ -388,7 +388,7 @@
+ std::unique_ptr<ThumbnailImage::Subscription> VisualTabSwitcher::Subscribe(
+     views::ImageView* image,
+     content::WebContents* contents) {
+-  auto* model = browser_view_->browser()->tab_strip_model();
++  auto* model = browser_view_->browser()->GetTabStripModel();
+   auto* tab = model->GetTabForWebContents(contents);
+   auto* helper = tab ? ThumbnailTabHelper::From(tab) : nullptr;
+   if (!helper) {
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -286,3 +286,13 @@
+   }
+   NOTREACHED();
+ }
++
++int GetHeliumVerticalTabStripCollapsedWidth() {
++  return GetLayoutConstant(LayoutConstant::kVerticalTabHeight) +
++         2 * GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++}
++
++int GetHeliumVerticalTabStripCollapseSnapWidth(int min_width) {
++  return (min_width +
++          GetHeliumVerticalTabStripCollapsedWidth()) / 2;
++}
+--- a/chrome/browser/ui/layout_constants.h
++++ b/chrome/browser/ui/layout_constants.h
+@@ -389,4 +389,8 @@
+ 
+ gfx::Insets GetLayoutInsets(LayoutInset inset);
+ 
++// Density-aware vertical sidebar sizing shared by independent UI targets.
++int GetHeliumVerticalTabStripCollapsedWidth();
++int GetHeliumVerticalTabStripCollapseSnapWidth(int min_width);
++
+ #endif  // CHROME_BROWSER_UI_LAYOUT_CONSTANTS_H_
+--- a/chrome/browser/ui/views/frame/browser_native_widget_mac_interactive_uitest.mm
++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac_interactive_uitest.mm
+@@ -702,7 +702,7 @@
+ 
+   const int corner_padding = GetGlassCornerPadding();
+   const int expected_collapsed_width =
+-      VerticalTabStripRegionView::CollapsedWidth() + corner_padding;
++      GetHeliumVerticalTabStripCollapsedWidth() + corner_padding;
+   const int expected_uncollapsed_width =
+       controller->GetUncollapsedWidth() + corner_padding;
+ 
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_background_blur_backdrop.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_background_blur_backdrop.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/frame/vertical_tab_strip_background_blur_backdrop.h"
+ 
+ #include "cc/paint/paint_flags.h"
+@@ -54,7 +55,7 @@
+   auto color = GetColorProvider()->GetColor(kColorToolbar);
+   color = SkColorSetA(color, base::ClampRound(alpha_ * 255.0f));
+   gfx::Rect rect = GetLocalBounds();
+-  rect.set_width(VerticalTabStripRegionView::CollapsedWidth());
++  rect.set_width(GetHeliumVerticalTabStripCollapsedWidth());
+   rect = GetMirroredRect(rect);
+   canvas->FillRect(rect, color);
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -1424,7 +1424,7 @@
+ 
+ // static
+ int TabView::CollapsedWidth() {
+-  return VerticalTabStripRegionView::CollapsedWidth() -
++  return GetHeliumVerticalTabStripCollapsedWidth() -
+          2 * GetLayoutConstant(
+                  LayoutConstant::kVerticalTabStripHorizontalPadding);
+ }
+--- a/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_controller.cc
++++ b/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_controller.cc
+@@ -110,7 +110,7 @@
+     // the default uncollapsed width.
+     tab_width = tab_strip->width();
+ 
+-    tab_min_width = VerticalTabStripRegionView::CollapsedWidth();
++    tab_min_width = GetHeliumVerticalTabStripCollapsedWidth();
+     tab_standard_width = tabs::kVerticalTabStripDefaultUncollapsedWidth;
+   } else {
+     // Use the largest tab in the tab strip when determining the delay so that
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
+@@ -148,7 +148,8 @@
+   // orientation in order to have smooth transition during animation.
+   if (!is_segmented_expand_on_hover &&
+       (trailing_control_width >= available_width ||
+-       available_width < VerticalTabStripRegionView::CollapseSnapWidth() ||
++       available_width < GetHeliumVerticalTabStripCollapseSnapWidth(
++           tabs::kVerticalTabStripUncollapsedMinWidth) ||
+        is_collapsed_with_combo)) {
+     combo_button_orientation_ = views::LayoutOrientation::kVertical;
+     int current_y = 0;
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc
+@@ -93,7 +93,7 @@
+       gfx::Rect unfocus_bounds;
+       unfocus_bounds.set_x(header_bounds.x());
+       unfocus_bounds.set_y(height);
+-      unfocus_bounds.set_height(kGroupHeaderHeight);
++      unfocus_bounds.set_height(GetGroupHeaderHeight());
+       if (size_bounds.width().is_bounded()) {
+         unfocus_bounds.set_width(size_bounds.width().value() -
+                                  unfocus_bounds.x());
