@@ -1,0 +1,105 @@
+--- a/build/apple/tweak_info_plist.py
++++ b/build/apple/tweak_info_plist.py
+@@ -216,17 +216,18 @@
+     return re.match(r'^[0-9a-zA-Z-.]+$', bundle_identifier) is not None
+ 
+ 
+-def _AddSparkleKeys(plist, ed_key, auto_checks, check_interval):
++def _AddSparkleKeys(plist, ed_key, auto_checks, check_interval, feed_url):
+   plist['SUPublicEDKey'] = ed_key
+-  plist['SUEnableAutomaticChecks'] = 'YES' if auto_checks else 'NO'
++  plist['SUFeedURL'] = feed_url
++  plist['SUEnableAutomaticChecks'] = bool(auto_checks)
+   plist['SUScheduledCheckInterval'] = check_interval
+-  plist['SUVerifyUpdateBeforeExtraction'] = 'YES'
+-  plist['SUShowReleaseNotes'] = 'NO'
++  plist['SUVerifyUpdateBeforeExtraction'] = True
++  plist['SUShowReleaseNotes'] = False
+ 
+ 
+ def _RemoveSparkleKeys(plist):
+   """Removes any set Sparkle keys."""
+-  _RemoveKeys(plist, 'SUPublicEDKey', 'SUEnableAutomaticChecks',
++  _RemoveKeys(plist, 'SUPublicEDKey', 'SUFeedURL', 'SUEnableAutomaticChecks',
+               'SUScheduledCheckInterval', 'SUVerifyUpdateBeforeExtraction',
+               'SUShowReleaseNotes')
+ 
+@@ -381,6 +382,8 @@
+         default=False,
+         help='Enable Sparkle [1 or 0]'
+     )
++    parser.add_option('--sparkle_feed_url', type='string', default='',
++                      help='Lune HTTPS appcast URL')
+     parser.add_option('--sparkle_ed_key',
+         dest='sparkle_ed_key',
+         action='store',
+@@ -582,6 +585,9 @@
+ 
+     # Add Sparkle parameters if configured to do so.
+     if options.use_sparkle:
++      if not options.sparkle_feed_url.startswith("https://"):
++        print("Sparkle requires an HTTPS appcast URL.", file=sys.stderr)
++        return 1
+       if not options.sparkle_ed_key:
+         print('Sparkle updates require an EdDSA key.', file=sys.stderr)
+         return 1
+@@ -590,7 +596,7 @@
+         return 1
+       _AddSparkleKeys(plist, options.sparkle_ed_key,
+                       options.sparkle_automatic_checks,
+-                      options.sparkle_check_interval)
++                      options.sparkle_check_interval, options.sparkle_feed_url)
+     else:
+       _RemoveSparkleKeys(plist)
+ 
+--- a/chrome/BUILD.gn
++++ b/chrome/BUILD.gn
+@@ -541,10 +541,12 @@
+ 
+     if (enable_sparkle) {
+       assert(sparkle_ed_key != "")
++      assert(sparkle_feed_url != "")
+ 
+       args += [
+         "--sparkle=1",
+         "--sparkle_ed_key=$sparkle_ed_key",
++        "--sparkle_feed_url=$sparkle_feed_url",
+         "--sparkle_check_interval=$sparkle_check_interval",
+       ]
+ 
+--- a/chrome/updater/sparkle.gni
++++ b/chrome/updater/sparkle.gni
+@@ -9,6 +9,9 @@
+   # SUPublicEDKey: EdDSA key used for signing Sparkle updates.
+   sparkle_ed_key = ""
+ 
++  # Lune-owned architecture-specific appcast, embedded in the app bundle.
++  sparkle_feed_url = ""
++
+   # SUEnableAutomaticChecks: enable automatic checking of updates
+   sparkle_automatic_checks = false
+ 
+--- a/components/helium_services/helium_services_helpers.cc
++++ b/components/helium_services/helium_services_helpers.cc
+@@ -28,7 +28,7 @@
+ #endif
+ 
+ #if defined(UPDATES_SUPPORTED)
+-constexpr std::string_view kUpdateBaseUrl = "https://updates.helium.computer/";
++constexpr std::string_view kUpdateBaseUrl = "https://lune.computer/updates/stable/";
+ constexpr const char kUpdatePath[] =
+ #if BUILDFLAG(IS_MAC)
+     "mac/appcast-" CPU_ARCH_STR ".xml";
+--- a/third_party/sparkle/README.chromium
++++ b/third_party/sparkle/README.chromium
+@@ -1,8 +1,8 @@
+ Name: Sparkle
+ Short Name: sparkle
+ URL: https://github.com/sparkle-project/Sparkle
+-Version: 2.7.1
+-Date: 2025-06-28
++Version: 2.10.1
++Date: 2026-11-06
+ License: MIT
+ License File: LICENSE
+ Shipped: yes
