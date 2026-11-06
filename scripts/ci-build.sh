@@ -16,5 +16,6 @@ if [[ ! -f ".work/$arch/prepared.json" ]]; then
   # prepare refuses a partial existing source tree instead of deleting local work.
   python3 scripts/lune.py prepare --arch "$arch" 2>&1 | tee -a "$log"
 fi
+python3 scripts/check-onboarding.py ".work/$arch/macos/build/src"
 # build verifies the preparation record, toolchain, and lock before resuming.
 python3 scripts/lune.py build --arch "$arch" --jobs 10 2>&1 | tee -a "$log"

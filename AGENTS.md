@@ -13,8 +13,9 @@ are published on `component/helium`, `component/macos`, and `component/services`
 permanent `inputs/bootstrap-1/*` tags retain the first development inputs.
 Read [the build runbook](agent-docs/project/building.md) before running the tools.
 
-Lune's platform identity patch and full source/build entry points are implemented
-but have not undergone a full Chromium preparation, compilation, or runtime test.
+Lune's first full source preparation and GN generation passed. Compilation stopped
+on an onboarding XML declaration parsing error; a tested fix is now pinned under
+`inputs/bootstrap-2/macos`. Compilation and browser runtime still need validation.
 The local Mac passes storage and toolchain preflight. Xcode 27.2/27B52 and SDK
 27.2 are pinned for an experimental development build after Chromium source review.
 The owner requires no additional CI spend: use this Mac as a self-hosted GitHub

@@ -18,7 +18,8 @@ the macOS gitlink matches that core. No duplicate ungoogled series is applied.
 
 Published histories are `component/helium`, `component/macos`, and
 `component/services`. Permanent `inputs/bootstrap-1/{helium,macos,services,ungoogled}`
-tags retain these inputs. Core and services are unchanged imports. Lune changes
+tags retain the original inputs. The current macOS fix is pinned separately at
+`inputs/bootstrap-2/macos`; original tags are never rewritten. Core and services are unchanged imports. Lune changes
 are a separate macOS commit descended from upstream:
 
 - Same-repository core submodule URL, preserving its exact gitlink.
@@ -140,8 +141,14 @@ on this Mac. The manual `Development browser` workflow is implemented in
 `.github/workflows/browser.yml`; it targets the `lune-build` runner label.
 Xcode and Metal preflight pass. Runner registration and job pickup are verified.
 The [first arm64 CI run](https://github.com/leebyron/lune-browser/actions/runs/42138206769)
-passed component checkout/validation and started source downloads. Full preparation
-and compilation are still pending; this is not a successful browser build yet.
+passed full source preparation (strict patching, substitutions, resources) and GN
+generation. Compilation stopped at the onboarding string generator: Lune name
+substitution emits an XML declaration, but the parser assumed the first node was
+the document element. Platform commit `2300b549` adds `ignoreDeclaration: true`.
+The exact failed command now passes, and `scripts/check-onboarding.py` verifies
+all 79 messages generate identical header/TypeScript output with and without the
+declaration. CI runs that regression check before compiling. A fresh source
+preparation with the new locked patch is required; no successful browser yet.
 
 [GitHub documents self-hosted runner compute as free](https://docs.github.com/en/actions/concepts/billing-and-usage).
 The private repository's hosted compute and artifact/cache storage still have
@@ -224,8 +231,9 @@ a fresh recursive clone from GitHub without local object reuse. Upstream
 download parsing accepts both flattened manifests; text-level name substitution
 checks preserve the Web Store, Root Program, and internal URL scheme.
 The Lune identity patch applied without fuzz to targeted files reconstructed from
-Chromium plus their preceding upstream patches. This is **not** a full-stack
-source preparation or proof of a working browser. Python requirements match the
+Chromium plus their preceding upstream patches. Full-stack source preparation and GN generation subsequently passed in the first
+CI run; compilation failed as documented above. This is not proof of a working
+browser. Python requirements match the
 installed environment. A GitHub Actions check validates the lock, ancestry, and
 fresh recursive checkout without signing credentials or Chromium downloads.
 
