@@ -1,13 +1,18 @@
-# First browser build
+# Development browser builds
 
-Status: first arm64 development build and headless runtime smoke test passed,
-2026-11-05. See [the recorded evidence](builds/2026-11-05-arm64.md). No Developer ID
-signing, notarization, public release, Intel validation, or update validation has occurred.
+Status (2026-11-06): Chromium 158.0.8127.18 builds pass for arm64 and x86_64.
+Arm64 headless/headed and Intel-under-Rosetta smoke checks pass, including artwork,
+defaults, settings, and French/German upstream credits. See
+[current evidence](builds/2026-11-05-chromium-158-port.md) and the historical
+[first arm64 build](builds/2026-11-05-arm64.md). Native Intel hardware, Developer ID
+signing, notarization, public release, and update validation remain outstanding.
 
 ## Tracked inputs
 
-`manifests/browser.lock.json` pins Chromium 157.0.8103.38, ungoogled release
-157.0.8103.38-1, Helium core, macOS packaging, and the services snapshot. It hashes
+`manifests/browser.lock.json` pins Chromium 158.0.8127.18 and a reviewed forward
+port of the combined Helium/ungoogled stack. The ungoogled provenance remains
+release 157.0.8103.38-1; `chromium_forward_port` records the newer Chromium target
+and its review. The lock also pins macOS packaging and the services snapshot. It hashes
 product configuration, patch selections, Homebrew/Python requirements, and both
 host download manifests. Every source download has a fixed SHA-256 or SHA-512;
 we resolved upstream's mutable hash-file URLs when creating this lock.
@@ -20,9 +25,10 @@ Published histories are `component/helium`, `component/macos`, and
 `component/services`. Permanent `inputs/bootstrap-1/{helium,macos,services,ungoogled}`
 tags retain the original inputs. The first-build macOS fix remains pinned at `inputs/bootstrap-2/macos`; original
 tags are never rewritten. The UI candidate is pinned at `inputs/xelium-ui-1/macos`,
-with Xelium and PR provenance under corresponding `inputs/xelium-*` tags. Core
-and services are unchanged imports. Lune identity changes remain separate commits
-descended from upstream:
+with Xelium and PR provenance under corresponding `inputs/xelium-*` tags.
+The current core/platform inputs are retained by `inputs/chromium-158-1/{helium,macos}`;
+the services input is unchanged. The reviewed 158 compatibility work preserves
+upstream ancestry. Lune identity changes remain separate commits descended from upstream:
 
 - Same-repository core submodule URL, preserving its exact gitlink.
 - `Lune` product name, `computer.lune.browser` bundle/profile identity,
@@ -35,20 +41,20 @@ descended from upstream:
   Pelagic Signal artwork is included in the UI candidate; a complete branding/link
   audit remains outstanding. The Chromium 158 integration now replaces internal
   PNG, SVG, and native vector logos as well; its arm64 build and runtime icon
-  checks pass. See [the forward-port evidence](builds/2026-11-05-chromium-158-port.md).
+  checks pass on both targets (Intel under Rosetta). See
+  [the forward-port evidence](builds/2026-11-05-chromium-158-port.md).
 
 The first development build explicitly disables Sparkle and special branded
 entitlements. Product metadata records a dedicated Sparkle public key, but the
 updater is not yet configured or enabled in a browser. Do not publish this input
 set as a finished distribution. The browser still inherits upstream versioning;
 Lune build numbering, the full branding/link audit, service behavior, packaging,
-and both architectures' runtime checks remain release blockers.
+and native Intel hardware checks remain release blockers.
 
 ## Prepare this Mac
 
-The owner selected this Mac mini (M4 Pro, 64 GB RAM). At the latest check it has
-about 297 GiB free after the first successful build. Storage and toolchain now
-pass preflight. The wrapper requires at
+The owner selected this Mac mini (M4 Pro, 64 GB RAM). Storage and toolchain pass
+preflight. The wrapper requires at
 least 200 GiB free before preparation, a conservative local policy rather than a
 measured guarantee. Two source/output trees and peak build usage may require more.
 Free space manually; the tooling never removes personal data or old workspaces.
@@ -58,7 +64,8 @@ The installed development toolchain is pinned to Xcode **27.2 (27B52)**, SDK
 [Chromium SDK configuration](https://github.com/chromium/chromium/blob/157.0.8103.38/build/config/mac/mac_sdk.gni),
 which includes Xcode 27 support, and its SDK minimum of 15. This permits a
 development build. Arm64 compilation and headless smoke checks subsequently passed
-with this exact toolchain; native UI, Intel, and release validation remain open.
+with this exact toolchain. Both 158 builds and their smoke checks subsequently
+passed; Intel runtime used Rosetta. Native Intel hardware and release validation remain open.
 Future Xcode/SDK changes fail preflight until reviewed and repinned. The check executes the Metal compiler,
 rather than merely locating the shim supplied by Xcode.
 
@@ -84,7 +91,7 @@ brew bundle --file=config/Brewfile
 The example Python path is for Apple silicon Homebrew; Intel Homebrew normally
 uses `/usr/local/bin/python3.13`. The current wrapper's GNU patch path is for
 this Apple silicon build host; adapt and validate host tooling before using an
-Intel host. Both target architectures can be built on this Mac, but Intel runtime
+Intel host. Both target architectures can be built on this Mac, but native Intel runtime
 validation still needs an Intel machine. Homebrew's formula versions are not a
 complete immutable toolchain lock; record exact Xcode/SDK/tools with the first
 successful build before calling a release reproducible.
@@ -123,7 +130,7 @@ The CI build script now runs the isolated headless smoke test after compilation:
 
 ```sh
 .work/venv/bin/python scripts/smoke-browser.py .work/arm64/macos/build/src/out/Default \
-  --arch arm64 --ui --report .work/arm64/smoke.json
+  --arch arm64 --ui --internal-icons --settings --report .work/arm64/smoke.json
 ```
 
 Use the matching `x86_64` path and `--arch x86_64` for the Intel artifact. The test
@@ -139,6 +146,20 @@ an Intel binary running under Rosetta does not establish native Intel validation
 the exact macOS component; use `--platform-commit` for a reviewed integration
 candidate outside the main lock. `--settings` checks preference bindings and
 flag filtering after a Chromium port. Both switches require `--ui`.
+
+CI also audits source artwork and protected translations before compilation,
+then runs `scripts/branding/check-runtime-credits.py` for French and German after
+the smoke test. See [the branding checks](../../branding/README.md) for commands.
+These use disposable profiles and process-local language overrides.
+
+The reviewed 158 integration outputs on this Mac are under
+`.work/chromium-158/macos/build/src/out/Default/Lune.app` (arm64) and
+`out/Intel/Lune.app` under the same source root (x86_64). This integration workspace
+predates the final main lock; its build evidence is in the port document. The
+ordinary CLI/CI uses `.work/<arch>/` as described above. Do not silently reuse an
+older 157 prepared workspace with the new lock: preserve it by moving the entire
+architecture workspace to a distinct archival path before requesting a fresh
+checkout/preparation. The guards intentionally reject mismatched inputs.
 
 ## Discover upstream changes
 
@@ -259,7 +280,7 @@ isolation, as described in [releases](releases.md).
 
 ## Validation and remaining work
 
-Validated locally: 14 guardrail tests, locked file/archive hash structure,
+Validated locally: guardrail tests, locked file/archive hash structure,
 component ancestry and tree IDs, core gitlink, numeric upstream discovery, and
 a fresh recursive clone from GitHub without local object reuse. Upstream
 download parsing accepts both flattened manifests; text-level name substitution
@@ -271,7 +292,12 @@ headless app smoke test in the successful retry. Python requirements match the
 installed environment. A GitHub Actions check validates the lock, ancestry, and
 fresh recursive checkout without signing credentials or Chromium downloads.
 
-Next: validate the native browser UI, default profile isolation, branding and service
-behavior; build and test x86_64; then implement and validate signing/packaging. Before public updates:
+The 158 candidate additionally passes both builds, arm64 headless/headed and Intel
+under Rosetta, focused native arm64 UI inspection, source/artwork checks, and
+French/German packaged attribution checks. See the port document for exact inputs
+and the inherited command-bar limitation.
+
+Next: broaden native browser UI, coexistence, branding/link and service acceptance;
+test on native Intel hardware; then implement and validate signing/packaging. Before public updates:
 provision services, finish versioning/branding, and test two signed/notarized
 releases through architecture-specific staging feeds. See [roadmap](roadmap.md).

@@ -1,18 +1,20 @@
 # Implementation roadmap
 
 Status: documentation, website, component imports, locked checkout/build tooling,
-and local signing identities are bootstrapped. The first arm64 build and headless
-smoke test passed; [evidence](builds/2026-11-05-arm64.md). Intel and release validation remain.
+and local signing identities are bootstrapped. Chromium 158 builds and smoke checks
+pass on arm64 and on x86_64 under Rosetta; see
+[evidence](builds/2026-11-05-chromium-158-port.md). Native Intel hardware and release
+validation remain outstanding.
 See [build readiness](building.md) and [website status](website.md).
 
 ## Immediate priority: latest stable Chromium
 
 The owner confirmed that tracking Chromium stable is the project's primary goal,
-independent of ungoogled, Helium, and Xelium release timing. Discovery currently
-reports macOS stable **158.0.8127.18** against locked **157.0.8103.38**. Finish the
-running UI candidate as compatibility evidence, then forward-port the required
-stack to stable 158 with fresh source preparation, compilation, and runtime checks.
-Do not treat that older development build as satisfying the current-version goal.
+independent of ungoogled, Helium, and Xelium release timing. The development lock
+now targets **158.0.8127.18**, the macOS stable version observed on 2026-11-05.
+The combined ungoogled/Helium stack has been forward-ported with clean source
+preparation, both builds, and runtime checks. The upstream ungoogled release
+remains 157; the lock explicitly records this reviewed forward port.
 Recheck stable when selecting inputs and before any future release promotion;
 do not permanently encode 158 as the target. Failed ports block promotion and
 report the exact conflict while preserving the last good artifacts.
@@ -41,9 +43,11 @@ if same-remote branches complicate this unnecessarily.
 
 ## 2. Build the baseline on both architectures
 
-Arm64 compilation, app identity, headless page loading, JavaScript, and profile
-persistence passed on 2026-11-05. Native UI behavior, default profile isolation,
-Intel compilation/runtime, and the full baseline acceptance criteria remain open.
+Both architectures compile on this Mac. App identity, page loading, JavaScript,
+profile persistence, defaults, artwork, settings, and localized credits pass on
+arm64 and Intel under Rosetta. Focused native arm64 UI inspection also passes with
+documented inherited limitations. Native Intel hardware, broader coexistence/UI
+acceptance, signing, and release validation remain open.
 
 - Use the complete compatible Helium stack first, without extra experimental PRs.
 - Build arm64 and x86_64; measure disk, memory, cache effectiveness, and elapsed time.
@@ -107,9 +111,9 @@ every gate passes, and a failed candidate leaves the installed update path intac
 | --- | --- |
 | Platforms | Confirmed: macOS arm64 and x86_64 |
 | Helium selection | Full stack selected for first development build |
-| Additional PRs/features | Xelium stable UI ports and Helium PRs #2747, #2367, and #2539 selected and pinned; full app validation in progress |
+| Additional PRs/features | Xelium stable UI ports and Helium PRs #2747, #2367, and #2539 pinned and development-tested on Chromium 158; broader release validation remains |
 | Git layout | Same-remote component branches and permanent input tags published |
-| Build machines | No added CI spend; this Mac as a self-hosted Actions runner. Arm64 CI build and headless smoke test passed; Intel build/runtime pending |
+| Build machines | No added CI spend; this Mac as a self-hosted Actions runner. Both local builds and smoke checks pass; Intel runtime tested under Rosetta, native Intel still pending |
 | Signing | Developer ID and Sparkle keys in local Keychain; notarization setup pending |
 | Domain and hosting | `lune.computer`; Cloudflare website, services host undecided |
 | Minimum macOS version | Derive from selected source/toolchain and test matrix |

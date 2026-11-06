@@ -50,7 +50,10 @@ the same locked candidate, without reusing a published build number.
 The owner requires no additional CI spend. Start with this Mac as a self-hosted
 GitHub Actions runner and keep download/compiler caches on local disk. The manual development browser workflow exists; storage/Xcode/Metal preflight
 passes. The first arm64 build and headless runtime smoke test passed, with
-compilation/linking taking 2h21m29s on this Mac; see [build evidence](builds/2026-11-05-arm64.md).
+compilation/linking taking 2h21m29s on this Mac; see [first-build evidence](builds/2026-11-05-arm64.md).
+The subsequent [Chromium 158 build](builds/2026-11-05-chromium-158-port.md) passes on
+both targets, with Intel compilation taking 3h15m26s and Intel runtime checked
+under Rosetta. Final translation-only refreshes took 13s on arm64 and 18s on Intel.
 Continue measuring storage, memory, build duration, and cost before promising a daily cadence;
 one successful development run does not establish unattended release reliability. Pin Xcode/SDK, compilers, Python,
 Sparkle, source archives, and relevant build tools. Namespace caches by toolchain,

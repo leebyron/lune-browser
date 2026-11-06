@@ -28,8 +28,9 @@ Start with [the project definition](agent-docs/project/README.md).
 Agent instructions are in [AGENTS.md](AGENTS.md).
 
 Current status: website deployed; component histories, locked development inputs,
-and local build tooling bootstrapped. The first arm64 development build and
-headless smoke test passed; no public browser release pipeline is enabled.
+and local build tooling bootstrapped. Chromium 158 development builds and smoke
+tests pass on Apple silicon and on Intel binaries under Rosetta; no public browser
+release pipeline is enabled.
 The initial target is macOS on Apple silicon and Intel.
 
 ## WEBSITE
@@ -43,4 +44,5 @@ See [the deployment runbook](agent-docs/project/website.md) for setup and status
 The first locked inputs and local build commands are tracked on main, with
 upstream histories on component/helium, component/macos, and component/services.
 See agent-docs/project/building.md for current validation and remaining blockers.
-The first arm64 Lune binary is built and smoke-tested locally; nothing is released.
+Both Lune architectures are built and smoke-tested locally; native Intel hardware
+and release validation remain outstanding. Nothing is released.

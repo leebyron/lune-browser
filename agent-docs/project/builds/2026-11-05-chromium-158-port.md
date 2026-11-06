@@ -1,9 +1,12 @@
 # Chromium 158 integration work
 
-Status (2026-11-06): the complete arm64 build and headless runtime smoke check
-passed on Chromium 158.0.8127.18. Intel compilation is in progress. Native UI and
-release validation remain incomplete. The main lock remains on the earlier 157
-candidate until promotion; this workspace is a separate reviewed forward port.
+Status (2026-11-06): both architectures build on Chromium 158.0.8127.18.
+Final arm64 headless/headed and Intel-under-Rosetta smoke checks pass, including
+Lune artwork, defaults, settings, and French/German attribution. The main
+development lock selects these inputs. Native Intel hardware and release
+validation remain outstanding. The chronological notes below retain intermediate
+failures and pending states; the final development-build record at the end
+identifies the completed inputs, checks, and remaining limitations.
 
 Target: macOS stable **158.0.8127.18**, Chromium commit
 `6449d9f9a6a906edff724b7b220199b3fde4615c`, confirmed against Chromium Dash and the
@@ -32,8 +35,9 @@ search data, uBlock, and Sparkle archives retain their existing pinned hashes.
 
 Ignored working directory: `.work/chromium-158/`. Native Git clones under `macos/`
 and `macos/helium-chromium/` use local `integration/chromium-158` branches based on
-the UI candidate's platform and core inputs. Core work is checkpointed on
-`integration/chromium-158/helium`; these are not locked build inputs.
+the UI candidate's platform and core inputs. Intermediate core work was checkpointed
+on `integration/chromium-158/helium`; the final inputs are now locked and retained
+by permanent `inputs/chromium-158-1/{helium,macos}` tags.
 `downloads-arm64.ini`, archive metadata, and preparation logs are retained there.
 
 ## Preparation and patch-port progress
@@ -680,3 +684,78 @@ present. This expected failure is recorded in
 `out/validation/chromium-158-runtime-credits-before-refresh.json`; positive French
 and German checks must follow the final resource refresh. The test changes only
 its disposable process/profile, not the system language or normal browser profile.
+
+## Final development build — 2026-11-06
+
+The promoted development inputs are:
+
+| Input | Exact value |
+| --- | --- |
+| Chromium | `158.0.8127.18` / `6449d9f9a6a906edff724b7b220199b3fde4615c` |
+| Core | `fd5342cd999dcc9e4d9083cf54182d00e73e7a5d` |
+| macOS platform | `d44db707dc84799b09f4ddf7bef2498ced44ab74` |
+| Permanent core ref | `inputs/chromium-158-1/helium` |
+| Permanent platform ref | `inputs/chromium-158-1/macos` |
+| Applied patches | 406, with strict application and no fuzz |
+| Toolchain | Xcode 27.2 / 27B52, macOS SDK 27.2 |
+
+The first full Intel compile/link succeeded after **95,891 actions in 3h15m26s**.
+It used platform `84ee191`; its complete logs and metadata are preserved as
+`intel-build-before-final-credit-refresh.log` and
+`intel-development-build-before-final-credit-refresh.json` under the integration
+workspace, with another copy under `before-final-credit-refresh/`.
+
+After that process exited successfully, the active platform fast-forwarded to
+`d44db70`, and the 77 reviewed XTB catalogs were copied from the verified clean
+preparation. Original catalogs were preserved. The full read-only checksum
+comparison then found **zero non-cache source-content differences**. Its only
+extra non-cache entries were generated onboarding `strings.ts` and an empty
+Vite temporary directory. The source artwork audit and all 162 protected
+translations passed again. Evidence: `final-input-refresh.json`,
+`final-source-comparison.json`, and `final-source-comparison.txt`.
+
+Cached final builds succeeded on both architectures: **444 actions in 12.66s**
+for arm64 and **445 actions in 18.48s** for Intel. These are resource-refresh
+durations, not the duration of a full clean browser build. Current
+`development-build.json` and `intel-development-build.json` both record the final
+platform/core commits and successful exit codes. Compiled native sources are
+unchanged from the fully built candidate; final resource content matches the
+clean preparation.
+
+Final reports under `out/validation/`:
+
+- `chromium-158-final-arm64-smoke.json`: headless page loading, JavaScript,
+  profile persistence, 18 defaults, Kagi suggestion, Helium credits, app/helper
+  icons, loaded About/welcome/services artwork, settings bindings, and flags.
+- `chromium-158-final-arm64-headed-smoke.json`: the same checks in a visible
+  isolated window, including the Retina About resource.
+- `chromium-158-final-intel-smoke.json`: the same headless checks on the x86_64
+  app **under Rosetta on this arm64 Mac**; this is not native Intel validation.
+- `chromium-158-final-{arm64,intel}-credits-{fr,de}.json`: all four checks pass
+  with the actual selected language, exact source/catalog partner translations,
+  rendered Helium attribution, Lune greeting, and matching browser/source version.
+- `chromium-158-final-source-icons.json`: all 36 resource mappings, two shared
+  WebUI symbols, and app/helper icon rules pass.
+
+Focused native sidebar, tab-switcher, command-bar, and link-preview inspection
+was performed before the translation-only refresh, as recorded above. The final
+headed smoke checks revalidated the packaged artwork and settings; they do not
+claim to automate those native controls. The inherited command bar still treats
+internal URLs as searches and usually opens results in a new tab. Native Intel
+hardware, broader UI/coexistence acceptance, policy/service links, Developer ID
+signing, notarization, packaging, and updates remain outside this development
+build's validation. No public release or updater was enabled.
+
+The final apps are available at `.work/chromium-158/macos/build/src/out/Default/Lune.app`
+(arm64) and `.work/chromium-158/macos/build/src/out/Intel/Lune.app` (x86_64). Their
+matching ChromeDrivers are beside them. Use an isolated profile when testing;
+the earlier 157 app has not been replaced or used as the test profile.
+
+Both permanent input tags are published. A fresh recursive GitHub checkout of
+the final platform resolves the exact core gitlink with clean component trees.
+Lock validation passes archive/configuration hashes, forward-port and upstream
+ancestry, permanent refs, tree IDs, and selected patch order/hash/provenance.
+Evidence: `out/validation/chromium-158-final-input-checks.json`. The main CI build
+script now runs source branding/attribution checks and packaged artwork/settings
+plus French/German attribution checks after compilation. This strengthens the
+existing manual development workflow; it does not enable a schedule or release.

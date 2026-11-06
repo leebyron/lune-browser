@@ -18,7 +18,15 @@ if [[ ! -f ".work/$arch/prepared.json" ]]; then
 fi
 python3 scripts/check-onboarding.py ".work/$arch/macos/build/src"
 python3 scripts/check-ui-port.py ".work/$arch/macos/build/src"
+.work/venv/bin/python scripts/branding/check-names.py ".work/$arch/macos" \
+  ".work/$arch/macos/build/src" --prepared
+python3 scripts/branding/verify-resources.py ".work/$arch/macos" ".work/$arch/macos/build/src"
 # build verifies the preparation record, toolchain, and lock before resuming.
 python3 scripts/lune.py build --arch "$arch" --jobs 10 2>&1 | tee -a "$log"
 .work/venv/bin/python scripts/smoke-browser.py ".work/$arch/macos/build/src/out/Default" \
-  --arch "$arch" --ui --report ".work/$arch/smoke.json" 2>&1 | tee -a "$log"
+  --arch "$arch" --ui --internal-icons --settings --report ".work/$arch/smoke.json" 2>&1 | tee -a "$log"
+for locale in fr de; do
+  .work/venv/bin/python scripts/branding/check-runtime-credits.py ".work/$arch/macos/build/src/out/Default" \
+    --source ".work/$arch/macos/build/src" --locale "$locale" \
+    --report ".work/$arch/smoke-credits-$locale.json" 2>&1 | tee -a "$log"
+done

@@ -2,9 +2,11 @@
 
 The original 157 integration is documented below. The subsequent
 [Chromium 158 candidate](builds/2026-11-05-chromium-158-port.md) has passed the
-full arm64 build, headless/headed smoke tests, internal artwork checks, and focused
-native sidebar, tab-switcher, and link-preview inspection. Intel compilation
-is in progress; the main lock remains on 157 pending promotion.
+arm64 and Intel builds, arm64 headless/headed and Intel-under-Rosetta smoke tests,
+internal artwork checks, French/German attribution checks, and focused native
+arm64 sidebar, tab-switcher, and link-preview inspection. The main development
+lock now selects those 158 inputs. Native Intel hardware and release validation
+remain outstanding; the command bar retains documented upstream limitations.
 
 Status of the original 157 port: reviewed source port. All 47 changed native production object targets
 compile on arm64. Strict application of 160 relevant patches, focused GN header
@@ -19,8 +21,8 @@ The latest macOS stable version reported by
 [Chromium Dash](https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1)
 on 2026-11-05 is **158.0.8127.18**. Helium main and the newest ungoogled release
 still target **157.0.8103.38**; Xelium's selected release targets **156.0.8078.79**.
-This port retains Lune's 157 baseline; it never downgrades to Xelium's Chromium.
-A separate 158 forward-port is required before calling Lune current.
+The original port retained Lune's 157 baseline; it never downgraded to Xelium's
+Chromium. The subsequent reviewed 158 forward port is now the development lock.
 `scripts/lune.py discover` now checks Chromium stable independently and exits
 unsuccessfully if the locked version is behind, even when ungoogled is current.
 Daily scheduling and automatic publication are still disabled.

@@ -58,8 +58,11 @@ announcements as well as the latest ungoogled-chromium release.
 The initial target is macOS on both architectures, confirmed by the owner.
 Windows and Linux are future platform adapters, not first-release requirements.
 The full Helium stack plus selected Xelium UI patches and Helium PRs #2747, #2367,
-and #2539 are recorded in the [UI integration notes](xelium-ui.md). The candidate
-is under development validation and remains behind Chromium stable 158. Keep CI free: this Mac is the first build host, with
+and #2539 are recorded in the [UI integration notes](xelium-ui.md). The development
+lock targets Chromium 158.0.8127.18 through a reviewed forward port of the combined
+ungoogled/Helium stack. Both builds and their smoke checks pass; Intel runtime was
+tested under Rosetta, with native Intel hardware validation still outstanding.
+Keep CI free: this Mac is the first build host, with
 a registered GitHub Actions self-hosted runner and a manual development workflow. The services host remains
 undecided. Signing identities are provisioned locally.
 
@@ -67,8 +70,9 @@ As of 2026-11-05 the documentation and minimal Cloudflare website are bootstrapp
 The owner registered `lune.computer` at DNSimple. See the
 [website runbook](website.md) for deployment and domain activation status.
 Component histories, exact inputs, local build tooling, and configuration CI are
-bootstrapped; see [building](building.md). The first arm64 browser build and
-headless smoke test passed; see [the evidence](builds/2026-11-05-arm64.md).
+bootstrapped; see [building](building.md). Current build/runtime evidence is recorded
+in [the Chromium 158 port](builds/2026-11-05-chromium-158-port.md); the
+[first arm64 build](builds/2026-11-05-arm64.md) remains historical evidence.
 No public browser release, deployed browser services, or recurring browser schedule exists yet.
 
 ## Read next

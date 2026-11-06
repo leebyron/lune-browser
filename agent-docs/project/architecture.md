@@ -1,7 +1,8 @@
 # Repository and patch architecture
 
 Status: component histories and locked checkout/bootstrap tooling implemented.
-The first arm64 build and headless runtime smoke test passed. Reviewed Xelium UI composition is implemented
+Chromium 158 builds and smoke checks pass on arm64 and on x86_64 under Rosetta.
+Reviewed Xelium UI composition is implemented
 in a development candidate; generic replay and release orchestration remain planned. Based on the
 [upstream source review](research.md) dated 2026-11-05.
 
@@ -55,8 +56,9 @@ out/                    ignored artifacts and reports
 
 Documentation, website, config/manifests, local build tooling, and validation CI
 exist. Deployment overlays and browser release jobs remain planned. Commands
-that prepare and compile Chromium passed their first arm64 end-to-end run; see
-[build evidence](builds/2026-11-05-arm64.md). Intel and release validation remain outstanding.
+that prepare and compile Chromium pass for both targets; see
+[current build evidence](builds/2026-11-05-chromium-158-port.md). Native Intel
+hardware and release validation remain outstanding.
 
 Use worktrees for core/services topic development when suitable. For macOS
 packaging, prefer an ordinary isolated clone with its `helium-chromium` submodule:

@@ -17,7 +17,7 @@ Lune's first arm64 development build passed full source preparation, GN generati
 compilation, and a headless app smoke test (page loading, JavaScript, and profile
 persistence). The onboarding XML parser fix is pinned under `inputs/bootstrap-2/macos`.
 See [the first build evidence](agent-docs/project/builds/2026-11-05-arm64.md).
-Native UI, Intel runtime, signing, packaging, and update validation remain outstanding.
+Native Intel hardware, signing, packaging, and update validation remain outstanding.
 The local Mac passes storage and toolchain preflight. Xcode 27.2/27B52 and SDK
 27.2 are pinned for an experimental development build after Chromium source review.
 The owner requires no additional CI spend: use this Mac as a self-hosted GitHub
@@ -28,10 +28,13 @@ public browser releases, services deployment, and recurring browser builds are
 not enabled. Targets are macOS arm64 and x86_64. Website status is recorded in
 [the website runbook](agent-docs/project/website.md).
 
-The Chromium 158 forward port has passed the full arm64 build and headless/headed
-smoke checks, including internal Lune artwork. Intel compilation is in progress;
-the main lock still pins the earlier 157 candidate. Native inspection found a
-command-bar internal-URL classification issue. See
+The development lock now targets Chromium 158.0.8127.18 with the reviewed
+ungoogled/Helium forward port and Xelium UI stack. Both architectures build;
+arm64 headless/headed and Intel-under-Rosetta smoke checks pass, including Lune
+artwork, defaults, settings, and French/German upstream attribution. Permanent
+`inputs/chromium-158-1/{helium,macos}` tags retain the inputs. Focused native arm64
+inspection passed with the inherited command-bar internal-URL limitation recorded.
+These are development builds, not signed/notarized releases. See
 [the port evidence](agent-docs/project/builds/2026-11-05-chromium-158-port.md).
 
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).

@@ -56,8 +56,9 @@ asset catalogs, and compares the loaded About, welcome, and services assets
 against the exact component inputs. PNG EXIF removal is permitted; image and
 color data must match. This avoids fingerprinting noise from canvas readback.
 For an integration candidate, supply `--platform-commit` with its full macOS
-component SHA. Source coverage, the full Chromium 158 arm64 build, and headless
-runtime checks have passed. The older 157 diagnostic app does not contain this fix.
+component SHA. Source coverage, both Chromium 158 builds, arm64 headless/headed,
+and Intel-under-Rosetta runtime checks have passed. The older 157 diagnostic app
+does not contain this fix.
 
 
 Name substitution must preserve upstream credits in translated strings as well
