@@ -239,7 +239,7 @@
  #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
  
 +  // This is Google sign-in metadata, not the device's Sync cache GUID.
-+  if (private_sync_prefs::IsConfigured(*profile_->GetPrefs())) {
++  if (browser_sync::private_sync_prefs::IsConfigured(*profile_->GetPrefs())) {
 +    return {};
 +  }
    return GetSigninScopedDeviceIdForProfile(profile_);
