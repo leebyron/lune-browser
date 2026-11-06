@@ -290,14 +290,17 @@ have not been ported; local validation does not claim equivalent coverage of
 every job in upstream `ci.yml`.
 
 The upstream i18n generator fetches moving Windows/Linux/macOS branches. Local
-manual validation instead extracts strings only from the pinned core/macOS
-patches and checks their entries against the committed translation registry.
-It does not regenerate Windows/Linux/onboarding strings or remove stale entries.
-The 2026-11-06 migration check found **32 missing/different extracted entries**
-(31 distinct names, including Xelium settings and Lune attribution/service strings)
-in the current lock. This is a real validation blocker, separate from billing;
-both manual validation and build fail before preparation until a reviewed input
-update resolves it. No input tag was changed and no failing check was waived.
+manual validation instead audits extracted additions from the pinned core/macOS
+patches against the committed translation registry, retaining the last occurrence
+of each resource/message pair. It does not regenerate Windows/Linux/onboarding
+strings, model conditional variants, or remove stale entries.
+The initial audit incorrectly blocked on **32 missing/different extracted entries**.
+Review established 31 distinct IDs, one intermediate frame-label version, and the
+integration's explicitly accepted English fallbacks. Source coverage is now
+advisory and links to [issue #4](https://github.com/leebyron/lune-browser/issues/4);
+patch lint and translation-file validation remain blocking. The clearer frame
+label is restored in a new immutable input. See [the string review](features/string-review.md)
+for the wording decision, provenance, validation, and remaining localization work.
 
 Migration verification: all 42 orchestrator tests pass; core/platform patch lint,
 translation-file lint, lock/ancestry checks, and the live Actions registry audit

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "b3a4ba00f2e7de5427fa0e2034890de2edc526ec",
+    "commit": "5d9c3fc7e710515d3dcf184b9970f3693cb5ae4b",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -193,6 +193,10 @@
       {
         "path": "patches/helium/ui/native-floating-address-bar.patch",
         "sha256": "c4442a9a59f544f9751bbf6c7f4b84a897bdbe01eed9ad246ec0c02af9d5e2ce"
+      },
+      {
+        "path": "patches/helium/ui/frame-thickness-label.patch",
+        "sha256": "d7f6efdabe3819ad607e27e50210827fb5452f917b827120556db2965a4d8488"
       }
     ]
   },
@@ -413,6 +417,18 @@
       "review_status": "reviewed-port",
       "rationale": "Use public AppKit glass for an overlaid address capsule with a 700 ms departure cooldown.",
       "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits."
+    },
+    {
+      "id": "frame-thickness-label",
+      "depends_on": [
+        "xelium-support"
+      ],
+      "patches": [
+        "patches/helium/ui/frame-thickness-label.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Restore the explicit restart explanation without changing the frame control or restart behavior.",
+      "adaptation": "Text-only quilt restoration in 5d9c3fc7e710515d3dcf184b9970f3693cb5ae4b; source replay and XML comparison recorded in agent-docs/project/features/string-review.md. Remaining localization is tracked in GitHub issue #4."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."

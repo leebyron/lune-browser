@@ -64,6 +64,12 @@ inspected during implementation. Final pointer/reentry and theme acceptance rema
 pending after macOS locked; see [the feature evidence](agent-docs/project/features/floating-address-bar.md).
 This is not in published builds 1 or 2 and is not release-accepted.
 
+The current development macOS input adds a text-only frame-thickness label
+restoration under `inputs/frame-label-1/macos`. Patch replay and XML checks pass;
+it has not been rebuilt. Source-string coverage is advisory while accepted English
+fallbacks are reconciled in GitHub issue #4. See
+[the string review](agent-docs/project/features/string-review.md).
+
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
 never downgrade Chromium to satisfy optional UI patches. Discovery reports stable lag.
