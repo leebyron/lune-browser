@@ -49,7 +49,7 @@
    return transform;
  }
  
-@@ -112,18 +114,18 @@ ToastView::ToastView(
+@@ -112,18 +114,18 @@
      std::optional<ui::ImageModel> image_override,
      bool render_toast_over_web_contents,
      base::RepeatingCallback<void(ToastCloseReason)> toast_close_callback)
@@ -73,7 +73,7 @@
    SetProperty(views::kElementIdentifierKey, kToastElementId);
    set_close_on_deactivate(false);
    SetProperty(views::kElementIdentifierKey, kToastViewId);
-@@ -136,17 +138,17 @@ ToastView::ToastView(
+@@ -136,17 +138,17 @@
      const std::u16string& toast_text,
      bool render_toast_over_web_contents,
      base::RepeatingCallback<void(ToastCloseReason)> toast_close_callback)
@@ -96,7 +96,7 @@
    SetProperty(views::kElementIdentifierKey, kToastElementId);
    set_close_on_deactivate(false);
    SetProperty(views::kElementIdentifierKey, kToastViewId);
-@@ -191,6 +193,14 @@ int ToastView::GetIconSize() {
+@@ -191,6 +193,14 @@
    return lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_ICON_SIZE);
  }
  
@@ -111,7 +111,7 @@
  void ToastView::Init() {
    ChromeLayoutProvider* lp = ChromeLayoutProvider::Get();
  
-@@ -202,7 +212,7 @@ void ToastView::Init() {
+@@ -202,7 +212,7 @@
      CHECK(!icon_);
      CHECK(!image_override_.has_value());
      auto throbber = std::make_unique<views::Throbber>(GetIconSize());
@@ -120,7 +120,7 @@
      throbber->Start();
      throbber_ = AddChildView(std::move(throbber));
      throbber_->SetProperty(
-@@ -224,13 +234,13 @@ void ToastView::Init() {
+@@ -224,13 +234,13 @@
      } else {
        CHECK(icon_);
        icon_view_->SetImage(ui::ImageModel::FromVectorIcon(
@@ -136,7 +136,7 @@
    label_->SetMultiLine(false);
    label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
    label_->SetAllowCharacterBreak(false);
-@@ -254,9 +264,9 @@ void ToastView::Init() {
+@@ -254,9 +264,9 @@
              base::BindRepeating(&ToastView::Close, base::Unretained(this),
                                  ToastCloseReason::kActionButton)),
          action_button_text_));
@@ -149,7 +149,7 @@
      action_button_->SetPreferredSize(gfx::Size(
          action_button_->GetPreferredSize().width(),
          lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_HEIGHT_ACTION_BUTTON)));
-@@ -284,8 +294,8 @@ void ToastView::Init() {
+@@ -284,8 +294,8 @@
              ? vector_icons::kCloseIcon
              : vector_icons::kCloseChromeRefreshOldIcon,
          lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_ICON_SIZE),
@@ -160,7 +160,7 @@
      // Override the image button's border with the appropriate icon border size.
      const gfx::Insets insets =
          lp->GetInsetsMetric(views::InsetsMetric::INSETS_VECTOR_IMAGE_BUTTON);
-@@ -314,8 +324,8 @@ void ToastView::Init() {
+@@ -314,8 +324,8 @@
                                            : kBrowserToolsChromeRefreshOldIcon,
          /*dip_size=*/
          lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_MENU_ICON_SIZE),
@@ -171,15 +171,16 @@
      views::InstallCircleHighlightPathGenerator(menu_button_);
      menu_button_->SetProperty(views::kElementIdentifierKey, kToastMenuButton);
      menu_button_->SetButtonController(
-@@ -374,12 +384,11 @@ void ToastView::Init() {
+@@ -374,13 +384,11 @@
    }
  }
  
 -void ToastView::AnimationProgressed(const gfx::Animation* animation) {
 -  const double value = gfx::Tween::CalculateValue(
 -      height_animation_tween_, height_animation_.GetCurrentValue());
--  const gfx::Rect current_bounds = gfx::Tween::RectValueBetween(
--      value, starting_widget_bounds_, target_widget_bounds_);
+-  gfx::Rect current_bounds = GetDesiredWidgetBounds();
+-  current_bounds.Offset(0, gfx::Tween::IntValueBetween(
+-                               value, starting_y_offset_, target_y_offset_));
 -  GetWidget()->SetBounds(current_bounds);
 +void ToastView::OnBeforeBubbleWidgetInit(
 +    views::Widget::InitParams* params,
@@ -189,13 +190,12 @@
  }
  
  void ToastView::AnimateIn() {
-@@ -387,13 +396,6 @@ void ToastView::AnimateIn() {
+@@ -388,12 +396,6 @@
      return;
    }
  
--  target_widget_bounds_ = GetWidget()->GetWindowBoundsInScreen();
--  starting_widget_bounds_ =
--      target_widget_bounds_ - gfx::Vector2d{0, kAnimationHeightOffset};
+-  starting_y_offset_ = -kAnimationHeightOffset;
+-  target_y_offset_ = 0;
 -  height_animation_tween_ = gfx::Tween::ACCEL_5_70_DECEL_90;
 -  height_animation_.SetDuration(base::Milliseconds(kAnimationEntryDuration));
 -  height_animation_.Start();
@@ -203,7 +203,7 @@
    views::View* const bubble_frame_view = GetBubbleFrameView();
    bubble_frame_view->SetPaintToLayer();
    bubble_frame_view->layer()->SetFillsBoundsOpaquely(false);
-@@ -401,13 +403,13 @@ void ToastView::AnimateIn() {
+@@ -401,13 +403,13 @@
        GetScaleTransformation(bubble_frame_view->bounds()));
    bubble_frame_view->layer()->SetOpacity(0);
    GetDialogClientView()->SetBackground(
@@ -219,7 +219,7 @@
        .At(base::TimeDelta())
        .SetDuration(base::Milliseconds(50))
        .SetOpacity(bubble_frame_view, 1)
-@@ -449,7 +451,7 @@ void ToastView::Close(ToastCloseReason r
+@@ -449,7 +451,7 @@
  }
  
  void ToastView::UpdateRenderToastOverWebContentsAndPaint(
@@ -228,7 +228,7 @@
    render_toast_over_web_contents_ = render_toast_over_web_contents;
    SizeToContents();
  }
-@@ -465,24 +467,23 @@ gfx::Rect ToastView::GetBubbleBounds() {
+@@ -465,24 +467,23 @@
    const gfx::Rect anchor_bounds = anchor_view->GetBoundsInScreen();
    const gfx::Rect anchor_widget_bounds =
        anchor_view->GetWidget()->GetWindowBoundsInScreen();
@@ -265,13 +265,12 @@
    return gfx::Rect(x, y, width, preferred_size.height());
  }
  
-@@ -500,19 +501,12 @@ void ToastView::AnimateOut(base::OnceClo
+@@ -500,18 +501,12 @@
    }
  
    if (show_height_animation) {
--    starting_widget_bounds_ = GetWidget()->GetWindowBoundsInScreen();
--    target_widget_bounds_ =
--        starting_widget_bounds_ - gfx::Vector2d{0, kAnimationHeightOffset};
+-    starting_y_offset_ = 0;
+-    target_y_offset_ = -kAnimationHeightOffset;
 -    height_animation_tween_ = gfx::Tween::ACCEL_30_DECEL_20_85;
 -    height_animation_.SetDuration(base::Milliseconds(kAnimationExitDuration));
 -    height_animation_.Start();
@@ -288,7 +287,7 @@
    views::AnimationBuilder()
 --- a/chrome/browser/ui/views/chrome_layout_provider.cc
 +++ b/chrome/browser/ui/views/chrome_layout_provider.cc
-@@ -201,31 +201,32 @@ int ChromeLayoutProvider::GetDistanceMet
+@@ -202,31 +202,32 @@
      case DISTANCE_TASK_MANAGER_TAB_HEIGHT:
        return 54;
      case DISTANCE_TOAST_BUBBLE_BETWEEN_CHILD_SPACING:
@@ -354,7 +353,7 @@
  #include "ui/views/views_features.h"
  #endif
  
-@@ -274,16 +271,19 @@ void ToastController::UpdateToastWidgetV
+@@ -274,16 +271,19 @@
  }
  
  bool ToastController::ShouldRenderToastOverWebContents() {
@@ -384,7 +383,7 @@
  }
  
  void ToastController::WebContentsDestroyed() {
-@@ -391,10 +391,6 @@ void ToastController::CreateToast(ToastP
+@@ -391,10 +391,6 @@
    toast_view_ = toast_view.get();
    toast_widget_ =
        views::BubbleDialogDelegateView::CreateBubble(std::move(toast_view));
@@ -397,7 +396,7 @@
        ExclusiveAccessManager::From(browser_window_interface_)
 --- a/chrome/browser/ui/toasts/toast_view.h
 +++ b/chrome/browser/ui/toasts/toast_view.h
-@@ -21,6 +21,7 @@ class MenuModel;
+@@ -21,6 +21,7 @@
  }  // namespace ui
  
  namespace views {
@@ -405,7 +404,7 @@
  class ImageButton;
  class ImageView;
  class Label;
-@@ -48,8 +49,7 @@ enum class ToastCloseReason {
+@@ -48,8 +49,7 @@
  // LINT.ThenChange(//tools/metrics/histograms/metadata/toasts/enums.xml:ToastCloseReason)
  
  // The view for toasts.
@@ -415,7 +414,7 @@
    METADATA_HEADER(ToastView, views::BubbleDialogDelegateView)
  
   public:
-@@ -62,7 +62,7 @@ class ToastView : public views::BubbleDi
+@@ -62,7 +62,7 @@
        const std::u16string& toast_text,
        const gfx::VectorIcon& icon,
        std::optional<ui::ImageModel> image_override,
@@ -424,7 +423,7 @@
        base::RepeatingCallback<void(ToastCloseReason)> on_toast_close_callback);
    ToastView(
        views::View* anchor_view,
-@@ -92,11 +92,13 @@ class ToastView : public views::BubbleDi
+@@ -92,11 +92,13 @@
    // views::BubbleDialogDelegateView::CreateBubble).
    void AddThrobber();
  
@@ -441,7 +440,7 @@
  
    void AnimateIn();
  
-@@ -104,7 +106,7 @@ class ToastView : public views::BubbleDi
+@@ -104,7 +106,7 @@
    void Close(ToastCloseReason close_reason);
  
    void UpdateRenderToastOverWebContentsAndPaint(
@@ -450,15 +449,82 @@
  
    views::Label* label_for_testing() { return label_; }
    views::MdTextButton* action_button_for_testing() { return action_button_; }
-@@ -135,11 +137,6 @@ class ToastView : public views::BubbleDi
+@@ -117,9 +119,6 @@
+   }
+   views::ImageView* icon_view_for_testing() { return icon_view_; }
+   views::Throbber* throbber_for_testing() { return throbber_; }
+-  gfx::LinearAnimation& height_animation_for_testing() {
+-    return height_animation_;
+-  }
+ 
+   // Gets the icon/image size from the layout provider.
+   static int GetIconSize();
+@@ -138,15 +137,6 @@
    // Resets `menu_runner_` and removes the highlight from the menu button.
    void OnMenuClosed();
  
 -  gfx::LinearAnimation height_animation_{this};
--  gfx::Rect starting_widget_bounds_;
--  gfx::Rect target_widget_bounds_;
+-  // Vertical offsets, relative to the toast's desired bounds, between which
+-  // `height_animation_` interpolates. Offsets are used instead of absolute
+-  // screen bounds so the toast follows the browser window if it moves while
+-  // the animation is running (e.g. while the window is restored at startup).
+-  int starting_y_offset_ = 0;
+-  int target_y_offset_ = 0;
 -  gfx::Tween::Type height_animation_tween_;
 -
    const std::u16string toast_text_;
    const raw_ptr<const gfx::VectorIcon> icon_ = nullptr;
    const std::optional<ui::ImageModel> image_override_;
+--- a/chrome/browser/ui/toasts/toast_view_browsertest.cc
++++ b/chrome/browser/ui/toasts/toast_view_browsertest.cc
+@@ -7,7 +7,6 @@
+ #include <memory>
+ 
+ #include "base/functional/callback_helpers.h"
+-#include "base/time/time.h"
+ #include "chrome/browser/ui/test/test_browser_dialog.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+@@ -17,6 +16,8 @@
+ #include "testing/gtest/include/gtest/gtest.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/ui_base_features.h"
++#include "ui/compositor/layer.h"
++#include "ui/compositor/layer_animator.h"
+ #include "ui/gfx/animation/animation_test_api.h"
+ #include "ui/gfx/image/image_unittest_util.h"
+ #include "ui/gfx/scoped_animation_duration_scale_mode.h"
+@@ -171,8 +172,7 @@
+   ShowUi("");
+   const views::View* bubble = toast()->GetBubbleFrameView();
+   const int expected_margin = ChromeLayoutProvider::Get()->GetDistanceMetric(
+-                                  DISTANCE_TOAST_BUBBLE_BROWSER_WINDOW_MARGIN) -
+-                              views::BubbleBorder::kShadowBlur;
++                                  DISTANCE_TOAST_BUBBLE_BROWSER_WINDOW_MARGIN);
+   EXPECT_GT(bubble->GetPreferredSize().width(), bubble->width());
+   EXPECT_EQ(bubble->GetBoundsInScreen().x(),
+             anchor_view()->GetWidget()->GetWindowBoundsInScreen().x() +
+@@ -193,8 +193,9 @@
+       gfx::ScopedAnimationDurationScaleMode::NORMAL_DURATION);
+   ShowUi("");
+   toast()->AnimateIn();
+-  gfx::LinearAnimation& animation = toast()->height_animation_for_testing();
+-  ASSERT_TRUE(animation.is_animating());
++  ui::LayerAnimator* animator =
++      toast()->GetBubbleFrameView()->layer()->GetAnimator();
++  ASSERT_TRUE(animator->is_animating());
+ 
+   // Move the browser window mid-animation.
+   views::Widget* const browser_widget = anchor_view()->GetWidget();
+@@ -204,9 +205,8 @@
+ 
+   // Synchronously finish the animation, without spinning the message loop, so
+   // that no later bounds-changed events can mask the result.
+-  gfx::AnimationTestApi(&animation)
+-      .Step(base::TimeTicks::Now() + base::Seconds(10));
+-  ASSERT_FALSE(animation.is_animating());
++  animator->StopAnimating();
++  ASSERT_FALSE(animator->is_animating());
+ 
+   EXPECT_EQ(toast()->GetDesiredWidgetBounds(),
+             toast()->GetWidget()->GetWindowBoundsInScreen());
