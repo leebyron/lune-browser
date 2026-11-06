@@ -122,3 +122,18 @@ credits, and all 80 generated onboarding strings. They do not replace native
 behavior checks: sidebar layout/pinning, Cmd+T/L, Ctrl+Tab with thumbnails and
 list mode, link peek opt-in, new-profile onboarding, About links, app icon, and
 profile isolation must be exercised on the built app on both architectures.
+
+After compilation finishes, run the isolated arm64 smoke test against that output:
+
+```sh
+python3 scripts/smoke-browser.py .work/ui-build-src/out/Default \
+  --ui --report out/validation/xelium-ui-smoke.json
+```
+
+The optional `--ui` checks exercise packaged About/onboarding credits, search
+recommendations, registered defaults, and the pinned app icon. They disable
+services in the disposable profile before navigating onboarding and block external
+DNS resolution. `--headed` shows the test window; neither mode automates native
+sidebar/keyboard interaction checks. The extended runner's original browsing and
+persistence checks passed against the preserved first app; the new WebUI checks
+remain pending until this candidate finishes compiling.
