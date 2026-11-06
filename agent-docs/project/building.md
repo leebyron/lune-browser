@@ -303,6 +303,9 @@ Migration verification: all 42 orchestrator tests pass; core/platform patch lint
 translation-file lint, lock/ancestry checks, and the live Actions registry audit
 pass. The queued [setup run](https://github.com/leebyron/lune-browser/actions/runs/42279065148)
 was executed successfully on `lune-mac-mini` with the existing workflow. The new
+workflow then [passed on the same Mac](https://github.com/leebyron/lune-browser/actions/runs/42281035175)
+at commit `acda24dab34ca6b6bbcf8de3abd073ee6cb50388`, including the live registry
+audit, all 42 tests, fresh recursive checkout, and core/platform input lint. The
 manual validation path was checked through its early input failure; no fresh
 Chromium preparation or build was run for this CI change.
 
