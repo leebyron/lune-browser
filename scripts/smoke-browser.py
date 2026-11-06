@@ -427,6 +427,14 @@ def main():
                     if actual_version != expected_version:
                         raise RuntimeError(f'Expected Chromium {expected_version} browser, got {actual_version}.')
                     request('POST', path + '/url', {'url': f'http://127.0.0.1:{server.server_port}/{phase}'})
+                    # A first-run component can open New Tab during startup.
+                    # Require our fixture to become the active page before reading it.
+                    for attempt in range(30):
+                        if request('GET', path + '/title') == 'Lune build smoke':
+                            break
+                        time.sleep(0.5)
+                        if attempt % 4 == 3:
+                            request('POST', path + '/url', {'url': f'http://127.0.0.1:{server.server_port}/{phase}'})
                     title = request('GET', path + '/title')
                     result = request('POST', path + '/execute/sync', {
                         'script': "return {runtime:document.body.dataset.runtime,stored:localStorage.getItem('lune-smoke')};", 'args': []})

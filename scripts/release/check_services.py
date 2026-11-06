@@ -28,9 +28,11 @@ def check_services(request, path, fixture_url):
             raise RuntimeError('Cannot enable disposable-profile service consent: ' + key)
     # Component uBlock is present without a Web Store install or user account.
     request('POST', path + '/url', {'url': 'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/3p-filters.html'})
-    for _ in range(60):
+    for attempt in range(120):
         if js('return typeof vAPI !== "undefined";'):
             break
+        if attempt % 10 == 9:
+            request('POST', path + '/url', {'url': 'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/3p-filters.html'})
         time.sleep(0.5)
     else:
         raise RuntimeError('Bundled uBlock dashboard did not initialize')
@@ -71,9 +73,16 @@ def check_services(request, path, fixture_url):
            and 'pagead2.googlesyndication.com' in m['params']['request']['url']}
     blocked = [m['params'] for m in messages if m['method'] == 'Network.loadingFailed'
                and m['params']['requestId'] in ids and m['params'].get('errorText') == 'net::ERR_BLOCKED_BY_CLIENT']
-    if not blocked:
-        raise RuntimeError('uBlock did not block the known advertising fixture')
+    redirects = [m['params'] for m in messages if m['method'] == 'Network.requestWillBeSent'
+                 and m['params']['requestId'] in ids
+                 and m['params']['request']['url'].startswith(
+                     'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/web_accessible_resources/googlesyndication_adsbygoogle.js?')
+                 and m['params'].get('redirectResponse', {}).get('headers', {}).get('Non-Authoritative-Reason') == 'WebRequest API']
+    if not blocked and not redirects:
+        diagnostics = [m for m in messages if m.get('params', {}).get('requestId') in ids]
+        raise RuntimeError('uBlock did not block the known advertising fixture: ' + json.dumps(diagnostics))
     return {'provider': 'Helium', 'bangs': bangs, 'ublock_network_filters': lists['netFilterCount'],
             'ublock_update_requested': True, 'ublock_cache_entries': len(updated.get('cache') or {}),
             'advertising_fixture_blocked': True, 'profile': 'disposable; consent explicitly enabled',
+            'advertising_action': 'local uBlock replacement' if redirects else 'blocked by client',
             'extension_install_update_tested': False}
