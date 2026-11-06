@@ -114,7 +114,12 @@ No recurring browser build or automatic public promotion is enabled by this work
 
 The signed arm64 candidate passes runtime/settings/artwork and French/German
 attribution checks. The signed Intel candidate passes the main runtime smoke
-under Rosetta; live-service and installed-update checks are still under investigation.
+under Rosetta. Its installed build-1 to build-2 update also passes, including
+relaunch, profile persistence, and post-install signature/Gatekeeper checks.
+An initial concurrent updater test stalled; the isolated sequential run passed.
+Run browser acceptance checks sequentially because Sparkle also uses per-bundle
+macOS preferences/cache/installer state outside Chromium profiles. Intel live-service
+and localized signed-app checks remain in progress.
 The arm64 live-service check fetched 10,730 valid bangs and loaded 676,593 uBlock
 network filters. The advertising fixture was replaced with uBlock's local stub.
 A Web Store extension installation/update has not yet been accepted.
