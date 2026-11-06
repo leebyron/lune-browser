@@ -1,6 +1,6 @@
 --- a/ui/views/style/platform_style.h
 +++ b/ui/views/style/platform_style.h
-@@ -70,7 +70,7 @@ class VIEWS_EXPORT PlatformStyle {
+@@ -70,7 +70,7 @@
    static constexpr bool kTreeViewSelectionPaintsEntireRow = BUILDFLAG(IS_MAC);
  
    // Whether ripples should be used for visual feedback on control activation.
@@ -11,7 +11,7 @@
    // dragging but available to do so.
 --- a/ui/webui/resources/cr_elements/cr_ripple/cr_ripple_mixin.ts
 +++ b/ui/webui/resources/cr_elements/cr_ripple/cr_ripple_mixin.ts
-@@ -31,7 +31,7 @@ export const CrRippleMixin =
+@@ -31,7 +31,7 @@
            };
          }
  
@@ -20,20 +20,9 @@
          rippleContainer: HTMLElement|null = null;
  
          private ripple_: CrRippleElement|null = null;
---- a/ui/webui/resources/cr_elements/cr_ripple/cr_ripple_mixin_polymer.ts
-+++ b/ui/webui/resources/cr_elements/cr_ripple/cr_ripple_mixin_polymer.ts
-@@ -31,7 +31,7 @@ export const CrRippleMixinPolymer =
-             noink: {
-               type: Boolean,
-               observer: 'onNoinkChanged_',
--              value: false,
-+              value: true,
-             },
-           };
-         }
 --- a/ui/webui/resources/cr_elements/cr_ripple/cr_ripple.ts
 +++ b/ui/webui/resources/cr_elements/cr_ripple/cr_ripple.ts
-@@ -38,7 +38,7 @@ export class CrRippleElement extends CrL
+@@ -38,7 +38,7 @@
  
    accessor holdDown: boolean = false;
    accessor recenters: boolean = false;

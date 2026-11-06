@@ -1,14 +1,14 @@
 --- a/chrome/browser/ui/page_info/chrome_page_info_ui_delegate.cc
 +++ b/chrome/browser/ui/page_info/chrome_page_info_ui_delegate.cc
-@@ -20,6 +20,7 @@
+@@ -19,6 +19,7 @@
  #include "chrome/browser/ui/ui_features.h"
  #include "chrome/common/chrome_features.h"
  #include "chrome/common/pref_names.h"
 +#include "chrome/common/webui_url_constants.h"
  #include "components/content_settings/core/common/content_settings_types.h"
- #include "components/content_settings/core/common/features.h"
  #include "components/page_info/core/about_this_site_service.h"
-@@ -200,6 +201,12 @@ void ChromePageInfoUiDelegate::ShowPriva
+ #include "components/page_info/core/features.h"
+@@ -198,6 +199,12 @@
    chrome::ShowPrivacySandboxSettings(browser);
  }
  
@@ -23,7 +23,7 @@
    switch (type) {
 --- a/chrome/browser/ui/page_info/chrome_page_info_ui_delegate.h
 +++ b/chrome/browser/ui/page_info/chrome_page_info_ui_delegate.h
-@@ -76,6 +76,9 @@ class ChromePageInfoUiDelegate : public
+@@ -76,6 +76,9 @@
    // Opens Privacy Sandbox settings page.
    void ShowPrivacySandboxSettings();
  
@@ -35,7 +35,7 @@
    bool IsMultipleTabsOpen() override;
 --- a/components/page_info/page_info.cc
 +++ b/components/page_info/page_info.cc
-@@ -857,6 +857,10 @@ void PageInfo::OnSitePermissionChanged(
+@@ -857,6 +857,10 @@
    PresentSitePermissions();
  }
  
@@ -48,7 +48,7 @@
    permissions::ObjectPermissionContextBase* context =
 --- a/components/page_info/page_info.h
 +++ b/components/page_info/page_info.h
-@@ -213,6 +213,10 @@ class PageInfo : private content_setting
+@@ -213,6 +213,10 @@
                                 std::optional<url::Origin> requesting_origin,
                                 bool is_one_time);
  
@@ -416,7 +416,7 @@
 +CLOSE
 --- a/chrome/browser/ui/views/page_info/BUILD.gn
 +++ b/chrome/browser/ui/views/page_info/BUILD.gn
-@@ -20,6 +20,7 @@ source_set("page_info") {
+@@ -20,6 +20,7 @@
      "page_info_merchant_trust_controller.h",
      "page_info_merchant_trust_coordinator.h",
      "page_info_navigation_handler.h",
@@ -424,7 +424,7 @@
      "page_info_permission_content_view.h",
      "page_info_security_content_view.h",
      "page_info_view_factory.h",
-@@ -69,6 +70,7 @@ source_set("impl") {
+@@ -70,6 +71,7 @@
      "page_info_merchant_trust_content_view.cc",
      "page_info_merchant_trust_controller.cc",
      "page_info_merchant_trust_coordinator.cc",
@@ -434,7 +434,7 @@
      "page_info_view_factory.cc",
 --- a/components/vector_icons/BUILD.gn
 +++ b/components/vector_icons/BUILD.gn
-@@ -418,6 +418,8 @@ if (current_toolchain == default_toolcha
+@@ -418,6 +418,8 @@
        "settings_old.icon",
        "settings_outline_old.icon",
        "shield.icon",
@@ -445,7 +445,7 @@
        "shopping_bag_old.icon",
 --- a/chrome/browser/ui/views/page_info/page_info_view_factory.cc
 +++ b/chrome/browser/ui/views/page_info/page_info_view_factory.cc
-@@ -19,6 +19,7 @@
+@@ -18,6 +18,7 @@
  #include "chrome/browser/ui/views/page_info/page_info_main_view.h"
  #include "chrome/browser/ui/views/page_info/page_info_merchant_trust_content_view.h"
  #include "chrome/browser/ui/views/page_info/page_info_navigation_handler.h"
@@ -453,7 +453,7 @@
  #include "chrome/browser/ui/views/page_info/page_info_permission_content_view.h"
  #include "chrome/browser/ui/views/page_info/page_info_security_content_view.h"
  #include "components/content_settings/core/browser/permission_settings_registry.h"
-@@ -179,6 +180,14 @@ std::unique_ptr<views::View> PageInfoVie
+@@ -177,6 +178,14 @@
        std::make_unique<PageInfoCookiesContentView>(presenter_));
  }
  
@@ -468,7 +468,7 @@
  std::unique_ptr<views::View>
  PageInfoViewFactory::CreateMerchantTrustPageView() {
    return std::make_unique<PageInfoSubpageView>(
-@@ -897,6 +906,12 @@ const ui::ImageModel PageInfoViewFactory
+@@ -895,6 +904,12 @@
  }
  
  // static
@@ -483,7 +483,7 @@
    // features::IsRoundedIconsEnabled() ? vector_icons::kArrowRightFlippableIcon
 --- a/chrome/browser/ui/views/page_info/page_info_view_factory.h
 +++ b/chrome/browser/ui/views/page_info/page_info_view_factory.h
-@@ -45,6 +45,7 @@ class PageInfoViewFactory {
+@@ -45,6 +45,7 @@
      VIEW_ID_PAGE_INFO_BLOCK_THIRD_PARTY_COOKIES_SUBTITLE,
      VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_COOKIE_DIALOG,
      VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_COOKIES_SUBPAGE,
@@ -491,7 +491,7 @@
      VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_PRIVACY_SITE_DATA_SUBPAGE,
      VIEW_ID_PAGE_INFO_COOKIES_DESCRIPTION_LABEL,
      VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_RWS_SETTINGS,
-@@ -82,6 +83,7 @@ class PageInfoViewFactory {
+@@ -82,6 +83,7 @@
      VIEW_ID_PAGE_INFO_SUSPICIOUS_SITE_BACK_TO_SAFETY_BUTTON,
      VIEW_ID_PAGE_INFO_ONE_QWAC_INFORMATION,
      VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_TWO_QWAC_CERTIFICATE_VIEWER,
@@ -499,7 +499,7 @@
    };
  
    // Creates a separator view with padding on top and bottom. Use with flex
-@@ -123,6 +125,9 @@ class PageInfoViewFactory {
+@@ -123,6 +125,9 @@
    // Returns the icon for the secure connection button.
    static const ui::ImageModel GetConnectionSecureIcon();
  
@@ -509,7 +509,7 @@
    // Returns the icon for a button which opens a subpage within page info.
    static const ui::ImageModel GetOpenSubpageIcon();
  
-@@ -142,6 +147,7 @@ class PageInfoViewFactory {
+@@ -139,6 +144,7 @@
        ContentSettingsType type,
        content::WebContents* web_contents);
    [[nodiscard]] std::unique_ptr<views::View> CreateCookiesPageView();
@@ -519,7 +519,7 @@
   private:
 --- a/chrome/browser/ui/views/page_info/page_info_navigation_handler.h
 +++ b/chrome/browser/ui/views/page_info/page_info_navigation_handler.h
-@@ -19,6 +19,7 @@ class PageInfoNavigationHandler {
+@@ -19,6 +19,7 @@
    virtual void OpenSecurityPage() = 0;
    virtual void OpenPermissionPage(ContentSettingsType type) = 0;
    virtual void OpenCookiesPage() = 0;
@@ -529,7 +529,7 @@
  };
 --- a/chrome/browser/ui/views/page_info/page_info_bubble_view.cc
 +++ b/chrome/browser/ui/views/page_info/page_info_bubble_view.cc
-@@ -314,6 +314,15 @@ void PageInfoBubbleView::OpenCookiesPage
+@@ -314,6 +314,15 @@
    AnnouncePageOpened(l10n_util::GetStringUTF16(IDS_PAGE_INFO_COOKIES));
  }
  
@@ -547,7 +547,7 @@
    auto title = l10n_util::GetStringUTF16(IDS_PAGE_INFO_MERCHANT_TRUST_HEADER);
 --- a/chrome/browser/ui/views/page_info/page_info_bubble_view.h
 +++ b/chrome/browser/ui/views/page_info/page_info_bubble_view.h
-@@ -45,6 +45,7 @@ class PageInfoBubbleView : public PageIn
+@@ -45,6 +45,7 @@
    void OpenSecurityPage() override;
    void OpenPermissionPage(ContentSettingsType type) override;
    void OpenCookiesPage() override;
@@ -557,7 +557,7 @@
  
 --- a/chrome/browser/ui/views/page_info/page_info_main_view.cc
 +++ b/chrome/browser/ui/views/page_info/page_info_main_view.cc
-@@ -12,6 +12,7 @@
+@@ -11,6 +11,7 @@
  #include "base/strings/utf_string_conversions.h"
  #include "build/build_config.h"
  #include "chrome/browser/browser_process.h"
@@ -573,7 +573,7 @@
  #include "ui/base/l10n/l10n_util.h"
  #include "ui/base/metadata/metadata_impl_macros.h"
  #include "ui/base/models/image_model.h"
-@@ -171,6 +173,7 @@ PageInfoMainView::PageInfoMainView(
+@@ -171,6 +173,7 @@
  #endif
  
    security_container_view_ = AddChildView(CreateContainerView());
@@ -581,7 +581,7 @@
  
    permissions_view_ = AddChildView(std::make_unique<views::View>());
    permissions_view_->SetLayoutManager(std::make_unique<views::FlexLayout>())
-@@ -292,6 +295,39 @@ void PageInfoMainView::OnSeeExtensionsCl
+@@ -292,6 +295,39 @@
    }
  }
  
@@ -623,7 +623,7 @@
      ChosenObjectInfoList chosen_object_info_list) {
 --- a/chrome/browser/ui/views/page_info/page_info_main_view.h
 +++ b/chrome/browser/ui/views/page_info/page_info_main_view.h
-@@ -138,6 +138,8 @@ class PageInfoMainView : public views::V
+@@ -138,6 +138,8 @@
    // Handles clicks on the "Extensions" button in the site settings section.
    void OnSeeExtensionsClicked();
  
@@ -632,7 +632,7 @@
    void OnMerchantTrustDataFetched(
        const GURL& url,
        std::optional<page_info::MerchantData> merchant_data);
-@@ -236,6 +238,8 @@ class PageInfoMainView : public views::V
+@@ -236,6 +238,8 @@
  
    raw_ptr<views::View> security_container_view_ = nullptr;
  
