@@ -1,8 +1,8 @@
 # Chromium 158 integration work
 
-Status: source inputs verified and extracted; integration incomplete. This is a
-separate workspace from the completed Chromium 157 UI diagnostic build. No build,
-runtime check, or release validation of 158 has passed yet. The main lock remains
+Status: source preparation and GN generation passed; arm64 compilation started.
+This is separate from the completed Chromium 157 UI diagnostic build. No complete
+build, runtime check, or release validation of 158 has passed yet. The main lock remains
 unchanged until a reviewed candidate is ready.
 
 Target: macOS stable **158.0.8127.18**, Chromium commit
@@ -237,8 +237,8 @@ application. The adaptations preserve:
   intercepted as featureless popup previews.
 
 **All 397 patches apply with zero fuzz.** No series entry was skipped or forced.
-Source substitutions/resources, GN generation, compilation, and runtime checks
-remain outstanding for 158. This is patch-application evidence, not proof that the
+At this checkpoint, source substitutions/resources, GN generation, compilation,
+and runtime checks were outstanding for 158. This is patch-application evidence, not proof that the
 adapted code compiles or all behavior is correct. Component branches are published
 at `integration/chromium-158/{helium,macos}`; they are not release inputs.
 
@@ -269,3 +269,26 @@ Sources: [upstream branches](https://github.com/ungoogled-software/ungoogled-chr
 and [Ahrotahn's major branch](https://github.com/Ahrotahn/ungoogled-chromium/tree/major).
 Prefer reviewing and incorporating an upstream 158 port when one is published;
 retain Lune's independent stable target and full feature scope.
+
+## Source preparation and compilation
+
+Domain/name substitutions, localization, Lune display-name handling, versioning,
+and resource generation subsequently passed. GN initially rejected unconditional
+Chromium 158 OCR test dependencies while Screen AI is disabled by the ungoogled
+configuration. Platform commit `7edc1a7cc9629cd529a9ca34e2aeb8c8dff14def` adds
+`helium/ui/chromium-158-build.patch`, guarding those two test dependencies with
+`enable_screen_ai_service`. The series now has **398 applied patches**.
+
+GN generation passed: **36,640 targets from 5,027 files**. The actual onboarding
+generator passed all **80 messages**, with identical header and TypeScript output
+with and without an XML declaration. The arm64 compilation began against core
+`8996e5399efc7694ffd155ae9e5098eb4450345b` and the platform commit above, using
+Xcode 27.2/27B52 and the pinned 158 toolchain. It runs with ten compile jobs and a
+sanitized environment; Sparkle and special branded entitlements remain disabled.
+No signing or publication is part of this build.
+
+Local evidence: `.work/chromium-158/post-patches.log`, `gn-gen.log`,
+`development-build.json`, and `build.log`. The GN arguments hash is
+`05f104d8ff57cff89116b982222f7b7b99e2ba7587d1d328a116f865370b5de6`.
+Compilation and 158 runtime checks remain incomplete; the main lock still pins
+the earlier development candidate.
