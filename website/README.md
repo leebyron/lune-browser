@@ -40,7 +40,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   content. It stays open until the pointer is more than 48px from the panel's
   outer rectangle (Euclidean distance, including corners), then slides away.
   The floating surface extends 4px beyond the content pane on its top, bottom,
-  and left; tabs and favorites retain equal 8px inner margins in both modes.
+  and left. Floating tabs and favorites have 8px inner margins; the mounted
+  panel reduces its horizontal padding to 4px, producing an effective 8px
+  margin from the window edge and content pane. The floating radius is 13px,
+  concentric with the 18px window radius across its 1px border and 4px inset.
   The rail also supports keyboard focus and tapping; Escape or tapping content
   dismisses it. The toggle pins/unpins the panel; subsequent scrolling resumes
   the illustrated sequence. Reduced motion omits cursor and slide animations.
@@ -49,7 +52,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - The glass address toolbar starts hidden. An 8px top rail reveals it; the full
   58px top area, including gaps and all three capsules, holds it open. It dismisses
   once the pointer is more than 48px from the bar's resting outer rectangle;
-  there is no timer. Reenter the rail to reveal it again. Keyboard focus holds it open,
+  there is no timer. Its width reserves space for either a pinned or visible
+  floating sidebar, independently of the content pane. It expands only after
+  the sidebar finishes sliding away and contracts immediately on reentry, so
+  the panels never overlap. Reenter the rail to reveal it again. Keyboard focus holds it open,
   the rail supports tapping, and Escape/outside taps dismiss it. Closing the
   illustrated app, changing tabs, or deactivating the browser resets it.
 - The default toolbar motion slides down from above in 220ms and back up in
@@ -64,7 +70,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   read-only illustration, while navigation/extension glyphs remain decorative.
 - Mounting/unmounting snaps the content pane width at the click, without a layout
   tween. The window uses one subtle hairline and a soft shadow; the content pane
-  shadow is restrained to avoid a stacked, beveled outline.
+  shadow is horizontally symmetric, offset 1px downward with a 4px blur and
+  restrained opacity in each appearance.
 - The content keeps a stable reading width while the pane expands, preventing
   text reflow from moving the animation's scroll boundaries.
 - Close and minimize return to the desktop. The third control uses the browser's
