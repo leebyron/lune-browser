@@ -1,0 +1,52 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_controller.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_controller.cc
+@@ -586,14 +586,14 @@
+ // Opens |url|, reusing the active tab when it is a blank new tab page.
+ void HeliumCommandBarController::OpenUrl(const GURL& url) {
+   NavigateParams params(browser_, url, ui::PAGE_TRANSITION_TYPED);
+-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
++  params.disposition = WindowOpenDisposition::kNewForegroundTab;
+   // On the new tab page there is nothing to keep: navigate in place
+   // instead of stacking another tab, no matter the Cmd+T/Cmd+L entry.
+   TabStripModel* tab_strip = browser_->GetTabStripModel();
+   content::WebContents* contents =
+       tab_strip ? tab_strip->GetActiveWebContents() : nullptr;
+   if (contents && IsNewTabUrl(contents->GetVisibleURL())) {
+-    params.disposition = WindowOpenDisposition::CURRENT_TAB;
++    params.disposition = WindowOpenDisposition::kCurrentTab;
+   }
+   Navigate(&params);
+ }
+--- a/chrome/browser/ui/helium/helium_link_peek_controller.cc
++++ b/chrome/browser/ui/helium/helium_link_peek_controller.cc
+@@ -111,8 +111,8 @@
+   if (IsShowing() || modifier_held) {
+     return false;
+   }
+-  if (params.disposition != WindowOpenDisposition::NEW_FOREGROUND_TAB &&
+-      params.disposition != WindowOpenDisposition::NEW_WINDOW) {
++  if (params.disposition != WindowOpenDisposition::kNewForegroundTab &&
++      params.disposition != WindowOpenDisposition::kNewWindow) {
+     return false;
+   }
+   if (!browser_->GetProfile()->GetPrefs()->GetBoolean(
+--- a/chrome/browser/ui/navigator/browser_navigator.cc
++++ b/chrome/browser/ui/navigator/browser_navigator.cc
+@@ -225,14 +225,14 @@
+ 
+ bool ShouldShowNewTabToastInZenMode(const NavigateParams& params) {
+   // Only show the toast when a new browser tab is created.
+-  if (params.disposition != WindowOpenDisposition::NEW_FOREGROUND_TAB &&
+-      params.disposition != WindowOpenDisposition::NEW_BACKGROUND_TAB) {
++  if (params.disposition != WindowOpenDisposition::kNewForegroundTab &&
++      params.disposition != WindowOpenDisposition::kNewBackgroundTab) {
+     return false;
+   }
+ 
+   // Show the toast for omnibox navigations that open a background tab.
+   const bool is_background_omnibox_navigation =
+-      params.disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB &&
++      params.disposition == WindowOpenDisposition::kNewBackgroundTab &&
+       (params.transition & ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+   if (!ui::PageTransitionCoreTypeIs(params.transition,
+                                     ui::PAGE_TRANSITION_LINK) &&
