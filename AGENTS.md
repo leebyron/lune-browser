@@ -49,6 +49,13 @@ pass on arm64 and Intel under Rosetta. See
 [release bootstrap](agent-docs/project/builds/2026-11-06-release-bootstrap.md).
 Run acceptance browsers sequentially because Sparkle shares macOS bundle state.
 
+The development inputs include a subtle shared-core content-pane shadow under
+`inputs/content-shadow-1/{helium,macos}`. Both architectures compile and pass
+smoke checks (Intel via Rosetta); native arm64 visual acceptance covers light/dark,
+vertical/horizontal tabs, split panes, rounded-frame toggling, and fullscreen.
+See [the feature evidence](agent-docs/project/features/content-pane-shadow.md).
+This feature is not in published builds 1 or 2.
+
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
 never downgrade Chromium to satisfy optional UI patches. Discovery reports stable lag.
