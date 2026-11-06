@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import plistlib
 import socket
 import subprocess
@@ -145,7 +146,14 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--ui', action='store_true', help='Verify packaged UI strings and new-profile defaults.')
     parser.add_argument('--headed', action='store_true', help='Show the isolated browser window.')
+    parser.add_argument('--arch', choices=('arm64', 'x86_64'), default='arm64',
+                        help='Expected app architecture.')
+    parser.add_argument('--chromium-version',
+                        help='Expected Chromium version; defaults to the current build lock.')
     args = parser.parse_args()
+    root = Path(__file__).resolve().parents[1]
+    lock = json.loads((root / 'manifests/browser.lock.json').read_text())
+    expected_version = args.chromium_version or lock['chromium_version']
     output = args.build_output.resolve()
     app = output / 'Lune.app'
     with (app / 'Contents/Info.plist').open('rb') as f:
@@ -154,10 +162,12 @@ def main():
         raise RuntimeError('Unexpected bundle identity.')
     binary = app / 'Contents/MacOS' / info['CFBundleExecutable']
     architecture = subprocess.check_output(['/usr/bin/lipo', '-archs', binary], text=True).strip()
-    if architecture != 'arm64':
-        raise RuntimeError(f'This first-build smoke test expects arm64, got {architecture}.')
+    if architecture != args.arch:
+        raise RuntimeError(f'Expected {args.arch} app, got {architecture}.')
     driver = output / 'chromedriver'
     version = subprocess.check_output([driver, '--version'], text=True).strip()
+    if not version.startswith(f'ChromeDriver {expected_version} '):
+        raise RuntimeError(f'Expected Chromium {expected_version} driver, got {version}.')
     server = ThreadingHTTPServer(('127.0.0.1', 0), Page)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -183,11 +193,12 @@ def main():
         return value
 
     report = {'bundle_id': info['CFBundleIdentifier'], 'architecture': architecture,
+              'test_host_architecture': platform.machine(),
+              'chromium_version': expected_version,
               'driver_version': version, 'app_version': info['CFBundleShortVersionString'],
               'checks': [], 'mode': 'headed' if args.headed else 'headless', 'release_validated': False}
     if args.ui:
-        root = Path(__file__).resolve().parents[1]
-        component = json.loads((root / 'manifests/browser.lock.json').read_text())['components']['macos']['commit']
+        component = lock['components']['macos']['commit']
         expected_icon = subprocess.check_output(['git', 'show', component + ':resources/assets/app.icns'], cwd=root)
         actual_icon = (app / 'Contents/Resources/app.icns').read_bytes()
         if actual_icon != expected_icon or 'CFBundleIconName' in info:
@@ -223,6 +234,9 @@ def main():
                             f'--user-data-dir={profile}']}}}})
                     session = created['sessionId']
                     path = '/session/' + session
+                    actual_version = created['capabilities'].get('browserVersion')
+                    if actual_version != expected_version:
+                        raise RuntimeError(f'Expected Chromium {expected_version} browser, got {actual_version}.')
                     request('POST', path + '/url', {'url': f'http://127.0.0.1:{server.server_port}/{phase}'})
                     title = request('GET', path + '/title')
                     result = request('POST', path + '/execute/sync', {
@@ -247,6 +261,10 @@ def main():
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
+    except Exception as error:
+        report.update(passed=False, error=str(error))
+        args.report.write_text(json.dumps(report, indent=2) + '\n')
+        raise
     finally:
         server.shutdown()
         server.server_close()

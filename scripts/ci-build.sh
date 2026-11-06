@@ -20,3 +20,5 @@ python3 scripts/check-onboarding.py ".work/$arch/macos/build/src"
 python3 scripts/check-ui-port.py ".work/$arch/macos/build/src"
 # build verifies the preparation record, toolchain, and lock before resuming.
 python3 scripts/lune.py build --arch "$arch" --jobs 10 2>&1 | tee -a "$log"
+.work/venv/bin/python scripts/smoke-browser.py ".work/$arch/macos/build/src/out/Default" \
+  --arch "$arch" --ui --report ".work/$arch/smoke.json" 2>&1 | tee -a "$log"

@@ -117,6 +117,23 @@ Prepared/built state is saved under `.work/<arch>/`; build outputs are inside th
 platform's `build/src/out/Default/`. A successful compile must produce `Lune.app`.
 `built.json` records `validated_for_release: false`. Nothing publishes automatically.
 
+The CI build script now runs the isolated headless smoke test after compilation:
+
+```sh
+.work/venv/bin/python scripts/smoke-browser.py .work/arm64/macos/build/src/out/Default \
+  --arch arm64 --ui --report .work/arm64/smoke.json
+```
+
+Use the matching `x86_64` path and `--arch x86_64` for the Intel artifact. The test
+checks the Mach-O architecture, ChromeDriver version, and running browser's
+Chromium version against the lock, then exercises local page loading, JavaScript,
+profile persistence, defaults, onboarding recommendations, credits, and the icon.
+For an explicitly reviewed integration workspace whose version differs from the
+main lock, pass `--chromium-version` with that candidate's exact version. An
+architecture or version mismatch fails. Reports include the test host architecture;
+an Intel binary running under Rosetta does not establish native Intel validation.
+`--headed` shows the test window but does not by itself test native controls.
+
 ## Discover upstream changes
 
 ```sh

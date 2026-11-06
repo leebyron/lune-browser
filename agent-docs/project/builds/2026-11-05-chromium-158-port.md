@@ -306,3 +306,9 @@ Chromium forward-port without relabeling the upstream ungoogled version. It
 also rejects source archives for a different version/host. All 29 guardrail
 tests and validation of the unchanged current lock pass. The actual 158 input
 lock remains pending build/runtime verification.
+
+The smoke runner now asserts the requested architecture and exact Chromium
+version for both driver and running browser. CI invokes it after compilation.
+The strengthened test passes against the explicit 157 diagnostic artifact, and
+negative checks reject that artifact when 158 or x86_64 is requested. This is
+test-harness evidence only; the 158 app is still compiling.
