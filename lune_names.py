@@ -20,6 +20,8 @@ util.REPLACEMENT_REGEXES.append((re.compile(r'\bHelium\b'), 'Lune'))
 # These attribution messages deliberately name the upstream project.
 UPSTREAM_CREDITS = {
     'IDS_LUNE_UPSTREAM_CREDIT',
+    'IDS_HELIUM_ONBOARDING_PARTNER_TITLE',
+    'IDS_HELIUM_ONBOARDING_PARTNER_TOOLTIP',
     'IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT',
 }
 _replace_grit_message = util.replace_grit_message
