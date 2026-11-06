@@ -1,0 +1,15 @@
+Description: Accept XML declarations added by GRIT-aware string substitution.
+Upstream target: imputnet/helium-onboarding util/generate-i18n.mts.
+
+Index: src/components/helium_onboarding/util/generate-i18n.mts
+===================================================================
+--- src.orig/components/helium_onboarding/util/generate-i18n.mts
++++ src/components/helium_onboarding/util/generate-i18n.mts
+@@ -106,6 +106,7 @@ const renderText = (
+ const parseMessages = function*(grdp: string): Generator<Message> {
+     const data = new XMLParser({
+         ignoreAttributes: false,
++        ignoreDeclaration: true,
+         attributeNamePrefix: '$',
+         preserveOrder: true,
+         trimValues: false,
