@@ -1,6 +1,6 @@
 --- /dev/null
 +++ b/chrome/browser/extensions/api/sync_vault_provider/sync_vault_provider_service.cc
-@@ -0,0 +1,969 @@
+@@ -0,0 +1,973 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -16,6 +16,7 @@
 +#include "base/check.h"
 +#include "base/functional/bind.h"
 +#include "base/memory/ptr_util.h"
++#include "base/memory/scoped_refptr.h"
 +#include "base/strings/strcat.h"
 +#include "base/task/single_thread_task_runner.h"
 +#include "base/time/time.h"
@@ -30,6 +31,7 @@
 +#include "extensions/browser/extension_registry.h"
 +#include "extensions/browser/extension_registry_factory.h"
 +#include "extensions/browser/process_manager_factory.h"
++#include "extensions/common/event_args.h"
 +#include "extensions/common/extension.h"
 +#include "third_party/blink/public/mojom/service_worker/service_worker_database.mojom.h"
 +
@@ -650,8 +652,9 @@
 +      base::BindOnce(&SyncVaultProviderService::OnRequestTimeout,
 +                     weak_ptr_factory_.GetWeakPtr(), request_id),
 +      kProviderRequestTimeout);
-+  auto event = std::make_unique<Event>(histogram_value, event_name,
-+                                       std::move(event_args), browser_context_);
++  auto event = std::make_unique<Event>(
++      histogram_value, event_name,
++      base::MakeRefCounted<EventArgs>(std::move(event_args)), browser_context_);
 +  event->did_dispatch_callback =
 +      base::BindRepeating(&SyncVaultProviderService::OnRequestDispatched,
 +                          weak_ptr_factory_.GetWeakPtr(), request_id);
@@ -671,8 +674,9 @@
 +  }
 +  event_router_->DispatchEventToExtension(
 +      provider->id(),
-+      std::make_unique<Event>(histogram_value, event_name,
-+                              std::move(event_args), browser_context_));
++      std::make_unique<Event>(
++          histogram_value, event_name,
++          base::MakeRefCounted<EventArgs>(std::move(event_args)), browser_context_));
 +}
 +
 +void SyncVaultProviderService::DispatchCancellation(RequestId request_id) {
