@@ -1,0 +1,275 @@
+Index: prepared/chrome/BUILD.gn
+===================================================================
+--- prepared.orig/chrome/BUILD.gn
++++ prepared/chrome/BUILD.gn
+@@ -703,7 +703,11 @@ if (is_win) {
+   }
+ 
+   bundle_data("chrome_app_icon") {
+-    sources = [ "app/theme/$branding_path_component/mac/app.icns" ]
++    sources = [
++      "app/theme/$branding_path_component/mac/app.icns",
++      "app/theme/$branding_path_component/mac/app-light.icns",
++      "app/theme/$branding_path_component/mac/app-dark.icns",
++    ]
+     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+   }
+ 
+Index: prepared/chrome/browser/app_controller_mac.mm
+===================================================================
+--- prepared.orig/chrome/browser/app_controller_mac.mm
++++ prepared/chrome/browser/app_controller_mac.mm
+@@ -541,6 +541,48 @@ Profile* GetLastProfileMac() {
+   return profile_manager->GetProfile(profile_path);
+ }
+ 
++// The static bundle icon is Pelagic Signal; the running Dock icon follows
++// macOS appearance without changing the user's browser theme preference.
++@interface LuneIconAppearanceObserver : NSObject
++@end
++
++@implementation LuneIconAppearanceObserver
++- (void)updateIcon {
++  NSAppearanceName appearance =
++      [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:@[
++        NSAppearanceNameAqua, NSAppearanceNameDarkAqua
++      ]];
++  NSString* name = [appearance isEqual:NSAppearanceNameDarkAqua]
++                       ? @"app-dark" : @"app-light";
++  NSString* path = [NSBundle.mainBundle pathForResource:name ofType:@"icns"];
++  NSImage* icon = path ? [[NSImage alloc] initWithContentsOfFile:path] : nil;
++  if (icon) {
++    NSApp.applicationIconImage = icon;
++  }
++}
++
++- (instancetype)init {
++  self = [super init];
++  if (self) {
++    [NSApp addObserver:self forKeyPath:@"effectiveAppearance"
++               options:0 context:nullptr];
++    [self updateIcon];
++  }
++  return self;
++}
++
++- (void)dealloc {
++  [NSApp removeObserver:self forKeyPath:@"effectiveAppearance"];
++}
++
++- (void)observeValueForKeyPath:(NSString*)keyPath
++                    ofObject:(id)object
++                      change:(NSDictionary*)change
++                     context:(void*)context {
++  [self updateIcon];
++}
++@end
++
+ @interface AppController () <HandoffObserverDelegate>
+ - (void)initMenuState;
+ - (void)initProfileMenu;
+@@ -682,6 +724,7 @@ class AppControllerProfileObserver : pub
+ };
+ 
+ @implementation AppController {
++  LuneIconAppearanceObserver* __strong _luneIconAppearanceObserver;
+   // Manages the state of the command menu items.
+   std::unique_ptr<CommandUpdater> _menuState;
+ 
+@@ -1306,6 +1349,8 @@ class AppControllerProfileObserver : pub
+     return;
+   }
+ 
++  _luneIconAppearanceObserver = [[LuneIconAppearanceObserver alloc] init];
++
+   [self setUpdateCheckInterval];
+ 
+   // If enabled, keep Chrome alive when apps are open instead of quitting all
+Index: prepared/chrome/browser/ui/color/chrome_color_mixers.cc
+===================================================================
+--- prepared.orig/chrome/browser/ui/color/chrome_color_mixers.cc
++++ prepared/chrome/browser/ui/color/chrome_color_mixers.cc
+@@ -23,10 +23,77 @@
+ #include "chrome/browser/ui/color/omnibox_color_mixer.h"
+ #include "chrome/browser/ui/color/product_specifications_color_mixer.h"
+ #include "chrome/browser/ui/color/tab_strip_color_mixer.h"
++#include "ui/color/color_mixer.h"
++#include "ui/color/color_provider.h"
+ #include "ui/color/color_provider_utils.h"
++#include "ui/color/color_recipe.h"
+ 
+ namespace {
+ 
++// Lune distribution colors apply only to the built-in theme. User themes,
++// custom accent colors, application windows and accessibility palettes win.
++void AddLuneDefaultColors(ui::ColorProvider* provider,
++                          const ui::ColorProviderKey& key) {
++  if (!ShouldApplyChromeMaterialOverrides(key) || key.app_controller ||
++      key.forced_colors != ui::ColorProviderKey::ForcedColors::kNone ||
++      (key.user_color.has_value() &&
++       key.user_color_source != ui::ColorProviderKey::UserColorSource::kGrayscale)) {
++    return;
++  }
++  const bool dark = key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
++  auto& mixer = provider->AddMixer();
++  mixer[ui::kColorSysBase] = {dark ? 0xFF10354F : 0xFFE7EDE3};
++  mixer[ui::kColorSysHeader] = {dark ? 0xFF10354F : 0xFFE7EDE3};
++  mixer[ui::kColorSysHeaderInactive] = {dark ? 0xFF10354F : 0xFFE7EDE3};
++  mixer[ui::kColorSysBaseContainer] = {dark ? 0xFF10354F : 0xFFE7EDE3};
++  mixer[ui::kColorFrameActive] = {dark ? 0xFF10354F : 0xFFE7EDE3};
++  mixer[ui::kColorFrameInactive] = {dark ? 0xFF10354F : 0xFFE7EDE3};
++  mixer[kColorToolbar] = {dark ? 0xFF10354F : 0xFFE7EDE3};
++  mixer[kColorNewTabPageBackground] = {dark ? 0xFF10354F : 0xFFE7EDE3};
++  mixer[ui::kColorSysSurface] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysSurface1] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysSurface2] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysSurfaceSection] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysSurfaceContainerLowest] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysSurfaceContainerLow] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysSurfaceContainer] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysBaseContainerElevated] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysHeaderContainer] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysHeaderContainerInactive] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysOmniboxContainer] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[kColorTabBackgroundActiveFrameActive] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[kColorTabBackgroundActiveFrameInactive] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  mixer[ui::kColorSysSurface3] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[ui::kColorSysSurface4] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[ui::kColorSysSurface5] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[ui::kColorSysSurfaceContainerHigh] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[ui::kColorSysSurfaceContainerHighest] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[ui::kColorSysTonalContainer] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[ui::kColorSysBaseTonalContainer] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[ui::kColorSysNeutralContainer] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[kColorTabBackgroundInactiveFrameActive] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[kColorTabBackgroundInactiveFrameInactive] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[ui::kColorSysOnSurface] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[ui::kColorSysOnSurfacePrimary] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[ui::kColorSysOnHeaderPrimary] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[ui::kColorSysOnTonalContainer] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[kColorToolbarText] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[kColorToolbarTextDefault] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[kColorToolbarButtonText] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[kColorToolbarButtonIcon] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[kColorToolbarButtonIconDefault] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[kColorTabForegroundActiveFrameActive] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[kColorTabForegroundActiveFrameInactive] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[kColorNewTabPageText] = {dark ? 0xFFDDE7EA : 0xFF234550};
++  mixer[ui::kColorSysOnSurfaceSecondary] = {dark ? 0xFF96AFBE : 0xFF526B65};
++  mixer[ui::kColorSysOnSurfaceSubtle] = {dark ? 0xFF96AFBE : 0xFF526B65};
++  mixer[ui::kColorSysOnSurfaceVariant] = {dark ? 0xFF96AFBE : 0xFF526B65};
++  mixer[kColorTabForegroundInactiveFrameActive] = {dark ? 0xFF96AFBE : 0xFF526B65};
++  mixer[kColorTabForegroundInactiveFrameInactive] = {dark ? 0xFF96AFBE : 0xFF526B65};
++  mixer[ui::kColorSysPrimary] = {dark ? 0xFF00D5C6 : 0xFF276C69};
++  mixer[ui::kColorSysOnPrimary] = {dark ? 0xFF10354F : 0xFFFFFFFF};
++}
++
+ class ChromeColorProviderUtilsCallbacks
+     : public ui::ColorProviderUtilsCallbacks {
+  public:
+@@ -87,6 +154,7 @@ void AddChromeColorMixers(ui::ColorProvi
+ 
+   // Must be the last one in order to override other mixer colors.
+   AddNativeChromeColorMixer(provider, key);
++  AddLuneDefaultColors(provider, key);
+ 
+   if (key.custom_theme) {
+     key.custom_theme->AddColorMixers(provider, key);
+Index: prepared/components/helium_onboarding/BUILD.gn
+===================================================================
+--- prepared.orig/components/helium_onboarding/BUILD.gn
++++ prepared/components/helium_onboarding/BUILD.gn
+@@ -39,6 +39,7 @@ action("build") {
+     "public",
+     "public/favicon.png",
+     "public/lune.svg",
++    "src/app.css",
+     "src/components/LuneLogo.svelte",
+     "src/components/HeliumPartner.svelte",
+     "src/components/BrowserImportGraphic.svelte",
+Index: prepared/components/helium_onboarding/index.html
+===================================================================
+--- prepared.orig/components/helium_onboarding/index.html
++++ prepared/components/helium_onboarding/index.html
+@@ -3,7 +3,8 @@
+ 
+ <head>
+     <meta charset="UTF-8" />
+-    <link rel="icon" type="image/png" href="/favicon.png" />
++    <meta name="color-scheme" content="light dark" />
++    <link rel="icon" type="image/svg+xml" href="/lune.svg" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <title>Lune Setup</title>
+ </head>
+Index: prepared/components/helium_onboarding/src/app.css
+===================================================================
+--- prepared.orig/components/helium_onboarding/src/app.css
++++ prepared/components/helium_onboarding/src/app.css
+@@ -155,3 +155,45 @@ h2 {
+         justify-content: center;
+     }
+ }
++
++/* Lune distribution palette; retain Prism layout and interactions. */
++:root {
++    color-scheme: light;
++    --primary: #234550;
++    --secondary: #526B65;
++    --tertiary: #526B65;
++    --white: #FFFFFF;
++    --helium-blue: #276C69;
++    --helium-blue-hover: #276C69;
++    --helium-blue-press: #276C69;
++    --helium-elevated: #276C69;
++    --bg-surface: #F1F4EC;
++    --bg-gradient-start: #E7EDE3;
++    --bg-gradient-end: #D6E1D2;
++    --intro-gradient-start: #E7EDE3;
++    --intro-gradient-end: #D6E1D2;
++    --tooltip-bg: #F1F4EC;
++    --tooltip-shadow: color-mix(in srgb, #234550 16%, transparent);
++}
++
++/* Lune distribution palette; retain Prism layout and interactions. */
++@media (prefers-color-scheme: dark) {
++:root {
++    color-scheme: dark;
++    --primary: #DDE7EA;
++    --secondary: #96AFBE;
++    --tertiary: #96AFBE;
++    --white: #10354F;
++    --helium-blue: #00D5C6;
++    --helium-blue-hover: #00D5C6;
++    --helium-blue-press: #00D5C6;
++    --helium-elevated: #00D5C6;
++    --bg-surface: #163B52;
++    --bg-gradient-start: #10354F;
++    --bg-gradient-end: #2A4C62;
++    --intro-gradient-start: #10354F;
++    --intro-gradient-end: #2A4C62;
++    --tooltip-bg: #163B52;
++    --tooltip-shadow: color-mix(in srgb, #DDE7EA 16%, transparent);
++}
++}
+Index: prepared/ui/webui/resources/cr_elements/icons.html.ts
+===================================================================
+--- prepared.orig/ui/webui/resources/cr_elements/icons.html.ts
++++ prepared/ui/webui/resources/cr_elements/icons.html.ts
+@@ -92,7 +92,7 @@ if (document.documentElement.hasAttribut
+         <path d="m13.05 12-4.1-4.102a.87.87 0 0 1-.274-.636.87.87 0 0 1 .273-.637.879.879 0 0 1 1.277 0l4.75 4.75a.84.84 0 0 1 .188.29c.04.105.063.218.063.335 0 .117-.024.23-.063.336a.84.84 0 0 1-.187.289l-4.75 4.75a.822.822 0 0 1-.625.262.902.902 0 0 1-.625-.285.883.883 0 0 1-.278-.641.88.88 0 0 1 .278-.637Zm0 0"></path>
+       </g>
+       <g id="chrome-product" viewBox="0 0 300 300">
+-        <path d="M150 39.886422 A111 111 0 1 0 150 260.113578 A111 111 0 0 1 150 39.886422 Z M150 39.886422 A111 111 0 1 1 150 260.113578 A111 111 0 0 0 150 39.886422 Z"/>
++        <path d="M150 39.886422 A111 111 0 1 0 150 260.113578 A112.725508 112.725508 0 0 1 150 39.886422 Z M150 39.886422 A111 111 0 1 1 150 260.113578 A112.725508 112.725508 0 0 0 150 39.886422 Z"/>
+       </g>
+       <g id="close">
+         <path d="m12 13.273-4.102 4.102a.816.816 0 0 1-.625.262.91.91 0 0 1-.625-.285.879.879 0 0 1 0-1.278L10.727 12 6.625 7.898a.83.83 0 0 1-.262-.636.914.914 0 0 1 .285-.637.879.879 0 0 1 1.278 0L12 10.727l4.102-4.102a.87.87 0 0 1 .636-.273.87.87 0 0 1 .637.273.87.87 0 0 1 .273.637.87.87 0 0 1-.273.636L13.273 12l4.102 4.102c.184.183.273.39.273.625 0 .23-.09.441-.273.625a.87.87 0 0 1-.637.273.87.87 0 0 1-.636-.273Zm0 0"></path>
+@@ -310,7 +310,7 @@ if (document.documentElement.hasAttribut
+         <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path>
+       </g>
+       <g id="chrome-product" viewBox="0 0 300 300">
+-        <path d="M150 39.886422 A111 111 0 1 0 150 260.113578 A111 111 0 0 1 150 39.886422 Z M150 39.886422 A111 111 0 1 1 150 260.113578 A111 111 0 0 0 150 39.886422 Z"/>
++        <path d="M150 39.886422 A111 111 0 1 0 150 260.113578 A112.725508 112.725508 0 0 1 150 39.886422 Z M150 39.886422 A111 111 0 1 1 150 260.113578 A112.725508 112.725508 0 0 0 150 39.886422 Z"/>
+       </g>
+       <g id="close">
+         <path
