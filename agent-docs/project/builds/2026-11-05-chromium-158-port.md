@@ -161,8 +161,22 @@ Core commit `f818b22e` adapts fifteen more patches:
   alongside Helium's deferred-load policy and saved-group checks. Runtime
   restoration, activation, split, and group behavior still require validation.
 
-The first **215 patches apply with zero fuzz**. Application currently stops at
-`helium/settings/settings-page-icons.patch`. No patch has been skipped or forced.
+Core commit `1375f659` adapts ten Settings patches:
+
+- Autofill-page suppression and search-help-link removal follow the new Lit
+  settings-main template, preserving the existing disabled/removed UI behavior.
+- Chromium removed the notification-page Safety Hub property and template module;
+  those obsolete hunks were retired after inspecting both current files. The
+  remaining Safety Hub route and entry-point suppression stay applied.
+- Custom shortcuts retain their strings, feature gate, handler factory, receiver,
+  frame-interface registration, and TypeScript/GN dependencies alongside the new
+  upstream settings-search interface and accessibility Mojo resources.
+- Settings icons retain the same replacement artwork. Search suggestions, profile
+  avatars, privacy noise, and network/security settings follow changed imports,
+  checks, string declarations, and the Secure DNS toggle's synthetic pref binding.
+
+The first **244 patches apply with zero fuzz**. Application currently stops at
+`helium/ui/clean-new-tab-page.patch`. No patch has been skipped or forced.
 Full preparation, GN generation, compilation, and runtime validation remain
 incomplete for 158. The older 157 UI validation build is still a separate
 running diagnostic build.
