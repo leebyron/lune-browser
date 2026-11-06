@@ -32,20 +32,43 @@ search data, uBlock, and Sparkle archives retain their existing pinned hashes.
 
 Ignored working directory: `.work/chromium-158/`. Native Git clones under `macos/`
 and `macos/helium-chromium/` use local `integration/chromium-158` branches based on
-the UI candidate's platform and core inputs. They are not published build inputs.
+the UI candidate's platform and core inputs. Core work is checkpointed on
+`integration/chromium-158/helium`; these are not locked build inputs.
 `downloads-arm64.ini`, archive metadata, and preparation logs are retained there.
 
-## First compatibility finding
+## Preparation and patch-port progress
 
-Strict binary pruning stopped on 29 paths absent from Chromium 158. Comparison
-with the verified pristine archive inventories identifies removed test fixtures,
-the removed glmark2 tree, and JPEG XL's move from `jxl-v0_7` to `jxl-v0_8`.
-The required dither-data exclusion must follow that dependency rename. New test
-fixtures also need review; deleting stale list entries alone is insufficient.
+Strict binary pruning initially stopped on 29 paths absent from Chromium 158.
+All previously pruned inputs were restored from the verified archives before
+regenerating the pruning and domain-substitution lists with upstream tooling.
+The JPEG XL dither-data exclusion now follows `jxl-v0_7` to `jxl-v0_8`; an obsolete
+Windows toolchain-file exclusion was removed after confirming the file is gone.
 
-Restore the exact previously pruned inputs from the verified archives, regenerate
-proposed pruning/domain lists with upstream tooling, and review their differences.
-Then rerun strict pruning and quilt application. Do not suppress missing-file
-errors, weaken domain substitution, or use fuzzy patch application. All selected
-UI features, Lune defaults, Kagi recommendation, attribution, and artwork remain
-required in the forward-port.
+Reviewed core pruning changes add 120 paths and remove 29; domain-substitution
+changes add 103 and remove 160. New host-overlay and Sparkle vendor paths were
+excluded from the core lists to preserve their separate platform treatment.
+Removed domain-list entries that still exist were checked against the unchanged
+upstream substitution rules. Strict pruning now passes. Configuration and list
+changes are retained in core commit `4074a04d`.
+
+Core commit `d5acb513` adapts the initial privacy patches for changed declarations,
+Google URL helpers, profile-avatar checks, GCM startup, and AI integration. The
+AI patch also disables Chromium 158's new ScreenAI-backed text-detection binding,
+while preserving unrelated lazy service initialization.
+
+Core commit `f139ea99` adapts the Safe Browsing compatibility patch. This preserves
+its existing disabled-service behavior across changed checks and moved GN
+entries. Chromium removed the entire V2 security-survey handler; its obsolete
+hunks were retired after checking both implementation and declarations. The
+remaining survey handler is still disabled by the original patch. The cloud
+content-scanning test dependency moved into a conditional and is removed there.
+
+The first **23 patches apply with zero fuzz**. Application currently stops at
+`ungoogled-chromium/remove-unused-preferences-fields.patch`, with conflicts in
+20 files requiring review. No patch has been skipped or forced. Full preparation,
+GN generation, compilation, and runtime validation remain incomplete for 158.
+The older 157 UI validation build is still a separate diagnostic build.
+
+All selected UI features, Lune defaults, Kagi recommendation, Helium attribution,
+and artwork remain required in the forward-port. New immutable component tags
+and the main lock will be published only when the candidate is ready.
