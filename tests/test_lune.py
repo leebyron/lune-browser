@@ -250,6 +250,36 @@ class LockTests(unittest.TestCase):
                 lune.prepare(argparse.Namespace(arch="arm64"))
         self.assertEqual(marker.read_text(), "local changes")
 
+    def test_validation_only_checks_preparation_without_compiling(self):
+        from contextlib import ExitStack
+        dest = self.root / '.work/arm64/macos'
+        args_path = dest / 'build/src/out/Default/args.gn'
+        args_path.parent.mkdir(parents=True)
+        args_path.write_text('target_cpu="arm64"\n')
+        state = {'lock_sha256': lune.digest(lune.LOCK), 'arch': 'arm64',
+                 'args_sha256': lune.digest(args_path), 'xcode': 'test Xcode'}
+        state_path = dest.parent / 'prepared.json'
+        with ExitStack() as stack:
+            for name in ('doctor', 'require_clean_orchestrator', 'check_checkout'):
+                stack.enter_context(patch.object(lune, name))
+            run = stack.enter_context(patch.object(lune, 'run', return_value='test Xcode'))
+            lune.write_json(state_path, state)
+            args = argparse.Namespace(arch='arm64', command='build', validate_only=True)
+            lune.build(args)
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0], ['xcodebuild', '-version'])
+            self.assertFalse((dest.parent / 'built.json').exists())
+            for field, value, message in (
+                ('lock_sha256', 'stale', 'different inputs'),
+                ('arch', 'x86_64', 'different inputs'),
+                ('args_sha256', 'changed', 'GN arguments'),
+                ('xcode', 'old Xcode', 'Xcode changed'),
+            ):
+                with self.subTest(field=field):
+                    lune.write_json(state_path, {**state, field: value})
+                    with self.assertRaisesRegex(ValueError, message):
+                        lune.build(args)
+
 
 if __name__ == "__main__":
     unittest.main()

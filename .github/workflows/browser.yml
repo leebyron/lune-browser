@@ -9,6 +9,12 @@ on:
         default: arm64
         type: choice
         options: [arm64, x86_64]
+      operation:
+        description: Validate sources and GN only, or also compile and smoke-test
+        required: true
+        default: build
+        type: choice
+        options: [validate, build]
 
 permissions:
   contents: read
@@ -44,14 +50,17 @@ jobs:
           git -c fetch.prune=false fetch --no-prune --no-tags origin 'refs/tags/inputs/*:refs/tags/inputs/*'
           python3 scripts/lune.py validate --git-objects
           python3 scripts/lune.py checkout --arch "$TARGET_ARCH"
-      - name: Prepare and compile development browser
+      - name: Validate or build development browser
         env:
           TARGET_ARCH: ${{ inputs.arch }}
-        run: caffeinate -i /bin/bash scripts/ci-build.sh "$TARGET_ARCH"
+          OPERATION: ${{ inputs.operation }}
+        run: caffeinate -i /bin/bash scripts/ci-build.sh "$TARGET_ARCH" "$OPERATION"
       - name: Summarize local output
         if: always()
         env:
           TARGET_ARCH: ${{ inputs.arch }}
+          OPERATION: ${{ inputs.operation }}
         run: |
           printf 'Target: `%s`\n\n' "$TARGET_ARCH" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Operation: `%s` (validation alone does not establish compilation or runtime acceptance).\n\n' "$OPERATION" >> "$GITHUB_STEP_SUMMARY"
           printf 'Outputs remain on this Mac under `%s/.work/%s/`. No artifact upload, signing, or publication runs.\n' "$GITHUB_WORKSPACE" "$TARGET_ARCH" >> "$GITHUB_STEP_SUMMARY"

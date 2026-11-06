@@ -2,25 +2,34 @@
 # Run only reviewed inputs in the dedicated self-hosted runner checkout.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-arch="${1:?Usage: ci-build.sh arm64|x86_64}"
+arch="${1:?Usage: ci-build.sh arm64|x86_64 [validate|build]}"
 case "$arch" in arm64|x86_64) ;; *) echo "Unsupported architecture" >&2; exit 2 ;; esac
+operation="${2:-build}"
+case "$operation" in validate|build) ;; *) echo "Unsupported operation" >&2; exit 2 ;; esac
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 if [[ ! -x .work/venv/bin/python ]]; then
   /opt/homebrew/bin/python3.13 -m venv .work/venv
 fi
 .work/venv/bin/python -m pip install --require-hashes -r config/requirements-build.txt
 python3 scripts/lune.py validate --git-objects
+python3 scripts/check-component-inputs.py ".work/$arch/macos" --source-strings
 mkdir -p .work/logs
 log=".work/logs/${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$arch.log"
 if [[ ! -f ".work/$arch/prepared.json" ]]; then
   # prepare refuses a partial existing source tree instead of deleting local work.
   python3 scripts/lune.py prepare --arch "$arch" 2>&1 | tee -a "$log"
 fi
+# Check cached preparation against the current lock/toolchain before inspecting it.
+python3 scripts/lune.py build --arch "$arch" --validate-only
 python3 scripts/check-onboarding.py ".work/$arch/macos/build/src"
 python3 scripts/check-ui-port.py ".work/$arch/macos/build/src"
 .work/venv/bin/python scripts/branding/check-names.py ".work/$arch/macos" \
   ".work/$arch/macos/build/src" --prepared
 python3 scripts/branding/verify-resources.py ".work/$arch/macos" ".work/$arch/macos/build/src"
+if [[ "$operation" == validate ]]; then
+  echo 'Source preparation, GN, and static checks passed. Compilation and runtime checks did not run.'
+  exit 0
+fi
 # build verifies the preparation record, toolchain, and lock before resuming.
 python3 scripts/lune.py build --arch "$arch" --jobs 10 2>&1 | tee -a "$log"
 .work/venv/bin/python scripts/smoke-browser.py ".work/$arch/macos/build/src/out/Default" \

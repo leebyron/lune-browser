@@ -429,6 +429,9 @@ def build(args):
     env = build_env()
     if state['xcode'] != run(['xcodebuild', '-version'], capture=True, env=env).strip():
         raise ValueError('Xcode changed after preparation; revalidate the workspace.')
+    if getattr(args, 'validate_only', False):
+        print('Prepared workspace matches the lock, architecture, GN arguments, and toolchain. Compilation has not run.')
+        return
     run(['/bin/bash', dest / 'devutils/shared.sh', 'build', '-j', str(args.jobs),
          'chrome/installer/mac'], cwd=dest, env=env)
     app = dest / 'build/src/out/Default/Lune.app'
@@ -456,6 +459,8 @@ def main():
             command.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
         if name == 'build':
             command.add_argument('--jobs', type=int, default=10)
+            command.add_argument('--validate-only', action='store_true',
+                                 help='Verify the prepared workspace without compiling')
     args = parser.parse_args()
     if hasattr(args, 'jobs') and args.jobs < 1:
         parser.error('--jobs must be positive')

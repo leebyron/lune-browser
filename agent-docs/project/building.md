@@ -242,6 +242,70 @@ jobs still require explicit activation and the release gates described below.
 The owner can keep using the GitHub Actions UI for triggering and reading logs,
 but the Mac must remain online for jobs to execute.
 
+### Local validation and inherited workflows
+
+The `Development browser` dispatch now accepts `operation=validate` or `build`
+(default). Both use the same pinned inputs, runner, and concurrency group.
+Validation runs patch/translation checks, source preparation, strict patching,
+substitutions, resources, GN generation, onboarding/UI checks, and source artwork
+checks. It stops before compilation. Build additionally compiles and runs the
+existing smoke and attribution checks. A reused preparation must still match the
+lock, architecture, GN arguments, and Xcode; mismatches fail without deleting it.
+
+```sh
+gh workflow run browser.yml --ref main -f arch=arm64 -f operation=validate
+./.work/ci-runner/run.sh --once
+```
+
+Repeat deliberately for `x86_64`; neither mode establishes native Intel acceptance.
+Validation requires the same preparation disk/toolchain prerequisites as a build.
+This does not install a runner service or enable recurring builds.
+
+Automatic setup checks now run the inherited core/platform patch-series lint and
+translation-file lint on the exact recursively checked-out lock. They also audit
+GitHub's repository-wide workflow registry with `scripts/check-actions-policy.py`.
+Only `browser.yml`, `checks.yml`, and `website.yml` may be active. Unknown active
+workflows fail the audit, as do missing/disabled local workflows. The audit is
+detection, not a repository-wide hosted-runner prohibition.
+
+The inherited `ci.yml`, `lint.yml`, and `sanity.yml` are disabled in GitHub for all
+branches/tags. Keep them disabled: input tags are immutable, and imported ancestry
+retains the original YAML. Merely changing `main` cannot change those snapshots.
+Before publishing new component/integration/input refs, inspect their workflow
+paths. A newly introduced path needs review and must be disabled in Actions as
+soon as registered, before further pushes. Recheck with:
+
+```sh
+python3 scripts/check-actions-policy.py
+gh workflow disable sanity.yml --repo leebyron/lune-browser
+```
+
+Use the disable command only for an identified inherited path. Do not re-enable
+the old workflows or rerun their hosted failures. Their hosted setup changes
+Spotlight, installs/force-links Homebrew packages, and uploads source caches;
+the local entry point uses the already provisioned toolchain and local disk.
+Patch application, substitutions, and GN are covered by local preparation. The
+upstream Linux utility formatting/tests and generated pruning/domain-list audits
+have not been ported; local validation does not claim equivalent coverage of
+every job in upstream `ci.yml`.
+
+The upstream i18n generator fetches moving Windows/Linux/macOS branches. Local
+manual validation instead extracts strings only from the pinned core/macOS
+patches and checks their entries against the committed translation registry.
+It does not regenerate Windows/Linux/onboarding strings or remove stale entries.
+The 2026-11-06 migration check found **32 missing/different extracted entries**
+(31 distinct names, including Xelium settings and Lune attribution/service strings)
+in the current lock. This is a real validation blocker, separate from billing;
+both manual validation and build fail before preparation until a reviewed input
+update resolves it. No input tag was changed and no failing check was waived.
+
+Migration verification: all 42 orchestrator tests pass; core/platform patch lint,
+translation-file lint, lock/ancestry checks, and the live Actions registry audit
+pass. The queued [setup run](https://github.com/leebyron/lune-browser/actions/runs/42279065148)
+was executed successfully on `lune-mac-mini` with the existing workflow. The new
+manual validation path was checked through its early input failure; no fresh
+Chromium preparation or build was run for this CI change.
+
 On 2026-11-06 the hosted [setup-check run for the final 158 inputs](https://github.com/leebyron/lune-browser/actions/runs/42230439397)
 did not start. GitHub reported that recent account payments failed or the spending
 limit needs to be increased; no test step ran and no job log exists. This is an

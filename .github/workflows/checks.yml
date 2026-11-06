@@ -8,11 +8,12 @@ on:
       - config/**
       - manifests/**
       - tests/**
-      - .github/workflows/checks.yml
+      - .github/workflows/**
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: lune-browser-local
@@ -36,6 +37,10 @@ jobs:
         run: python3 -m unittest discover -s tests -v
       - name: Validate pinned configuration
         run: python3 scripts/lune.py validate
+      - name: Audit inherited workflow state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-actions-policy.py
       - name: Fetch permanent component inputs
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,3 +62,5 @@ jobs:
           GIT_CONFIG_KEY_1: credential.https://github.com.helper
           GIT_CONFIG_VALUE_1: '!gh auth git-credential'
         run: python3 scripts/lune.py checkout --arch arm64
+      - name: Validate locked core and platform patch inputs
+        run: python3 scripts/check-component-inputs.py .work/arm64/macos
