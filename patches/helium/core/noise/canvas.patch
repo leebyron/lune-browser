@@ -36,7 +36,7 @@
 
 --- a/chrome/browser/helium_flag_choices.h
 +++ b/chrome/browser/helium_flag_choices.h
-@@ -33,6 +33,7 @@ constexpr const char kMiddleClickAutoscr
+@@ -33,6 +33,7 @@
      "middle-click-autoscroll";
  
  constexpr const char kHeliumNoiseCommandLine[] = "helium-noise";
@@ -60,7 +60,7 @@
      // platform
 --- a/third_party/blink/common/features.cc
 +++ b/third_party/blink/common/features.cc
-@@ -52,6 +52,10 @@ const base::FeatureParam<std::string> kS
+@@ -52,6 +52,10 @@
  BASE_FEATURE(kHeliumNoise,
               base::FEATURE_ENABLED_BY_DEFAULT);
  
@@ -68,19 +68,19 @@
 +BASE_FEATURE(kHeliumNoiseCanvas,
 +             base::FEATURE_ENABLED_BY_DEFAULT);
 +
- // Controls whether to include information about the page's open popup in
- // AIPageContent.
- BASE_FEATURE(kAIPageContentIncludePopupWindows,
+ // Controls whether the ad highlight is annotated with a label describing the
+ // type of ad such as popup, sticky, or video.
+ BASE_FEATURE(kAdHighlightLabel, base::FEATURE_DISABLED_BY_DEFAULT);
 --- a/third_party/blink/public/common/features.h
 +++ b/third_party/blink/public/common/features.h
-@@ -43,6 +43,7 @@ BLINK_COMMON_EXPORT extern const base::F
- BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumMiddleClickAutoscroll);
+@@ -44,6 +44,7 @@
  
  BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumNoise);
-+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumNoiseCanvas);
  
- // Controls whether to include information about the page's open popup in
- // AIPageContent.
++BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumNoiseCanvas);
+ // Controls whether the ad highlight is annotated with a label describing the
+ // type of ad such as popup, sticky, or video.
+ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAdHighlightLabel);
 --- /dev/null
 +++ b/third_party/blink/renderer/core/helium_noise/canvas_noising_helper.cc
 @@ -0,0 +1,635 @@
@@ -781,7 +781,7 @@
  #include "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h"
  #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
  #include "third_party/blink/renderer/core/html/canvas/canvas_draw_listener.h"
-@@ -1435,6 +1436,9 @@ String HTMLCanvasElement::ToDataURLInter
+@@ -1438,6 +1439,9 @@
  
    scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(source_buffer);
    if (image_bitmap) {
@@ -791,7 +791,7 @@
      std::unique_ptr<ImageDataBuffer> data_buffer =
          ImageDataBuffer::Create(image_bitmap);
      if (!data_buffer)
-@@ -1539,6 +1543,9 @@ void HTMLCanvasElement::toBlob(V8BlobCal
+@@ -1542,6 +1546,9 @@
    CanvasAsyncBlobCreator* async_creator = nullptr;
    scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(kBackBuffer);
    if (image_bitmap) {
@@ -811,7 +811,7 @@
  #include "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h"
  #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
  #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
-@@ -588,11 +589,13 @@ ScriptPromise<Blob> OffscreenCanvas::con
+@@ -570,11 +571,13 @@
    base::TimeTicks start_time = base::TimeTicks::Now();
    scoped_refptr<StaticBitmapImage> image_bitmap = context_->GetImage();
    if (image_bitmap) {
@@ -836,7 +836,7 @@
  #include "third_party/blink/renderer/core/html/canvas/canvas_font_cache.h"
  #include "third_party/blink/renderer/core/html/canvas/canvas_performance_monitor.h"
  #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
-@@ -875,6 +876,9 @@ ImageData* BaseRenderingContext2D::getIm
+@@ -937,6 +938,9 @@
        SkIRect bounds =
            snapshot->PaintImageForCurrentFrame().GetSkImageInfo().bounds();
        DCHECK(!bounds.intersect(SkIRect::MakeXYWH(sx, sy, sw, sh)));

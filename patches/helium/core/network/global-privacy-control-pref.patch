@@ -1,6 +1,6 @@
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -907,6 +907,10 @@ inline constexpr char kEnableReferrers[]
+@@ -883,6 +883,10 @@
  // Whether to send the DNT header.
  inline constexpr char kEnableDoNotTrack[] = "enable_do_not_track";
  
@@ -13,7 +13,7 @@
  // TODO(crbug.com/40549758): This pref was used as a WebPreference which is why
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -156,6 +156,7 @@ void RegisterBrowserUserPrefs(user_prefs
+@@ -156,6 +156,7 @@
    registry->RegisterBooleanPref(
        prefs::kEnableDoNotTrack, false,
        user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
@@ -23,7 +23,7 @@
                                  false);
 --- a/third_party/blink/public/common/renderer_preferences/renderer_preferences.h
 +++ b/third_party/blink/public/common/renderer_preferences/renderer_preferences.h
-@@ -53,6 +53,7 @@ struct BLINK_COMMON_EXPORT RendererPrefe
+@@ -53,6 +53,7 @@
    bool enable_referrers{true};
    bool allow_cross_origin_auth_prompt{false};
    bool enable_do_not_track{false};
@@ -33,7 +33,7 @@
      BUILDFLAG(IS_WIN)
 --- a/third_party/blink/public/mojom/renderer_preferences.mojom
 +++ b/third_party/blink/public/mojom/renderer_preferences.mojom
-@@ -89,6 +89,9 @@ struct RendererPreferences {
+@@ -89,6 +89,9 @@
    // Set to true to indicate that the preference to set DNT to 1 is enabled.
    bool enable_do_not_track = false;
  
@@ -45,7 +45,7 @@
    // spec.
 --- a/third_party/blink/public/common/renderer_preferences/renderer_preferences_mojom_traits.h
 +++ b/third_party/blink/public/common/renderer_preferences/renderer_preferences_mojom_traits.h
-@@ -125,6 +125,11 @@ struct BLINK_COMMON_EXPORT
+@@ -125,6 +125,11 @@
      return data.enable_do_not_track;
    }
  
@@ -59,7 +59,7 @@
      return data.enable_encrypted_media;
 --- a/third_party/blink/common/renderer_preferences/renderer_preferences_mojom_traits.cc
 +++ b/third_party/blink/common/renderer_preferences/renderer_preferences_mojom_traits.cc
-@@ -55,6 +55,7 @@ bool StructTraits<blink::mojom::Renderer
+@@ -55,6 +55,7 @@
    out->enable_referrers = data.enable_referrers();
    out->allow_cross_origin_auth_prompt = data.allow_cross_origin_auth_prompt();
    out->enable_do_not_track = data.enable_do_not_track();
@@ -69,7 +69,7 @@
    if (!data.ReadWebrtcIpHandlingPolicy(&out->webrtc_ip_handling_policy))
 --- a/chrome/browser/renderer_preferences_util.cc
 +++ b/chrome/browser/renderer_preferences_util.cc
-@@ -155,15 +155,8 @@ void UpdateFromSystemSettings(blink::Ren
+@@ -157,15 +157,8 @@
    prefs->enable_referrers = pref_service->GetBoolean(prefs::kEnableReferrers);
    prefs->enable_do_not_track =
        pref_service->GetBoolean(prefs::kEnableDoNotTrack);
@@ -89,7 +89,7 @@
  
 --- a/chrome/browser/ui/prefs/pref_watcher.cc
 +++ b/chrome/browser/ui/prefs/pref_watcher.cc
-@@ -171,6 +171,8 @@ PrefWatcher::PrefWatcher(Profile* profil
+@@ -171,6 +171,8 @@
  
    profile_pref_change_registrar_.Add(prefs::kViewSourceLineWrappingEnabled,
                                       renderer_callback);
@@ -100,7 +100,7 @@
        base::BindRepeating(&PrefWatcher::OnWebPrefChanged,
 --- a/third_party/blink/public/platform/web_worker_fetch_context.h
 +++ b/third_party/blink/public/platform/web_worker_fetch_context.h
-@@ -146,6 +146,8 @@ class WebWorkerFetchContext : public bas
+@@ -146,6 +146,8 @@
    // Returns the current list of user preferred languages.
    virtual blink::WebString GetAcceptLanguages() const = 0;
  
@@ -111,7 +111,7 @@
    CreateResourceLoadInfoNotifierWrapper() {
 --- a/third_party/blink/renderer/core/frame/local_frame_client.h
 +++ b/third_party/blink/renderer/core/frame/local_frame_client.h
-@@ -285,6 +285,7 @@ class CORE_EXPORT LocalFrameClient : pub
+@@ -285,6 +285,7 @@
    virtual std::optional<blink::UserAgentMetadata> UserAgentMetadata() = 0;
  
    virtual String DoNotTrackValue() = 0;
@@ -121,7 +121,7 @@
  
 --- a/third_party/blink/renderer/core/frame/local_frame_client_impl.h
 +++ b/third_party/blink/renderer/core/frame/local_frame_client_impl.h
-@@ -196,6 +196,7 @@ class CORE_EXPORT LocalFrameClientImpl f
+@@ -196,6 +196,7 @@
    String UserAgent() override;
    std::optional<blink::UserAgentMetadata> UserAgentMetadata() override;
    String DoNotTrackValue() override;
@@ -131,7 +131,7 @@
                            HTMLFrameOwnerElement*) override;
 --- a/third_party/blink/renderer/core/frame/local_frame_client_impl.cc
 +++ b/third_party/blink/renderer/core/frame/local_frame_client_impl.cc
-@@ -992,6 +992,11 @@ String LocalFrameClientImpl::DoNotTrackV
+@@ -988,6 +988,11 @@
    return String();
  }
  
@@ -145,7 +145,7 @@
  void LocalFrameClientImpl::TransitionToCommittedForNewPage() {
 --- a/third_party/blink/renderer/modules/service_worker/web_service_worker_fetch_context_impl.h
 +++ b/third_party/blink/renderer/modules/service_worker/web_service_worker_fetch_context_impl.h
-@@ -77,6 +77,9 @@ class BLINK_EXPORT WebServiceWorkerFetch
+@@ -77,6 +77,9 @@
    std::unique_ptr<WebSocketHandshakeThrottle> CreateWebSocketHandshakeThrottle(
        scoped_refptr<base::SingleThreadTaskRunner> task_runner) override;
    WebString GetAcceptLanguages() const override;
@@ -157,7 +157,7 @@
    void UpdateSubresourceLoaderFactories(
 --- a/third_party/blink/renderer/modules/service_worker/web_service_worker_fetch_context_impl.cc
 +++ b/third_party/blink/renderer/modules/service_worker/web_service_worker_fetch_context_impl.cc
-@@ -153,7 +153,8 @@ void WebServiceWorkerFetchContextImpl::F
+@@ -153,7 +153,8 @@
    if (renderer_preferences_.enable_do_not_track) {
      request.SetHttpHeaderField(WebString::FromUtf8(kDoNotTrackHeader), "1");
    }
@@ -169,7 +169,7 @@
      blink::MaybeRecordGlobalPrivacyControlSourceMetric(
 --- a/third_party/blink/renderer/platform/loader/fetch/url_loader/dedicated_or_shared_worker_global_scope_context_impl.h
 +++ b/third_party/blink/renderer/platform/loader/fetch/url_loader/dedicated_or_shared_worker_global_scope_context_impl.h
-@@ -156,6 +156,9 @@ class BLINK_PLATFORM_EXPORT DedicatedOrS
+@@ -156,6 +156,9 @@
    void set_container_is_shared_worker(bool is_sharedworker) override;
  
    WebString GetAcceptLanguages() const override;
@@ -181,7 +181,7 @@
    CreateResourceLoadInfoNotifierWrapper() override;
 --- a/third_party/blink/renderer/platform/loader/fetch/url_loader/dedicated_or_shared_worker_global_scope_context_impl.cc
 +++ b/third_party/blink/renderer/platform/loader/fetch/url_loader/dedicated_or_shared_worker_global_scope_context_impl.cc
-@@ -380,7 +380,8 @@ void DedicatedOrSharedWorkerGlobalScopeC
+@@ -380,7 +380,8 @@
    if (renderer_preferences_.enable_do_not_track) {
      request.SetHttpHeaderField(WebString::FromUtf8(kDoNotTrackHeader), "1");
    }
@@ -193,7 +193,7 @@
      blink::MaybeRecordGlobalPrivacyControlSourceMetric(
 --- a/third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h
 +++ b/third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h
-@@ -130,6 +130,8 @@ class CORE_EXPORT WorkerOrWorkletGlobalS
+@@ -130,6 +130,8 @@
    // Returns nullptr if this global scope is a WorkletGlobalScope
    virtual WorkerNavigator* navigator() const { return nullptr; }
  
@@ -204,7 +204,7 @@
    ResourceFetcher* Fetcher() override;
 --- a/third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.cc
 +++ b/third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.cc
-@@ -400,6 +400,11 @@ void WorkerOrWorkletGlobalScope::Initial
+@@ -400,6 +400,11 @@
    }
  }
  
@@ -218,7 +218,7 @@
    // Worklets don't support subresource fetch.
 --- a/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc
 +++ b/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc
-@@ -16,16 +16,16 @@ namespace blink {
+@@ -16,16 +16,16 @@
  namespace NavigatorGlobalPrivacyControl {
  
  bool globalPrivacyControl(NavigatorBase& navigator) {
@@ -246,7 +246,7 @@
  }  // namespace NavigatorGlobalPrivacyControl
 --- a/content/browser/loader/browser_initiated_resource_request.cc
 +++ b/content/browser/loader/browser_initiated_resource_request.cc
-@@ -34,8 +34,8 @@ void UpdateAdditionalHeadersForBrowserIn
+@@ -34,8 +34,8 @@
  
    // Set the GlobalPrivacyControl header if appropriate.
    // https://w3c.github.io/gpc/#expression-format
@@ -259,7 +259,7 @@
      }
 --- a/content/renderer/render_frame_impl.cc
 +++ b/content/renderer/render_frame_impl.cc
-@@ -4685,8 +4685,10 @@ void RenderFrameImpl::FinalizeRequestInt
+@@ -4690,8 +4690,10 @@
      request.SetHttpHeaderField(
          blink::WebString::FromUtf8(blink::kDoNotTrackHeader), "1");
    }
@@ -272,7 +272,7 @@
      request.SetHttpHeaderField(
          blink::WebString::FromUtf8(blink::kGlobalPrivacyControlHeader), "1");
      blink::MaybeRecordGlobalPrivacyControlSourceMetric(
-@@ -4944,6 +4946,14 @@ void RenderFrameImpl::DidCreateScriptCon
+@@ -4949,6 +4951,14 @@
    v8::MicrotasksScope microtasks(GetAgentGroupScheduler().Isolate(),
                                   context->GetMicrotaskQueue(),
                                   v8::MicrotasksScope::kDoNotRunMicrotasks);
@@ -289,7 +289,7 @@
          IsMainFrame())) &&
 --- a/third_party/blink/public/common/global_privacy_control/global_privacy_control_util.h
 +++ b/third_party/blink/public/common/global_privacy_control/global_privacy_control_util.h
-@@ -26,6 +26,11 @@ enum class GPCSignalSourceType {
+@@ -26,6 +26,11 @@
  };
  // LINT.ThenChange(//tools/metrics/histograms/metadata/network/enums.xml:GPCSignalSourceType)
  
@@ -303,7 +303,7 @@
  // available, but not whether to include headers.
 --- a/third_party/blink/common/global_privacy_control/global_privacy_control_util.cc
 +++ b/third_party/blink/common/global_privacy_control/global_privacy_control_util.cc
-@@ -56,4 +56,9 @@ void MaybeRecordGlobalPrivacyControlSour
+@@ -56,4 +56,9 @@
    }
  }
  
@@ -315,7 +315,7 @@
  }  // namespace blink
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -491,6 +491,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -492,6 +492,8 @@
    (*s_allowlist)[::prefs::kEnableDoNotTrack] = settings_api::PrefType::kBoolean;
    (*s_allowlist)[universal_optout::prefs::kUniversalOptOutEnabled] =
        settings_api::PrefType::kBoolean;
@@ -326,9 +326,9 @@
    (*s_allowlist)[::prefs::kSearchSuggestEnabled] =
 --- a/third_party/blink/public/web/web_v8_features.h
 +++ b/third_party/blink/public/web/web_v8_features.h
-@@ -40,6 +40,8 @@ class BLINK_EXPORT WebV8Features {
+@@ -52,6 +52,8 @@
    static void EnableUnboundedElement(v8::Local<v8::Context>,
-                                      bool is_privileged = false);
+                                      UnboundedElementPrivilege);
  
 +  static void EnableGlobalPrivacyControl(v8::Local<v8::Context>, bool);
 +
@@ -337,7 +337,7 @@
    // update that bool, indicating that MojoJS is allowed to be enabled for any
 --- a/third_party/blink/renderer/core/context_features/context_feature_settings.h
 +++ b/third_party/blink/renderer/core/context_features/context_feature_settings.h
-@@ -64,6 +64,14 @@ class CORE_EXPORT ContextFeatureSettings
+@@ -71,6 +71,14 @@
    }
    bool isUnboundedElementEnabled() const;
  
@@ -352,17 +352,17 @@
    void Trace(Visitor*) const override;
  
   private:
-@@ -71,6 +79,7 @@ class CORE_EXPORT ContextFeatureSettings
-   bool enable_mojo_js_file_system_access_helper_ = false;
+@@ -79,6 +87,7 @@
    bool enable_unbounded_element_ = false;
-   bool enable_unbounded_element_privileged_ = false;
+   UnboundedElementPrivilege unbounded_element_privilege_ =
+       UnboundedElementPrivilege::kNone;
 +  bool enable_global_privacy_control_ = false;
  };
  
  }  // namespace blink
 --- a/third_party/blink/renderer/core/exported/web_v8_features.cc
 +++ b/third_party/blink/renderer/core/exported/web_v8_features.cc
-@@ -107,6 +107,18 @@ void WebV8Features::EnableUnboundedEleme
+@@ -108,6 +108,18 @@
  }
  
  // static
@@ -408,7 +408,7 @@
  #include "third_party/blink/renderer/core/execution_context/agent.h"
  #include "third_party/blink/renderer/core/inspector/worker_thread_debugger.h"
  #include "third_party/blink/renderer/core/origin_trials/origin_trial_context.h"
-@@ -263,6 +265,12 @@ void WorkerOrWorkletScriptController::Pr
+@@ -263,6 +265,12 @@
  
    v8::HandleScope handle_scope(isolate_);
  

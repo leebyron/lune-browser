@@ -1,6 +1,6 @@
 --- a/chrome/browser/helium_flag_choices.h
 +++ b/chrome/browser/helium_flag_choices.h
-@@ -35,6 +35,8 @@ constexpr const char kMiddleClickAutoscr
+@@ -35,6 +35,8 @@
  constexpr const char kHeliumNoiseCommandLine[] = "helium-noise";
  constexpr const char kHeliumNoiseCanvasCommandLine[] = "helium-noise-canvas";
  constexpr const char kHeliumNoiseAudioCommandLine[] = "helium-noise-audio";
@@ -25,7 +25,7 @@
      // platform
 --- a/content/browser/helium_noise/noise_token_data.cc
 +++ b/content/browser/helium_noise/noise_token_data.cc
-@@ -59,6 +59,8 @@ HeliumNoiseTokenData::HeliumNoiseTokenDa
+@@ -59,6 +59,8 @@
        blink::HeliumNoiseToken(base::RandUint64());
    session_tokens_[blink::HeliumNoiseFeature::kAudio] =
        blink::HeliumNoiseToken(base::RandUint64());
@@ -36,29 +36,29 @@
  // static
 --- a/third_party/blink/common/features.cc
 +++ b/third_party/blink/common/features.cc
-@@ -60,6 +60,9 @@ BASE_FEATURE(kHeliumNoiseCanvas,
+@@ -60,6 +60,9 @@
  BASE_FEATURE(kHeliumNoiseAudio,
               base::FEATURE_ENABLED_BY_DEFAULT);
  
 +// navigator.hardwareConcurrency noising for fingerprint protection.
 +BASE_FEATURE(kHeliumNoiseCpuCores, base::FEATURE_ENABLED_BY_DEFAULT);
 +
- // Controls whether to include information about the page's open popup in
- // AIPageContent.
- BASE_FEATURE(kAIPageContentIncludePopupWindows,
+ // Controls whether the ad highlight is annotated with a label describing the
+ // type of ad such as popup, sticky, or video.
+ BASE_FEATURE(kAdHighlightLabel, base::FEATURE_DISABLED_BY_DEFAULT);
 --- a/third_party/blink/public/common/features.h
 +++ b/third_party/blink/public/common/features.h
-@@ -45,6 +45,7 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE
- BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumNoise);
+@@ -46,6 +46,7 @@
+ 
  BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumNoiseCanvas);
  BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumNoiseAudio);
 +BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumNoiseCpuCores);
- 
- // Controls whether to include information about the page's open popup in
- // AIPageContent.
+ // Controls whether the ad highlight is annotated with a label describing the
+ // type of ad such as popup, sticky, or video.
+ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAdHighlightLabel);
 --- a/third_party/blink/public/common/helium_noise/noise_token.h
 +++ b/third_party/blink/public/common/helium_noise/noise_token.h
-@@ -23,6 +23,7 @@ namespace blink {
+@@ -23,6 +23,7 @@
  enum class HeliumNoiseFeature {
    kCanvas,
    kAudio,
@@ -68,7 +68,7 @@
  // A wrapper class for a uint64_t noise token.
 --- a/third_party/blink/public/mojom/helium_noise/noise_token.mojom
 +++ b/third_party/blink/public/mojom/helium_noise/noise_token.mojom
-@@ -8,6 +8,7 @@ module blink.mojom;
+@@ -8,6 +8,7 @@
  enum HeliumNoiseFeature {
    kCanvas,
    kAudio,
@@ -86,7 +86,7 @@
  #include "third_party/blink/renderer/core/probe/core_probes.h"
  #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
  #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
-@@ -56,6 +57,52 @@ String GetReducedNavigatorPlatform() {
+@@ -56,6 +57,52 @@
  #endif
  }
  
@@ -139,7 +139,7 @@
  }  // namespace
  
  NavigatorBase::NavigatorBase(ExecutionContext* context)
-@@ -92,7 +139,7 @@ unsigned int NavigatorBase::hardwareConc
+@@ -92,7 +139,7 @@
  
    probe::ApplyHardwareConcurrencyOverride(
        probe::ToCoreProbeSink(GetExecutionContext()), hardware_concurrency);
@@ -150,7 +150,7 @@
  ExecutionContext* NavigatorBase::GetUAExecutionContext() const {
 --- a/third_party/blink/public/common/helium_noise/noise_token_mojom_traits.h
 +++ b/third_party/blink/public/common/helium_noise/noise_token_mojom_traits.h
-@@ -30,6 +30,8 @@ struct BLINK_COMMON_EXPORT
+@@ -30,6 +30,8 @@
          return blink::mojom::HeliumNoiseFeature::kCanvas;
        case blink::HeliumNoiseFeature::kAudio:
          return blink::mojom::HeliumNoiseFeature::kAudio;
@@ -159,7 +159,7 @@
      }
      NOTREACHED();
    }
-@@ -41,6 +43,8 @@ struct BLINK_COMMON_EXPORT
+@@ -41,6 +43,8 @@
          return blink::HeliumNoiseFeature::kCanvas;
        case blink::mojom::HeliumNoiseFeature::kAudio:
          return blink::HeliumNoiseFeature::kAudio;

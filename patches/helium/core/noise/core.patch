@@ -36,7 +36,7 @@
 
 --- a/chrome/browser/helium_flag_choices.h
 +++ b/chrome/browser/helium_flag_choices.h
-@@ -32,6 +32,8 @@ constexpr const char kUpdateServerUrlCom
+@@ -32,6 +32,8 @@
  constexpr const char kMiddleClickAutoscrollCommandLine[] =
      "middle-click-autoscroll";
  
@@ -62,7 +62,7 @@
      // platform
 --- a/third_party/blink/common/features.cc
 +++ b/third_party/blink/common/features.cc
-@@ -48,6 +48,10 @@ const base::FeatureParam<std::string> kS
+@@ -48,6 +48,10 @@
  // `RuntimeEnabledFeatures)`, they should still be ordered in this section based
  // on the identifier name of the generated feature.
  
@@ -70,20 +70,20 @@
 +BASE_FEATURE(kHeliumNoise,
 +             base::FEATURE_ENABLED_BY_DEFAULT);
 +
- // Controls whether to include information about the page's open popup in
- // AIPageContent.
- BASE_FEATURE(kAIPageContentIncludePopupWindows,
+ // Controls whether the ad highlight is annotated with a label describing the
+ // type of ad such as popup, sticky, or video.
+ BASE_FEATURE(kAdHighlightLabel, base::FEATURE_DISABLED_BY_DEFAULT);
 --- a/third_party/blink/public/common/features.h
 +++ b/third_party/blink/public/common/features.h
-@@ -42,6 +42,8 @@ BLINK_COMMON_EXPORT extern const base::F
+@@ -42,6 +42,8 @@
  
  BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumMiddleClickAutoscroll);
  
 +BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHeliumNoise);
 +
- // Controls whether to include information about the page's open popup in
- // AIPageContent.
- BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAIPageContentIncludePopupWindows);
+ // Controls whether the ad highlight is annotated with a label describing the
+ // type of ad such as popup, sticky, or video.
+ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAdHighlightLabel);
 --- /dev/null
 +++ b/content/browser/helium_noise/noise_token_data.cc
 @@ -0,0 +1,106 @@
@@ -251,7 +251,7 @@
 +#endif  // CONTENT_BROWSER_HELIUM_NOISE_NOISE_TOKEN_DATA_H_
 --- a/content/browser/BUILD.gn
 +++ b/content/browser/BUILD.gn
-@@ -1106,6 +1106,8 @@ source_set("browser") {
+@@ -1114,6 +1114,8 @@
      "haptics/haptics_manager.h",
      "haptics/haptics_service_impl.cc",
      "haptics/haptics_service_impl.h",
@@ -376,7 +376,7 @@
 +]
 --- a/third_party/blink/renderer/core/BUILD.gn
 +++ b/third_party/blink/renderer/core/BUILD.gn
-@@ -42,6 +42,7 @@ import("//third_party/blink/renderer/cor
+@@ -42,6 +42,7 @@
  import("//third_party/blink/renderer/core/fullscreen/build.gni")
  import("//third_party/blink/renderer/core/geolocation/build.gni")
  import("//third_party/blink/renderer/core/geometry/build.gni")
@@ -384,7 +384,7 @@
  import("//third_party/blink/renderer/core/highlight/build.gni")
  import("//third_party/blink/renderer/core/html/build.gni")
  import("//third_party/blink/renderer/core/image_replacement/build.gni")
-@@ -272,6 +273,10 @@ component("core") {
+@@ -272,6 +273,10 @@
    # deps section below. For unit tests, do the same thing in the "unit_tests"
    # component. If the directory contains sources that should be compiled with
    # extra optimization flags, see the "core_hot" target below.
@@ -540,8 +540,8 @@
 +#endif  // THIRD_PARTY_BLINK_PUBLIC_COMMON_HELIUM_NOISE_NOISE_TOKEN_MOJOM_TRAITS_H_
 --- a/third_party/blink/public/common/BUILD.gn
 +++ b/third_party/blink/public/common/BUILD.gn
-@@ -165,6 +165,8 @@ source_set("headers") {
-     "frame/user_activation_update_source.h",
+@@ -165,6 +165,8 @@
+     "frame/user_activation_update_scope.h",
      "frame/view_transition_state.h",
      "global_privacy_control/global_privacy_control_util.h",
 +    "helium_noise/noise_token.h",
@@ -595,7 +595,7 @@
 +}
 --- a/third_party/blink/public/mojom/BUILD.gn
 +++ b/third_party/blink/public/mojom/BUILD.gn
-@@ -362,6 +362,7 @@ mojom("mojom_platform") {
+@@ -362,6 +362,7 @@
      "//third_party/blink/public/mojom/content_extraction",
      "//third_party/blink/public/mojom/fingerprinting_protection",
      "//third_party/blink/public/mojom/gpu",
@@ -603,7 +603,7 @@
      "//third_party/blink/public/mojom/origin_trials:origin_trial_feature",
      "//third_party/blink/public/mojom/origin_trials:origin_trial_state",
      "//third_party/blink/public/mojom/quota",
-@@ -1252,6 +1253,7 @@ mojom("mojom_core") {
+@@ -1218,6 +1219,7 @@
      "//services/viz/public/mojom",
      "//skia/public/mojom",
      "//third_party/blink/public/mojom/fingerprinting_protection",
@@ -613,7 +613,7 @@
      "//third_party/blink/public/mojom/storage_key",
 --- a/content/common/frame.mojom
 +++ b/content/common/frame.mojom
-@@ -37,6 +37,7 @@ import "third_party/blink/public/mojom/f
+@@ -37,6 +37,7 @@
  import "third_party/blink/public/mojom/frame/policy_container.mojom";
  import "third_party/blink/public/mojom/frame/remote_frame.mojom";
  import "third_party/blink/public/mojom/frame/tree_scope_type.mojom";
@@ -621,7 +621,7 @@
  import "third_party/blink/public/mojom/loader/referrer.mojom";
  import "third_party/blink/public/mojom/navigation/navigation_policy.mojom";
  import "third_party/blink/public/mojom/loader/resource_load_info.mojom";
-@@ -170,6 +171,10 @@ struct CreateViewParams {
+@@ -170,6 +171,10 @@
    // A snapshot of the history information when this view was created.
    int32 history_index = -1;
    int32 history_length = 0;
@@ -634,7 +634,7 @@
  // A union to distinguish between parameters specific to local main frame
 --- a/third_party/blink/public/mojom/page/page.mojom
 +++ b/third_party/blink/public/mojom/page/page.mojom
-@@ -10,6 +10,7 @@ import "skia/public/mojom/skcolor.mojom"
+@@ -10,6 +10,7 @@
  import "third_party/blink/public/mojom/frame/frame_replication_state.mojom";
  import "third_party/blink/public/mojom/frame/remote_frame.mojom";
  import "third_party/blink/public/mojom/frame/view_transition_state.mojom";
@@ -642,7 +642,7 @@
  import "third_party/blink/public/mojom/navigation/was_activated_option.mojom";
  import "third_party/blink/public/mojom/page/page_visibility_state.mojom";
  import "third_party/blink/public/mojom/renderer_preferences.mojom";
-@@ -176,6 +177,12 @@ interface PageBroadcast {
+@@ -176,6 +177,12 @@
    // of theme changes.
    UpdateColorProviders(ColorProviderColorMaps color_provider_colors);
  
@@ -657,7 +657,7 @@
    SetSupportsDraggableRegions(bool supports_draggable_regions);
 --- a/third_party/blink/renderer/core/execution_context/execution_context.h
 +++ b/third_party/blink/renderer/core/execution_context/execution_context.h
-@@ -37,6 +37,7 @@
+@@ -38,6 +38,7 @@
  #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink-forward.h"
  #include "services/network/public/mojom/referrer_policy.mojom-blink-forward.h"
  #include "third_party/blink/public/common/fingerprinting_protection/noise_token.h"
@@ -665,7 +665,7 @@
  #include "third_party/blink/public/common/tokens/tokens.h"
  #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
  #include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink-forward.h"
-@@ -486,6 +487,23 @@ class CORE_EXPORT ExecutionContext : pub
+@@ -487,6 +488,23 @@
      return net::StorageAccessApiStatus::kNone;
    }
  
@@ -689,7 +689,7 @@
    const std::optional<NoiseToken>& CanvasNoiseToken() const {
      return canvas_noise_token_;
    }
-@@ -575,6 +593,8 @@ class CORE_EXPORT ExecutionContext : pub
+@@ -577,6 +595,8 @@
  
    bool require_trusted_types_ = false;
  
@@ -708,7 +708,7 @@
  #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
  #include "third_party/blink/public/common/web_preferences/web_preferences.h"
  #include "third_party/blink/public/mojom/frame/frame.mojom-shared.h"
-@@ -134,6 +135,8 @@ class BLINK_EXPORT WebView {
+@@ -134,6 +135,8 @@
    // |history_index| and |history_length| are information about the frame tree's
    // history list at the point when this view was created. These values are
    // updated again at navigation commit time.
@@ -717,7 +717,7 @@
    static WebView* Create(
        WebViewClient*,
        bool is_hidden,
-@@ -151,7 +154,8 @@ class BLINK_EXPORT WebView {
+@@ -151,7 +154,8 @@
        const base::UnguessableToken& browsing_context_group_token,
        const ColorProviderColorMaps* color_provider_colors,
        int32_t history_index,
@@ -737,7 +737,7 @@
  #include "third_party/blink/public/common/metrics/document_update_reason.h"
  #include "third_party/blink/public/common/page/color_provider_color_maps.h"
  #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
-@@ -132,7 +133,8 @@ class CORE_EXPORT Page final : public Ga
+@@ -132,7 +133,8 @@
        Page* opener,
        AgentGroupScheduler& agent_group_scheduler,
        const base::UnguessableToken& browsing_context_group_token,
@@ -747,7 +747,7 @@
  
    Page(base::PassKey<Page>,
         ChromeClient& chrome_client,
-@@ -189,6 +191,14 @@ class CORE_EXPORT Page final : public Ga
+@@ -189,6 +191,14 @@
      color_provider_colors_ = color_provider_colors;
    }
  
@@ -762,7 +762,7 @@
    void InitialStyleChanged();
    void UAStyleChanged();
    void UpdateAcceleratedCompositingSettings();
-@@ -676,6 +686,9 @@ class CORE_EXPORT Page final : public Ga
+@@ -677,6 +687,9 @@
    // who may depend on the main Page for colors.
    ColorProviderColorMaps color_provider_colors_;
  
@@ -782,7 +782,7 @@
  #include "third_party/blink/public/common/history/session_history_constants.h"
  #include "third_party/blink/public/common/input/web_input_event.h"
  #include "third_party/blink/public/common/page/color_provider_color_maps.h"
-@@ -492,7 +493,8 @@ WebView* WebView::Create(
+@@ -492,7 +493,8 @@
      const base::UnguessableToken& browsing_context_group_token,
      const ColorProviderColorMaps* color_provider_colors,
      int32_t history_index,
@@ -792,7 +792,7 @@
    return WebViewImpl::Create(
        client,
        is_hidden ? mojom::blink::PageVisibilityState::kHidden
-@@ -501,7 +503,8 @@ WebView* WebView::Create(
+@@ -501,7 +503,8 @@
        widgets_never_composited, To<WebViewImpl>(opener), std::move(page_handle),
        agent_group_scheduler, session_storage_namespace_id,
        std::move(page_base_background_color), browsing_context_group_token,
@@ -802,7 +802,7 @@
  }
  
  WebViewImpl* WebViewImpl::Create(
-@@ -520,14 +523,15 @@ WebViewImpl* WebViewImpl::Create(
+@@ -520,14 +523,15 @@
      const base::UnguessableToken& browsing_context_group_token,
      const ColorProviderColorMaps* color_provider_colors,
      int32_t history_index,
@@ -820,7 +820,7 @@
  }
  
  size_t WebView::GetWebViewCount() {
-@@ -579,7 +583,8 @@ WebViewImpl::WebViewImpl(
+@@ -579,7 +583,8 @@
      const base::UnguessableToken& browsing_context_group_token,
      const ColorProviderColorMaps* color_provider_colors,
      int32_t history_index,
@@ -830,7 +830,7 @@
      : widgets_never_composited_(widgets_never_composited),
        web_view_client_(client),
        chrome_client_(MakeGarbageCollected<ChromeClientImpl>(this)),
-@@ -613,7 +618,8 @@ WebViewImpl::WebViewImpl(
+@@ -613,7 +618,8 @@
    page_ = Page::CreateOrdinary(
        *chrome_client_, opener ? opener->GetPage() : nullptr,
        agent_group_scheduler.GetAgentGroupScheduler(),
@@ -840,7 +840,7 @@
    page_->SetRendererPreferences(renderer_preferences_);
    CoreInitializer::GetInstance().ProvideModulesToPage(
        *page_, session_storage_namespace_id_);
-@@ -3652,6 +3658,20 @@ void WebViewImpl::UpdateColorProviders(
+@@ -3650,6 +3656,20 @@
    }
  }
  
@@ -863,7 +863,7 @@
    DCHECK(does_composite_);
 --- a/third_party/blink/renderer/core/exported/web_view_impl.h
 +++ b/third_party/blink/renderer/core/exported/web_view_impl.h
-@@ -126,7 +126,8 @@ class CORE_EXPORT WebViewImpl final : pu
+@@ -126,7 +126,8 @@
        const base::UnguessableToken& browsing_context_group_token,
        const ColorProviderColorMaps* color_provider_colors,
        int32_t history_index,
@@ -873,7 +873,7 @@
  
    // All calls to Create() should be balanced with a call to Close(). This
    // synchronously destroys the WebViewImpl.
-@@ -322,6 +323,8 @@ class CORE_EXPORT WebViewImpl final : pu
+@@ -322,6 +323,8 @@
    void UpdateColorProviders(
        const ColorProviderColorMaps& color_provider_colors) override;
    void SetSupportsDraggableRegions(bool supports_draggable_regions) override;
@@ -882,7 +882,7 @@
  
    void DispatchPersistedPageshow(base::TimeTicks navigation_start);
    void DispatchPagehide(mojom::blink::PagehideDispatch pagehide_dispatch);
-@@ -731,7 +734,8 @@ class CORE_EXPORT WebViewImpl final : pu
+@@ -731,7 +734,8 @@
        const base::UnguessableToken& browsing_context_group_token,
        const ColorProviderColorMaps* color_provider_colors,
        int32_t history_index,
@@ -894,7 +894,7 @@
    void ConfigureAutoResizeMode();
 --- a/third_party/blink/renderer/core/page/page.cc
 +++ b/third_party/blink/renderer/core/page/page.cc
-@@ -216,12 +216,14 @@ Page* Page::CreateOrdinary(
+@@ -216,12 +216,14 @@
      Page* opener,
      AgentGroupScheduler& agent_group_scheduler,
      const base::UnguessableToken& browsing_context_group_token,
@@ -912,7 +912,7 @@
  
 --- a/third_party/blink/renderer/core/loader/document_loader.cc
 +++ b/third_party/blink/renderer/core/loader/document_loader.cc
-@@ -3095,6 +3095,9 @@ void DocumentLoader::CommitNavigation()
+@@ -3122,6 +3122,9 @@
  
    frame_->DomWindow()->SetCanvasNoiseToken(std::nullopt);
  
@@ -940,7 +940,7 @@
  #include "third_party/perfetto/include/perfetto/tracing/track.h"
  #include "url/gurl.h"
  #include "url/origin.h"
-@@ -732,6 +734,15 @@ void BrowsingDataRemoverImpl::RemoveImpl
+@@ -728,6 +730,15 @@
      }
    }
  
@@ -958,7 +958,7 @@
      embedder_delegate_->RemoveEmbedderData(
 --- a/content/public/browser/content_browser_client.cc
 +++ b/content/public/browser/content_browser_client.cc
-@@ -2027,6 +2027,12 @@ ContentBrowserClient::GetClipboardTypesI
+@@ -2050,6 +2050,12 @@
    return std::nullopt;
  }
  
@@ -973,7 +973,7 @@
  }
 --- a/content/public/browser/content_browser_client.h
 +++ b/content/public/browser/content_browser_client.h
-@@ -3322,6 +3322,11 @@ class CONTENT_EXPORT ContentBrowserClien
+@@ -3353,6 +3353,11 @@
    GetClipboardTypesIfPolicyApplied(
        const ui::ClipboardSequenceNumberToken& seqno);
  
@@ -987,7 +987,7 @@
    virtual bool UsePrefetchPrerenderIntegration();
 --- a/content/browser/renderer_host/navigation_request.cc
 +++ b/content/browser/renderer_host/navigation_request.cc
-@@ -60,6 +60,7 @@
+@@ -61,6 +61,7 @@
  #include "content/browser/devtools/network_service_devtools_observer.h"
  #include "content/browser/download/download_manager_impl.h"
  #include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
@@ -995,7 +995,7 @@
  #include "content/browser/loader/browser_initiated_resource_request.h"
  #include "content/browser/loader/cached_navigation_url_loader.h"
  #include "content/browser/loader/navigation_early_hints_manager.h"
-@@ -10017,6 +10018,22 @@ void NavigationRequest::ReadyToCommitNav
+@@ -10277,6 +10278,22 @@
      }
    }
  
@@ -1020,7 +1020,7 @@
    }
 --- a/content/browser/renderer_host/navigation_request.h
 +++ b/content/browser/renderer_host/navigation_request.h
-@@ -84,6 +84,7 @@
+@@ -85,6 +85,7 @@
  #include "services/network/public/mojom/shared_dictionary_access_observer.mojom.h"
  #include "services/network/public/mojom/trust_token_access_observer.mojom-shared.h"
  #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
@@ -1028,7 +1028,7 @@
  #include "third_party/blink/public/common/runtime_feature_state/runtime_feature_state_context.h"
  #include "third_party/blink/public/common/tokens/tokens.h"
  #include "third_party/blink/public/mojom/confidence_level.mojom.h"
-@@ -1612,6 +1613,16 @@ class CONTENT_EXPORT NavigationRequest
+@@ -1635,6 +1636,16 @@
  
    const GURL& original_url() const { return original_url_; }
  
@@ -1045,7 +1045,7 @@
    // Called when the browser process is about to process beforeunload handlers
    // for this navigation, including sending an IPC to the renderer process to
    // run beforeunload handlers when necessary.
-@@ -3823,6 +3834,10 @@ class CONTENT_EXPORT NavigationRequest
+@@ -3882,6 +3893,10 @@
    blink::mojom::ConfidenceLevel confidence_level_ =
        blink::mojom::ConfidenceLevel::kHigh;
  
@@ -1066,7 +1066,7 @@
  #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom.h"
  #include "third_party/blink/public/mojom/favicon/favicon_url.mojom.h"
  #include "third_party/blink/public/mojom/media/capture_handle_config.mojom.h"
-@@ -76,6 +77,14 @@ class CONTENT_EXPORT PageImpl : public P
+@@ -76,6 +77,14 @@
    base::android::ScopedJavaLocalRef<jobject> GetJavaPage() override;
  #endif
  
@@ -1081,7 +1081,7 @@
    base::WeakPtr<PageImpl> GetWeakPtrImpl();
  
    virtual void UpdateManifestUrl(const GURL& manifest_url);
-@@ -340,6 +349,14 @@ class CONTENT_EXPORT PageImpl : public P
+@@ -340,6 +349,14 @@
    // process during commit via CommitNavigationParams.
    std::optional<blink::NoiseToken> canvas_noise_token_ = std::nullopt;
  
@@ -1098,7 +1098,7 @@
    std::optional<SkColor> main_document_theme_color_;
 --- a/content/browser/renderer_host/render_frame_host_impl.cc
 +++ b/content/browser/renderer_host/render_frame_host_impl.cc
-@@ -290,6 +290,7 @@
+@@ -292,6 +292,7 @@
  #include "third_party/blink/public/common/features.h"
  #include "third_party/blink/public/common/frame/frame_owner_element_type.h"
  #include "third_party/blink/public/common/frame/frame_policy.h"
@@ -1106,7 +1106,7 @@
  #include "third_party/blink/public/common/loader/inter_process_time_ticks_converter.h"
  #include "third_party/blink/public/common/loader/resource_type_util.h"
  #include "third_party/blink/public/common/messaging/transferable_message.h"
-@@ -12791,6 +12792,22 @@ void RenderFrameHostImpl::CommitNavigati
+@@ -13113,6 +13114,22 @@
      }
    }
  
@@ -1129,7 +1129,7 @@
    bool is_srcdoc = common_params->url.IsAboutSrcdoc();
    if (is_srcdoc) {
      // TODO(wjmaclean): initialize this in NavigationRequest's constructor
-@@ -16654,6 +16671,15 @@ bool RenderFrameHostImpl::DidCommitNavig
+@@ -17004,6 +17021,15 @@
      document_associated_data_->owned_page()->set_last_main_document_source_id(
          ukm::ConvertToSourceId(navigation_request->GetNavigationId(),
                                 ukm::SourceIdType::NAVIGATION_ID));
@@ -1155,7 +1155,7 @@
  #include "third_party/blink/public/common/web_preferences/web_preferences.h"
  #include "third_party/blink/public/mojom/page/prerender_page_param.mojom.h"
  #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
-@@ -462,6 +463,17 @@ bool RenderViewHostImpl::CreateRenderVie
+@@ -462,6 +463,17 @@
             base::NotFatalUntil::M152);
    params->navigation_metrics_token = navigation_metrics_token;
  
@@ -1175,7 +1175,7 @@
      auto& prerender_host = PrerenderHost::GetFromFrameTree(frame_tree_);
 --- a/content/renderer/agent_scheduling_group.cc
 +++ b/content/renderer/agent_scheduling_group.cc
-@@ -236,7 +236,8 @@ blink::WebView* AgentSchedulingGroup::Cr
+@@ -236,7 +236,8 @@
        std::move(params->blink_page_broadcast), agent_group_scheduler(),
        params->session_storage_namespace_id, params->base_background_color,
        params->browsing_context_group_token, &params->color_provider_colors,
@@ -1195,7 +1195,7 @@
  #include "third_party/blink/public/common/tokens/tokens.h"
  #include "third_party/blink/public/common/web_preferences/web_preferences.h"
  #include "third_party/blink/public/mojom/page/prerender_page_param.mojom.h"
-@@ -685,7 +686,8 @@ class HeaderAndFooterContext {
+@@ -685,7 +686,8 @@
          /*browsing_context_group_token=*/base::UnguessableToken::Create(),
          /*color_provider_colors=*/nullptr,
          /*history_index=*/-1,
@@ -1205,7 +1205,7 @@
      view->GetSettings()->SetJavaScriptEnabled(true);
      return view;
    }
-@@ -979,7 +981,8 @@ void PrepareFrameAndViewForPrint::CopySe
+@@ -979,7 +981,8 @@
        /*browsing_context_group_token=*/base::UnguessableToken::Create(),
        /*color_provider_colors=*/nullptr,
        /*history_index=*/-1,
@@ -1225,7 +1225,7 @@
  #include "third_party/blink/public/common/input/web_coalesced_input_event.h"
  #include "third_party/blink/public/common/page/page_zoom.h"
  #include "third_party/blink/public/common/tokens/tokens.h"
-@@ -283,7 +284,8 @@ WebViewPlugin::WebViewHelper::WebViewHel
+@@ -283,7 +284,8 @@
        /*browsing_context_group_token=*/base::UnguessableToken(),
        /*color_provider_colors=*/nullptr,
        /*history_index=*/-1,
@@ -1237,7 +1237,7 @@
    blink::WebView::ApplyWebPreferences(parent_web_preferences, web_view_);
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -3279,6 +3279,9 @@ inline constexpr char kSharedWorkerExten
+@@ -3248,6 +3248,9 @@
  inline constexpr char kImportDialogExtensions[] =
      "import_dialog_extensions";
  
@@ -1249,7 +1249,7 @@
  inline constexpr char kClearWindowNameForNewBrowsingContextGroup[] =
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -337,6 +337,10 @@ source_set("chrome_content_browser_clien
+@@ -336,6 +336,10 @@
    ]
  }
  
@@ -1260,7 +1260,7 @@
  source_set("command_updater_impl") {
    public = [
      "command_observer.h",
-@@ -1028,6 +1032,8 @@ source_set("core") {
+@@ -1029,6 +1033,8 @@
      "font_family_cache.cc",
      "font_family_cache.h",
      "global_features.cc",
@@ -1428,7 +1428,7 @@
 +#endif  // CHROME_BROWSER_HELIUM_NOISE_HELIUM_NOISE_SETTINGS_H_
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
-@@ -108,6 +108,7 @@
+@@ -109,6 +109,7 @@
  #include "chrome/browser/glic/public/features.h"
  #include "chrome/browser/glic/public/glic_request_headers.h"
  #include "chrome/browser/headless/headless_mode_util.h"
@@ -1436,7 +1436,7 @@
  #include "chrome/browser/hid/chrome_hid_delegate.h"
  #include "chrome/browser/history/history_service_factory.h"
  #include "chrome/browser/interstitials/enterprise_util.h"
-@@ -1656,6 +1657,7 @@ void ChromeContentBrowserClient::Registe
+@@ -1647,6 +1648,7 @@
      user_prefs::PrefRegistrySyncable* registry) {
    registry->RegisterBooleanPref(prefs::kDisable3DAPIs, false);
    registry->RegisterBooleanPref(prefs::kEnableHyperlinkAuditing, false);
@@ -1444,7 +1444,7 @@
    // Register user prefs for mapping SitePerProcess and IsolateOrigins in
    // user policy in addition to the same named ones in Local State (which are
    // used for mapping the command-line flags).
-@@ -9816,6 +9818,12 @@ ChromeContentBrowserClient::GetClipboard
+@@ -9860,6 +9862,12 @@
    return std::nullopt;
  }
  
@@ -1459,7 +1459,7 @@
           base::FeatureList::IsEnabled(
 --- a/chrome/browser/chrome_content_browser_client.h
 +++ b/chrome/browser/chrome_content_browser_client.h
-@@ -1229,6 +1229,9 @@ class ChromeContentBrowserClient : publi
+@@ -1243,6 +1243,9 @@
    std::optional<std::vector<std::u16string>> GetClipboardTypesIfPolicyApplied(
        const ui::ClipboardSequenceNumberToken& seqno) override;
  
@@ -1471,7 +1471,7 @@
  #if !BUILDFLAG(IS_ANDROID)
 --- a/components/content_settings/core/common/content_settings_types.mojom
 +++ b/components/content_settings/core/common/content_settings_types.mojom
-@@ -478,6 +478,9 @@ enum ContentSettingsType {
+@@ -478,6 +478,9 @@
    // - BLOCK: Skip the prompt and block adding sub apps.
    SUB_APPS_WITHOUT_PROMPTS,
  
@@ -1483,7 +1483,7 @@
  
 --- a/components/content_settings/core/browser/content_settings_registry.cc
 +++ b/components/content_settings/core/browser/content_settings_registry.cc
-@@ -829,6 +829,17 @@ void ContentSettingsRegistry::Init() {
+@@ -830,6 +830,17 @@
             WebsiteSettingsRegistry::DESKTOP,
             ContentSettingsInfo::INHERIT_IN_INCOGNITO,
             PermissionSettingsInfo::EXCEPTIONS_ON_SECURE_AND_INSECURE_ORIGINS);
@@ -1503,7 +1503,7 @@
  void ContentSettingsRegistry::Register(
 --- a/chrome/browser/ui/webui/settings/site_settings_helper.cc
 +++ b/chrome/browser/ui/webui/settings/site_settings_helper.cc
-@@ -261,6 +261,7 @@ constexpr auto kContentSettingsTypeGroup
+@@ -261,6 +261,7 @@
      {ContentSettingsType::SUSPICIOUS_NOTIFICATION_SHOW_ORIGINAL, nullptr},
      {ContentSettingsType::LOCAL_NETWORK_ACCESS, nullptr},
      {ContentSettingsType::SUB_APPS_WITHOUT_PROMPTS, nullptr},
@@ -1513,7 +1513,7 @@
  
 --- a/components/content_settings/core/common/content_settings_uma_constants.h
 +++ b/components/content_settings/core/common/content_settings_uma_constants.h
-@@ -20,6 +20,7 @@ namespace content_settings {
+@@ -20,6 +20,7 @@
  // LINT.IfChange(kContentSettingsTypeToHistogramValue)
  inline constexpr auto kContentSettingsTypeToHistogramValue =
      base::MakeFixedFlatMap<ContentSettingsType, int>({
@@ -1523,7 +1523,7 @@
          // for linear histograms.
 --- a/tools/metrics/histograms/enums.xml
 +++ b/tools/metrics/histograms/enums.xml
-@@ -2417,6 +2417,7 @@ Called by update_net_error_codes.py.-->
+@@ -2379,6 +2379,7 @@
    <int value="145" label="Add Sub Apps without prompts"/>
    <int value="146" label="Inline cue menu"/>
    <int value="147" label="Suspicious site warning data"/>
