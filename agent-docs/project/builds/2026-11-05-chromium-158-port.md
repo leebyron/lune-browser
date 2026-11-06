@@ -137,8 +137,32 @@ Core commit `1a7f116a` adapts seven further patches:
 - The adjacent-new-tab preference retains its insertion behavior with updated
   includes.
 
-The first **181 patches apply with zero fuzz**. Application currently stops at
-`helium/core/disable-update-toast.patch`. No patch has been skipped or forced.
+Core commit `f818b22e` adapts fifteen more patches:
+
+- Tab hibernation, multi-tab URL copying, muting, profile avatars, update-toast
+  suppression, component fixups, shortcuts, and password-manager policy retain
+  their implementations across changed declarations and surrounding code.
+- Close-tabs-to-left follows Chromium's new handle-based candidate list. Menu
+  enablement and execution use that same list, preserving pinned-tab, selected-tab,
+  split, and focused-group exclusions. Native behavior remains unvalidated.
+- The removed side-panel flyover flag is replaced by the shared panel animation
+  policy. macOS retains upstream continuous resizing and arm64 surface sync;
+  other platforms use continuous resizing instead of clipping. The shared policy
+  also affects the vertical tab strip and needs platform behavior validation.
+- Glow-up features retain their selected defaults; WebUI rounded icons are now
+  already enabled upstream, so that redundant change is no longer needed.
+- Force Paste uses metric ID 174 and raises the maximum to 175, preserving
+  Chromium's newly assigned Indigo ID 173 in both C++ and the metrics XML.
+- Experimental WebUI removal follows the shared code-cache resource list, now
+  also consumed by macOS's separate cache PAK. The removed location-bar-actions
+  file was confirmed absent from the verified archive inventory; its old image
+  resource substitutions are obsolete. The remaining consumers stay adapted.
+- Lazy session restoration preserves Chromium's new ephemeral-group handling
+  alongside Helium's deferred-load policy and saved-group checks. Runtime
+  restoration, activation, split, and group behavior still require validation.
+
+The first **215 patches apply with zero fuzz**. Application currently stops at
+`helium/settings/settings-page-icons.patch`. No patch has been skipped or forced.
 Full preparation, GN generation, compilation, and runtime validation remain
 incomplete for 158. The older 157 UI validation build is still a separate
 running diagnostic build.
