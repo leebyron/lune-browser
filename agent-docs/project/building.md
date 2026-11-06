@@ -33,7 +33,9 @@ descended from upstream:
 - Hash-locked source download override and strict patch application without fuzz.
 - Removal of the upstream asset-catalog icon name so the bundle uses its `.icns`.
   Pelagic Signal artwork is included in the UI candidate; a complete branding/link
-  audit remains outstanding.
+  audit remains outstanding. The Chromium 158 integration now replaces internal
+  PNG, SVG, and native vector logos as well; its arm64 build and runtime icon
+  checks pass. See [the forward-port evidence](builds/2026-11-05-chromium-158-port.md).
 
 The first development build explicitly disables Sparkle and special branded
 entitlements. Product metadata records a dedicated Sparkle public key, but the
@@ -133,6 +135,10 @@ main lock, pass `--chromium-version` with that candidate's exact version. An
 architecture or version mismatch fails. Reports include the test host architecture;
 an Intel binary running under Rosetta does not establish native Intel validation.
 `--headed` shows the test window but does not by itself test native controls.
+`--internal-icons` verifies packaged internal artwork and helper icons against
+the exact macOS component; use `--platform-commit` for a reviewed integration
+candidate outside the main lock. `--settings` checks preference bindings and
+flag filtering after a Chromium port. Both switches require `--ui`.
 
 ## Discover upstream changes
 

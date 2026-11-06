@@ -4,6 +4,7 @@
 Only loopback and internal pages are loaded. This is not signing, Gatekeeper, or update testing.
 """
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -11,6 +12,7 @@ from pathlib import Path
 import platform
 import plistlib
 import socket
+import struct
 import subprocess
 import tempfile
 import threading
@@ -35,7 +37,24 @@ class Page(BaseHTTPRequestHandler):
         pass
 
 
-def check_ui(request, path, internal_icons=False):
+def artwork_hash(data):
+    """Ignore PNG EXIF stripped by packaging; retain every image/color chunk."""
+    if data.startswith(b'\x89PNG\r\n\x1a\n'):
+        chunks = [data[:8]]
+        offset = 8
+        while offset < len(data):
+            length = struct.unpack('>I', data[offset:offset + 4])[0]
+            end = offset + length + 12
+            if end > len(data):
+                raise ValueError('Truncated PNG chunk')
+            if data[offset + 4:offset + 8] != b'eXIf':
+                chunks.append(data[offset:end])
+            offset = end
+        data = b''.join(chunks)
+    return hashlib.sha256(data).hexdigest()
+
+
+def check_ui(request, path, internal_icons=False, icon_hashes=None):
     """Exercise packaged WebUI and registered defaults in the temporary profile."""
     expected = {
         'helium.browser.layout': 2,
@@ -91,23 +110,25 @@ def check_ui(request, path, internal_icons=False):
             const image = new Image();
             image.crossOrigin = 'anonymous';
             image.onerror = () => done({error: 'Could not load ' + image.src});
-            image.onload = () => {
-              try {
-                const canvas = document.createElement('canvas');
-                canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
-                const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
-                const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                const colors = {'16,53,79': 0, '0,167,190': 0, '83,134,191': 0};
-                for (let i = 0; i < pixels.length; i += 4) {
-                  const key = [pixels[i], pixels[i+1], pixels[i+2]].join(',');
-                  if (pixels[i+3] === 255 && key in colors) colors[key]++;
-                }
-                done({src: image.src, width: canvas.width, height: canvas.height, colors});
-              } catch (error) { done({error: String(error)}); }
-            };
+            image.onload = () => done({src: image.src,
+                width: image.naturalWidth, height: image.naturalHeight});
             image.src = element.currentSrc || element.src;
         ''', True, [selector])
-        if result.get('error') or not all(result.get('colors', {}).values()) or not result.get('colors'):
+        if result.get('error'):
+            raise RuntimeError(f'{name} image did not load: {result}')
+        # Canvas readback intentionally adds fingerprinting noise. Read the
+        # resource already loaded by this page through DevTools instead. This
+        # also respects WebUI CSP, which forbids fetch() to chrome://theme.
+        tree = request('POST', path + '/goog/cdp/execute',
+                       {'cmd': 'Page.getResourceTree', 'params': {}})
+        resource = request('POST', path + '/goog/cdp/execute', {
+            'cmd': 'Page.getResourceContent',
+            'params': {'frameId': tree['frameTree']['frame']['id'], 'url': result['src']}})
+        data = (base64.b64decode(resource['content']) if resource['base64Encoded']
+                else resource['content'].encode())
+        result['artwork_sha256'] = artwork_hash(data)
+        if (result.get('error') or not icon_hashes or
+                result.get('artwork_sha256') != icon_hashes[name].get(str(result.get('width'))) or not result.get('width')):
             raise RuntimeError(f'{name} does not contain the Pelagic Signal Lune artwork: {result}')
         icons[name] = result
 
@@ -185,21 +206,97 @@ def check_ui(request, path, internal_icons=False):
             'search_engines': engines, 'internal_icons': icons, 'native_controls_tested': False}
 
 
+
+FIND = '''
+const find = (selector, root = document) => {
+  const found = root.querySelector(selector);
+  if (found) return found;
+  for (const element of root.querySelectorAll('*')) {
+    if (element.shadowRoot) {
+      const nested = find(selector, element.shadowRoot);
+      if (nested) return nested;
+    }
+  }
+  return null;
+};
+'''
+
+def check_settings(request, path):
+    """Verify preference controls and flag filtering after a Chromium port."""
+    result = {}
+    def js(code, args=None, asynchronous=False):
+        return request('POST', path + '/execute/' + ('async' if asynchronous else 'sync'),
+                       {'script': FIND + code, 'args': args or []})
+    def wait(code):
+        for _ in range(60):
+            value = js(code)
+            if value:
+                return value
+            time.sleep(0.5)
+        raise RuntimeError('Settings runtime check timed out: ' + code)
+    def pref(key):
+        return js('const done = arguments[arguments.length-1]; chrome.settingsPrivate.getPref(arguments[0], p => done(p.value));', [key], True)
+    def set_pref(key, value):
+        if js('const done = arguments[arguments.length-1]; chrome.settingsPrivate.setPref(arguments[0], arguments[1], "", done);', [key, value], True) is not True:
+            raise RuntimeError('Failed to set test preference ' + key)
+
+    request('POST', path + '/url', {'url': 'chrome://settings/privacy/noise'})
+    wait('return find("#noiseToggle")?.pref !== undefined;')
+    before = pref('helium.noise.enabled')
+    js('find("#noiseToggle").click();')
+    wait('return find("#noiseToggle")?.checked === ' + str(not before).lower() + ';')
+    assert pref('helium.noise.enabled') == (not before), 'Noise toggle did not persist'
+    set_pref('helium.noise.enabled', before)
+    wait('return find("#noiseToggle")?.checked === ' + str(before).lower() + ';')
+
+    request('POST', path + '/url', {'url': 'chrome://settings/privacy/services'})
+    wait('return find("#heliumOriginOverride") !== null;')
+    assert pref('helium.services.enabled') is False, 'Test must keep remote services disabled'
+    set_pref('helium.services.user_consented', False)
+    wait('return find("#onboarding-notice")?.getClientRects().length > 0;')
+    set_pref('helium.services.user_consented', True)
+    wait('return find("#servicesToggleButton")?.pref?.value === false;')
+    wait('return find("#servicesCollapse")?.opened === false;')
+    controls = js('''return ["servicesToggleButton", "extProxyToggleButton", "bangToggleButton", "updatesToggleButton", "filterlistToggleButton"].map(id => {
+      const el = find("#" + id); return {id, key: el?.pref?.key, checked: el?.checked};
+    });''')
+    assert all(control.get('key', '').startswith('helium.services.') for control in controls), controls
+    origin = pref('helium.services.origin_override')
+    js('const input = find("#heliumOriginOverride"); input.value="https://smoke.invalid/a"; input.dispatchEvent(new Event("change", {bubbles:true, composed:true}));')
+    wait('return find("#heliumOriginOverride")?.value === "https://smoke.invalid";')
+    assert pref('helium.services.origin_override') == 'https://smoke.invalid', 'Origin did not persist'
+    set_pref('helium.services.origin_override', origin)
+    wait('return find("#heliumOriginOverride")?.value === ' + json.dumps(origin) + ';')
+    result['settings_port'] = {'noise_toggle_persisted_and_observed': True, 'consent_observed': True,
+        'services_remained_disabled': True, 'service_controls': controls,
+        'origin_normalized_persisted_and_observed': True}
+    request('POST', path + '/url', {'url': 'chrome://flags/'})
+    flag_names = wait("const d=document.querySelector('flags-app')?.data; return d?.supportedFeatures?.length ? [...d.supportedFeatures,...d.unsupportedFeatures].map(f=>f.internal_name) : null;")
+    excluded = {'webui-omnibox-popup', 'webui-toolbar', 'vertical-tabs-expand-on-hover'}
+    assert not (excluded & set(flag_names)), 'Excluded flags leaked into runtime list'
+    result['flags_initialization'] = {'feature_count': len(flag_names), 'sample_exclusions_verified': sorted(excluded)}
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('build_output', type=Path)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--ui', action='store_true', help='Verify packaged UI strings and new-profile defaults.')
+    parser.add_argument('--settings', action='store_true',
+                        help='Verify settings bindings and flag filtering; requires --ui.')
     parser.add_argument('--headed', action='store_true', help='Show the isolated browser window.')
     parser.add_argument('--internal-icons', action='store_true',
                         help='Require complete Lune branding, including packaged WebUI and helper icons.')
     parser.add_argument('--arch', choices=('arm64', 'x86_64'), default='arm64',
                         help='Expected app architecture.')
+    parser.add_argument('--platform-commit',
+                        help='Reviewed macOS component commit supplying expected artwork; defaults to the lock.')
     parser.add_argument('--chromium-version',
                         help='Expected Chromium version; defaults to the current build lock.')
     args = parser.parse_args()
-    if args.internal_icons and not args.ui:
-        parser.error('--internal-icons requires --ui')
+    if (args.internal_icons or args.settings) and not args.ui:
+        parser.error('--internal-icons and --settings require --ui')
     root = Path(__file__).resolve().parents[1]
     lock = json.loads((root / 'manifests/browser.lock.json').read_text())
     expected_version = args.chromium_version or lock['chromium_version']
@@ -246,14 +343,25 @@ def main():
               'chromium_version': expected_version,
               'driver_version': version, 'app_version': info['CFBundleShortVersionString'],
               'checks': [], 'mode': 'headed' if args.headed else 'headless', 'release_validated': False}
+    icon_hashes = {}
     if args.ui:
-        component = lock['components']['macos']['commit']
+        component = args.platform_commit or lock['components']['macos']['commit']
+        component = subprocess.check_output(['git', 'rev-parse', component + '^{commit}'],
+                                            cwd=root, text=True).strip()
+        report['artwork_component_commit'] = component
         expected_icon = subprocess.check_output(['git', 'show', component + ':resources/assets/app.icns'], cwd=root)
         actual_icon = (app / 'Contents/Resources/app.icns').read_bytes()
         if actual_icon != expected_icon or 'CFBundleIconName' in info:
             raise RuntimeError('App icon does not match the pinned Lune artwork or is overridden by an asset catalog.')
         report['icon_sha256'] = hashlib.sha256(actual_icon).hexdigest()
         if args.internal_icons:
+            assets = {'about': {32: 'product_logo_32.png', 64: 'product_logo_64.png'},
+                      'welcome': {1024: 'product_logo.svg'}, 'services': {1024: 'product_logo.svg'}}
+            for name, sizes in assets.items():
+                icon_hashes[name] = {}
+                for size, asset in sizes.items():
+                    data = subprocess.check_output(['git', 'show', component + ':resources/lune/' + asset], cwd=root)
+                    icon_hashes[name][str(size)] = artwork_hash(data)
             catalogs = list(app.rglob('Assets.car'))
             if catalogs:
                 raise RuntimeError(f'Unexpected icon catalogs in Lune bundle: {catalogs}')
@@ -307,7 +415,9 @@ def main():
                         raise RuntimeError(f'Browser smoke failed in {phase}: {title!r}, {result!r}')
                     report['checks'].append({'phase': phase, 'title': title, **result})
                     if args.ui and phase == 'write':
-                        report['ui'] = check_ui(request, path, args.internal_icons)
+                        report['ui'] = check_ui(request, path, args.internal_icons, icon_hashes)
+                        if args.settings:
+                            report['ui'].update(check_settings(request, path))
                     request('DELETE', path)
                     session = None
                 report['passed'] = True

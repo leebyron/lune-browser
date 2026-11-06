@@ -52,7 +52,9 @@ python3 scripts/branding/verify-resources.py PLATFORM_CHECKOUT CHROMIUM_SOURCE
 
 After compiling the candidate, add `--ui --internal-icons` to
 `scripts/smoke-browser.py`. This checks helper bundle icons, rejects leftover
-asset catalogs, and checks the rendered About, welcome, and services logos for
-the Pelagic Signal colors. Source coverage and resource compilation have passed;
-the complete Chromium 158 app is still compiling. The older 157 diagnostic app
-does not contain this fix.
+asset catalogs, and compares the loaded About, welcome, and services assets
+against the exact component inputs. PNG EXIF removal is permitted; image and
+color data must match. This avoids fingerprinting noise from canvas readback.
+For an integration candidate, supply `--platform-commit` with its full macOS
+component SHA. Source coverage, the full Chromium 158 arm64 build, and headless
+runtime checks have passed. The older 157 diagnostic app does not contain this fix.

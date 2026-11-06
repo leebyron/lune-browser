@@ -28,6 +28,12 @@ public browser releases, services deployment, and recurring browser builds are
 not enabled. Targets are macOS arm64 and x86_64. Website status is recorded in
 [the website runbook](agent-docs/project/website.md).
 
+The Chromium 158 forward port has passed the full arm64 build and headless/headed
+smoke checks, including internal Lune artwork. Intel compilation is in progress;
+the main lock still pins the earlier 157 candidate. Native inspection found a
+command-bar internal-URL classification issue. See
+[the port evidence](agent-docs/project/builds/2026-11-05-chromium-158-port.md).
+
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
 never downgrade Chromium to satisfy optional UI patches. Discovery reports stable lag.

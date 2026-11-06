@@ -1,9 +1,9 @@
 # Chromium 158 integration work
 
-Status: source preparation and GN generation passed; arm64 compilation started.
-This is separate from the completed Chromium 157 UI diagnostic build. No complete
-build, runtime check, or release validation of 158 has passed yet. The main lock remains
-unchanged until a reviewed candidate is ready.
+Status (2026-11-06): the complete arm64 build and headless runtime smoke check
+passed on Chromium 158.0.8127.18. Intel compilation is in progress. Native UI and
+release validation remain incomplete. The main lock remains on the earlier 157
+candidate until promotion; this workspace is a separate reviewed forward port.
 
 Target: macOS stable **158.0.8127.18**, Chromium commit
 `6449d9f9a6a906edff724b7b220199b3fde4615c`, confirmed against Chromium Dash and the
@@ -533,3 +533,69 @@ objects compile; `llvm-nm` confirms the two unavailable service references are
 absent (`service-guards-symbol-check.json`). The patch reapplied without fuzz
 (**406 total**). The failed main link is preserved under
 `*-before-service-guards-fix.*`; the full build resumed to retry linking.
+
+
+## Completed arm64 build and internal artwork
+
+The full arm64 compile/link completed successfully at **2026-11-06 10:19 UTC**,
+using core `fd5342cd999dcc9e4d9083cf54182d00e73e7a5d` and platform
+`84ee191b109c99f3d7a331d0353abbdcd5346c47`, with all **406 patches** applied.
+The final cached resume completed in 2m16s; this is not the total clean-build time.
+GN arguments hash: `05f104d8ff57cff89116b982222f7b7b99e2ba7587d1d328a116f865370b5de6`.
+The app and matching ChromeDriver are under
+`.work/chromium-158/macos/build/src/out/Default/`.
+
+The headless smoke check passed page loading, JavaScript, profile persistence
+across two launches, 18 fresh-profile defaults, Kagi's suggested-search wording,
+and explicit Helium credits in About and onboarding. Runtime preference tests
+passed noise-toggle persistence, consent observation, five service bindings,
+and service-origin normalization/persistence; remote services stayed disabled.
+The flags page populated 407 entries and excluded the three sampled incompatible
+flags. Evidence: `out/validation/chromium-158-arm64-smoke.json`.
+
+Internal artwork coverage passes for 36 mapped resources and two shared WebUI
+paths. The running app serves the exact Lune About PNG and welcome/services SVG.
+App and both notification-helper icons match Lune's `.icns`; there are no bundled
+asset catalogs or `CFBundleIconName` overrides. Helium attribution is retained.
+
+An initial exact-color canvas test failed because fingerprinting protection adds
+noise to canvas readback. The smoke test now hashes the actual loaded resource
+through DevTools, retaining image and color-profile chunks and ignoring only
+PNG EXIF metadata stripped by packaging. Standard and Retina About assets have
+separate expected hashes. Protection remains enabled. Use the exact component
+commit when validating this candidate against the still-157 main lock:
+
+```sh
+.work/venv/bin/python scripts/smoke-browser.py \
+  .work/chromium-158/macos/build/src/out/Default \
+  --arch arm64 --chromium-version 158.0.8127.18 \
+  --platform-commit 84ee191b109c99f3d7a331d0353abbdcd5346c47 \
+  --ui --internal-icons --settings \
+  --report out/validation/chromium-158-arm64-smoke.json
+```
+
+Intel compilation uses the same source/component commits and a separate
+`out/Intel` directory, with ten local jobs. Its log and build metadata are under
+`.work/chromium-158/intel-build.log` and `intel-development-build.json`.
+Neither this development build nor its runtime checks establish signing,
+notarization, native Intel behavior, or installed-app updates.
+
+
+### Native arm64 inspection
+
+The headed smoke check also passed on a Retina display, including the 64-pixel
+About resource. Native inspection confirmed the Lune About and welcome artwork,
+setup-tab favicon, monochrome sidebar browser symbol, and visible Helium credit.
+The right-hand vertical sidebar renders; Cmd-T/Cmd-L open the command bar;
+Ctrl-Tab opens the quick-tab-switching list and Escape dismisses it.
+Screenshots are retained locally as `out/validation/chromium-158-about.png` and
+`chromium-158-onboarding.png`. This is focused inspection, not full UI acceptance.
+
+A separate defect remains: submitting `helium://setup` or `chrome://setup/` in the
+command bar starts a search and opens a new tab, including from Cmd-L. Direct
+entry through the sidebar's address field navigates correctly. External DNS was
+blocked in the disposable test profile, so these searches reached only the
+network-error page. Fix and retest command-bar URL classification/disposition
+before treating the full UI as validated. Onboarding still inherits upstream
+policy/terms links; those also require the planned branding/services review
+before a public release.
