@@ -1,7 +1,10 @@
 # Website deployment
 
-The website is a minimal static HTML page, deployed independently of the browser.
-No framework, Worker script, server, or paid plan is required for this bootstrap.
+The website is a static HTML/CSS page with a small interaction script, deployed
+independently of the browser. No framework, Worker script, server, or paid plan
+is required. Assets and fonts are served locally. See the
+[website source notes](../../website/README.md) for interaction timing and asset
+provenance.
 
 ## Resources
 
@@ -15,21 +18,22 @@ No framework, Worker script, server, or paid plan is required for this bootstrap
 | Cloudflare account | `57a79916090fa9c99c899a708e9ba22c` |
 | Worker | `lune-website` |
 | Temporary URL | <https://lune-website.lee-57a.workers.dev> |
-| Intended production URL | <https://lune.computer> |
+| Production URL | <https://lune.computer> |
 | Registrar | DNSimple |
 | Cloudflare zone | `2850307453708b5b5a13dff6cb0077d3` |
 | Authoritative nameservers | `gabriel.ns.cloudflare.com`, `tia.ns.cloudflare.com` |
 
 ## Current status
 
-As of 2026-11-05, the temporary URL is deployed and verified to return HTTP 200
-with the Lune page. Public nameservers now point to Cloudflare; zone activation
-and apex TLS are pending. The apex custom domain is attached and recorded in
-Wrangler configuration. The `CLOUDFLARE_API_TOKEN` repository secret is configured,
-and a local deployment using that token succeeded. The
+As of 2026-11-06, public HTTPS at `lune.computer` is verified to return HTTP 200.
+The apex custom domain is attached and recorded in Wrangler configuration.
+The `CLOUDFLARE_API_TOKEN` repository secret is configured, and a local deployment
+using that token succeeded. The
 [first GitHub run](https://github.com/leebyron/lune-browser/actions/runs/42129183746)
 passed installation, validation, and production deployment for commit `eef768a`.
-Automatic website deployments are operational; apex HTTPS is not yet verified.
+Automatic website deployments are operational. The source now contains the
+cyanotype desktop and scroll-driven browser story. Browser screenshots remain
+placeholders, and Download is disabled pending a validated public release.
 
 ## DNS activation
 
