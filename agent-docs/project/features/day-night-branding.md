@@ -48,11 +48,12 @@ Local evidence lives under `.work/branding/`: `strict-replay.log`,
 icons, loaded WebUI artwork, default preferences, page execution, profile
 persistence and both actual browser appearance settings and onboarding palettes.
 
-Both architecture builds pass. Arm64 headed and Intel-under-Rosetta automated
-checks confirm the
+Both architecture builds pass. Arm64 headless/headed and Intel-under-Rosetta
+automated checks confirm the
 exact ground/text colors in Settings and onboarding for both modes, as well as
 page execution, profile persistence and bundled artwork. All 44 repository tests,
-component patch/i18n lint, generated-vector checks and website deployment dry run
+component patch/i18n lint, Git-object ancestry/tag/tree checks, generated-vector
+checks and website deployment dry run
 pass. Website desktop and browser-story layouts were visually inspected in both
 palettes using local previews. The website uses the existing main-branch
 self-hosted deployment workflow; no browser binaries or update feeds are published
