@@ -1,6 +1,6 @@
 # First signed release and updater bootstrap
 
-Status: in progress. No public browser download or feed has been promoted.
+Status: public prereleases and staging feeds are live. Stable promotion awaits acceptance.
 
 ## Decisions
 
@@ -21,7 +21,7 @@ Status: in progress. No public browser download or feed has been promoted.
   The app embeds its architecture-specific stable feed and uses Helium's
   service-consent preferences and custom-update-server flag.
 - The private source repository cannot provide anonymous GitHub downloads.
-  Planned public distribution repository: `leebyron/lune-downloads`, containing
+  Public distribution repository: `leebyron/lune-downloads`, containing
   release assets and corresponding source/provenance. Do not change the private
   repository's visibility or publish unrelated local files.
 - Reserve numeric bundle builds 1 and 2 in `config/release-builds.json` for the
@@ -100,13 +100,9 @@ feeds remain the primary architecture-routing mechanism.
 
 ## Remaining gates
 
-- Install build 1, update to build 2 through staging feeds, relaunch, and verify
-  profile persistence. Exercise bad signatures, OS constraints, and architecture
-  routing. Perform native Intel acceptance manually on the owner's Intel Mac.
-- Verify Helium services and extension/uBlock behavior with explicit disposable
-  test-profile consent.
-- Publish source/provenance and immutable downloads, read back anonymously,
-  recheck Chromium stable freshness, then promote both feeds and website links.
+- Perform native Intel acceptance manually on the owner's Intel Mac.
+- Before stable promotion, recheck Chromium stable freshness and confirm all
+  acceptance evidence. Promote both stable feeds and website links together.
 
 No recurring browser build or automatic public promotion is enabled by this work.
 
@@ -125,15 +121,15 @@ network filters. The advertising fixture was replaced with uBlock's local stub.
 The arm64 signed app installed EFF Privacy Badger 2026.9.15.2 from its official
 Web Store listing in a disposable profile with Helium services enabled. The
 extension appeared enabled and its first-run page opened; the Extensions page
-reported "Extensions updated" after its update check. A transition between two
-extension versions has not been exercised.
+reported "Extensions updated" after its update check. The same Web Store install and update check also pass on Intel under Rosetta.
+A transition between two extension versions has not been exercised.
 
 The actual Lune About-page updater completed a local staged build-1 to build-2
 update on arm64, then relaunched with profile data intact. The installed result
 passes codesign, stapler, and Gatekeeper again. A deliberately invalid Sparkle
 signature was rejected and an item requiring macOS 99 was not offered; both
-kept build 1 and its profile intact. These checks use loopback test feeds; the
-public HTTPS delivery path still needs its own exercise.
+kept build 1 and its profile intact. These initial checks used loopback test feeds; the later public HTTPS tests
+also pass, as recorded below.
 
 The standalone Sparkle CLI was built from the pinned source but required macOS
 authorization to replace the test bundle. The acceptance harness therefore uses
@@ -141,8 +137,9 @@ Lune's real About-page updater, including its consent and custom-feed behavior.
 It is `scripts/release/check_update.py`; `--expect-rejection` runs negative cases.
 
 The public distribution repository now exists at
-https://github.com/leebyron/lune-downloads. Build 2 is an unpublished draft
-prerelease with source archives uploading. No stable feed has been promoted.
+https://github.com/leebyron/lune-downloads. Builds 1 and 2 are public prereleases.
+Build 2 includes the source kit, all six pinned dependency archives, locks, patch
+provenance, validation evidence, and checksums. No stable feed has been promoted.
 
 Inherited hosted component workflows (`ci.yml`, `lint.yml`, `sanity.yml`) were
 disabled through GitHub's workflow API; their histories remain unchanged. Their
@@ -154,6 +151,32 @@ the Mac and passed again for commit `7784f488`.
 The source kit and public metadata are prepared under
 `.work/releases/public-build-2/`. Automatic approval review rejected uploading
 private-repository-derived source/locks/provenance to the public download repo
-without explicit authorization for that payload and destination. The owner explicitly approved publishing that prepared source package to
-`leebyron/lune-downloads` build 2. The approved upload is now proceeding. Public upstream archives and the signed DMGs are already staged
-in draft releases. The private source repository remains private.
+without explicit authorization for that payload and destination. The owner
+explicitly approved publishing that prepared source package to
+`leebyron/lune-downloads` build 2. All assets are now published; the private source
+repository remains private. Uploaded SHA-256 digests match every recorded asset.
+Anonymous downloads of all four DMGs and the source kit also match local hashes.
+
+## Public staging delivery
+
+The staging feeds were deployed from commit `63e747be352c8d0cd6d0fa5731308a90cfe2f055`
+by the Mac runner: [successful website job](https://github.com/leebyron/lune-browser/actions/runs/42253353992).
+Both HTTPS readbacks exactly match committed XML and use RSS content type,
+five-minute cache control, and `nosniff`. They reference immutable build-2 DMGs.
+
+- [Build 2 candidate and sources](https://github.com/leebyron/lune-downloads/releases/tag/build-2)
+- [Build 1 update-test baseline and manual instructions](https://github.com/leebyron/lune-downloads/releases/tag/build-1)
+- [Apple silicon staging feed](https://lune.computer/updates/staging/mac/appcast-arm64.xml)
+- [Intel staging feed](https://lune.computer/updates/staging/mac/appcast-x86_64.xml)
+
+The public About-page update passed build 1 → 2 on both arm64 and Intel under
+Rosetta, including relaunch, profile persistence, and post-install
+signature/stapling/Gatekeeper verification. The Intel test started from the
+anonymously downloaded baseline DMG. Native Intel acceptance is requested from
+the owner; Rosetta results do not substitute for that hardware check.
+
+Additional delivery and extension evidence is published as
+`public-delivery-evidence.json` with its own checksum file. Previously published
+artifacts and evidence remain unchanged. The source kit records orchestrator
+commit `c191f0a9e3258584fa41fe7f6eb65fa6c257452c`; later changes only add feed
+hosting and acceptance records, not browser binary inputs.

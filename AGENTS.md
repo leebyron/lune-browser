@@ -17,15 +17,15 @@ Lune's first arm64 development build passed full source preparation, GN generati
 compilation, and a headless app smoke test (page loading, JavaScript, and profile
 persistence). The onboarding XML parser fix is pinned under `inputs/bootstrap-2/macos`.
 See [the first build evidence](agent-docs/project/builds/2026-11-05-arm64.md).
-Native Intel hardware, signing, packaging, and update validation remain outstanding.
+Native Intel hardware acceptance remains outstanding; signing and update progress is below.
 The local Mac passes storage and toolchain preflight. Xcode 27.2/27B52 and SDK
 27.2 are pinned for an experimental development build after Chromium source review.
 The owner requires no additional CI spend: use this Mac as a self-hosted GitHub
 Actions runner. The manual browser workflow accepts reviewed main-branch runs
-from the owner only; no scheduled or public-release job is enabled. Signing identities exist
-in Keychain; notarization and packaging remain to be validated. Automatic updates,
-public browser releases, services deployment, and recurring browser builds are
-not enabled. Targets are macOS arm64 and x86_64. Website status is recorded in
+from the owner only; no scheduled or automatic public-release job is enabled.
+Signing and notarization credentials stay in Keychain. Stable automatic updates,
+self-hosted services deployment, and recurring browser builds remain disabled.
+Targets are macOS arm64 and x86_64. Website status is recorded in
 [the website runbook](agent-docs/project/website.md).
 
 The development lock now targets Chromium 158.0.8127.18 with the reviewed
@@ -34,17 +34,19 @@ arm64 headless/headed and Intel-under-Rosetta smoke checks pass, including Lune
 artwork, defaults, settings, and French/German upstream attribution. Permanent
 `inputs/chromium-158-1/{helium,macos}` tags retain the inputs. Focused native arm64
 inspection passed with the inherited command-bar internal-URL limitation recorded.
-These are development builds, not signed/notarized releases. See
+The original port validation used development builds. See
 [the port evidence](agent-docs/project/builds/2026-11-05-chromium-158-port.md).
-Hosted setup checks are currently blocked by GitHub account billing; their local
-equivalents pass. See the build runbook before retrying or changing CI capacity.
+Setup checks and website deployment now pass on the existing Mac runner; inherited
+component hosted workflows are disabled. See the build runbook before changing CI capacity.
 
 The first signed release candidates (builds 1 and 2) now pass Developer ID,
 Apple notarization, stapling, Gatekeeper, and Sparkle signature checks on both
 architectures. Installed updates and profile persistence pass on arm64 and Intel
-under Rosetta. Public test releases are being staged in `leebyron/lune-downloads`;
-stable promotion still requires public HTTPS delivery checks and native Intel
-acceptance. See [release bootstrap](agent-docs/project/builds/2026-11-06-release-bootstrap.md).
+under Rosetta. Public test releases and corresponding source are published in
+`leebyron/lune-downloads`; staging feeds are live on `lune.computer`. Stable
+promotion still requires native Intel acceptance. Public HTTPS installed updates
+pass on arm64 and Intel under Rosetta. See
+[release bootstrap](agent-docs/project/builds/2026-11-06-release-bootstrap.md).
 Run acceptance browsers sequentially because Sparkle shares macOS bundle state.
 
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
