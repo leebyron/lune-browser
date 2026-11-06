@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "6ecd11db298eafc5276b58443532c9a81a950145",
+    "commit": "b3a4ba00f2e7de5427fa0e2034890de2edc526ec",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -189,6 +189,10 @@
       {
         "path": "patches/lune/helium-hosted-services.patch",
         "sha256": "5bc0f34f694fef2e6c67c2929ca7278027fa7650ffc2114203c22eb3d898f909"
+      },
+      {
+        "path": "patches/helium/ui/native-floating-address-bar.patch",
+        "sha256": "c4442a9a59f544f9751bbf6c7f4b84a897bdbe01eed9ad246ec0c02af9d5e2ce"
       }
     ]
   },
@@ -396,6 +400,19 @@
       "review_status": "reviewed-port",
       "rationale": "Use Helium hosted services with explicit provider and browser-update disclosures.",
       "adaptation": "Distribution-only commit ae265118c1e0c0842b5cc0ce65b92e483e4547ac; see agent-docs/project/builds/2026-11-06-release-bootstrap.md."
+    },
+    {
+      "id": "native-floating-address",
+      "depends_on": [
+        "xelium-support",
+        "chromium-158-compatibility"
+      ],
+      "patches": [
+        "patches/helium/ui/native-floating-address-bar.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use public AppKit glass for an overlaid address capsule with a 700 ms departure cooldown.",
+      "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."

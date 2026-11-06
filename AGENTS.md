@@ -56,6 +56,14 @@ vertical/horizontal tabs, split panes, rounded-frame toggling, and fullscreen.
 See [the feature evidence](agent-docs/project/features/content-pane-shadow.md).
 This feature is not in published builds 1 or 2.
 
+The development macOS input now includes an AppKit floating address capsule under
+`inputs/floating-address-1/macos`, with a 700 ms departure cooldown. Both
+architectures compile and pass headless smoke checks (Intel via Rosetta). Native
+rendering, address/site-information/reload actions, dismissal, and fullscreen were
+inspected during implementation. Final pointer/reentry and theme acceptance remain
+pending after macOS locked; see [the feature evidence](agent-docs/project/features/floating-address-bar.md).
+This is not in published builds 1 or 2 and is not release-accepted.
+
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
 never downgrade Chromium to satisfy optional UI patches. Discovery reports stable lag.
