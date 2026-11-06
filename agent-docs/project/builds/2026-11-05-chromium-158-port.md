@@ -69,9 +69,27 @@ the new settings allowlist entry. Three obsolete TurnSyncOnHelper file sections
 were retired after confirming those files are absent from the verified source
 archive inventory and the replacement helpers do not contain those pref uses.
 
-The first **28 patches apply with zero fuzz**. Application currently stops at
-`ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch`: the settings page
-moved from a computed label to a preference observer, which needs adaptation. No patch has been skipped or forced. Full preparation,
+Core commit `1e1a0317` adapts seven additional patches:
+
+- JavaScript optimizer text now initializes directly in `connectedCallback`,
+  without observing the removed Safe Browsing preference.
+- Hyphenation bundling is attached to the CfT condition, where the upstream
+  bundle dependency now lives, with the Apple platform exclusion preserved.
+- The maximum-connections dependency follows `browser_process_impl.cc` into
+  the new `core` GN target. Connection-limit behavior is unchanged.
+- Intranet probing and suggestions-URL editing retain their behavior across
+  upstream check changes.
+- Extension-sidebar promotions and the privacy-guide promo remain removed
+  despite the new helper names and preference observer API.
+- Last-tab preservation follows the new tab-handle callback: count live handles,
+  add a fallback tab when requested, then resolve handles into pointers under
+  the reentrancy guard. Native behavior still needs runtime validation.
+
+The first **59 patches apply with zero fuzz**. Application currently stops at
+`ungoogled-chromium/add-flag-to-convert-popups-to-tabs.patch`. Chromium renamed
+the disposition enum members and removed the Mojo enum-traits file entirely.
+The feature requires a reviewed replacement at navigation entry points; it has
+not been removed or bypassed. No patch has been skipped or forced. Full preparation,
 GN generation, compilation, and runtime validation remain incomplete for 158.
 The older 157 UI validation build is still a separate diagnostic build.
 
