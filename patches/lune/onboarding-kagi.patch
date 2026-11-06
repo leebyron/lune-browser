@@ -1,0 +1,23 @@
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -125,7 +125,7 @@
+   Privacy-focused. Relies on Bing for results. Promises not to track or profile you.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_ENGINES_KAGI" desc="Onboarding description of Kagi as a search engine option.">
+-  Privacy-focused. Doesn't use Google or Bing. Has custom ranking. Requires a paid account. No ads, tracking, or profiling.
++  Suggested for Lune. Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_ENGINES_QWANT" desc="Onboarding description of Qwant as a search engine option.">
+   Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft.
+--- a/components/helium_onboarding/src/lib/search-engine-config.ts
++++ b/components/helium_onboarding/src/lib/search-engine-config.ts
+@@ -1,8 +1,8 @@
+ type SearchCategory = "private" | "small" | "mainstream" | "custom";
+ 
+ export const searchEngineConfig: Record<string, SearchCategory> = {
+-    duckduckgo: "private",
+     kagi: "private",
++    duckduckgo: "private",
+     startpage: "private",
+     brave: "private",
+     ecosia: "small",
