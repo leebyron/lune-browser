@@ -616,3 +616,16 @@ selected Xelium patch, not introduced by the 158 port: `UrlOrSearchForQuery`
 accepts HTTP(S) URLs only, and `OpenUrl` explicitly chooses a new foreground tab
 unless the active tab is a blank new-tab page. This remains a documented
 limitation of the development candidate, separate from icon verification.
+
+
+### Fresh component reconstruction
+
+A fresh recursive clone from GitHub under `.work/chromium-158/fresh-checkout`
+resolves the exact `84ee191b109c99f3d7a331d0353abbdcd5346c47` platform and
+`fd5342cd999dcc9e4d9083cf54182d00e73e7a5d` core, with both worktrees clean.
+The staged lock passes schema/configuration hashing, ungoogled/forward-port and
+component ancestry checks, tree/gitlink checks, and all selected patch hashes,
+order, and provenance checks. Evidence:
+`out/validation/chromium-158-input-checks.json`. This verifies reconstruction
+of the component repositories, not a second fresh Chromium preparation/build.
+Permanent 158 input tags and main-lock promotion remain pending Intel validation.
