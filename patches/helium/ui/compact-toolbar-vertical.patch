@@ -1,0 +1,94 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -36,6 +36,8 @@
+ 
+ int GetLayoutConstant(LayoutConstant constant) {
+   const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
++  const bool comfortable =
++      GetHeliumUiDensity() == HeliumUiDensity::kComfortable;
+   switch (constant) {
+     case LayoutConstant::kHeliumBasePadding:
+       return 3;
+@@ -56,7 +58,8 @@
+     case LayoutConstant::kBookmarkBarButtonHeight:
+       return touch_ui ? 36 : 28;
+     case LayoutConstant::kBookmarkBarButtonPadding:
+-      return GetLayoutConstant(LayoutConstant::kToolbarElementPadding);
++      // Use comfortable spacing with the comfortable density.
++      return comfortable ? 4 : GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
+     case LayoutConstant::kBookmarkBarButtonImageLabelPadding:
+       return 6;
+     case LayoutConstant::kWebAppMenuButtonSize:
+@@ -66,7 +69,7 @@
+       // stretching the container view.
+       return 16;
+     case LayoutConstant::kLocationBarBubbleFontVerticalPadding:
+-      return 2;
++      return touch_ui ? 3 : (comfortable ? 5 : 2);
+     case LayoutConstant::kLocationBarBubbleAnchorVerticalInset:
+       return 1;
+     case LayoutConstant::kLocationBarChildInteriorPadding:
+@@ -94,7 +97,7 @@
+     case LayoutConstant::kLocationBarTrailingDecorationInnerPadding:
+       return touch_ui ? 3 : 8;
+     case LayoutConstant::kLocationBarHeight:
+-      return touch_ui ? 36 : 28;
++      return touch_ui ? 36 : (comfortable ? 34 : 28);
+     // LINT.IfChange(LocationBarIconSize)
+     case LayoutConstant::kLocationBarIconSize:
+       return touch_ui ? 20 : 16;
+@@ -120,7 +123,7 @@
+     case LayoutConstant::kTabCloseButtonSize:
+       return touch_ui ? 24 : (features::IsRoundedIconsEnabled() ? 14 : 16);
+     case LayoutConstant::kTabHeight:
+-      return 31;
++      return comfortable ? 37 : 31;
+     case LayoutConstant::kTabStripHeight:
+       return GetLayoutConstant(LayoutConstant::kTabHeight) +
+              GetLayoutConstant(LayoutConstant::kTabStripPadding);
+@@ -139,7 +142,7 @@
+     case LayoutConstant::kTabstripToolbarOverlap:
+       return 0;
+     case LayoutConstant::kToolbarButtonHeight:
+-      return touch_ui ? 48 : 28;
++      return touch_ui ? 48 : (comfortable ? 34 : 28);
+     case LayoutConstant::kToolbarButtonIconSize:
+       return touch_ui ? kDefaultTouchableIconSize
+                       : kDefaultIconSizeChromeRefresh;
+@@ -154,7 +157,9 @@
+     case LayoutConstant::kToolbarElementPadding:
+       return touch_ui ? 0 : GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
+     case LayoutConstant::kToolbarIconDefaultMargin:
+-      return touch_ui ? 0 : GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
++      return touch_ui ? 0
++                      : (comfortable ? 4 : GetLayoutConstant(
++                                           LayoutConstant::kHeliumBasePadding));
+     case LayoutConstant::kToolbarButtonRefreshExpandedMargin:
+       return 5;
+     case LayoutConstant::kLocationBarMargin:
+@@ -207,6 +212,8 @@
+ 
+ gfx::Insets GetLayoutInsets(LayoutInset inset) {
+   const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
++  const bool comfortable =
++      GetHeliumUiDensity() == HeliumUiDensity::kComfortable;
+   switch (inset) {
+     case DOWNLOAD_ICON:
+       return gfx::Insets(4);
+@@ -230,13 +237,14 @@
+     }
+ 
+     case TOOLBAR_BUTTON:
+-      return gfx::Insets(touch_ui ? 12 : 4);
++      return gfx::Insets(touch_ui ? 12 : (comfortable ? 7 : 4));
+ 
+     case BROWSER_APP_MENU_CHIP_PADDING:
+       if (touch_ui) {
+         return GetLayoutInsets(TOOLBAR_BUTTON);
+       } else {
+-        return gfx::Insets::TLBR(7, 4, 7, 6);
++        const int vertical = comfortable ? 7 : 4;
++        return gfx::Insets::TLBR(vertical, 4, vertical, 6);
+       }
+ 
+     case WEB_APP_APP_MENU_CHIP_PADDING:
