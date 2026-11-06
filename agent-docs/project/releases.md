@@ -1,8 +1,10 @@
 # Builds, releases, and automatic updates
 
-Status: browser release pipeline remains proposed. Local preparation/build tooling
-and a configuration-check workflow exist; no recurring browser schedule or
-publishing job is enabled. See [current build readiness](building.md).
+Status: local signing, notarization, DMG packaging, Sparkle appcast generation,
+and installed-update validation are implemented for the first release candidate.
+Public delivery and native Intel acceptance are in progress; stable promotion and
+recurring browser publishing are not enabled. See [release bootstrap](builds/2026-11-06-release-bootstrap.md)
+and [current build readiness](building.md).
 Initial targets: macOS arm64 and x86_64, with separate DMGs and update feeds.
 
 ## Daily integration
@@ -134,8 +136,8 @@ job must detect and repair partial promotion.
 ## Sparkle delivery
 
 Use Sparkle 2 as Xelium does, with one Lune-owned HTTPS feed per architecture and
-channel, for example `updates.<domain>/macos/stable/arm64/appcast.xml` and its
-`x86_64` counterpart. These are placeholders, not selected domains. Separate
+channel. The selected feeds are `https://lune.computer/updates/stable/mac/appcast-arm64.xml`
+and `appcast-x86_64.xml`, with staging feeds under `/updates/staging/mac/`. Separate
 feeds prevent an Intel client receiving an arm64-only enclosure. Test any future
 shared-feed filtering before adopting it.
 

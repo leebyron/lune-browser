@@ -39,6 +39,14 @@ These are development builds, not signed/notarized releases. See
 Hosted setup checks are currently blocked by GitHub account billing; their local
 equivalents pass. See the build runbook before retrying or changing CI capacity.
 
+The first signed release candidates (builds 1 and 2) now pass Developer ID,
+Apple notarization, stapling, Gatekeeper, and Sparkle signature checks on both
+architectures. Installed updates and profile persistence pass on arm64 and Intel
+under Rosetta. Public test releases are being staged in `leebyron/lune-downloads`;
+stable promotion still requires public HTTPS delivery checks and native Intel
+acceptance. See [release bootstrap](agent-docs/project/builds/2026-11-06-release-bootstrap.md).
+Run acceptance browsers sequentially because Sparkle shares macOS bundle state.
+
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
 never downgrade Chromium to satisfy optional UI patches. Discovery reports stable lag.

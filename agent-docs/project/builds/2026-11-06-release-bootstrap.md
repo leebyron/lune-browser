@@ -119,10 +119,14 @@ relaunch, profile persistence, and post-install signature/Gatekeeper checks.
 An initial concurrent updater test stalled; the isolated sequential run passed.
 Run browser acceptance checks sequentially because Sparkle also uses per-bundle
 macOS preferences/cache/installer state outside Chromium profiles. Intel live-service
-and localized signed-app checks remain in progress.
+and French/German signed-app checks also pass.
 The arm64 live-service check fetched 10,730 valid bangs and loaded 676,593 uBlock
 network filters. The advertising fixture was replaced with uBlock's local stub.
-A Web Store extension installation/update has not yet been accepted.
+The arm64 signed app installed EFF Privacy Badger 2026.9.15.2 from its official
+Web Store listing in a disposable profile with Helium services enabled. The
+extension appeared enabled and its first-run page opened; the Extensions page
+reported "Extensions updated" after its update check. A transition between two
+extension versions has not been exercised.
 
 The actual Lune About-page updater completed a local staged build-1 to build-2
 update on arm64, then relaunched with profile data intact. The installed result
@@ -144,3 +148,12 @@ Inherited hosted component workflows (`ci.yml`, `lint.yml`, `sanity.yml`) were
 disabled through GitHub's workflow API; their histories remain unchanged. Their
 platform-tag runs had been blocked by billing. Main setup validation remains on
 the Mac and passed again for commit `7784f488`.
+
+## Publication approval
+
+The source kit and public metadata are prepared under
+`.work/releases/public-build-2/`. Automatic approval review rejected uploading
+private-repository-derived source/locks/provenance to the public download repo
+without explicit authorization for that payload and destination. The owner explicitly approved publishing that prepared source package to
+`leebyron/lune-downloads` build 2. The approved upload is now proceeding. Public upstream archives and the signed DMGs are already staged
+in draft releases. The private source repository remains private.
