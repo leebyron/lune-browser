@@ -52,7 +52,7 @@
    <!-- Languages Page -->
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -1149,7 +1149,7 @@
+@@ -1208,7 +1208,7 @@
        Active site
      </message>
      <message name="IDS_SETTINGS_PERFORMANCE_TAB_DISCARDING_EXCEPTIONS_ADD_DIALOG_HELP" desc="Help text shown on the second tab of the tab discarding exception list add dialog. Explains how to use the filter format to add an exclusion rule to the list.">
@@ -61,7 +61,7 @@
      </message>
      <message name="IDS_SETTINGS_PERFORMANCE_BATTERY_PAGE_TITLE" desc="Title of the power section in the performance settings page.">
        Power
-@@ -1173,7 +1173,7 @@
+@@ -1232,7 +1232,7 @@
        Inactive tabs appearance
      </message>
      <message name="IDS_SETTINGS_PERFORMANCE_DISCARD_RING_TREATMENT_ENABLED_DESCRIPTION_WITH_LEARN_LINK" desc="Label for a performance settings toggle description that controls whether the inactive tab UI is shown. Also contains a link to the help center article.">
@@ -70,7 +70,7 @@
      </message>
      <message name="IDS_SETTINGS_PERFORMANCE_TAB_HOVER_PREVIEW_CARD_LINK_TITLE" desc="Title for the link row that points to tab hover preview card apperance settings.">
        Tab hover preview card appearance
-@@ -1185,7 +1185,7 @@
+@@ -1244,7 +1244,7 @@
        Performance issue alerts
      </message>
      <message name="IDS_SETTINGS_PERFORMANCE_INTERVENTION_NOTIFICATION_ENABLED_DESCRIPTION" desc="Label for a performance settings toggle that controls whether performance intervention notifications should be shown and link to learn more about performance issue alerts.">
@@ -81,7 +81,7 @@
      <!-- Languages Page -->
 --- a/chrome/browser/resources/extensions/item_list.html.ts
 +++ b/chrome/browser/resources/extensions/item_list.html.ts
-@@ -32,12 +32,6 @@ export function getHtml(this: Extensions
+@@ -32,12 +32,6 @@
        </div>
      ` : ''}
  
@@ -96,15 +96,15 @@
        <span>$i18n{noSearchResults}</span>
 --- a/chrome/browser/resources/extensions/sidebar.html.ts
 +++ b/chrome/browser/resources/extensions/sidebar.html.ts
-@@ -45,24 +45,6 @@ export function getHtml(this: Extensions
+@@ -45,24 +45,6 @@
      <cr-ripple></cr-ripple>
    </a>
  </cr-menu-selector>
--<div class="separator" ?hidden="${!this.inDevMode}"></div>
--${this.inDevMode ? html`
+-<div class="separator" ?hidden="${!this.showDeveloperPromo_()}"></div>
+-${this.showDeveloperPromo_() ? html`
 -  <div class="cr-nav-menu-item">
 -    <span id="promo-message-text" class="cr-secondary-text"
--        .innerHTML="${this.computeModernWebGuidancePromoText_()}">
+-        .innerHTML="${this.computeDeveloperPromoText_()}">
 -    </span>
 -  </div>
 -` : ''}
@@ -123,7 +123,7 @@
  }
 --- a/chrome/browser/resources/extensions/sidebar.ts
 +++ b/chrome/browser/resources/extensions/sidebar.ts
-@@ -23,7 +23,6 @@ export interface ExtensionsSidebarElemen
+@@ -23,7 +23,6 @@
      sectionsExtensions: HTMLElement,
      sectionsShortcuts: HTMLElement,
      sectionsSitePermissions: HTMLElement,
@@ -131,7 +131,7 @@
    };
  }
  
-@@ -117,21 +116,6 @@ export class ExtensionsSidebarElement ex
+@@ -117,26 +116,7 @@
      }
    }
  
@@ -143,11 +143,16 @@
 -    });
 -  }
 -
--  protected computeModernWebGuidancePromoText_(): TrustedHTML {
--    return this.i18nAdvanced('sidebarDocsPromo', {
+-  protected showDeveloperPromo_(): boolean {
+-    return this.inDevMode &&
+-        loadTimeData.getString('sidebarDeveloperPromo') !== '';
+-  }
+ 
+-  protected computeDeveloperPromoText_(): TrustedHTML {
+-    return this.i18nAdvanced('sidebarDeveloperPromo', {
 -      tags: ['a'],
 -      attrs: ['target'],
--      substitutions: [loadTimeData.getString('modernWebGuidanceURL')],
+-      substitutions: [loadTimeData.getString('sidebarDeveloperPromoUrl')],
 -    });
 -  }
  }
@@ -155,7 +160,7 @@
  declare global {
 --- a/chrome/browser/resources/history/side_bar.html.ts
 +++ b/chrome/browser/resources/history/side_bar.html.ts
-@@ -20,13 +20,6 @@ export function getHtml(this: HistorySid
+@@ -20,13 +20,6 @@
      $i18n{historyMenuItem}
      <cr-ripple></cr-ripple>
    </a>
@@ -171,7 +176,7 @@
        @click="${this.onClearBrowsingDataClick_}"
 --- a/chrome/browser/resources/history/side_bar.ts
 +++ b/chrome/browser/resources/history/side_bar.ts
-@@ -31,7 +31,6 @@ export interface HistorySideBarElement {
+@@ -31,7 +31,6 @@
    $: {
      history: HTMLAnchorElement,
      menu: CrMenuSelectorElement,
@@ -181,7 +186,7 @@
  
 --- a/chrome/browser/resources/new_tab_page_incognito_guest/incognito_tab.html
 +++ b/chrome/browser/resources/new_tab_page_incognito_guest/incognito_tab.html
-@@ -24,9 +24,6 @@ document.querySelector('#incognitothemec
+@@ -24,9 +24,6 @@
    <h1>$i18n{incognitoTabHeading}</h1>
    <p id="subtitle">
      <span>$i18n{incognitoTabDescription}</span>
@@ -193,7 +198,7 @@
      <div class="bulletpoints first">$i18nRaw{incognitoTabFeatures}</div>
 --- a/chrome/browser/resources/settings/a11y_page/a11y_page.html.ts
 +++ b/chrome/browser/resources/settings/a11y_page/a11y_page.html.ts
-@@ -111,12 +111,6 @@ export function getHtml(this: SettingsA1
+@@ -132,12 +132,6 @@
              sub-label="$i18n{toastAlertLevelDescription}">
          </settings-toggle-button>
  </if>
@@ -208,7 +213,7 @@
  <!--_html_template_end_-->`;
 --- a/chrome/browser/resources/settings/about_page/about_page.html.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
-@@ -23,7 +23,7 @@ export function getHtml(this: SettingsAb
+@@ -23,7 +23,7 @@
    <div class="cr-row two-line">
      <!-- Set the icon from the iconset (when it's obsolete/EOL and
        when update is done) or set the src (when it's updating). -->
@@ -217,7 +222,7 @@
      <div class="icon-container"
          ?hidden="${!this.shouldShowIcons_()}">
        <cr-icon
-@@ -35,7 +35,7 @@ export function getHtml(this: SettingsAb
+@@ -35,7 +35,7 @@
      </div>
  </if>
      <div class="flex cr-padded-text">
@@ -226,7 +231,7 @@
        <div id="updateStatusMessage" ?hidden="${!this.showUpdateStatus_}">
          <div role="alert" aria-live="polite"
              .innerHTML="${this.getUpdateStatusMessage_()}">
-@@ -89,8 +89,6 @@ export function getHtml(this: SettingsAb
+@@ -89,8 +89,6 @@
      </div>
    ` : ''}
  </if>
@@ -237,7 +242,7 @@
        ?hidden="${!this.feedbackAllowedPref_?.value}"
 --- a/chrome/browser/resources/settings/about_page/about_page.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.ts
-@@ -51,7 +51,7 @@ export const ABOUT_PAGE_PRIVACY_POLICY_U
+@@ -50,7 +50,7 @@
  export interface SettingsAboutPageElement {
    $: {
      productLogo: HTMLImageElement,
@@ -248,7 +253,7 @@
      // </if>
 --- a/chrome/browser/resources/settings/autofill_page/payments/payments_page.html.ts
 +++ b/chrome/browser/resources/settings/autofill_page/payments/payments_page.html.ts
-@@ -98,11 +98,6 @@ ${this.shouldShowPayOverTimeSettings_ ?
+@@ -100,11 +100,6 @@
          this.onCanMakePaymentSettingsBooleanControlChange_}">
  </settings-toggle-button>
  
@@ -262,7 +267,7 @@
  
 --- a/chrome/browser/resources/settings/autofill_page/payments/payments_page.ts
 +++ b/chrome/browser/resources/settings/autofill_page/payments/payments_page.ts
-@@ -70,7 +70,6 @@ export interface SettingsPaymentsPageEle
+@@ -70,7 +70,6 @@
      canMakePaymentToggle: SettingsToggleButtonElement,
      creditCardSharedMenu: CrActionMenuElement,
      ibanSharedActionMenu: CrLazyRenderLitElement<CrActionMenuElement>,
@@ -270,7 +275,7 @@
      menuEditCreditCard: HTMLElement,
      menuRemoveCreditCard: HTMLElement,
      menuAddVirtualCard: HTMLElement,
-@@ -267,14 +266,6 @@ export class SettingsPaymentsPageElement
+@@ -269,14 +268,6 @@
      // Record that the user opened the payments settings.
      chrome.metricsPrivate.recordUserAction('AutofillCreditCardsViewed');
  
@@ -287,7 +292,7 @@
    override disconnectedCallback() {
 --- a/chrome/browser/resources/settings/privacy_page/personalization_options.html
 +++ b/chrome/browser/resources/settings/privacy_page/personalization_options.html
-@@ -5,7 +5,7 @@ import {RestartType} from '../relaunch_m
+@@ -5,7 +5,7 @@
  // </if>
  #html_wrapper_imports_end -->
  
@@ -296,7 +301,7 @@
      <div id="chromeSigninUserChoiceSetting" class="hr cr-row" role="group"
          ?hidden="${!this.chromeSigninUserChoiceInfo_?.shouldShowSettings}"
          aria-label="$i18n{chromeSigninChoiceTitle}">
-@@ -88,12 +88,6 @@ import {RestartType} from '../relaunch_m
+@@ -88,12 +88,6 @@
      ` : ''}
  </if><!-- not chromeos -->
  </if><!-- _google_chrome -->
@@ -311,7 +316,7 @@
      <settings-toggle-button id="spellCheckControl"
 --- a/chrome/browser/resources/settings/privacy_page/personalization_options.ts
 +++ b/chrome/browser/resources/settings/privacy_page/personalization_options.ts
-@@ -59,11 +59,8 @@ import {getHtml} from './personalization
+@@ -59,11 +59,8 @@
  
  export interface SettingsPersonalizationOptionsElement {
    $: {
@@ -323,7 +328,7 @@
      chromeSigninUserChoiceToast: CrToastElement,
      // </if>
    };
-@@ -195,10 +192,6 @@ export class SettingsPersonalizationOpti
+@@ -185,10 +182,6 @@
          'chrome-signin-user-choice-info-change',
          this.setChromeSigninUserChoiceInfo_.bind(this));
      // </if>
@@ -334,7 +339,7 @@
    }
  
    private computeSyncFirstSetupInProgress_(): boolean {
-@@ -308,29 +301,11 @@ export class SettingsPersonalizationOpti
+@@ -280,29 +273,11 @@
    // </if><!-- _google_chrome -->
  
    protected onSignoutDialogClose_() {
@@ -364,7 +369,7 @@
    }
  
    protected onRestartClick_(e: Event) {
-@@ -340,18 +315,9 @@ export class SettingsPersonalizationOpti
+@@ -312,18 +287,9 @@
  
    private setChromeSigninUserChoiceInfo_(info: ChromeSigninUserChoiceInfo) {
      this.chromeSigninUserChoiceInfo_ = info;
@@ -403,7 +408,7 @@
          class="hr"
 --- a/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
 +++ b/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
-@@ -15,13 +15,6 @@
+@@ -14,13 +14,6 @@
  <cr-view-manager id="viewManager" class="cr-centered-card-container"
      show-all$="[[shouldShowAll]]">
  
@@ -419,15 +424,15 @@
          routes_.PRIVACY, currentRoute, inSearchMode)]]" update-when-false>
 --- a/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
 +++ b/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
-@@ -7,7 +7,6 @@ import '/shared/settings/prefs/prefs.js'
+@@ -6,7 +6,6 @@
  import '../safety_hub/safety_hub_entry_point.js';
  import '../settings_page/settings_section.js';
  import '../settings_shared.css.js';
 -import './privacy_guide/privacy_guide_promo.js';
  import './privacy_page.js';
  
- import type {SettingsPrefsElement} from '/shared/settings/prefs/prefs.js';
-@@ -213,13 +212,6 @@ export class SettingsPrivacyPageIndexEle
+ import {PrefServiceObserverMixin} from '/shared/settings/prefs2/pref_service_observer_mixin.js';
+@@ -217,13 +216,6 @@
    private getDefaultViews_(): string[] {
      const defaultViews = ['privacy'];
  
@@ -441,16 +446,17 @@
  
      return defaultViews;
    }
-@@ -351,19 +343,7 @@ export class SettingsPrivacyPageIndexEle
+@@ -355,20 +347,7 @@
    }
  
    private updatePrivacyGuidePromoVisibility_() {
--    if (!this.isPrivacyGuideAvailable || this.prefs === undefined ||
--        this.getPref('privacy_guide.viewed').value ||
+-    if (!this.isPrivacyGuideAvailable ||
+-        this.privacyGuideViewedPref_ === undefined ||
+-        this.privacyGuideViewedPref_.value ||
 -        this.privacyGuideBrowserProxy_.getPromoImpressionCount() >=
 -            MAX_PRIVACY_GUIDE_PROMO_IMPRESSION ||
 -        this.currentRoute !== routes.PRIVACY) {
-       this.showPrivacyGuidePromo_ = false;
+-      this.showPrivacyGuidePromo_ = false;
 -      return;
 -    }
 -    this.showPrivacyGuidePromo_ = true;
@@ -458,12 +464,13 @@
 -      this.privacyGuideBrowserProxy_.incrementPromoImpressionCount();
 -      this.privacyGuidePromoWasShown_ = true;
 -    }
++    this.showPrivacyGuidePromo_ = false;
    }
  }
  
 --- a/chrome/browser/resources/settings/privacy_page/security/security_page.html
 +++ b/chrome/browser/resources/settings/privacy_page/security/security_page.html
-@@ -44,11 +44,6 @@ import {HttpsFirstModeSetting} from './s
+@@ -44,11 +44,6 @@
      <div class="cr-row first">
        <h2 class="cr-title-text">$i18n{advancedPageTitle}</h2>
      </div>
@@ -475,7 +482,7 @@
      ${!this.enableHttpsFirstModeNewSettings_ ? html`
        <settings-toggle-button id="httpsOnlyModeToggle"
            pref-key="generated.https_first_mode_enabled"
-@@ -95,10 +90,4 @@ import {HttpsFirstModeSetting} from './s
+@@ -95,10 +90,4 @@
          @click="${this.onManageCertificatesClick_}" external>
      </cr-link-row>
  
@@ -488,7 +495,7 @@
    </settings-subpage>
 --- a/chrome/browser/resources/settings/search_page/search_page.html.ts
 +++ b/chrome/browser/resources/settings/search_page/search_page.html.ts
-@@ -16,12 +16,6 @@ export function getHtml(this: SettingsSe
+@@ -16,12 +16,6 @@
          ${this.searchPageTitle_}
          <div class="secondary">
            $i18n{searchEngineChoiceEntryPointSubtitle}
@@ -503,7 +510,7 @@
            <settings-search-engine-icon .engine="${this.defaultSearchEngine_}">
 --- a/chrome/browser/resources/settings/settings_page/settings_subpage.html.ts
 +++ b/chrome/browser/resources/settings/settings_page/settings_subpage.html.ts
-@@ -24,7 +24,7 @@ export function getHtml(this: SettingsSu
+@@ -24,7 +24,7 @@
    ` : ''}
    <h1 class="cr-title-text">${this.pageTitle}</h1>
    <slot name="subpage-title-extra"></slot>
@@ -514,7 +521,7 @@
          aria-label="${this.getLearnMoreAriaLabel_()}"
 --- a/chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc
 +++ b/chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc
-@@ -448,7 +448,6 @@ void RecentTabsSubMenuModel::Build() {
+@@ -455,7 +455,6 @@
  
    AddSeparator(ui::NORMAL_SEPARATOR);
    BuildLocalEntries();
@@ -524,7 +531,7 @@
  
 --- a/chrome/browser/ui/toolbar/app_menu_model.cc
 +++ b/chrome/browser/ui/toolbar/app_menu_model.cc
-@@ -1049,16 +1049,6 @@ void ExtensionsMenuModel::Build(BrowserW
+@@ -1058,16 +1058,6 @@
    SetElementIdentifierAt(
        GetIndexOfCommandId(IDC_EXTENSIONS_SUBMENU_MANAGE_EXTENSIONS).value(),
        kManageExtensionsMenuItem);
@@ -543,7 +550,7 @@
  ////////////////////////////////////////////////////////////////////////////////
 --- a/chrome/browser/ui/views/bookmarks/bookmark_menu_delegate.cc
 +++ b/chrome/browser/ui/views/bookmarks/bookmark_menu_delegate.cc
-@@ -1075,12 +1075,14 @@ void BookmarkMenuDelegate::BuildOtherNod
+@@ -1077,12 +1077,14 @@
    menu->AppendMenuItem(
        IDC_SHOW_BOOKMARK_SIDE_PANEL,
        l10n_util::GetStringUTF16(IDS_BOOKMARKS_ALL_BOOKMARKS_OPEN_SIDE_PANEL),
@@ -561,7 +568,7 @@
  }
 --- a/chrome/browser/ui/views/sad_tab_view.cc
 +++ b/chrome/browser/ui/views/sad_tab_view.cc
-@@ -166,9 +166,6 @@ SadTabView::SadTabView(SadTabController*
+@@ -166,9 +166,6 @@
    // There is currently no good way to handle kEnd alignment for a single
    // element.
    actions_container->SetLayoutManagerUseConstrainedSpace(false);
@@ -571,7 +578,7 @@
    action_button_ =
        actions_container->AddChildView(std::make_unique<views::MdTextButton>(
            base::BindRepeating(&SadTabController::PerformAction,
-@@ -223,31 +220,6 @@ void SadTabView::OnPaint(gfx::Canvas* ca
+@@ -223,31 +220,6 @@
    View::OnPaint(canvas);
  }
  
@@ -605,7 +612,7 @@
    // Constrain title width manually since it doesn't have FlexSpecification.
 --- a/chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_controller.cc
 +++ b/chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_controller.cc
-@@ -77,9 +77,6 @@ InfobarMessageType SessionRestoreInfobar
+@@ -77,9 +77,6 @@
          kContinueWhereLeftOff:
        return InfobarMessageType::kTurnOffFromRestart;
      case SessionRestoreInfobarModel::SessionRestoreMessageValue::kOpenNewTabPage:
@@ -617,7 +624,7 @@
          kOpenSpecificPages:
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -1345,40 +1345,20 @@ void AddPerformanceStrings(content::WebU
+@@ -1362,40 +1362,20 @@
        {"cpuPerformanceTierMid", IDS_SETTINGS_CPU_PERFORMANCE_TIER_MID},
        {"cpuPerformanceTierHigh", IDS_SETTINGS_CPU_PERFORMANCE_TIER_HIGH},
        {"cpuPerformanceTierUltra", IDS_SETTINGS_CPU_PERFORMANCE_TIER_ULTRA},
@@ -667,7 +674,7 @@
  
    html_source->AddString(
        "tabDiscardTimerFiveMinutes",
-@@ -1424,11 +1404,6 @@ void AddPerformanceStrings(content::WebU
+@@ -1441,11 +1421,6 @@
            base::NumberToString16(
                performance_manager::user_tuning::BatterySaverModeManager::
                    kLowBatteryThresholdPercent)));
@@ -681,7 +688,7 @@
                           chrome::kDiscardRingTreatmentLearnMoreUrl);
 --- a/chrome/browser/ui/webui/settings/settings_ui.cc
 +++ b/chrome/browser/ui/webui/settings/settings_ui.cc
-@@ -644,23 +644,10 @@ SettingsUI::SettingsUI(content::WebUI* w
+@@ -656,23 +656,10 @@
    html_source->AddString("aiSuggestionsHelpCenterArticleLink",
                           contextual_cueing::kHelpCenterArticleLink.Get());
  
@@ -707,7 +714,7 @@
    }
  
  #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-@@ -677,10 +664,9 @@ SettingsUI::SettingsUI(content::WebUI* w
+@@ -686,10 +673,9 @@
    // other AI features. The visibility of these is separately controlled, but
    // we want to show the subpage if any of them are enabled.
    html_source->AddBoolean("showAiPage",
@@ -722,7 +729,7 @@
                            syncer::IsReplaceSyncPromosWithSignInPromosEnabled());
 --- a/media/base/media_switches.cc
 +++ b/media/base/media_switches.cc
-@@ -727,7 +727,7 @@ BASE_FEATURE(kInternalMediaSession,
+@@ -741,7 +741,7 @@
  );
  
  // Enables the Live Caption feature on supported devices.
@@ -733,7 +740,7 @@
  BASE_FEATURE(kLiveCaptionAutomaticLanguageDownload,
 --- a/ui/views/controls/menu/menu_item_view.h
 +++ b/ui/views/controls/menu/menu_item_view.h
-@@ -392,7 +392,6 @@ class VIEWS_EXPORT MenuItemView : public
+@@ -402,7 +402,6 @@
    int GetCommand() const { return command_; }
  
    void set_new_badge_type(std::optional<ui::NewBadgeType> new_badge_type) {

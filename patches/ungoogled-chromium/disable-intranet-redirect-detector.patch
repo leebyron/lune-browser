@@ -3,7 +3,7 @@
 
 --- a/chrome/browser/intranet_redirect_detector.cc
 +++ b/chrome/browser/intranet_redirect_detector.cc
-@@ -117,9 +117,7 @@ void IntranetRedirectDetector::FinishSle
+@@ -117,9 +117,7 @@
    simple_loaders_.clear();
    resulting_origins_.clear();
  
@@ -12,5 +12,5 @@
 -    return;
 +  return;
  
-   DCHECK(simple_loaders_.empty() && resulting_origins_.empty());
- 
+   CHECK(simple_loaders_.empty() && resulting_origins_.empty(),
+         base::NotFatalUntil::M162);
