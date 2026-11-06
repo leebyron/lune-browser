@@ -1,0 +1,87 @@
+--- a/chrome/browser/enterprise/reporting/cloud_profile_reporting_service_factory.cc
++++ b/chrome/browser/enterprise/reporting/cloud_profile_reporting_service_factory.cc
+@@ -4,17 +4,24 @@
+ 
+ #include "chrome/browser/enterprise/reporting/cloud_profile_reporting_service_factory.h"
+ 
++#include "build/build_config.h"
+ #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+-#include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client_factory.h"
+ #include "chrome/browser/enterprise/identifiers/profile_id_service_factory.h"
+ #include "chrome/browser/enterprise/reporting/cloud_profile_reporting_service.h"
+ #include "chrome/browser/enterprise/signals/signals_aggregator_factory.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/signin/identity_manager_factory.h"
+ #include "components/enterprise/browser/reporting/report_scheduler.h"
++#include "components/enterprise/buildflags/buildflags.h"
+ #include "components/enterprise/isolated_mode/isolated_mode_features.h"
++#include "components/safe_browsing/buildflags.h"
+ #include "services/network/public/cpp/shared_url_loader_factory.h"
+ 
++#if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS) || BUILDFLAG(IS_ANDROID) || \
++    BUILDFLAG(FULL_SAFE_BROWSING)
++#include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client_factory.h"
++#endif
++
+ namespace enterprise_reporting {
+ 
+ // static
+@@ -56,8 +63,11 @@
+   DependsOn(policy::ManagementServiceFactory::GetInstance());
+   DependsOn(enterprise::ProfileIdServiceFactory::GetInstance());
+   DependsOn(IdentityManagerFactory::GetInstance());
++#if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS) || BUILDFLAG(IS_ANDROID) || \
++    BUILDFLAG(FULL_SAFE_BROWSING)
+   DependsOn(
+       enterprise_connectors::RealtimeReportingClientFactory::GetInstance());
++#endif
+   // Depends on this service because
+   // `CloudProfileReportingService.profile_request_generator_` has a dependency
+   // on it.
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -66,7 +66,6 @@
+ #if BUILDFLAG(ENABLE_EXTENSIONS)
+ #include "chrome/browser/extensions/api/autofill_private/autofill_private_event_router_factory.h"
+ #endif
+-#include "chrome/browser/safe_browsing/chrome_ping_manager_factory.h"
+ #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service_factory.h"
+ #include "chrome/browser/file_system_access/chrome_file_system_access_permission_context.h"
+ #include "chrome/browser/file_system_access/file_system_access_permission_context_factory.h"
+@@ -163,6 +162,7 @@
+ #include "components/prefs/pref_service.h"
+ #include "components/prefs/scoped_user_pref_update.h"
+ #include "components/profile_metrics/browser_profile_type.h"
++#include "components/safe_browsing/buildflags.h"
+ #include "components/safe_search_api/safe_search_util.h"
+ #include "components/security_interstitials/content/stateful_ssl_host_state_delegate.h"
+ #include "components/signin/public/base/signin_switches.h"
+@@ -280,6 +280,7 @@
+ #endif
+ 
+ #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
++#include "chrome/browser/safe_browsing/chrome_ping_manager_factory.h"
+ #include "chrome/browser/safe_browsing/safe_browsing_service.h"
+ #endif
+ 
+@@ -951,8 +952,10 @@
+               if (!profile || profile->ShutdownStarted()) {
+                 return;
+               }
++#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+               safe_browsing::ChromePingManagerFactory::GetForBrowserContext(
+                   profile.get());
++#endif
+               send_tab_to_self::SendTabToSelfClientServiceFactory::
+                   GetForProfile(profile.get());
+ #if BUILDFLAG(ENABLE_EXTENSIONS)
+--- a/chrome/browser/enterprise/BUILD.gn
++++ b/chrome/browser/enterprise/BUILD.gn
+@@ -489,6 +489,7 @@
+     "//chrome/browser/net",
+     "//chrome/browser/new_tab_page/chrome_colors:selected_colors_info",
+     "//chrome/browser/notifications",
++    "//chrome/browser/policy:policy",
+     "//chrome/browser/policy:policy_util",
+     "//chrome/browser/profiles:profile_util",
+     "//chrome/browser/safe_browsing",
