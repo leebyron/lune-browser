@@ -1,6 +1,6 @@
 --- a/chrome/browser/browser_features.cc
 +++ b/chrome/browser/browser_features.cc
-@@ -63,6 +63,10 @@ BASE_FEATURE(kCertVerificationNetworkTim
+@@ -63,6 +63,10 @@
  BASE_FEATURE(kClearUserDataUponProfileDestruction,
               base::FEATURE_ENABLED_BY_DEFAULT);
  
@@ -13,7 +13,7 @@
  // `kSecretPortalKeyProviderUseForEncryption` is enabled, this flag cannot be
 --- a/chrome/browser/browser_features.h
 +++ b/chrome/browser/browser_features.h
-@@ -39,6 +39,7 @@ BASE_DECLARE_FEATURE(kBookmarkTriggerFor
+@@ -39,6 +39,7 @@
  BASE_DECLARE_FEATURE(kCertificateTransparencyAskBeforeEnabling);
  BASE_DECLARE_FEATURE(kCertVerificationNetworkTime);
  BASE_DECLARE_FEATURE(kClearUserDataUponProfileDestruction);
@@ -1642,7 +1642,7 @@
 +#endif  // CHROME_BROWSER_UI_BROWSER_SHORTCUTS_BROWSER_SHORTCUT_SERVICE_FACTORY_H_
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -1901,6 +1901,114 @@ are declared in tools/grit/grit_args.gni
+@@ -1902,6 +1902,114 @@
        <message name="IDS_IMPORT_SETTINGS_MENU_LABEL" desc="The app menu label to import bookmarks and settings.">
          Import bookmarks and settings...
        </message>
@@ -1759,7 +1759,7 @@
          <message name="IDS_PROFILING_ENABLED" desc="The toggle to turn profiling on / off">
 --- a/ui/strings/ui_strings.grd
 +++ b/ui/strings/ui_strings.grd
-@@ -761,6 +761,12 @@ need to be translated for each locale.--
+@@ -761,6 +761,12 @@
        <message name="IDS_APP_PERIOD_KEY" desc="Period key, which is used to denote the end of a sentence (and not an interval of time).">
          Period
        </message>
@@ -1774,15 +1774,15 @@
        </message>
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -86,6 +86,7 @@
- #include "chrome/browser/themes/theme_service.h"
+@@ -88,6 +88,7 @@
  #include "chrome/browser/tips/core/tips_prefs.h"
  #include "chrome/browser/tracing/chrome_tracing_delegate.h"
+ #include "chrome/browser/ttc/core/prefs.h"
 +#include "chrome/browser/ui/browser_shortcuts/browser_shortcut_prefs.h"
  #include "chrome/browser/ui/browser_ui_prefs.h"
  #include "chrome/browser/ui/network_profile_bubble.h"
  #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
-@@ -2081,6 +2082,7 @@ void RegisterProfilePrefs(user_prefs::Pr
+@@ -2138,6 +2139,7 @@
    PushMessagingUnsubscribedEntry::RegisterProfilePrefs(registry);
    QuietNotificationPermissionUiState::RegisterProfilePrefs(registry);
    regional_capabilities::prefs::RegisterProfilePrefs(registry);
@@ -1792,7 +1792,7 @@
    RegisterGeminiSettingsPrefs(registry);
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-@@ -647,6 +647,7 @@
+@@ -650,6 +650,7 @@
  
  #if defined(TOOLKIT_VIEWS)
  #include "chrome/browser/bookmarks/bookmark_merged_surface_service_factory.h"
@@ -1800,10 +1800,10 @@
  #endif
  
  #if BUILDFLAG(USE_NSS_CERTS)
-@@ -840,6 +841,9 @@ void ChromeBrowserMainExtraPartsProfiles
+@@ -843,6 +844,9 @@
+ #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
    browser_switcher::BrowserSwitcherServiceFactory::GetInstance();
  #endif
-   browser_sync::UserEventServiceFactory::GetInstance();
 +#if defined(TOOLKIT_VIEWS)
 +  browser_shortcuts::BrowserShortcutServiceFactory::GetInstance();
 +#endif
@@ -1812,7 +1812,7 @@
  #endif
 --- a/chrome/browser/global_keyboard_shortcuts_mac.mm
 +++ b/chrome/browser/global_keyboard_shortcuts_mac.mm
-@@ -79,7 +79,7 @@ bool MatchesEventForKeyboardShortcut(con
+@@ -79,7 +79,7 @@
  }
  
  const std::vector<KeyboardShortcutData>&
@@ -1821,7 +1821,7 @@
    // clang-format off
    static base::NoDestructor<std::vector<KeyboardShortcutData>> keys({
      // cmd    shift  cntrl  option vkeycode               command
-@@ -181,6 +181,21 @@ const std::vector<KeyboardShortcutData>&
+@@ -181,6 +181,21 @@
    return *keys;
  }
  
@@ -1843,7 +1843,7 @@
  const std::vector<NSMenuItem*>& GetMenuItemsNotPresentInMainMenu() {
    static base::NoDestructor<std::vector<NSMenuItem*>> menu_items([]() {
      std::vector<NSMenuItem*> menu_items;
-@@ -239,7 +254,7 @@ int DelayedWebContentsCommandForKeyEvent
+@@ -239,7 +254,7 @@
  
    // Scan through keycodes and see if it corresponds to one of the non-menu
    // shortcuts.
@@ -2171,7 +2171,7 @@
  constexpr int NO_COMMAND = -1;
  
  struct KeyboardShortcutData {
-@@ -29,6 +27,11 @@ struct KeyboardShortcutData {
+@@ -29,6 +27,11 @@
    int chrome_command;  // The chrome command # to execute for this shortcut.
  };
  
@@ -2183,7 +2183,7 @@
  struct CommandForKeyEventResult {
    bool found() { return chrome_command != NO_COMMAND; }
  
-@@ -83,4 +86,8 @@ bool GetDefaultMacAcceleratorForCommandI
+@@ -83,4 +86,8 @@
  // For testing purposes.
  const std::vector<KeyboardShortcutData>& GetShortcutsNotPresentInMainMenu();
  
@@ -2194,7 +2194,7 @@
  #endif  // CHROME_BROWSER_GLOBAL_KEYBOARD_SHORTCUTS_MAC_H_
 --- a/chrome/browser/prefs/BUILD.gn
 +++ b/chrome/browser/prefs/BUILD.gn
-@@ -400,6 +400,7 @@ source_set("impl") {
+@@ -402,6 +402,7 @@
        "//chrome/browser/search_engines",
        "//chrome/browser/sharing_hub",
        "//chrome/browser/speech",
@@ -2204,7 +2204,7 @@
        "//chrome/browser/ui/performance_controls",
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
-@@ -950,6 +950,7 @@ source_set("profiles_extra_parts_impl")
+@@ -974,6 +974,7 @@
        "//chrome/browser/search_engine_choice",
        "//chrome/browser/sharing_hub",
        "//chrome/browser/ui:browser_manager_service",
@@ -2269,7 +2269,7 @@
 +}
 --- a/chrome/browser/ui/cocoa/BUILD.gn
 +++ b/chrome/browser/ui/cocoa/BUILD.gn
-@@ -6,9 +6,23 @@ import("//chrome/browser/buildflags.gni"
+@@ -6,9 +6,23 @@
  
  assert(is_mac)
  
@@ -2294,7 +2294,7 @@
      "applescript/apple_event_util.h",
      "applescript/bookmark_folder_applescript.h",
      "applescript/bookmark_item_applescript.h",
-@@ -56,7 +70,6 @@ source_set("cocoa") {
+@@ -56,7 +70,6 @@
  
    sources = [
      "accelerator_utils_cocoa.mm",
@@ -2302,7 +2302,7 @@
      "applescript/apple_event_util.mm",
      "applescript/bookmark_folder_applescript.mm",
      "applescript/bookmark_item_applescript.mm",
-@@ -117,7 +130,10 @@ source_set("cocoa") {
+@@ -117,7 +130,10 @@
      "window_size_autosaver.mm",
    ]
  
