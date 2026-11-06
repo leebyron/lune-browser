@@ -352,3 +352,13 @@ now compares those paths with the generated SVG too. Compilation resumed from
 this final component commit. The preceding run is retained under
 `*-before-webui-icons.*`. Shared WebUI compilation and final runtime checks remain
 part of the full build in progress.
+
+The shared WebUI resource target subsequently passed. The full build exposed a
+separate PDF lint error: ungoogled's `disable-ai.patch` removes the OCR progress
+toast, but Chromium 158 still declares it in the TypeScript interface and calls
+it from a plugin event handler. Platform commit
+`29adb275d03bd66b195e9cccc93634985ba1c437` removes those obsolete bindings/imports
+and ignores the disabled feature's progress notification. PDF TypeScript
+compilation and lint both pass (`pdf-fix-targets.log`). The patch reapplied without
+fuzz (**402 total**). The full build resumed from this commit; its preceding
+failure evidence is preserved under `*-before-pdf-fix.*`.
