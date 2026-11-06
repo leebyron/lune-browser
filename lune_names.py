@@ -35,6 +35,20 @@ def replace_grit_message(message):
 
 util.replace_grit_message = replace_grit_message
 
+# A translation has an ID, not a message name. Only rewrite it when the
+# corresponding source message changed. Otherwise excluded upstream credits
+# acquire Lune's name while retaining the original Helium fingerprint.
+_replace_xtb_translation = util.replace_xtb_translation
+
+
+def replace_xtb_translation(message, fingerprint_map):
+    if message.get('id') not in fingerprint_map:
+        return False
+    return _replace_xtb_translation(message, fingerprint_map)
+
+
+util.replace_xtb_translation = replace_xtb_translation
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         raise SystemExit('Usage: lune_names.py CHROMIUM_SOURCE')
