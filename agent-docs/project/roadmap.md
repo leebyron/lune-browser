@@ -91,7 +91,7 @@ every gate passes, and a failed candidate leaves the installed update path intac
 | Helium selection | Full stack selected for first development build |
 | Additional PRs/features | Not selected |
 | Git layout | Same-remote component branches and permanent input tags published |
-| Build machines | This Mac after storage/Xcode setup; native Intel validation still needed |
+| Build machines | No added CI spend; this Mac as a self-hosted Actions runner after Xcode setup. Storage ready; runner setup and Intel runtime validation pending |
 | Signing | Developer ID and Sparkle keys in local Keychain; notarization setup pending |
 | Domain and hosting | `lune.computer`; Cloudflare website, services host undecided |
 | Minimum macOS version | Derive from selected source/toolchain and test matrix |

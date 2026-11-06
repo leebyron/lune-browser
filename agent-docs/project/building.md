@@ -41,7 +41,8 @@ and both architectures' runtime checks remain release blockers.
 ## Prepare this Mac
 
 The owner selected this Mac mini (M4 Pro, 64 GB RAM). At the latest check it has
-about 79 GiB free and only Command Line Tools selected. The wrapper requires at
+264.5 GiB free and only Command Line Tools selected. Storage now passes the
+preflight check. The wrapper requires at
 least 200 GiB free before preparation, a conservative local policy rather than a
 measured guarantee. Two source/output trees and peak build usage may require more.
 Free space manually; the tooling never removes personal data or old workspaces.
@@ -117,6 +118,36 @@ Always push core inputs before platform inputs, then publish exact input tags
 and the main lock. Use explicit push refspecs with `-c push.followTags=false` so
 local global Git settings do not publish unrelated tags. Never force-push
 published input tags or replace release artifacts.
+
+## CI without additional spending
+
+Owner decision, 2026-11-05: keep CI free; use this Mac when required. Target
+GitHub Actions orchestration with a repository-scoped self-hosted macOS runner
+on this Mac. The runner and browser workflow are **not registered/implemented**
+yet. Full Xcode 26 and Metal are the immediate prerequisite for the first build.
+
+[GitHub documents self-hosted runner compute as free](https://docs.github.com/en/actions/concepts/billing-and-usage).
+The private repository's hosted compute and artifact/cache storage still have
+allowances and possible overage charges. Keep large source trees, compiler caches,
+and initial browser outputs on local disk; do not upload multi-gigabyte checkpoints
+to Actions artifacts by default. Do not provision paid runners, purchase storage,
+or assume an unverified account billing cap. Existing lightweight checks remain
+subject to the account's included allowance.
+
+After Xcode is ready, register a runner dedicated to this repository, use a
+separate ignored build workspace, and start with manual dispatch from reviewed
+`main` only. Do not run pull-request code on this personal Mac. Serialize builds,
+keep the Mac awake while jobs run, and retain local compilation caches. Establish
+one successful arm64 build before scheduling recurring jobs or running the Intel
+target. The owner can keep using the GitHub Actions UI for triggering and reading
+logs, but the Mac must remain online for jobs to execute.
+
+Stock GitHub-hosted macOS builds remain a possible future experiment. The pinned
+[Helium workflow](https://github.com/imputnet/helium-macos/blob/37efe2c65dccc21aaf1d8ea66fd35d1348c386a8/.github/workflows/building.yml)
+chains up to ten build phases with source/build artifacts to cross job time limits.
+That is source evidence of its strategy, not proof that Lune will fit the private
+repository's free compute/storage allowances. Do not copy its artifact-heavy
+approach without measuring storage and runtime first.
 
 ## Signing readiness
 

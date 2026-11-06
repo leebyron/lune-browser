@@ -15,7 +15,9 @@ Read [the build runbook](agent-docs/project/building.md) before running the tool
 
 Lune's platform identity patch and full source/build entry points are implemented
 but have not undergone a full Chromium preparation, compilation, or runtime test.
-The local Mac still needs build storage and full Xcode. Signing identities exist
+The local Mac passes the storage check but still needs full Xcode. The owner
+requires no additional CI spend: use this Mac as a self-hosted GitHub Actions
+runner for browser builds; runner registration is not implemented yet. Signing identities exist
 in Keychain; notarization and packaging remain to be validated. Automatic updates,
 public browser releases, services deployment, and recurring browser builds are
 not enabled. Targets are macOS arm64 and x86_64. Website status is recorded in
