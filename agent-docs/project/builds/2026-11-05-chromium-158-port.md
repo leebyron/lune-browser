@@ -400,3 +400,18 @@ prepared build source. The previously failing object compiled successfully
 (`sync-fix-compile.log`). Full compilation resumed from cache; the preceding
 failure evidence is saved under `*-before-sync-fix.*`. The series remains at
 402 patches. Sync runtime behavior has not been validated by this object build.
+
+## Settings preference compatibility
+
+Platform commit `26b5039cf2b0ed81df1e8b971068c685bfd9f428` migrates the Helium noise and
+services settings pages from the removed `PrefsMixin` to Chromium 158's
+`pref-key` controls and `PrefServiceObserverMixin`. Consent, service enablement,
+and origin override remain observed; origin changes use `PrefService`. The
+Polymer WebUI listener and shortcut action-link stylesheet use their relocated
+modules. This retains the existing settings rather than removing their controls.
+
+The patch reapplied with zero fuzz (**403 total**). Settings TypeScript compilation
+and lint pass (`settings-fix-targets.log`). Full compilation resumed from cached
+outputs; the preceding failure is preserved under `*-before-settings-fix.*`.
+Runtime interaction with the migrated settings remains to be verified in the new
+app.
