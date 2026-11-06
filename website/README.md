@@ -22,9 +22,15 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - Close and minimize return to the desktop. The third control uses the browser's
   Fullscreen API, when available. Window controls have monochrome styling and
   reveal their glyphs on group hover or keyboard focus.
-- Screenshot and feature captures remain placeholders. Download buttons are
-  disabled until a public browser release is available. They must not link to
-  an unvalidated development build.
+- Screenshot and feature captures remain placeholders. Both Download buttons
+  select the matching build when macOS User-Agent Client Hints report `arm` or
+  `x86`. Unsupported, denied, or unknown hints (and other platforms) retain a
+  native popover with explicit Apple silicon and Intel choices. Legacy
+  `MacIntel`/user-agent strings are not used to infer chip architecture.
+  Downloads remain disabled and labeled Coming soon until validated public
+  releases are available. When publishing, link both the detected build button
+  (`data-architecture="arm64"` or `"x86_64"`) and the explicit choice buttons to
+  the corresponding release; never link to an unvalidated development build.
 
 ## Assets and attribution
 

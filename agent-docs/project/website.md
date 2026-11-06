@@ -33,7 +33,9 @@ using that token succeeded. The
 passed installation, validation, and production deployment for commit `eef768a`.
 Automatic website deployments are operational. The source now contains the
 cyanotype desktop and scroll-driven browser story. Browser screenshots remain
-placeholders, and Download is disabled pending a validated public release.
+placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
+architecture hints, otherwise offering both choices. Downloads remain disabled
+and labeled Coming soon pending validated public releases.
 
 ## DNS activation
 

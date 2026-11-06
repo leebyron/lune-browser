@@ -44,6 +44,52 @@
       scroll.focus({preventScroll: true});
     });
   });
+  const downloadChoices = [...root.querySelectorAll('.download-choices')];
+  root.querySelectorAll('[popovertarget]').forEach(button => {
+    const choices = document.getElementById(button.getAttribute('popovertarget'));
+    choices.addEventListener('beforetoggle', event => {
+      if (event.newState !== 'open') return;
+      const rect = button.getBoundingClientRect();
+      const width = Math.min(260, innerWidth - 24);
+      choices.style.left = `${Math.max(12, Math.min(rect.left, innerWidth - width - 12))}px`;
+      const above = rect.bottom + 170 > innerHeight;
+      choices.style.top = above ? 'auto' : `${rect.bottom + 8}px`;
+      choices.style.bottom = above ? `${innerHeight - rect.top + 8}px` : 'auto';
+    });
+  });
+  // Dismiss before the animated story moves a trigger away from its chooser.
+  function dismissDownloads() {
+    downloadChoices.forEach(choices => {
+      if (choices.matches(':popover-open')) choices.hidePopover();
+    });
+  }
+  scroll.addEventListener('scroll', dismissDownloads, {passive: true});
+  window.addEventListener('resize', dismissDownloads);
+  async function detectDownloadArchitecture() {
+    // MacIntel and the legacy user-agent string also occur on Apple silicon.
+    // Only use explicit architecture hints; unsupported or withheld hints keep the chooser.
+    const ua = navigator.userAgentData;
+    if (ua?.platform !== 'macOS' || ua.mobile || !ua.getHighEntropyValues) return;
+    try {
+      const {architecture} = await ua.getHighEntropyValues(['architecture']);
+      const build = architecture === 'arm' ? 'arm64' : architecture === 'x86' ? 'x86_64' : null;
+      if (!build) return;
+      const label = build === 'arm64' ? 'Apple silicon' : 'Intel';
+      dismissDownloads();
+      root.querySelectorAll('.action.download').forEach(button => {
+        button.dataset.architecture = build;
+        button.removeAttribute('popovertarget');
+        button.querySelector('.download-chevron').remove();
+        button.setAttribute('aria-label', `Download for ${label} — coming soon`);
+        button.title = `Download for ${label} — coming soon`;
+        // Enable and link the selected build only after public releases are validated.
+        button.disabled = true;
+      });
+    } catch {
+      // Privacy settings can deny high-entropy hints. Leave the explicit choices available.
+    }
+  }
+  detectDownloadArchitecture();
   const fullscreenButton = root.querySelector('[data-fullscreen]');
   fullscreenButton.disabled = !document.fullscreenEnabled;
   fullscreenButton.addEventListener('click', async () => {
