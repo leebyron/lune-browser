@@ -59,7 +59,10 @@ appcast generation. Runtime provider checks are added to `scripts/smoke-browser.
 
 The owner provisioned `lune-notary`; Keychain access was verified without
 exporting credentials. The setup reminder is paused. Both candidate builds and
-runtime checks pass; signing and distribution acceptance remain outstanding.
+runtime checks pass. Both builds (1 and 2), on both architectures, now have
+Developer ID signatures, accepted Apple notarization, stapled tickets, Gatekeeper
+acceptance, notarized DMGs, and verified Sparkle signatures. Distribution
+acceptance remains in progress.
 
 Release GN overrides (in addition to the pinned platform release defaults):
 
@@ -97,7 +100,6 @@ feeds remain the primary architecture-routing mechanism.
 
 ## Remaining gates
 
-- Sign/notarize/package both build numbers for both architectures.
 - Install build 1, update to build 2 through staging feeds, relaunch, and verify
   profile persistence. Exercise bad signatures, OS constraints, and architecture
   routing. Perform native Intel acceptance manually on the owner's Intel Mac.
@@ -107,3 +109,33 @@ feeds remain the primary architecture-routing mechanism.
   recheck Chromium stable freshness, then promote both feeds and website links.
 
 No recurring browser build or automatic public promotion is enabled by this work.
+
+## Signed acceptance progress
+
+The signed arm64 candidate passes runtime/settings/artwork and French/German
+attribution checks. The signed Intel candidate passes the main runtime smoke
+under Rosetta; live-service and installed-update checks are still under investigation.
+The arm64 live-service check fetched 10,730 valid bangs and loaded 676,593 uBlock
+network filters. The advertising fixture was replaced with uBlock's local stub.
+A Web Store extension installation/update has not yet been accepted.
+
+The actual Lune About-page updater completed a local staged build-1 to build-2
+update on arm64, then relaunched with profile data intact. The installed result
+passes codesign, stapler, and Gatekeeper again. A deliberately invalid Sparkle
+signature was rejected and an item requiring macOS 99 was not offered; both
+kept build 1 and its profile intact. These checks use loopback test feeds; the
+public HTTPS delivery path still needs its own exercise.
+
+The standalone Sparkle CLI was built from the pinned source but required macOS
+authorization to replace the test bundle. The acceptance harness therefore uses
+Lune's real About-page updater, including its consent and custom-feed behavior.
+It is `scripts/release/check_update.py`; `--expect-rejection` runs negative cases.
+
+The public distribution repository now exists at
+https://github.com/leebyron/lune-downloads. Build 2 is an unpublished draft
+prerelease with source archives uploading. No stable feed has been promoted.
+
+Inherited hosted component workflows (`ci.yml`, `lint.yml`, `sanity.yml`) were
+disabled through GitHub's workflow API; their histories remain unchanged. Their
+platform-tag runs had been blocked by billing. Main setup validation remains on
+the Mac and passed again for commit `7784f488`.

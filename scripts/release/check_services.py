@@ -26,17 +26,19 @@ def check_services(request, path, fixture_url):
                     True, [key, value])
         if result is not True:
             raise RuntimeError('Cannot enable disposable-profile service consent: ' + key)
-    # Component uBlock is present without a Web Store install or user account.
-    request('POST', path + '/url', {'url': 'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/3p-filters.html'})
-    for attempt in range(120):
-        if js('return typeof vAPI !== "undefined";'):
-            break
-        if attempt % 10 == 9:
-            request('POST', path + '/url', {'url': 'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/3p-filters.html'})
-        time.sleep(0.5)
-    else:
+    # First-run extension registration can replace a tab while its dashboard loads.
+    def get_lists():
+        for attempt in range(120):
+            if attempt % 10 == 0:
+                request('POST', path + '/url', {'url': 'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/3p-filters.html'})
+            result = js('''const done=arguments[arguments.length-1];
+              if(typeof vAPI === "undefined") {done(null);return;}
+              vAPI.messaging.send("dashboard",{what:"getLists"}).then(done);''', True)
+            if result and result.get('netFilterCount', 0) >= 1000:
+                return result
+            time.sleep(.5)
         raise RuntimeError('Bundled uBlock dashboard did not initialize')
-    lists = js('const done=arguments[arguments.length-1]; vAPI.messaging.send("dashboard",{what:"getLists"}).then(done);', True)
+    lists = get_lists()
     if not lists or lists.get('netFilterCount', 0) < 1000:
         raise RuntimeError('Bundled uBlock network filters did not load')
     bangs = js('''const done=arguments[arguments.length-1];
@@ -54,30 +56,29 @@ def check_services(request, path, fixture_url):
         raise RuntimeError('Helium bangs endpoint failed: ' + json.dumps(bangs))
     js('vAPI.messaging.send("dashboard",{what:"updateNow"}); return true;')
     time.sleep(5)
-    # A component update can reload the dashboard during the live check.
-    request('POST', path + '/url', {'url': 'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/3p-filters.html'})
-    for _ in range(60):
-        if js('return typeof vAPI !== "undefined";'):
-            break
-        time.sleep(0.5)
-    updated = js('const done=arguments[arguments.length-1]; vAPI.messaging.send("dashboard",{what:"getLists"}).then(done);', True)
+    updated = get_lists()
     request('POST', path + '/url', {'url': fixture_url})
     request('POST', path + '/goog/cdp/execute', {'cmd': 'Network.enable', 'params': {}})
     js('''const script=document.createElement('script');
        script.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
        document.body.appendChild(script); return true;''')
-    time.sleep(2)
-    logs = request('POST', path + '/log', {'type': 'performance'})
-    messages = [json.loads(entry['message'])['message'] for entry in logs]
-    ids = {m['params']['requestId'] for m in messages if m['method'] == 'Network.requestWillBeSent'
-           and 'pagead2.googlesyndication.com' in m['params']['request']['url']}
-    blocked = [m['params'] for m in messages if m['method'] == 'Network.loadingFailed'
-               and m['params']['requestId'] in ids and m['params'].get('errorText') == 'net::ERR_BLOCKED_BY_CLIENT']
-    redirects = [m['params'] for m in messages if m['method'] == 'Network.requestWillBeSent'
-                 and m['params']['requestId'] in ids
-                 and m['params']['request']['url'].startswith(
-                     'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/web_accessible_resources/googlesyndication_adsbygoogle.js?')
-                 and m['params'].get('redirectResponse', {}).get('headers', {}).get('Non-Authoritative-Reason') == 'WebRequest API']
+    messages = []
+    blocked, redirects = [], []
+    for _ in range(60):
+        logs = request('POST', path + '/log', {'type': 'performance'})
+        messages.extend(json.loads(entry['message'])['message'] for entry in logs)
+        ids = {m['params']['requestId'] for m in messages if m['method'] == 'Network.requestWillBeSent'
+               and 'pagead2.googlesyndication.com' in m['params']['request']['url']}
+        blocked = [m['params'] for m in messages if m['method'] == 'Network.loadingFailed'
+                   and m['params']['requestId'] in ids and m['params'].get('errorText') == 'net::ERR_BLOCKED_BY_CLIENT']
+        redirects = [m['params'] for m in messages if m['method'] == 'Network.requestWillBeSent'
+                     and m['params']['requestId'] in ids
+                     and m['params']['request']['url'].startswith(
+                         'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/web_accessible_resources/googlesyndication_adsbygoogle.js?')
+                     and m['params'].get('redirectResponse', {}).get('headers', {}).get('Non-Authoritative-Reason') == 'WebRequest API']
+        if blocked or redirects:
+            break
+        time.sleep(.5)
     if not blocked and not redirects:
         diagnostics = [m for m in messages if m.get('params', {}).get('requestId') in ids]
         raise RuntimeError('uBlock did not block the known advertising fixture: ' + json.dumps(diagnostics))
