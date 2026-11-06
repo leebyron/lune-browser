@@ -471,3 +471,17 @@ result after applying the existing domain-substitution rules; no substitutions
 were reverted. `about_flags.o` compiles (`flags-init-fix-compile.log`). The series
 remains at 403 patches. The preceding failure is preserved under
 `*-before-flags-init-fix.*`; compilation resumed from cache.
+
+## Navigation disposition names
+
+Chromium 158 renamed the window disposition enum members. Core
+`de04e61ab2cbcf27ef689a3291f140f8e4a49b8d` updates the download action that opens services
+settings. Platform `995cbf877f327fe79e5367a6c9e97b289ceaac5d` also updates command-bar,
+link-preview, and navigator references to the equivalent current names. Foreground,
+background, current-tab, and new-window behavior remains selected as before.
+
+The refreshed core patch and new platform patch applied without fuzz (**404 total**).
+All four affected objects compile (`navigation-enum-fix-compile.log`), and a source
+scan finds no old uppercase disposition names in Chrome or component C++/Objective-C++
+files. The preceding failure is preserved under `*-before-navigation-enum-fix.*`;
+full compilation resumed from cache.
