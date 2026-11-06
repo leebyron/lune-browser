@@ -1,6 +1,6 @@
---- a/chrome/browser/ui/layout_constants.cc	2026-10-23 19:03:25
-+++ b/chrome/browser/ui/layout_constants.cc	2026-10-23 19:05:22
-@@ -181,9 +181,9 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -180,9 +180,9 @@
      case LayoutConstant::kVerticalTabCornerRadius:
        return 8;
      case LayoutConstant::kVerticalTabHeight:
@@ -12,14 +12,15 @@
      case LayoutConstant::kVerticalTabMinWidth:
        return 30;
      case LayoutConstant::kVerticalTabStripHorizontalPadding:
---- a/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc	2026-10-23 19:03:25
-+++ b/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc	2026-10-23 19:05:22
-@@ -26,8 +26,11 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_layout.cc
+@@ -28,9 +28,12 @@
  constexpr int kTabVerticalPadding = 2;
  constexpr int kGroupLineWidth = 2;
  constexpr int kGroupLineCollapsedLeadingPadding = 2;
 -constexpr int kGroupHeaderHeight = 26;
  constexpr int kGroupHeaderVerticalMargin = 3;
+ constexpr int kFocusedHeadersGap = 2;
 +
 +int GetGroupHeaderHeight() {
 +  return GetHeliumUiDensity() == HeliumUiDensity::kComfortable ? 32 : 26;
@@ -27,7 +28,7 @@
  }  // namespace
  
  TabGroupViewLayout::TabGroupViewLayout(TabStripOrientation orientation)
-@@ -83,7 +86,7 @@
+@@ -106,7 +109,7 @@
    }
  
    header_bounds.set_y(height);

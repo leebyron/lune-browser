@@ -1,21 +1,21 @@
---- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc	2026-10-23 19:29:48
-+++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc	2026-10-23 19:34:16
-@@ -486,13 +486,9 @@
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -504,13 +504,9 @@
  
  gfx::Size VerticalTabStripRegionView::GetMinimumSize() const {
    auto min_size = BaseTabStripRegionView::GetMinimumSize();
 -  const int min_uncollapsed =
 -      (browser_view() && browser_view()->IsVerticalAddressBarInSidebar())
 -          ? VerticalTabStripHeaderView::kMinimumWidth
--          : kUncollapsedMinWidth;
+-          : tabs::kVerticalTabStripUncollapsedMinWidth;
    min_size.set_width((state_controller_->IsCollapsed() || IsAnimatingSize())
-                          ? kCollapsedWidth
+                          ? tabs::kVerticalTabStripCollapsedWidth
 -                         : min_uncollapsed);
-+                         : kUncollapsedMinWidth);
++                         : tabs::kVerticalTabStripUncollapsedMinWidth);
    return min_size;
  }
  
-@@ -504,10 +500,8 @@
+@@ -522,10 +518,8 @@
    const auto motion =
        controller->GetCurrentMotion(TabStripAnimations::kVerticalTabStrip);
    const int target_uncollapsed_width =
@@ -24,24 +24,24 @@
 -                     VerticalTabStripHeaderView::kMinimumWidth)
 -          : target_collapse_state_.uncollapsed_width;
 +      std::max(target_collapse_state_.uncollapsed_width,
-+               kUncollapsedMinWidth);
++               tabs::kVerticalTabStripUncollapsedMinWidth);
    const int expand_amount =
-       std::max(0, target_uncollapsed_width - kCollapsedWidth);
+       std::max(0, target_uncollapsed_width - tabs::kVerticalTabStripCollapsedWidth);
    const double expand_percent =
-@@ -718,10 +712,7 @@
+@@ -734,10 +728,7 @@
      state_controller_->SetIsResizing(false);
    }
  
 -  const int min_uncollapsed =
 -      (browser_view() && browser_view()->IsVerticalAddressBarInSidebar())
 -          ? VerticalTabStripHeaderView::kMinimumWidth
--          : kUncollapsedMinWidth;
-+  const int min_uncollapsed = kUncollapsedMinWidth;
-   const int collapse_snap_width = (min_uncollapsed + kCollapsedWidth) / 2;
+-          : tabs::kVerticalTabStripUncollapsedMinWidth;
++  const int min_uncollapsed = tabs::kVerticalTabStripUncollapsedMinWidth;
+   const int collapse_snap_width = (min_uncollapsed + tabs::kVerticalTabStripCollapsedWidth) / 2;
  
    tabs::VerticalTabStripState new_state;
---- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc	2026-10-23 19:29:48
-+++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc	2026-10-23 19:48:14
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
 @@ -4,8 +4,10 @@
  
  #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h"
@@ -263,8 +263,8 @@
    }
  
    if (location_bar_view_ && location_bar_view_->GetVisible()) {
---- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h	2026-10-23 19:29:48
-+++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h	2026-10-23 19:34:16
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h
 @@ -26,8 +26,9 @@
    METADATA_HEADER(VerticalTabStripHeaderView, views::View)
  

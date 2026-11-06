@@ -9,11 +9,10 @@
  #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
  #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
  #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
-@@ -540,6 +542,20 @@
- #if DCHECK_IS_ON()
+@@ -535,6 +537,20 @@
    DCHECK(params.Valid());
  #endif
-+
+ 
 +  // Native link peek: intercept new-tab clicks before any tab opens.
 +  if (HeliumLinkPeekController* peek =
 +          HeliumLinkPeekController::From(&*browser_)) {
@@ -27,10 +26,11 @@
 +      return nullptr;
 +    }
 +  }
- 
++
    if ((browser_->GetType() == BrowserWindowInterface::Type::TYPE_DEVTOOLS)) {
      DevToolsWindow* window = DevToolsWindow::AsDevToolsWindow(source);
-@@ -672,6 +688,21 @@
+     DCHECK(window);
+@@ -666,6 +682,21 @@
      const blink::mojom::WindowFeatures& window_features,
      bool user_gesture,
      bool* was_blocked) {
@@ -52,287 +52,6 @@
    FullscreenController* fullscreen_controller =
        exclusive_access_manager_->fullscreen_controller();
  #if BUILDFLAG(IS_MAC)
-
---- a/chrome/browser/ui/browser_window/public/browser_window_features.h
-+++ b/chrome/browser/ui/browser_window/public/browser_window_features.h
-@@ -80,6 +80,8 @@
- class FindBarOwner;
- class FullscreenControlHost;
- class HeliumLayoutStateController;
-+class HeliumCommandBarController;
-+class HeliumLinkPeekController;
- class HistoryClustersSidePanelCoordinator;
- class HistorySidePanelCoordinator;
- class ImmersiveModeController;
-@@ -469,6 +471,12 @@
-       send_tab_to_self_iph_controller_;
-   std::unique_ptr<VerticalTabIphController> vertical_tab_iph_controller_;
-   std::unique_ptr<HeliumLayoutStateController> helium_layout_state_controller_;
-+  // Per-window native command bar. Owned here so the command handler can
-+  // reach it via HeliumCommandBarController::From(browser).
-+  std::unique_ptr<HeliumCommandBarController> helium_command_bar_controller_;
-+  // Per-window native link peek. Owned here so the contents delegate can
-+  // reach it via HeliumLinkPeekController::From(browser).
-+  std::unique_ptr<HeliumLinkPeekController> helium_link_peek_controller_;
- 
-   std::unique_ptr<tabs::VerticalTabStripStateController>
-       vertical_tab_strip_state_controller_;
-
---- a/chrome/browser/ui/browser_window/internal/browser_window_features.cc
-+++ b/chrome/browser/ui/browser_window/internal/browser_window_features.cc
-@@ -81,6 +81,8 @@
- #include "chrome/browser/ui/focus/browser_focus_controller_webui.h"
- #include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
- #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
-+#include "chrome/browser/ui/helium/helium_command_bar_controller.h"
-+#include "chrome/browser/ui/helium/helium_link_peek_controller.h"
- #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
- #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
- #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
-@@ -651,7 +653,15 @@
-     helium_layout_state_controller_ =
-         GetUserDataFactory().CreateInstance<HeliumLayoutStateController>(
-             *browser, browser, profile->GetPrefs());
-+
-+    helium_command_bar_controller_ =
-+        GetUserDataFactory().CreateInstance<HeliumCommandBarController>(
-+            *browser, browser);
- 
-+    helium_link_peek_controller_ =
-+        GetUserDataFactory().CreateInstance<HeliumLinkPeekController>(
-+            *browser, browser);
-+
-     vertical_tab_strip_state_controller_ =
-         GetUserDataFactory()
-             .CreateInstance<tabs::VerticalTabStripStateControllerImpl>(
-@@ -841,6 +851,9 @@
-         std::make_unique<ExtensionKeybindingRegistryViews>(
-             browser, extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
-             focus_manager);
-+    if (helium_command_bar_controller_) {
-+      helium_command_bar_controller_->RegisterAccelerators(focus_manager);
-+    }
-   }
- 
-   if (browser_view) {
-
---- a/chrome/browser/ui/browser_window/internal/BUILD.gn
-+++ b/chrome/browser/ui/browser_window/internal/BUILD.gn
-@@ -115,6 +115,8 @@
-       "//chrome/browser/ui/focus",
-       "//chrome/browser/ui/fullscreen",
-       "//chrome/browser/ui/helium:helium_layout_state_controller",
-+      "//chrome/browser/ui/helium:helium_command_bar",
-+      "//chrome/browser/ui/helium:helium_link_peek",
-       "//chrome/browser/ui/lens",
-       "//chrome/browser/ui/performance_controls",
-       "//chrome/browser/ui/send_tab_to_self",
-
---- a/chrome/browser/ui/helium/BUILD.gn
-+++ b/chrome/browser/ui/helium/BUILD.gn
-@@ -16,6 +16,92 @@
-   ]
-   deps = [
-     "//chrome/browser/ui/browser_window",
-+    "//chrome/browser/ui:layout_constants",
-     "//chrome/common:constants",
-   ]
- }
-+
-+source_set("helium_link_peek") {
-+  sources = [
-+    "helium_link_peek_controller.cc",
-+    "helium_link_peek_controller.h",
-+    "helium_link_peek_modifiers.h",
-+    "helium_link_peek_modifiers_mac.mm",
-+    "helium_link_peek_view.cc",
-+    "helium_link_peek_view.h",
-+  ]
-+
-+  public_deps = [
-+    "//base",
-+    "//chrome/browser/ui/browser_window",
-+    "//ui/base/unowned_user_data",
-+  ]
-+
-+  deps = [
-+    "//chrome/browser/bookmarks",
-+    "//chrome/browser/favicon",
-+    "//chrome/browser/history",
-+    "//chrome/browser/profiles",
-+    "//chrome/browser/ui/navigator",
-+    "//chrome/browser/ui/tabs:tab_model",
-+    "//chrome/browser/ui/tabs:tab_strip",
-+    "//components/bookmarks/browser",
-+    "//components/favicon/core",
-+    "//components/favicon_base",
-+    "//components/history/core/browser",
-+    "//components/keyed_service/core",
-+    "//components/prefs",
-+    "//components/search_engines",
-+    "//components/tabs:public",
-+    "//components/vector_icons",
-+    "//content/public/browser",
-+    "//ui/base",
-+    "//ui/color",
-+    "//ui/events",
-+    "//ui/gfx",
-+    "//ui/views",
-+  ]
-+}
-+
-+source_set("helium_command_bar") {
-+  sources = [
-+    "helium_command_bar_controller.cc",
-+    "helium_command_bar_controller.h",
-+    "helium_command_bar_model.cc",
-+    "helium_command_bar_model.h",
-+    "helium_command_bar_view.cc",
-+    "helium_command_bar_view.h",
-+  ]
-+
-+  public_deps = [
-+    "//base",
-+    "//chrome/browser/ui/browser_window",
-+    "//ui/base/unowned_user_data",
-+  ]
-+
-+  deps = [
-+    "//chrome/app/vector_icons",
-+    "//chrome/browser/bookmarks",
-+    "//chrome/browser/favicon",
-+    "//chrome/browser/history",
-+    "//chrome/browser/search_engines",
-+    "//chrome/browser/ui/navigator",
-+    "//chrome/browser/ui/tabs:tab_model",
-+    "//chrome/browser/ui/tabs:tab_strip",
-+    "//components/bookmarks/browser",
-+    "//components/favicon/content",
-+    "//components/favicon/core",
-+    "//components/favicon_base",
-+    "//components/history/core/browser",
-+    "//components/keyed_service/core",
-+    "//components/prefs",
-+    "//components/search_engines",
-+    "//content/public/browser",
-+    "//ui/base",
-+    "//ui/color",
-+    "//ui/events",
-+    "//ui/gfx",
-+    "//ui/views",
-+  ]
-+}
-+
-
---- a/chrome/common/pref_names.h
-+++ b/chrome/common/pref_names.h
-@@ -678,6 +678,16 @@
- // location bar.
- inline constexpr char kHeliumShowProgressBar[] =
-     "helium.browser.show_progress_bar";
-+
-+// A boolean pref set to true if the native command bar is enabled. When on,
-+// Cmd+T / Cmd+L open the bar instead of their built-in actions.
-+inline constexpr char kHeliumCommandBarEnabled[] = "helium.command_bar.enabled";
-+
-+// A boolean pref set to true if the native link peek is enabled. When on,
-+// Shift+click and links that force a new foreground tab open a floating
-+// preview instead of navigating immediately. Middle-click keeps its native
-+// background-tab behavior.
-+inline constexpr char kHeliumLinkPeekEnabled[] = "helium.link_peek.enabled";
- 
- // A boolean pref set to true if a Home button to open the Home pages should be
- // visible on the toolbar.
-
---- a/chrome/browser/ui/browser_ui_prefs.cc
-+++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -151,6 +151,14 @@
-   registry->RegisterBooleanPref(prefs::kHeliumMinimalLocationBar, false);
- 
-   registry->RegisterBooleanPref(prefs::kHeliumShowProgressBar, true);
-+
-+  // Native command bar (Settings > Appearance > Command bar), off by default.
-+  // With it on, Cmd+T / Cmd+L open the bar instead of new-tab / focus-bar.
-+  registry->RegisterBooleanPref(prefs::kHeliumCommandBarEnabled, false);
-+
-+  // Native link peek (Settings > Appearance > Link peek), on by default.
-+  // With it on, new-tab clicks open a floating preview instead of navigating.
-+  registry->RegisterBooleanPref(prefs::kHeliumLinkPeekEnabled, true);
- 
-   // Xelium default: at most four pinned tabs per row.
-   registry->RegisterIntegerPref(prefs::kHeliumVerticalPinnedTabsPerRow, 4);
-
---- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
-+++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -327,6 +327,10 @@
-   (*s_allowlist)[::prefs::kVisualTabSwitcher] =
-       settings_api::PrefType::kBoolean;
-   (*s_allowlist)[::prefs::kVisualTabSwitcherList] =
-+      settings_api::PrefType::kBoolean;
-+  (*s_allowlist)[::prefs::kHeliumCommandBarEnabled] =
-+      settings_api::PrefType::kBoolean;
-+  (*s_allowlist)[::prefs::kHeliumLinkPeekEnabled] =
-       settings_api::PrefType::kBoolean;
-   (*s_allowlist)[::prefs::kShiftRightClickContextMenu] =
-       settings_api::PrefType::kBoolean;
-
---- a/chrome/app/settings_strings.grdp
-+++ b/chrome/app/settings_strings.grdp
-@@ -359,7 +359,19 @@
-     </message>
-     <message name="IDS_SETTINGS_SHOW_PROGRESS_BAR" desc="Label for the toggle that shows loading progress in the address bar.">
-       Show loading progress in the address bar
-+    </message>
-+    <message name="IDS_SETTINGS_COMMAND_BAR" desc="Label for the toggle that enables the native command bar.">
-+      Command bar
-+    </message>
-+    <message name="IDS_SETTINGS_COMMAND_BAR_DESCRIPTION" desc="Description for the command bar toggle in appearance settings.">
-+      Open a floating command bar with Cmd+T / Cmd+L instead, anywhere including settings pages
-+    </message>
-+    <message name="IDS_SETTINGS_LINK_PEEK" desc="Label for the toggle that enables the native link peek preview.">
-+      Link peek
-     </message>
-+    <message name="IDS_SETTINGS_LINK_PEEK_DESCRIPTION" desc="Description for the link peek toggle in appearance settings.">
-+      Preview Shift+click and force-new-tab links in a floating window instead of opening them right away
-+    </message>
-     <message name="IDS_SETTINGS_BROWSER_ZEN_MODE" desc="Label for the toggle that enables zen mode, hiding browser chrome until hover.">
-       Frameless mode
-     </message>
-
---- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-+++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -643,6 +643,10 @@
-       {"verticalCollapseShortcut", IDS_SETTINGS_VERTICAL_COLLAPSE_SHORTCUT},
-       {"minimalLocationBar", IDS_SETTINGS_MINIMAL_LOCATION_BAR},
-       {"showProgressBar", IDS_SETTINGS_SHOW_PROGRESS_BAR},
-+      {"commandBarEnabled", IDS_SETTINGS_COMMAND_BAR},
-+      {"commandBarEnabledDescription", IDS_SETTINGS_COMMAND_BAR_DESCRIPTION},
-+      {"linkPeekEnabled", IDS_SETTINGS_LINK_PEEK},
-+      {"linkPeekEnabledDescription", IDS_SETTINGS_LINK_PEEK_DESCRIPTION},
-       {"shiftRightClickContextMenu",
-        IDS_SETTINGS_SHIFT_RIGHT_CLICK_CONTEXT_MENU},
-       {"showZoomIndicator", IDS_SETTINGS_SHOW_ZOOM_INDICATOR},
-
---- a/chrome/browser/resources/settings/appearance_page/appearance_layout_page.html.ts
-+++ b/chrome/browser/resources/settings/appearance_page/appearance_layout_page.html.ts
-@@ -68,6 +68,16 @@
-       label="$i18n{showProgressBar}">
-   </settings-toggle-button>
-   <settings-toggle-button class="hr"
-+      pref-key="helium.command_bar.enabled"
-+      label="$i18n{commandBarEnabled}"
-+      sub-label="$i18n{commandBarEnabledDescription}">
-+  </settings-toggle-button>
-+  <settings-toggle-button class="hr"
-+      pref-key="helium.link_peek.enabled"
-+      label="$i18n{linkPeekEnabled}"
-+      sub-label="$i18n{linkPeekEnabledDescription}">
-+  </settings-toggle-button>
-+  <settings-toggle-button class="hr"
-       pref-key="helium.browser.zen_mode"
-       label="$i18n{browserZenMode}"
-       sub-label="$i18n{browserZenModeDescription}">
-
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_link_peek_controller.h
 @@ -0,0 +1,154 @@
@@ -490,7 +209,6 @@
 +};
 +
 +#endif  // CHROME_BROWSER_UI_HELIUM_HELIUM_LINK_PEEK_CONTROLLER_H_
-
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_link_peek_controller.cc
 @@ -0,0 +1,375 @@
@@ -869,7 +587,6 @@
 +base::WeakPtr<HeliumLinkPeekController> HeliumLinkPeekController::GetWeakPtr() {
 +  return weak_factory_.GetWeakPtr();
 +}
-
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_link_peek_modifiers.h
 @@ -0,0 +1,17 @@
@@ -890,7 +607,6 @@
 +}  // namespace helium
 +
 +#endif  // CHROME_BROWSER_UI_HELIUM_HELIUM_LINK_PEEK_MODIFIERS_H_
-
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_link_peek_modifiers_mac.mm
 @@ -0,0 +1,19 @@
@@ -913,7 +629,6 @@
 +}
 +
 +}  // namespace helium
-
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_link_peek_view.h
 @@ -0,0 +1,95 @@
@@ -1012,7 +727,6 @@
 +};
 +
 +#endif  // CHROME_BROWSER_UI_HELIUM_HELIUM_LINK_PEEK_VIEW_H_
-
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_link_peek_view.cc
 @@ -0,0 +1,274 @@
@@ -1290,4 +1004,3 @@
 +    Close();
 +  }
 +}
-

@@ -1,6 +1,6 @@
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -325,6 +325,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -327,6 +327,10 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kTabCyclingMRU] =
        settings_api::PrefType::kBoolean;
@@ -13,7 +13,7 @@
    (*s_allowlist)[::prefs::kShowZoomIndicator] =
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -128,6 +128,8 @@ void RegisterBrowserUserPrefs(user_prefs
+@@ -132,6 +132,8 @@
    registry->RegisterBooleanPref(prefs::kNewTabNextToActive, false);
  
    registry->RegisterBooleanPref(prefs::kTabCyclingMRU, false);
@@ -24,7 +24,7 @@
  
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -607,6 +607,10 @@ inline constexpr char kNewTabNextToActiv
+@@ -607,6 +607,10 @@
  // A boolean pref set to true if MRU (Most Recently Used) order should be used
  // when cycling through tabs with Ctrl+Tab.
  inline constexpr char kTabCyclingMRU[] = "helium.browser.mru_tab_cycling";
@@ -37,7 +37,7 @@
  // menu handlers and show the browser context menu.
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
-@@ -4427,6 +4427,14 @@ void TabStripModel::StopMRUCycling() {
+@@ -4574,6 +4574,14 @@
    mru_cycle_list_.clear();
  }
  
@@ -52,7 +52,7 @@
  void TabStripModel::SelectRelativeTab(TabRelativeDirection direction,
                                        TabStripUserGestureDetails detail) {
    // This may happen during automated testing or if a user somehow buffers
-@@ -4443,27 +4451,14 @@ void TabStripModel::SelectRelativeTab(Ta
+@@ -4590,27 +4598,14 @@
    // fallback on activating the active tab.
    DCHECK(!start_group.has_value() || !IsGroupCollapsed(start_group.value()));
  
@@ -84,7 +84,7 @@
  }
 --- a/chrome/browser/ui/tabs/tab_strip_model.h
 +++ b/chrome/browser/ui/tabs/tab_strip_model.h
-@@ -516,6 +516,7 @@ class TabStripModel {
+@@ -518,6 +518,7 @@
    bool IsTabPinned(int index) const;
  
    bool IsTabCollapsed(int index) const;
@@ -94,9 +94,7 @@
  
 --- a/chrome/browser/helium_flag_choices.h
 +++ b/chrome/browser/helium_flag_choices.h
-@@ -42,8 +42,11 @@
- constexpr const char kHeliumSplitClientHelloCommandLine[] =
-     "helium-split-clienthello";
+@@ -44,6 +44,9 @@
  
  constexpr const char kHeliumHidePageActionsCommandLine[] =
      "helium-hide-page-actions";
@@ -108,7 +106,8 @@
  #endif /* CHROME_BROWSER_HELIUM_FLAG_CHOICES_H_ */
 --- a/chrome/browser/helium_flag_entries.h
 +++ b/chrome/browser/helium_flag_entries.h
-@@ -76,8 +76,15 @@
+@@ -75,6 +75,13 @@
+      "prevent access to networks that require a proxy. Helium flag.",
       kOsAll, SINGLE_VALUE_TYPE(switches::kNoProxyServer)},
      // ui
 +    {helium::kVisualTabSwitcherMaxTabsCommandLine,
@@ -121,6 +120,3 @@
      {helium::kHeliumHidePageActionsCommandLine, "Hide all page actions",
       "Hides all page actions at the end of address bar. This includes: "
       "bookmark star, page zoom, PWA install/open, local file access, and more. "
-      "Important actions and indicators will be missing. Helium flag.",
-      kOsDesktop, FEATURE_VALUE_TYPE(features::kHeliumHidePageActions)},
-     // platform

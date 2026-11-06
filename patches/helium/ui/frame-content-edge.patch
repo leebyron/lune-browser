@@ -1,5 +1,5 @@
---- a/chrome/browser/ui/views/frame/contents_container_outline.cc	2026-10-23 21:59:44
-+++ b/chrome/browser/ui/views/frame/contents_container_outline.cc	2026-10-23 22:55:30
+--- a/chrome/browser/ui/views/frame/contents_container_outline.cc
++++ b/chrome/browser/ui/views/frame/contents_container_outline.cc
 @@ -114,6 +114,23 @@
    SchedulePaint();
  }
@@ -38,6 +38,7 @@
    gfx::RectF local_bounds(GetLocalBounds());
    const float half_thickness = stroke_thickness / 2.0f;
 -  local_bounds.Inset(half_thickness);
+-
 +  const bool at_content_edge = content_inset_ >= 0;
 +  if (!helium::ShouldUseNativeFrameMaterials(this) && at_content_edge) {
 +    // The non-material band is still the outline color, but its inner edge must
@@ -53,7 +54,7 @@
 +    canvas->DrawPath(path, flags);
 +    return;
 +  }
- 
++
 +  flags.setStrokeWidth(stroke_thickness);
 +  flags.setStyle(cc::PaintFlags::kStroke_Style);
 +  if (at_content_edge) {
@@ -77,8 +78,8 @@
  
    SkPath path = GetPath(local_bounds, corner_radii);
  
---- a/chrome/browser/ui/views/frame/contents_container_outline.h	2026-10-23 21:59:44
-+++ b/chrome/browser/ui/views/frame/contents_container_outline.h	2026-10-23 22:55:10
+--- a/chrome/browser/ui/views/frame/contents_container_outline.h
++++ b/chrome/browser/ui/views/frame/contents_container_outline.h
 @@ -38,6 +38,10 @@
    bool is_highlighted() const { return is_highlighted_; }
  
@@ -101,8 +102,8 @@
    base::ScopedObservation<views::View, views::ViewObserver>
        view_bounds_observer_{this};
  };
---- a/chrome/browser/ui/views/frame/contents_container_view.cc	2026-10-23 21:59:44
-+++ b/chrome/browser/ui/views/frame/contents_container_view.cc	2026-10-23 22:55:10
+--- a/chrome/browser/ui/views/frame/contents_container_view.cc
++++ b/chrome/browser/ui/views/frame/contents_container_view.cc
 @@ -30,6 +30,7 @@
  #include "chrome/browser/ui/views/frame/tab_modal_dialog_host.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -133,7 +134,7 @@
        UpdateBorderRoundedCorners();
      }
  
-@@ -359,13 +366,36 @@
+@@ -360,13 +367,36 @@
    const int inner_padding =
        is_in_split_ ? kSplitViewContentPadding + std::max(0, frame_thickness - 1)
                     : frame_thickness;
@@ -172,8 +173,8 @@
    if (capture_contents_border_view_) {
      capture_contents_border_view_->SetCornerRadii(container_rounded_corners);
    }
---- a/chrome/browser/ui/views/frame/contents_container_view.h	2026-10-23 21:59:44
-+++ b/chrome/browser/ui/views/frame/contents_container_view.h	2026-10-23 22:29:26
+--- a/chrome/browser/ui/views/frame/contents_container_view.h
++++ b/chrome/browser/ui/views/frame/contents_container_view.h
 @@ -170,6 +170,7 @@
  
    bool is_in_split_ = false;

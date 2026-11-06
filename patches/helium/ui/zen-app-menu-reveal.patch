@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -2218,7 +2218,7 @@
+@@ -2216,7 +2216,7 @@
        toolbar_button_provider ? toolbar_button_provider->GetAppMenuControl()
                                : nullptr;
    if (app_menu_control && app_menu_control->IsMenuShowing()) {
@@ -9,7 +9,7 @@
        reveal_side = true;
      } else {
        reveal_top = true;
-@@ -2418,12 +2418,21 @@
+@@ -2416,12 +2416,21 @@
  
  void BrowserView::AppMenuShown() {
    if (zen_mode_enabled_) {
@@ -32,7 +32,7 @@
  }
  
  void BrowserView::AppMenuClosed() {
-@@ -5105,6 +5114,21 @@
+@@ -5100,6 +5109,21 @@
    // Collapse zen mode chrome when the window is deactivated.
    if (!active && zen_mode_enabled_) {
      UpdateZenModeReveal(/*reveal_top=*/false, /*reveal_side=*/false);
@@ -56,7 +56,7 @@
    ExtensionKeybindingRegistryViews::From(browser_)->OnHostActivationChanged(
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -985,6 +985,10 @@
+@@ -981,6 +981,10 @@
    bool IsPointInZenSideChromeBounds(const gfx::Point& point) const;
    bool HasOpenBubbleFromTopContainer() const;
    bool HasOpenBubbleFromSidebar() const;

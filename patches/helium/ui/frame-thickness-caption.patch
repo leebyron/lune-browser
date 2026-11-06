@@ -1,6 +1,6 @@
---- a/chrome/browser/ui/views/frame/browser_view.cc	2026-10-23 22:37:18
-+++ b/chrome/browser/ui/views/frame/browser_view.cc	2026-10-23 22:44:07
-@@ -5749,6 +5749,27 @@
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -5746,6 +5746,27 @@
      }
    }
  
@@ -28,8 +28,8 @@
    // If the point's y coordinate is below the top of the topmost view and
    // otherwise within the bounds of this view, the point is considered to be
    // within the client area.
---- a/chrome/browser/ui/views/frame/contents_container_view.cc	2026-10-23 22:37:18
-+++ b/chrome/browser/ui/views/frame/contents_container_view.cc	2026-10-23 22:44:07
+--- a/chrome/browser/ui/views/frame/contents_container_view.cc
++++ b/chrome/browser/ui/views/frame/contents_container_view.cc
 @@ -270,6 +270,16 @@
  #endif  //  BUILDFLAG(IS_CHROMEOS)
  }
@@ -47,8 +47,8 @@
  void ContentsContainerView::SetBorderRoundedCornersFrom(
      const gfx::RoundedCornersF& corner_radii) {
    // Update devtools rounded corners. Note, devtools exists behind the contents
---- a/chrome/browser/ui/views/frame/contents_container_view.h	2026-10-23 22:37:18
-+++ b/chrome/browser/ui/views/frame/contents_container_view.h	2026-10-23 22:44:07
+--- a/chrome/browser/ui/views/frame/contents_container_view.h
++++ b/chrome/browser/ui/views/frame/contents_container_view.h
 @@ -125,6 +125,10 @@
                                bool round_bottom_left_window_corner,
                                bool round_bottom_right_window_corner);

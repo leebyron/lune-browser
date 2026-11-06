@@ -66,7 +66,7 @@
  };
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -540,6 +540,18 @@
+@@ -537,6 +537,18 @@
  
    // Always add children in order from left to right, for accessibility.
  
@@ -85,7 +85,7 @@
    vertical_tabs_collapse_button_ = AddChildView(std::make_unique<ToolbarButton>(
        base::BindRepeating(&ToolbarView::VerticalTabsCollapseButtonPressed,
                            base::Unretained(this))));
-@@ -1832,6 +1844,12 @@
+@@ -1828,6 +1840,12 @@
    chrome::NewTab(browser_, NewTabTypes::kNewTabButton);
  }
  
@@ -98,7 +98,7 @@
  void ToolbarView::VerticalTabsCollapseButtonPressed(const ui::Event& event) {
    if (browser_view_->IsVerticalAddressBarInSidebar()) {
      return;
-@@ -2279,6 +2297,9 @@
+@@ -2275,6 +2293,9 @@
    }
  
    sidebar_controls_host_ = host;
@@ -108,7 +108,7 @@
    transferred_controls_state_.clear();
  
    // Navigation buttons and the address bar move into the sidebar. The
-@@ -2286,7 +2307,7 @@
+@@ -2282,7 +2303,7 @@
    // end via the layout's main-axis alignment (see UpdateToolbarLayout); they
    // are not reparented, so no restore bookkeeping is needed for them.
    views::View* views_to_transfer[] = {
@@ -117,7 +117,7 @@
  
    for (views::View* view : views_to_transfer) {
      if (view && view->parent() == this) {
-@@ -2302,7 +2323,7 @@
+@@ -2298,7 +2319,7 @@
  
    sidebar_controls_host_->AttachToolbarControls(
        nullptr, nullptr, nullptr, nullptr, back_, forward_, reload_, home_,
@@ -126,7 +126,7 @@
  
    OnShowMediaButtonChanged();
    UpdateToolbarLayout();
-@@ -2315,6 +2336,9 @@
+@@ -2311,6 +2332,9 @@
    }
    VerticalTabStripHeaderView* host = sidebar_controls_host_;
    sidebar_controls_host_ = nullptr;
@@ -136,7 +136,7 @@
    host->ClearToolbarControls();
  
    // Restore in ascending original index order.
-@@ -2384,6 +2408,13 @@
+@@ -2380,6 +2404,13 @@
      // the right end corner. A spacer-based approach does not work here:
      // FlexLayout excludes zero-preferred-size views from space allocation,
      // so an empty spacer never expands.
@@ -152,7 +152,7 @@
      return;
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.h
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
-@@ -425,6 +425,7 @@
+@@ -421,6 +421,7 @@
  
    void NewTabButtonPressed(const ui::Event& event);
    void VerticalTabsCollapseButtonPressed(const ui::Event& event);
@@ -160,7 +160,7 @@
  
    void InitGlicContainer();
  
-@@ -590,6 +591,10 @@
+@@ -585,6 +586,10 @@
    bool should_show_glic_button_ = false;
    bool should_show_glic_actor_ = false;
    raw_ptr<VerticalTabStripHeaderView> sidebar_controls_host_ = nullptr;

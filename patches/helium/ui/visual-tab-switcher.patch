@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -10922,6 +10922,9 @@ Keep your key file in a safe place. You
+@@ -10603,6 +10603,9 @@
            Pin tab search
          </message>
        </if>
@@ -10,18 +10,6 @@
        <message name="IDS_TAB_SEARCH_BUTTON_CXMENU_UNPIN" desc="Name of the tab search button context menu item for unpinning tab search.">
          Unpin
        </message>
---- a/chrome/browser/ui/BUILD.gn
-+++ b/chrome/browser/ui/BUILD.gn
-@@ -3563,7 +3563,9 @@
-       "views/helium/frame_corner_radius.cc",
-       "views/helium/frame_corner_radius.h",
-       "views/helium/native_frame_materials.cc",
-       "views/helium/native_frame_materials.h",
-+      "views/tabs/visual_tab_switcher.cc",
-+      "views/tabs/visual_tab_switcher.h",
-     ]
- 
-     sources += get_target_outputs(":webui_name_variants")
 --- a/chrome/browser/ui/thumbnails/thumbnail_image.cc
 +++ b/chrome/browser/ui/thumbnails/thumbnail_image.cc
 @@ -12,6 +12,7 @@
@@ -32,7 +20,7 @@
  #include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
  #include "third_party/skia/include/core/SkBitmap.h"
  #include "ui/gfx/codec/jpeg_codec.h"
-@@ -43,6 +44,10 @@ ThumbnailImage::ThumbnailImage(Delegate*
+@@ -43,6 +44,10 @@
    DCHECK(delegate_);
    DCHECK(!delegate_->thumbnail_);
    delegate_->thumbnail_ = this;
@@ -43,7 +31,7 @@
  }
  
  ThumbnailImage::~ThumbnailImage() {
-@@ -74,6 +79,8 @@ std::unique_ptr<ThumbnailImage::Subscrip
+@@ -74,6 +79,8 @@
  void ThumbnailImage::AssignSkBitmap(SkBitmap bitmap,
                                      std::optional<uint64_t> frame_id) {
    thumbnail_id_ = base::Token::CreateRandom();
@@ -52,7 +40,7 @@
  
    base::ThreadPool::PostTaskAndReplyWithResult(
        FROM_HERE,
-@@ -84,6 +91,10 @@ void ThumbnailImage::AssignSkBitmap(SkBi
+@@ -84,6 +91,10 @@
        base::BindOnce(&ThumbnailImage::AssignJPEGData,
                       weak_ptr_factory_.GetWeakPtr(), thumbnail_id_,
                       base::TimeTicks::Now(), frame_id));
@@ -63,7 +51,7 @@
  }
  
  void ThumbnailImage::ClearData() {
-@@ -93,12 +104,15 @@ void ThumbnailImage::ClearData() {
+@@ -93,12 +104,15 @@
      return;
    }
  
@@ -83,10 +71,12 @@
    thumbnail_id_ = base::Token();
  
    // Notify observers of the new, blank thumbnail.
-@@ -113,6 +127,71 @@ void ThumbnailImage::RequestThumbnailIma
+@@ -111,6 +125,71 @@
+ void ThumbnailImage::RequestThumbnailImage() {
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
    ConvertJPEGDataToImageSkiaAndNotifyObservers();
- }
- 
++}
++
 +void ThumbnailImage::SetPreviewCachingEnabled(bool enabled) {
 +  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 +  if (preview_caching_enabled_ == enabled) {
@@ -150,12 +140,10 @@
 +    cached_preview_original_size_ = original_size;
 +    preview_was_available_ = !cached_preview_.isNull();
 +  }
-+}
-+
+ }
+ 
  void ThumbnailImage::RequestCompressedThumbnailData() {
-   if (data_) {
-     NotifyCompressedDataObservers(data_);
-@@ -141,6 +220,7 @@ void ThumbnailImage::AssignJPEGData(base
+@@ -141,6 +220,7 @@
  
    data_ = base::MakeRefCounted<base::RefCountedData<std::vector<uint8_t>>>(
        std::move(data));
@@ -163,7 +151,7 @@
  
    // We select a TRACE_EVENT_* macro based on |frame_id|'s presence.
    // Since these are scoped traces, the macro invocation must be in the
-@@ -148,7 +228,13 @@ void ThumbnailImage::AssignJPEGData(base
+@@ -148,7 +228,13 @@
    // function.
    auto notify = [&]() {
      NotifyCompressedDataObservers(data_);
@@ -178,7 +166,7 @@
    };
  
    if (frame_id_for_trace) {
-@@ -176,7 +262,7 @@ bool ThumbnailImage::ConvertJPEGDataToIm
+@@ -176,7 +262,7 @@
         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
        base::BindOnce(&ThumbnailImage::UncompressImage, data_),
        base::BindOnce(&ThumbnailImage::NotifyUncompressedDataObservers,
@@ -187,19 +175,20 @@
  }
  
  void ThumbnailImage::NotifyUncompressedDataObservers(base::Token thumbnail_id,
-@@ -192,12 +278,20 @@ void ThumbnailImage::NotifyUncompressedD
+@@ -190,6 +276,12 @@
+   // thumbnail was cleared after AssignSkBitmap), ignore it.
+   if (thumbnail_id != thumbnail_id_) {
      return;
-   }
- 
++  }
++
 +  CachePreview(image);
 +
 +  if (!image.isNull()) {
 +    preview_was_available_ = true;
-+  }
-+
+   }
+ 
    for (Subscription* subscription : subscribers_) {
-     auto size_hint = subscription->size_hint_;
-     if (subscription->uncompressed_image_callback_) {
+@@ -198,6 +290,8 @@
        auto cropped_image = size_hint && !image.isNull()
                                 ? CropPreviewImage(image, *size_hint)
                                 : image;
@@ -208,7 +197,7 @@
        subscription->uncompressed_image_callback_.Run(cropped_image);
      }
    }
-@@ -248,7 +342,8 @@ gfx::ImageSkia ThumbnailImage::Uncompres
+@@ -248,7 +342,8 @@
  // static
  gfx::ImageSkia ThumbnailImage::CropPreviewImage(
      const gfx::ImageSkia& source_image,
@@ -218,7 +207,7 @@
    DCHECK(!source_image.isNull());
    DCHECK(!source_image.size().IsEmpty());
    DCHECK(!minimum_size.IsEmpty());
-@@ -257,9 +352,10 @@ gfx::ImageSkia ThumbnailImage::CropPrevi
+@@ -257,9 +352,10 @@
    const float source_aspect =
        static_cast<float>(source_image.width()) / source_image.height();
  
@@ -233,7 +222,7 @@
  
 --- a/chrome/browser/ui/thumbnails/thumbnail_image.h
 +++ b/chrome/browser/ui/thumbnails/thumbnail_image.h
-@@ -95,6 +95,7 @@ class ThumbnailImage : public base::RefC
+@@ -95,6 +95,7 @@
  
      scoped_refptr<ThumbnailImage> thumbnail_;
      std::optional<gfx::Size> size_hint_;
@@ -241,7 +230,7 @@
  
      UncompressedImageCallback uncompressed_image_callback_;
      CompressedImageCallback compressed_image_callback_;
-@@ -153,6 +154,9 @@ class ThumbnailImage : public base::RefC
+@@ -153,6 +154,9 @@
    // long it will take, though in most cases it should happen very quickly.
    void RequestThumbnailImage();
  
@@ -251,7 +240,7 @@
    // Similar to RequestThumbnailImage() but requests only the compressed JPEG
    // data. Users should listen for a call to
    // Observer::OnCompressedThumbnailDataAvailable().
-@@ -193,11 +197,19 @@ class ThumbnailImage : public base::RefC
+@@ -193,10 +197,18 @@
  
    // Crops and returns a preview from a thumbnail of an entire web page. Uses
    // logic appropriate for fixed-aspect previews (e.g. hover cards).
@@ -263,17 +252,16 @@
 +      std::optional<gfx::Size> original_size = std::nullopt);
  
    void HandleSubscriptionDestroyed(Subscription* subscription);
- 
++
 +  void CachePreview(const gfx::ImageSkia& image);
 +  static gfx::ImageSkia ResizePreview(SkBitmap bitmap);
 +  void StoreCachedPreview(base::Token thumbnail_id,
 +                          gfx::Size original_size,
 +                          gfx::ImageSkia image);
-+
+ 
    raw_ptr<Delegate> delegate_;
  
-   // This is a scoped_refptr to immutable data. Once set, the wrapped
-@@ -205,6 +217,13 @@ class ThumbnailImage : public base::RefC
+@@ -205,6 +217,13 @@
    // |data_| itself can be changed as this does not affect references to
    // the old data.
    CompressedThumbnailData data_;
@@ -287,148 +275,11 @@
  
    // A randomly generated ID associated with each image assigned by
    // AssignSkBitmap().
---- a/chrome/browser/ui/thumbnails/thumbnail_tab_helper.cc
-+++ b/chrome/browser/ui/thumbnails/thumbnail_tab_helper.cc
-@@ -15,6 +15,7 @@
- #include "base/memory/raw_ptr.h"
- #include "base/metrics/histogram_macros.h"
- #include "base/no_destructor.h"
-+#include "chrome/browser/profiles/profile.h"
- #include "chrome/browser/ui/tabs/tab_style.h"
- #include "chrome/browser/ui/tabs/tab_utils.h"
- #include "chrome/browser/ui/thumbnails/background_thumbnail_video_capturer.h"
-@@ -22,6 +23,8 @@
- #include "chrome/browser/ui/thumbnails/thumbnail_readiness_tracker.h"
- #include "chrome/browser/ui/thumbnails/thumbnail_scheduler.h"
- #include "chrome/browser/ui/thumbnails/thumbnail_scheduler_impl.h"
-+#include "chrome/common/pref_names.h"
-+#include "components/prefs/pref_service.h"
- #include "components/tabs/public/tab_interface.h"
- #include "components/viz/common/frame_sinks/copy_output_result.h"
- #include "content/public/browser/browser_thread.h"
-@@ -224,6 +227,9 @@ class ThumbnailTabHelper::TabStateTracke
-     }
-     page_readiness_ = readiness;
-     capture_driver_.UpdatePageReadiness(readiness);
-+    if (readiness == CaptureReadiness::kReadyForFinalCapture) {
-+      thumbnail_tab_helper_->CaptureThumbnailForPreview();
-+    }
-   }
- 
-   const raw_ptr<ThumbnailTabHelper> thumbnail_tab_helper_;
-@@ -243,6 +249,18 @@ class ThumbnailTabHelper::TabStateTracke
- // ThumbnailTabHelper ----------------------------------------------------
- 
- void ThumbnailTabHelper::CaptureThumbnailOnTabBackgrounded() {
-+  CaptureThumbnail();
-+}
-+
-+void ThumbnailTabHelper::CaptureThumbnailForPreview() {
-+  if (pref_change_registrar_.prefs()->GetBoolean(prefs::kVisualTabSwitcher) &&
-+      web_contents()->GetVisibility() == content::Visibility::VISIBLE &&
-+      !web_contents()->WasDiscarded()) {
-+    CaptureThumbnail();
-+  }
-+}
-+
-+void ThumbnailTabHelper::CaptureThumbnail() {
-   if (!state_->is_ready()) {
-     return;
-   }
-@@ -293,6 +311,13 @@ ThumbnailTabHelper::ThumbnailTabHelper(t
-           DiscardedTabThumbnailData::TakeThumbnailDataIfAvailable(contents))),
-       scoped_unowned_user_data_(tab.GetUnownedUserDataHost(), *this) {
-   is_tab_discarded_ = contents->WasDiscarded();
-+  pref_change_registrar_.Init(
-+      Profile::FromBrowserContext(contents->GetBrowserContext())->GetPrefs());
-+  pref_change_registrar_.Add(
-+      prefs::kVisualTabSwitcher,
-+      base::BindRepeating(&ThumbnailTabHelper::UpdatePreviewCaching,
-+                          base::Unretained(this)));
-+  UpdatePreviewCaching();
- }
- 
- ThumbnailTabHelper::~ThumbnailTabHelper() {
-@@ -353,9 +378,16 @@ void ThumbnailTabHelper::StoreThumbnail(
- }
- 
- void ThumbnailTabHelper::ClearData() {
-+  weak_factory_for_thumbnail_on_tab_hidden_.InvalidateWeakPtrs();
-   thumbnail_->ClearData();
- }
- 
-+void ThumbnailTabHelper::UpdatePreviewCaching() {
-+  thumbnail_->SetPreviewCachingEnabled(
-+      pref_change_registrar_.prefs()->GetBoolean(prefs::kVisualTabSwitcher));
-+  CaptureThumbnailForPreview();
-+}
-+
- void ThumbnailTabHelper::StartVideoCapture() {
-   content::RenderWidgetHostView* const source_view = state_->GetView();
-   if (!source_view) {
-@@ -457,3 +489,14 @@ void ThumbnailTabHelper::DidStartNavigat
-     content::NavigationHandle* navigation_handle) {
-   is_tab_discarded_ = false;
- }
-+
-+void ThumbnailTabHelper::DidFirstVisuallyNonEmptyPaint() {
-+  CaptureThumbnailForPreview();
-+}
-+
-+void ThumbnailTabHelper::OnVisibilityChanged(content::Visibility visibility) {
-+  if (visibility == content::Visibility::VISIBLE) {
-+    CaptureThumbnailForPreview();
-+  }
-+}
-+
---- a/chrome/browser/ui/thumbnails/thumbnail_tab_helper.h
-+++ b/chrome/browser/ui/thumbnails/thumbnail_tab_helper.h
-@@ -12,6 +12,7 @@
- #include "base/time/time.h"
- #include "chrome/browser/ui/thumbnails/thumbnail_capture_info.h"
- #include "chrome/browser/ui/thumbnails/thumbnail_image.h"
-+#include "components/prefs/pref_change_registrar.h"
- #include "content/public/browser/navigation_handle.h"
- #include "content/public/browser/render_widget_host_view.h"
- #include "content/public/browser/web_contents_observer.h"
-@@ -51,6 +52,8 @@ class ThumbnailTabHelper : public conten
-   // active tab.
-   void CaptureThumbnailOnTabBackgrounded();
- 
-+  void CaptureThumbnailForPreview();
-+
-  private:
-   class TabStateTracker;
- 
-@@ -78,6 +81,8 @@ class ThumbnailTabHelper : public conten
-   // Clears the data associated to the currently set thumbnail. For when the
-   // thumbnail is no longer valid.
-   void ClearData();
-+  void UpdatePreviewCaching();
-+  void CaptureThumbnail();
- 
-   // viz::mojom::FrameSinkVideoConsumer:
- 
-@@ -96,6 +101,8 @@ class ThumbnailTabHelper : public conten
- 
-   void DidStartNavigation(
-       content::NavigationHandle* navigation_handle) override;
-+  void DidFirstVisuallyNonEmptyPaint() override;
-+  void OnVisibilityChanged(content::Visibility visibility) override;
- 
-   // Copy info from the most recent frame we have captured.
-   ThumbnailCaptureInfo last_frame_capture_info_;
-@@ -110,6 +117,7 @@ class ThumbnailTabHelper : public conten
- 
-   // The thumbnail maintained by this instance.
-   scoped_refptr<ThumbnailImage> thumbnail_;
-+  PrefChangeRegistrar pref_change_registrar_;
- 
-   bool is_tab_discarded_ = false;
- 
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-@@ -67,8 +67,10 @@
+@@ -66,11 +66,13 @@
+ #include "components/web_modal/web_contents_modal_dialog_host.h"
+ #include "ui/accessibility/platform/ax_platform_node.h"
  #include "ui/actions/actions.h"
 +#include "ui/base/accelerators/accelerator.h"
  #include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener.h"
@@ -439,7 +290,8 @@
 +#include "ui/events/keycodes/keyboard_code_conversion_mac.h"
  #include "ui/compositor/compositor.h"
  #import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
-@@ -535,6 +537,15 @@ bool BrowserNativeWidgetMac::ExecuteComm
+ #include "ui/views/interaction/element_tracker_views.h"
+@@ -538,6 +540,15 @@
  
    BrowserWindowInterface* browser = browser_view_->browser();
  
@@ -457,20 +309,23 @@
              tabs::VerticalTabStripStateController::From(browser)) {
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -231,5 +231,6 @@
+@@ -231,6 +231,7 @@
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
  #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h"
  #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 +#include "chrome/browser/ui/views/tabs/visual_tab_switcher.h"
  #include "chrome/browser/ui/views/theme_copying_widget.h"
  #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
-@@ -1225,4 +1225,5 @@
+ #include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
+@@ -1223,6 +1224,7 @@
+ }
+ 
  BrowserView::~BrowserView() {
 +  visual_tab_switcher_.reset();
    if (toolbar_) {
      toolbar_->RestoreToolbarControls();
    }
-@@ -5972,6 +5974,26 @@ const views::View* BrowserView::GetViewB
+@@ -6279,6 +6281,26 @@
  ///////////////////////////////////////////////////////////////////////////////
  // BrowserView, ui::AcceleratorTarget overrides:
  
@@ -497,20 +352,20 @@
  bool BrowserView::AcceleratorPressed(const ui::Accelerator& accelerator) {
    NativeWebKeyboardEvent native_event(accelerator.ToKeyEvent());
    if (ExclusiveAccessManager::From(browser_)->HandleUserKeyEvent(
-@@ -5986,6 +6008,10 @@ bool BrowserView::AcceleratorPressed(con
+@@ -6291,6 +6313,10 @@
+   // still possible the command cannot be executed now.
+   if (!FindCommandIdForAccelerator(accelerator, &command_id)) {
      return false;
-   }
- 
-+  if (MaybeShowVisualTabSwitcher(command_id, accelerator)) {
-+    return true;
 +  }
 +
-   UpdateAcceleratorMetrics(accelerator, command_id);
++  if (MaybeShowVisualTabSwitcher(command_id, accelerator)) {
++    return true;
+   }
  
-   if (command_id == IDC_CLEAR_BROWSING_DATA) {
+   UpdateAcceleratorMetrics(accelerator, command_id);
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -106,6 +106,7 @@ class TopContainerView;
+@@ -112,6 +112,7 @@
  class TopControlsSlideController;
  class TopControlsSlideControllerTest;
  class VerticalTabStripRegionView;
@@ -518,7 +373,7 @@
  class WebAppFrameToolbarView;
  
  namespace gfx {
-@@ -606,6 +607,8 @@ class BrowserView : public BrowserWindow
+@@ -622,6 +623,8 @@
    void ShowChromeLabs() override;
    BrowserView* AsBrowserView() override;
    void ShowUpdateChromeDialog() override;
@@ -527,7 +382,7 @@
    void StartTabCycling();
    void StopTabCycling();
    void ShowIntentPickerBubble(
-@@ -1489,6 +1492,7 @@ class BrowserView : public BrowserWindow
+@@ -1507,6 +1510,7 @@
        tab_strip_web_apps_reparented_state_;
  
    std::unique_ptr<TabCyclingEventHandler> tab_cycling_event_handler_;
@@ -1221,19 +1076,19 @@
  #include "ui/base/accelerators/accelerator.h"
  
  #if defined(__OBJC__)
-@@ -43,6 +44,9 @@ struct CommandForKeyEventResult {
+@@ -42,6 +43,9 @@
+   // command != NO_COMMAND.
    bool from_main_menu;
  };
- 
++
 +CommandForKeyEventResult CommandForKeyEvent(
 +    const base::apple::OwnedNSEvent& event);
-+
+ 
  #if defined(__OBJC__)
  
- // macOS applications are supposed to put all keyEquivalents [hotkeys] in the
 --- a/chrome/browser/global_keyboard_shortcuts_mac.mm
 +++ b/chrome/browser/global_keyboard_shortcuts_mac.mm
-@@ -223,6 +223,11 @@ const std::vector<NSMenuItem*>& GetMenuI
+@@ -223,6 +223,11 @@
    return *menu_items;
  }
  
@@ -1245,3 +1100,145 @@
  CommandForKeyEventResult CommandForKeyEvent(NSEvent* event) {
    DCHECK(event);
    if ([event type] != NSEventTypeKeyDown)
+--- a/chrome/browser/ui/thumbnails/thumbnail_tab_helper.cc
++++ b/chrome/browser/ui/thumbnails/thumbnail_tab_helper.cc
+@@ -13,6 +13,9 @@
+ #include "base/functional/bind.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/no_destructor.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/common/pref_names.h"
++#include "components/prefs/pref_service.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/tabs/tab_utils.h"
+ #include "chrome/browser/ui/thumbnails/thumbnail_scheduler.h"
+@@ -114,6 +117,18 @@
+ // ThumbnailTabHelper ----------------------------------------------------
+ 
+ void ThumbnailTabHelper::CaptureThumbnailOnTabBackgrounded() {
++  CaptureThumbnail();
++}
++
++void ThumbnailTabHelper::CaptureThumbnailForPreview() {
++  if (pref_change_registrar_.prefs()->GetBoolean(prefs::kVisualTabSwitcher) &&
++      web_contents()->GetVisibility() == content::Visibility::VISIBLE &&
++      !web_contents()->WasDiscarded()) {
++    CaptureThumbnail();
++  }
++}
++
++void ThumbnailTabHelper::CaptureThumbnail() {
+   if (page_readiness_ == CaptureReadiness::kNotReady) {
+     return;
+   }
+@@ -167,7 +182,15 @@
+       thumbnail_(base::MakeRefCounted<ThumbnailImage>(
+           this,
+           DiscardedTabThumbnailData::TakeThumbnailDataIfAvailable(contents))),
+-      scoped_unowned_user_data_(tab.GetUnownedUserDataHost(), *this) {}
++      scoped_unowned_user_data_(tab.GetUnownedUserDataHost(), *this) {
++  pref_change_registrar_.Init(
++      Profile::FromBrowserContext(contents->GetBrowserContext())->GetPrefs());
++  pref_change_registrar_.Add(
++      prefs::kVisualTabSwitcher,
++      base::BindRepeating(&ThumbnailTabHelper::UpdatePreviewCaching,
++                          base::Unretained(this)));
++  UpdatePreviewCaching();
++}
+ 
+ ThumbnailTabHelper::~ThumbnailTabHelper() {
+   StopVideoCapture();
+@@ -251,6 +274,9 @@
+   }
+   page_readiness_ = readiness;
+   capture_driver_.UpdatePageReadiness(readiness);
++  if (readiness == CaptureReadiness::kReadyForFinalCapture) {
++    CaptureThumbnailForPreview();
++  }
+ }
+ 
+ content::RenderWidgetHostView* ThumbnailTabHelper::GetView() {
+@@ -307,7 +333,24 @@
+ }
+ 
+ void ThumbnailTabHelper::ClearData() {
++  weak_factory_for_thumbnail_on_tab_hidden_.InvalidateWeakPtrs();
+   thumbnail_->ClearData();
++}
++
++void ThumbnailTabHelper::UpdatePreviewCaching() {
++  thumbnail_->SetPreviewCachingEnabled(
++      pref_change_registrar_.prefs()->GetBoolean(prefs::kVisualTabSwitcher));
++  CaptureThumbnailForPreview();
++}
++
++void ThumbnailTabHelper::DidFirstVisuallyNonEmptyPaint() {
++  CaptureThumbnailForPreview();
++}
++
++void ThumbnailTabHelper::OnVisibilityChanged(content::Visibility visibility) {
++  if (visibility == content::Visibility::VISIBLE) {
++    CaptureThumbnailForPreview();
++  }
+ }
+ 
+ void ThumbnailTabHelper::StartVideoCapture() {
+--- a/chrome/browser/ui/thumbnails/thumbnail_tab_helper.h
++++ b/chrome/browser/ui/thumbnails/thumbnail_tab_helper.h
+@@ -16,6 +16,7 @@
+ #include "chrome/browser/ui/thumbnails/thumbnail_capture_info.h"
+ #include "chrome/browser/ui/thumbnails/thumbnail_image.h"
+ #include "chrome/browser/ui/thumbnails/thumbnail_readiness_tracker.h"
++#include "components/prefs/pref_change_registrar.h"
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents_observer.h"
+ #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+@@ -52,6 +53,7 @@
+   // background. Allows for an updated preview image after swapping away from an
+   // active tab.
+   void CaptureThumbnailOnTabBackgrounded();
++  void CaptureThumbnailForPreview();
+ 
+  private:
+   using CaptureReadiness = ThumbnailImage::CaptureReadiness;
+@@ -67,6 +69,8 @@
+ 
+   // content::WebContentsObserver:
+   void RenderViewReady() override;
++  void DidFirstVisuallyNonEmptyPaint() override;
++  void OnVisibilityChanged(content::Visibility visibility) override;
+   void PrimaryMainFrameRenderProcessGone(
+       base::TerminationStatus status) override;
+   void AboutToBeDiscarded(content::WebContents* new_contents) override;
+@@ -100,6 +104,8 @@
+   // Clears the data associated to the currently set thumbnail. For when the
+   // thumbnail is no longer valid.
+   void ClearData();
++  void UpdatePreviewCaching();
++  void CaptureThumbnail();
+ 
+   // Returns the dimensions of the multipurpose thumbnail that should be
+   // captured from an entire webpage. Can be cropped or compressed later.
+@@ -132,6 +138,7 @@
+ 
+   // The thumbnail maintained by this instance.
+   scoped_refptr<ThumbnailImage> thumbnail_;
++  PrefChangeRegistrar pref_change_registrar_;
+ 
+   ui::ScopedUnownedUserData<ThumbnailTabHelper> scoped_unowned_user_data_;
+ 
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -774,7 +774,11 @@
+ }
+ 
+ source_set("browser_view") {
+-  sources = [ "browser_view.cc" ]
++  sources = [
++    "browser_view.cc",
++    "../tabs/visual_tab_switcher.cc",
++    "../tabs/visual_tab_switcher.h",
++  ]
+   public_deps = [
+     ":browser_view_header",
+     "//chrome/browser:browser_public_dependencies",

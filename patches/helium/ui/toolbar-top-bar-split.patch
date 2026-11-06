@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -2281,16 +2281,12 @@
+@@ -2277,16 +2277,12 @@
    sidebar_controls_host_ = host;
    transferred_controls_state_.clear();
  
@@ -22,7 +22,7 @@
  
    for (views::View* view : views_to_transfer) {
      if (view && view->parent() == this) {
-@@ -2305,8 +2301,7 @@
+@@ -2301,8 +2297,7 @@
    }
  
    sidebar_controls_host_->AttachToolbarControls(
@@ -32,7 +32,7 @@
        location_bar_view_);
  
    OnShowMediaButtonChanged();
-@@ -2375,19 +2370,27 @@
+@@ -2371,19 +2366,27 @@
          view->SetVisible(false);
        }
      };
@@ -109,7 +109,7 @@
    if (pinned_toolbar_actions_container_) {
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-@@ -917,6 +917,14 @@
+@@ -932,6 +932,14 @@
              : 1.0f - top_chrome_ratio;
      top_padding = base::ClampRound(
          GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius) * ratio);

@@ -1,9 +1,10 @@
---- a/chrome/app/settings_strings.grdp	2026-10-23 19:09:10
-+++ b/chrome/app/settings_strings.grdp	2026-10-23 19:17:27
-@@ -288,6 +288,30 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -287,6 +287,30 @@
+     </message>
      <message name="IDS_SETTINGS_ROUNDED_FRAME" desc="Label for the toggle which enables or disables a rounded frame around web contents.">
        Show a rounded frame around web contents
-     </message>
++    </message>
 +    <message name="IDS_SETTINGS_ROUNDED_FRAME_THICKNESS" desc="Label for the dropdown which controls the thickness of the rounded frame around web contents. Changes take effect after restarting the browser.">
 +      Frame thickness (applies after restart)
 +    </message>
@@ -27,13 +28,12 @@
 +    </message>
 +    <message name="IDS_SETTINGS_ROUNDED_FRAME_THICKNESS_8" desc="Option in the frame thickness dropdown which uses an eight pixel frame around web contents.">
 +      8 px
-+    </message>
+     </message>
      <message name="IDS_SETTINGS_NATIVE_FRAME_MATERIALS" desc="Label for the toggle which enables or disables native system materials on the browser frame.">
        Use native frame materials (experimental)
-     </message>
---- a/chrome/browser/extensions/api/settings_private/prefs_util.cc	2026-10-23 19:09:10
-+++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc	2026-10-23 19:17:27
-@@ -328,6 +328,8 @@
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -331,6 +331,8 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kHeliumRoundedFrame] =
        settings_api::PrefType::kBoolean;
@@ -42,8 +42,8 @@
  
    (*s_allowlist)[::prefs::kShowHomeButton] = settings_api::PrefType::kBoolean;
    (*s_allowlist)[contextual_search::kDriveConsentState] =
---- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts	2026-10-23 19:09:10
-+++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts	2026-10-23 19:17:27
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 @@ -87,6 +87,16 @@
          pref-key="helium.browser.rounded_frame"
          label="$i18n{roundedFrame}">
@@ -61,21 +61,23 @@
      <settings-toggle-button class="hr"
          ?hidden="${!this.showNativeFrameMaterialsOption_}"
          pref-key="helium.browser.native_frame_materials"
---- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts	2026-10-23 19:09:10
-+++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts	2026-10-23 19:17:27
-@@ -171,6 +171,8 @@
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
+@@ -177,6 +177,8 @@
        bookmarksBarOptions_: {type: Array},
        uiDensityPref_: {type: Object},
        uiDensityOptions_: {type: Array},
 +      roundedFramePref_: {type: Object},
 +      roundedFrameThicknessOptions_: {type: Array},
-       showVerticalTabsExpandOnHoverEnabled_: {type: Boolean},
        showOrganizerPanelEnabled_: {type: Boolean},
        showEverythingMenuEnabled_: {type: Boolean},
-@@ -276,6 +278,19 @@
+       showResetPinnedActionsButton_: {type: Boolean},
+@@ -279,6 +281,19 @@
+   protected accessor uiDensityOptions_: DropdownMenuOptionList = [
+     {value: 0, name: loadTimeData.getString('uiDensityStandard')},
      {value: 1, name: loadTimeData.getString('uiDensityComfortable')},
-   ];
- 
++  ];
++
 +  protected accessor roundedFramePref_: PrefObject<boolean>|undefined =
 +      undefined;
 +
@@ -87,12 +89,10 @@
 +    {value: 4, name: loadTimeData.getString('roundedFrameThickness4')},
 +    {value: 6, name: loadTimeData.getString('roundedFrameThickness6')},
 +    {value: 8, name: loadTimeData.getString('roundedFrameThickness8')},
-+  ];
-+
-   private uiDensityAtStartup_: number =
-       loadTimeData.getInteger('uiDensityAtStartup');
+   ];
  
-@@ -349,6 +364,7 @@
+   private uiDensityAtStartup_: number =
+@@ -352,6 +367,7 @@
        'browser.show_home_button': 'showHomeButtonPref_',
        'extensions.theme.id': 'themeIdPref_',
        'helium.browser.ui_density': 'uiDensityPref_',
@@ -100,8 +100,8 @@
        // <if expr="is_linux">
        'extensions.theme.system_theme': 'themeSystemThemePref_',
        // </if>
---- a/chrome/browser/ui/browser_ui_prefs.cc	2026-10-23 19:09:10
-+++ b/chrome/browser/ui/browser_ui_prefs.cc	2026-10-23 20:16:14
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
 @@ -96,6 +96,7 @@
    registry->RegisterBooleanPref(prefs::kHeliumDefaultBrowserRejected, false);
    registry->RegisterIntegerPref(prefs::kHeliumUiDensity,
@@ -110,9 +110,9 @@
  
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
    registry->RegisterTimePref(prefs::kPdfInfoBarLastShown, base::Time());
---- a/chrome/browser/ui/views/frame/BUILD.gn	2026-10-23 19:09:10
-+++ b/chrome/browser/ui/views/frame/BUILD.gn	2026-10-23 19:17:27
-@@ -532,6 +532,9 @@
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -673,6 +673,9 @@
    ]
    deps = [
      "//base:i18n",
@@ -122,8 +122,8 @@
      "//skia",
      "//ui/base/metadata",
      "//ui/color:color_headers",
---- a/chrome/browser/ui/views/frame/contents_container_outline.cc	2026-10-23 19:09:10
-+++ b/chrome/browser/ui/views/frame/contents_container_outline.cc	2026-10-23 21:10:07
+--- a/chrome/browser/ui/views/frame/contents_container_outline.cc
++++ b/chrome/browser/ui/views/frame/contents_container_outline.cc
 @@ -4,7 +4,13 @@
  
  #include "chrome/browser/ui/views/frame/contents_container_outline.h"
@@ -203,8 +203,8 @@
  
    SkPath path = GetPath(local_bounds, corner_radii);
  
---- a/chrome/browser/ui/views/frame/contents_container_view.cc	2026-10-23 19:09:10
-+++ b/chrome/browser/ui/views/frame/contents_container_view.cc	2026-10-23 19:17:27
+--- a/chrome/browser/ui/views/frame/contents_container_view.cc
++++ b/chrome/browser/ui/views/frame/contents_container_view.cc
 @@ -4,6 +4,7 @@
  
  #include "chrome/browser/ui/views/frame/contents_container_view.h"
@@ -232,7 +232,7 @@
        }
      }
      if (split_changed || rounded_contents_changed || corner_state_changed) {
-@@ -353,11 +354,16 @@
+@@ -354,11 +355,16 @@
    const gfx::RoundedCornersF container_rounded_corners(
        upper_left_radius, upper_right_radius, lower_right_radius,
        lower_left_radius);
@@ -253,9 +253,9 @@
  
    container_outline_->SetCornerRadii(container_rounded_corners);
    if (capture_contents_border_view_) {
---- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc	2026-10-23 19:09:10
-+++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc	2026-10-23 19:17:27
-@@ -611,6 +611,14 @@
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -609,6 +609,14 @@
        {"openNewTabNextToActive", IDS_SETTINGS_NEW_TAB_NEXT_TO_ACTIVE_BUTTON},
        {"cycleTabsInMRUOrder", IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER},
        {"roundedFrame", IDS_SETTINGS_ROUNDED_FRAME},
@@ -270,17 +270,17 @@
        {"nativeFrameMaterials", IDS_SETTINGS_NATIVE_FRAME_MATERIALS},
        {"nativeFrameMaterialsDescription",
         IDS_SETTINGS_NATIVE_FRAME_MATERIALS_DESCRIPTION},
---- a/chrome/common/pref_names.h	2026-10-23 19:09:10
-+++ b/chrome/common/pref_names.h	2026-10-23 19:17:27
-@@ -622,6 +622,11 @@
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -621,6 +621,11 @@
+ // A boolean pref set to true if web contents should be shown inside a rounded
  // frame.
  inline constexpr char kHeliumRoundedFrame[] = "helium.browser.rounded_frame";
- 
++
 +// An integer pref holding the thickness, in pixels, of the rounded frame around
 +// web contents. Changes apply after a relaunch.
 +inline constexpr char kHeliumRoundedFrameThickness[] =
 +    "helium.browser.rounded_frame_thickness";
-+
+ 
  // A boolean pref set to true if browser frame surfaces should use native system
  // materials instead of opaque fills.
- inline constexpr char kHeliumNativeFrameMaterials[] =
