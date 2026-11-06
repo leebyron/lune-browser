@@ -442,3 +442,18 @@ result matches the prepared source. `sync_vault_provider_service.o` compiles
 (`sync-events-fix-compile.log`). The series remains at 403 patches. The preceding
 full-build failure is preserved under `*-before-sync-events-fix.*`; compilation
 resumed from cache. End-to-end sync-vault behavior has not been tested.
+
+## Toolbar action label compatibility
+
+Core `2b31a14abffd7a7f1cb2a3ed0be6a4ae9f37b19b` replaces the removed
+`BrowserActions::GetCleanTitleAndTooltipText` in toolbar customization with
+`chrome::GetCleanText(..., chrome::CleanTextOptions::kAll)`, retaining mnemonic
+and ellipsis cleanup for the dynamic New tab action. Platform
+`a5698d0d2f083f2f1f8f6edd0beb32ea63d2f5b0` pins it. The target already depends on the
+current action-utility library. Other refreshed-patch changes are hunk offsets
+and context labels; the functional delta is the helper call and its include.
+
+The patch reapplied without fuzz and the prepared handler matches the isolated
+result. The affected object compiles (`toolbar-label-fix-compile.log`). All 403
+patches remain selected. The preceding full-build failure is preserved under
+`*-before-toolbar-label-fix.*`, and compilation resumed from cache.
