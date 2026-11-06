@@ -51,12 +51,15 @@ announcements as well as the latest ungoogled-chromium release.
 The initial target is macOS on both architectures, confirmed by the owner.
 Windows and Linux are future platform adapters, not first-release requirements.
 No particular open PR has been selected for inclusion yet. The initial feature
-set, runner hardware, browser credentials, and services host remain undecided.
+set is the full Helium stack. This Mac is the first build host; the services host
+remains undecided. Signing identities are provisioned locally.
 
 As of 2026-11-05 the documentation and minimal Cloudflare website are bootstrapped.
 The owner registered `lune.computer` at DNSimple. See the
 [website runbook](website.md) for deployment and domain activation status.
-No browser builds, component imports, browser services, or schedules exist yet.
+Component histories, exact inputs, local build tooling, and configuration CI are
+bootstrapped; see [building](building.md). No browser binary, deployed browser
+services, or recurring browser schedules exist yet.
 
 ## Read next
 

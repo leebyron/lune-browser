@@ -1,9 +1,14 @@
 # Implementation roadmap
 
-Status: documentation and minimal website bootstrap complete. Browser stages
-remain open; website activation and CI status are in the [runbook](website.md).
+Status: documentation, website, component imports, locked checkout/build tooling,
+and local signing identities are bootstrapped. No browser has been compiled.
+See [build readiness](building.md) and [website status](website.md).
 
 ## 1. Prove the repository model
+
+Imported branches and permanent input tags are published. Lock validation, numeric
+discovery, and workspace guardrails are implemented. PR replay/retirement and
+automated composition remain stage 3 work; nonempty selections currently fail.
 
 - Define manifest schemas and a small local command interface for fetching,
   composing, validating, building, and releasing.
@@ -83,11 +88,11 @@ every gate passes, and a failed candidate leaves the installed update path intac
 | Decision | Current position |
 | --- | --- |
 | Platforms | Confirmed: macOS arm64 and x86_64 |
-| Helium selection | Recommend full stack initially; exclusions remain unselected |
+| Helium selection | Full stack selected for first development build |
 | Additional PRs/features | Not selected |
-| Git layout | Recommended same-remote component histories; validate in stage 1 |
-| Build machines | Need capacity measurements and native Intel validation access |
-| Signing | Owner-provided Apple credentials; new Lune Sparkle keys |
+| Git layout | Same-remote component branches and permanent input tags published |
+| Build machines | This Mac after storage/Xcode setup; native Intel validation still needed |
+| Signing | Developer ID and Sparkle keys in local Keychain; notarization setup pending |
 | Domain and hosting | `lune.computer`; Cloudflare website, services host undecided |
 | Minimum macOS version | Derive from selected source/toolchain and test matrix |
 | Stable/preview policy | Stable first; staging required; preview optional |

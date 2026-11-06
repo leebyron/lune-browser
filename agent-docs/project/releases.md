@@ -1,6 +1,8 @@
 # Builds, releases, and automatic updates
 
-Status: proposed pipeline. No workflow or schedule is installed.
+Status: browser release pipeline remains proposed. Local preparation/build tooling
+and a configuration-check workflow exist; no recurring browser schedule or
+publishing job is enabled. See [current build readiness](building.md).
 Initial targets: macOS arm64 and x86_64, with separate DMGs and update feeds.
 
 ## Daily integration

@@ -27,12 +27,19 @@ Start with [the project definition](agent-docs/project/README.md).
 
 Agent instructions are in [AGENTS.md](AGENTS.md).
 
-Current status: architecture, documentation, and minimal website bootstrap.
-The initial target is macOS on Apple silicon and Intel; browser build and release
-automation is not yet set up.
+Current status: website deployed; component histories, locked development inputs,
+and local build tooling bootstrapped. No browser binary or release pipeline yet.
+The initial target is macOS on Apple silicon and Intel.
 
 ## WEBSITE
 
 The static website lives in `website/public/` and deploys to Cloudflare Workers.
 See [the deployment runbook](agent-docs/project/website.md) for setup and status.
 
+
+## DEVELOPMENT BUILD SETUP
+
+The first locked inputs and local build commands are tracked on main, with
+upstream histories on component/helium, component/macos, and component/services.
+See agent-docs/project/building.md for current validation and remaining blockers.
+No Lune browser binary has been built or released yet.

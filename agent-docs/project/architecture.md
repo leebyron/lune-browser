@@ -1,6 +1,7 @@
 # Repository and patch architecture
 
-Status: recommended design, not yet implemented. Based on the
+Status: component histories and locked checkout/bootstrap tooling implemented.
+Full build, replay, and release orchestration remain planned. Based on the
 [upstream source review](research.md) dated 2026-11-05.
 
 ## Recommendation: one remote, preserved component histories
@@ -24,7 +25,8 @@ merges/cherry-picks without relocating every upstream file into a subtree.
 | `topic/<feature>` | A focused contribution based on its target upstream |
 | `integration/<id>/<component>` | Candidate assembly with an exact recorded base |
 
-Component names are proposed; importing them is a later implementation step.
+The three component branches are imported and published. Their first development
+inputs are retained under `inputs/bootstrap-1/*`; see [building](building.md).
 Never merge the unrelated `main`, macOS, and services roots into one another.
 Use namespaced upstream tag refs to prevent unrelated version tags colliding.
 
@@ -50,8 +52,9 @@ deploy/                 service overlays, host config, deployment automation
 out/                    ignored artifacts and reports
 ```
 
-Only the documentation and ignore rules exist at bootstrap. Avoid empty
-implementation scaffolding and fake "working" build commands.
+Documentation, website, config/manifests, local build tooling, and validation CI
+exist. Deployment overlays and browser release jobs remain planned. Commands
+that prepare or compile Chromium are implemented but await end-to-end validation.
 
 Use worktrees for core/services topic development when suitable. For macOS
 packaging, prefer an ordinary isolated clone with its `helium-chromium` submodule:

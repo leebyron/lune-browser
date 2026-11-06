@@ -7,14 +7,19 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-This repository contains the project definition, architecture research, and a
-minimal website in `website/`, hosted with Cloudflare Workers Static Assets.
-Website setup and deployment status are recorded in
+`main` contains the project definition, locked development build inputs, local
+build commands, validation tests/CI, and the Cloudflare website. Imported histories
+are published on `component/helium`, `component/macos`, and `component/services`;
+permanent `inputs/bootstrap-1/*` tags retain the first development inputs.
+Read [the build runbook](agent-docs/project/building.md) before running the tools.
+
+Lune's platform identity patch and full source/build entry points are implemented
+but have not undergone a full Chromium preparation, compilation, or runtime test.
+The local Mac still needs build storage and full Xcode. Signing identities exist
+in Keychain; notarization and packaging remain to be validated. Automatic updates,
+public browser releases, services deployment, and recurring browser builds are
+not enabled. Targets are macOS arm64 and x86_64. Website status is recorded in
 [the website runbook](agent-docs/project/website.md).
-Browser build scripts, component branches, signing, and automatic updates have
-not been implemented. Proposed browser paths and commands in the docs are
-designs, not existing interfaces. The initial platform target is macOS, both
-arm64 and x86_64.
 
 ## Engineering rules
 
