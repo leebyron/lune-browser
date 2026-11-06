@@ -1,0 +1,513 @@
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -1974,6 +1974,13 @@
+       ":glass_frame_service",
+       "//chrome/app:command_ids",
+       "//chrome/browser/headless",
++      "//chrome/browser/ui:browser_commands",
++      "//chrome/browser/ui/helium:helium_command_bar",
++      "//chrome/browser/ui/views/location_bar",
++      "//chrome/app:generated_resources",
++      "//components/omnibox/browser",
++      "//components/strings:components_strings",
++      "//content/public/browser",
+       "//chrome/browser/picture_in_picture",
+       "//chrome/browser/profiles:profile",
+       "//chrome/browser/themes",
+--- a/chrome/browser/ui/views/frame/browser_frame_view.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view.h
+@@ -172,6 +172,10 @@
+   // Updates the bounds and visibility of Helium Fullscreen window controls.
+   virtual void UpdateHeliumFullscreenWindowControls() {}
+ 
++  // Native floating address surface. Other platforms retain their own toolbar.
++  virtual bool HasFloatingAddressBar() const { return false; }
++  virtual void UpdateFloatingAddressBar(bool cooldown_expired = false) {}
++
+   // Signals that the frame's minimum size may have changed. This prompts the
+   // widget to update its size constraints by re-querying `GetMinimumSize()`.
+   // This is typically called when child views (e.g. tab strip, toolbar,
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -16,10 +16,12 @@
+ #include "chrome/browser/web_applications/web_app_registrar_observer.h"
+ #include "components/prefs/pref_member.h"
+ #include "ui/gfx/geometry/rect_f.h"
++#include "ui/views/view_tracker.h"
+ 
+ namespace base {
+ class OneShotTimer;
+-}
++class RepeatingTimer;
++}  // namespace base
+ 
+ namespace remote_cocoa::mojom {
+ enum class ToolbarVisibilityStyle;
+@@ -27,6 +29,7 @@
+ 
+ @class FullscreenToolbarController;
+ @class HeliumFullscreenWindowControls;
++@class HeliumFloatingAddressBar;
+ 
+ namespace views {
+ class NativeViewHost;
+@@ -73,6 +76,8 @@
+   void WindowControlsOverlayEnabledChanged() override;
+   void SetCaptionButtonsOpacity(float opacity) override;
+   void UpdateHeliumFullscreenWindowControls() override;
++  bool HasFloatingAddressBar() const override;
++  void UpdateFloatingAddressBar(bool cooldown_expired = false) override;
+ 
+   // views::View:
+   gfx::Size GetMinimumSize() const override;
+@@ -131,6 +136,12 @@
+ 
+   FullscreenToolbarController* __strong fullscreen_toolbar_controller_;
+ 
++  // The browser owns the host; the tracker tolerates client-view teardown.
++  views::ViewTracker floating_address_host_;
++  HeliumFloatingAddressBar* __strong floating_address_bar_ = nil;
++  std::unique_ptr<base::OneShotTimer> floating_address_hide_timer_;
++  std::unique_ptr<base::RepeatingTimer> floating_address_refresh_timer_;
++
+   // Child view hosting the native controls across fullscreen sessions.
+   // The native controls are released when fullscreen ends.
+   raw_ptr<views::NativeViewHost> helium_fullscreen_controls_host_ = nullptr;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -7,6 +7,17 @@
+ #include <algorithm>
+ #include <vector>
+ 
++#include "base/strings/sys_string_conversions.h"
++#include "base/strings/utf_string_conversions.h"
++#include "chrome/browser/ui/browser_commands.h"
++#include "chrome/browser/ui/helium/helium_command_bar_controller.h"
++#include "chrome/browser/ui/views/location_bar/location_bar_view.h"
++#include "chrome/grit/generated_resources.h"
++#include "components/omnibox/browser/location_bar_model.h"
++#include "components/strings/grit/components_strings.h"
++#include "content/public/browser/web_contents.h"
++#include "ui/base/l10n/l10n_util.h"
++
+ #include "base/command_line.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/functional/bind.h"
+@@ -66,6 +77,171 @@
+ #include "ui/views/controls/native/native_view_host.h"
+ #include "ui/views/layout/layout_types.h"
+ #include "ui/views/widget/widget.h"
++#include "ui/views/widget/widget_delegate.h"
++
++// A plain outer NSView keeps the native surface in the NativeViewHost's z-order
++// above web content. The actual controls belong to
++// NSGlassEffectView.contentView.
++@interface HeliumFloatingAddressBar : NSView
++- (instancetype)initWithBrowserView:(BrowserView*)browserView;
++- (void)refresh;
++@end
++
++@implementation HeliumFloatingAddressBar {
++  base::WeakPtr<BrowserView> _browserView;
++  NSView* _material;
++  NSView* _controls;
++  NSButton* _address;
++  NSButton* _siteInfo;
++  NSButton* _reload;
++}
++
++- (instancetype)initWithBrowserView:(BrowserView*)browserView {
++  self = [super initWithFrame:NSMakeRect(0, 0, 480, 36)];
++  if (!self) {
++    return nil;
++  }
++  _browserView = browserView->GetAsWeakPtr();
++  _controls = [[NSView alloc] initWithFrame:self.bounds];
++  _controls.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  if (@available(macOS 26, *)) {
++    NSGlassEffectView* glass =
++        [[NSGlassEffectView alloc] initWithFrame:self.bounds];
++    glass.style = NSGlassEffectViewStyleRegular;
++    glass.cornerRadius = 18;
++    glass.contentView = _controls;
++    if (@available(macOS 27, *)) {
++      glass.effectIsInteractive = YES;
++    }
++    _material = glass;
++  } else {
++    NSVisualEffectView* material =
++        [[NSVisualEffectView alloc] initWithFrame:self.bounds];
++    material.material = NSVisualEffectMaterialPopover;
++    material.blendingMode = NSVisualEffectBlendingModeWithinWindow;
++    material.state = NSVisualEffectStateFollowsWindowActiveState;
++    material.wantsLayer = YES;
++    material.layer.cornerRadius = 18;
++    material.layer.masksToBounds = YES;
++    [material addSubview:_controls];
++    _material = material;
++  }
++  _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  [self addSubview:_material];
++
++  _siteInfo = [NSButton
++      buttonWithImage:[NSImage imageWithSystemSymbolName:@"slider.horizontal.3"
++                                accessibilityDescription:nil]
++               target:self
++               action:@selector(showSiteInfo:)];
++  _siteInfo.bordered = NO;
++  _siteInfo.frame = NSMakeRect(4, 2, 32, 32);
++  _siteInfo.toolTip = base::SysUTF16ToNSString(
++      l10n_util::GetStringUTF16(IDS_TOOLTIP_LOCATION_ICON));
++  _siteInfo.accessibilityLabel = _siteInfo.toolTip;
++  [_controls addSubview:_siteInfo];
++
++  _address = [NSButton buttonWithTitle:@""
++                                target:self
++                                action:@selector(editAddress:)];
++  _address.bordered = NO;
++  _address.font = [NSFont systemFontOfSize:13];
++  _address.frame = NSMakeRect(40, 2, 400, 32);
++  _address.autoresizingMask = NSViewWidthSizable;
++  _address.lineBreakMode = NSLineBreakByTruncatingTail;
++  [_controls addSubview:_address];
++
++  _reload = [NSButton
++      buttonWithImage:[NSImage imageWithSystemSymbolName:@"arrow.clockwise"
++                                accessibilityDescription:nil]
++               target:self
++               action:@selector(reload:)];
++  _reload.bordered = NO;
++  _reload.frame = NSMakeRect(444, 2, 32, 32);
++  _reload.autoresizingMask = NSViewMinXMargin;
++  [_controls addSubview:_reload];
++  return self;
++}
++
++- (void)refresh {
++  if (!_browserView) {
++    return;
++  }
++  const auto* model = LocationBarModel::From(_browserView->browser());
++  if (!model) {
++    return;
++  }
++  std::u16string display = model->GetURLForDisplay(false);
++  const auto security = model->GetSecureDisplayText();
++  if (!security.empty()) {
++    display = security + u" — " + display;
++  }
++  // Use the browser's formatter and security text; never imply a secure origin
++  // with a decorative padlock or use a document title in place of its address.
++  _address.title = base::SysUTF16ToNSString(
++      display.empty() ? l10n_util::GetStringUTF16(IDS_ACCNAME_LOCATION)
++                      : display);
++  _address.toolTip = base::SysUTF16ToNSString(model->GetFormattedFullURL());
++  _address.accessibilityLabel =
++      base::SysUTF16ToNSString(l10n_util::GetStringUTF16(IDS_ACCNAME_LOCATION));
++  _address.accessibilityValue = _address.toolTip;
++  _siteInfo.accessibilityHelp =
++      base::SysUTF16ToNSString(model->GetSecureAccessibilityText());
++  auto* contents = _browserView->GetActiveWebContents();
++  const bool loading = contents && contents->IsLoading();
++  _reload.image =
++      [NSImage imageWithSystemSymbolName:loading ? @"xmark" : @"arrow.clockwise"
++                accessibilityDescription:nil];
++  _reload.toolTip = base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
++      loading ? IDS_TOOLTIP_STOP : IDS_TOOLTIP_RELOAD));
++  _reload.accessibilityLabel = _reload.toolTip;
++  // Honor the profile's appearance override before falling back to the OS.
++  const auto scheme =
++      ThemeServiceFactory::GetForProfile(_browserView->browser()->GetProfile())
++          ->GetBrowserColorScheme();
++  const bool dark = scheme == ThemeService::BrowserColorScheme::kDark ||
++                    (scheme == ThemeService::BrowserColorScheme::kSystem &&
++                     _browserView->GetNativeTheme()->preferred_color_scheme() ==
++                         ui::NativeTheme::PreferredColorScheme::kDark);
++  self.appearance = [NSAppearance
++      appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
++}
++
++- (void)editAddress:(id)sender {
++  if (!_browserView) {
++    return;
++  }
++  auto* browser = _browserView->browser();
++  if (browser->GetProfile()->GetPrefs()->GetBoolean(
++          prefs::kHeliumCommandBarEnabled)) {
++    if (auto* controller = HeliumCommandBarController::From(browser)) {
++      controller->Show(
++          _browserView->GetWidget()->GetNativeView(),
++          base::UTF8ToUTF16(LocationBarModel::From(browser)->GetURL().spec()));
++      return;
++    }
++  }
++  _browserView->SetFocusToLocationBar(true);
++}
++
++- (void)showSiteInfo:(id)sender {
++  if (_browserView && _browserView->toolbar()->location_bar_view()) {
++    _browserView->toolbar()->location_bar_view()->ShowPageInfoDialog();
++  }
++}
++
++- (void)reload:(id)sender {
++  if (!_browserView) {
++    return;
++  }
++  auto* contents = _browserView->GetActiveWebContents();
++  if (contents && contents->IsLoading()) {
++    chrome::Stop(_browserView->browser());
++  } else {
++    chrome::Reload(_browserView->browser(), WindowOpenDisposition::kCurrentTab);
++  }
++}
++@end
+ 
+ namespace {
+ 
+@@ -86,6 +262,8 @@
+ BrowserFrameViewMac::BrowserFrameViewMac(BrowserWidget* frame,
+                                          BrowserView* browser_view)
+     : BrowserFrameView(frame, browser_view),
++      floating_address_hide_timer_(std::make_unique<base::OneShotTimer>()),
++      floating_address_refresh_timer_(std::make_unique<base::RepeatingTimer>()),
+       fullscreen_session_timer_(std::make_unique<base::OneShotTimer>()) {
+   if (helium::ShouldUseNativeFrameMaterials(browser_view)) {
+     SetPaintToLayer();
+@@ -122,6 +300,12 @@
+ }
+ 
+ BrowserFrameViewMac::~BrowserFrameViewMac() {
++  floating_address_hide_timer_->Stop();
++  floating_address_refresh_timer_->Stop();
++  if (auto* host = floating_address_host_.view()) {
++    static_cast<views::NativeViewHost*>(host)->Detach();
++  }
++  floating_address_bar_ = nil;
+   [helium_fullscreen_controls_ restoreTitlebarButtons];
+   if (helium_fullscreen_controls_host_) {
+     helium_fullscreen_controls_host_->Detach();
+@@ -332,6 +516,7 @@
+ 
+ void BrowserFrameViewMac::PaintAsActiveChanged() {
+   UpdateCaptionButtonPlaceholderContainerBackground();
++  UpdateFloatingAddressBar();
+   if (!helium::ShouldUseNativeFrameMaterials(GetBrowserView())) {
+     BrowserFrameView::PaintAsActiveChanged();
+   }
+@@ -485,6 +670,12 @@
+ }
+ 
+ int BrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
++  if (auto* host = floating_address_host_.view();
++      host && host->IsDrawn() &&
++      views::View::ConvertRectToTarget(host, this, host->GetLocalBounds())
++          .Contains(point)) {
++    return HTCLIENT;
++  }
+   if (helium_fullscreen_controls_host_ &&
+       helium_fullscreen_controls_host_->IsDrawn() &&
+       helium_fullscreen_controls_host_->GetMirroredBounds().Contains(point)) {
+@@ -628,6 +819,7 @@
+     LayoutWindowControlsOverlay();
+   }
+   LayoutSuperclass<BrowserFrameView>(this);
++  UpdateFloatingAddressBar();
+ }
+ 
+ ///////////////////////////////////////////////////////////////////////////////
+@@ -714,4 +906,124 @@
+                              base::Milliseconds(1), base::Days(1), 100);
+ }
+ 
++bool BrowserFrameViewMac::HasFloatingAddressBar() const {
++  const auto* view = GetBrowserView();
++  return view->IsZenModeEnabledForLayout() &&
++         view->IsVerticalAddressBarInSidebar() &&
++         !view->IsZenModeTopChromePinned();
++}
++
++void BrowserFrameViewMac::UpdateFloatingAddressBar(bool cooldown_expired) {
++  auto* browser_view = GetBrowserView();
++  if (!GetWidget() || !browser_view->toolbar()) {
++    return;
++  }
++  auto* host =
++      static_cast<views::NativeViewHost*>(floating_address_host_.view());
++  auto* command_bar = HeliumCommandBarController::From(browser_view->browser());
++  const bool command_bar_open = command_bar && command_bar->IsShowing();
++  bool bubble_open = false;
++  for (const auto& child :
++       views::Widget::GetAllOwnedWidgets(GetWidget()->GetNativeView())) {
++    if (child != GetWidget() && child->IsVisible() && !child->IsClosed() &&
++        child->widget_delegate() &&
++        child->widget_delegate()->AsBubbleDialogDelegate()) {
++      bubble_open = true;
++      break;
++    }
++  }
++  if (!HasFloatingAddressBar() ||
++      (!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
++      !NSApp.active) {
++    floating_address_hide_timer_->Stop();
++    floating_address_refresh_timer_->Stop();
++    if (host) {
++      host->SetVisible(false);
++    }
++    return;
++  }
+ 
++  // Content coordinates naturally account for either mounted sidebar edge.
++  gfx::Rect content = views::View::ConvertRectToTarget(
++      browser_view->contents_container()->parent(), browser_view,
++      browser_view->contents_container()->bounds());
++  const int capsule_width = std::min(480, content.width() - 192);
++  if (capsule_width < 160) {
++    floating_address_hide_timer_->Stop();
++    floating_address_refresh_timer_->Stop();
++    if (host) {
++      host->SetVisible(false);
++    }
++    return;
++  }
++  const gfx::Rect bounds(content.CenterPoint().x() - capsule_width / 2, 4,
++                         capsule_width, 36);
++  NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  NSView* native_view =
++      browser_view->GetWidget()->GetNativeView().GetNativeNSView();
++  NSPoint mouse =
++      [native_view convertPoint:window.mouseLocationOutsideOfEventStream
++                       fromView:nil];
++  if (!native_view.isFlipped) {
++    mouse.y = native_view.bounds.size.height - mouse.y;
++  }
++  gfx::Point cursor(base::ClampFloor(mouse.x), base::ClampFloor(mouse.y));
++  views::View::ConvertPointFromWidget(browser_view, &cursor);
++  const bool in_rail = cursor.y() >= 0 && cursor.y() < 8 &&
++                       cursor.x() >= content.x() &&
++                       cursor.x() < content.right();
++  gfx::Rect hover_bounds = bounds;
++  hover_bounds.set_y(0);
++  hover_bounds.set_height(bounds.bottom() + 4);
++  const bool in_capsule =
++      host && host->GetVisible() && hover_bounds.Contains(cursor);
++  const bool editing =
++      command_bar_open ||
++      (browser_view->toolbar()->location_bar_view() &&
++       browser_view->toolbar()->location_bar_view()->IsFocusWithin());
++
++  if (host && host->GetVisible()) {
++    host->SetBoundsRect(bounds);
++    [floating_address_bar_ refresh];
++  }
++  // Keyboard address editing reveals the same surface as pointer entry.
++  if (in_rail || in_capsule || editing ||
++      (host && host->GetVisible() && bubble_open)) {
++    floating_address_hide_timer_->Stop();
++    if (!host) {
++      auto owned_host = std::make_unique<views::NativeViewHost>();
++      host = browser_view->AddChildView(std::move(owned_host));
++      floating_address_host_.SetView(host);
++      floating_address_bar_ =
++          [[HeliumFloatingAddressBar alloc] initWithBrowserView:browser_view];
++      host->Attach(gfx::NativeView(floating_address_bar_));
++    }
++    host->SetBoundsRect(bounds);
++    [floating_address_bar_ refresh];
++    host->SetVisible(true);
++    // Recheck while visible so native menus/focus changes that do not generate
++    // a Views mouse event still begin a fresh cooldown after interaction ends.
++    if (!floating_address_refresh_timer_->IsRunning()) {
++      floating_address_refresh_timer_->Start(
++          FROM_HERE, base::Milliseconds(100),
++          base::BindRepeating(&BrowserFrameViewMac::UpdateFloatingAddressBar,
++                              base::Unretained(this), false));
++    }
++    return;
++  }
++  if (!host || !host->GetVisible()) {
++    return;
++  }
++  if (cooldown_expired) {
++    floating_address_refresh_timer_->Stop();
++    host->SetVisible(false);
++    return;
++  }
++  // Reentry cancels this timer; repeated exit events must not restart it.
++  if (!floating_address_hide_timer_->IsRunning()) {
++    floating_address_hide_timer_->Start(
++        FROM_HERE, base::Milliseconds(700),
++        base::BindOnce(&BrowserFrameViewMac::UpdateFloatingAddressBar,
++                       base::Unretained(this), true));
++  }
++}
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2130,6 +2130,9 @@
+ }
+ 
+ void BrowserView::UpdateZenModeRevealFromCursor() {
++  if (auto* frame = GetFrameView()) {
++    frame->UpdateFloatingAddressBar();
++  }
+   if (!zen_mode_enabled_ || zen_reveal_paused_) {
+     return;
+   }
+@@ -2260,6 +2263,23 @@
+     }
+   }
+ 
++  // The middle rail belongs to the floating address capsule. Preserve the
++  // existing toolbar at the outer edges for window, extension and app controls,
++  // and keep its normal behavior once it is revealed or has keyboard focus.
++  if (auto* frame = GetFrameView();
++      frame && frame->HasFloatingAddressBar() &&
++      !zen_top_chrome_animation_.IsShowing() &&
++      !HasOpenBubbleFromTopContainer() &&
++      !(app_menu_control && app_menu_control->IsMenuShowing()) &&
++      !(GetFocusManager() &&
++        top_container_->Contains(GetFocusManager()->GetFocusedView()))) {
++    gfx::Point cursor;
++    if (GetCursorLocationInBrowserView(&cursor) && cursor.x() >= 96 &&
++        cursor.x() < width() - 160) {
++      reveal_top = false;
++    }
++  }
++
+   if (reveal_top) {
+     if (!zen_top_chrome_animation_.IsShowing()) {
+       zen_top_chrome_animation_.Show();
+@@ -3307,13 +3327,20 @@
+   // We may end up here during destruction.
+   if (toolbar_) {
+     toolbar_->Update(contents);
++    if (auto* frame = GetFrameView()) {
++      frame->UpdateFloatingAddressBar();
++    }
+   }
+ }
+ 
+ bool BrowserView::UpdateToolbarSecurityState() {
+   // We may end up here during destruction.
+   if (toolbar_) {
+-    return toolbar_->UpdateSecurityState();
++    const bool changed = toolbar_->UpdateSecurityState();
++    if (auto* frame = GetFrameView()) {
++      frame->UpdateFloatingAddressBar();
++    }
++    return changed;
+   }
+ 
+   return false;
+@@ -7180,6 +7207,11 @@
+ }
+ 
+ void BrowserView::OnEvent(const ui::Event& event) {
++  if (event.IsMouseEvent()) {
++    if (auto* frame = GetFrameView()) {
++      frame->UpdateFloatingAddressBar();
++    }
++  }
+   if (!zen_mode_enabled_ || !event.IsMouseEvent()) {
+     return;
+   }
