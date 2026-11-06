@@ -32,7 +32,11 @@ using that token succeeded. The
 [first GitHub run](https://github.com/leebyron/lune-browser/actions/runs/42129183746)
 passed installation, validation, and production deployment for commit `eef768a`.
 Automatic website deployments are operational. The source now contains the
-cyanotype desktop and scroll-driven browser story. Browser screenshots remain
+cyanotype desktop and continuous scroll-driven browser story, with draft security
+and privacy sections credited to both upstream projects. Section heights and
+the reading distance follow the content rather than a fixed page count. The
+browser uses the mounted-left Figma layout and a reversible scroll-driven cursor
+that collapses its sidebar during the minimal-UI section. Browser screenshots remain
 placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
 architecture hints, otherwise offering both choices. Downloads remain disabled
 and labeled Coming soon pending validated public releases.

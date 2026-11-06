@@ -17,8 +17,25 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   which also bypasses any remaining launch delay and fade for fast scrolling.
 - Normal launches bounce for 660ms; the window and running dot appear at 320ms.
   The tooltip shares the icon's bounce. Returning to the top resets the launch.
-- CSS scroll timelines handle the story, with a JavaScript fallback when those
-  timelines are unavailable. Reduced motion removes the launch bounce and zoom.
+- CSS scroll timelines handle one continuous story, with a JavaScript fallback
+  when those timelines are unavailable. Sections have natural heights and share
+  one background; there are no fixed-height slides or alternating panels. A
+  ResizeObserver measures the content to set the scroll distance and reading
+  indicator, including after fonts load or the viewport changes. Reduced motion
+  removes the launch bounce and zoom.
+- The browser shell follows the [mounted-left Figma design](https://www.figma.com/design/I39uQunZpu6LsS7mDjcGSh/Untitled?node-id=14-50):
+  200px sidebar, compact system-font tabs/favorites, an 8px inset content pane,
+  and floating glass toolbar groups. The site retains its blue palette and
+  monochrome window controls. Below 540px, the sidebar floats over the content.
+- During “Just the page,” a scroll-driven cursor follows a cubic path into the
+  sidebar toggle, presses it, and fades away as the sidebar withdraws. CSS scroll
+  timelines animate the cursor and registered `--sidebar-fold` property; the
+  existing JavaScript fallback handles browsers without scroll timelines. The
+  animation reverses when scrolling back. Reduced motion omits the cursor and
+  changes the sidebar at the click boundary. The toggle also works directly;
+  subsequent scrolling resumes the illustrated sequence.
+- The content keeps a stable reading width while the pane expands, preventing
+  text reflow from moving the animation's scroll boundaries.
 - Close and minimize return to the desktop. The third control uses the browser's
   Fullscreen API, when available. Window controls have monochrome styling and
   reveal their glyphs on group hover or keyboard focus.
@@ -41,6 +58,10 @@ All runtime assets are served locally; no font or icon CDN requests are needed.
   the app-icon tile for the intro and final page.
 - `public/assets/wallpaper.jpg`: the cyanotype-inspired artwork generated for
   this website's design exploration.
+- `public/assets/favicons/`: the same Gmail, Google Calendar, YouTube, Reddit,
+  Wikipedia, and Google icons used in the Figma sidebar, copied from the local
+  design-source assets. These belong to their respective sites; they illustrate
+  sample tabs and are served locally, with no runtime third-party requests.
 - Finder and Trash images: macOS system artwork, used in the illustrative Dock.
   Apple retains ownership; these are not Lune artwork or relicensed by this repo.
 - Syne 800 and Inter 400/500: Latin WOFF2 subsets from Google Fonts, Syne v24 and
@@ -54,3 +75,29 @@ All runtime assets are served locally; no font or icon CDN requests are needed.
 The final page credits and links Helium and ungoogled-chromium, followed by the
 Lune author credit. Preserve that attribution when replacing the placeholder
 feature content or changing the story length.
+
+## Security and privacy draft
+
+The in-window copy credits both upstream projects in each section. Its sources:
+
+- [Helium](https://helium.computer/): HTTPS, ad/tracker/cookie-banner blocking,
+  third-party-cookie defaults, and fingerprinting resistance.
+- [Helium source overview](https://github.com/imputnet/helium): bundled uBlock
+  Origin, open browser components and services, ungoogled-chromium ancestry.
+- [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium):
+  removal of Google web-service dependencies and their background requests.
+- [Chromium Site Isolation](https://www.chromium.org/Home/chromium-security/site-isolation/):
+  sandbox and process isolation, described as defenses rather than guarantees.
+
+Reviewed 2026-11-06. Lune's pinned `inputs/chromium-158-1/helium` includes the
+uBlock integration, default-enabled Helium Noise, and third-party-cookie blocking
+in `patches/inox-patchset/modify-default-prefs.patch`. This is source review and
+upstream documentation, not a new runtime security audit. The draft makes no
+claim of complete anonymity, Google Safe Browsing (removed upstream), automatic
+Lune updates, or a validated public release. Review shipped defaults and service
+behavior again before publishing browser downloads.
+
+The sidebar revision was checked against the current Figma desktop canvas and
+its existing source assets on 2026-11-06. The Figma MCP connector was unavailable
+at its Starter-plan call limit, so generated design context could not be used.
+The window remains an illustrative HTML/CSS composition, not an app screenshot.
