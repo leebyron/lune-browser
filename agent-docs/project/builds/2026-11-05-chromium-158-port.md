@@ -516,3 +516,20 @@ The patch reapplied without fuzz (**405 total**). Both the caption handler and
 shared settings-data provider compile (`captions-fix-compile.log`). This verifies
 source compatibility, not live speech recognition. The preceding failure is
 preserved under `*-before-captions-fix.*`; full compilation resumed from cache.
+
+## Disabled-service link guards
+
+The first main-framework link reported two references to unbuilt services:
+Safe Browsing pings in lazy profile startup and enterprise real-time reporting
+in the cloud-profile factory. Platform `84ee191b109c99f3d7a331d0353abbdcd5346c47`
+guards those calls and includes with the same feature conditions as their GN
+source selection. The existing disabled Safe Browsing/content-analysis
+configuration is retained; these services are not enabled to satisfy linking.
+
+The enterprise target also now declares its direct policy-header dependency,
+which its existing callers require. GN generation succeeds with 36,639 targets,
+and header checks pass for both profile and enterprise targets. Both affected
+objects compile; `llvm-nm` confirms the two unavailable service references are
+absent (`service-guards-symbol-check.json`). The patch reapplied without fuzz
+(**406 total**). The failed main link is preserved under
+`*-before-service-guards-fix.*`; the full build resumed to retry linking.
