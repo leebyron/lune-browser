@@ -36,6 +36,8 @@ artwork, defaults, settings, and French/German upstream attribution. Permanent
 inspection passed with the inherited command-bar internal-URL limitation recorded.
 These are development builds, not signed/notarized releases. See
 [the port evidence](agent-docs/project/builds/2026-11-05-chromium-158-port.md).
+Hosted setup checks are currently blocked by GitHub account billing; their local
+equivalents pass. See the build runbook before retrying or changing CI capacity.
 
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;

@@ -237,6 +237,17 @@ jobs still require explicit activation and the release gates described below.
 The owner can keep using the GitHub Actions UI for triggering and reading logs,
 but the Mac must remain online for jobs to execute.
 
+On 2026-11-06 the hosted [setup-check run for the final 158 inputs](https://github.com/leebyron/lune-browser/actions/runs/42230439397)
+did not start. GitHub reported that recent account payments failed or the spending
+limit needs to be increased; no test step ran and no job log exists. This is an
+account/hosted-runner limitation, not a repository test failure. The same setup
+checks passed locally: all 33 tests, locked configuration, permanent refs,
+ancestry/tree/gitlink validation, and a fresh recursive GitHub checkout. No billing
+setting or paid capacity was changed. The completed local browser builds and
+runtime checks are recorded separately in the 158 evidence document. Do not keep
+retrying this hosted run as though it were a source failure; account resolution is
+needed if hosted checks are to resume.
+
 Stock GitHub-hosted macOS builds remain a possible future experiment. The pinned
 [Helium workflow](https://github.com/imputnet/helium-macos/blob/37efe2c65dccc21aaf1d8ea66fd35d1348c386a8/.github/workflows/building.yml)
 chains up to ten build phases with source/build artifacts to cross job time limits.
