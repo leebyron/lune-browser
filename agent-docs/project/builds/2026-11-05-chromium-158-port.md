@@ -312,3 +312,43 @@ version for both driver and running browser. CI invokes it after compilation.
 The strengthened test passes against the explicit 157 diagnostic artifact, and
 negative checks reject that artifact when 158 or x86_64 is requested. This is
 test-harness evidence only; the 158 app is still compiling.
+
+## Internal Lune artwork
+
+The owner found Helium artwork inside the diagnostic app. Platform commit
+`97336e6642a0759ffa6245690a59efc962dc4d82` replaces all 34 upstream logo-resource
+destinations and two onboarding assets. Color and monochrome vectors, scaled
+PNGs, and light/dark wordmarks now use the Pelagic Signal paired lunes. A separate
+Lune patch replaces onboarding's embedded logos in welcome, services, import,
+and finish screens. It removes the unused Helium asset catalog from app/helper
+bundles and selects Lune's `.icns` in notification helpers too. Helium attribution
+remains; partner text explicitly names Helium instead of falsely claiming that
+upstream partnerships fund Lune.
+
+The new patch reapplied without fuzz (400 total). GN generated 36,639 targets
+from 5,027 files. Onboarding's generated resources and the native vector targets
+built successfully. The resource coverage check matches all 36 prepared assets
+against their committed inputs. Re-rendering the existing app icon reproduces
+its original SHA-256 exactly:
+`3b6224273905dc9a7c789f9a332c81982d75becf75793e1d47e0d152692f3dc0`.
+
+The new `--internal-icons` smoke option reads the packaged About and onboarding
+images and checks their Pelagic Signal pixels, as well as helper bundle icons.
+Its About-page check rejects the old 157 app's Helium logo as expected (zero
+matching colors). Positive runtime validation awaits the 158 build. These are
+resource/guardrail results, not a completed browser build or native UI validation.
+
+Local evidence: `internal-icons-resources.json`, `internal-icons-targets.log`,
+`internal-icons-targets-confirmed.log`, and `old-icons-negative-smoke.json` under
+`.work/chromium-158/`. Compilation was paused deliberately to apply the change,
+then resumed from cached outputs. The previous log/metadata are retained as
+`build-before-internal-icons.log` and `development-build-before-internal-icons.json`.
+
+Final source inspection also identified two inline `cr:chrome-product` SVG paths
+in shared WebUI. Platform commit `34193a6e5d30abaf1edfe29a687cc98122e2aba3`
+adds `lune/webui-logo.patch`, replacing both with the same Lune monochrome
+geometry. The patch reapplied without fuzz (**401 total**); the coverage checker
+now compares those paths with the generated SVG too. Compilation resumed from
+this final component commit. The preceding run is retained under
+`*-before-webui-icons.*`. Shared WebUI compilation and final runtime checks remain
+part of the full build in progress.

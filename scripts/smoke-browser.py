@@ -35,7 +35,7 @@ class Page(BaseHTTPRequestHandler):
         pass
 
 
-def check_ui(request, path):
+def check_ui(request, path, internal_icons=False):
     """Exercise packaged WebUI and registered defaults in the temporary profile."""
     expected = {
         'helium.browser.layout': 2,
@@ -71,6 +71,45 @@ def check_ui(request, path):
             chromeKeys: Object.keys(window.chrome || {})};''')
         raise RuntimeError('Packaged WebUI did not reach the expected state: '
                            + script + '\n' + json.dumps(diagnostic))
+
+    icons = {}
+
+    def check_icon(name, selector):
+        result = js('''
+            const selector = arguments[0], done = arguments[arguments.length - 1];
+            const find = root => {
+              const own = root.querySelector(selector);
+              if (own) return own;
+              for (const element of root.querySelectorAll('*')) {
+                if (element.shadowRoot) {
+                  const found = find(element.shadowRoot); if (found) return found;
+                }
+              }
+            };
+            const element = find(document);
+            if (!element) { done({error: 'Missing image: ' + selector}); return; }
+            const image = new Image();
+            image.crossOrigin = 'anonymous';
+            image.onerror = () => done({error: 'Could not load ' + image.src});
+            image.onload = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+                const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
+                const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                const colors = {'16,53,79': 0, '0,167,190': 0, '83,134,191': 0};
+                for (let i = 0; i < pixels.length; i += 4) {
+                  const key = [pixels[i], pixels[i+1], pixels[i+2]].join(',');
+                  if (pixels[i+3] === 255 && key in colors) colors[key]++;
+                }
+                done({src: image.src, width: canvas.width, height: canvas.height, colors});
+              } catch (error) { done({error: String(error)}); }
+            };
+            image.src = element.currentSrc || element.src;
+        ''', True, [selector])
+        if result.get('error') or not all(result.get('colors', {}).values()) or not result.get('colors'):
+            raise RuntimeError(f'{name} does not contain the Pelagic Signal Lune artwork: {result}')
+        icons[name] = result
 
     # WebDriver navigation bypasses the omnibox's helium:// alias fixup.
     request('POST', path + '/url', {'url': 'chrome://settings/help'})
@@ -113,6 +152,8 @@ def check_ui(request, path):
         return find(document);
     '''
     about = wait_for(credit_script)
+    if internal_icons:
+        check_icon('about', '#productLogo')
     request('POST', path + '/url', {'url': 'chrome://setup/'})
     onboarding = wait_for(credit_script)
     for name, credit in [('About', about), ('onboarding', onboarding)]:
@@ -120,8 +161,12 @@ def check_ui(request, path):
                 or credit['href'] != 'https://helium.computer/'):
             raise RuntimeError(f'{name} attribution is incorrect: {credit}')
     wait_for('return !!document.querySelector("#welcome-page:not([inert])");')
+    if internal_icons:
+        check_icon('welcome', '#welcome-logo img')
     js('document.querySelector("#welcome-buttons button:last-child").click();')
     wait_for('return !!document.querySelector("#services-page.visible");')
+    if internal_icons:
+        check_icon('services', '#services-page .header-icon img')
     js('document.querySelector("#setup-buttons button:last-child").click();')
     engines = wait_for('''
         const cards = [...document.querySelectorAll('#search-engines-page button')];
@@ -137,7 +182,7 @@ def check_ui(request, path):
             or not any(engine['name'] == 'DuckDuckGo' for engine in engines)):
         raise RuntimeError(f'Packaged search recommendations are incorrect: {engines}')
     return {'defaults': prefs, 'about_credit': about, 'onboarding_credit': onboarding,
-            'search_engines': engines, 'native_controls_tested': False}
+            'search_engines': engines, 'internal_icons': icons, 'native_controls_tested': False}
 
 
 def main():
@@ -146,11 +191,15 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--ui', action='store_true', help='Verify packaged UI strings and new-profile defaults.')
     parser.add_argument('--headed', action='store_true', help='Show the isolated browser window.')
+    parser.add_argument('--internal-icons', action='store_true',
+                        help='Require complete Lune branding, including packaged WebUI and helper icons.')
     parser.add_argument('--arch', choices=('arm64', 'x86_64'), default='arm64',
                         help='Expected app architecture.')
     parser.add_argument('--chromium-version',
                         help='Expected Chromium version; defaults to the current build lock.')
     args = parser.parse_args()
+    if args.internal_icons and not args.ui:
+        parser.error('--internal-icons requires --ui')
     root = Path(__file__).resolve().parents[1]
     lock = json.loads((root / 'manifests/browser.lock.json').read_text())
     expected_version = args.chromium_version or lock['chromium_version']
@@ -204,6 +253,19 @@ def main():
         if actual_icon != expected_icon or 'CFBundleIconName' in info:
             raise RuntimeError('App icon does not match the pinned Lune artwork or is overridden by an asset catalog.')
         report['icon_sha256'] = hashlib.sha256(actual_icon).hexdigest()
+        if args.internal_icons:
+            catalogs = list(app.rglob('Assets.car'))
+            if catalogs:
+                raise RuntimeError(f'Unexpected icon catalogs in Lune bundle: {catalogs}')
+            report['icon_bundles'] = []
+            for plist in app.rglob('Info.plist'):
+                bundle_info = plistlib.loads(plist.read_bytes())
+                if 'CFBundleIconName' in bundle_info:
+                    raise RuntimeError(f'Asset catalog overrides Lune icon: {plist}')
+                if bundle_info.get('CFBundleIconFile') == 'app.icns':
+                    if (plist.parent / 'Resources/app.icns').read_bytes() != expected_icon:
+                        raise RuntimeError(f'Helper icon differs from Lune: {plist}')
+                    report['icon_bundles'].append(str(plist.relative_to(app)))
     try:
         with tempfile.TemporaryDirectory(prefix='lune-smoke-profile-') as profile, log.open('w') as logfile:
             env = {key: os.environ[key] for key in
@@ -245,7 +307,7 @@ def main():
                         raise RuntimeError(f'Browser smoke failed in {phase}: {title!r}, {result!r}')
                     report['checks'].append({'phase': phase, 'title': title, **result})
                     if args.ui and phase == 'write':
-                        report['ui'] = check_ui(request, path)
+                        report['ui'] = check_ui(request, path, args.internal_icons)
                     request('DELETE', path)
                     session = None
                 report['passed'] = True

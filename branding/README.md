@@ -27,3 +27,32 @@ iconutil -c icns out/branding/Lune.iconset -o out/branding/app.icns
 The generated `.icns` is an input in the macOS component's resources; it is not
 regenerated during a browser build. Source and renderer changes must be reviewed
 and the component asset updated together.
+
+The renderer also produces `out/branding/internal/`: all internal PNG sizes,
+light/dark wordmarks, a monochrome mark, and Chromium `.icon` vectors. Copy these
+files into the platform component's `resources/lune/`, together with `lune.svg`
+as `product_logo.svg`. The color vector uses the same circle intersections and
+tile geometry as the master; monochrome vectors inherit the UI foreground color.
+
+`resources/lune_resources.txt` runs after upstream resource replacement. The
+Chromium 158 integration candidate overrides all 34 upstream browser-logo
+destinations plus onboarding's favicon and SVG. Its `lune/internal-icons.patch`
+uses that SVG in welcome, services, import, and finish screens. The main app and
+notification helpers use Lune's `.icns`; the unused Helium asset catalog is not
+bundled. The Helium partner badge keeps its upstream attribution as text, without
+claiming those partnerships support Lune.
+`lune/webui-logo.patch` also replaces both shared `cr:chrome-product` inline icons
+with the generated monochrome SVG path, covering Settings and other WebUI users.
+
+Check coverage against the selected upstream manifest and prepared sources:
+
+```sh
+python3 scripts/branding/verify-resources.py PLATFORM_CHECKOUT CHROMIUM_SOURCE
+```
+
+After compiling the candidate, add `--ui --internal-icons` to
+`scripts/smoke-browser.py`. This checks helper bundle icons, rejects leftover
+asset catalogs, and checks the rendered About, welcome, and services logos for
+the Pelagic Signal colors. Source coverage and resource compilation have passed;
+the complete Chromium 158 app is still compiling. The older 157 diagnostic app
+does not contain this fix.
