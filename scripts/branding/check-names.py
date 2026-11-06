@@ -26,8 +26,12 @@ def main():
         'IDS_HELIUM_ONBOARDING_PARTNER_TOOLTIP': 'Paying for this service will support the development of Helium.',
         'IDS_LUNE_UPSTREAM_CREDIT': 'Built on Helium, with thanks to its authors and contributors.',
         'IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT': 'Built on Helium, with thanks to its authors and contributors.',
+        'IDS_SETTINGS_HELIUM_SERVICES': 'Helium services',
+        'IDS_LUNE_SERVICES_PROVIDER': 'Lune uses services hosted by Helium.',
         'IDS_TEST_PRODUCT': 'Welcome to Helium',
     }
+    expected_text = dict(fixtures)
+    expected_text['IDS_TEST_PRODUCT'] = 'Welcome to Lune'
     source = ET.Element('grit')
     translations = ET.Element('translationbundle', lang='en-GB')
     before_ids = {}
@@ -45,7 +49,7 @@ def main():
     actual = {t.get('id'): t.text for t in ET.fromstring(changed_xtb)}
     for name, text in fixtures.items():
         before = before_ids[name]
-        if name in names.UPSTREAM_CREDITS:
+        if name != 'IDS_TEST_PRODUCT':
             if mapping.get(before) != before or actual.get(before) != text:
                 raise SystemExit(f'Upstream attribution was renamed: {name}: {actual.get(before)!r}')
         elif actual.get(mapping[before]) != 'Welcome to Lune':
@@ -53,7 +57,7 @@ def main():
     if actual.get('123') != 'Legacy Lune branding':
         raise SystemExit('Unrelated translation behavior changed')
     for message in ET.fromstring(changed_source).findall('message'):
-        expected = fixtures[message.get('name')] if message.get('name') in names.UPSTREAM_CREDITS else 'Welcome to Lune'
+        expected = expected_text[message.get('name')]
         if message.text != expected:
             raise SystemExit('Source message differs from expected branding policy')
     # Exercise the actual multiprocessing entry point as well as the helper

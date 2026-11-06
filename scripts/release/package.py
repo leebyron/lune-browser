@@ -77,7 +77,13 @@ def stage(args):
     require(not args.directory.exists(), 'Stage already exists; never overwrite a release candidate')
     app = args.output / 'Lune.app'
     info = inspect_app(app, product, args.arch)
-    require(info['CFBundleShortVersionString'] == lock['chromium_version'], 'Wrong Chromium version')
+    smoke = read(args.smoke_report)
+    require(smoke.get('passed') is True and smoke['chromium_version'] == lock['chromium_version']
+            and smoke['architecture'] == args.arch, 'Matching runtime smoke must pass')
+    require(smoke.get('artwork_component_commit') == report['platform_commit'], 'Smoke tested different inputs')
+    require(smoke['executable_sha256'] == sha(app / 'Contents/MacOS/Lune')
+            and smoke['framework_sha256'] == sha(app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework'),
+            'App changed after runtime validation')
     require((args.output / 'Lune Packaging/sign_chrome.py').is_file(), 'Build packaging tools first')
     args.directory.mkdir(parents=True)
     run('ditto', app, args.directory / 'input/Lune.app')
@@ -86,6 +92,7 @@ def stage(args):
     # versioned framework layout intact, independently of Lune's release counter.
     target = args.directory / 'input/Lune.app/Contents/Info.plist'
     info['CFBundleVersion'] = str(args.build)
+    info['CFBundleShortVersionString'] = lock['chromium_version']
     target.write_bytes(plistlib.dumps(info))
     inspect_app(args.directory / 'input/Lune.app', product, args.arch, args.build)
     save(args.directory / 'candidate.json', {
@@ -164,6 +171,7 @@ def main():
     p = sub.add_parser('stage')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--build-report', type=Path, required=True)
+    p.add_argument('--smoke-report', type=Path, required=True)
     p.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
     p.add_argument('--build', type=int, required=True)
     p.add_argument('--directory', type=Path, required=True)

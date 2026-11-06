@@ -186,6 +186,12 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
         check_icon('welcome', '#welcome-logo img')
     js('document.querySelector("#welcome-buttons button:last-child").click();')
     wait_for('return !!document.querySelector("#services-page.visible");')
+    service_disclosure = js('return document.querySelector("#services-page").innerText;')
+    if ('Helium services' not in service_disclosure or
+            'services hosted by Helium' not in service_disclosure or
+            'Browser updates are provided by Lune at lune.computer.' not in service_disclosure or
+            'Lune services' in service_disclosure):
+        raise RuntimeError('Incorrect onboarding provider disclosure: ' + service_disclosure)
     if internal_icons:
         check_icon('services', '#services-page .header-icon img')
     js('document.querySelector("#setup-buttons button:last-child").click();')
@@ -203,7 +209,8 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
             or not any(engine['name'] == 'DuckDuckGo' for engine in engines)):
         raise RuntimeError(f'Packaged search recommendations are incorrect: {engines}')
     return {'defaults': prefs, 'about_credit': about, 'onboarding_credit': onboarding,
-            'search_engines': engines, 'internal_icons': icons, 'native_controls_tested': False}
+            'search_engines': engines, 'internal_icons': icons,
+            'services_provider_disclosure': service_disclosure, 'native_controls_tested': False}
 
 
 
@@ -251,6 +258,10 @@ def check_settings(request, path):
 
     request('POST', path + '/url', {'url': 'chrome://settings/privacy/services'})
     wait('return find("#heliumOriginOverride") !== null;')
+    provider = js("return find('#servicesToggleButton')?.subLabel;")
+    assert provider and 'Helium-hosted services' in provider and 'Lune for browser updates' in provider, provider
+    assert js("return find('#heliumOriginOverride')?.placeholder;") == 'https://services.helium.imput.net'
+    result['service_provider'] = {'host': 'Helium', 'browser_updates': 'Lune', 'disclosure': provider.strip()}
     assert pref('helium.services.enabled') is False, 'Test must keep remote services disabled'
     set_pref('helium.services.user_consented', False)
     wait('return find("#onboarding-notice")?.getClientRects().length > 0;')
@@ -285,6 +296,8 @@ def main():
     parser.add_argument('--ui', action='store_true', help='Verify packaged UI strings and new-profile defaults.')
     parser.add_argument('--settings', action='store_true',
                         help='Verify settings bindings and flag filtering; requires --ui.')
+    parser.add_argument('--services', action='store_true',
+                        help='Opt into live Helium services only in the disposable test profile; requires --settings.')
     parser.add_argument('--headed', action='store_true', help='Show the isolated browser window.')
     parser.add_argument('--internal-icons', action='store_true',
                         help='Require complete Lune branding, including packaged WebUI and helper icons.')
@@ -295,6 +308,8 @@ def main():
     parser.add_argument('--chromium-version',
                         help='Expected Chromium version; defaults to the current build lock.')
     args = parser.parse_args()
+    if args.services and not args.settings:
+        parser.error('--services requires --settings')
     if (args.internal_icons or args.settings) and not args.ui:
         parser.error('--internal-icons and --settings require --ui')
     root = Path(__file__).resolve().parents[1]
@@ -341,6 +356,8 @@ def main():
     report = {'bundle_id': info['CFBundleIdentifier'], 'architecture': architecture,
               'test_host_architecture': platform.machine(),
               'chromium_version': expected_version,
+              'executable_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
+              'framework_sha256': hashlib.sha256((app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework').read_bytes()).hexdigest(),
               'driver_version': version, 'app_version': info['CFBundleShortVersionString'],
               'checks': [], 'mode': 'headed' if args.headed else 'headless', 'release_validated': False}
     icon_hashes = {}
@@ -396,11 +413,13 @@ def main():
                     raise RuntimeError('ChromeDriver did not become ready.')
                 for phase in ('write', 'read'):
                     created = request('POST', '/session', {'capabilities': {'alwaysMatch': {
+                        **({'goog:loggingPrefs': {'performance': 'ALL'}} if args.services else {}),
                         'goog:chromeOptions': {'binary': str(binary), 'args': [
                             *([] if args.headed else ['--headless=new']),
                             '--no-first-run', '--no-default-browser-check',
-                            '--disable-background-networking',
-                            '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1',
+                            *(['--host-resolver-rules=MAP pagead2.googlesyndication.com 127.0.0.1'] if args.services else [
+                              '--disable-background-networking',
+                              '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1']),
                             f'--user-data-dir={profile}']}}}})
                     session = created['sessionId']
                     path = '/session/' + session
@@ -418,6 +437,9 @@ def main():
                         report['ui'] = check_ui(request, path, args.internal_icons, icon_hashes)
                         if args.settings:
                             report['ui'].update(check_settings(request, path))
+                        if args.services:
+                            from release.check_services import check_services
+                            report['services'] = check_services(request, path, f'http://127.0.0.1:{server.server_port}/write')
                     request('DELETE', path)
                     session = None
                 report['passed'] = True

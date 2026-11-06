@@ -26,7 +26,8 @@ Status: in progress. No public browser download or feed has been promoted.
   repository's visibility or publish unrelated local files.
 - Reserve numeric bundle builds 1 and 2 in `config/release-builds.json` for the
   two-version installed-update exercise. Set only the outer app's CFBundleVersion
-  during staging, before signing; preserve Chromium version and framework paths.
+  during staging, before signing; set its display version to the locked Chromium
+  version. Preserve nested framework versions and paths.
   After publication, never reuse a build number or overwrite its artifacts.
 
 ## Candidate inputs and checks
@@ -46,20 +47,41 @@ and refresh evidence lives under `.work/release-bootstrap/`; 165 changed GRIT an
 XTB files were copied into the existing build tree to retain its compiler cache.
 The remaining source contents match the independently prepared tree. Generated
 outputs, quilt metadata, and Python caches are excluded from that comparison.
-Both architectures are being rebuilt with Sparkle enabled, the Lune public key,
-and a daily check interval. Earlier development apps did not include Sparkle.
+The arm64 rebuild passed in 6m44s; its full smoke test passes with provider
+disclosures, settings, and artwork. Intel rebuilt in 7m05s and passes the same
+checks under Rosetta. Both use Sparkle
+2.10.1, the Lune public key, and a daily check interval. Earlier development apps did not include Sparkle.
 
 The name-substitution regression passes, including provider names and the
 existing 162 protected upstream-credit translations. Repository tests currently
 include rejection of incomplete/mismatched artifacts and altered DMG bytes before
 appcast generation. Runtime provider checks are added to `scripts/smoke-browser.py`.
 
+The owner provisioned `lune-notary`; Keychain access was verified without
+exporting credentials. The setup reminder is paused. Both candidate builds and
+runtime checks pass; signing and distribution acceptance remain outstanding.
+
+Release GN overrides (in addition to the pinned platform release defaults):
+
+```gn
+enable_sparkle=true
+include_branded_entitlements=false
+sparkle_ed_key="J/aDOySmegpv5t6M/CtfFnlY0VSmVW5kdG7Y++HuJZw="
+sparkle_automatic_checks=true
+sparkle_check_interval=86400
+sparkle_feed_url="https://lune.computer/updates/stable/mac/appcast-arm64.xml"
+```
+
+For Intel use `target_cpu="x64"` and `appcast-x86_64.xml`. The build uses
+`chrome_pgo_phase=2`, `cc_wrapper="sccache"`, and the pinned Xcode toolchain.
+
 ## Packaging commands
 
 `scripts/release/package.py` has independent `stage`, `sign`, and `package`
 commands. Stage requires a successful matching build report, locked platform,
 matching GN arguments, correct architecture, Lune identity/key/feed, and a
-reserved release number. It creates a new directory and never replaces one.
+reserved release number. Runtime smoke evidence must match the app executable
+and framework hashes. It creates a new directory and never replaces one.
 
 Signing uses the generated Chromium nested-signing machinery and the existing
 Developer ID. The pre-notarization Gatekeeper assessment is deferred until the
@@ -75,9 +97,6 @@ feeds remain the primary architecture-routing mechanism.
 
 ## Remaining gates
 
-- Finish both release builds and rerun runtime/provider/artwork checks.
-- Provision `lune-notary` using `scripts/setup-notary.sh`; the profile was absent
-  when checked. A 30-minute reminder was requested and created.
 - Sign/notarize/package both build numbers for both architectures.
 - Install build 1, update to build 2 through staging feeds, relaunch, and verify
   profile persistence. Exercise bad signatures, OS constraints, and architecture

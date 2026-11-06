@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "d44db707dc84799b09f4ddf7bef2498ced44ab74",
+    "commit": "ae265118c1e0c0842b5cc0ce65b92e483e4547ac",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -181,6 +181,14 @@
       {
         "path": "patches/helium/ui/chromium-158-service-guards.patch",
         "sha256": "3f959a7a44c475f606408842e534521157cbddc2127f5c90a0a27e53f253c851"
+      },
+      {
+        "path": "patches/lune/sparkle-release.patch",
+        "sha256": "6ca8f34027b4b8b8a023d1fbb233c215f163dadb0292aada3c8b237623571966"
+      },
+      {
+        "path": "patches/lune/helium-hosted-services.patch",
+        "sha256": "5bc0f34f694fef2e6c67c2929ca7278027fa7650ffc2114203c22eb3d898f909"
       }
     ]
   },
@@ -364,6 +372,30 @@
       "review_status": "reviewed-port",
       "rationale": "Use Pelagic Signal Lune artwork throughout browser UI and helper bundles.",
       "adaptation": "See agent-docs/project/builds/2026-11-05-chromium-158-port.md; original inputs and compatibility changes remain separate Git commits."
+    },
+    {
+      "id": "lune-sparkle-release",
+      "depends_on": [
+        "lune-credit"
+      ],
+      "patches": [
+        "patches/lune/sparkle-release.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Embed Lune feeds and public key with typed Sparkle preferences.",
+      "adaptation": "Distribution-only commit d66759424d27b03f71072f69b03e4cdb8f076136; see agent-docs/project/builds/2026-11-06-release-bootstrap.md."
+    },
+    {
+      "id": "lune-helium-services",
+      "depends_on": [
+        "lune-credit"
+      ],
+      "patches": [
+        "patches/lune/helium-hosted-services.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use Helium hosted services with explicit provider and browser-update disclosures.",
+      "adaptation": "Distribution-only commit ae265118c1e0c0842b5cc0ce65b92e483e4547ac; see agent-docs/project/builds/2026-11-06-release-bootstrap.md."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."
