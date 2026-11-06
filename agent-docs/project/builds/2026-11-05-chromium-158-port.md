@@ -362,3 +362,21 @@ and ignores the disabled feature's progress notification. PDF TypeScript
 compilation and lint both pass (`pdf-fix-targets.log`). The patch reapplied without
 fuzz (**402 total**). The full build resumed from this commit; its preceding
 failure evidence is preserved under `*-before-pdf-fix.*`.
+
+## Intel preparation
+
+The same prepared source at platform `29adb275d03bd66b195e9cccc93634985ba1c437`
+also generates an Intel graph in `out/Intel`: 45,761 targets from 5,029 files.
+Its arguments differ from the arm64 output only in `target_cpu="x64"` (argument
+hash `8f4a52436f0d502d7ca1bc90c5e0aadd3ce42178ef2874710d1ea40485196f3e`).
+All five focused dependency checks pass for Intel too: OSCrypt async providers,
+browser view, vertical-tab-strip region, common tab views, and Helium UI.
+Evidence: `intel-gn-gen.json`, `intel-gn-gen.log`, and `intel-gn-check.json` under
+`.work/chromium-158/`. Intel compilation and runtime validation have not run.
+
+After the branding changes, source checks still pass for defaults, Kagi, Helium
+credits, and all 80 onboarding messages. Svelte checking reports zero errors and
+warnings. Main's current renderer hash is refreshed and all 29 orchestration
+tests pass. A candidate input lock is staged locally by `stage-lock.py`; it is
+not promoted, and its proposed permanent refs have not been created. Refresh
+that staging after any further source or review-document change.
