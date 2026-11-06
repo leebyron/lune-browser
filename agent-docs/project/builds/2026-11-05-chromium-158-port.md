@@ -85,13 +85,32 @@ Core commit `1e1a0317` adapts seven additional patches:
   add a fallback tab when requested, then resolve handles into pointers under
   the reentrancy guard. Native behavior still needs runtime validation.
 
-The first **59 patches apply with zero fuzz**. Application currently stops at
-`ungoogled-chromium/add-flag-to-convert-popups-to-tabs.patch`. Chromium renamed
-the disposition enum members and removed the Mojo enum-traits file entirely.
-The feature requires a reviewed replacement at navigation entry points; it has
-not been removed or bypassed. No patch has been skipped or forced. Full preparation,
-GN generation, compilation, and runtime validation remain incomplete for 158.
-The older 157 UI validation build is still a separate diagnostic build.
+Core commit `7f44b696` adapts eleven more patches:
+
+- Popup-to-tab conversion follows the new disposition enum and moves the removed
+  Mojo traits behavior into renderer/browser navigation entry points. The browser
+  conversions run after parameter validation. Flag-on/off popup behavior and other
+  Mojo disposition consumers still require a full behavior audit and runtime tests.
+- TLS GREASE retains its command-line toggle; the separate signature-algorithm
+  GREASE API and feature guard no longer exist in Chromium 158.
+- MRU cycling, service preferences, and the service-schema notice follow changed
+  headers, command handling, and checks without dropping their features.
+- Onboarding's generated-resource dependency follows the consolidated browser GN
+  target; the dedicated onboarding target and PAK dependencies remain intact.
+- Both search-engine dialog subtitles use Helium's randomized-list explanation,
+  including Chromium 158's newly added picker subtitle.
+- Private sync follows the single-encryptor API, updated consent cleanup, static
+  history metrics helper, and extension API registration changes. Existing vault
+  event/permission IDs remain unchanged and the new upstream event is preserved.
+- Google history-sync eligibility moved from the factory into WebHistoryService.
+  Helium's disabled Google-upload check now applies at that new location, covering
+  both construction and subsequent sync-state changes.
+
+The first **125 patches apply with zero fuzz**. Application currently stops at
+`helium/core/keyboard-shortcuts.patch`. No patch has been skipped or forced.
+Full preparation, GN generation, compilation, and runtime validation remain
+incomplete for 158. The older 157 UI validation build is still a separate
+running diagnostic build.
 
 All selected UI features, Lune defaults, Kagi recommendation, Helium attribution,
 and artwork remain required in the forward-port. New immutable component tags
