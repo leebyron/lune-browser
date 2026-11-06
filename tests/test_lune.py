@@ -78,6 +78,13 @@ class LockTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "permanent input tag"):
             lune.validate_lock(self.lock)
 
+    def test_toolchain_change_requires_review(self):
+        product = {"xcode_version": "27.2", "xcode_build": "27B52", "macos_sdk_version": "27.2"}
+        lune.check_toolchain("Xcode 27.2\nBuild version 27B52", "27.2", product)
+        for version, sdk in [("Xcode 27.3\nBuild version 27C1", "27.2"), ("Xcode 27.2\nBuild version 27B52", "27.3")]:
+            with self.assertRaisesRegex(ValueError, "Toolchain differs"):
+                lune.check_toolchain(version, sdk, product)
+
     def test_numeric_release_order(self):
         tags = ["99.0.4844.84-1", "157.0.8103.38-2", "157.0.8103.38-10"]
         self.assertEqual(max(tags, key=lune.version_tuple), tags[-1])

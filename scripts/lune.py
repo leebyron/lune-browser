@@ -174,24 +174,33 @@ def build_env():
     return env
 
 
-def doctor(_args):
+def check_toolchain(xcode, sdk, product):
+    expected = f"Xcode {product['xcode_version']}\nBuild version {product['xcode_build']}"
+    if xcode != expected or sdk != product['macos_sdk_version']:
+        raise ValueError(f"Toolchain differs from lock: expected {expected!r}, SDK {product['macos_sdk_version']}; got {xcode!r}, SDK {sdk}.")
+
+
+def doctor(args):
     product = read_json(ROOT / 'config/product.json')
     problems = []
     free = shutil.disk_usage(ROOT).free / 1024**3
     print(f'Platform: {platform.system()} {platform.machine()}; free space: {free:.1f} GiB')
     if platform.system() != 'Darwin':
         problems.append('macOS is required for browser compilation.')
-    if free < product['minimum_free_gib']:
-        problems.append(f'Free at least {product["minimum_free_gib"]} GiB before preparing a source tree.')
+    minimum = product['minimum_build_free_gib'] if getattr(args, 'command', None) == 'build' else product['minimum_free_gib']
+    if free < minimum:
+        problems.append(f'Free at least {minimum} GiB for this build stage.')
     env = build_env()
     try:
         xcode = run(['xcodebuild', '-version'], capture=True, env=env)
         print(xcode.strip())
-        if not re.search(r'^Xcode ' + str(product['xcode_major']) + r'(?:\.|\s)', xcode):
-            problems.append('Select Xcode 26; review newer toolchains before changing this policy.')
-        run(['xcrun', '--find', 'metal'], capture=True, env=env)
+        check_toolchain(xcode.strip(), run(['xcrun', '--sdk', 'macosx', '--show-sdk-version'], capture=True, env=env).strip(), product)
+        run(['xcodebuild', '-checkFirstLaunchStatus'], capture=True, env=env)
+        run(['xcrun', 'metal', '--version'], capture=True, env=env)
+    except ValueError as error:
+        problems.append(str(error))
     except (subprocess.CalledProcessError, FileNotFoundError):
-        problems.append('Install/select full Xcode 26 and run xcodebuild -downloadComponent MetalToolchain.')
+        problems.append('Complete full Xcode setup and run xcodebuild -downloadComponent MetalToolchain.')
     for command in ('greadlink', 'wget', 'zstd', 'gpatch', 'quilt', 'sccache'):
         if not shutil.which(command, path=env['PATH']):
             problems.append(f'Missing build dependency: {command}')

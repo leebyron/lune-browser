@@ -1,0 +1,57 @@
+name: Development browser
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: Target architecture
+        required: true
+        default: arm64
+        type: choice
+        options: [arm64, x86_64]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lune-browser-local
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && github.actor == 'leebyron' && github.event.repository.private
+    runs-on: [self-hosted, macOS, ARM64, lune-build]
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          # Preserve ignored source/build caches in this dedicated runner workspace.
+          clean: false
+      - name: Fetch and verify locked components
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_0: ''
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!gh auth git-credential'
+          TARGET_ARCH: ${{ inputs.arch }}
+        run: |
+          git -c fetch.prune=false fetch --no-prune --no-tags origin 'refs/tags/inputs/*:refs/tags/inputs/*'
+          python3 scripts/lune.py validate --git-objects
+          python3 scripts/lune.py checkout --arch "$TARGET_ARCH"
+      - name: Prepare and compile development browser
+        env:
+          TARGET_ARCH: ${{ inputs.arch }}
+        run: caffeinate -i /bin/bash scripts/ci-build.sh "$TARGET_ARCH"
+      - name: Summarize local output
+        if: always()
+        env:
+          TARGET_ARCH: ${{ inputs.arch }}
+        run: |
+          printf 'Target: `%s`\n\n' "$TARGET_ARCH" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Outputs remain on this Mac under `%s/.work/%s/`. No artifact upload, signing, or publication runs.\n' "$GITHUB_WORKSPACE" "$TARGET_ARCH" >> "$GITHUB_STEP_SUMMARY"

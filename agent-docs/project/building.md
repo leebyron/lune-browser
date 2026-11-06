@@ -41,18 +41,31 @@ and both architectures' runtime checks remain release blockers.
 ## Prepare this Mac
 
 The owner selected this Mac mini (M4 Pro, 64 GB RAM). At the latest check it has
-264.5 GiB free and only Command Line Tools selected. Storage now passes the
-preflight check. The wrapper requires at
+about 245 GiB free after installing Xcode and Metal. Storage and toolchain now
+pass preflight. The wrapper requires at
 least 200 GiB free before preparation, a conservative local policy rather than a
 measured guarantee. Two source/output trees and peak build usage may require more.
 Free space manually; the tooling never removes personal data or old workspaces.
 
-Install full Xcode 26, launch it to complete setup/license acceptance, then:
+The installed development toolchain is pinned to Xcode **27.2 (27B52)**, SDK
+**27.2**, and Metal **27B47**. Helium CI uses Xcode 26.5; we reviewed the pinned
+[Chromium SDK configuration](https://github.com/chromium/chromium/blob/157.0.8103.38/build/config/mac/mac_sdk.gni),
+which includes Xcode 27 support, and its SDK minimum of 15. This permits an
+experimental development attempt, not a claim of tested toolchain compatibility.
+Compilation and runtime checks remain required. Future Xcode/SDK changes fail
+preflight until reviewed and repinned. The check executes the Metal compiler,
+rather than merely locating the shim supplied by Xcode.
+
+On a new host, install the pinned Xcode, complete first-launch setup, then:
 
 ```sh
 sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
 xcodebuild -downloadComponent MetalToolchain
 ```
+
+The 200 GiB threshold applies before source preparation; compilation/resume
+requires 80 GiB free after sources are present. Both are conservative safeguards,
+not measured peak usage. The two architectures are built sequentially.
 
 Small build dependencies are already installed on this Mac. On another Mac:
 
@@ -123,8 +136,10 @@ published input tags or replace release artifacts.
 
 Owner decision, 2026-11-05: keep CI free; use this Mac when required. Target
 GitHub Actions orchestration with a repository-scoped self-hosted macOS runner
-on this Mac. The runner and browser workflow are **not registered/implemented**
-yet. Full Xcode 26 and Metal are the immediate prerequisite for the first build.
+on this Mac. The manual `Development browser` workflow is implemented in
+`.github/workflows/browser.yml`; it targets the `lune-build` runner label.
+Xcode and Metal preflight now pass. Initial runner registration/dispatch is being
+validated before claiming a successful CI build.
 
 [GitHub documents self-hosted runner compute as free](https://docs.github.com/en/actions/concepts/billing-and-usage).
 The private repository's hosted compute and artifact/cache storage still have
@@ -134,9 +149,25 @@ to Actions artifacts by default. Do not provision paid runners, purchase storage
 or assume an unverified account billing cap. Existing lightweight checks remain
 subject to the account's included allowance.
 
-After Xcode is ready, register a runner dedicated to this repository, use a
-separate ignored build workspace, and start with manual dispatch from reviewed
-`main` only. Do not run pull-request code on this personal Mac. Serialize builds,
+The workflow is manual-only, restricted to the owner on `main` while the repo
+remains private. Runner `lune-mac-mini` is scoped to this repository. The official
+GitHub runner v2.338.2 archive was verified with SHA-256
+`25a065af409ffa317ab4d5a3b614dd15fc9c40f2172bc1b35a1b1258e919a388`.
+Runner credentials stay under ignored `.work/ci-runner/`; no service is installed
+to start it automatically at login. Start it for one job with:
+
+```sh
+./.work/ci-runner/run.sh --once
+```
+
+Builds use the runner's separate checkout under `.work/ci-runner/_work/` and preserve
+its ignored source/compiler cache between runs. Checkout uses the job's read-only
+GitHub token through temporary credential-helper environment variables; build
+steps do not receive that token. The workflow serializes builds, uses caffeinate
+to prevent idle sleep, and limits each run to six hours. A timed-out compilation
+can resume from the validated preparation record on the next dispatch. A failed
+partial source preparation requires inspection and is never automatically deleted.
+No pull-request workflow targets this Mac. For future unattended operation,
 keep the Mac awake while jobs run, and retain local compilation caches. Establish
 one successful arm64 build before scheduling recurring jobs or running the Intel
 target. The owner can keep using the GitHub Actions UI for triggering and reading
@@ -185,7 +216,7 @@ isolation, as described in [releases](releases.md).
 
 ## Validation and remaining work
 
-Validated locally: 13 guardrail tests, locked file/archive hash structure,
+Validated locally: 14 guardrail tests, locked file/archive hash structure,
 component ancestry and tree IDs, core gitlink, numeric upstream discovery, and
 a fresh recursive clone from GitHub without local object reuse. Upstream
 download parsing accepts both flattened manifests; text-level name substitution
@@ -196,7 +227,7 @@ source preparation or proof of a working browser. Python requirements match the
 installed environment. A GitHub Actions check validates the lock, ancestry, and
 fresh recursive checkout without signing credentials or Chromium downloads.
 
-Before the first usable browser: complete storage/Xcode setup, prepare and compile
+Before the first usable browser: run the new CI workflow to prepare and compile
 arm64, inspect identity/branding and service behavior, run smoke tests, repeat for
 x86_64, then implement and validate signing/packaging. Before public updates:
 provision services, finish versioning/branding, and test two signed/notarized
