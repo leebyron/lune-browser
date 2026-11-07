@@ -24,13 +24,13 @@
     pageHeight = root.querySelector('.viewport').clientHeight;
     const sidebarWidth = parseFloat(style.getPropertyValue('--sidebar-width'));
     const compact = matchMedia('(max-width:540px)').matches;
-    root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 16 - (compact ? 0 : sidebarWidth))}px`);
+    root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 2 * parseFloat(style.getPropertyValue('--rail')) - (compact ? 0 : sidebarWidth))}px`);
     const minimal = root.querySelector('.minimal-story');
     demoStart = readingStart + minimal.offsetTop - pageHeight * .4;
     demoDistance = Math.min(460, pageHeight * .65);
     root.style.setProperty('--demo-start', `${demoStart}px`);
     root.style.setProperty('--demo-end', `${demoStart + demoDistance}px`);
-    const incoming = `M ${win.clientWidth + 28} ${pageHeight * .68} C ${win.clientWidth * .44} ${pageHeight * .88}, 18 167, 110 32`;
+    const incoming = `M ${win.clientWidth + 28} ${pageHeight * .68} C ${win.clientWidth * .44} ${pageHeight * .88}, 18 167, 110 26`;
     const outgoing = ` C 200 8, ${win.clientWidth * .5} ${pageHeight * .36}, ${win.clientWidth + 28} ${pageHeight * .58}`;
     // Pause precisely at the toggle, regardless of viewport or curve length.
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -72,7 +72,7 @@
     const cursorDistance = progress <= .44 ? clamp(progress / .44) * cursorStop : cursorStop + clamp((progress - .64) / .36) * (100 - cursorStop);
     const cursorPoint = cursorPath.getPointAtLength(cursorDistance / 100 * cursorPathLength);
     const demoHolding = sidebarOverride === null && (progress < .5 || distanceFromPanel(cursorPoint,
-      {left:4,right:4 + sidebar.offsetWidth,top:4,bottom:win.clientHeight - 4}) <= panelDismissDistance);
+      {left:8,right:8 + sidebar.offsetWidth,top:8,bottom:win.clientHeight - 8}) <= panelDismissDistance);
     const keyboardFocus = Boolean(sidebarRegion.querySelector(':focus-visible'));
     const visible = !floating || demoHolding || sidebarHovered || keyboardFocus;
     sidebar.inert = !visible;
@@ -169,8 +169,8 @@
   function dismissDistantPanels() {
     if (!panelPointer) return;
     const sidebarArea = sidebarRegion.getBoundingClientRect();
-    const sidebarBounds = {left:sidebarArea.left + 4,right:sidebarArea.left + 4 + sidebar.offsetWidth,
-      top:sidebarArea.top + 4,bottom:sidebarArea.bottom - 4};
+    const sidebarBounds = {left:sidebarArea.left + sidebar.offsetLeft,right:sidebarArea.left + sidebar.offsetLeft + sidebar.offsetWidth,
+      top:sidebarArea.top + sidebar.offsetTop,bottom:sidebarArea.top + sidebar.offsetTop + sidebar.offsetHeight};
     if (sidebarHovered && !sidebarRegion.querySelector(':focus-visible') &&
         distanceFromPanel(panelPointer, sidebarBounds) > panelDismissDistance) {
       sidebarHovered = false;
@@ -179,7 +179,7 @@
     // Measure the resting toolbar bounds, not its animated slide position.
     // Treat its capsules and the gaps between them as one floating top bar.
     const area = toolbarRegion.getBoundingClientRect();
-    const rect = {left:area.left + 16,right:area.right - 16,top:area.top + 14,bottom:area.top + 50};
+    const rect = {left:area.left + 8,right:area.right - 8,top:area.top + 8,bottom:area.top + 44};
     const controlsRect = windowControls.getBoundingClientRect();
     if (toolbarRegion.hasAttribute('data-open') && !toolbarRegion.contains(document.activeElement) &&
         !windowControls.contains(document.activeElement) &&

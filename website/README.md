@@ -24,7 +24,7 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   indicator, including after fonts load or the viewport changes. Reduced motion
   removes the launch bounce and zoom.
 - The browser shell follows the [mounted-left Figma design](https://www.figma.com/design/I39uQunZpu6LsS7mDjcGSh/Untitled?node-id=14-50):
-  200px sidebar, compact system-font tabs/favorites, an 8px inset content pane,
+  200px sidebar, compact system-font tabs/favorites, a 4px inset content pane,
   and floating glass toolbar groups. The site follows system appearance with
   Chlorophyll Daylight and Pelagic Signal palettes and monochrome window controls. Below 540px, the sidebar floats over the content.
 - During “Just the page,” the sidebar starts pinned. A scroll-driven cursor
@@ -36,13 +36,13 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   floating panel, then the pinned layout. CSS scroll timelines animate the
   cursor and registered `--sidebar-fold` property; JavaScript coordinates the
   pinned/floating/hidden states and supplies the scroll-timeline fallback.
-- Hovering the 8px left rail reveals the floating sidebar without resizing the
+- Hovering the 4px left rail reveals the floating sidebar without resizing the
   content. It stays open until the pointer is more than 48px from the panel's
   outer rectangle (Euclidean distance, including corners), then slides away.
-  The floating surface extends 4px beyond the content pane on its top, bottom,
-  and left. Floating tabs and favorites have 8px inner margins; the mounted
+  The floating surface is inset 8px from the window on its top, bottom,
+  and left, placing it 4px inside the content pane. Floating tabs and favorites have 8px inner margins; the mounted
   panel reduces its horizontal padding to 4px, producing an effective 8px
-  margin from the window edge and content pane. The mount toggle and new-tab glyph share that padding and shift 4px when
+  margin from the window edge and content pane. The mount toggle and new-tab glyph follow the panel padding when
   pinning changes. Window controls live directly in the window, outside the
   sliding sidebar and all glass groups, with a fixed resting position. They stay
   visible while either the sidebar or glass toolbar is visible; when both hide,
@@ -50,17 +50,18 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   sidebar (260ms), or with the toolbar’s slide/fade motion. When both are hidden,
   the first panel revealed determines their entrance direction. The top rail
   reveals both together, and hovering or focusing the controls keeps them open.
-  The illustrated cursor clicks the mounted toggle position. The floating radius is 21px,
-  concentric with the 26px window radius across its 1px border and 4px inset.
+  The illustrated cursor clicks the mounted toggle position. The floating radius is 17px,
+  concentric with the 26px window radius across its 1px border and 8px inset.
   The rail also supports keyboard focus and tapping; Escape or tapping content
   dismisses it. The toggle pins/unpins the panel; subsequent scrolling resumes
   the illustrated sequence. Reduced motion omits cursor and slide animations.
   This is an Arc-style interaction approximation, not a claim to reproduce its
   private animation constants; [Arc documents the sidebar toggle](https://start.arc.net/find-focus).
-- The glass address toolbar starts hidden. An 8px top rail reveals it; the full
-  64px top area, including gaps and all three capsules, holds it open. It dismisses
+- The glass address toolbar starts hidden. A 4px top rail reveals it; the full
+  52px top area, including gaps and all three capsules, holds it open. It dismisses
   once the pointer is more than 48px from the bar's resting outer rectangle;
-  there is no timer. Its width reserves space for either a pinned or visible
+  there is no timer. Glass groups sit 8px from the top and right window edges
+  and 8px beyond the floating sidebar. Their width reserves space for either a pinned or visible
   floating sidebar, independently of the content pane. Its available width
   animates with the sidebar using the same 260ms easing in both directions,
   keeping a gap between the panels throughout the slide. A hidden sidebar still leaves room for the fixed
@@ -78,8 +79,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   dismissal supersedes that prototype's earlier cooldown. The address is a
   read-only illustration, while navigation/extension glyphs remain decorative.
 - Mounting/unmounting snaps the content pane width at the click, without a layout
-  tween. The content pane has a 17px radius, concentric with the 26px
-  outer window across its 1px border and 8px inset. Native Safari and Photos
+  tween. The content pane has a 21px radius, concentric with the 26px
+  outer window across its 1px border and 4px inset. Native Safari and Photos
   windows informed the larger radius and inset top row; these are CSS
   approximations of AppKit geometry. The window uses one subtle hairline and a soft shadow; the content pane
   shadow is horizontally symmetric, offset 1px downward with a 4px blur and
