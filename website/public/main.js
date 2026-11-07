@@ -29,7 +29,7 @@
     demoDistance = Math.min(460, pageHeight * .65);
     root.style.setProperty('--demo-start', `${demoStart}px`);
     root.style.setProperty('--demo-end', `${demoStart + demoDistance}px`);
-    const incoming = `M ${win.clientWidth + 28} ${pageHeight * .68} C ${win.clientWidth * .44} ${pageHeight * .88}, 18 167, 98 27`;
+    const incoming = `M ${win.clientWidth + 28} ${pageHeight * .68} C ${win.clientWidth * .44} ${pageHeight * .88}, 18 167, 110 32`;
     const outgoing = ` C 200 8, ${win.clientWidth * .5} ${pageHeight * .36}, ${win.clientWidth + 28} ${pageHeight * .58}`;
     // Pause precisely at the toggle, regardless of viewport or curve length.
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -150,7 +150,7 @@
     // Measure the resting toolbar bounds, not its animated slide position.
     // Treat its capsules and the gaps between them as one floating top bar.
     const area = toolbarRegion.getBoundingClientRect();
-    const rect = {left:area.left + 12,right:area.right - 12,top:area.top + 12,bottom:area.top + 48};
+    const rect = {left:area.left + 16,right:area.right - 16,top:area.top + 14,bottom:area.top + 50};
     if (toolbarRegion.hasAttribute('data-open') && !toolbarRegion.contains(document.activeElement) &&
         distanceFromPanel(panelPointer, rect) > panelDismissDistance) hideToolbar();
   }
