@@ -1,0 +1,218 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -86,6 +86,7 @@
+ #include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/navigation_entry.h"
+ #include "content/public/browser/web_contents.h"
++#import "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/hit_test.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/page_transition_types.h"
+@@ -198,7 +199,9 @@
+   [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
+ }
+ - (void)mouseMoved:(NSEvent*)event {
+-  [NSCursor.arrowCursor set];
++  NSCursor* resize = ui::GetWindowResizeCursor(
++      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++  [(resize ?: NSCursor.arrowCursor) set];
+ }
+ @end
+ 
+@@ -540,7 +543,10 @@
+ - (void)mouseMoved:(NSEvent*)event {
+   NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+   if (self.enabled && NSPointInRect(point, [self interactiveBounds])) {
+-    [NSCursor.arrowCursor set];
++    NSCursor* resize = ui::GetWindowResizeCursor(
++        self.window,
++        [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++    [(resize ?: NSCursor.arrowCursor) set];
+   }
+ }
+ - (BOOL)isFlipped {
+@@ -886,7 +892,9 @@
+   [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
+ }
+ - (void)mouseMoved:(NSEvent*)event {
+-  [NSCursor.arrowCursor set];
++  NSCursor* resize = ui::GetWindowResizeCursor(
++      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++  [(resize ?: NSCursor.arrowCursor) set];
+ }
+ - (void)mouseDown:(NSEvent*)event {
+   if (!_topPresented || self.hiddenOrHasHiddenAncestor) {
+--- a/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
++++ b/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
+@@ -25,6 +25,7 @@
+ #import "components/remote_cocoa/app_shim/window_touch_bar_delegate.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+ #include "ui/accessibility/platform/ax_platform_node.h"
++#import "ui/base/cocoa/cursor_utils.h"
+ #import "ui/base/cocoa/default_command_dispatcher_delegate.h"
+ #import "ui/base/cocoa/user_interface_item_command_handler.h"
+ #import "ui/base/cocoa/window_size_constants.h"
+@@ -914,28 +915,9 @@
+   // Full-size browser content overlaps AppKit's interior resize hit targets.
+   // Use the same native predicate as frame mouse-down routing, rather than a
+   // guessed inset, so the content cursor cannot replace a working resize cursor.
+-  const long long resize_direction =
+-      [self _resizeDirectionForMouseLocation:theEvent.locationInWindow];
+-  if (resize_direction >= 0 && resize_direction < 8) {
+-    if (@available(macOS 15, *)) {
+-      // AppKit numbers its eight native directions counterclockwise from the
+-      // right edge. Use its exact hit result with the public frame-cursor API.
+-      // Calling super here would consult the content's cursor rectangles again.
+-      static constexpr NSCursorFrameResizePosition positions[] = {
+-          NSCursorFrameResizePositionRight,
+-          NSCursorFrameResizePositionTopRight,
+-          NSCursorFrameResizePositionTop,
+-          NSCursorFrameResizePositionTopLeft,
+-          NSCursorFrameResizePositionLeft,
+-          NSCursorFrameResizePositionBottomLeft,
+-          NSCursorFrameResizePositionBottom,
+-          NSCursorFrameResizePositionBottomRight};
+-      [[NSCursor frameResizeCursorFromPosition:positions[resize_direction]
+-                                 inDirections:NSCursorFrameResizeDirectionsAll]
+-          set];
+-    } else {
+-      [super cursorUpdate:theEvent];
+-    }
++  if (NSCursor* resize =
++          ui::GetWindowResizeCursor(self, theEvent.locationInWindow)) {
++    [resize set];
+     return;
+   }
+   // The cursor provided by the delegate should only be applied within the
+--- a/components/remote_cocoa/app_shim/views_nswindow_delegate.mm
++++ b/components/remote_cocoa/app_shim/views_nswindow_delegate.mm
+@@ -15,6 +15,7 @@
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.h"
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_host_helper.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
++#import "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/gfx/geometry/resize_utils.h"
+ 
+@@ -106,7 +107,10 @@
+         break;
+       currentWindow = parentWindow;
+       if ([currentWindow isKeyWindow]) {
+-        [(newCursor ? newCursor : [NSCursor arrowCursor]) set];
++        NSCursor* resize = ui::GetWindowResizeCursor(
++            currentWindow,
++            [currentWindow convertPointFromScreen:NSEvent.mouseLocation]);
++        [(resize ?: newCursor ?: NSCursor.arrowCursor) set];
+         break;
+       }
+     }
+--- a/content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm
++++ b/content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm
+@@ -44,6 +44,7 @@
+ #include "ui/accessibility/platform/browser_accessibility_manager_mac.h"
+ #import "ui/base/clipboard/clipboard_util_mac.h"
+ #import "ui/base/cocoa/appkit_utils.h"
++#import "ui/base/cocoa/cursor_utils.h"
+ #import "ui/base/cocoa/menu_utils.h"
+ #import "ui/base/cocoa/nsmenu_additions.h"
+ #import "ui/base/cocoa/nsmenuitem_additions.h"
+@@ -1147,7 +1148,10 @@
+   // Because |updateCursor:| changes the current cursor, we have to reset it to
+   // the default cursor on mouse exit.
+   if (type == NSEventTypeMouseExited) {
+-    [[NSCursor arrowCursor] set];
++    NSCursor* resize = ui::GetWindowResizeCursor(
++        self.window,
++        [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++    [(resize ?: NSCursor.arrowCursor) set];
+   }
+ 
+   // In macOS immersive fullscreen, the browser UI is held in an AppKit-managed
+@@ -3044,6 +3048,12 @@
+   // location before setting the cursor. Also, do not set cursor if it's not a
+   // key window.
+   NSPoint location = [self.window convertPointFromScreen:NSEvent.mouseLocation];
++  // Full-size web content overlaps native resize targets. Do not mistake
++  // AppKit's resize arrow for a spurious cursor reset and restore the page's
++  // cursor on every mouse move or asynchronous renderer update.
++  if (ui::GetWindowResizeCursor(self.window, location)) {
++    return NO;
++  }
+   location = [self convertPoint:location fromView:nil];
+   if (![self mouse:location inRect:[self bounds]] ||
+       ![self isKeyTrackingWindowKey]) {
+--- a/ui/base/cocoa/cursor_utils.h
++++ b/ui/base/cocoa/cursor_utils.h
+@@ -8,7 +8,9 @@
+ #include "base/component_export.h"
+ 
+ #ifdef __OBJC__
++#import <Foundation/NSGeometry.h>
+ @class NSCursor;
++@class NSWindow;
+ #endif  // __OBJC__
+ 
+ namespace ui {
+@@ -18,6 +20,11 @@
+ #ifdef __OBJC__
+ COMPONENT_EXPORT(UI_BASE)
+ NSCursor* GetNativeCursor(const ui::Cursor& cursor);
++
++// Returns the standard frame cursor at AppKit's actual resize hit target, or
++// nil when the point is not resizable. The location is in window coordinates.
++COMPONENT_EXPORT(UI_BASE)
++NSCursor* GetWindowResizeCursor(NSWindow* window, NSPoint location);
+ #endif  // __OBJC__
+ 
+ }  // namespace ui
+--- a/ui/base/cocoa/cursor_utils.mm
++++ b/ui/base/cocoa/cursor_utils.mm
+@@ -16,6 +16,13 @@
+ #include "ui/gfx/geometry/size.h"
+ #include "ui/gfx/image/image.h"
+ 
++// Already used by Chromium's native frame mouse-down routing. Query the same
++// hit target rather than guessing a rectangular inset over edge-to-edge
++// content.
++@interface NSWindow (CrResizeCursor)
++- (long long)_resizeDirectionForMouseLocation:(NSPoint)location;
++@end
++
+ // Private interface to CoreCursor. See
+ // https://github.com/WebKit/WebKit/blob/main/Source/WebCore/PAL/pal/spi/mac/HIServicesSPI.h
+ //
+@@ -142,6 +149,34 @@
+ 
+ namespace ui {
+ 
++NSCursor* GetWindowResizeCursor(NSWindow* window, NSPoint location) {
++  if (!window || !(window.styleMask & NSWindowStyleMaskResizable) ||
++      (window.styleMask & NSWindowStyleMaskFullScreen)) {
++    return nil;
++  }
++  const long long direction =
++      [window _resizeDirectionForMouseLocation:location];
++  if (direction < 0 || direction >= 8) {
++    return nil;
++  }
++  // AppKit numbers directions counterclockwise from the right edge.
++  if (@available(macOS 15, *)) {
++    static constexpr NSCursorFrameResizePosition positions[] = {
++        NSCursorFrameResizePositionRight,
++        NSCursorFrameResizePositionTopRight,
++        NSCursorFrameResizePositionTop,
++        NSCursorFrameResizePositionTopLeft,
++        NSCursorFrameResizePositionLeft,
++        NSCursorFrameResizePositionBottomLeft,
++        NSCursorFrameResizePositionBottom,
++        NSCursorFrameResizePositionBottomRight};
++    return [NSCursor
++        frameResizeCursorFromPosition:positions[direction]
++                         inDirections:NSCursorFrameResizeDirectionsAll];
++  }
++  return nil;
++}
++
+ // Match Safari's cursor choices; see
+ // https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/mac/CursorMac.mm
+ NSCursor* GetNativeCursor(const ui::Cursor& cursor) {
