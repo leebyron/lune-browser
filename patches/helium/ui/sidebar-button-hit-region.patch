@@ -1,0 +1,38 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -329,6 +329,7 @@ NSAppearance* FloatingChromeAppearance(B
+ @property(nonatomic) NSRect addressBounds;
+ @property(nonatomic) NSRect navigationBounds;
+ @property(nonatomic) NSRect windowControlsBounds;
++@property(nonatomic) NSRect sidebarButtonBounds;
+ @end
+ @implementation HeliumGlassDragRegion {
+   BOOL _dragging;
+@@ -360,6 +361,7 @@ NSAppearance* FloatingChromeAppearance(B
+ @synthesize addressBounds = _addressBounds;
+ @synthesize navigationBounds = _navigationBounds;
+ @synthesize windowControlsBounds = _windowControlsBounds;
++@synthesize sidebarButtonBounds = _sidebarButtonBounds;
+ - (BOOL)isFlipped {
+   return YES;
+ }
+@@ -368,7 +370,8 @@ NSAppearance* FloatingChromeAppearance(B
+   if (!self.enabled || self.hidden || !NSPointInRect(local, self.bounds) ||
+       NSPointInRect(local, self.addressBounds) ||
+       NSPointInRect(local, self.navigationBounds) ||
+-      NSPointInRect(local, self.windowControlsBounds)) {
++      NSPointInRect(local, self.windowControlsBounds) ||
++      NSPointInRect(local, self.sidebarButtonBounds)) {
+     return nil;
+   }
+   return self;
+@@ -2247,6 +2250,9 @@ void BrowserFrameViewMac::UpdateFloating
+       : outer_inset + sidebar->width() - 44;
+   const int x = base::ClampRound(closed_x + (open_x - closed_x) * reveal);
+   button_host->SetBounds(x, 8 + TopUIFullscreenYOffset(), 36, 36);
++  // This host can precede the drag region in native z-order. Let physical
++  // clicks reach its NSButton instead of starting a window drag.
++  floating_drag_region_.sidebarButtonBounds = NSMakeRect(x, 8, 36, 36);
+   // Use the same effective scheme as the window pane and other glass surfaces.
+   floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   [floating_sidebar_button_ setPresented:top_presented || reveal > 0];
