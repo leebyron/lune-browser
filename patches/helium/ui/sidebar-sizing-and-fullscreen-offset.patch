@@ -1,0 +1,162 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view.h
+@@ -174,6 +174,8 @@ class BrowserFrameView : public views::F
+ 
+   // Native floating address surface. Other platforms retain their own toolbar.
+   virtual bool HasFloatingAddressBar() const { return false; }
++  // Shared offset for floating controls below the fullscreen menu bar.
++  virtual int GetFloatingChromeTopOffset() const { return 0; }
+   virtual bool FocusFloatingAddressBar() { return false; }
+   virtual void UpdateFloatingAddressBar() {}
+   virtual bool IsFloatingChromeDragging() const { return false; }
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -83,6 +83,7 @@ class BrowserFrameViewMac : public Brows
+   void SetCaptionButtonsOpacity(float opacity) override;
+   void UpdateHeliumFullscreenWindowControls() override;
+   bool HasFloatingAddressBar() const override;
++  int GetFloatingChromeTopOffset() const override;
+   bool FocusFloatingAddressBar() override;
+   void UpdateFloatingAddressBar() override;
+   bool IsFloatingChromeDragging() const override;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1808,6 +1808,10 @@ void BrowserFrameViewMac::PaintThemedFra
+   canvas->DrawImageInt(overlay, 0, 0);
+ }
+ 
++int BrowserFrameViewMac::GetFloatingChromeTopOffset() const {
++  return TopUIFullscreenYOffset();
++}
++
+ int BrowserFrameViewMac::TopUIFullscreenYOffset() const {
+   if (!GetBrowserView()->GetTabStripVisible() ||
+       !GetBrowserView()->IsFullscreen() ||
+@@ -2091,11 +2095,11 @@ void BrowserFrameViewMac::UpdateFloating
+       !view->IsVerticalTabStripRightAligned() && !presented && !side.IsEmpty()
+           ? side.x()
+           : 8;
+-  // Only controls contained in the left sidebar stay fixed below the menu.
+-  // Toolbar-owned controls follow the fullscreen menu bar's reveal offset.
+-  const bool in_sidebar = !view->IsVerticalTabStripRightAligned() &&
+-      (view->IsZenModeSideChromePinned() || view->GetSideChromeRevealRatio() > 0);
+-  const int y = in_sidebar ? 8 : 8 + TopUIFullscreenYOffset();
++  // Pinned-sidebar controls stay fixed. Popover and toolbar controls follow
++  // the fullscreen menu bar together.
++  const bool in_pinned_sidebar = !view->IsVerticalTabStripRightAligned() &&
++                                 view->IsZenModeSideChromePinned();
++  const int y = in_pinned_sidebar ? 8 : 8 + TopUIFullscreenYOffset();
+   host->SetBoundsRect(gfx::Rect(x, y, 96, 36));
+   floating_drag_region_.windowControlsBounds =
+       [floating_drag_region_ convertRect:floating_window_controls_.bounds
+@@ -2409,7 +2413,8 @@ void BrowserFrameViewMac::UpdateFloating
+     // parent window, rather than relying on delayed mouse-event pass-through.
+     // Native controls end at y=44 in browser coordinates. The detached
+     // surface itself starts at y=8; adding 46 to that clipped the first row.
+-    const int header_clearance = std::max(0, 46 - bounds.y());
++    const int header_clearance =
++        std::max(0, 46 + TopUIFullscreenYOffset() - bounds.y());
+     bounds.Inset(gfx::Insets::TLBR(header_clearance, right ? 5 : 0,
+                                  0, right ? 0 : 5));
+     // A child NSWindow is not clipped by its parent during the slide.
+@@ -2453,7 +2458,7 @@ void BrowserFrameViewMac::UpdateFloating
+   const int inset = detached ? 2 : 4;
+   const int x =
+       right ? sidebar_bounds.x() + inset : sidebar_bounds.right() - 36 - inset;
+-  button_host->SetBounds(x, 8, 36, 36);
++  button_host->SetBounds(x, detached ? sidebar_bounds.y() : 8, 36, 36);
+   floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   [floating_sidebar_button_ refreshEmbedded:YES];
+   const CGFloat visibility = sidebar_visible ? reveal : 0;
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2171,6 +2171,12 @@ bool BrowserView::IsLeavingZenSideGap(co
+ }
+ 
+ void BrowserView::UpdateZenModeRevealFromCursor() {
++  if (auto* controller = tabs::VerticalTabStripStateController::From(browser_);
++      controller && controller->IsResizing()) {
++    // Pointer capture may carry the resize drag outside the window. Keep the
++    // popover and its edge stable until the drag ends.
++    return;
++  }
+   if (auto* frame = GetFrameView()) {
+     frame->UpdateFloatingAddressBar();
+     if (frame->IsFloatingChromeDragging() ||
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -1118,7 +1118,12 @@ BrowserViewTabbedLayoutImpl::CalculatePr
+               ->browser_widget()
+               ->GetFrameView()
+               ->HasFloatingAddressBar()) {
+-        top_offset = zen.floating_vertical_tab_strip ? 0 : 8;
++        top_offset = zen.floating_vertical_tab_strip
++                         ? static_cast<BrowserView*>(views().browser_view)
++                               ->browser_widget()
++                               ->GetFrameView()
++                               ->GetFloatingChromeTopOffset()
++                         : 8;
+       }
+ #endif
+ 
+@@ -1132,6 +1137,12 @@ BrowserViewTabbedLayoutImpl::CalculatePr
+               zen.vertical_tab_strip_top_padding,
+           vertical_tab_strip_width, vertical_tab_strip_height};
+       if (zen.floating_vertical_tab_strip) {
++#if BUILDFLAG(IS_MAC)
++        // Narrow the popover at its inner edge without moving the outer inset.
++        vertical_tab_strip_bounds.Inset(
++            gfx::Insets::TLBR(0, vertical_right_aligned ? 2 : 0, 0,
++                              vertical_right_aligned ? 0 : 2));
++#endif
+         vertical_tab_strip_bounds = SlideBoundsFromSide(
+             vertical_tab_strip_bounds, params.visual_client_area,
+             zen.side_chrome_ratio, vertical_right_aligned);
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -597,10 +597,10 @@ void VerticalTabStripRegionView::Layout(
+   // layout.
+   const int resize_area_x = state_controller_->IsTabStripRightAligned()
+                                 ? 0
+-                                : bounds().right() - resize_area_width_;
++                                : width() - resize_area_width_;
+   resize_area_->SetBoundsRect(
+       gfx::Rect(resize_area_x, 0, resize_area_width_, bounds().height()));
+-  resize_area_->SetVisible(organizer_panel_show_percent_ == 0.0);
++  UpdateResizeAreaVisibility();
+   shadow_frame_->SetBoundsRect(GetLocalBounds());
+ 
+   // Ensure that we update the drop arrow position so that it does not render in
+@@ -850,7 +850,11 @@ void VerticalTabStripRegionView::OnResiz
+   CHECK(tab_strip_view());
+   tab_strip_view()->SetIsAnimatingSize(!done_resizing);
+   if (!starting_width_on_resize_.has_value()) {
+-    starting_width_on_resize_ = width();
++    // Detached bounds exclude the popover inset adjustment. Start from the
++    // stored logical width so repeated drags never accumulate that difference.
++    starting_width_on_resize_ = floating_style_ == FloatingStyle::kDetached
++                                    ? target_collapse_state_.uncollapsed_width
++                                    : width();
+     state_controller_->SetIsResizing(true);
+   }
+   bool previously_collapsed = target_collapse_state_.collapsed;
+@@ -1071,7 +1075,7 @@ void VerticalTabStripRegionView::UpdateI
+   if (browser && browser->IsZenModeEnabledForLayout() &&
+       browser->IsVerticalAddressBarInSidebar() &&
+       !browser->IsZenModeTopChromePinned()) {
+-    horizontal_padding = 2;
++    horizontal_padding = browser->IsZenModeSideChromePinned() ? 4 : 2;
+   }
+ #endif
+   interior_margin_ = gfx::Insets::TLBR(
+@@ -1104,7 +1108,9 @@ void VerticalTabStripRegionView::OnColla
+ }
+ 
+ void VerticalTabStripRegionView::UpdateResizeAreaVisibility() {
+-  if (floating_style_ != FloatingStyle::kNone) {
++  if (organizer_panel_show_percent_ != 0.0 ||
++      (floating_style_ != FloatingStyle::kNone &&
++       floating_style_ != FloatingStyle::kDetached)) {
+     resize_area_->SetVisible(false);
+     return;
+   }
