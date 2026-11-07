@@ -102,15 +102,24 @@ Input 19 derives traffic-light spacing from AppKit and compacts its container.
 Input 20 uses normal omnibox editing text, preserving an empty new-tab field.
 This is not in published builds 1 or 2 and is not release-accepted.
 
-The development input `inputs/edge-frame-2/macos` supersedes the earlier frame
+The development input `inputs/edge-frame-5/macos` supersedes the earlier frame
 geometry on macOS: a 16 pt native window perimeter, no content gutter, outline,
-or drop shadow, and a flush square glass popover sidebar. A separate 6 pt edge
+or drop shadow, and a flush square glass popover sidebar. A separate 8 pt edge
 interaction band reveals chrome while AppKit retains native resizing; fullscreen
-continues to reveal at the last screen pixel. The header region is 56 pt tall
+uses four physical top pixels and one side pixel for reveal. The header region
+is 56 pt tall
 with controls inset 8 pt. The obsolete macOS frame/gutter settings are hidden.
 Both architecture builds and smoke/default/settings checks pass (Intel via
 Rosetta); arm64 inspection confirms the full-window viewport and header inset.
-Owner resize-edge hover acceptance is pending.
+The owner accepted input-2 edge reveal. Input 3 aligns pin/unpin geometry, moves
+pinned contents with the fullscreen menu bar, shields the header through the top
+edge, adds a pinned-only semantic hairline, and delegates tab-list caption
+hit testing. Input 4 ignores input-disabled decorative views and routes
+pinned blank-space events through AppKit. The owner confirmed pinned-sidebar
+dragging and right-click menus work on input 4; fullscreen menu motion and
+pin/unpin geometry still await acceptance. Input 5 widens reveal to those 8/4/1
+thresholds and allows full-header dragging for presses not claimed by AppKit
+for resizing, eliminating the inert strip above the controls.
 See [edge-to-edge frame evidence](agent-docs/project/features/edge-to-edge-frame.md).
 This development revision is not in published builds 1 or 2.
 
