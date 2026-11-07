@@ -40,8 +40,9 @@ that unpins its sidebar during the minimal-UI section. The floating panel then
 slides away as the cursor leaves; hovering the left rail slides it back over the
 content. The pane snaps to width when pinning changes. Both floating panels
 dismiss beyond a 48px pointer-distance boundary; no cooldown timer remains.
-The glass toolbar appears over the top rail,
-with a default slide and a `?toolbar=fade` comparison. Browser screenshots remain
+The glass toolbar fades in from the top rail or either sidebar header, matching
+the native browser. The pinned sidebar uses the window material; its floating
+popover uses a CSS glass approximation with 8px insets and 18px corners. Browser screenshots remain
 placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
 architecture hints, otherwise offering both choices. Downloads remain disabled
 and labeled Coming soon pending validated public releases.

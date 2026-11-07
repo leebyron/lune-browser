@@ -26,7 +26,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - The browser shell follows the [mounted-left Figma design](https://www.figma.com/design/I39uQunZpu6LsS7mDjcGSh/Untitled?node-id=14-50):
   200px sidebar, compact system-font tabs/favorites, a 4px inset content pane,
   and floating glass toolbar groups. The site follows system appearance with
-  Chlorophyll Daylight and Pelagic Signal palettes and monochrome window controls. Below 540px, the sidebar floats over the content.
+  Chlorophyll Daylight and Pelagic Signal palettes and monochrome window controls. At widths of 700px or less, the complete browser UI renders at half scale,
+  preserving its sidebar, navigation and trailing controls. The page requests a
+  fixed viewport scale and restricts touch gestures to vertical panning; browsers
+  may still override viewport zoom restrictions for accessibility.
 - During “Just the page,” the sidebar starts pinned. A scroll-driven cursor
   enters from the screen’s left edge, curves into the header’s right-side toggle,
   and clicks to unpin it. The toggle is a bare glyph, including on hover. The content
@@ -51,43 +54,48 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   sliding sidebar and all glass groups, with a fixed resting position. They stay
   visible while either the sidebar or glass toolbar is visible; when both hide,
   they follow the last panel to leave and become inert: horizontally with the
-  sidebar (260ms), or with the toolbar’s slide/fade motion. When both are hidden,
+  sidebar (260ms), or with the toolbar’s 180ms fade. When both are hidden,
   the first panel revealed determines their entrance direction. The top rail
   reveals both together, and hovering or focusing the controls keeps them open.
-  The illustrated cursor clicks the mounted toggle position. The floating radius is 17px,
-  concentric with the 26px window radius across its 1px border and 8px inset.
+  The illustrated cursor clicks the mounted toggle position. The floating radius is 18px,
+  concentric with the 26px window radius across its 8px inset.
   The rail also supports keyboard focus and tapping; Escape or tapping content
   dismisses it. The toggle pins/unpins the panel; subsequent scrolling resumes
   the illustrated sequence. Reduced motion omits cursor and slide animations.
   This is an Arc-style interaction approximation, not a claim to reproduce its
   private animation constants; [Arc documents the sidebar toggle](https://start.arc.net/find-focus).
-- The glass address toolbar starts hidden. A 4px top rail reveals it; the full
-  52px top area, including gaps and all three capsules, holds it open. It dismisses
-  once the pointer is more than 48px from the bar's resting outer rectangle;
+- The glass address toolbar starts hidden. A 4px top rail or the first 44px of either
+  visible sidebar reveals it. Once open, the entire window-width header strip
+  retains it until the pointer moves more than 48px below the glass;
   there is no timer. Glass groups sit 8px from the top and right window edges
-  and 8px beyond the floating sidebar. With the sidebar mounted, the navigation
-  group sits 4px inside the content pane and uses a concentric 17px radius. Their width reserves space for either a pinned or visible
+  and 12px beyond the floating sidebar. With the sidebar mounted, the navigation
+  group sits 4px inside the content pane and uses a concentric 18px radius. Their width reserves space for either a pinned or visible
   floating sidebar, independently of the content pane. Its available width
   animates with the sidebar using the same 260ms easing in both directions,
   keeping a gap between the panels throughout the slide. A hidden sidebar still leaves room for the fixed
   window controls. Reenter the rail to reveal it again. Keyboard focus holds it open,
   the rail supports tapping, and Escape/outside taps dismiss it. Closing the
   illustrated app, changing tabs, or deactivating the browser resets it.
-- The default toolbar motion slides down from above in 220ms and back up in
-  180ms, with a subtle 120ms fade and no bounce. `?toolbar=fade` uses only a
-  120ms fade; `?toolbar=slide` explicitly selects the default. Reduced Motion
-  removes translation. Both variants interrupt/reverse immediately on reentry.
-  These timings are our choices informed by [Apple's motion HIG](https://developer.apple.com/design/human-interface-guidelines/motion),
-  which calls for brief, precise, interruptible motion and consistent entry/exit
-  directions, not a prescribed toolbar duration. The rail and centered 480×36px
-  address capsule follow the native browser prototype; the site's distance-based
-  dismissal supersedes that prototype's earlier cooldown. The address is a
-  read-only illustration, while navigation/extension glyphs remain decorative.
+- All three header glass groups fade in and out together over 180ms, with no
+  vertical movement, matching the native build. The old slide/fade query-string
+  comparison is retired. Window controls still follow the sidebar horizontally
+  when it is the first surface to enter or the last to leave. Hovering the window
+  controls also reveals the collapsed sidebar and header. Reduced Motion removes
+  sidebar translation. The address remains a read-only illustration.
+- The pinned sidebar shares the painted window material. The detached popover
+  uses translucent, blurred glass with a softer shadow and neutral selection/text
+  colors, approximating the native NSGlassEffectView in CSS. Its inset is 8px;
+  the bare 36×36px toggle has a 4px trailing inset when pinned and 2px when floating.
+  The toggle center stays at y=26px; tab rows retain their vertical positions.
+  Navigation is 76×36px, all glass groups are 36px tall, and the address is centered
+  in the available space between navigation and trailing controls (maximum 480px).
+  These dimensions and interactions were checked against the browser build thread
+  and its native source on 2026-11-06; CSS glass is an approximation of AppKit.
 - Mounting/unmounting snaps the content pane width at the click, without a layout
-  tween. The content pane has a 21px radius, concentric with the 26px
-  outer window across its 1px border and 4px inset. Native Safari and Photos
+  tween. The content pane has a 22px radius, concentric with the 26px
+  outer window across its 4px inset. Native Safari and Photos
   windows informed the larger radius and inset top row; these are CSS
-  approximations of AppKit geometry. The window uses one subtle hairline and a soft shadow; the content pane
+  approximations of AppKit geometry. The window uses a non-layout inset hairline and a soft shadow; the content pane
   shadow is horizontally symmetric, offset 1px downward with a 4px blur and
   restrained opacity in each appearance.
 - The content keeps a stable reading width while the pane expands, preventing
