@@ -112,6 +112,17 @@ under `inputs/day-night-2/macos`. Website and app validation is recorded in
 [day/night branding](agent-docs/project/features/day-night-branding.md).
 These assets are not in published builds 1 or 2.
 
+The development Command-T palette uses native AppKit glass, text input and result
+buttons under `inputs/command-bar-3/macos`. Direct URL
+navigation ranks first; default search remains within the first two results.
+Helium bang keywords and partial completion use the existing catalogue. The resolved
+provider name is an inline pill. Escape leaves the scope; Backspace at the start
+of the query restores the editable bang text. The scoped input has no generated
+placeholder or instructional helper text. The panel shows five results with
+native scrolling; keyboard selection keeps its result in view.
+See [command palette evidence](agent-docs/project/features/command-bar.md).
+This prototype is not in a published browser build or release-accepted.
+
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
 never downgrade Chromium to satisfy optional UI patches. Discovery reports stable lag.
