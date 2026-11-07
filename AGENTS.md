@@ -161,13 +161,15 @@ same 2 pt row spacing; pinned tiles use fills and 6 pt spacing shared with the
 New Tab section gap. See [sidebar evidence](agent-docs/project/features/sidebar-new-tab.md)
 for build and runtime validation. This is not in published builds 1 or 2.
 
-The development input `inputs/sidebar-footer-3/macos` adds a compact sidebar
+The development input `inputs/sidebar-footer-4/macos` adds a compact sidebar
 footer for the default-browser prompt and downloaded Sparkle updates. The default
 row reads “Make default browser”; its close control and sidebar tab close controls
 appear on hover, with native SF Symbols and targets 6 pt larger than the original
 tab control. Row side margins are 1 pt narrower and icon left insets 2 pt larger.
 The footer bottom inset is 5 pt. New Tab has no hover tooltip. Navigation beside
-the traffic lights and the right sidebar toggle each gain 4 pt of clearance.
+the traffic lights gains 4 pt of clearance; the right sidebar toggle is inset 9 pt.
+Close symbols are horizontally centered. The default row keeps its height on hover
+and fades its label like a tab title.
 Other infobars retain their existing placement. See
 [sidebar footer evidence](agent-docs/project/features/sidebar-footer.md)
 for implementation and validation limits. This is not in published builds 1 or 2.

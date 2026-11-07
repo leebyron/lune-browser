@@ -28,8 +28,12 @@ its accessible name.
 The navigation pill has 8 pt clearance after the traffic-light container (up
 from 4 pt) whenever they are adjacent: with a right sidebar or an unpinned,
 collapsed left sidebar. A revealed left sidebar continues to determine the
-navigation position. The right sidebar toggle is inset 8 pt rather than 4 pt,
-moving it 4 pt to the right.
+navigation position. The right sidebar toggle is inset 9 pt rather than 4 pt,
+including the final additional 1 pt rightward adjustment.
+
+The default row keeps the same tab-height bounds when its close button appears;
+only the action width changes. Overflowing default-browser text fades at the
+trailing edge using the same `FADE_TAIL` behavior as a browser tab title.
 
 The footer occupies only its preferred height; extra space goes to the tabs.
 When both actions are present, the update row appears above the default prompt.
@@ -64,15 +68,17 @@ independent target sizing, tooltip suppression, footer inset and chrome spacing
 refinements. The macOS image conversion preserves supported display scales and
 uses the existing semantic foreground color.
 
-The first local preview exposed an unbounded cross-axis flex rule that stretched
-the default button vertically. The revised row permits only horizontal growth,
-uses the surrounding tab density, and removes the additional rejection button.
+`helium/ui/sidebar-footer-hover-geometry.patch` explicitly centers the sidebar
+close image horizontally; `SetImageCentered` alone only controlled vertical
+alignment. It replaces the default row's flex sizing with fixed-height layout so
+the larger close target cannot change its preferred height on hover. It also
+uses tab-title fading and applies the final right-toggle inset.
 
 ## Development input
 
-The platform input is retained under `inputs/sidebar-footer-3/macos`, commit
-`ce68c4197417edd5f54c64c30d453a17d4e7c111`. It follows `inputs/edge-frame-17/macos`.
-The core input remains `inputs/floating-address-2/helium`. All three patches were
+The platform input is retained under `inputs/sidebar-footer-4/macos`, commit
+`7ffa2cc196acdae12dd8090ac89f7170c60bb829`. It follows `inputs/edge-frame-17/macos`.
+The core input remains `inputs/floating-address-2/helium`. All four patches were
 written in the prepared source tree, refreshed with quilt, strictly replayed and
 unmerged into the platform repository before committing. The lock and patch
 manifest retain the exact commit, tree and patch hashes.
@@ -81,7 +87,7 @@ manifest retain the exact commit, tree and patch hashes.
 
 Evidence is under `.work/sidebar-footer/`:
 
-- Strict canonical replay reproduces all 26 touched files across 95 relevant
+- Strict canonical replay reproduces all 26 touched files across 96 relevant
   patches with zero fuzz, including the existing GRIT-aware name substitution.
 - Five GN header dependency checks pass, along with all 44 repository tests,
   component patch/i18n checks and locked Git-object validation.
@@ -97,16 +103,24 @@ pass. Intel smoke/defaults/settings/artwork checks pass under Rosetta. Earlier
 native interaction evidence in `final/` covers the compact two-row stack, shared
 footer hover surface, hidden resting close controls and detached footer actions.
 
-The final SF Symbol refinement is captured under `symbols/`. Native arm64 checks
+The initial SF Symbol refinement is captured under `symbols/`. Native arm64 checks
 confirm the smaller `xmark` on a selected tab, the right sidebar toggle inset and
 the matching traffic-light/navigation gap in both the right-mounted and unpinned,
 collapsed-left layouts. New Tab retains its accessible name; tooltip suppression
 is verified in source. The footer bottom inset and target dimensions are also
-verified in source. The preview is left on the left side, unpinned, for review.
+verified in source.
 Owner design acceptance remains separate from these checks. The previous
 simulated update was cleared before launching this preview.
 
-These are incremental
-development builds, not fresh release preparation. Native Intel hardware,
+The geometry correction is retained in `geometry/`. Native screenshots confirm
+the resting footer and corrected horizontal close-icon position. Hover no longer
+participates in preferred-height calculation, and the default label uses the same
+fade enum as tab titles; these two fixes are verified in source. Native automation
+did not reliably produce footer hover, so a before/after hover screenshot is not
+claimed. The current preview is left pinned on the left for review. Both updated
+architecture builds and smoke checks pass (Intel under Rosetta), and the two
+affected GN target checks, component checks and lock validation pass.
+
+These are incremental development builds, not fresh release preparation. Native Intel hardware,
 real installed updates with this input, and the full horizontal/collapsed/split
 interaction matrix remain unaccepted. No release or deployment was performed.
