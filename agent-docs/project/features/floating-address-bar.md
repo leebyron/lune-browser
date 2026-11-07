@@ -393,10 +393,49 @@ Local evidence: `.work/floating-address/toolbar-panel-validation.json`,
 `toolbar-panel-smoke-{arm64,intel}.json`, `toolbar-panel-check/shutdown.json`, and
 `revision-replay.json`.
 
+## Sidebar sizing and fullscreen offset follow-up
+
+Inputs 15–16 add 2 pt to each horizontal margin around pinned tabs (4 pt
+region padding per side), keeping the popover's existing 2 pt padding. The
+popover is 2 pt narrower at its inner edge; its outer 8 pt inset is unchanged.
+Its 5 pt inner resize band uses Chromium's standard horizontal resize cursor
+and drag handling on either side. Local hit coordinates replace parent-relative
+coordinates, and detached style no longer disables the handle. Resize starts
+from the logical stored width so repeated drags do not accumulate the visual
+2 pt reduction. Cursor-based dismissal pauses during a resize drag.
+
+In fullscreen, the detached sidebar uses the same menu-bar reveal offset as
+the floating toolbar. Material, tabs, toggle, and left traffic lights move
+together. Its bottom inset stays fixed as the top moves. Pinned sidebar
+controls remain stationary. The child controls window preserves the header
+clearance and exposed resize band after the offset changes.
+
+A separate build-only patch adds missing direct GN dependencies uncovered by
+the broader frame-target header check. These declarations do not change UI
+behavior.
+
+Validation: both architecture builds, strict no-fuzz replay (85 relevant
+patches, 41 final files matching prepared source), all frame-target GN header
+checks on both architectures, component lint, locked inputs, and all 44
+repository tests pass. Arm64 and Intel-under-Rosetta smoke/default/settings
+checks pass.
+
+Native arm64 inspection confirms the increased pinned-tab margins and the
+resize handle exposed in the detached sidebar's accessibility tree. The
+accessibility resize action timed out in native automation, so actual
+left/right pointer resizing and width persistence remain manual acceptance
+items. Fullscreen popover/menu-bar synchronization is source-verified and
+still needs pointer acceptance. The inspected preview exited cleanly.
+
+Local evidence: `.work/floating-address/sidebar-sizing-validation.json`,
+`sidebar-sizing-smoke-{arm64,intel}.json`,
+`sidebar-sizing-gn-{Default,Intel}.log`,
+`sidebar-sizing-check/shutdown.json`, and `revision-replay.json`.
+
 ## Pinned inputs
 
-- Platform commit: `aa978530ef66f3009b53a7e46ea7d135c2b2c87d`.
-- Platform tag: `inputs/floating-address-14/macos`.
+- Platform commit: `71cb42086d33308c04ec4a36bd37eecefb2f1e63`.
+- Platform tag: `inputs/floating-address-16/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and
