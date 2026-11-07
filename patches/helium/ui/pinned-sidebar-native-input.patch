@@ -1,0 +1,136 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -37,6 +37,7 @@
+ @class HeliumGlassSidebarButton;
+ @class HeliumGlassCloseButton;
+ @class HeliumSidebarDivider;
++@class HeliumPinnedSidebarInput;
+ 
+ namespace views {
+ class NativeViewHost;
+@@ -163,6 +164,8 @@
+   views::ViewTracker floating_drag_host_;
+   views::ViewTracker floating_toolbar_owner_;
+   views::ViewTracker floating_toolbar_material_host_;
++  views::ViewTracker pinned_sidebar_input_host_;
++  HeliumPinnedSidebarInput* __strong pinned_sidebar_input_ = nil;
+   views::ViewTracker pinned_sidebar_divider_host_;
+   HeliumSidebarDivider* __strong pinned_sidebar_divider_ = nil;
+   views::ViewTracker floating_sidebar_material_host_;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -587,6 +587,48 @@
+ }
+ @end
+ 
++// AppKit's default caption dispatch bypasses Views on a full-size content
++// window. Route only the pinned sidebar's blank background through the same
++// native drag/menu path as the floating header; real tab controls pass through.
++@interface HeliumPinnedSidebarInput : HeliumGlassDragRegion
++@end
++@implementation HeliumPinnedSidebarInput {
++  base::WeakPtr<BrowserView> _sidebarBrowser;
++}
++- (instancetype)initWithBrowserView:(BrowserView*)view {
++  self = [super initWithBrowserView:view];
++  if (self) {
++    _sidebarBrowser = view->GetAsWeakPtr();
++    self.enabled = YES;
++  }
++  return self;
++}
++- (NSRect)interactiveBounds {
++  // The host already excludes the window perimeter and sidebar resize handle.
++  return self.bounds;
++}
++- (void)resetCursorRects {
++  // Registering the entire rectangle would override cursors on tab controls.
++}
++- (NSView*)hitTest:(NSPoint)point {
++  const NSPoint local = [self convertPoint:point fromView:self.superview];
++  if (!self.enabled || self.hidden || !_sidebarBrowser ||
++      !NSPointInRect(local, self.bounds) ||
++      NSApp.currentEvent.type == NSEventTypeScrollWheel) {
++    return nil;
++  }
++  auto* sidebar = static_cast<VerticalTabStripRegionView*>(
++      _sidebarBrowser->GetSidebarView());
++  if (!sidebar || !_sidebarBrowser->IsZenModeSideChromePinned()) {
++    return nil;
++  }
++  gfx::Point position = gfx::ScreenPointFromNSPoint(
++      [self.window convertPointToScreen:[self convertPoint:local toView:nil]]);
++  views::View::ConvertPointFromScreen(sidebar, &position);
++  return sidebar->IsPositionInWindowCaption(position) ? self : nil;
++}
++@end
++
+ namespace {
+ // The transparent child window hosts existing tab controls. Unhandled blank
+ // space must still behave like the original browser sidebar, on either side.
+@@ -1356,6 +1398,10 @@
+     static_cast<views::NativeViewHost*>(host)->Detach();
+   }
+   pinned_sidebar_divider_ = nil;
++  if (auto* host = pinned_sidebar_input_host_.view()) {
++    static_cast<views::NativeViewHost*>(host)->Detach();
++  }
++  pinned_sidebar_input_ = nil;
+   // Closing the window needs no titlebar restoration. AppKit can query the
+   // already-destroyed widget delegate if button visibility changes here.
+   if (auto* host = floating_window_controls_host_.view()) {
+@@ -1729,7 +1775,7 @@
+ int BrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
+   for (auto* host :
+        {floating_navigation_host_.view(), floating_drag_host_.view(),
+-        floating_sidebar_button_host_.view(),
++        pinned_sidebar_input_host_.view(), floating_sidebar_button_host_.view(),
+         floating_customize_close_host_.view()}) {
+     if (host && host->IsDrawn() &&
+         views::View::ConvertRectToTarget(host, this, host->GetLocalBounds())
+@@ -2489,7 +2535,8 @@
+ }
+ 
+ bool BrowserFrameViewMac::IsFloatingChromeDragging() const {
+-  return floating_drag_region_.dragging || floating_window_controls_.dragging;
++  return floating_drag_region_.dragging || floating_window_controls_.dragging ||
++         pinned_sidebar_input_.dragging;
+ }
+ 
+ void BrowserFrameViewMac::UpdateFloatingSidebar(bool top_presented) {
+@@ -2497,6 +2544,11 @@
+   auto* sidebar =
+       static_cast<VerticalTabStripRegionView*>(view->GetSidebarView());
+   const bool eligible = HasFloatingAddressBar() && sidebar;
++  auto* input =
++      static_cast<views::NativeViewHost*>(pinned_sidebar_input_host_.view());
++  if (input) {
++    input->SetVisible(eligible && view->IsZenModeSideChromePinned());
++  }
+   auto* divider =
+       static_cast<views::NativeViewHost*>(pinned_sidebar_divider_host_.view());
+   if (divider) {
+@@ -2519,6 +2571,23 @@
+   const bool detached = !view->IsZenModeSideChromePinned();
+   const bool right = view->IsVerticalTabStripRightAligned();
+   if (!detached) {
++    if (!input) {
++      input = view->AddChildView(std::make_unique<views::NativeViewHost>());
++      pinned_sidebar_input_host_.SetView(input);
++      pinned_sidebar_input_ =
++          [[HeliumPinnedSidebarInput alloc] initWithBrowserView:view];
++      input->Attach(gfx::NativeView(pinned_sidebar_input_));
++    }
++    gfx::Rect input_bounds = views::View::ConvertRectToTarget(
++        sidebar, view, sidebar->GetLocalBounds());
++    const int outer_resize = view->IsFullscreen() ? 0 : 6;
++    const int header =
++        std::max(0, 56 + TopUIFullscreenYOffset() - input_bounds.y());
++    input_bounds.Inset(gfx::Insets::TLBR(header, right ? 5 : outer_resize,
++                                         outer_resize,
++                                         right ? outer_resize : 5));
++    input->SetBoundsRect(input_bounds);
++    input->SetVisible(true);
+     if (!divider) {
+       divider = view->AddChildView(std::make_unique<views::NativeViewHost>());
+       divider->SetCanProcessEventsWithinSubtree(false);
