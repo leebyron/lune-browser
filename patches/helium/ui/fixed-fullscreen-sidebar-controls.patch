@@ -1,0 +1,36 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1953,7 +1953,8 @@ void BrowserFrameViewMac::UpdateFloating
+   }
+   const gfx::Rect side = view->GetFloatingSidebarBounds();
+   const int x = !presented && !side.IsEmpty() ? side.x() : 8;
+-  host->SetBoundsRect(gfx::Rect(x, 8 + TopUIFullscreenYOffset(), 96, 36));
++  // Sidebar chrome stays fixed when the system menu bar overlays fullscreen.
++  host->SetBoundsRect(gfx::Rect(x, 8, 96, 36));
+   floating_window_controls_.appearance = FloatingChromeAppearance(GetBrowserView());
+   [floating_window_controls_ refresh];
+   // Move the host with the surface, avoiding clipping translated buttons
+@@ -2070,7 +2071,8 @@ void BrowserFrameViewMac::UpdateFloating
+     drag->SetBoundsRect(
+         gfx::Rect(0, region.y() - 8, view->width(), 52));
+     floating_drag_region_.navigationBounds = NSMakeRect(region.x(), 8, 76, 36);
+-    floating_drag_region_.windowControlsBounds = NSMakeRect(8, 8, 96, 36);
++    floating_drag_region_.windowControlsBounds =
++        NSMakeRect(8, 8 - TopUIFullscreenYOffset(), 96, 36);
+     // Address bounds are updated after its editor and popup have laid out.
+   }
+   if (!floating_toolbar_widget_) {
+@@ -2261,10 +2263,11 @@ void BrowserFrameViewMac::UpdateFloating
+       ? view->width() - outer_inset - sidebar->width() + 8
+       : outer_inset + sidebar->width() - 44;
+   const int x = base::ClampRound(closed_x + (open_x - closed_x) * reveal);
+-  button_host->SetBounds(x, 8 + TopUIFullscreenYOffset(), 36, 36);
++  button_host->SetBounds(x, 8, 36, 36);
+   // This host can precede the drag region in native z-order. Let physical
+   // clicks reach its NSButton instead of starting a window drag.
+-  floating_drag_region_.sidebarButtonBounds = NSMakeRect(x, 8, 36, 36);
++  floating_drag_region_.sidebarButtonBounds =
++      NSMakeRect(x, 8 - TopUIFullscreenYOffset(), 36, 36);
+   // Use the same effective scheme as the window pane and other glass surfaces.
+   floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   [floating_sidebar_button_ setPresented:top_presented || reveal > 0];
