@@ -179,3 +179,25 @@
      if (!divider) {
        divider = view->AddChildView(std::make_unique<views::NativeViewHost>());
        divider->SetCanProcessEventsWithinSubtree(false);
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -368,12 +368,17 @@
+ 
+   // For any of the other children, absorb the click as non window caption.
+   for (views::View* child : children()) {
+-    if (!child->GetVisible() || child == floating_content_placeholder_) {
++    // Decorative views (notably the full-size shadow frame) must not turn
++    // otherwise empty sidebar space into an interactive control.
++    if (!child->GetVisible() || !child->GetCanProcessEventsWithinSubtree() ||
++        child == floating_content_placeholder_) {
+       continue;
+     }
+     if (child == content_area_view_) {
+       for (views::View* grandchild : child->children()) {
+-        if (grandchild->GetVisible() && IsHitInView(grandchild, point)) {
++        if (grandchild->GetVisible() &&
++            grandchild->GetCanProcessEventsWithinSubtree() &&
++            IsHitInView(grandchild, point)) {
+           return false;
+         }
+       }
