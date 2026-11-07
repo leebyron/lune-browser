@@ -1,0 +1,16 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -179,6 +179,13 @@ NSAppearance* FloatingChromeAppearance(B
+   _material.alphaValue = 0;
+   return self;
+ }
++- (void)setAppearance:(NSAppearance*)appearance {
++  [super setAppearance:appearance];
++  // Keep the material and its content on the profile's explicit scheme even
++  // when AppKit updates their enclosing native host from the system theme.
++  _material.appearance = appearance;
++  _controls.appearance = appearance;
++}
+ - (void)setRevealFraction:(CGFloat)fraction {
+   ++_presentationGeneration;
+   [_material.layer removeAllAnimations];
