@@ -485,10 +485,19 @@ Input 18 removes the 4 pt inner-edge reduction introduced by inputs 15 and 17.
 Pinned and detached layouts again share the same logical sidebar width; the
 8 pt outer inset, tab padding, and resize handle are preserved.
 
+## Native traffic-light spacing
+
+Input 19 uses the original AppKit window buttons to derive center spacing.
+An offscreen native probe on this Mac reports 14 pt button frames and 23 pt
+center spacing. The floating group is now 82 pt wide rather than 96 pt, with
+matching hit bounds and toolbar clearance. The first center remains 26 pt
+from the outer corner. Native button dimensions and hover behavior are retained.
+A production-helper AppKit test confirms native spacing and container geometry.
+
 ## Pinned inputs
 
-- Platform commit: `9fba42b3f57185340903a66e8605c8792574cbfb`.
-- Platform tag: `inputs/floating-address-18/macos`.
+- Platform commit: `707d2942e8279083c4624db4da27ec99e703b57d`.
+- Platform tag: `inputs/floating-address-19/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and
