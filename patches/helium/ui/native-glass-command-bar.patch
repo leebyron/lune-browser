@@ -1,0 +1,887 @@
+--- a/chrome/browser/ui/helium/BUILD.gn
++++ b/chrome/browser/ui/helium/BUILD.gn
+@@ -71,10 +71,16 @@
+     "helium_command_bar_controller.h",
+     "helium_command_bar_model.cc",
+     "helium_command_bar_model.h",
+-    "helium_command_bar_view.cc",
+     "helium_command_bar_view.h",
+   ]
+ 
++  if (is_mac) {
++    sources += [ "helium_command_bar_view_mac.mm" ]
++    frameworks = [ "AppKit.framework", "QuartzCore.framework" ]
++  } else {
++    sources += [ "helium_command_bar_view.cc" ]
++  }
++
+   public_deps = [
+     "//base",
+     "//chrome/browser/ui/browser_window",
+@@ -83,6 +89,11 @@
+ 
+   deps = [
+     "//chrome/app/vector_icons",
++    "//chrome/browser/autocomplete",
++    "//components/omnibox/browser",
++    "//chrome/browser/profiles",
++    "//chrome/browser/themes",
++    "//ui/native_theme",
+     "//chrome/browser/bookmarks",
+     "//chrome/browser/favicon",
+     "//chrome/browser/history",
+--- a/chrome/browser/ui/helium/helium_command_bar_controller.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_controller.cc
+@@ -7,6 +7,7 @@
+ #include <algorithm>
+ 
+ #include "base/functional/bind.h"
++#include "base/strings/string_util.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/task/sequenced_task_runner.h"
+ #include "chrome/browser/bookmarks/bookmark_model_factory.h"
+@@ -27,6 +28,7 @@
+ #include "components/history/core/browser/history_service.h"
+ #include "components/keyed_service/core/service_access_type.h"
+ #include "components/prefs/pref_service.h"
++#include "components/search_engines/template_url.h"
+ #include "components/search_engines/template_url_service.h"
+ #include "content/public/browser/web_contents.h"
+ #include "ui/base/accelerators/accelerator_manager.h"
+@@ -119,10 +121,29 @@
+                           weak_factory_.GetWeakPtr()));
+   widget_ = view->GetWidget();
+   view_ = view;
++  // A newly created view must receive rows even when the last invocation had
++  // the same query. Watch catalogue loading and search-engine preference
++  // changes.
++  items_.clear();
++  if (auto* service =
++          TemplateURLServiceFactory::GetForProfile(browser_->GetProfile())) {
++    template_observation_.Observe(service);
++    service->Load();
++  }
+   // Populate from the initial query (empty for Cmd+T, page URL for Cmd+L).
+   OnQueryChanged(initial_query);
+ }
+ 
++void HeliumCommandBarController::OnTemplateURLServiceChanged() {
++  if (view_) {
++    PushItems(CollectResults(last_query_, &last_history_rows_));
++  }
++}
++
++void HeliumCommandBarController::OnTemplateURLServiceShuttingDown() {
++  template_observation_.Reset();
++}
++
+ void HeliumCommandBarController::Hide() {
+   if (!widget_) {
+     return;
+@@ -220,7 +241,7 @@
+   // trip it.
+   if (scope_keyword_.empty() && !query.empty() && query.back() == u' ') {
+     if (auto split = helium_command_bar_model::SplitKeyword(query, false);
+-        split && !split->keyword.empty()) {
++        split && !split->keyword.empty() && !split->has_remainder) {
+       TemplateURLService* template_urls =
+           TemplateURLServiceFactory::GetForProfile(browser_->GetProfile());
+       if (helium_command_bar_model::EngineOwnsKeyword(template_urls,
+@@ -443,6 +464,21 @@
+       if (auto hint = SiteSearchHintForQuery(template_urls, split->keyword,
+                                              split->remainder)) {
+         items.push_back(std::move(*hint));
++      } else if (template_urls && split->keyword.starts_with("!") &&
++                 !split->has_remainder) {
++        TemplateURLService::TemplateURLVector matches;
++        template_urls->AddMatchingKeywords(
++            base::ToLowerASCII(base::UTF8ToUTF16(split->keyword)), true,
++            &matches);
++        for (const auto& provider : matches) {
++          if (auto completion = SiteSearchHintForQuery(
++                  template_urls, base::UTF16ToUTF8(provider->keyword()), u"")) {
++            items.push_back(std::move(*completion));
++            if (items.size() >= kMaxResults + 1) {
++              break;
++            }
++          }
++        }
+       } else if (split->keyword == "tab" &&
+                  !EngineOwnsKeyword(template_urls, "tab")) {
+         items.push_back(TabsScopeHint(split->remainder));
+@@ -450,34 +486,12 @@
+     }
+   }
+   SortAndCap(items);
+-  // The exact-URL row is the primary "open it" action for URL-looking
+-  // input: pin it directly under any scope hint instead of letting history
+-  // bury it at the bottom. Only exact URLs (kUrl) move; searches stay put.
+-  const auto url_it =
+-      std::ranges::find_if(items, [](const HeliumCommandBarItem& item) {
+-        return item.type == HeliumCommandBarItem::Type::kUrl;
+-      });
+-  if (url_it != items.end()) {
+-    const auto hint_it =
+-        std::ranges::find_if(items, [](const HeliumCommandBarItem& item) {
+-          return item.type == HeliumCommandBarItem::Type::kSiteSearch;
+-        });
+-    if (hint_it != items.end() && hint_it < url_it) {
+-      std::rotate(hint_it + 1, url_it, url_it + 1);
+-    }
+-  }
+   return items;
+ }
+ 
+ std::u16string HeliumCommandBarController::ScopeRemainder(
+     const std::u16string& query) const {
+-  auto split = helium_command_bar_model::SplitKeyword(query, false);
+-  if (!split || split->keyword != scope_keyword_) {
+-    // Scope entered another way, or the prefix was edited away: match on the
+-    // whole query rather than going blank.
+-    return query;
+-  }
+-  return split->remainder;
++  return query;
+ }
+ 
+ void HeliumCommandBarController::OnFavicon(
+--- a/chrome/browser/ui/helium/helium_command_bar_controller.h
++++ b/chrome/browser/ui/helium/helium_command_bar_controller.h
+@@ -14,10 +14,13 @@
+ #include "base/functional/callback_forward.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/weak_ptr.h"
++#include "base/scoped_observation.h"
+ #include "base/task/cancelable_task_tracker.h"
+ #include "chrome/browser/ui/helium/helium_command_bar_model.h"
+ #include "components/favicon_base/favicon_types.h"
+ #include "components/history/core/browser/history_types.h"
++#include "components/search_engines/template_url_service.h"
++#include "components/search_engines/template_url_service_observer.h"
+ #include "ui/base/accelerators/accelerator.h"
+ #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+ #include "ui/gfx/image/image.h"
+@@ -53,7 +56,8 @@
+ // while the pref is on. Menu clicks and other invocations still execute
+ // IDC_NEW_TAB / IDC_FOCUS_LOCATION normally.
+ class HeliumCommandBarController : public ui::AcceleratorTarget,
+-                                   public views::FocusChangeListener {
++                                   public views::FocusChangeListener,
++                                   public TemplateURLServiceObserver {
+  public:
+   DECLARE_USER_DATA(HeliumCommandBarController);
+ 
+@@ -105,19 +109,25 @@
+   void OnFocusManagerDestroying(views::FocusManager* focus_manager) override;
+ 
+  private:
++  void OnTemplateURLServiceChanged() override;
++  void OnTemplateURLServiceShuttingDown() override;
++
+   void OnWidgetClosed() {
+     widget_ = nullptr;
+     view_ = nullptr;
+     // Same per-invocation rule as Hide(): a focus-loss close must not leak
+     // the scope into the next opening either.
+     scope_keyword_.clear();
++    template_observation_.Reset();
++    history_tracker_.TryCancelAll();
++    ++history_seq_;
+   }
+   // Builds the result list for |query| from the synchronous sources plus
+   // |history_rows| when present. Honors the active scope.
+   std::vector<HeliumCommandBarItem> CollectResults(
+       const std::u16string& query,
+       const history::QueryResults* history_rows);
+-  // Remainder after the scope keyword ("gh foo" in scope "gh" -> "foo").
++  // Scope entry removes the keyword; subsequent text is all search terms.
+   std::u16string ScopeRemainder(const std::u16string& query) const;
+   void OnHistoryResults(int seq,
+                         const std::u16string& query,
+@@ -132,6 +142,8 @@
+   void OnFavicon(int seq, size_t index, const std::string& url_spec,
+                  const favicon_base::FaviconImageResult& result);
+ 
++  base::ScopedObservation<TemplateURLService, TemplateURLServiceObserver>
++      template_observation_{this};
+   raw_ptr<BrowserWindowInterface> browser_;
+   // Owned by the widget itself (deleted on close); null when hidden.
+   raw_ptr<views::Widget> widget_ = nullptr;
+--- a/chrome/browser/ui/helium/helium_command_bar_model.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_model.cc
+@@ -8,12 +8,14 @@
+ 
+ #include "base/strings/string_util.h"
+ #include "base/strings/utf_string_conversions.h"
++#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
+ #include "chrome/browser/search_engines/template_url_service_factory.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "components/bookmarks/browser/bookmark_model.h"
+ #include "components/bookmarks/browser/bookmark_node.h"
+ #include "components/bookmarks/browser/bookmark_utils.h"
+ #include "components/history/core/browser/history_types.h"
++#include "components/omnibox/browser/autocomplete_input.h"
+ #include "components/search_engines/template_url.h"
+ #include "components/search_engines/template_url_service.h"
+ #include "content/public/browser/web_contents.h"
+@@ -193,14 +195,13 @@
+   if (trimmed.empty()) {
+     return std::nullopt;
+   }
+-  // Direct URL, with or without a scheme.
+-  GURL url(trimmed);
+-  if (!url.has_scheme() && trimmed.find(' ') == std::string::npos &&
+-      trimmed.find('.') != std::string::npos) {
+-    url = GURL("https://" + trimmed);
+-  }
+-  if (url.is_valid() && url.has_scheme() &&
+-      (url.SchemeIs("http") || url.SchemeIs("https"))) {
++  // Use the same URL classification as the omnibox, including localhost,
++  // IP addresses, explicit schemes and internal browser pages.
++  AutocompleteInput input(base::UTF8ToUTF16(trimmed),
++                          metrics::OmniboxEventProto::OTHER,
++                          ChromeAutocompleteSchemeClassifier(profile));
++  const GURL& url = input.canonicalized_url();
++  if (input.type() == metrics::OmniboxInputType::URL && url.is_valid()) {
+     HeliumCommandBarItem item;
+     item.type = HeliumCommandBarItem::Type::kUrl;
+     item.title = base::UTF8ToUTF16(url.spec());
+@@ -237,6 +238,23 @@
+                                      const HeliumCommandBarItem& b) {
+     return a.score > b.score;
+   });
++  // Promote before capping: otherwise a crowded tab/history list can remove
++  // the action for the text the user actually typed. Explicit URLs come first;
++  // searches leave the best matching tab/command/scope first, and come second.
++  const auto direct = std::ranges::find_if(items, [](const auto& item) {
++    return item.type == HeliumCommandBarItem::Type::kUrl ||
++           item.type == HeliumCommandBarItem::Type::kSearch;
++  });
++  if (direct != items.end()) {
++    const auto target =
++        items.begin() + (direct->type == HeliumCommandBarItem::Type::kSearch &&
++                                 direct != items.begin()
++                             ? 1
++                             : 0);
++    if (direct > target) {
++      std::rotate(target, direct, direct + 1);
++    }
++  }
+   if (items.size() > kMaxResults) {
+     items.resize(kMaxResults);
+   }
+@@ -263,24 +281,16 @@
+ 
+ namespace {
+ 
+-// Strips a single leading '!' ("!gh foo" -> "gh foo"), matching bang habits.
+-// Chromium keywords themselves never start with '!'.
+-std::string NormalizeKeyword(std::string keyword) {
+-  if (!keyword.empty() && keyword.front() == '!') {
+-    keyword.erase(keyword.begin());
+-  }
+-  return keyword;
+-}
+-
+ const TemplateURL* EngineForKeyword(TemplateURLService* template_urls,
+                                     const std::string& keyword) {
+   if (!template_urls || keyword.empty()) {
+     return nullptr;
+   }
+   const TemplateURL* provider = template_urls->GetTemplateURLForKeyword(
+-      base::UTF8ToUTF16(keyword));
+-  if (!provider || !provider->url_ref().SupportsReplacement(
+-                       template_urls->search_terms_data())) {
++      base::ToLowerASCII(base::UTF8ToUTF16(keyword)));
++  if (!provider || !provider->CanBeUsedForKeywordMatching() ||
++      !provider->url_ref().SupportsReplacement(
++          template_urls->search_terms_data())) {
+     return nullptr;
+   }
+   return provider;
+@@ -307,8 +317,7 @@
+     TemplateURLService* template_urls,
+     const std::string& keyword,
+     const std::u16string& remainder) {
+-  const TemplateURL* provider =
+-      EngineForKeyword(template_urls, NormalizeKeyword(keyword));
++  const TemplateURL* provider = EngineForKeyword(template_urls, keyword);
+   if (!provider) {
+     return std::nullopt;
+   }
+@@ -316,10 +325,14 @@
+   item.type = HeliumCommandBarItem::Type::kSiteSearch;
+   item.site_keyword = keyword;
+   item.site_name = provider->short_name();
++  const std::u16string label =
++      item.site_name + (keyword.starts_with("!")
++                            ? u" (" + base::UTF8ToUTF16(keyword) + u")"
++                            : u"");
+   if (remainder.empty()) {
+-    item.title = u"Search " + item.site_name + u"\u2026";
++    item.title = u"Search " + label + u"\u2026";
+   } else {
+-    item.title = u"Search " + item.site_name + u" for \"" + remainder + u"\"";
++    item.title = u"Search " + label + u" for \"" + remainder + u"\"";
+   }
+   if (provider->favicon_url().is_valid()) {
+     item.icon_url = provider->favicon_url();
+@@ -335,8 +348,7 @@
+   if (remainder.empty()) {
+     return std::nullopt;
+   }
+-  const TemplateURL* provider =
+-      EngineForKeyword(template_urls, NormalizeKeyword(keyword));
++  const TemplateURL* provider = EngineForKeyword(template_urls, keyword);
+   if (!provider) {
+     return std::nullopt;
+   }
+@@ -354,8 +366,7 @@
+   if (keyword == "tab") {
+     return u"Tabs";
+   }
+-  const TemplateURL* provider =
+-      EngineForKeyword(template_urls, NormalizeKeyword(keyword));
++  const TemplateURL* provider = EngineForKeyword(template_urls, keyword);
+   if (provider && !provider->short_name().empty()) {
+     return provider->short_name();
+   }
+@@ -364,7 +375,7 @@
+ 
+ bool EngineOwnsKeyword(TemplateURLService* template_urls,
+                        const std::string& keyword) {
+-  return EngineForKeyword(template_urls, NormalizeKeyword(keyword)) != nullptr;
++  return EngineForKeyword(template_urls, keyword) != nullptr;
+ }
+ 
+ }  // namespace helium_command_bar_model
+--- a/chrome/browser/ui/helium/helium_command_bar_model.h
++++ b/chrome/browser/ui/helium/helium_command_bar_model.h
+@@ -23,8 +23,8 @@
+ class BookmarkModel;
+ }  // namespace bookmarks
+ 
+-// One result row. Mirrors Lumno's slate: open tabs first, then bookmarks,
+-// history and built-in commands, then a direct URL / default-search row.
++// One result row. Direct URL/search actions remain in the first two rows;
++// other results use text relevance and explicit keyword scopes.
+ struct HeliumCommandBarItem {
+   enum class Type {
+     kTab,
+@@ -90,7 +90,7 @@
+     const std::u16string& query);
+ 
+ // Splits |query| into a keyword and remainder ("gh foo" -> {"gh", "foo"}).
+-// A leading '!' is stripped ("!gh foo"). Returns nullopt when there is no
++// Retains leading '!' for Helium bangs. Returns nullopt when there is no
+ // space-separated remainder and |require_remainder| is true.
+ struct KeywordSplit {
+   std::string keyword;
+@@ -122,7 +122,7 @@
+ std::u16string SiteScopeName(TemplateURLService* template_urls,
+                              const std::string& keyword);
+ 
+-// True when |keyword| (after '!' normalization) names a searchable engine.
++// True when |keyword| names an active searchable engine or Helium bang.
+ bool EngineOwnsKeyword(TemplateURLService* template_urls,
+                        const std::string& keyword);
+ 
+--- a/chrome/browser/ui/helium/helium_command_bar_view.h
++++ b/chrome/browser/ui/helium/helium_command_bar_view.h
+@@ -7,11 +7,13 @@
+ 
+ #include <stddef.h>
+ 
++#include <memory>
+ #include <optional>
+ #include <vector>
+ 
+ #include "base/functional/callback_forward.h"
+ #include "base/memory/raw_ptr.h"
++#include "build/build_config.h"
+ #include "chrome/browser/ui/helium/helium_command_bar_model.h"
+ #include "ui/views/controls/textfield/textfield_controller.h"
+ #include "ui/views/widget/widget_delegate.h"
+@@ -90,6 +92,10 @@
+   base::RepeatingCallback<void(const std::u16string&)> on_query_;
+   base::RepeatingCallback<void(size_t)> on_activate_;
+   base::RepeatingClosure on_escape_;
++#if BUILDFLAG(IS_MAC)
++  struct Native;
++  std::unique_ptr<Native> native_;
++#endif
+   raw_ptr<views::Textfield> input_ = nullptr;
+   raw_ptr<views::View> results_ = nullptr;
+   raw_ptr<views::Label> scope_bar_ = nullptr;
+--- /dev/null
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -0,0 +1,458 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/ui/helium/helium_command_bar_view.h"
++
++#import <AppKit/AppKit.h>
++#import <QuartzCore/QuartzCore.h>
++
++#include "base/strings/sys_string_conversions.h"
++#include "chrome/browser/themes/theme_service.h"
++#include "chrome/browser/themes/theme_service_factory.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
++#include "ui/gfx/image/image.h"
++#include "ui/native_theme/native_theme.h"
++#include "ui/views/controls/native/native_view_host.h"
++#include "ui/views/layout/fill_layout.h"
++#include "ui/views/widget/widget.h"
++
++namespace {
++constexpr int kWidth = 560;
++constexpr int kInputHeight = 52;
++constexpr int kRowHeight = 52;
++constexpr int kInset = 8;
++
++NSString* TagForType(HeliumCommandBarItem::Type type) {
++  switch (type) {
++    case HeliumCommandBarItem::Type::kTab:
++      return @"Switch";
++    case HeliumCommandBarItem::Type::kBookmark:
++      return @"Bookmark";
++    case HeliumCommandBarItem::Type::kHistory:
++      return @"History";
++    case HeliumCommandBarItem::Type::kCommand:
++      return @"Command";
++    case HeliumCommandBarItem::Type::kUrl:
++      return @"New tab";
++    case HeliumCommandBarItem::Type::kSearch:
++      return @"Search";
++    case HeliumCommandBarItem::Type::kSiteSearch:
++      return @"Search site";
++  }
++}
++
++void DrawText(NSString* text,
++              NSRect rect,
++              CGFloat size,
++              NSColor* color,
++              NSTextAlignment alignment = NSTextAlignmentLeft) {
++  NSMutableParagraphStyle* style = [[NSMutableParagraphStyle alloc] init];
++  style.lineBreakMode = NSLineBreakByTruncatingTail;
++  style.alignment = alignment;
++  [text drawInRect:rect
++      withAttributes:@{
++        NSFontAttributeName : [NSFont systemFontOfSize:size],
++        NSForegroundColorAttributeName : color,
++        NSParagraphStyleAttributeName : style
++      }];
++}
++}  // namespace
++
++@interface HeliumCommandRow : NSButton
++@property(nonatomic, copy) NSString* primaryText;
++@property(nonatomic, copy) NSString* secondaryText;
++@property(nonatomic, copy) NSString* tagText;
++@property(nonatomic, strong) NSImage* resultImage;
++@property(nonatomic) BOOL selected;
++@property(nonatomic, copy) void (^onHover)(NSInteger);
++@end
++
++@implementation HeliumCommandRow
++@synthesize primaryText = _primaryText, secondaryText = _secondaryText,
++            tagText = _tagText, resultImage = _resultImage,
++            selected = _selected, onHover = _onHover;
++- (BOOL)isFlipped {
++  return YES;
++}
++- (BOOL)acceptsFirstResponder {
++  return NO;
++}
++- (void)updateTrackingAreas {
++  [super updateTrackingAreas];
++  for (NSTrackingArea* area in self.trackingAreas.copy) {
++    [self removeTrackingArea:area];
++  }
++  [self addTrackingArea:[[NSTrackingArea alloc]
++                            initWithRect:NSZeroRect
++                                 options:NSTrackingMouseEnteredAndExited |
++                                         NSTrackingActiveInKeyWindow |
++                                         NSTrackingInVisibleRect
++                                   owner:self
++                                userInfo:nil]];
++}
++- (void)mouseEntered:(NSEvent*)event {
++  if (self.onHover) {
++    self.onHover(self.tag);
++  }
++}
++- (void)drawRect:(NSRect)dirtyRect {
++  if (self.selected) {
++    [[NSColor.selectedContentBackgroundColor colorWithAlphaComponent:0.25]
++        setFill];
++    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0, 1)
++                                     xRadius:10
++                                     yRadius:10] fill];
++  }
++  [self.resultImage drawInRect:NSMakeRect(12, 18, 16, 16)
++                      fromRect:NSZeroRect
++                     operation:NSCompositingOperationSourceOver
++                      fraction:1
++                respectFlipped:YES
++                         hints:nil];
++  CGFloat width = NSWidth(self.bounds);
++  BOOL subtitle = self.secondaryText.length > 0;
++  DrawText(self.primaryText, NSMakeRect(40, subtitle ? 7 : 17, width - 142, 20),
++           13, NSColor.labelColor);
++  if (subtitle) {
++    DrawText(self.secondaryText, NSMakeRect(40, 28, width - 142, 17), 11,
++             NSColor.secondaryLabelColor);
++  }
++  DrawText(self.tagText, NSMakeRect(width - 94, 18, 82, 18), 11,
++           NSColor.secondaryLabelColor, NSTextAlignmentRight);
++}
++@end
++
++@interface HeliumCommandPane : NSView <NSTextFieldDelegate>
++@property(nonatomic, strong) NSTextField* input;
++@property(nonatomic, strong) NSTextField* scope;
++@property(nonatomic, strong) NSMutableArray<HeliumCommandRow*>* rows;
++@property(nonatomic, copy) void (^onQuery)(NSString*);
++@property(nonatomic, copy) BOOL (^onCommand)(SEL);
++@property(nonatomic, copy) void (^onActivate)(NSInteger);
++@end
++
++@implementation HeliumCommandPane
++@synthesize input = _input, scope = _scope, rows = _rows, onQuery = _onQuery,
++            onCommand = _onCommand, onActivate = _onActivate;
++- (BOOL)isFlipped {
++  return YES;
++}
++- (void)controlTextDidChange:(NSNotification*)notification {
++  if (self.onQuery) {
++    self.onQuery(self.input.stringValue);
++  }
++}
++- (BOOL)control:(NSControl*)control
++               textView:(NSTextView*)textView
++    doCommandBySelector:(SEL)selector {
++  return self.onCommand && self.onCommand(selector);
++}
++- (void)activateRow:(NSButton*)sender {
++  if (self.onActivate) {
++    self.onActivate(sender.tag);
++  }
++}
++- (void)layout {
++  [super layout];
++  const CGFloat width = NSWidth(self.bounds);
++  self.input.frame = NSMakeRect(20, 19, width - 40, 26);
++  CGFloat y = kInputHeight + kInset;
++  if (!self.scope.hidden) {
++    self.scope.frame = NSMakeRect(20, y, width - 40, 22);
++    y += 26;
++  }
++  for (HeliumCommandRow* row in self.rows) {
++    row.frame = NSMakeRect(kInset, y, width - 2 * kInset, kRowHeight);
++    y += kRowHeight;
++  }
++}
++@end
++
++struct HeliumCommandBarView::Native {
++  NSView* __strong material;
++  HeliumCommandPane* __strong pane;
++  raw_ptr<views::NativeViewHost> host = nullptr;
++  int width = kWidth;
++  ~Native() {
++    pane.input.delegate = nil;
++    pane.onQuery = nil;
++    pane.onCommand = nil;
++    pane.onActivate = nil;
++    for (HeliumCommandRow* row in pane.rows) {
++      row.onHover = nil;
++      row.target = nil;
++    }
++    [material removeFromSuperview];
++  }
++};
++
++HeliumCommandBarView* HeliumCommandBarView::Show(
++    gfx::NativeView parent,
++    const std::u16string& initial_query,
++    base::OnceClosure on_closed,
++    base::RepeatingCallback<void(const std::u16string&)> on_query,
++    base::RepeatingCallback<void(size_t)> on_activate,
++    base::RepeatingClosure on_escape) {
++  auto* view = new HeliumCommandBarView(
++      parent, initial_query, std::move(on_closed), std::move(on_query),
++      std::move(on_activate), std::move(on_escape));
++  auto* widget = new views::Widget;
++  views::Widget::InitParams params(
++      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
++      views::Widget::InitParams::TYPE_POPUP);
++  params.parent = parent;
++  params.delegate = view;
++  params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
++  params.shadow_type = views::Widget::InitParams::ShadowType::kNone;
++  params.activatable = views::Widget::InitParams::Activatable::kYes;
++  widget->Init(std::move(params));
++  auto* parent_widget = views::Widget::GetWidgetForNativeView(parent);
++  const gfx::Rect bounds = parent_widget->GetWindowBoundsInScreen();
++  view->native_->width = std::min(kWidth, std::max(280, bounds.width() - 32));
++  widget->SetBounds(
++      gfx::Rect(bounds.x() + (bounds.width() - view->native_->width) / 2,
++                bounds.y() + bounds.height() / 5, view->native_->width,
++                kInputHeight + 2 * kInset));
++  view->native_->host->Attach(gfx::NativeView(view->native_->material));
++  widget->Show();
++  widget->AddObserver(view);
++  [view->native_->pane.input.window
++      makeFirstResponder:view->native_->pane.input];
++  [view->native_->pane.input selectText:nil];
++  return view;
++}
++
++HeliumCommandBarView::HeliumCommandBarView(
++    gfx::NativeView parent,
++    const std::u16string& initial_query,
++    base::OnceClosure on_closed,
++    base::RepeatingCallback<void(const std::u16string&)> on_query,
++    base::RepeatingCallback<void(size_t)> on_activate,
++    base::RepeatingClosure on_escape)
++    : on_closed_(std::move(on_closed)),
++      on_query_(std::move(on_query)),
++      on_activate_(std::move(on_activate)),
++      on_escape_(std::move(on_escape)),
++      native_(std::make_unique<Native>()) {
++  SetModalType(ui::mojom::ModalType::kNone);
++  auto contents = std::make_unique<views::View>();
++  contents->SetLayoutManager(std::make_unique<views::FillLayout>());
++  native_->host =
++      contents->AddChildView(std::make_unique<views::NativeViewHost>());
++  SetContentsView(std::move(contents));
++  auto* pane =
++      [[HeliumCommandPane alloc] initWithFrame:NSMakeRect(0, 0, kWidth, 68)];
++  native_->pane = pane;
++  pane.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  pane.rows = [[NSMutableArray alloc] init];
++  pane.input = [[NSTextField alloc] init];
++  pane.input.font = [NSFont systemFontOfSize:18];
++  pane.input.bordered = NO;
++  pane.input.drawsBackground = NO;
++  pane.input.focusRingType = NSFocusRingTypeNone;
++  pane.input.textColor = NSColor.labelColor;
++  pane.input.placeholderString = @"Search or type a URL";
++  pane.input.stringValue = base::SysUTF16ToNSString(initial_query);
++  pane.input.accessibilityLabel = @"Search or type a URL";
++  pane.input.cell.usesSingleLineMode = YES;
++  pane.input.delegate = pane;
++  [pane addSubview:pane.input];
++  pane.scope = [NSTextField labelWithString:@""];
++  pane.scope.font = [NSFont systemFontOfSize:11];
++  pane.scope.textColor = NSColor.secondaryLabelColor;
++  pane.scope.hidden = YES;
++  [pane addSubview:pane.scope];
++  pane.onQuery = ^(NSString* text) {
++    on_query_.Run(base::SysNSStringToUTF16(text));
++  };
++  pane.onActivate = ^(NSInteger index) {
++    on_activate_.Run(index);
++  };
++  pane.onCommand = ^BOOL(SEL command) {
++    if (command == @selector(moveUp:)) {
++      MoveSelection(-1);
++      return YES;
++    }
++    if (command == @selector(moveDown:)) {
++      MoveSelection(1);
++      return YES;
++    }
++    if (command == @selector(cancelOperation:)) {
++      on_escape_.Run();
++      return YES;
++    }
++    if (command == @selector(insertNewline:)) {
++      if (native_->pane.rows.count) {
++        on_activate_.Run(selected_);
++      }
++      return YES;
++    }
++    if (command == @selector(insertTab:)) {
++      if (scope_hint_) {
++        on_activate_.Run(*scope_hint_);
++      }
++      return YES;
++    }
++    if (command == @selector(deleteBackward:) &&
++        native_->pane.input.stringValue.length == 0 &&
++        !native_->pane.scope.hidden) {
++      on_escape_.Run();
++      return YES;
++    }
++    return NO;
++  };
++  auto* parent_widget = views::Widget::GetWidgetForNativeView(parent);
++  auto* browser_view = BrowserView::GetBrowserViewForNativeWindow(
++      parent_widget->GetNativeWindow());
++  bool dark =
++      ui::NativeTheme::GetInstanceForNativeUi()->preferred_color_scheme() ==
++      ui::NativeTheme::PreferredColorScheme::kDark;
++  if (browser_view) {
++    auto scheme = ThemeServiceFactory::GetForProfile(browser_view->GetProfile())
++                      ->GetBrowserColorScheme();
++    if (scheme != ThemeService::BrowserColorScheme::kSystem) {
++      dark = scheme == ThemeService::BrowserColorScheme::kDark;
++    }
++  }
++  NSAppearance* appearance = [NSAppearance
++      appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
++  if (@available(macOS 26, *)) {
++    NSGlassEffectView* glass =
++        [[NSGlassEffectView alloc] initWithFrame:pane.frame];
++    glass.appearance = appearance;
++    glass.style = NSGlassEffectViewStyleRegular;
++    glass.cornerRadius = 20;
++    glass.contentView = pane;
++    native_->material = glass;
++  } else {
++    NSVisualEffectView* effect =
++        [[NSVisualEffectView alloc] initWithFrame:pane.frame];
++    effect.appearance = appearance;
++    effect.material = NSVisualEffectMaterialPopover;
++    effect.blendingMode = NSVisualEffectBlendingModeBehindWindow;
++    effect.state = NSVisualEffectStateActive;
++    effect.wantsLayer = YES;
++    effect.layer.cornerRadius = 20;
++    effect.layer.masksToBounds = YES;
++    [effect addSubview:pane];
++    native_->material = effect;
++  }
++  native_->material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++}
++
++HeliumCommandBarView::~HeliumCommandBarView() = default;
++void HeliumCommandBarView::Close() {
++  if (GetWidget()) {
++    GetWidget()->Close();
++  }
++}
++
++void HeliumCommandBarView::SetResults(
++    const std::vector<HeliumCommandBarItem>& items,
++    std::optional<size_t> scope_hint) {
++  scope_hint_ = scope_hint;
++  for (HeliumCommandRow* row in native_->pane.rows) {
++    [row removeFromSuperview];
++  }
++  [native_->pane.rows removeAllObjects];
++  selected_ = 0;
++  for (size_t i = 0; i < items.size(); ++i) {
++    const auto& item = items[i];
++    HeliumCommandRow* row = [[HeliumCommandRow alloc] init];
++    row.bordered = NO;
++    row.title = @"";
++    row.tag = i;
++    row.primaryText = base::SysUTF16ToNSString(item.title);
++    row.secondaryText = base::SysUTF8ToNSString(item.url_spec);
++    row.tagText = TagForType(item.type);
++    NSString* symbol =
++        item.type == HeliumCommandBarItem::Type::kSearch ||
++                item.type == HeliumCommandBarItem::Type::kSiteSearch
++            ? @"magnifyingglass"
++            : @"globe";
++    row.resultImage = [NSImage imageWithSystemSymbolName:symbol
++                                accessibilityDescription:nil];
++    row.accessibilityLabel =
++        [NSString stringWithFormat:@"%@, %@, %@", row.primaryText,
++                                   row.secondaryText, row.tagText];
++    row.target = native_->pane;
++    row.action = @selector(activateRow:);
++    row.onHover = ^(NSInteger index) {
++      SetSelected(index);
++    };
++    [native_->pane.rows addObject:row];
++    [native_->pane addSubview:row];
++  }
++  UpdateRowHighlight();
++  ResizeToContents();
++}
++void HeliumCommandBarView::ResizeToContents() {
++  if (!GetWidget()) {
++    return;
++  }
++  int height = kInputHeight + 2 * kInset +
++               native_->pane.rows.count * kRowHeight +
++               (native_->pane.scope.hidden ? 0 : 26);
++  if (GetWidget()->GetWindowBoundsInScreen().height() != height) {
++    GetWidget()->SetSize(gfx::Size(native_->width, height));
++  }
++  native_->pane.needsLayout = YES;
++}
++void HeliumCommandBarView::SetInputText(const std::u16string& text) {
++  native_->pane.input.stringValue = base::SysUTF16ToNSString(text);
++  [native_->pane.input selectText:nil];
++}
++void HeliumCommandBarView::SetScope(const std::u16string& name) {
++  native_->pane.scope.stringValue =
++      base::SysUTF16ToNSString(name);
++  native_->pane.scope.hidden = NO;
++  ResizeToContents();
++}
++void HeliumCommandBarView::ClearScope() {
++  native_->pane.scope.hidden = YES;
++  ResizeToContents();
++}
++void HeliumCommandBarView::SetItemImage(size_t index, const gfx::Image& image) {
++  if (index >= native_->pane.rows.count || image.IsEmpty()) {
++    return;
++  }
++  native_->pane.rows[index].resultImage = image.ToNSImage();
++  native_->pane.rows[index].needsDisplay = YES;
++}
++void HeliumCommandBarView::MoveSelection(int delta) {
++  size_t count = native_->pane.rows.count;
++  if (count) {
++    SetSelected((selected_ + count + delta) % count);
++  }
++}
++void HeliumCommandBarView::SetSelected(size_t index) {
++  if (index >= native_->pane.rows.count) {
++    return;
++  }
++  selected_ = index;
++  UpdateRowHighlight();
++}
++void HeliumCommandBarView::UpdateRowHighlight() {
++  for (HeliumCommandRow* row in native_->pane.rows) {
++    row.selected = static_cast<size_t>(row.tag) == selected_;
++    row.needsDisplay = YES;
++    row.accessibilityValue = row.selected ? @"Selected" : @"";
++  }
++}
++void HeliumCommandBarView::WindowClosing() {
++  GetWidget()->RemoveObserver(this);
++  std::move(on_closed_).Run();
++}
++void HeliumCommandBarView::OnWidgetActivationChanged(views::Widget* widget,
++                                                     bool active) {
++  if (!active) {
++    Close();
++  }
++}
++void HeliumCommandBarView::ContentsChanged(views::Textfield*,
++                                           const std::u16string&) {}
++bool HeliumCommandBarView::HandleKeyEvent(views::Textfield*,
++                                          const ui::KeyEvent&) {
++  return false;
++}
+--- a/chrome/browser/ui/helium/helium_command_bar_view.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_view.cc
+@@ -328,7 +328,7 @@
+ }
+ 
+ void HeliumCommandBarView::SetScope(const std::u16string& name) {
+-  scope_bar_->SetText(name + u"   esc to exit");
++  scope_bar_->SetText(name);
+   scope_bar_->SetVisible(true);
+   ResizeToContents();
+ }
