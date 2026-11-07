@@ -81,7 +81,7 @@
     sidebarToggle.setAttribute('aria-pressed', String(!floating));
     sidebarToggle.setAttribute('aria-label', floating ? 'Pin sidebar' : 'Unpin sidebar');
     win.dataset.sidebar = !floating ? 'pinned' : visible ? 'floating' : 'hidden';
-    updateWindowControls();
+    updateWindowControls('sidebar');
     if (!nativeTimeline) {
       demoCursor.style.offsetDistance = `${cursorDistance}%`;
       demoCursor.style.opacity = Math.min(clamp(progress / .06), 1 - clamp((progress - .94) / .06));
@@ -121,8 +121,20 @@
     if (sidebarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
     updateSidebar(scroll.scrollTop);
   });
-  function updateWindowControls() {
+  function updateWindowControls(motion) {
     const visible = win.dataset.sidebar !== 'hidden' || toolbarRegion.hasAttribute('data-open');
+    const wasVisible = win.hasAttribute('data-controls-visible');
+    if (visible !== wasVisible) {
+      // A fully hidden group starts from the edge of the panel revealing it.
+      const reset = visible && win.dataset.controlsMotion !== motion &&
+        getComputedStyle(windowControls).visibility === 'hidden';
+      if (reset) windowControls.style.transition = 'none';
+      win.dataset.controlsMotion = motion;
+      if (reset) {
+        windowControls.getBoundingClientRect();
+        windowControls.style.removeProperty('transition');
+      }
+    }
     win.toggleAttribute('data-controls-visible', visible);
     windowControls.inert = !visible;
     windowControls.setAttribute('aria-hidden', String(!visible));
@@ -140,14 +152,14 @@
     toolbar.inert = false;
     toolbar.setAttribute('aria-hidden', 'false');
     toolbarRail.setAttribute('aria-expanded', 'true');
-    updateWindowControls();
+    updateWindowControls('toolbar');
   }
   function hideToolbar() {
     delete toolbarRegion.dataset.open;
     toolbar.inert = true;
     toolbar.setAttribute('aria-hidden', 'true');
     toolbarRail.setAttribute('aria-expanded', 'false');
-    updateWindowControls();
+    updateWindowControls('toolbar');
   }
   function distanceFromPanel(point, rect) {
     const dx = Math.max(rect.left - point.x, 0, point.x - rect.right);

@@ -81,9 +81,9 @@ svg { display: block; }
   #lune .sidebar-tabs { padding:8px 0 0; border-top:1px solid light-dark(#2345501F,#DDE7EA1F); margin-right:0; }
   #lune .browser-tab { display:flex; align-items:center; gap:8px; height:32px; border-radius:7px; padding:0 8px; white-space:nowrap; color:light-dark(#234550,#C9D9E3); }
   #lune .browser-tab.selected { background:light-dark(#23455020,#DDE7EA20); }
-  #lune .toolbar-region { position:absolute; z-index:25; top:0; left:calc(var(--sidebar-width) + 12px); right:8px; height:64px; pointer-events:none; }
-  /* Reserve sidebar space until its exit finishes; reserve it immediately on entry. */
-  #lune .window[data-sidebar="hidden"] .toolbar-region { left:92px; transition:left 0s 260ms; }
+  #lune .toolbar-region { position:absolute; z-index:25; top:0; left:calc(var(--sidebar-width) + 12px); right:8px; height:64px; transition:left 260ms cubic-bezier(.2,.8,.2,1); pointer-events:none; }
+  /* Match the sidebar slide while keeping every glass group clear of its edge. */
+  #lune .window[data-sidebar="hidden"] .toolbar-region { left:92px; }
   #lune .toolbar-rail { position:absolute; inset:0 0 auto; height:8px; padding:0; border:0; background:transparent; cursor:default; pointer-events:auto; }
   #lune .window[data-sidebar="hidden"] .toolbar-rail { left:-92px; }
   #lune .toolbar-rail:focus-visible { outline-offset:-2px; }
@@ -102,6 +102,8 @@ svg { display: block; }
   #lune .demo-click { position:absolute; z-index:45; left:110px; top:32px; width:36px; height:36px; margin:-18px; border:1px solid light-dark(#276C69,#C9F4EF); border-radius:50%; opacity:0; pointer-events:none; }
   #lune .window[data-sidebar-override] { animation:none!important; }
   #lune .window-controls { position:absolute; z-index:40; left:16px; top:20px; display:flex; align-items:center; background:none; opacity:0; visibility:hidden; transform:translateY(-64px); transition:transform 180ms cubic-bezier(.4,0,1,1),opacity 120ms ease-out,visibility 180ms; pointer-events:none; }
+  #lune[data-toolbar-motion] .window[data-controls-motion="sidebar"] .window-controls { opacity:1; transform:translateX(calc(-1 * (var(--sidebar-width) + 20px))); transition:transform 260ms cubic-bezier(.2,.8,.2,1),visibility 260ms; }
+  #lune[data-toolbar-motion] .window[data-controls-motion="sidebar"][data-controls-visible] .window-controls { transform:translateX(0); }
   #lune .window-control { position:relative; width:22px; height:24px; padding:0; border:0; background:none; cursor:default; }
   #lune .window-control::before { content:''; position:absolute; width:14px; height:14px; left:4px; top:5px; border-radius:50%; background:light-dark(#A3B4A4,#91A2AE); box-shadow:inset 0 0 0 .5px light-dark(#23455045,#061B2C45),inset 0 .5px .5px light-dark(#23455035,#DDE7EA35); }
   #lune .control-glyph { position:absolute; width:7px; height:7px; top:8.5px; left:7.5px; opacity:0; color:light-dark(#234550,#273C4A); }
@@ -194,8 +196,9 @@ svg { display: block; }
   #lune .window { animation:none; }
   #lune .demo-cursor,#lune .demo-click { display:none; animation:none; }
   #lune .browser-sidebar { transition:none; }
-  #lune .window[data-sidebar="hidden"] .toolbar-region { transition:none; }
-  #lune .browser-toolbar,#lune .toolbar-region[data-open] .browser-toolbar,#lune .window-controls,#lune .window[data-controls-visible] .window-controls { transform:none; transition:opacity 100ms linear,visibility 100ms; }
+  #lune .toolbar-region { transition:none; }
+  #lune .browser-toolbar,#lune .toolbar-region[data-open] .browser-toolbar { transform:none; transition:opacity 100ms linear,visibility 100ms; }
+  #lune .window-controls { transform:none!important; transition:none!important; }
 }
 
 @media (prefers-color-scheme: light) {

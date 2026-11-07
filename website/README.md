@@ -46,7 +46,9 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   pinning changes. Window controls live directly in the window, outside the
   sliding sidebar and all glass groups, with a fixed resting position. They stay
   visible while either the sidebar or glass toolbar is visible; when both hide,
-  they share the toolbar’s slide/fade motion and become inert. The top rail
+  they follow the last panel to leave and become inert: horizontally with the
+  sidebar (260ms), or with the toolbar’s slide/fade motion. When both are hidden,
+  the first panel revealed determines their entrance direction. The top rail
   reveals both together, and hovering or focusing the controls keeps them open.
   The illustrated cursor clicks the mounted toggle position. The floating radius is 21px,
   concentric with the 26px window radius across its 1px border and 4px inset.
@@ -59,9 +61,9 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   64px top area, including gaps and all three capsules, holds it open. It dismisses
   once the pointer is more than 48px from the bar's resting outer rectangle;
   there is no timer. Its width reserves space for either a pinned or visible
-  floating sidebar, independently of the content pane. It expands only after
-  the sidebar finishes sliding away and contracts immediately on reentry, so
-  the panels never overlap. A hidden sidebar still leaves room for the fixed
+  floating sidebar, independently of the content pane. Its available width
+  animates with the sidebar using the same 260ms easing in both directions,
+  keeping a gap between the panels throughout the slide. A hidden sidebar still leaves room for the fixed
   window controls. Reenter the rail to reveal it again. Keyboard focus holds it open,
   the rail supports tapping, and Escape/outside taps dismiss it. Closing the
   illustrated app, changing tabs, or deactivating the browser resets it.
