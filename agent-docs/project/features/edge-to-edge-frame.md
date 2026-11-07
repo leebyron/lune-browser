@@ -4,6 +4,10 @@ Requested November 7, 2026. This is the owner's proposed macOS 27 styling,
 not a claim that Apple mandates these dimensions. It replaces the earlier
 26 pt perimeter, 4 pt gutters, content shadow and inset floating sidebar.
 
+Current status: the owner accepted input-11 resize cursor behavior on November 7,
+2026, following acceptance of the 52 pt header and popover layout. Earlier failed
+cursor attempts below are historical evidence, not current open defects.
+
 ## Implemented behavior
 
 - The native AppKit frame hook and content-layer clip both use a 16 pt outer
@@ -73,8 +77,8 @@ The owner accepted edge reveal on input 2 and requested the following changes:
 ## Inputs
 
 - Core: `3c3726b5935203480de96fdb08c9839a814fc2b9`.
-- macOS: `4cf8f82964ebad06ccfd18e73ba9dac27d16919b`.
-- Tag: `inputs/edge-frame-10/macos`.
+- macOS: `5f58806093ed31dab7415ed310d3b0852af4bcce`.
+- Tag: `inputs/edge-frame-11/macos`.
 - Patches: `helium/ui/edge-to-edge-frame.patch`,
   `helium/ui/edge-to-edge-separators.patch`,
   `helium/ui/consistent-sidebar-geometry.patch`,
@@ -84,8 +88,9 @@ The owner accepted edge reveal on input 2 and requested the following changes:
   `helium/ui/native-resize-cursor.patch`,
   `helium/ui/native-resize-cursor-and-sidebar-drag.patch`,
   `helium/ui/resize-cursor-ownership.patch`,
-  `helium/ui/native-tracking-cursor-and-popover-clip.patch`, and
-  `helium/ui/native-frame-cursor-tracking.patch`.
+  `helium/ui/native-tracking-cursor-and-popover-clip.patch`,
+  `helium/ui/native-frame-cursor-tracking.patch`, and
+  `helium/ui/native-resize-hit-routing.patch`.
 - Based on the locked sidebar-new-tab-2 input, retaining all prior browser and
   sidebar work. Ordered patch hashes remain in `manifests/patches.json`.
 
@@ -112,7 +117,7 @@ latest menu animation and pin/unpin alignment remains pending. The owner
 confirmed input-5 header-strip dragging and native edge resizing both work,
 but reported resize-cursor flicker. The owner confirmed input-4 pinned blank-area dragging and right-click
 menus work on November 7, 2026. The isolated Apple silicon preview
-`.work/floating-address/edge-frame-cursor10/` is left open with normal website access.
+`.work/floating-address/edge-frame-cursor11/` is left open with normal website access.
 
 Local evidence is under `.work/edge-frame/`; source preparation and builds use
 `.work/chromium-158/macos/build/src`. This is a development input, not a signed
@@ -271,5 +276,41 @@ cursors and interior ownership. A stale interior event still selects the correct
 cursor at each current edge/corner location. Arm64 compilation and
 smoke/default/settings checks pass on both architectures (Intel via Rosetta).
 The owner reports input 10 still has inconsistent resize cursors, so this is
-not accepted as a cursor fix. Native frame-state diagnosis continues. The previous preview quit cleanly (exit 0) before this one opened. Live debugger captures are under `.work/edge-frame/cursor9-live-trace*`;
+not accepted as a cursor fix; input 11 resolves the owner-reported defect below.
+The previous preview quit cleanly (exit 0) before this one opened. Live debugger captures are under `.work/edge-frame/cursor9-live-trace*`;
 each debugger detached and left the preview running.
+
+
+## Native resize hit routing (input 11)
+
+Read-only inspection of the running input-10 window found the frame tracking
+area installed and cursor rectangles enabled. At window point (550, 744) in
+its 1100 by 745 pt frame, the native resize predicate returned top-edge (2),
+and the frame's hit test returned `BrowserWindowFrame`. However, direct
+`contentView hitTest:` returned `RenderWidgetHostViewCocoa`. NSWindow can query
+the content view directly, bypassing the native frame's first refusal.
+
+`BridgedContentView::hitTest:` now yields actual native resize points before
+routing into Views, web content or floating native controls. It uses converted
+view-to-window coordinates and the shared native predicate. Interior points,
+nonresizable child windows and fullscreen retain the previous routing. This
+adds no gutter or layout inset and preserves the accepted 52 pt header.
+
+Strict replay passes across 55 patches and 14 files. Native AppKit probes verify
+direct content hit testing yields all eight edge/corner targets and retains
+interior interaction. Existing cursor, stale-event and tracking-area probes
+also pass. Both architecture builds and smoke/default/settings checks pass
+(Intel under Rosetta). All 44 repository tests, component lint, lock/ancestry
+validation, changed documentation links and whitespace checks pass.
+Live inspection of input 11 confirms the direct content hit test returns nil at
+the native top resize target while the frame hit test returns BrowserWindowFrame.
+The owner confirmed “cursors look great now” on November 7, 2026.
+
+Cleanup retained the accepted cursor guards because native tracking dispatch,
+asynchronous renderer updates, child-window cursor updates and direct content
+hit testing are separate paths. No diagnostic logging is present in these
+production patches, and no debugger remains attached. Temporary debugger commands,
+failed captures and regenerable probe binaries were archived with byte verification
+under `.work/edge-frame/diagnostics-archive/`. Successful diagnostic evidence and
+the current probe sources remain available. Immutable input tags and patch history
+are preserved. The accepted preview and its profile remain open.

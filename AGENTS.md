@@ -102,7 +102,7 @@ Input 19 derives traffic-light spacing from AppKit and compacts its container.
 Input 20 uses normal omnibox editing text, preserving an empty new-tab field.
 This is not in published builds 1 or 2 and is not release-accepted.
 
-The development input `inputs/edge-frame-10/macos` supersedes the earlier frame
+The development input `inputs/edge-frame-11/macos` supersedes the earlier frame
 geometry on macOS: a 16 pt native window perimeter, no content gutter, outline,
 or drop shadow, and a flush square glass popover sidebar. A separate 8 pt edge
 interaction band reveals chrome while AppKit retains native resizing; fullscreen
@@ -141,8 +141,11 @@ resize cursor flicker remains. Input 10 gives the existing native frame a
 persistent AppKit cursor-update tracking area and uses current pointer positions
 in the window handler, following a live trace of structural cursor resets.
 Both architecture builds and smoke checks pass (Intel via Rosetta), but the
-owner reports input 10 still has inconsistent resize cursors. This remains an
-open interaction defect, not an accepted cursor fix.
+owner reported input 10 still had inconsistent resize cursors. Input 11 corrects
+the live hit-test mismatch: the direct content view now yields actual native
+resize targets before routing to web content or chrome. The owner accepted
+resize cursor behavior on input 11 on November 7, 2026. Validation is recorded
+in the feature evidence.
 See [edge-to-edge frame evidence](agent-docs/project/features/edge-to-edge-frame.md).
 This development revision is not in published builds 1 or 2.
 
