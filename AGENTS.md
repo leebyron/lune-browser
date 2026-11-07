@@ -7,6 +7,13 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The development input `inputs/window-menu-2/macos` retains already revealed
+header/sidebar chrome while the native green-button popover is open, including
+pending collapse timers. It preserves the accepted sidebar-footer-5 base.
+Native lifecycle, isolated controls tests, both architecture builds and smoke
+checks pass (Intel under Rosetta); owner browser interaction acceptance is pending. See
+[window-menu retention](agent-docs/project/features/window-menu-retention.md).
+
 `main` contains the project definition, locked development build inputs, local
 build commands, validation tests/CI, and the Cloudflare website. Imported histories
 are published on `component/helium`, `component/macos`, and `component/services`;

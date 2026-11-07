@@ -448,3 +448,10 @@ Eight obsolete or unused diagnostic helpers were archived and byte-verified,
 including the never-loaded tracing dylib. Successful evidence, current probes,
 profiles and build caches are preserved. Cursor flicker remains a separate
 unresolved issue; no speculative cursor override is added for this toolbar fix.
+
+## Native fullscreen-button popover retention
+
+The follow-up [window-menu retention](window-menu-retention.md) preserves
+already revealed header/sidebar chrome while the green-button popover remains
+open. It builds on the accepted sidebar-footer-5 input and keeps the resize
+cursor issue separate. See that document for lifecycle evidence and validation.
