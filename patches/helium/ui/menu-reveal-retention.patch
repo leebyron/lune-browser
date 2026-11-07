@@ -1,0 +1,610 @@
+--- a/chrome/browser/ui/views/extensions/extension_context_menu_controller.cc
++++ b/chrome/browser/ui/views/extensions/extension_context_menu_controller.cc
+@@ -9,6 +9,7 @@
+ 
+ #include "chrome/browser/extensions/extension_context_menu_model.h"
+ #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "ui/base/mojom/menu_source_type.mojom-forward.h"
+ #include "ui/views/controls/button/button.h"
+ #include "ui/views/controls/button/menu_button_controller.h"
+@@ -59,6 +60,7 @@
+   menu_runner_ =
+       std::make_unique<views::MenuRunner>(std::move(menu), run_types);
+ 
++  chrome_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(parent);
+   observer_->OnContextMenuShown();
+   menu_runner_->RunMenuAt(
+       parent,
+@@ -74,6 +76,7 @@
+ 
+ void ExtensionContextMenuController::OnMenuClosed() {
+   menu_runner_.reset();
++  chrome_reveal_hold_.RunAndReset();
+   observer_->OnContextMenuClosed();
+   menu_adapter_.reset();
+ }
+--- a/chrome/browser/ui/views/extensions/extension_context_menu_controller.h
++++ b/chrome/browser/ui/views/extensions/extension_context_menu_controller.h
+@@ -7,6 +7,7 @@
+ 
+ #include <memory>
+ 
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "chrome/browser/extensions/extension_context_menu_model.h"
+ #include "ui/base/mojom/menu_source_type.mojom-forward.h"
+@@ -58,6 +59,8 @@
+   // Callback for MenuModelAdapter.
+   void OnMenuClosed();
+ 
++  base::ScopedClosureRunner chrome_reveal_hold_;
++
+   // Responsible for converting the context menu model into |menu_|.
+   std::unique_ptr<views::MenuModelAdapter> menu_adapter_;
+ 
+--- a/chrome/browser/ui/views/frame/app_menu_button.cc
++++ b/chrome/browser/ui/views/frame/app_menu_button.cc
+@@ -137,6 +137,7 @@
+ }
+ 
+ void AppMenuButton::OnMenuClosed() {
++  ReleaseChromeRevealForMenu();
+   observer_list_.Notify(&AppMenuButtonObserver::AppMenuClosed);
+ }
+ 
+@@ -154,6 +155,7 @@
+       browser, menu_model_.get(), run_flags,
+       base::BindRepeating(&AppMenuButton::OnMenuClosed,
+                           weak_ptr_factory_.GetWeakPtr()));
++  HoldChromeRevealForMenu();
+   menu_->RunMenu(menu_button_controller_);
+ 
+   observer_list_.Notify(&AppMenuButtonObserver::AppMenuShown);
+@@ -168,6 +170,7 @@
+       browser_window_interface,
+       base::BindRepeating(&AppMenuButton::OnMenuClosed,
+                           weak_ptr_factory_.GetWeakPtr()));
++  HoldChromeRevealForMenu();
+   action_menu_->RunMenu(menu_button_controller_, run_flags);
+ 
+   observer_list_.Notify(&AppMenuButtonObserver::AppMenuShown);
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2165,7 +2165,8 @@
+   }
+   const bool dragging = IsFloatingChromeDragging();
+   const bool resizing = helium::IsNativeWindowLiveResizing(browser_view);
+-  const bool window_menu_open = IsWindowControlsMenuOpen();
++  const bool window_menu_open = IsWindowControlsMenuOpen() ||
++                                browser_view->IsChromeRevealHeldForMenu();
+   if (!HasFloatingAddressBar() ||
+       (!dragging && !resizing && !window_menu_open &&
+        ((!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
+@@ -2273,7 +2274,8 @@
+   }
+   // Keyboard address editing reveals the same surface as pointer entry.
+   // Preserve presentation while AppKit tracks a resize or the green-button
+-  // menu. Geometry still updates, and hidden surfaces are not forced open.
++  // menu (or another chrome menu). Geometry still updates, and hidden
++  // surfaces are not forced open.
+   const bool present =
+       (resizing || window_menu_open)
+           ? [floating_address_bar_ isPresented]
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
+-#include "chrome/browser/ui/views/frame/browser_view.h"
++#include "base/functional/callback_helpers.h"
+ 
+ #include <stdint.h>
+ 
+@@ -21,7 +21,6 @@
+ #include "base/containers/flat_set.h"
+ #include "base/feature_list.h"
+ #include "base/functional/bind.h"
+-#include "base/functional/callback_helpers.h"
+ #include "base/i18n/rtl.h"
+ #include "base/location.h"
+ #include "base/memory/raw_ptr.h"
+@@ -86,6 +85,7 @@
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_init_state.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/browser_shortcuts/browser_shortcut_platform_mac.h"
+@@ -2141,8 +2141,34 @@
+   }
+ }
+ 
++// static
++base::ScopedClosureRunner BrowserView::HoldChromeRevealForMenu(
++    views::Widget* widget) {
++  auto* view = widget ? GetBrowserViewForNativeWindow(widget->GetNativeWindow())
++                      : nullptr;
++  if (!view || !view->IsZenModeEnabledForLayout()) {
++    return {};
++  }
++  ++view->chrome_menu_hold_count_;
++  view->zen_cursor_exit_timer_.Stop();
++  return base::ScopedClosureRunner(base::BindOnce(
++      &BrowserView::ReleaseChromeMenuHold, view->GetAsWeakPtr()));
++}
++
++void BrowserView::ReleaseChromeMenuHold() {
++  CHECK_GT(chrome_menu_hold_count_, 0);
++  if (--chrome_menu_hold_count_ == 0) {
++    // Menu commands can destroy their presenter or browser. Reevaluate only
++    // after dispatch unwinds, and never retain either through this task.
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&BrowserView::UpdateZenModeRevealFromCursor,
++                                 GetAsWeakPtr()));
++  }
++}
++
+ void BrowserView::StartZenCollapseTimer(base::TimeDelta delay) {
+-  if (zen_reveal_paused_ || zen_cursor_exit_timer_.IsRunning()) {
++  if (IsChromeRevealHeldForMenu() || zen_reveal_paused_ ||
++      zen_cursor_exit_timer_.IsRunning()) {
+     return;
+   }
+   zen_cursor_exit_timer_.Start(
+@@ -2179,7 +2205,7 @@
+   }
+   if (auto* frame = GetFrameView()) {
+     frame->UpdateFloatingAddressBar();
+-    if (frame->IsFloatingChromeDragging() ||
++    if (IsChromeRevealHeldForMenu() || frame->IsFloatingChromeDragging() ||
+         frame->IsWindowControlsMenuOpen() ||
+         browser_widget_->IsSystemMenuShowing()) {
+       // Keep surfaces stable during native drags and native/control menus.
+@@ -2262,6 +2288,10 @@
+ }
+ 
+ void BrowserView::UpdateZenModeReveal(bool reveal_top, bool reveal_side) {
++  // Guard the common state boundary, including a previously queued timer.
++  if (IsChromeRevealHeldForMenu()) {
++    return;
++  }
+   // Also guard direct calls from a collapse timer queued before the native
+   // green-button menu opened. Resume normal hover after its tracking ends.
+   if (GetFrameView() && GetFrameView()->IsWindowControlsMenuOpen()) {
+--- a/chrome/browser/ui/views/frame/browser_view.h
++++ b/chrome/browser/ui/views/frame/browser_view.h
+@@ -13,6 +13,7 @@
+ 
+ #include "base/callback_list.h"
+ #include "base/containers/enum_set.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/gtest_prod_util.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/scoped_observation.h"
+@@ -449,6 +450,11 @@
+   void ToggleFloatingSidebar();
+   // Native child controls do not send mouse events to the main Views widget.
+   void UpdateZenModeRevealFromCursor();
++  // Keeps currently revealed chrome stable until a menu closes or its owner
++  // is destroyed. Nested menus share a window-local hold; hidden chrome stays
++  // hidden. Only chrome menu presenters should acquire this handle.
++  static base::ScopedClosureRunner HoldChromeRevealForMenu(views::Widget* widget);
++  bool IsChromeRevealHeldForMenu() const { return chrome_menu_hold_count_ > 0; }
+   float GetTopChromeRevealRatio() const;
+   float GetSideChromeRevealRatio() const;
+   bool IsZenModeSideChromePinned() const;
+@@ -986,6 +992,7 @@
+   bool IsLeavingZenSideGap(const gfx::Point& previous_point,
+                            const gfx::Point& point) const;
+   void UpdateZenModeReveal(bool reveal_top, bool reveal_side);
++  void ReleaseChromeMenuHold();
+   void RevealZenModeTopChromeImmediately();
+   void RevealZenModeSideChromeImmediately();
+   bool IsZenModeEnabled() const;
+@@ -1524,6 +1531,7 @@
+   std::unique_ptr<VisualTabSwitcher> visual_tab_switcher_;
+ 
+   // Zen mode state.
++  int chrome_menu_hold_count_ = 0;
+   std::unique_ptr<views::EventMonitor> zen_mode_event_monitor_;
+   std::unique_ptr<ExpandOnHoverLock> zen_expand_on_hover_lock_;
+   gfx::SlideAnimation zen_top_chrome_animation_;
+--- a/chrome/browser/ui/views/tabs/new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/new_tab_button.cc
+@@ -7,9 +7,11 @@
+ #include <memory>
+ 
+ #include "base/feature_list.h"
++#include "base/functional/bind.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/ui_features.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/shared/new_tab_button_menu_model.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip.h"
+@@ -39,13 +41,18 @@
+     const gfx::Point& point,
+     ui::mojom::MenuSourceType source_type) {
+   if (base::FeatureList::IsEnabled(features::kNewTabButtonContextMenu)) {
++    context_menu_runner_.reset();
++    chrome_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(GetWidget());
+     context_menu_model_ = std::make_unique<NewTabButtonMenuModel>(browser_);
+ 
+     int32_t menu_runner_flags =
+         views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU;
+ 
+     context_menu_runner_ = std::make_unique<views::MenuRunner>(
+-        context_menu_model_.get(), menu_runner_flags);
++        context_menu_model_.get(), menu_runner_flags,
++        base::BindRepeating(
++            [](NewTabButton* owner) { owner->chrome_reveal_hold_.RunAndReset(); },
++            base::Unretained(this)));
+ 
+     context_menu_runner_->RunMenuAt(
+         source->GetWidget(), nullptr, gfx::Rect(point, gfx::Size()),
+--- a/chrome/browser/ui/views/tabs/new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/new_tab_button.h
+@@ -5,6 +5,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_TABS_NEW_TAB_BUTTON_H_
+ #define CHROME_BROWSER_UI_VIEWS_TABS_NEW_TAB_BUTTON_H_
+ 
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/views/tabs/shared/new_tab_button_menu_model.h"
+@@ -46,6 +47,7 @@
+   void UpdateBackground() override;
+ 
+  private:
++  base::ScopedClosureRunner chrome_reveal_hold_;
+   std::unique_ptr<NewTabButtonMenuModel> context_menu_model_;
+   std::unique_ptr<views::MenuRunner> context_menu_runner_;
+   raw_ptr<BrowserWindowInterface> browser_;
+--- a/chrome/browser/ui/views/tabs/shared/new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/shared/new_tab_button.cc
+@@ -12,6 +12,7 @@
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/ui_features.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/tabs/shared/new_tab_button_menu_model.h"
+ #include "ui/actions/actions.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+@@ -86,6 +87,8 @@
+       on_context_menu_will_show_callback_.Run();
+     }
+ 
++    context_menu_runner_.reset();
++    chrome_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(GetWidget());
+     context_menu_model_ = std::make_unique<NewTabButtonMenuModel>(browser_);
+ 
+     int32_t menu_runner_flags =
+@@ -105,6 +108,7 @@
+ }
+ 
+ void NewTabButton::OnContextMenuClosed() {
++  chrome_reveal_hold_.RunAndReset();
+   if (on_context_menu_closed_callback_) {
+     on_context_menu_closed_callback_.Run();
+   }
+--- a/chrome/browser/ui/views/tabs/shared/new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/shared/new_tab_button.h
+@@ -9,6 +9,7 @@
+ #include <optional>
+ 
+ #include "base/functional/callback.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+@@ -53,6 +54,7 @@
+   void OnContextMenuClosed();
+ 
+   std::unique_ptr<views::ActionViewController> action_view_controller_;
++  base::ScopedClosureRunner chrome_reveal_hold_;
+   std::unique_ptr<NewTabButtonMenuModel> context_menu_model_;
+   std::unique_ptr<views::MenuRunner> context_menu_runner_;
+ 
+--- a/chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.cc
+@@ -4,8 +4,10 @@
+ 
+ #include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
+ 
++#include "base/functional/bind.h"
+ #include "chrome/browser/ui/tabs/tab_menu_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "extensions/buildflags/buildflags.h"
+ #include "ui/gfx/geometry/rect.h"
+ #include "ui/views/controls/menu/menu_runner.h"
+@@ -35,13 +37,22 @@
+   const int run_flags =
+       views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU;
+ 
+-  menu_runner_ = std::make_unique<views::MenuRunner>(model_.get(), run_flags,
+-                                                     std::move(on_menu_closed));
++  menu_runner_ = std::make_unique<views::MenuRunner>(
++      model_.get(), run_flags,
++      base::BindRepeating(
++          [](TabContextMenuController* owner, base::RepeatingClosure closed) {
++            owner->chrome_reveal_hold_.RunAndReset();
++            if (closed) {
++              closed.Run();
++            }
++          },
++          base::Unretained(this), std::move(on_menu_closed)));
+ }
+ 
+ void TabContextMenuController::RunMenuAt(const gfx::Point& point,
+                                          ui::mojom::MenuSourceType source_type,
+                                          views::Widget* widget) {
++  chrome_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(widget);
+   menu_runner_->RunMenuAt(widget, nullptr, gfx::Rect(point, gfx::Size()),
+                           views::MenuAnchorPosition::kTopLeft, source_type);
+ }
+--- a/chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h
+@@ -7,6 +7,7 @@
+ 
+ #include <memory>
+ 
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "ui/base/mojom/menu_source_type.mojom.h"
+@@ -88,6 +89,7 @@
+   TabMenuModel* GetTabMenuModel() { return tab_menu_model_; }
+ 
+  private:
++  base::ScopedClosureRunner chrome_reveal_hold_;
+   std::unique_ptr<ui::SimpleMenuModel> model_;
+   std::unique_ptr<views::MenuRunner> menu_runner_;
+   tabs::TabHandle tab_handle_;
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_expand_on_hover_lock.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_expand_on_hover_lock.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_expand_on_hover_lock.h"
+ 
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+ 
+ VerticalTabStripExpandOnHoverLock::VerticalTabStripExpandOnHoverLock(
+@@ -12,6 +13,13 @@
+     : lock_type_(lock_type), region_view_(region_view) {
+   if (region_view_) {
+     region_view_->RegisterExpandOnHoverLock(this);
++    // Menu/popover presenters already keep the tab strip state. Retain its
++    // separate Zen reveal state too. Do not bridge kKeepExpanded: Zen itself
++    // owns a persistent expansion lock, which would otherwise hold forever.
++    if (lock_type_ == ExpandOnHoverLockType::kKeepCurrentState) {
++      chrome_reveal_hold_ =
++          BrowserView::HoldChromeRevealForMenu(region_view_->GetWidget());
++    }
+   }
+ }
+ 
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_expand_on_hover_lock.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_expand_on_hover_lock.h
+@@ -5,6 +5,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_STRIP_EXPAND_ON_HOVER_LOCK_H_
+ #define CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_STRIP_EXPAND_ON_HOVER_LOCK_H_
+ 
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+ 
+@@ -28,6 +29,7 @@
+   ExpandOnHoverLockType lock_type() const { return lock_type_; }
+ 
+  private:
++  base::ScopedClosureRunner chrome_reveal_hold_;
+   ExpandOnHoverLockType lock_type_;
+   raw_ptr<VerticalTabStripRegionView> region_view_;
+ };
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -25,6 +25,7 @@
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/chrome_typography.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
+ #include "components/user_education/common/user_education_class_properties.h"
+@@ -586,6 +587,14 @@
+   ShowMenuForModel(source_type, model_.get());
+ }
+ 
++void ToolbarButton::HoldChromeRevealForMenu() {
++  chrome_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(GetWidget());
++}
++
++void ToolbarButton::ReleaseChromeRevealForMenu() {
++  chrome_reveal_hold_.RunAndReset();
++}
++
+ void ToolbarButton::ShowMenuForModel(ui::mojom::MenuSourceType source_type,
+                                      ui::MenuModel* menu_model) {
+   gfx::Rect menu_anchor_bounds = GetAnchorBoundsInScreen();
+@@ -636,6 +645,7 @@
+   root->SetSubmenuId(menu_identifier_);
+   menu_runner_ = std::make_unique<views::MenuRunner>(
+       std::move(root), views::MenuRunner::HAS_MNEMONICS);
++  HoldChromeRevealForMenu();
+   menu_runner_->RunMenuAt(GetWidget(), nullptr, menu_anchor_bounds,
+                           views::MenuAnchorPosition::kTopLeft, source_type);
+ }
+@@ -653,6 +663,7 @@
+ 
+   menu_runner_.reset();
+   menu_model_adapter_.reset();
++  ReleaseChromeRevealForMenu();
+ }
+ 
+ namespace {
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.h
+@@ -9,6 +9,7 @@
+ #include <optional>
+ 
+ #include "base/functional/bind.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/raw_ptr_exclusion.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+@@ -173,6 +174,9 @@
+   void SetInternalPadding(gfx::Insets insets);
+ 
+  protected:
++  void HoldChromeRevealForMenu();
++  void ReleaseChromeRevealForMenu();
++
+   struct VectorIcons {
+     // RAW_PTR_EXCLUSION: Never allocated by PartitionAlloc (always points to a
+     // global), so there is no benefit to using a raw_ptr, only cost.
+@@ -343,6 +347,9 @@
+   // Y position of mouse when left mouse button is pressed.
+   int y_position_on_lbuttondown_ = 0;
+ 
++  // Destroyed after the runner; also released on normal menu closure.
++  base::ScopedClosureRunner chrome_reveal_hold_;
++
+   // The model adapter for the drop down menu.
+   std::unique_ptr<views::MenuModelAdapter> menu_model_adapter_;
+ 
+--- a/chrome/browser/ui/views/tabs/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/BUILD.gn
+@@ -514,6 +514,7 @@
+     "//chrome/browser/ui:browser_element_identifiers",
+     "//chrome/browser/ui:ui_features",
+     "//chrome/browser/ui/browser_window",
++    "//chrome/browser/ui/views/frame:browser_view_header",
+     "//chrome/browser/ui/views/tabs/shared",
+     "//ui/base:features",
+     "//ui/views",
+--- a/chrome/browser/ui/views/frame/browser_widget.cc
++++ b/chrome/browser/ui/views/frame/browser_widget.cc
+@@ -431,6 +431,7 @@
+         views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU,
+         base::BindRepeating(&BrowserWidget::OnMenuClosed,
+                             base::Unretained(this)));
++    chrome_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(this);
+     menu_runner_->RunMenuAt(source->GetWidget(), nullptr,
+                             gfx::Rect(p, gfx::Size(0, 0)),
+                             views::MenuAnchorPosition::kTopLeft, source_type);
+@@ -529,6 +530,7 @@
+ 
+ void BrowserWidget::OnMenuClosed() {
+   menu_runner_.reset();
++  chrome_reveal_hold_.RunAndReset();
+   browser_view_->AppMenuClosed();
+ }
+ 
+--- a/chrome/browser/ui/views/frame/browser_widget.h
++++ b/chrome/browser/ui/views/frame/browser_widget.h
+@@ -5,6 +5,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_WIDGET_H_
+ #define CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_WIDGET_H_
+ 
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "build/build_config.h"
+ #include "content/public/browser/keyboard_event_processing_result.h"
+@@ -179,6 +180,7 @@
+ 
+   // Used to show the system menu. Only used if
+   // BrowserNativeWidget::UsesNativeSystemMenu() returns false.
++  base::ScopedClosureRunner chrome_reveal_hold_;
+   std::unique_ptr<views::MenuRunner> menu_runner_;
+ 
+   base::CallbackListSubscription subscription_ =
+--- a/chrome/browser/ui/views/toolbar/overflow_menu.cc
++++ b/chrome/browser/ui/views/toolbar/overflow_menu.cc
+@@ -18,6 +18,7 @@
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+ #include "chrome/browser/ui/ui_features.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_toolbar_button_status_indicator.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+ #include "chrome/grit/generated_resources.h"
+@@ -542,6 +543,7 @@
+ 
+   menu_runner_ = std::make_unique<views::MenuRunner>(
+       std::move(root), views::MenuRunner::HAS_MNEMONICS);
++  chrome_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(parent);
+   menu_runner_->RunMenuAt(parent, button_controller, bounds,
+                           views::MenuAnchorPosition::kTopRight,
+                           ui::mojom::MenuSourceType::kNone);
+@@ -553,6 +555,7 @@
+ }
+ 
+ void OverflowMenu::OnMenuClosed(views::MenuItemView* menu) {
++  chrome_reveal_hold_.RunAndReset();
+   delegate_->OnMenuClosed();
+ }
+ 
+@@ -560,4 +563,5 @@
+   root_menu_item_ = nullptr;
+   menu_model_.reset();
+   menu_runner_.reset();
++  chrome_reveal_hold_.RunAndReset();
+ }
+--- a/chrome/browser/ui/views/toolbar/overflow_menu.h
++++ b/chrome/browser/ui/views/toolbar/overflow_menu.h
+@@ -16,6 +16,7 @@
+ 
+ #include "base/callback_list.h"
+ #include "base/functional/callback.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/raw_ref.h"
+ #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+@@ -229,6 +230,7 @@
+ 
+   std::vector<base::CallbackListSubscription> action_changed_subscription_;
+ 
++  base::ScopedClosureRunner chrome_reveal_hold_;
+   std::unique_ptr<views::MenuRunner> menu_runner_;
+   std::unique_ptr<ui::SimpleMenuModel> menu_model_;
+   raw_ptr<views::MenuItemView> root_menu_item_ = nullptr;
+--- a/chrome/browser/ui/views/toolbar/split_tabs_button.cc
++++ b/chrome/browser/ui/views/toolbar/split_tabs_button.cc
+@@ -172,13 +172,19 @@
+     menu_runner_.reset();
+     menu_model_adapter_.reset();
+ 
+-    menu_model_adapter_ =
+-        std::make_unique<views::MenuModelAdapter>(split_tab_menu_.get());
++    menu_model_adapter_ = std::make_unique<views::MenuModelAdapter>(
++        split_tab_menu_.get(),
++        base::BindRepeating(
++            [](SplitTabsToolbarButton* button) {
++              button->ReleaseChromeRevealForMenu();
++            },
++            base::Unretained(this)));
+     std::unique_ptr<views::MenuItemView> root =
+         menu_model_adapter_->CreateMenu();
+     root->SetSubmenuId(menu_identifier());
+     menu_runner_ = std::make_unique<views::MenuRunner>(
+         std::move(root), views::MenuRunner::HAS_MNEMONICS);
++    HoldChromeRevealForMenu();
+     menu_runner_->RunMenuAt(
+         GetWidget(),
+         static_cast<views::MenuButtonController*>(button_controller()),
+--- a/chrome/browser/ui/views/extensions/BUILD.gn
++++ b/chrome/browser/ui/views/extensions/BUILD.gn
+@@ -489,6 +489,7 @@
+     "//ui/views",
+   ]
+   deps = [
++    "//chrome/browser/ui/views/frame:browser_view_header",
+     "//chrome/browser/ui/extensions",
+     "//chrome/browser/ui/extensions:extensions_menu_handler",
+     "//chrome/browser/ui/toolbar",
