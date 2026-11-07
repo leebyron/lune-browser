@@ -56,12 +56,19 @@ vertical/horizontal tabs, split panes, rounded-frame toggling, and fullscreen.
 See [the feature evidence](agent-docs/project/features/content-pane-shadow.md).
 This feature is not in published builds 1 or 2.
 
-The development macOS input now includes an AppKit floating address capsule under
-`inputs/floating-address-1/macos`, with a 700 ms departure cooldown. Both
-architectures compile and pass headless smoke checks (Intel via Rosetta). Native
-rendering, address/site-information/reload actions, dismissal, and fullscreen were
-inspected during implementation. Final pointer/reentry and theme acceptance remain
-pending after macOS locked; see [the feature evidence](agent-docs/project/features/floating-address-bar.md).
+The development inputs under `inputs/floating-address-2/helium` and
+`inputs/floating-address-3/macos` include
+an editable AppKit glass address capsule, 48 pt distance retention, whole-surface
+focus, slide/fade motion, fullscreen edge reveal, sidebar-aware geometry, and
+softer content/sidebar shadows. The subsequent toolbar revision adds paired
+native navigation, the original extension/menu controls in a trailing glass
+group, native window dragging, fixed traffic lights without a pill, and
+4 pt rails with a fixed 26 pt outer radius and 8 pt surface insets. Both
+architectures compile and pass smoke checks (Intel via Rosetta). Native arm64
+editor checks pass, and the owner accepted
+the distance behavior and animation. Fullscreen edge pointer behavior and
+synchronized sidebar geometry still need explicit manual acceptance; see
+[the feature evidence](agent-docs/project/features/floating-address-bar.md).
 This is not in published builds 1 or 2 and is not release-accepted.
 
 The current development macOS input adds a text-only frame-thickness label

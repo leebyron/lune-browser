@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "20231c574761dd463b4567fb10a4beda68a92dd9",
+    "commit": "a9a08b3144c7f6d5df16f77bbe79df8c9d45f63b",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -201,6 +201,22 @@
       {
         "path": "patches/lune/day-night-branding.patch",
         "sha256": "b68dddcd681addc26112b6307da593256b6f1752ca4d3a29b222f7039e8639e7"
+      },
+      {
+        "path": "patches/helium/ui/glass-address-editor.patch",
+        "sha256": "e0817f33774d12078faebdd4652e43651b8b299c85bca80f321719cc307f221c"
+      },
+      {
+        "path": "patches/helium/ui/floating-sidebar-surface.patch",
+        "sha256": "a3dbeac22096f88ec7f4656f38ec65d08408230d9d9317a9d001ddc46b6fe6f1"
+      },
+      {
+        "path": "patches/helium/ui/glass-focus-and-frame-geometry.patch",
+        "sha256": "87e18d0973bf960ddeba31750369b435998817b95ec72794846483d8728dadeb"
+      },
+      {
+        "path": "patches/helium/ui/floating-glass-toolbar.patch",
+        "sha256": "8227eb07a62678acdeb87f8b5ca9d7893713de7128b7e036899006a40e913d7c"
       }
     ]
   },
@@ -416,10 +432,13 @@
         "chromium-158-compatibility"
       ],
       "patches": [
-        "patches/helium/ui/native-floating-address-bar.patch"
+        "patches/helium/ui/native-floating-address-bar.patch",
+        "patches/helium/ui/glass-address-editor.patch",
+        "patches/helium/ui/glass-focus-and-frame-geometry.patch",
+        "patches/helium/ui/floating-glass-toolbar.patch"
       ],
       "review_status": "reviewed-port",
-      "rationale": "Use public AppKit glass for an overlaid address capsule with a 700 ms departure cooldown.",
+      "rationale": "Use public AppKit glass for an editable address capsule, paired SF Symbol navigation, and the existing extension/menu controls, with native window dragging, fixed traffic lights, 48 pt distance retention, and 8 pt surface insets.",
       "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits."
     },
     {
@@ -445,6 +464,18 @@
       "review_status": "reviewed-port",
       "rationale": "Use the approved 30% wider lunes and coordinated light/dark website and app palettes.",
       "adaptation": "Distribution-only quilt patch and artwork in 20231c574761dd463b4567fb10a4beda68a92dd9; see agent-docs/project/features/day-night-branding.md."
+    },
+    {
+      "id": "floating-sidebar-surface",
+      "depends_on": [
+        "native-floating-address"
+      ],
+      "patches": [
+        "patches/helium/ui/floating-sidebar-surface.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Give the detached sidebar a soft ambient shadow and half-point light edge.",
+      "adaptation": "Locally authored reusable platform feature layered on the Xelium sidebar; see agent-docs/project/features/floating-address-bar.md."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."
