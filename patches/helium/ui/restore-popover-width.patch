@@ -1,0 +1,15 @@
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -1137,12 +1137,6 @@
+               zen.vertical_tab_strip_top_padding,
+           vertical_tab_strip_width, vertical_tab_strip_height};
+       if (zen.floating_vertical_tab_strip) {
+-#if BUILDFLAG(IS_MAC)
+-        // Narrow the popover at its inner edge without moving the outer inset.
+-        vertical_tab_strip_bounds.Inset(
+-            gfx::Insets::TLBR(0, vertical_right_aligned ? 4 : 0, 0,
+-                              vertical_right_aligned ? 0 : 4));
+-#endif
+         vertical_tab_strip_bounds = SlideBoundsFromSide(
+             vertical_tab_strip_bounds, params.visual_client_area,
+             zen.side_chrome_ratio, vertical_right_aligned);
