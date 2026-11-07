@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "cfaeba22fb561e13ade81ea571c039746330ad25",
+    "commit": "b61c7d7e8d2d5b72145cfd43a50a4f8815cdd5fc",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -313,6 +313,14 @@
       {
         "path": "patches/helium/ui/sidebar-pinned-spacing.patch",
         "sha256": "3a7932e0e9fa9e2bb81d17d3e9f8121c362189ebe82ed0895270eb9073213a9b"
+      },
+      {
+        "path": "patches/helium/ui/edge-to-edge-frame.patch",
+        "sha256": "61d97d6b5e099b418d19b682e59b844834c3f2904efb122a1d9423c0f7184219"
+      },
+      {
+        "path": "patches/helium/ui/edge-to-edge-separators.patch",
+        "sha256": "3b8b4450c811067049cea4f5dcc10ba0f8a3718bd2e6feba64227146666820cc"
       }
     ]
   },
@@ -550,10 +558,12 @@
         "patches/helium/ui/top-anchored-native-chrome.patch",
         "patches/helium/ui/restore-popover-width.patch",
         "patches/helium/ui/standard-window-button-spacing.patch",
-        "patches/helium/ui/native-address-editing-text.patch"
+        "patches/helium/ui/native-address-editing-text.patch",
+        "patches/helium/ui/edge-to-edge-frame.patch",
+        "patches/helium/ui/edge-to-edge-separators.patch"
       ],
       "review_status": "reviewed-port",
-      "rationale": "Use public AppKit glass for an editable address capsule, paired SF Symbol navigation, and the existing extension/menu controls, with native window dragging, fixed traffic lights, 48 pt distance retention, and 8 pt surface insets. Correct the actual native frame shape, honor profile appearance overrides with OS fallback for glass, restore sidebar pinning/context menus, and restrict drag/cursor handling to visible chrome. Keep fullscreen child controls visible, align exposed glass to content corner centers, and retain dragging through physical mouse-up. Recreate the native glass material on appearance changes; use AppKit semantic colors for detached tab rows. Keep the sidebar toggle solely on its sidebar surface, make its native hit region clickable, and preserve the window resize cursor perimeter. Sidebar-contained controls stay fixed during fullscreen menu reveal; top-bar traffic lights follow the menu offset. Restore detached sidebar background dragging and context menus, correct first-row clipping, use a 12 pt adjacent glass gap and 4 pt toggle inset, reveal on sidebar-header hover, and fade top controls without vertical presentation motion. Keep trailing icons aligned with their glass during fade-only presentation and traffic lights on the left during right-sidebar animation. Retain popovers while their options menu runs, reveal the left sidebar from visible traffic lights, and retain the fullscreen pinned-sidebar content shadow. Enlarge the sidebar symbol with a 2 pt popover inset. Remove the extra customization header, put a native glass close beside the existing Appearance row, remove rounded scroll clipping, and exclude the panel from toolbar dragging. Add 2 pt per side around pinned tabs, narrow the detached popover by 2 pt, restore its inner-edge resize cursor/drag with stable stored width, and retain it during resizing. Move detached sidebar material, tabs, toggle, and left traffic lights with the fullscreen menu-bar offset while pinned sidebar controls remain fixed. Declare direct frame-view build dependencies. Anchor native header views to the actual AppKit content height during asynchronous live resize, using native top springs and synchronous child-control alignment. Reduce detached sidebar width by 4 pt total at its inner edge. Restore the full detached sidebar width, undoing the 4 pt reduction. Derive traffic-light spacing from AppKit originals and reduce their container and reserved toolbar width accordingly. Use the standard omnibox formatted editing text so new tabs focus an empty field.",
+      "rationale": "Use public AppKit glass for an editable address capsule, paired SF Symbol navigation, and the existing extension/menu controls, with native window dragging, fixed traffic lights, 48 pt distance retention, and 8 pt surface insets. Correct the actual native frame shape, honor profile appearance overrides with OS fallback for glass, restore sidebar pinning/context menus, and restrict drag/cursor handling to visible chrome. Keep fullscreen child controls visible, align exposed glass to content corner centers, and retain dragging through physical mouse-up. Recreate the native glass material on appearance changes; use AppKit semantic colors for detached tab rows. Keep the sidebar toggle solely on its sidebar surface, make its native hit region clickable, and preserve the window resize cursor perimeter. Sidebar-contained controls stay fixed during fullscreen menu reveal; top-bar traffic lights follow the menu offset. Restore detached sidebar background dragging and context menus, correct first-row clipping, use a 12 pt adjacent glass gap and 4 pt toggle inset, reveal on sidebar-header hover, and fade top controls without vertical presentation motion. Keep trailing icons aligned with their glass during fade-only presentation and traffic lights on the left during right-sidebar animation. Retain popovers while their options menu runs, reveal the left sidebar from visible traffic lights, and retain the fullscreen pinned-sidebar content shadow. Enlarge the sidebar symbol with a 2 pt popover inset. Remove the extra customization header, put a native glass close beside the existing Appearance row, remove rounded scroll clipping, and exclude the panel from toolbar dragging. Add 2 pt per side around pinned tabs, narrow the detached popover by 2 pt, restore its inner-edge resize cursor/drag with stable stored width, and retain it during resizing. Move detached sidebar material, tabs, toggle, and left traffic lights with the fullscreen menu-bar offset while pinned sidebar controls remain fixed. Declare direct frame-view build dependencies. Anchor native header views to the actual AppKit content height during asynchronous live resize, using native top springs and synchronous child-control alignment. Reduce detached sidebar width by 4 pt total at its inner edge. Restore the full detached sidebar width, undoing the 4 pt reduction. Derive traffic-light spacing from AppKit originals and reduce their container and reserved toolbar width accordingly. Use the standard omnibox formatted editing text so new tabs focus an empty field. Adopt a 16 pt native window perimeter, edge-to-edge content without gutters or shadow, a flush square glass sidebar, and a separate 6 pt resize/reveal interaction band. Header height is 56 pt with 8 pt control insets.",
       "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits."
     },
     {

@@ -102,6 +102,18 @@ Input 19 derives traffic-light spacing from AppKit and compacts its container.
 Input 20 uses normal omnibox editing text, preserving an empty new-tab field.
 This is not in published builds 1 or 2 and is not release-accepted.
 
+The development input `inputs/edge-frame-2/macos` supersedes the earlier frame
+geometry on macOS: a 16 pt native window perimeter, no content gutter, outline,
+or drop shadow, and a flush square glass popover sidebar. A separate 6 pt edge
+interaction band reveals chrome while AppKit retains native resizing; fullscreen
+continues to reveal at the last screen pixel. The header region is 56 pt tall
+with controls inset 8 pt. The obsolete macOS frame/gutter settings are hidden.
+Both architecture builds and smoke/default/settings checks pass (Intel via
+Rosetta); arm64 inspection confirms the full-window viewport and header inset.
+Owner resize-edge hover acceptance is pending.
+See [edge-to-edge frame evidence](agent-docs/project/features/edge-to-edge-frame.md).
+This development revision is not in published builds 1 or 2.
+
 The current development macOS input adds a text-only frame-thickness label
 restoration under `inputs/frame-label-1/macos`. Patch replay and XML checks pass;
 it is included in the day/night development rebuild. Source-string coverage remains
