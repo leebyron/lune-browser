@@ -90,8 +90,9 @@ correct direct frame-view build dependencies.
 Both architectures compile and pass headless smoke/default/settings checks
 (Intel via Rosetta). Native arm64 sidebar context-menu, unpin, app-menu, editor,
 and clean-shutdown checks pass. The owner previously accepted
-the distance behavior and animation. New sidebar pointer interactions still
-need explicit manual acceptance; see
+the distance behavior and animation, and accepted input-16 popover resizing on
+both sides and fullscreen menu-bar synchronization on November 6, 2026.
+Other pending interaction checks remain listed in
 [the feature evidence](agent-docs/project/features/floating-address-bar.md).
 This is not in published builds 1 or 2 and is not release-accepted.
 

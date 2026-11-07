@@ -422,10 +422,12 @@ checks pass.
 
 Native arm64 inspection confirms the increased pinned-tab margins and the
 resize handle exposed in the detached sidebar's accessibility tree. The
-accessibility resize action timed out in native automation, so actual
-left/right pointer resizing and width persistence remain manual acceptance
-items. Fullscreen popover/menu-bar synchronization is source-verified and
-still needs pointer acceptance. The inspected preview exited cleanly.
+accessibility resize action timed out in native automation. On November 6,
+2026, the owner manually accepted inner-edge resizing on both left and right
+popovers and the fullscreen popover moving down with the menu bar and top
+controls in the input-16 Apple silicon preview. Width persistence across an app
+restart was not part of that acceptance. The inspected preview exited cleanly
+before the final preview was relaunched and left open.
 
 Local evidence: `.work/floating-address/sidebar-sizing-validation.json`,
 `sidebar-sizing-smoke-{arm64,intel}.json`,
