@@ -102,52 +102,33 @@ Input 19 derives traffic-light spacing from AppKit and compacts its container.
 Input 20 uses normal omnibox editing text, preserving an empty new-tab field.
 This is not in published builds 1 or 2 and is not release-accepted.
 
-The development input `inputs/edge-frame-11/macos` supersedes the earlier frame
-geometry on macOS: a 16 pt native window perimeter, no content gutter, outline,
-or drop shadow, and a flush square glass popover sidebar. A separate 8 pt edge
-interaction band reveals chrome while AppKit retains native resizing; fullscreen
-uses four physical top pixels and one side pixel for reveal. The header region
-is 52 pt tall with controls inset 8 pt. The obsolete macOS frame/gutter settings are hidden.
-Both architecture builds and smoke/default/settings checks pass (Intel via
-Rosetta); arm64 inspection confirms the full-window viewport and header inset.
-The owner accepted input-2 edge reveal. Input 3 aligns pin/unpin geometry, moves
-pinned contents with the fullscreen menu bar, shields the header through the top
-edge, adds a pinned-only semantic hairline, and delegates tab-list caption
-hit testing. Input 4 ignores input-disabled decorative views and routes
-pinned blank-space events through AppKit. The owner confirmed pinned-sidebar
-dragging and right-click menus work on input 4; fullscreen menu motion and
-pin/unpin geometry still await acceptance. Input 5 widens reveal to those 8/4/1
-thresholds and allows full-header dragging for presses not claimed by AppKit
-for resizing, eliminating the inert strip above the controls. The owner confirmed
-both drag and resize work on input 5, but reported cursor flicker. Input 6 defers
-content cursor updates to AppKit over its actual resize targets and tears down
-the floating autocomplete before profile services are destroyed. Arm64 native
-fullscreen, private-window close, fullscreen-window close and clean quit checks
-pass. The owner reported input-6 cursor flicker remained. Inputs 7–8 use
-Apple's standard frame cursors and prevent renderer/glass/child-window cursor
-overrides at native resize targets. They also initialize the popover drag handler
-before the first header reveal. Extracted native tests pass all eight resize
-directions and verify the renderer yields those targets. Final pointer acceptance
-is still pending.
+The development input `inputs/edge-frame-17/macos` supersedes the earlier macOS
+frame: a 16 pt native perimeter, edge-to-edge content without gutters or shadow,
+a flush square glass sidebar, and a pinned-only semantic separator. Reveal uses
+8 pt windowed edge bands, four physical top pixels and one side pixel fullscreen.
+The header is 52 pt tall with 36 pt controls and 8 pt outer insets. Both sidebar
+modes follow the fullscreen menu-bar offset and share their header geometry.
+Native blank-space dragging/context menus, the full popover width, standard
+traffic-light spacing, and autocomplete teardown protection remain in place.
 
-Edge-frame input 9 follows a live debugger trace of AppKit cursor-rectangle
-updates bypassing the window cursor handler. The shared Cocoa BaseView and
-native chrome views preserve resize cursor ownership at that dispatch boundary.
-The owner accepted input-8 popover dragging; cursor stability remains unaccepted.
-The header is now 52 pt (36 pt controls plus 8 pt above/below), superseding 56 pt.
-The popover tab child window excludes only the native buttons, avoiding clipping
-New Tab. The owner accepted input-9 header and popover geometry but reported
-resize cursor flicker remains. Input 10 gives the existing native frame a
-persistent AppKit cursor-update tracking area and uses current pointer positions
-in the window handler, following a live trace of structural cursor resets.
-Both architecture builds and smoke checks pass (Intel via Rosetta), but the
-owner reported input 10 still had inconsistent resize cursors. Input 11 corrects
-the live hit-test mismatch: the direct content view now yields actual native
-resize targets before routing to web content or chrome. The owner accepted
-resize cursor behavior on input 11 on November 7, 2026. Validation is recorded
-in the feature evidence.
-See [edge-to-edge frame evidence](agent-docs/project/features/edge-to-edge-frame.md).
-This development revision is not in published builds 1 or 2.
+The owner accepted header/popover geometry, blank-area dragging and menus, and
+input-13 header/sidebar retention during native resizing. Cursor acceptance was
+subsequently withdrawn: inputs 14–15 did not reliably fix resize cursors or tab
+content drift. Input 16 removes 183 lines of accumulated cursor overrides,
+tracking areas and the unsuccessful local-coordinate workaround. It retains
+native resize hit routing and resize retention, and selects Chromium's existing
+synchronous resize path. The owner initially accepted the synchronous A/B, then
+reported intermittent cursor flicker and invisible toolbar icons; do not treat
+that experiment as cursor acceptance. Input 17 fades toolbar content rather than
+NSWindow opacity, which Chromium also controls while waiting for compositor frames.
+Live inspection confirmed the invisible toolbar window had alpha 0 while still
+visible and clickable. Both architecture builds and smoke checks pass (Intel via
+Rosetta), along with native arm64 fullscreen/menu checks. The owner confirmed
+input-17 icons remain visible but cursors still flicker while Lune is active.
+Further cursor work is deferred at the owner's request and tracked in
+[GitHub issue #5](https://github.com/leebyron/lune-browser/issues/5). These are
+development inputs, not published builds 1 or 2. See
+[edge-to-edge frame evidence](agent-docs/project/features/edge-to-edge-frame.md).
 
 The current development macOS input adds a text-only frame-thickness label
 restoration under `inputs/frame-label-1/macos`. Patch replay and XML checks pass;

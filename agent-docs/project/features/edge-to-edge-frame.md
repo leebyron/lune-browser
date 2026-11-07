@@ -4,9 +4,16 @@ Requested November 7, 2026. This is the owner's proposed macOS 27 styling,
 not a claim that Apple mandates these dimensions. It replaces the earlier
 26 pt perimeter, 4 pt gutters, content shadow and inset floating sidebar.
 
-Current status: the owner accepted input-11 resize cursor behavior on November 7,
-2026, following acceptance of the 52 pt header and popover layout. Earlier failed
-cursor attempts below are historical evidence, not current open defects.
+Current status: header/popover geometry and input-13 resize retention are accepted.
+Resize cursor stability is unresolved. The owner rejected the input-14/15
+interaction fixes and later withdrew initial acceptance of a synchronous-resize
+A/B after further cursor flicker and invisible toolbar icons. Input 16 simplifies
+the resize integration; input 17 addresses the confirmed toolbar opacity conflict.
+Both architecture builds and smoke checks pass (Intel under Rosetta). The owner
+confirmed input-17 icons stay visible but resize cursors still flicker while Lune
+is active. Further cursor implementation is deferred at the owner's request;
+[issue #5](https://github.com/leebyron/lune-browser/issues/5) records the findings,
+failed approaches, retained baseline and criteria for resuming.
 
 ## Implemented behavior
 
@@ -77,8 +84,8 @@ The owner accepted edge reveal on input 2 and requested the following changes:
 ## Inputs
 
 - Core: `3c3726b5935203480de96fdb08c9839a814fc2b9`.
-- macOS: `5f58806093ed31dab7415ed310d3b0852af4bcce`.
-- Tag: `inputs/edge-frame-11/macos`.
+- macOS: `d2dd4a3016b1aa58a567e1f335ceec5824d98310`.
+- Tag: `inputs/edge-frame-17/macos`.
 - Patches: `helium/ui/edge-to-edge-frame.patch`,
   `helium/ui/edge-to-edge-separators.patch`,
   `helium/ui/consistent-sidebar-geometry.patch`,
@@ -89,8 +96,13 @@ The owner accepted edge reveal on input 2 and requested the following changes:
   `helium/ui/native-resize-cursor-and-sidebar-drag.patch`,
   `helium/ui/resize-cursor-ownership.patch`,
   `helium/ui/native-tracking-cursor-and-popover-clip.patch`,
-  `helium/ui/native-frame-cursor-tracking.patch`, and
-  `helium/ui/native-resize-hit-routing.patch`.
+  `helium/ui/native-frame-cursor-tracking.patch`,
+  `helium/ui/native-resize-hit-routing.patch`,
+  `helium/ui/live-resize-chrome-retention.patch`,
+  `helium/ui/sidebar-local-content-layout.patch`,
+  `helium/ui/renderer-tracking-cursor-ownership.patch`,
+  `helium/ui/synchronous-native-window-resize.patch`, and
+  `helium/ui/floating-toolbar-content-opacity.patch`.
 - Based on the locked sidebar-new-tab-2 input, retaining all prior browser and
   sidebar work. Ordered patch hashes remain in `manifests/patches.json`.
 
@@ -117,7 +129,9 @@ latest menu animation and pin/unpin alignment remains pending. The owner
 confirmed input-5 header-strip dragging and native edge resizing both work,
 but reported resize-cursor flicker. The owner confirmed input-4 pinned blank-area dragging and right-click
 menus work on November 7, 2026. The isolated Apple silicon preview
-`.work/floating-address/edge-frame-cursor11/` is left open with normal website access.
+`.work/floating-address/edge-frame-simplified17/` is open with normal website
+access and the preserved synchronous-experiment profile. It has no resize feature
+launch override and no injected diagnostics.
 
 Local evidence is under `.work/edge-frame/`; source preparation and builds use
 `.work/chromium-158/macos/build/src`. This is a development input, not a signed
@@ -146,6 +160,10 @@ under Rosetta. Final combined replay covers 47 relevant patches and all five
 touched source files. All 44 repository tests pass. The owner accepted physical resize/drag
 coexistence with the widened reveal bands; cursor flicker remained.
 The accepted pinned-sidebar drag/menu behavior is retained.
+
+The following input-by-input sections describe historical experiments. Input 16
+removes most cursor overrides described in inputs 6–10 and 15. Use the current
+status and inputs 16–17 sections for the retained implementation.
 
 ## Native cursor and profile lifetime correction (input 6)
 
@@ -276,7 +294,8 @@ cursors and interior ownership. A stale interior event still selects the correct
 cursor at each current edge/corner location. Arm64 compilation and
 smoke/default/settings checks pass on both architectures (Intel via Rosetta).
 The owner reports input 10 still has inconsistent resize cursors, so this is
-not accepted as a cursor fix; input 11 resolves the owner-reported defect below.
+not accepted as a cursor fix; input 11 attempts the direct hit-routing correction
+below. Its initial cursor acceptance was subsequently withdrawn.
 The previous preview quit cleanly (exit 0) before this one opened. Live debugger captures are under `.work/edge-frame/cursor9-live-trace*`;
 each debugger detached and left the preview running.
 
@@ -306,11 +325,126 @@ Live inspection of input 11 confirms the direct content hit test returns nil at
 the native top resize target while the frame hit test returns BrowserWindowFrame.
 The owner confirmed “cursors look great now” on November 7, 2026.
 
-Cleanup retained the accepted cursor guards because native tracking dispatch,
+Historical input-11 cleanup retained cursor guards because native tracking dispatch,
 asynchronous renderer updates, child-window cursor updates and direct content
 hit testing are separate paths. No diagnostic logging is present in these
 production patches, and no debugger remains attached. Temporary debugger commands,
 failed captures and regenerable probe binaries were archived with byte verification
 under `.work/edge-frame/diagnostics-archive/`. Successful diagnostic evidence and
 the current probe sources remain available. Immutable input tags and patch history
-are preserved. The accepted preview and its profile remain open.
+are preserved. Those guards were subsequently superseded by input 16; profiles remain preserved.
+
+
+## Retain chrome during native resizing (input 13)
+
+The owner requested retaining any revealed header or sidebar while resizing the
+window. The AppKit `NSWindow.inLiveResize` state now freezes the current native
+header presentation and the Views top/sidebar reveal targets. The latter guard
+is at the shared state-update boundary, so both cursor updates and a previously
+queued collapse timer respect it. Layout and native control positions continue
+following the resized window. Hidden surfaces stay hidden during the resize;
+ordinary pointer retention resumes once AppKit ends it. Pinned layout is unchanged.
+No extra timer, global input interception, or independently latched resize flag
+is added. This does not modify the accepted native resize hit/cursor routing.
+
+Strict no-fuzz replay passes across 68 patches and 16 files. Apple silicon
+compilation and smoke/default/settings checks pass. Component lint, lock/ancestry
+validation, all 44 repository tests, documentation links and whitespace checks
+pass. Intel compilation and smoke checks also pass under Rosetta. The owner
+confirmed resize retention works, then reported cursor inconsistency and drifting
+sidebar tab contents during resize. This change is separate from the accepted input-11 cursor
+fix and has not been published as a browser release.
+
+
+## Sidebar coordinates and renderer cursor dispatch (inputs 14–15)
+
+The glass sidebar is an AppKit surface; its Chromium Views tab controls are in
+an overlaid child widget. Native frame synchronization keeps their windows aligned,
+but tab layout previously subtracted independently updated screen origins. During
+live resize those origins can represent different native/compositor frames.
+Input 14 passes the clipped child-widget origin in sidebar coordinates and lays
+out the tab contents relative to it, avoiding that cross-window conversion.
+It preserves slide clipping, fullscreen offsets, and existing tab interactions.
+
+A subsequent native trace confirmed direct content hit testing still yields the
+native resize edge, and live-resize state resets on release. Resize cursor updates
+still competed with renderer/page cursor updates and AppKit structural cursor
+resets. Multiple native frame tracking regions also appeared in a plain unshown
+AppKit window after resizing, so their presence alone is not a Lune-specific bug.
+
+Input 15 replaces the renderer's static full-visible-rect cursor registration
+with a single cursor-update tracking area. It resolves page-versus-resize ownership
+at dispatch time and explicitly applies the native resize cursor on mouse moves.
+Asynchronous renderer updates continue yielding native resize points. It adds no
+polling timer, global cursor interception, or new private AppKit geometry API.
+
+Strict replay passes across 70 patches and 17 files. Extracted production methods
+in an unshown AppKit probe choose all eight native resize cursors plus the interior
+page cursor after four window-size changes, with one renderer cursor tracking area.
+Existing native hit-routing and stale-event checks also pass. The probe records
+cursor choices without setting the real pointer. Apple silicon compilation and
+smoke/default/settings checks pass. The previous preview quit cleanly (exit 0)
+and the updated preview retained its profile. Intel compilation and smoke checks
+also passed under Rosetta. The owner rejected both interaction fixes: cursor
+flicker and sidebar content drift persisted. Input 16 reverses these experiments.
+
+
+## Simplify resize integration (input 16)
+
+Chromium already provides a synchronous native resize path through
+`features::kAsyncLiveResize`. Disabling that feature makes the existing native
+window bridge synchronize the compositor transaction during resize. An input-15
+preview launched with `--disable-features=AsyncLiveResize` initially received
+owner acceptance for sidebar alignment and edge cursors. Further use showed
+cursor flicker remained and the trailing toolbar icons could disappear after
+fullscreen while still responding to clicks. This is not cursor acceptance.
+
+Input 16 selects that existing synchronous path by default and removes 183 lines
+of speculative cursor guards, custom tracking and the failed sidebar-local
+coordinate layout (25 lines added). It restores upstream cursor handling and
+retains only direct content hit-test refusal at AppKit resize points, plus the
+separate accepted live-resize retention. It does not port the Chromium tab strip
+to AppKit. Synchronous rendering can block the UI thread while awaiting a frame;
+no performance improvement is claimed.
+
+Strict no-fuzz replay passed across 72 patches and 18 files. An unshown native
+probe verifies all eight native resize hit targets at five sizes, interior
+interaction and nonresizable/nil exclusion. It does not test real pointer cursor
+stability. Arm64 compilation, component checks, lock validation and 44 repository
+tests passed. Input 16 was not separately launched before the toolbar fix.
+
+## Separate toolbar fade from compositor visibility (input 17)
+
+Native inspection of the failing synchronous preview found the trailing
+102 by 36 pt child window ordered visible, with content alpha 1 but window
+alpha 0. The controls remained accessible and clickable. Chromium's window
+bridge temporarily sets NSWindow alpha while waiting for a correctly sized
+compositor frame, saving and later restoring its previous value. Lune also
+animated that same alpha and set it to zero immediately before ShowInactive.
+A delayed compositor frame can therefore restore Lune's stale zero.
+
+The toolbar now animates its content view alpha; Chromium retains exclusive
+control of the child window's visibility alpha. Fade timing, click suppression
+while hidden, positioning, and native glass remain unchanged. No debugger stays
+attached and no diagnostic library is loaded in the preview.
+
+Strict no-fuzz replay passes across 73 patches and 18 files. Arm64 compilation,
+smoke/default/settings checks, component lint, lock validation, all 44 repository
+tests and documentation-link/whitespace checks pass. The native resize-hit probe
+passes with WindowServer access; its sandboxed execution could not validate the
+native targets. This probe does not establish pointer-cursor stability.
+
+Native arm64 checks show all three trailing icons after fullscreen entry and
+exit, both when the toolbar hides during transition and when the editor retains
+it. The trailing menu opens correctly. Post-transition inspection confirms the
+child window alpha stays 1 while content alpha handles visibility. Both debugger
+inspections detached. The previous preview exited cleanly (status 0), and the
+updated preview is open with the preserved profile. Intel compilation and
+smoke/default/settings checks pass under Rosetta. The owner confirmed the icons
+stay visible; resize cursors still flicker while Lune is active. Cursor work is
+paused at the owner's request and tracked in issue #5.
+
+Eight obsolete or unused diagnostic helpers were archived and byte-verified,
+including the never-loaded tracing dylib. Successful evidence, current probes,
+profiles and build caches are preserved. Cursor flicker remains a separate
+unresolved issue; no speculative cursor override is added for this toolbar fix.
