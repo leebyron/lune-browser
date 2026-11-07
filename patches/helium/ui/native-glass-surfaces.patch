@@ -1,0 +1,1614 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -34,6 +34,7 @@ enum class ToolbarVisibilityStyle;
+ @class HeliumGlassNavigation;
+ @class HeliumGlassSurface;
+ @class HeliumGlassDragRegion;
++@class HeliumGlassSidebarButton;
+ 
+ namespace views {
+ class NativeViewHost;
+@@ -121,6 +122,8 @@ class BrowserFrameViewMac : public Brows
+   void UpdateFloatingWindowControls(bool presented);
+   void UpdateFloatingToolbar(const gfx::Rect& region, bool presented);
+   int FloatingToolbarWidth();
++  void UpdateFloatingSidebar(bool top_presented);
++  void ResetFloatingSidebar();
+ 
+   void UpdateCaptionButtonPlaceholderContainerBackground();
+ 
+@@ -153,6 +156,13 @@ class BrowserFrameViewMac : public Brows
+   views::ViewTracker floating_navigation_host_;
+   views::ViewTracker floating_drag_host_;
+   views::ViewTracker floating_toolbar_owner_;
++  views::ViewTracker floating_toolbar_material_host_;
++  views::ViewTracker floating_sidebar_material_host_;
++  views::ViewTracker floating_sidebar_button_host_;
++  HeliumGlassSurface* __strong floating_sidebar_material_ = nil;
++  views::ViewTracker floating_sidebar_owner_;
++  std::unique_ptr<views::Widget> floating_sidebar_widget_;
++  HeliumGlassSidebarButton* __strong floating_sidebar_button_ = nil;
+   HeliumGlassNavigation* __strong floating_navigation_ = nil;
+   HeliumGlassDragRegion* __strong floating_drag_region_ = nil;
+   HeliumGlassSurface* __strong floating_toolbar_material_ = nil;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -50,6 +50,7 @@
+ #include "chrome/browser/ui/views/frame/caption_button_placeholder_container.h"
+ #include "chrome/browser/ui/views/frame/contents_container_outline.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
++#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+@@ -100,14 +101,37 @@
+ #include "ui/views/widget/widget.h"
+ #include "ui/views/widget/widget_delegate.h"
+ 
++namespace {
++NSAppearance* FloatingChromeAppearance() {
++  // Glass is system chrome even when the browser/page theme is overridden.
++  const bool dark =
++      ui::NativeTheme::GetInstanceForNativeUi()->preferred_color_scheme() ==
++      ui::NativeTheme::PreferredColorScheme::kDark;
++  return [NSAppearance
++      appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
++}
++}  // namespace
++
++@interface HeliumChromeHitRegion : NSView
++@end
++@implementation HeliumChromeHitRegion
++- (void)resetCursorRects {
++  [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
++}
++- (void)mouseMoved:(NSEvent*)event {
++  [NSCursor.arrowCursor set];
++}
++@end
++
+ // AppKit renders the material, focus ring and motion of the native surfaces.
+-@interface HeliumGlassSurface : NSView {
++@interface HeliumGlassSurface : HeliumChromeHitRegion {
+  @protected
+   NSView* _material;
+   NSView* _controls;
+ }
+ - (void)setPresented:(BOOL)presented;
+ - (BOOL)isPresented;
++- (void)setRevealFraction:(CGFloat)fraction;
+ @end
+ 
+ @implementation HeliumGlassSurface {
+@@ -152,6 +176,15 @@
+   _material.alphaValue = 0;
+   return self;
+ }
++- (void)setRevealFraction:(CGFloat)fraction {
++  ++_presentationGeneration;
++  [_material.layer removeAllAnimations];
++  _material.layer.transform = CATransform3DIdentity;
++  _material.alphaValue = fraction;
++  self.hidden = fraction == 0;
++  _fullyHidden = self.hidden;
++  _presented = fraction > 0;
++}
+ - (BOOL)isPresented {
+   return _presented;
+ }
+@@ -209,14 +242,115 @@
+ }
+ @end
+ 
++// A material-only view must leave the parent Views resize area and native
++// traffic lights interactive; the separate child widget owns the tab controls.
++@interface HeliumSidebarSurface : HeliumGlassSurface
++@end
++@implementation HeliumSidebarSurface
++- (NSView*)hitTest:(NSPoint)point {
++  return nil;
++}
++@end
++
++@interface HeliumGlassSidebarButton : HeliumGlassSurface
++- (instancetype)initWithBrowserView:(BrowserView*)view;
++- (void)refreshEmbedded:(BOOL)embedded;
++@end
++@implementation HeliumGlassSidebarButton {
++  base::WeakPtr<BrowserView> _browser;
++  NSButton* _button;
++}
++- (instancetype)initWithBrowserView:(BrowserView*)view {
++  self = [super initWithFrame:NSMakeRect(0, 0, 36, 36)];
++  if (!self) {
++    return nil;
++  }
++  _browser = view->GetAsWeakPtr();
++  _button = [NSButton
++      buttonWithImage:[NSImage imageWithSystemSymbolName:@"sidebar.left"
++                                accessibilityDescription:nil]
++               target:self
++               action:@selector(toggle:)];
++  _button.bordered = NO;
++  _button.frame = NSMakeRect(2, 2, 32, 32);
++  _button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  _button.toolTip = @"Toggle sidebar";
++  _button.accessibilityLabel = _button.toolTip;
++  [_controls addSubview:_button];
++  return self;
++}
++- (void)toggle:(id)sender {
++  if (_browser) {
++    _browser->ToggleFloatingSidebar();
++  }
++}
++- (void)rightMouseDown:(NSEvent*)event {
++  if (_browser) {
++    _browser->browser_widget()->ShowContextMenuForViewImpl(
++        _browser->GetSidebarView(),
++        gfx::ScreenPointFromNSPoint(
++            [event.window convertPointToScreen:event.locationInWindow]),
++        ui::mojom::MenuSourceType::kMouse);
++  }
++}
++- (void)refreshEmbedded:(BOOL)embedded {
++  if (!_browser) {
++    return;
++  }
++  _button.image = [[NSImage
++      imageWithSystemSymbolName:_browser->IsVerticalTabStripRightAligned()
++                                    ? @"sidebar.right"
++                                    : @"sidebar.left"
++       accessibilityDescription:nil]
++      imageWithSymbolConfiguration:
++          [NSImageSymbolConfiguration
++              configurationWithPointSize:15
++                                  weight:NSFontWeightMedium]];
++  // Move the one control into the sidebar surface without a second glass pill.
++  NSView* parent = embedded ? self : _controls;
++  if (_button.superview != parent) {
++    [_button removeFromSuperview];
++    [parent addSubview:_button];
++    _button.frame = NSMakeRect(2, 2, 32, 32);
++  }
++  _material.hidden = embedded;
++}
++@end
++
+ // Only the empty strip participates in native window dragging. The real
+ // controls above it retain their normal clicks, text selection and menus.
+-@interface HeliumGlassDragRegion : NSView
++@interface HeliumGlassDragRegion : HeliumChromeHitRegion
++- (instancetype)initWithBrowserView:(BrowserView*)view;
++@property(nonatomic, readonly) BOOL dragging;
++@property(nonatomic) BOOL enabled;
+ @property(nonatomic) NSRect addressBounds;
+ @property(nonatomic) NSRect navigationBounds;
+ @property(nonatomic) NSRect windowControlsBounds;
+ @end
+-@implementation HeliumGlassDragRegion
++@implementation HeliumGlassDragRegion {
++  BOOL _dragging;
++  base::WeakPtr<BrowserView> _browser;
++}
++- (instancetype)initWithBrowserView:(BrowserView*)view {
++  self = [super initWithFrame:NSZeroRect];
++  if (self) {
++    _browser = view->GetAsWeakPtr();
++  }
++  return self;
++}
++- (void)rightMouseDown:(NSEvent*)event {
++  if (self.enabled && _browser) {
++    _browser->browser_widget()->ShowContextMenuForViewImpl(
++        _browser->GetSidebarView(),
++        gfx::ScreenPointFromNSPoint(
++            [event.window convertPointToScreen:event.locationInWindow]),
++        ui::mojom::MenuSourceType::kMouse);
++  }
++}
++- (BOOL)dragging {
++  return _dragging;
++}
++@synthesize enabled = _enabled;
+ @synthesize addressBounds = _addressBounds;
+ @synthesize navigationBounds = _navigationBounds;
+ @synthesize windowControlsBounds = _windowControlsBounds;
+@@ -225,7 +359,7 @@
+ }
+ - (NSView*)hitTest:(NSPoint)point {
+   const NSPoint local = [self convertPoint:point fromView:self.superview];
+-  if (!NSPointInRect(local, self.bounds) ||
++  if (!self.enabled || self.hidden || !NSPointInRect(local, self.bounds) ||
+       NSPointInRect(local, self.addressBounds) ||
+       NSPointInRect(local, self.navigationBounds) ||
+       NSPointInRect(local, self.windowControlsBounds)) {
+@@ -234,7 +368,15 @@
+   return self;
+ }
+ - (void)mouseDown:(NSEvent*)event {
+-  [self.window performWindowDragWithEvent:event];
++  if (!self.enabled || self.hidden) {
++    return;
++  }
++  _dragging = YES;
++  @try {
++    [self.window performWindowDragWithEvent:event];
++  } @finally {
++    _dragging = NO;
++  }
+ }
+ @end
+ 
+@@ -341,6 +483,7 @@
+ // Reuse Helium's native traffic-light group, including AppKit group hover and
+ // fullscreen overlay suppression, rather than orphaning standard NSButtons.
+ @interface HeliumWindowControls : HeliumFullscreenWindowControls
++@property(nonatomic, readonly) BOOL dragging;
+ - (instancetype)initWithWindow:(NSWindow*)window;
+ - (void)setTopPresented:(BOOL)presented sideReveal:(CGFloat)sideReveal;
+ - (void)refresh;
+@@ -348,6 +491,7 @@
+ @implementation HeliumWindowControls {
+   NSWindow* __weak _ownerWindow;
+   BOOL _topPresented;
++  BOOL _dragging;
+   CGFloat _sideReveal;
+   NSUInteger _generation;
+ }
+@@ -370,6 +514,38 @@
+   self.alphaValue = 0;
+   return self;
+ }
++- (BOOL)dragging {
++  return _dragging;
++}
++- (NSView*)hitTest:(NSPoint)point {
++  if (self.hiddenOrHasHiddenAncestor || self.alphaValue == 0) {
++    return nil;
++  }
++  const NSPoint local = [self convertPoint:point fromView:self.superview];
++  if (!NSPointInRect(local, self.bounds)) {
++    return nil;
++  }
++  // The superclass intentionally passes gaps through for fullscreen overlays.
++  // Here the entire visible group is chrome, including spaces between buttons.
++  return [super hitTest:point] ?: self;
++}
++- (void)resetCursorRects {
++  [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
++}
++- (void)mouseMoved:(NSEvent*)event {
++  [NSCursor.arrowCursor set];
++}
++- (void)mouseDown:(NSEvent*)event {
++  if (!_topPresented || self.hiddenOrHasHiddenAncestor) {
++    return;
++  }
++  _dragging = YES;
++  @try {
++    [self.window performWindowDragWithEvent:event];
++  } @finally {
++    _dragging = NO;
++  }
++}
+ - (void)setTopPresented:(BOOL)presented sideReveal:(CGFloat)sideReveal {
+   if (_topPresented == presented && _sideReveal == sideReveal) {
+     return;
+@@ -385,8 +561,7 @@
+   if (!presented && !wasTop) {
+     // Follow the sidebar's existing animation without starting a second one.
+     self.alphaValue = amount;
+-    self.layer.transform =
+-        CATransform3DMakeTranslation(reduced ? 0 : -12 * (1 - amount), 0, 0);
++    self.layer.transform = CATransform3DIdentity;
+     self.hidden = amount == 0;
+     return;
+   }
+@@ -600,16 +775,7 @@ class HeliumGlassAutocompleteObserver
+   _reload.toolTip = base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
+       loading ? IDS_TOOLTIP_STOP : IDS_TOOLTIP_RELOAD));
+   _reload.accessibilityLabel = _reload.toolTip;
+-  // Honor the profile's appearance override before falling back to the OS.
+-  const auto scheme =
+-      ThemeServiceFactory::GetForProfile(_browserView->browser()->GetProfile())
+-          ->GetBrowserColorScheme();
+-  const bool dark = scheme == ThemeService::BrowserColorScheme::kDark ||
+-                    (scheme == ThemeService::BrowserColorScheme::kSystem &&
+-                     _browserView->GetNativeTheme()->preferred_color_scheme() ==
+-                         ui::NativeTheme::PreferredColorScheme::kDark);
+-  self.appearance = [NSAppearance
+-      appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
++  self.appearance = FloatingChromeAppearance();
+ }
+ 
+ - (void)dealloc {
+@@ -1316,6 +1482,23 @@ int BrowserFrameViewMac::NonClientHitTes
+     // which prevents BridgedContentView from hit-testing the native buttons.
+     return HTCLIENT;
+   }
++  // The floating strip owns dragging only while it is presented. Do not
++  // expose Chromium's permanent titlebar/rounded-frame caption underneath it.
++  // Native controls above were hit-tested first; sidebar caption handling stays
++  // independent of the top strip.
++  if (HasFloatingAddressBar()) {
++    gfx::Point local = point;
++    views::View::ConvertPointToTarget(this, GetBrowserView(), &local);
++    auto* sidebar = GetBrowserView()->GetSidebarView();
++    const bool in_sidebar =
++        sidebar && sidebar->IsDrawn() &&
++        views::View::ConvertRectToTarget(sidebar, GetBrowserView(),
++                                         sidebar->GetLocalBounds())
++            .Contains(local);
++    if (!in_sidebar && local.y() >= 0 && local.y() < 52) {
++      return HTCLIENT;
++    }
++  }
+   int super_component = BrowserFrameView::NonClientHitTest(point);
+   if (super_component != HTNOWHERE) {
+     return super_component;
+@@ -1459,11 +1642,8 @@ void BrowserFrameViewMac::Layout(PassKey
+     content.layer.cornerRadius =
+         GetBrowserView()->IsFullscreen() ? 0 : GetSystemWindowRadius();
+     content.layer.masksToBounds = YES;
+-    // Native material is a sibling of the content view. Clip their common
+-    // frame too so both sides use the same actual outer perimeter.
+-    content.superview.wantsLayer = YES;
+-    content.superview.layer.cornerRadius = content.layer.cornerRadius;
+-    content.superview.layer.masksToBounds = YES;
++    // BrowserWindowFrame supplies the same radius to AppKit itself. Clipping
++    // the frame layer alone leaves its native border and shadow at 17 points.
+   }
+   UpdateFloatingAddressBar();
+ }
+@@ -1573,7 +1753,7 @@ bool BrowserFrameViewMac::FocusFloatingA
+ 
+ void BrowserFrameViewMac::UpdateFloatingAddressBar() {
+   auto* browser_view = GetBrowserView();
+-  if (!GetWidget() || !browser_view->toolbar()) {
++  if (!GetWidget() || GetWidget()->IsClosed() || !browser_view->toolbar()) {
+     return;
+   }
+   auto* location = browser_view->toolbar()->location_bar_view();
+@@ -1596,11 +1776,15 @@ void BrowserFrameViewMac::UpdateFloating
+       break;
+     }
+   }
++  const bool dragging =
++      floating_drag_region_.dragging || floating_window_controls_.dragging;
+   if (!HasFloatingAddressBar() ||
+-      (!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
+-      !NSApp.active) {
++      (!dragging &&
++       ((!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
++        !NSApp.active))) {
+     UpdateFloatingToolbar(gfx::Rect(), false);
+     UpdateFloatingWindowControls(false);
++    UpdateFloatingSidebar(false);
+     [floating_address_bar_ setPresented:NO];
+     floating_address_refresh_timer_->Stop();
+     if (host) {
+@@ -1626,8 +1810,17 @@ void BrowserFrameViewMac::UpdateFloating
+   }
+   const int toolbar_width = FloatingToolbarWidth();
+   // Fixed traffic lights have priority when the left sidebar is absent.
+-  const int leading = std::max(content.x() + 8, 108);
+-  const int trailing = std::min(content.right() - 8, browser_view->width() - 8);
++  const bool detached = !browser_view->IsZenModeSideChromePinned();
++  const int toggle_space =
++      detached ? base::ClampRound(
++                     44 * (1 - browser_view->GetSideChromeRevealRatio()))
++               : 0;
++  const bool right_sidebar = browser_view->IsVerticalTabStripRightAligned();
++  const int leading =
++      std::max(content.x() + 8, 108) + (right_sidebar ? 0 : toggle_space);
++  const int trailing =
++      std::min(content.right() - 8, browser_view->width() - 8) -
++      (right_sidebar ? toggle_space : 0);
+   const gfx::Rect bar_region(leading, 8 + TopUIFullscreenYOffset(),
+                              std::max(0, trailing - leading), 36);
+   const int address_left = leading + 76 + 12;
+@@ -1636,6 +1829,7 @@ void BrowserFrameViewMac::UpdateFloating
+   if (capsule_width < 160) {
+     UpdateFloatingToolbar(gfx::Rect(), false);
+     UpdateFloatingWindowControls(false);
++    UpdateFloatingSidebar(false);
+     [floating_address_bar_ setPresented:NO];
+     floating_address_refresh_timer_->Stop();
+     if (host) {
+@@ -1658,16 +1852,7 @@ void BrowserFrameViewMac::UpdateFloating
+   }
+   gfx::Point cursor(base::ClampFloor(mouse.x), base::ClampFloor(mouse.y));
+   views::View::ConvertPointFromWidget(browser_view, &cursor);
+-  if (browser_view->IsFullscreen()) {
+-    const NSPoint screenMouse = NSEvent.mouseLocation;
+-    const NSRect screen = window.screen.frame;
+-    if (NSPointInRect(screenMouse, screen) &&
+-        screenMouse.y >= NSMaxY(screen) - 8) {
+-      cursor.set_y(0);
+-    }
+-  }
+-  const bool in_rail = cursor.y() >= 0 && cursor.y() < 8 && cursor.x() >= 0 &&
+-                       cursor.x() < browser_view->width();
++  const bool in_rail = helium::IsPointerInNativeRevealRail(browser_view, true);
+   const bool in_window = browser_view->GetLocalBounds().Contains(cursor);
+   // Distance hysteresis: entry still requires the rail. Once open, the whole
+   // window width down to 48 points below the glass retains it.
+@@ -1681,10 +1866,18 @@ void BrowserFrameViewMac::UpdateFloating
+     [floating_address_bar_ refresh];
+   }
+   // Keyboard address editing reveals the same surface as pointer entry.
+-  const bool present = in_rail || within_retention || editing ||
++  const bool present = dragging || in_rail || within_retention || editing ||
+                        ([floating_address_bar_ isPresented] && bubble_open);
+   UpdateFloatingToolbar(bar_region, present);
+   UpdateFloatingWindowControls(present);
++  UpdateFloatingSidebar(present);
++  if ((present || browser_view->GetSideChromeRevealRatio() > 0) &&
++      !floating_address_refresh_timer_->IsRunning()) {
++    floating_address_refresh_timer_->Start(
++        FROM_HERE, base::Milliseconds(100),
++        base::BindRepeating(&BrowserView::UpdateZenModeRevealFromCursor,
++                            browser_view->GetAsWeakPtr()));
++  }
+   if (present) {
+     if (!host) {
+       auto owned_host = std::make_unique<views::NativeViewHost>();
+@@ -1698,23 +1891,11 @@ void BrowserFrameViewMac::UpdateFloating
+     [floating_address_bar_ refresh];
+     host->SetVisible(true);
+     [floating_address_bar_ setPresented:YES];
+-    floating_navigation_.appearance = floating_address_bar_.appearance;
+-    floating_toolbar_material_.appearance = floating_address_bar_.appearance;
+-    if (floating_toolbar_widget_) {
+-      floating_toolbar_widget_->GetNativeWindow()
+-          .GetNativeNSWindow()
+-          .appearance = floating_address_bar_.appearance;
+-    }
++    floating_navigation_.appearance = FloatingChromeAppearance();
++    floating_toolbar_material_.appearance = FloatingChromeAppearance();
++
+     floating_drag_region_.addressBounds = NSMakeRect(
+-        bounds.x() - bar_region.x(), 8, bounds.width(), bounds.height());
+-    // Recheck while visible so native menus/focus changes that do not generate
+-    // a Views mouse event still update the distance boundary after interaction.
+-    if (!floating_address_refresh_timer_->IsRunning()) {
+-      floating_address_refresh_timer_->Start(
+-          FROM_HERE, base::Milliseconds(100),
+-          base::BindRepeating(&BrowserFrameViewMac::UpdateFloatingAddressBar,
+-                              base::Unretained(this)));
+-    }
++        bounds.x(), 8, bounds.width(), bounds.height());
+     return;
+   }
+   if (!host || !host->GetVisible()) {
+@@ -1722,7 +1903,9 @@ void BrowserFrameViewMac::UpdateFloating
+   }
+   [floating_address_bar_ setPresented:NO];
+   if (floating_address_bar_.hidden) {
+-    floating_address_refresh_timer_->Stop();
++    if (browser_view->GetSideChromeRevealRatio() == 0) {
++      floating_address_refresh_timer_->Stop();
++    }
+     host->SetVisible(false);
+   }
+ }
+@@ -1751,9 +1934,13 @@ void BrowserFrameViewMac::UpdateFloating
+         initWithWindow:GetWidget()->GetNativeWindow().GetNativeNSWindow()];
+     host->Attach(gfx::NativeView(floating_window_controls_));
+   }
+-  host->SetBoundsRect(gfx::Rect(8, 8 + TopUIFullscreenYOffset(), 96, 36));
+-  floating_window_controls_.appearance = floating_address_bar_.appearance;
++  const gfx::Rect side = view->GetFloatingSidebarBounds();
++  const int x = !presented && !side.IsEmpty() ? side.x() : 8;
++  host->SetBoundsRect(gfx::Rect(x, 8 + TopUIFullscreenYOffset(), 96, 36));
++  floating_window_controls_.appearance = FloatingChromeAppearance();
+   [floating_window_controls_ refresh];
++  // Move the host with the surface, avoiding clipping translated buttons
++  // inside a stationary NativeViewHost.
+   [floating_window_controls_ setTopPresented:presented sideReveal:side_reveal];
+   host->SetVisible(presented || side_reveal > 0 ||
+                    !floating_window_controls_.hidden);
+@@ -1785,21 +1972,15 @@ int BrowserFrameViewMac::FloatingToolbar
+         ->set_cross_axis_alignment(
+             views::BoxLayout::CrossAxisAlignment::kCenter);
+     floating_toolbar_widget_->SetContentsView(std::move(root));
+-    NSView* native =
+-        floating_toolbar_widget_->GetNativeView().GetNativeNSView();
++    auto* material_host = GetBrowserView()->AddChildView(
++        std::make_unique<views::NativeViewHost>());
++    floating_toolbar_material_host_.SetView(material_host);
+     floating_toolbar_material_ =
+-        [[HeliumGlassSurface alloc] initWithFrame:native.frame];
+-    floating_toolbar_material_.autoresizingMask =
+-        NSViewWidthSizable | NSViewHeightSizable;
+-    [native.superview addSubview:floating_toolbar_material_
+-                      positioned:NSWindowBelow
+-                      relativeTo:native];
+-    [floating_toolbar_material_ setPresented:YES];
+-    NSWindow* window = native.window;
+-    native.superview.wantsLayer = YES;
+-    native.superview.layer.cornerRadius = 18;
+-    native.superview.layer.masksToBounds = YES;
+-    window.hasShadow = YES;
++        [[HeliumGlassSurface alloc] initWithFrame:NSZeroRect];
++    material_host->Attach(gfx::NativeView(floating_toolbar_material_));
++    NSWindow* window =
++        floating_toolbar_widget_->GetNativeWindow().GetNativeNSWindow();
++    window.hasShadow = NO;
+     window.opaque = NO;
+     window.backgroundColor = NSColor.clearColor;
+   }
+@@ -1811,6 +1992,7 @@ int BrowserFrameViewMac::FloatingToolbar
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingToolbar() {
++  ResetFloatingSidebar();
+   if (auto* toolbar =
+           static_cast<ToolbarView*>(floating_toolbar_owner_.view())) {
+     toolbar->SetFloatingControlsHost(nullptr);
+@@ -1821,6 +2003,10 @@ void BrowserFrameViewMac::ResetFloatingT
+     floating_toolbar_widget_->CloseNow();
+     floating_toolbar_widget_.reset();
+   }
++  if (auto* host = floating_toolbar_material_host_.view()) {
++    host->parent()->RemoveChildViewT(host);
++  }
++  floating_toolbar_material_host_.SetView(nullptr);
+   floating_toolbar_material_ = nil;
+   floating_toolbar_presented_ = false;
+   floating_toolbar_target_bounds_ = gfx::Rect();
+@@ -1839,7 +2025,7 @@ void BrowserFrameViewMac::UpdateFloating
+     drag = view->AddChildView(std::make_unique<views::NativeViewHost>());
+     floating_drag_host_.SetView(drag);
+     floating_drag_region_ =
+-        [[HeliumGlassDragRegion alloc] initWithFrame:NSZeroRect];
++        [[HeliumGlassDragRegion alloc] initWithBrowserView:view];
+     drag->Attach(gfx::NativeView(floating_drag_region_));
+     nav = view->AddChildView(std::make_unique<views::NativeViewHost>());
+     floating_navigation_host_.SetView(nav);
+@@ -1853,27 +2039,42 @@ void BrowserFrameViewMac::UpdateFloating
+     nav->SetVisible(presented || !floating_navigation_.hidden);
+   }
+   if (drag) {
++    floating_drag_region_.enabled = presented;
+     drag->SetVisible(presented);
+   }
+   if (!region.IsEmpty() && nav) {
+     nav->SetBoundsRect(gfx::Rect(region.x(), region.y(), 76, 36));
+     drag->SetBoundsRect(
+-        gfx::Rect(region.x(), region.y() - 8, region.width(), 52));
+-    floating_drag_region_.navigationBounds = NSMakeRect(0, 8, 76, 36);
+-    floating_drag_region_.windowControlsBounds = NSZeroRect;
++        gfx::Rect(0, region.y() - 8, view->width(), 52));
++    floating_drag_region_.navigationBounds = NSMakeRect(region.x(), 8, 76, 36);
++    floating_drag_region_.windowControlsBounds = NSMakeRect(8, 8, 96, 36);
+     // Address bounds are updated after its editor and popup have laid out.
+   }
+   if (!floating_toolbar_widget_) {
+     return;
+   }
++  auto* material_host = floating_toolbar_material_host_.view();
++  [floating_toolbar_material_ setPresented:presented];
++  material_host->SetVisible(presented || !floating_toolbar_material_.hidden);
+   NSWindow* window =
+       floating_toolbar_widget_->GetNativeWindow().GetNativeNSWindow();
++  NSAppearance* appearance = FloatingChromeAppearance();
++  if (![window.appearance isEqual:appearance]) {
++    window.appearance = appearance;
++    floating_toolbar_widget_->ResetLastColorProviderKey();
++    floating_toolbar_widget_->ScheduleThemeChanged();
++  }
+   const BOOL reduceMotion =
+       NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
+   if (presented) {
+     const int width =
+         floating_toolbar_widget_->GetContentsView()->GetPreferredSize().width();
+     gfx::Rect bounds(region.right() - width, region.y(), width, 36);
++    material_host->SetBoundsRect(bounds);
++    window.ignoresMouseEvents = NO;
++    if (!floating_toolbar_widget_->IsVisible()) {
++      floating_toolbar_widget_->ShowInactive();
++    }
+     views::View::ConvertRectToScreen(view, &bounds);
+     const bool layout_changed =
+         floating_toolbar_widget_->GetWindowBoundsInScreen().size() !=
+@@ -1904,7 +2105,7 @@ void BrowserFrameViewMac::UpdateFloating
+           completionHandler:nil];
+     }
+   } else if (floating_toolbar_presented_) {
+-    __weak NSWindow* weakWindow = window;
++    window.ignoresMouseEvents = YES;
+     NSRect target = window.frame;
+     target.origin.y += reduceMotion ? 0 : 12;
+     [NSAnimationContext
+@@ -1913,11 +2114,139 @@ void BrowserFrameViewMac::UpdateFloating
+           window.animator.alphaValue = 0;
+           [window.animator setFrame:target display:YES];
+         }
+-        completionHandler:^{
+-          if (weakWindow.alphaValue == 0) {
+-            [weakWindow orderOut:nil];
+-          }
+-        }];
++        completionHandler:nil];
+   }
+   floating_toolbar_presented_ = presented;
+ }
++
++void BrowserFrameViewMac::UpdateFloatingSidebar(bool top_presented) {
++  auto* view = GetBrowserView();
++  auto* sidebar =
++      static_cast<VerticalTabStripRegionView*>(view->GetSidebarView());
++  const bool eligible = HasFloatingAddressBar() && sidebar;
++  auto* background = static_cast<views::NativeViewHost*>(
++      floating_sidebar_material_host_.view());
++  auto* button_host =
++      static_cast<views::NativeViewHost*>(floating_sidebar_button_host_.view());
++  if (!eligible) {
++    ResetFloatingSidebar();
++    if (background) {
++      background->SetVisible(false);
++    }
++    if (button_host) {
++      button_host->SetVisible(false);
++    }
++    return;
++  }
++  const bool detached = !view->IsZenModeSideChromePinned();
++  const bool right = view->IsVerticalTabStripRightAligned();
++  const CGFloat reveal = detached ? view->GetSideChromeRevealRatio() : 1;
++  if (detached) {
++    if (!background) {
++      background =
++          view->AddChildViewAt(std::make_unique<views::NativeViewHost>(), 0);
++      floating_sidebar_material_host_.SetView(background);
++      floating_sidebar_material_ =
++          [[HeliumSidebarSurface alloc] initWithFrame:NSZeroRect];
++      background->Attach(gfx::NativeView(floating_sidebar_material_));
++    }
++    if (!floating_sidebar_widget_) {
++      floating_sidebar_owner_.SetView(sidebar);
++      floating_sidebar_widget_ = std::make_unique<views::Widget>();
++      views::Widget::InitParams params(
++          views::Widget::InitParams::CLIENT_OWNS_WIDGET,
++          views::Widget::InitParams::TYPE_POPUP);
++      params.parent = GetWidget()->GetNativeView();
++      params.activatable = views::Widget::InitParams::Activatable::kNo;
++      params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
++      params.shadow_type = views::Widget::InitParams::ShadowType::kNone;
++      params.child = true;
++      params.name = "Floating sidebar controls";
++      floating_sidebar_widget_->Init(std::move(params));
++      floating_sidebar_widget_->SetNativeWindowProperty(
++          BrowserView::kBrowserViewKey, view);
++      floating_sidebar_widget_->SetContentsView(
++          std::make_unique<views::View>());
++      // Reparenting the controls must preserve the original sidebar's blank
++      // area context menu. Tab-specific menus continue to handle their own
++      // hits.
++      floating_sidebar_widget_->GetContentsView()->set_context_menu_controller(
++          view->browser_widget());
++      NSWindow* window =
++          floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
++      window.hasShadow = NO;
++      window.opaque = NO;
++      window.backgroundColor = NSColor.clearColor;
++      sidebar->SetFloatingControlsHost(
++          floating_sidebar_widget_->GetContentsView());
++    }
++    gfx::Rect bounds = views::View::ConvertRectToTarget(
++        sidebar, view, sidebar->GetLocalBounds());
++    background->SetBoundsRect(bounds);
++    background->SetVisible(reveal > 0);
++    // The sidebar already supplies its own horizontal slide/fade progress.
++    [floating_sidebar_material_ setRevealFraction:reveal];
++    floating_sidebar_material_.appearance = FloatingChromeAppearance();
++    // Keep the 38-point native header row and 5-point resize band in the
++    // parent window, rather than relying on delayed mouse-event pass-through.
++    bounds.Inset(gfx::Insets::TLBR(38, right ? 5 : 0, 0, right ? 0 : 5));
++    // A child NSWindow is not clipped by its parent during the slide.
++    bounds.Intersect(view->GetLocalBounds());
++    views::View::ConvertRectToScreen(view, &bounds);
++    floating_sidebar_widget_->SetBounds(bounds);
++    sidebar->LayoutFloatingControls();
++    floating_sidebar_widget_->LayoutRootViewIfNecessary();
++    NSWindow* window =
++        floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
++    NSAppearance* appearance = FloatingChromeAppearance();
++    if (![window.appearance isEqual:appearance]) {
++      window.appearance = appearance;
++      floating_sidebar_widget_->ResetLastColorProviderKey();
++      floating_sidebar_widget_->ScheduleThemeChanged();
++    }
++    window.ignoresMouseEvents = reveal == 0;
++    if (reveal > 0 && !floating_sidebar_widget_->IsVisible()) {
++      floating_sidebar_widget_->ShowInactive();
++    }
++    window.alphaValue = reveal;
++  } else {
++    ResetFloatingSidebar();
++    if (background) {
++      background->SetVisible(false);
++    }
++  }
++  if (!button_host) {
++    button_host = view->AddChildView(std::make_unique<views::NativeViewHost>());
++    floating_sidebar_button_host_.SetView(button_host);
++    floating_sidebar_button_ =
++        [[HeliumGlassSidebarButton alloc] initWithBrowserView:view];
++    button_host->Attach(gfx::NativeView(floating_sidebar_button_));
++  }
++  const CGFloat closed_x = right ? view->width() - 44 : 108;
++  const CGFloat open_x =
++      right ? view->width() - sidebar->width() : sidebar->width() - 36;
++  const int x = base::ClampRound(closed_x + (open_x - closed_x) * reveal);
++  button_host->SetBounds(x, 8 + TopUIFullscreenYOffset(), 36, 36);
++  floating_sidebar_button_.appearance = FloatingChromeAppearance();
++  [floating_sidebar_button_ setPresented:top_presented || reveal > 0];
++  [floating_sidebar_button_ refreshEmbedded:reveal > 0];
++  button_host->SetVisible(top_presented || reveal > 0 ||
++                          !floating_sidebar_button_.hidden);
++}
++
++void BrowserFrameViewMac::ResetFloatingSidebar() {
++  if (auto* sidebar = static_cast<VerticalTabStripRegionView*>(
++          floating_sidebar_owner_.view())) {
++    sidebar->SetFloatingControlsHost(nullptr);
++  }
++  floating_sidebar_owner_.SetView(nullptr);
++  if (floating_sidebar_widget_) {
++    floating_sidebar_widget_->SetNativeWindowProperty(
++        BrowserView::kBrowserViewKey, nullptr);
++    floating_sidebar_widget_->CloseNow();
++    floating_sidebar_widget_.reset();
++  }
++  if (auto* host = floating_sidebar_material_host_.view()) {
++    host->SetVisible(false);
++  }
++}
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -86,6 +86,7 @@
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_init_state.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/browser_shortcuts/browser_shortcut_platform_mac.h"
+ #endif
+@@ -1737,6 +1738,19 @@ bool BrowserView::IsZenModeEnabledForLay
+   return IsZenModeEnabled();
+ }
+ 
++views::View* BrowserView::GetSidebarView() const {
++  return vertical_tab_strip_region_view_;
++}
++
++void BrowserView::ToggleFloatingSidebar() {
++  if (IsZenModeSideChromePinned() || zen_side_chrome_animation_.IsShowing()) {
++    ToggleZenModeSideChrome();
++    return;
++  }
++  zen_cursor_exit_timer_.Stop();
++  UpdateZenModeReveal(false, true);
++}
++
+ gfx::Rect BrowserView::GetFloatingSidebarBounds() const {
+   if (IsZenModeSideChromePinned() || !vertical_tab_strip_region_view_ ||
+       !vertical_tab_strip_region_view_->GetVisible()) {
+@@ -1801,7 +1815,8 @@ views::BubbleBorder::Arrow BrowserView::
+   }
+ 
+   if (!browser_view->vertical_tab_strip_region_view_ ||
+-      !browser_view->vertical_tab_strip_region_view_->Contains(anchor_view)) {
++      !browser_view->vertical_tab_strip_region_view_->ContainsRegionView(
++          anchor_view)) {
+     return views::BubbleBorder::TOP_RIGHT;
+   }
+ 
+@@ -1836,7 +1851,8 @@ views::MenuAnchorPosition BrowserView::G
+   }
+ 
+   if (!browser_view->vertical_tab_strip_region_view_ ||
+-      !browser_view->vertical_tab_strip_region_view_->Contains(anchor_view)) {
++      !browser_view->vertical_tab_strip_region_view_->ContainsRegionView(
++          anchor_view)) {
+     return views::MenuAnchorPosition::kTopRight;
+   }
+ 
+@@ -2213,7 +2229,7 @@ void BrowserView::UpdateZenModeRevealFro
+         app_menu_control && app_menu_control->IsMenuShowing();
+     const bool sidebar_focused =
+         vertical_tab_strip_region_view_ && GetFocusManager() &&
+-        vertical_tab_strip_region_view_->Contains(
++        vertical_tab_strip_region_view_->ContainsRegionView(
+             GetFocusManager()->GetFocusedView());
+ 
+     if (HasOpenBubbleFromTopContainer() || HasOpenBubbleFromSidebar() ||
+@@ -2288,7 +2304,7 @@ void BrowserView::UpdateZenModeReveal(bo
+     const bool sidebar_omnibox_focused = loc_bar && loc_bar->HasFocus();
+     const bool focus_in_sidebar =
+         GetFocusManager() &&
+-        vertical_tab_strip_region_view_->Contains(
++        vertical_tab_strip_region_view_->ContainsRegionView(
+             GetFocusManager()->GetFocusedView());
+     if (sidebar_omnibox_focused || focus_in_sidebar) {
+       reveal_side = true;
+@@ -2360,6 +2376,11 @@ void BrowserView::UpdateZenCollapseButto
+ }
+ 
+ bool BrowserView::IsPointInZenTopTrigger(const gfx::Point& point) const {
++#if BUILDFLAG(IS_MAC)
++  if (GetFrameView() && GetFrameView()->HasFloatingAddressBar()) {
++    return helium::IsPointerInNativeRevealRail(this, true);
++  }
++#endif
+   const int thickness = IsVerticalAddressBarInSidebar()
+                             ? kZenModeSidebarAddressBarTriggerThickness
+                             : kZenModeRevealTriggerThickness;
+@@ -2367,6 +2388,12 @@ bool BrowserView::IsPointInZenTopTrigger
+ }
+ 
+ bool BrowserView::IsPointInZenSideTrigger(const gfx::Point& point) const {
++#if BUILDFLAG(IS_MAC)
++  if (GetFrameView() && GetFrameView()->HasFloatingAddressBar()) {
++    return ShouldDrawVerticalTabStrip() &&
++           helium::IsPointerInNativeRevealRail(this, false);
++  }
++#endif
+   if (!ShouldDrawVerticalTabStrip()) {
+     return false;
+   }
+@@ -2520,6 +2547,9 @@ bool BrowserView::IsPointInZenTopChromeB
+ }
+ 
+ bool BrowserView::IsPointInZenSideChromeBounds(const gfx::Point& point) const {
++  if (!zen_side_chrome_animation_.IsShowing()) {
++    return false;
++  }
+   if (!vertical_tab_strip_region_view_ ||
+       !vertical_tab_strip_region_view_->parent()) {
+     return false;
+@@ -5292,6 +5322,11 @@ void BrowserView::CloseTabSearchBubble()
+ 
+ void BrowserView::DeleteBrowserWindow() {
+   CHECK(browser_widget_);
++  // Tab models are already closing. Destroy their presentation before moving
++  // detached controls back: a removed tab cannot receive AddedToWidget again.
++  if (vertical_tab_strip_region_view_) {
++    vertical_tab_strip_region_view_->ResetTabStrip();
++  }
+   // Return detached controls while both the client and native window live.
+   // The frame is destroyed before BrowserView during widget teardown.
+   if (auto* frame = GetFrameView()) {
+--- a/chrome/browser/ui/views/frame/browser_view.h
++++ b/chrome/browser/ui/views/frame/browser_view.h
+@@ -445,6 +445,10 @@ class BrowserView : public BrowserWindow
+   // Returns reveal ratios used by BrowserViewLayout for zen mode transitions.
+   bool IsZenModeEnabledForLayout() const;
+   gfx::Rect GetFloatingSidebarBounds() const;
++  views::View* GetSidebarView() const;
++  void ToggleFloatingSidebar();
++  // Native child controls do not send mouse events to the main Views widget.
++  void UpdateZenModeRevealFromCursor();
+   float GetTopChromeRevealRatio() const;
+   float GetSideChromeRevealRatio() const;
+   bool IsZenModeSideChromePinned() const;
+@@ -981,7 +985,6 @@ class BrowserView : public BrowserWindow
+   void StartZenCollapseTimer(base::TimeDelta delay);
+   bool IsLeavingZenSideGap(const gfx::Point& previous_point,
+                            const gfx::Point& point) const;
+-  void UpdateZenModeRevealFromCursor();
+   void UpdateZenModeReveal(bool reveal_top, bool reveal_side);
+   void RevealZenModeTopChromeImmediately();
+   void RevealZenModeSideChromeImmediately();
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -358,7 +358,7 @@ bool VerticalTabStripRegionView::IsPosit
+ 
+   // For any of the other children, absorb the click as non window caption.
+   for (views::View* child : children()) {
+-    if (!child->GetVisible()) {
++    if (!child->GetVisible() || child == floating_content_placeholder_) {
+       continue;
+     }
+     if (child == content_area_view_) {
+@@ -388,8 +388,18 @@ void VerticalTabStripRegionView::SetHasL
+ void VerticalTabStripRegionView::SetFloatingStyleForLayout(FloatingStyle style,
+                                                            int corner_radius,
+                                                            bool below_toolbar) {
++  bool native_glass = false;
++#if BUILDFLAG(IS_MAC)
++  native_glass = style == FloatingStyle::kDetached &&
++                 browser_view()->IsZenModeEnabledForLayout() &&
++                 browser_view()->IsVerticalAddressBarInSidebar() &&
++                 !browser_view()->IsZenModeTopChromePinned();
++#endif
++  const auto* current_background =
++      static_cast<CustomCornersBackground*>(background());
+   if (floating_style_ == style && floating_corner_radius_ == corner_radius &&
+-      floating_below_toolbar_ == below_toolbar) {
++      floating_below_toolbar_ == below_toolbar && current_background &&
++      current_background->is_visible() == !native_glass) {
+     return;
+   }
+   floating_style_ = style;
+@@ -397,7 +407,7 @@ void VerticalTabStripRegionView::SetFloa
+   floating_below_toolbar_ = below_toolbar;
+   const bool floating = style != FloatingStyle::kNone;
+   UpdateResizeAreaVisibility();
+-  if (style == FloatingStyle::kDetached) {
++  if (style == FloatingStyle::kDetached && !native_glass) {
+     if (!floating_surface_shadow_) {
+       floating_surface_shadow_ = std::make_unique<views::ViewDecoration>(this);
+       floating_surface_shadow_->SetShadow(
+@@ -458,6 +468,13 @@ void VerticalTabStripRegionView::SetFloa
+   background->SetCorners(corners);
+   background->SetOutline(outline);
+   background->SetPaintWithNativeFrameMaterials(floating);
++#if BUILDFLAG(IS_MAC)
++  background->SetVisible(!native_glass);
++#endif
++  if (GetWidget()) {
++    GetWidget()->ResetLastColorProviderKey();
++    GetWidget()->ScheduleThemeChanged();
++  }
+ }
+ 
+ void VerticalTabStripRegionView::AddedToWidget() {
+@@ -478,6 +495,45 @@ void VerticalTabStripRegionView::Removed
+   BaseTabStripRegionView::RemovedFromWidget();
+ }
+ 
++void VerticalTabStripRegionView::SetFloatingControlsHost(views::View* host) {
++  views::View* target = host ? host : this;
++  if (content_area_view_->parent() == target) {
++    return;
++  }
++  if (host && !floating_content_placeholder_) {
++    floating_content_placeholder_ = AddChildViewAt(
++        std::make_unique<views::View>(), *GetIndexOf(content_area_view_));
++  }
++  auto content =
++      content_area_view_->parent()->RemoveChildViewT(content_area_view_.get());
++  if (host) {
++    host->AddChildView(std::move(content));
++  } else {
++    AddChildViewAt(std::move(content),
++                   *GetIndexOf(floating_content_placeholder_));
++    RemoveChildViewT(floating_content_placeholder_.ExtractAsDangling());
++  }
++  InvalidateLayout();
++}
++
++void VerticalTabStripRegionView::LayoutFloatingControls() {
++  if (!floating_content_placeholder_) {
++    return;
++  }
++  gfx::Rect bounds = floating_content_placeholder_->bounds();
++  views::View::ConvertRectToScreen(this, &bounds);
++  const gfx::Point origin =
++      content_area_view_->parent()->GetBoundsInScreen().origin();
++  bounds.Offset(-origin.x(), -origin.y());
++  content_area_view_->SetBoundsRect(bounds);
++  content_area_view_->SetVisible(floating_content_placeholder_->GetVisible());
++}
++
++bool VerticalTabStripRegionView::ContainsRegionView(
++    const views::View* view) const {
++  return Contains(view) || content_area_view_->Contains(view);
++}
++
+ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
+     const views::SizeBounds& size_bounds) const {
+   views::ProposedLayout layout;
+@@ -515,7 +571,9 @@ views::ProposedLayout VerticalTabStripRe
+     available.set_width(blend_target_width);
+   }
+   layout.child_layouts.push_back(
+-      {.child_view = content_area_view_.get(),
++      {.child_view = floating_content_placeholder_
++                         ? floating_content_placeholder_.get()
++                         : content_area_view_.get(),
+        .visible = organizer_panel_show_percent_ < 1.0,
+        .bounds = available});
+   if (organizer_panel_view_) {
+@@ -533,6 +591,7 @@ views::ProposedLayout VerticalTabStripRe
+ 
+ void VerticalTabStripRegionView::Layout(PassKey) {
+   LayoutSuperclass<BaseTabStripRegionView>(this);
++  LayoutFloatingControls();
+ 
+   // Manually position the resize area as it overlaps views handled by the flex
+   // layout.
+@@ -659,7 +718,10 @@ void VerticalTabStripRegionView::SetOrga
+   CHECK(!organizer_panel_view_);
+   panel_view->SetVisible(false);
+   organizer_panel_view_ =
+-      AddChildViewAt(std::move(panel_view), *GetIndexOf(content_area_view_));
++      AddChildViewAt(std::move(panel_view),
++                     *GetIndexOf(floating_content_placeholder_
++                                     ? floating_content_placeholder_.get()
++                                     : content_area_view_.get()));
+ }
+ 
+ std::unique_ptr<views::View>
+@@ -924,8 +986,8 @@ VerticalTabStripRegionView::RegionViewFo
+ void VerticalTabStripRegionView::RegionViewFocusListener::OnDidChangeFocus(
+     views::View* focused_before,
+     views::View* focused_now) {
+-  if ((focused_before && region_view_->Contains(focused_before)) ||
+-      (focused_now && region_view_->Contains(focused_now))) {
++  if ((focused_before && region_view_->ContainsRegionView(focused_before)) ||
++      (focused_now && region_view_->ContainsRegionView(focused_now))) {
+     region_view_->UpdateExpandOnHoverState();
+   }
+ }
+--- a/chrome/browser/ui/views/helium/native_frame_materials.cc
++++ b/chrome/browser/ui/views/helium/native_frame_materials.cc
+@@ -16,6 +16,31 @@
+ 
+ namespace helium {
+ 
++bool IsNativeGlassControl(const views::View* view) {
++#if BUILDFLAG(IS_MAC)
++  const auto* widget = view ? view->GetWidget() : nullptr;
++  if (!widget) {
++    return false;
++  }
++  if ((widget->GetName() == "Floating browser actions" ||
++       widget->GetName() == "Floating sidebar controls")) {
++    return true;
++  }
++  const auto* browser =
++      BrowserView::GetBrowserViewForNativeWindow(widget->GetNativeWindow());
++  if (!browser || !browser->IsZenModeEnabledForLayout() ||
++      browser->IsZenModeSideChromePinned() ||
++      !browser->IsVerticalAddressBarInSidebar() ||
++      browser->IsZenModeTopChromePinned()) {
++    return false;
++  }
++  const auto* sidebar = browser->GetSidebarView();
++  return sidebar && sidebar->Contains(view);
++#else
++  return false;
++#endif
++}
++
+ bool ShouldUseNativeFrameMaterials(const BrowserView* browser_view) {
+ #if BUILDFLAG(IS_MAC)
+   if (!features::HeliumNativeFrameAvailable() || !browser_view) {
+@@ -48,4 +73,10 @@ bool ShouldUseNativeFrameMaterials(const
+              : nullptr);
+ }
+ 
++#if !BUILDFLAG(IS_MAC)
++std::optional<SkColor> NativeGlassControlColor(const views::View*, bool) {
++  return std::nullopt;
++}
++#endif
++
+ }  // namespace helium
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -5,6 +5,11 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_FRAME_MATERIALS_H_
+ #define CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_FRAME_MATERIALS_H_
+ 
++#include <optional>
++
++#include "build/build_config.h"
++#include "third_party/skia/include/core/SkColor.h"
++
+ class BrowserView;
+ class BrowserWindowInterface;
+ 
+@@ -14,6 +19,13 @@ class View;
+ 
+ namespace helium {
+ 
++bool IsNativeGlassControl(const views::View* view);
++std::optional<SkColor> NativeGlassControlColor(const views::View* view,
++                                               bool enabled = true);
++#if BUILDFLAG(IS_MAC)
++bool IsPointerInNativeRevealRail(const BrowserView* view, bool top);
++#endif
++
+ bool ShouldUseNativeFrameMaterials(const BrowserView* browser_view);
+ bool ShouldUseNativeFrameMaterials(const BrowserWindowInterface* browser);
+ bool ShouldUseNativeFrameMaterials(const views::View* view);
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -4,7 +4,15 @@
+ 
+ #import "chrome/browser/ui/views/helium/native_frame_materials_mac.h"
+ 
++#include <algorithm>
++
+ #include "base/apple/foundation_util.h"
++#include "chrome/browser/browser_process.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "chrome/common/pref_names.h"
++#include "components/prefs/pref_service.h"
++#include "ui/views/widget/widget.h"
+ 
+ namespace helium {
+ namespace {
+@@ -109,3 +117,66 @@ void UpdateNativeFrameMaterialBackground
+ }
+ 
+ }  // namespace helium
++
++namespace helium {
++std::optional<SkColor> NativeGlassControlColor(const views::View* view,
++                                               bool enabled) {
++  if (!IsNativeGlassControl(view)) {
++    return std::nullopt;
++  }
++  NSView* native = view->GetWidget()->GetNativeView().GetNativeNSView();
++  __block SkColor result = SK_ColorBLACK;
++  [native.effectiveAppearance performAsCurrentDrawingAppearance:^{
++    NSColor* color =
++        [(enabled ? NSColor.labelColor : NSColor.disabledControlTextColor)
++            colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
++    result = SkColorSetARGB(
++        lround(color.alphaComponent * 255), lround(color.redComponent * 255),
++        lround(color.greenComponent * 255), lround(color.blueComponent * 255));
++  }];
++  return result;
++}
++
++bool IsPointerInNativeRevealRail(const BrowserView* view, bool top) {
++  if (!view->GetWidget()) {
++    return false;
++  }
++  NSWindow* window = view->GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  const NSPoint screen_point = NSEvent.mouseLocation;
++  if (view->IsFullscreen()) {
++    const NSRect screen = window.screen.frame;
++    const CGFloat pixel = 1.0 / window.backingScaleFactor;
++    if (screen_point.x < NSMinX(screen) || screen_point.x > NSMaxX(screen) ||
++        screen_point.y < NSMinY(screen) || screen_point.y > NSMaxY(screen)) {
++      return false;
++    }
++    return top ? screen_point.y >= NSMaxY(screen) - pixel
++               : (view->IsVerticalTabStripRightAligned()
++                      ? screen_point.x >= NSMaxX(screen) - pixel
++                      : screen_point.x < NSMinX(screen) + pixel);
++  }
++  NSView* native = window.contentView;
++  const NSPoint point =
++      [native convertPoint:[window convertPointFromScreen:screen_point]
++                  fromView:nil];
++  if (point.x < 0 || point.x > NSWidth(native.bounds) || point.y < 0 ||
++      point.y > NSHeight(native.bounds)) {
++    return false;
++  }
++  PrefService* local_state =
++      g_browser_process ? g_browser_process->local_state() : nullptr;
++  const CGFloat rail =
++      local_state &&
++              local_state->FindPreference(prefs::kHeliumRoundedFrameThickness)
++          ? std::clamp(
++                local_state->GetInteger(prefs::kHeliumRoundedFrameThickness), 0,
++                8)
++          : 4;
++  const CGFloat y =
++      native.isFlipped ? point.y : NSHeight(native.bounds) - point.y;
++  return top ? y < rail
++             : (view->IsVerticalTabStripRightAligned()
++                    ? point.x >= NSWidth(native.bounds) - rail
++                    : point.x < rail);
++}
++}  // namespace helium
+--- a/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc
++++ b/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc
+@@ -6,6 +6,7 @@
+ 
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
+ #include "third_party/skia/include/core/SkPath.h"
+ #include "third_party/skia/include/core/SkRRect.h"
+@@ -102,9 +103,12 @@ TabStripFlatEdgeButton::GetActionViewInt
+ void TabStripFlatEdgeButton::UpdateIcon(const ui::ImageModel& icon_image) {
+   CHECK(icon_image.IsVectorIcon());
+ 
+-  const ui::ImageModel image_model =
+-      ui::ImageModel::FromVectorIcon(*icon_image.GetVectorIcon().vector_icon(),
+-                                     GetForegroundColor(), icon_size_);
++  const auto native_color = helium::NativeGlassControlColor(this);
++  const ui::ImageModel image_model = ui::ImageModel::FromVectorIcon(
++      *icon_image.GetVectorIcon().vector_icon(),
++      native_color ? ui::ColorVariant(*native_color)
++                   : ui::ColorVariant(GetForegroundColor()),
++      icon_size_);
+ 
+   SetImageModel(views::Button::STATE_NORMAL, image_model);
+   SetImageModel(views::Button::STATE_HOVERED, image_model);
+@@ -371,7 +375,10 @@ void TabStripFlatEdgeButton::UpdateLabel
+ }
+ 
+ void TabStripFlatEdgeButton::UpdateLabelColor() {
+-  const ui::ColorId color_id = GetForegroundColor();
++  const ui::ColorVariant color_id =
++      helium::NativeGlassControlColor(this)
++          ? ui::ColorVariant(*helium::NativeGlassControlColor(this))
++          : ui::ColorVariant(GetForegroundColor());
+   SetTextColor(views::Button::STATE_NORMAL, color_id);
+   SetTextColor(views::Button::STATE_HOVERED, color_id);
+   SetTextColor(views::Button::STATE_PRESSED, color_id);
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
+@@ -194,7 +194,7 @@ int VerticalTabStripHeaderView::GetToolb
+ gfx::Size VerticalTabStripHeaderView::CalculatePreferredSize(
+     const views::SizeBounds& available_size) const {
+   if (HasFloatingControls(browser_view_)) {
+-    return gfx::Size(0, 36);
++    return gfx::Size(0, 38);
+   }
+   if (!GetVisible() || is_collapsed_) {
+     return gfx::Size(0, 0);
+@@ -238,6 +238,8 @@ void VerticalTabStripHeaderView::Layout(
+     top_controls_container_->SetBounds(0, 0, width(), 36);
+     for (views::View* child : top_controls_container_->children()) {
+       if (child == sidebar_pin_button_) {
++        child->SetVisible(
++            false);  // One native button travels with the sidebar.
+         const gfx::Size size = child->GetPreferredSize();
+         child->SetBounds(browser_view_->IsVerticalTabStripRightAligned()
+                              ? 0
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -25,6 +25,7 @@
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/chrome_typography.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
+ #include "components/user_education/common/user_education_class_properties.h"
+ #include "third_party/skia/include/core/SkPath.h"
+@@ -247,6 +248,10 @@ void ToolbarButton::UpdateColorsAndInset
+ }
+ 
+ SkColor ToolbarButton::GetForegroundColor(ButtonState state) const {
++  if (auto color =
++          helium::NativeGlassControlColor(this, state != STATE_DISABLED)) {
++    return *color;
++  }
+   const auto* color_provider = GetColorProvider();
+   if (has_in_product_help_promo_) {
+     return color_provider->GetColor(kColorToolbarFeaturePromoHighlight);
+--- a/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
++++ b/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
+@@ -90,8 +90,9 @@ WEAK_IMPORT_ATTRIBUTE
+ // _getCachedWindowCornerRadius.
+ - (CGFloat)_getCachedWindowCornerRadius {
+   if (@available(macOS 26, *)) {
+-    return 10.0 /* widget position from top and left */ +
+-           7.0 /* widget radius */;
++    // Keep the actual AppKit frame, border, shadow and hit shape concentric
++    // with the 26-point browser perimeter, not just its clipped content layer.
++    return 26.0;
+   }
+   // Don't mess with the window radius before macOS 26, as concentricity was not
+   // a design element for those releases.
+--- a/chrome/browser/ui/views/tabs/shared/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/shared/BUILD.gn
+@@ -58,6 +58,7 @@ source_set("impl") {
+     "//chrome/browser/ui/views/bookmarks/saved_tab_groups",
+     "//chrome/browser/ui/views/frame",
+     "//chrome/browser/ui/views/frame:browser_view_header",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui/views/tabs/organizer",
+     "//chrome/browser/ui/views/toolbar",
+     "//components/prefs",
+--- a/chrome/browser/ui/views/tabs/tab.cc
++++ b/chrome/browser/ui/views/tabs/tab.cc
+@@ -43,6 +43,7 @@
+ #include "chrome/browser/ui/views/event_utils.h"
+ #include "chrome/browser/ui/views/frame/browser_frame_view.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
+ #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
+ #include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
+@@ -1512,6 +1513,9 @@ int Tab::GetWidthOfLargestSelectableRegi
+ 
+ void Tab::UpdateForegroundColors() {
+   TabStyle::TabColors colors = tab_style_views()->CalculateTargetColors();
++  if (auto color = helium::NativeGlassControlColor(this)) {
++    colors.foreground_color = *color;
++  }
+   title_->SetEnabledColor(colors.foreground_color);
+   close_button_->SetColors(colors);
+   alert_indicator_button_->OnParentTabButtonColorChanged();
+--- a/chrome/browser/ui/views/toolbar/BUILD.gn
++++ b/chrome/browser/ui/views/toolbar/BUILD.gn
+@@ -321,6 +321,7 @@ source_set("impl") {
+     "//chrome/browser/ui/views/frame:top_container_view",
+     "//chrome/browser/ui/views/glic",
+     "//chrome/browser/ui/views/global_media_controls",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui/views/interaction",
+     "//chrome/browser/ui/views/page_action",
+     "//chrome/browser/ui/views/performance_controls",
+--- a/chrome/browser/ui/views/helium/BUILD.gn
++++ b/chrome/browser/ui/views/helium/BUILD.gn
+@@ -47,6 +47,7 @@ source_set("native_frame_materials") {
+     "//chrome/browser/ui/views/frame:browser_view_header",
+     "//chrome/common:constants",
+     "//components/prefs",
++    "//skia",
+     "//ui/views",
+   ]
+ 
+@@ -57,7 +58,7 @@ source_set("native_frame_materials") {
+     ]
+ 
+     deps += [
+-      "//skia",
++      "//chrome/browser:browser_process",
+       "//ui/color",
+     ]
+   }
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
+@@ -103,6 +103,10 @@ class VerticalTabStripRegionView final
+                                  int corner_radius,
+                                  bool below_toolbar);
+ 
++  void SetFloatingControlsHost(views::View* host);
++  void LayoutFloatingControls();
++  bool ContainsRegionView(const views::View* view) const override;
++
+   void UpdateInteriorMargin();
+ 
+   // views::LayoutDelegate:
+@@ -237,6 +241,7 @@ class VerticalTabStripRegionView final
+   double organizer_panel_show_percent_ = 0.0;
+ 
+   raw_ptr<views::View> content_area_view_ = nullptr;
++  raw_ptr<views::View> floating_content_placeholder_ = nullptr;
+   // Whether a leading exclusion exists due to window controls.
+   bool has_leading_exclusion_ = false;
+   std::unique_ptr<views::ViewDecoration> floating_surface_shadow_;
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -528,12 +528,12 @@ source_set("horizontal_tab_strip_region_
+ 
+ source_set("vertical_tab_strip_region_view") {
+   public = [
+-    "vertical_tab_strip_region_view.h",
+     "../tabs/vertical/vertical_tab_strip_header_view.h",
++    "vertical_tab_strip_region_view.h",
+   ]
+   sources = [
+-    "vertical_tab_strip_region_view.cc",
+     "../tabs/vertical/vertical_tab_strip_header_view.cc",
++    "vertical_tab_strip_region_view.cc",
+   ]
+   public_deps = [
+     ":base_tab_strip_region_view",
+@@ -554,13 +554,6 @@ source_set("vertical_tab_strip_region_vi
+     "//ui/views",
+   ]
+   deps = [
+-    "//chrome/browser/ui/views/download:download",
+-    "//chrome/browser/ui/views/extensions:extensions_toolbar_desktop",
+-    "//chrome/browser/ui/views/location_bar:location_bar",
+-    "//chrome/browser/ui/views/profiles:avatar_toolbar_button",
+-    "//chrome/browser/ui/views/toolbar:toolbar",
+-    "//chrome/browser/ui/views/toolbar:toolbar_button",
+-
+     ":browser_view_header",
+     ":custom_corners_background",
+     ":frame",
+@@ -572,16 +565,22 @@ source_set("vertical_tab_strip_region_vi
+     "//chrome/browser/ui:browser_element_identifiers",
+     "//chrome/browser/ui:layout_constants",
+     "//chrome/browser/ui:ui_features",
++    "//chrome/browser/ui:view_ids",
+     "//chrome/browser/ui/actions:actions_headers",
+     "//chrome/browser/ui/browser_window",
+     "//chrome/browser/ui/color:color_headers",
+     "//chrome/browser/ui/tabs:features",
+     "//chrome/browser/ui/tabs:tab_strip",
+     "//chrome/browser/ui/views/animations",
++    "//chrome/browser/ui/views/download",
++    "//chrome/browser/ui/views/extensions:extensions_toolbar_desktop",
++    "//chrome/browser/ui/views/location_bar",
++    "//chrome/browser/ui/views/profiles:avatar_toolbar_button",
+     "//chrome/browser/ui/views/tabs/common:impl",
+     "//chrome/browser/ui/views/tabs/organizer",
++    "//chrome/browser/ui/views/toolbar",
++    "//chrome/browser/ui/views/toolbar:toolbar_button",
+     "//chrome/browser/ui/web_applications",
+-    "//chrome/browser/ui:view_ids",
+     "//ui/base/dragdrop:types",
+     "//ui/compositor",
+     "//ui/display",
+@@ -773,13 +772,12 @@ source_set("browser_view_header") {
+ 
+ source_set("browser_view") {
+   sources = [
+-    "browser_view.cc",
+     "../tabs/visual_tab_switcher.cc",
+     "../tabs/visual_tab_switcher.h",
++    "browser_view.cc",
+   ]
+   public_deps = [ ":browser_view_header" ]
+   deps = [
+-    "//chrome/browser/ui:tab_ui_helper",
+     ":app_menu_button",
+     ":browser_frame_view",
+     ":browser_native_widget",
+@@ -850,6 +848,7 @@ source_set("browser_view") {
+     "//chrome/browser/ui:layout_constants",
+     "//chrome/browser/ui:recently_audible_helper",
+     "//chrome/browser/ui:sad_tab",
++    "//chrome/browser/ui:tab_ui_helper",
+     "//chrome/browser/ui:ui_controller_factory",
+     "//chrome/browser/ui:ui_features",
+     "//chrome/browser/ui:unload_controller",
+@@ -1231,11 +1230,11 @@ source_set("custom_corners_background_im
+     "//base",
+     "//base:i18n",
+     "//build:buildflag_header_h",
+-    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui:layout_constants",
+     "//chrome/browser/ui/color:color_headers",
+     "//chrome/browser/ui/color:mixers",
+     "//chrome/browser/ui/views/frame:browser_view_header",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//skia",
+     "//ui/base",
+     "//ui/color:color_headers",
+@@ -1970,25 +1969,18 @@ if (is_mac) {
+       ":browser_view_header",
+       ":browser_widget",
+       ":caption_button_placeholder_container",
++      ":contents_container_outline",
+       ":frame",
+       ":glass_frame_service",
++      ":vertical_tab_strip_region_view",
+       "//chrome/app:command_ids",
+-      "//chrome/browser/headless",
+-      "//chrome/browser/autocomplete",
+-      "//chrome/browser/ui/navigator",
+-      "//chrome/browser/ui/views/page_info",
+-      "//chrome/browser/ui:browser_commands",
+-      "//chrome/browser/ui/helium:helium_command_bar",
+-      "//chrome/browser/ui/views/location_bar",
+       "//chrome/app:generated_resources",
+-      "//components/omnibox/browser",
+-      "//components/strings:components_strings",
+-      "//content/public/browser",
++      "//chrome/browser/autocomplete",
++      "//chrome/browser/headless",
+       "//chrome/browser/picture_in_picture",
+       "//chrome/browser/profiles:profile",
+       "//chrome/browser/themes",
+-      "//chrome/browser/ui/views/helium:fullscreen_window_controls_mac",
+-      "//chrome/browser/ui/views/helium:native_frame_materials",
++      "//chrome/browser/ui:browser_commands",
+       "//chrome/browser/ui:fullscreen_util_mac",
+       "//chrome/browser/ui:layout_constants",
+       "//chrome/browser/ui:view_ids",
+@@ -1997,16 +1989,27 @@ if (is_mac) {
+       "//chrome/browser/ui/color:color_headers",
+       "//chrome/browser/ui/color:mixers",
+       "//chrome/browser/ui/exclusive_access",
++      "//chrome/browser/ui/helium:helium_command_bar",
++      "//chrome/browser/ui/helium:helium_layout_state_controller",
+       "//chrome/browser/ui/immersive:immersive_mode_controller",
++      "//chrome/browser/ui/navigator",
+       "//chrome/browser/ui/tabs",
+       "//chrome/browser/ui/views/bookmarks",
++      "//chrome/browser/ui/views/helium:frame_corner_radius",
++      "//chrome/browser/ui/views/helium:fullscreen_window_controls_mac",
++      "//chrome/browser/ui/views/helium:native_frame_materials",
++      "//chrome/browser/ui/views/location_bar",
++      "//chrome/browser/ui/views/page_info",
+       "//chrome/browser/ui/views/tabs:tab_strip",
+       "//chrome/browser/ui/views/toolbar",
+       "//chrome/browser/ui/views/web_apps/frame_toolbar:web_app_frame_toolbar_utils",
+       "//chrome/browser/ui/web_applications",
+       "//chrome/browser/ui/window_feature_controller",
+       "//chrome/common:constants",
++      "//components/omnibox/browser",
+       "//components/remote_cocoa/common:mojo",
++      "//components/strings:components_strings",
++      "//content/public/browser",
+       "//ui/base",
+       "//ui/base:features",
+       "//ui/compositor",
+@@ -2042,7 +2045,6 @@ if (is_mac) {
+       "//base:i18n",
+       "//chrome/app:command_ids",
+       "//chrome/app:generated_resources",
+-      "//chrome/browser/ui/views/helium:native_frame_materials",
+       "//chrome/browser:app_controller_mac",
+       "//chrome/browser:global_keyboard_shortcuts_mac",
+       "//chrome/browser/apps/app_shim",
+@@ -2061,6 +2063,7 @@ if (is_mac) {
+       "//chrome/browser/ui/omnibox",
+       "//chrome/browser/ui/tabs:tab_strip",
+       "//chrome/browser/ui/views/frame:browser_view_header",
++      "//chrome/browser/ui/views/helium:native_frame_materials",
+       "//chrome/browser/ui/views/web_apps/frame_toolbar:web_app_frame_toolbar_utils",
+       "//chrome/browser/ui/web_applications",
+       "//chrome/common:constants",
+@@ -3355,7 +3358,6 @@ source_set("browser_widget_impl") {
+     "//chrome/browser/app_mode",
+     "//chrome/browser/profiles:profile",
+     "//chrome/browser/themes",
+-    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui:browser_init_state",
+     "//chrome/browser/ui:browser_manager_service",
+     "//chrome/browser/ui:browser_window_state",
+@@ -3363,6 +3365,7 @@ source_set("browser_widget_impl") {
+     "//chrome/browser/ui/browser_window",
+     "//chrome/browser/ui/immersive:immersive_mode_controller",
+     "//chrome/browser/ui/sessions",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui/web_applications",
+     "//chrome/common:constants",
+     "//content/public/browser",
+--- a/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
+@@ -422,6 +422,10 @@ TabDragTarget* BaseTabStripRegionView::G
+   return &GetUnpinnedTabsContainer()->GetTabDragTarget(point_in_screen);
+ }
+ 
++bool BaseTabStripRegionView::ContainsRegionView(const views::View* view) const {
++  return Contains(view);
++}
++
+ views::View* BaseTabStripRegionView::SetTabStripView(
+     std::unique_ptr<views::View> view) {
+   tab_strip_view_ = views::AsViewClass<TabStripView>(view.get());
+@@ -430,7 +434,7 @@ views::View* BaseTabStripRegionView::Set
+   // Add the tab strip. Note that it may not be added as a direct child of
+   // `this`, but should appear in the hierarchy.
+   AddTabStripView(std::move(view));
+-  CHECK(Contains(tab_strip_view_));
++  CHECK(ContainsRegionView(tab_strip_view_));
+ 
+   on_active_tab_changed_subscription_ =
+       root_node_->RegisterOnActiveTabChangedCallback(base::BindRepeating(
+@@ -459,7 +463,7 @@ void BaseTabStripRegionView::AddTabStrip
+ 
+ std::unique_ptr<views::View> BaseTabStripRegionView::RemoveTabStripView(
+     views::View* view) {
+-  CHECK(Contains(view));
++  CHECK(ContainsRegionView(view));
+   return view->parent()->RemoveChildViewT(view);
+ }
+ 
+--- a/chrome/browser/ui/views/frame/base_tab_strip_region_view.h
++++ b/chrome/browser/ui/views/frame/base_tab_strip_region_view.h
+@@ -82,6 +82,8 @@ class BaseTabStripRegionView : public Ta
+   void OnDragExited() override;
+   void SetTabStripObserver(TabStripObserver* observer) override;
+   views::View* GetTabStripView() override;
++  // Region controls can live in a native child widget while floating.
++  virtual bool ContainsRegionView(const views::View* view) const;
+   void OnGlassFrameEligibilityChanged(bool is_eligible) override;
+   bool TraverseUsingUpDownKeys() override;
+   std::unique_ptr<ExpandOnHoverLock> GetExpandOnHoverLock(
+--- a/chrome/browser/ui/views/frame/browser_widget.cc
++++ b/chrome/browser/ui/views/frame/browser_widget.cc
+@@ -424,7 +424,8 @@ void BrowserWidget::ShowContextMenuForVi
+   views::View::ConvertPointFromScreen(non_client_view(), &point_in_view_coords);
+   int hit_test = non_client_view()->NonClientHitTest(point_in_view_coords);
+   if (source_type == ui::mojom::MenuSourceType::kKeyboard ||
+-      hit_test == HTCAPTION || hit_test == HTNOWHERE) {
++      hit_test == HTCAPTION || hit_test == HTNOWHERE ||
++      source == browser_view_->GetSidebarView()) {
+     menu_runner_ = std::make_unique<views::MenuRunner>(
+         GetSystemMenuModel(),
+         views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU,
