@@ -1,0 +1,62 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2448,8 +2448,10 @@
+   if (presented && !nav) {
+     drag = view->AddChildView(std::make_unique<views::NativeViewHost>());
+     floating_drag_host_.SetView(drag);
+-    floating_drag_region_ =
+-        [[HeliumGlassDragRegion alloc] initWithBrowserView:view];
++    if (!floating_drag_region_) {
++      floating_drag_region_ =
++          [[HeliumGlassDragRegion alloc] initWithBrowserView:view];
++    }
+     drag->Attach(gfx::NativeView(floating_drag_region_));
+     nav = view->AddChildView(std::make_unique<views::NativeViewHost>());
+     floating_navigation_host_.SetView(nav);
+@@ -2679,6 +2681,13 @@
+       background->Attach(gfx::NativeView(floating_sidebar_material_));
+     }
+     if (!floating_sidebar_widget_) {
++      // A side-edge reveal can precede the first top-header reveal. Its blank
++      // background must have a live drag target even before the header exists.
++      // Reuse this same object when the header host is subsequently attached.
++      if (!floating_drag_region_) {
++        floating_drag_region_ =
++            [[HeliumGlassDragRegion alloc] initWithBrowserView:view];
++      }
+       floating_sidebar_owner_.SetView(sidebar);
+       floating_sidebar_widget_ = std::make_unique<views::Widget>();
+       views::Widget::InitParams params(
+--- a/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
++++ b/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
+@@ -914,8 +914,28 @@
+   // Full-size browser content overlaps AppKit's interior resize hit targets.
+   // Use the same native predicate as frame mouse-down routing, rather than a
+   // guessed inset, so the content cursor cannot replace a working resize cursor.
+-  if ([self _resizeDirectionForMouseLocation:theEvent.locationInWindow] != -1) {
+-    [super cursorUpdate:theEvent];
++  const long long resize_direction =
++      [self _resizeDirectionForMouseLocation:theEvent.locationInWindow];
++  if (resize_direction >= 0 && resize_direction < 8) {
++    if (@available(macOS 15, *)) {
++      // AppKit numbers its eight native directions counterclockwise from the
++      // right edge. Use its exact hit result with the public frame-cursor API.
++      // Calling super here would consult the content's cursor rectangles again.
++      static constexpr NSCursorFrameResizePosition positions[] = {
++          NSCursorFrameResizePositionRight,
++          NSCursorFrameResizePositionTopRight,
++          NSCursorFrameResizePositionTop,
++          NSCursorFrameResizePositionTopLeft,
++          NSCursorFrameResizePositionLeft,
++          NSCursorFrameResizePositionBottomLeft,
++          NSCursorFrameResizePositionBottom,
++          NSCursorFrameResizePositionBottomRight};
++      [[NSCursor frameResizeCursorFromPosition:positions[resize_direction]
++                                 inDirections:NSCursorFrameResizeDirectionsAll]
++          set];
++    } else {
++      [super cursorUpdate:theEvent];
++    }
+     return;
+   }
+   // The cursor provided by the delegate should only be applied within the
