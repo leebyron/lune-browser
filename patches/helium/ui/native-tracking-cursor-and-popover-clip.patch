@@ -1,0 +1,136 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -195,6 +195,18 @@
+     [controls setFrame:rect display:NO animate:NO];
+   }
+ }
++- (void)cursorUpdate:(NSEvent*)event {
++  // Cursor rectangles are processed directly by the owning NSView, before
++  // NSWindow sees the event. Preserve native resize ownership at this boundary.
++  NSCursor* resize = ui::GetWindowResizeCursor(
++      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++  if (resize) {
++    [resize set];
++    return;
++  }
++  [super cursorUpdate:event];
++}
++
+ - (void)resetCursorRects {
+   [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
+ }
+@@ -888,6 +900,18 @@
+   // Here the entire visible group is chrome, including spaces between buttons.
+   return [super hitTest:point] ?: self;
+ }
++- (void)cursorUpdate:(NSEvent*)event {
++  // Cursor rectangles are processed directly by the owning NSView, before
++  // NSWindow sees the event. Preserve native resize ownership at this boundary.
++  NSCursor* resize = ui::GetWindowResizeCursor(
++      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++  if (resize) {
++    [resize set];
++    return;
++  }
++  [super cursorUpdate:event];
++}
++
+ - (void)resetCursorRects {
+   [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
+ }
+@@ -1884,7 +1908,7 @@
+         views::View::ConvertRectToTarget(sidebar, GetBrowserView(),
+                                          sidebar->GetLocalBounds())
+             .Contains(local);
+-    if (!in_sidebar && local.y() >= 0 && local.y() < 56) {
++    if (!in_sidebar && local.y() >= 0 && local.y() < 52) {
+       return HTCLIENT;
+     }
+   }
+@@ -2262,7 +2286,7 @@
+       sidebar->IsDrawn() && browser_view->GetSideChromeRevealRatio() > 0) {
+     sidebar_header = views::View::ConvertRectToTarget(
+         sidebar, browser_view, sidebar->GetLocalBounds());
+-    sidebar_header.set_height(std::min(56, sidebar_header.height()));
++    sidebar_header.set_height(std::min(52, sidebar_header.height()));
+   }
+   const bool in_sidebar_header = sidebar_header.Contains(cursor);
+   // Distance hysteresis: enter through the rail or a visible sidebar header.
+@@ -2480,7 +2504,7 @@
+     nav->SetBoundsRect(gfx::Rect(region.x(), region.y(), 76, 36));
+     // Cover the gap above controls even while the fullscreen menu bar lowers
+     // them. Only the controls move; the input shield stays at the window top.
+-    gfx::Rect drag_bounds(0, 0, view->width(), region.y() - 8 + 56);
++    gfx::Rect drag_bounds(0, 0, view->width(), region.y() - 8 + 52);
+     if (auto* panel = view->side_panel(); panel && panel->GetVisible()) {
+       const gfx::Rect panel_bounds = views::View::ConvertRectToTarget(
+           panel, view, panel->GetLocalBounds());
+@@ -2655,7 +2679,7 @@
+         sidebar, view, sidebar->GetLocalBounds());
+     const int outer_resize = view->IsFullscreen() ? 0 : 6;
+     const int header =
+-        std::max(0, 56 + TopUIFullscreenYOffset() - input_bounds.y());
++        std::max(0, 52 + TopUIFullscreenYOffset() - input_bounds.y());
+     input_bounds.Inset(gfx::Insets::TLBR(header, right ? 5 : outer_resize,
+                                          outer_resize,
+                                          right ? outer_resize : 5));
+@@ -2731,11 +2755,12 @@
+         ![floating_sidebar_material_.appearance
+             isEqual:FloatingChromeAppearance(view)];
+     floating_sidebar_material_.appearance = FloatingChromeAppearance(view);
+-    // Leave the 56-point header, native outer resize perimeter and sidebar's
+-    // inner resize handle in the parent window. The material remains flush;
+-    // only the child window that owns tab input is inset.
++    // Exclude the actual native controls (8 pt inset + 36 pt height), not the
++    // whole header. Layout margins belong to the tab layout, not the child
++    // window clip; excluding them here can cut off the top of New Tab.
++    // Keep the existing tab geometry identical to the pinned sidebar.
+     const int header_clearance =
+-        std::max(0, 56 + TopUIFullscreenYOffset() - bounds.y());
++        std::max(0, 8 + 36 + TopUIFullscreenYOffset() - bounds.y());
+     const int outer_resize = view->IsFullscreen() ? 0 : 6;
+     const int left_resize = right ? 5 : outer_resize;
+     const int right_resize = right ? outer_resize : 5;
+--- a/ui/base/cocoa/base_view.mm
++++ b/ui/base/cocoa/base_view.mm
+@@ -6,6 +6,7 @@
+ 
+ #include "base/check_op.h"
+ #include "base/mac/mac_util.h"
++#import "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/cocoa/tracking_area.h"
+ 
+ NSString* kViewDidBecomeFirstResponder =
+@@ -33,6 +34,18 @@
+   [self disableTracking];
+ }
+ 
++- (void)cursorUpdate:(NSEvent*)event {
++  // Cursor rectangles are processed directly by the owning NSView, before
++  // NSWindow sees the event. Preserve native resize ownership at this boundary.
++  NSCursor* resize = ui::GetWindowResizeCursor(
++      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++  if (resize) {
++    [resize set];
++    return;
++  }
++  [super cursorUpdate:event];
++}
++
+ - (void)enableTracking {
+   if (_trackingArea.get()) {
+     return;
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
+@@ -194,8 +194,9 @@
+ gfx::Size VerticalTabStripHeaderView::CalculatePreferredSize(
+     const views::SizeBounds& available_size) const {
+   if (HasFloatingControls(browser_view_)) {
+-    // Reserve the header through y=56, including the four-point row margin.
+-    return gfx::Size(0, 52);
++    // 36 pt controls + 8 pt above and below = 52 pt, including the
++    // four-point bottom margin supplied by the surrounding FlexLayout.
++    return gfx::Size(0, 48);
+   }
+   if (!GetVisible() || is_collapsed_) {
+     return gfx::Size(0, 0);
