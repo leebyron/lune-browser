@@ -255,7 +255,17 @@
  // Keep the system focus indicator but supply the whole glass surface as its
  // mask. AppKit chooses the ring color and accessibility contrast treatment.
  @interface HeliumGlassAddressField : NSTextField
-@@ -1142,6 +1262,14 @@ gfx::Rect BrowserFrameViewMac::GetWindow
+@@ -777,7 +897,8 @@ BrowserFrameViewMac::~BrowserFrameViewMa
+     static_cast<views::NativeViewHost*>(host)->Detach();
+   }
+   floating_address_bar_ = nil;
+-  [floating_window_controls_ restoreTitlebarButtons];
++  // Closing the window needs no titlebar restoration. AppKit can query the
++  // already-destroyed widget delegate if button visibility changes here.
+   if (auto* host = floating_window_controls_host_.view()) {
+     static_cast<views::NativeViewHost*>(host)->Detach();
+   }
+@@ -1142,6 +1263,14 @@ gfx::Rect BrowserFrameViewMac::GetWindow
  }
  
  int BrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
@@ -270,7 +280,7 @@
    if (auto* host = floating_address_host_.view();
        host && host->IsDrawn() && !floating_address_bar_.hidden &&
        views::View::ConvertRectToTarget(host, this, host->GetLocalBounds())
-@@ -1425,7 +1553,8 @@ void BrowserFrameViewMac::UpdateFloating
+@@ -1425,7 +1554,8 @@ void BrowserFrameViewMac::UpdateFloating
        static_cast<views::NativeViewHost*>(floating_address_host_.view());
    auto* command_bar = HeliumCommandBarController::From(browser_view->browser());
    const bool command_bar_open = command_bar && command_bar->IsShowing();
@@ -280,7 +290,7 @@
    for (const auto& child :
         views::Widget::GetAllOwnedWidgets(GetWidget()->GetNativeView())) {
      if (child != GetWidget() && child->IsVisible() && !child->IsClosed() &&
-@@ -1438,6 +1567,7 @@ void BrowserFrameViewMac::UpdateFloating
+@@ -1438,6 +1568,7 @@ void BrowserFrameViewMac::UpdateFloating
    if (!HasFloatingAddressBar() ||
        (!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
        !NSApp.active) {
@@ -288,7 +298,7 @@
      UpdateFloatingWindowControls(false);
      [floating_address_bar_ setPresented:NO];
      floating_address_refresh_timer_->Stop();
-@@ -1455,15 +1585,24 @@ void BrowserFrameViewMac::UpdateFloating
+@@ -1455,15 +1586,24 @@ void BrowserFrameViewMac::UpdateFloating
    if (!side.IsEmpty()) {
      if (browser_view->IsVerticalTabStripRightAligned()) {
        content.set_width(
@@ -316,7 +326,7 @@
      UpdateFloatingWindowControls(false);
      [floating_address_bar_ setPresented:NO];
      floating_address_refresh_timer_->Stop();
-@@ -1473,8 +1612,8 @@ void BrowserFrameViewMac::UpdateFloating
+@@ -1473,8 +1613,8 @@ void BrowserFrameViewMac::UpdateFloating
      return;
    }
    const gfx::Rect bounds(
@@ -327,7 +337,7 @@
        floating_address_bar_ ? [floating_address_bar_ preferredHeight] : 36);
    NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
    NSView* native_view =
-@@ -1512,6 +1651,7 @@ void BrowserFrameViewMac::UpdateFloating
+@@ -1512,6 +1652,7 @@ void BrowserFrameViewMac::UpdateFloating
    // Keyboard address editing reveals the same surface as pointer entry.
    const bool present = in_rail || within_retention || editing ||
                         ([floating_address_bar_ isPresented] && bubble_open);
@@ -335,7 +345,7 @@
    UpdateFloatingWindowControls(present);
    if (present) {
      if (!host) {
-@@ -1526,6 +1666,15 @@ void BrowserFrameViewMac::UpdateFloating
+@@ -1526,6 +1667,15 @@ void BrowserFrameViewMac::UpdateFloating
      [floating_address_bar_ refresh];
      host->SetVisible(true);
      [floating_address_bar_ setPresented:YES];
@@ -351,7 +361,7 @@
      // Recheck while visible so native menus/focus changes that do not generate
      // a Views mouse event still update the distance boundary after interaction.
      if (!floating_address_refresh_timer_->IsRunning()) {
-@@ -1575,3 +1724,166 @@ void BrowserFrameViewMac::UpdateFloating
+@@ -1575,3 +1725,166 @@ void BrowserFrameViewMac::UpdateFloating
    [floating_window_controls_ setPresented:presented];
    host->SetVisible(presented || !floating_window_controls_.hidden);
  }
@@ -520,17 +530,7 @@
 +}
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -1234,6 +1234,9 @@ BrowserView::BrowserView(BrowserWindowIn
- }
- 
- BrowserView::~BrowserView() {
-+  if (auto* frame = GetFrameView()) {
-+    frame->ResetFloatingToolbar();
-+  }
-   visual_tab_switcher_.reset();
-   if (toolbar_) {
-     toolbar_->RestoreToolbarControls();
-@@ -2295,21 +2298,10 @@ void BrowserView::UpdateZenModeReveal(bo
+@@ -2295,21 +2295,10 @@ void BrowserView::UpdateZenModeReveal(bo
      }
    }
  
@@ -556,6 +556,18 @@
    }
  
    if (reveal_top) {
+@@ -5303,6 +5292,11 @@ void BrowserView::CloseTabSearchBubble()
+ 
+ void BrowserView::DeleteBrowserWindow() {
+   CHECK(browser_widget_);
++  // Return detached controls while both the client and native window live.
++  // The frame is destroyed before BrowserView during widget teardown.
++  if (auto* frame = GetFrameView()) {
++    frame->ResetFloatingToolbar();
++  }
+ 
+   // Window placement is expected to be saved when the window closes.
+   // Determination for whether placement should be saved depends on the
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
 @@ -859,14 +859,14 @@ void ToolbarView::Init() {
