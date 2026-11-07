@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "4539d268743cc43bd350610ec168f8f75b4cde2c",
+    "commit": "03622ffc9ad5b6a2ea3c417f0d50208a3d16bb7b",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -261,6 +261,10 @@
       {
         "path": "patches/helium/ui/native-glass-theme-and-rows.patch",
         "sha256": "d6444386404cc7b20bf2dfdf2d84483e88c7e5487f7f14948f7e0f314a214351"
+      },
+      {
+        "path": "patches/helium/ui/floating-sidebar-interaction.patch",
+        "sha256": "a74d6a64b0c6d33fc8f2766a4765697eca44e0c8be3dd75626de43bb8c4ffc83"
       }
     ]
   },
@@ -490,10 +494,11 @@
         "patches/helium/ui/fixed-fullscreen-sidebar-controls.patch",
         "patches/helium/ui/glass-material-appearance.patch",
         "patches/helium/ui/sidebar-toggle-visibility.patch",
-        "patches/helium/ui/native-glass-theme-and-rows.patch"
+        "patches/helium/ui/native-glass-theme-and-rows.patch",
+        "patches/helium/ui/floating-sidebar-interaction.patch"
       ],
       "review_status": "reviewed-port",
-      "rationale": "Use public AppKit glass for an editable address capsule, paired SF Symbol navigation, and the existing extension/menu controls, with native window dragging, fixed traffic lights, 48 pt distance retention, and 8 pt surface insets. Correct the actual native frame shape, honor profile appearance overrides with OS fallback for glass, restore sidebar pinning/context menus, and restrict drag/cursor handling to visible chrome. Keep fullscreen child controls visible, align exposed glass to content corner centers, and retain dragging through physical mouse-up. Recreate the native glass material on appearance changes; use AppKit semantic colors for detached tab rows. Keep the sidebar toggle solely on its sidebar surface, make its native hit region clickable, and preserve the window resize cursor perimeter. Sidebar-contained controls stay fixed during fullscreen menu reveal; top-bar traffic lights follow the menu offset.",
+      "rationale": "Use public AppKit glass for an editable address capsule, paired SF Symbol navigation, and the existing extension/menu controls, with native window dragging, fixed traffic lights, 48 pt distance retention, and 8 pt surface insets. Correct the actual native frame shape, honor profile appearance overrides with OS fallback for glass, restore sidebar pinning/context menus, and restrict drag/cursor handling to visible chrome. Keep fullscreen child controls visible, align exposed glass to content corner centers, and retain dragging through physical mouse-up. Recreate the native glass material on appearance changes; use AppKit semantic colors for detached tab rows. Keep the sidebar toggle solely on its sidebar surface, make its native hit region clickable, and preserve the window resize cursor perimeter. Sidebar-contained controls stay fixed during fullscreen menu reveal; top-bar traffic lights follow the menu offset. Restore detached sidebar background dragging and context menus, correct first-row clipping, use a 12 pt adjacent glass gap and 4 pt toggle inset, reveal on sidebar-header hover, and fade top controls without vertical presentation motion.",
       "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits."
     },
     {

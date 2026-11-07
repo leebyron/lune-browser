@@ -281,7 +281,7 @@ test no longer makes the same page area draggable after dismissal. The drag
 strip excludes a 6 pt window-edge perimeter from hit testing and arrow cursor
 rectangles so it does not compete with AppKit resize cursors.
 
-The sidebar button has a 6 pt inner margin; the tab region gains 2 pt horizontal
+The sidebar button has a 4 pt inner margin (reduced from 6 in input 13); the tab region gains 2 pt horizontal
 margin. macOS side-panel headers, including Customize Lune, have 10 pt outer
 padding and a 52 pt minimum height, aligning their title and close button with
 the other headers. Toolbar placement measures
@@ -296,7 +296,7 @@ The detached sidebar still reserves space during
 its reveal. Transparent toolbar/sidebar child widgets explicitly participate in
 existing fullscreen Spaces so the controls appear with their glass backgrounds.
 
-Validation for this revision:
+Validation through input 12:
 
 - Strict patch replay passes without fuzz: 80 relevant patches, 37 final source
   files byte-identical to the prepared tree.
@@ -322,10 +322,39 @@ Local evidence is under `.work/floating-address/`: `surfaces-validation.json`,
 `revision-replay.json`, `surfaces-smoke-{arm64,intel}.json`, the build/test logs, and
 `surfaces-input-check/shutdown.json`.
 
+## Sidebar interaction follow-up
+
+The owner accepted window-edge resize cursors and fullscreen behavior for input
+12. Input 13 restores blank-area dragging and the original sidebar
+options menu in the detached native content widget, on both sides. Tab controls
+keep their own input handlers. A native drag retains both surfaces until the
+initiating mouse button is released, including events serialized by remote_cocoa.
+
+The detached child window starts below y=46 in browser coordinates; it no longer
+adds that whole distance to the sidebar's existing 8 pt top inset. This removes
+the overlap that clipped the first tab row. The sidebar toggle's inner inset is
+4 pt, and the nearest top-bar glass group stays 12 pt from the popover, matching
+inter-group spacing. Entering the visible sidebar's first 44 pt reveals the full
+top bar in either pinned or unpinned mode. Existing distance retention applies.
+
+Top-bar presentation now fades only, including top-bar traffic lights. Sidebar
+slides and the system fullscreen menu-bar offset remain separate behaviors.
+
+Validation: both architecture builds, strict no-fuzz replay (81 patches and 37
+matching files), GN dependencies, component lint, lock validation, and all 44
+repository tests pass. Arm64 and Intel-under-Rosetta smoke/default/settings
+checks pass. Native Intel hardware remains untested. Native arm64 right-click on the pinned sidebar toggle opens
+the original options menu. Detached background drag/right-click, first-row
+visibility, spacing, header-hover reveal, and fade timing still require manual
+acceptance because native automation cannot reliably hold the reveal cursor.
+Prior acceptance does not imply acceptance of these new pointer interactions.
+Local evidence: `.work/floating-address/sidebar-validation.json`,
+`sidebar-smoke-{arm64,intel}.json`, and `revision-replay.json`.
+
 ## Pinned inputs
 
-- Platform commit: `4539d268743cc43bd350610ec168f8f75b4cde2c`.
-- Platform tag: `inputs/floating-address-12/macos`.
+- Platform commit: `03622ffc9ad5b6a2ea3c417f0d50208a3d16bb7b`.
+- Platform tag: `inputs/floating-address-13/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and
