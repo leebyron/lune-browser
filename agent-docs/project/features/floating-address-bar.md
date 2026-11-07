@@ -479,10 +479,16 @@ Local evidence: `.work/floating-address/top-anchor-native-test.json`,
 `top-anchor-validation.json`, `top-anchor-smoke-{arm64,intel}.json`, and
 `revision-replay.json`.
 
+## Restore full popover width
+
+Input 18 removes the 4 pt inner-edge reduction introduced by inputs 15 and 17.
+Pinned and detached layouts again share the same logical sidebar width; the
+8 pt outer inset, tab padding, and resize handle are preserved.
+
 ## Pinned inputs
 
-- Platform commit: `e10f58419526456a88c0cf08be3b32a5f281208f`.
-- Platform tag: `inputs/floating-address-17/macos`.
+- Platform commit: `9fba42b3f57185340903a66e8605c8792574cbfb`.
+- Platform tag: `inputs/floating-address-18/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and
