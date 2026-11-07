@@ -48,7 +48,12 @@
  #include "components/search_engines/template_url_service.h"
  #include "content/public/browser/web_contents.h"
  #include "ui/base/accelerators/accelerator_manager.h"
-@@ -119,10 +121,29 @@
+@@ -116,13 +118,34 @@
+       base::BindRepeating(&HeliumCommandBarController::ActivateItem,
+                           weak_factory_.GetWeakPtr()),
+       base::BindRepeating(&HeliumCommandBarController::OnEscapePressed,
++                          weak_factory_.GetWeakPtr()),
++      base::BindRepeating(&HeliumCommandBarController::OnBackspacePressed,
                            weak_factory_.GetWeakPtr()));
    widget_ = view->GetWidget();
    view_ = view;
@@ -78,7 +83,7 @@
  void HeliumCommandBarController::Hide() {
    if (!widget_) {
      return;
-@@ -220,7 +241,7 @@
+@@ -220,7 +243,7 @@
    // trip it.
    if (scope_keyword_.empty() && !query.empty() && query.back() == u' ') {
      if (auto split = helium_command_bar_model::SplitKeyword(query, false);
@@ -87,7 +92,30 @@
        TemplateURLService* template_urls =
            TemplateURLServiceFactory::GetForProfile(browser_->GetProfile());
        if (helium_command_bar_model::EngineOwnsKeyword(template_urls,
-@@ -443,6 +464,21 @@
+@@ -350,6 +373,22 @@
+   OnQueryChanged(std::u16string());
+ }
+ 
++void HeliumCommandBarController::OnBackspacePressed() {
++  if (scope_keyword_.empty()) {
++    return;
++  }
++  const std::u16string keyword = base::UTF8ToUTF16(scope_keyword_);
++  const std::u16string restored =
++      keyword + (last_query_.empty() ? u"" : u" " + last_query_);
++  scope_keyword_.clear();
++  if (view_) {
++    // Restore the editable trigger, with the caret beside it, rather than
++    // deleting the user's chosen provider or selecting the query text.
++    view_->SetInputText(restored, keyword.size());
++  }
++  OnQueryChanged(restored);
++}
++
+ void HeliumCommandBarController::OnEscapePressed() {
+   if (!scope_keyword_.empty()) {
+     ExitScope();
+@@ -443,6 +482,21 @@
        if (auto hint = SiteSearchHintForQuery(template_urls, split->keyword,
                                               split->remainder)) {
          items.push_back(std::move(*hint));
@@ -109,7 +137,7 @@
        } else if (split->keyword == "tab" &&
                   !EngineOwnsKeyword(template_urls, "tab")) {
          items.push_back(TabsScopeHint(split->remainder));
-@@ -450,34 +486,12 @@
+@@ -450,34 +504,12 @@
      }
    }
    SortAndCap(items);
@@ -171,7 +199,15 @@
   public:
    DECLARE_USER_DATA(HeliumCommandBarController);
  
-@@ -105,19 +109,25 @@
+@@ -90,6 +94,7 @@
+   // Esc (or Backspace on empty input while scoped): exits the scope, else
+   // closes the bar.
+   void OnEscapePressed();
++  void OnBackspacePressed();
+   void ExitScope();
+ 
+   base::WeakPtr<HeliumCommandBarController> GetWeakPtr();
+@@ -105,19 +110,25 @@
    void OnFocusManagerDestroying(views::FocusManager* focus_manager) override;
  
   private:
@@ -198,7 +234,7 @@
    std::u16string ScopeRemainder(const std::u16string& query) const;
    void OnHistoryResults(int seq,
                          const std::u16string& query,
-@@ -132,6 +142,8 @@
+@@ -132,6 +143,8 @@
    void OnFavicon(int seq, size_t index, const std::string& url_spec,
                   const favicon_base::FaviconImageResult& result);
  
@@ -402,10 +438,53 @@
  #include "chrome/browser/ui/helium/helium_command_bar_model.h"
  #include "ui/views/controls/textfield/textfield_controller.h"
  #include "ui/views/widget/widget_delegate.h"
-@@ -90,6 +92,10 @@
+@@ -44,7 +46,8 @@
+       base::OnceClosure on_closed,
+       base::RepeatingCallback<void(const std::u16string&)> on_query,
+       base::RepeatingCallback<void(size_t)> on_activate,
+-      base::RepeatingClosure on_escape);
++      base::RepeatingClosure on_escape,
++      base::RepeatingClosure on_backspace);
+ 
+   HeliumCommandBarView(const HeliumCommandBarView&) = delete;
+   HeliumCommandBarView& operator=(const HeliumCommandBarView&) = delete;
+@@ -57,7 +60,8 @@
+   void SetResults(const std::vector<HeliumCommandBarItem>& items,
+                   std::optional<size_t> scope_hint);
+   // Sets the input text (Tab completion).
+-  void SetInputText(const std::u16string& text);
++  void SetInputText(const std::u16string& text,
++                    std::optional<size_t> caret = std::nullopt);
+   // Shows the scope bar for |name|; ClearScope hides it again.
+   void SetScope(const std::u16string& name);
+   void ClearScope();
+@@ -71,13 +75,14 @@
+                       const ui::KeyEvent& event) override;
+ 
+  private:
+-  HeliumCommandBarView(gfx::NativeView parent,
+-                       const std::u16string& initial_query,
+-                       base::OnceClosure on_closed,
+-                       base::RepeatingCallback<void(const std::u16string&)>
+-                           on_query,
+-                       base::RepeatingCallback<void(size_t)> on_activate,
+-                       base::RepeatingClosure on_escape);
++  HeliumCommandBarView(
++      gfx::NativeView parent,
++      const std::u16string& initial_query,
++      base::OnceClosure on_closed,
++      base::RepeatingCallback<void(const std::u16string&)> on_query,
++      base::RepeatingCallback<void(size_t)> on_activate,
++      base::RepeatingClosure on_escape,
++      base::RepeatingClosure on_backspace);
+ 
+   void WindowClosing() override;
+   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
+@@ -90,6 +95,11 @@
    base::RepeatingCallback<void(const std::u16string&)> on_query_;
    base::RepeatingCallback<void(size_t)> on_activate_;
    base::RepeatingClosure on_escape_;
++  base::RepeatingClosure on_backspace_;
 +#if BUILDFLAG(IS_MAC)
 +  struct Native;
 +  std::unique_ptr<Native> native_;
@@ -415,7 +494,7 @@
    raw_ptr<views::Label> scope_bar_ = nullptr;
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
-@@ -0,0 +1,458 @@
+@@ -0,0 +1,494 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -522,12 +601,19 @@
 +                                     xRadius:10
 +                                     yRadius:10] fill];
 +  }
-+  [self.resultImage drawInRect:NSMakeRect(12, 18, 16, 16)
-+                      fromRect:NSZeroRect
-+                     operation:NSCompositingOperationSourceOver
-+                      fraction:1
-+                respectFlipped:YES
-+                         hints:nil];
++  NSImage* image = self.resultImage;
++  if (image.isTemplate) {
++    image =
++        [image imageWithSymbolConfiguration:
++                   [NSImageSymbolConfiguration
++                       configurationWithHierarchicalColor:NSColor.labelColor]];
++  }
++  [image drawInRect:NSMakeRect(12, 18, 16, 16)
++            fromRect:NSZeroRect
++           operation:NSCompositingOperationSourceOver
++            fraction:1
++      respectFlipped:YES
++               hints:nil];
 +  CGFloat width = NSWidth(self.bounds);
 +  BOOL subtitle = self.secondaryText.length > 0;
 +  DrawText(self.primaryText, NSMakeRect(40, subtitle ? 7 : 17, width - 142, 20),
@@ -544,6 +630,7 @@
 +@interface HeliumCommandPane : NSView <NSTextFieldDelegate>
 +@property(nonatomic, strong) NSTextField* input;
 +@property(nonatomic, strong) NSTextField* scope;
++@property(nonatomic, strong) NSBox* scopePill;
 +@property(nonatomic, strong) NSMutableArray<HeliumCommandRow*>* rows;
 +@property(nonatomic, copy) void (^onQuery)(NSString*);
 +@property(nonatomic, copy) BOOL (^onCommand)(SEL);
@@ -551,8 +638,9 @@
 +@end
 +
 +@implementation HeliumCommandPane
-+@synthesize input = _input, scope = _scope, rows = _rows, onQuery = _onQuery,
-+            onCommand = _onCommand, onActivate = _onActivate;
++@synthesize input = _input, scope = _scope, scopePill = _scopePill,
++            rows = _rows, onQuery = _onQuery, onCommand = _onCommand,
++            onActivate = _onActivate;
 +- (BOOL)isFlipped {
 +  return YES;
 +}
@@ -574,12 +662,16 @@
 +- (void)layout {
 +  [super layout];
 +  const CGFloat width = NSWidth(self.bounds);
-+  self.input.frame = NSMakeRect(20, 19, width - 40, 26);
-+  CGFloat y = kInputHeight + kInset;
++  CGFloat inputX = 20;
 +  if (!self.scope.hidden) {
-+    self.scope.frame = NSMakeRect(20, y, width - 40, 22);
-+    y += 26;
++    const CGFloat tokenWidth = std::min(self.scope.fittingSize.width + 24,
++                                        std::min(220.0, width * 0.4));
++    self.scopePill.frame = NSMakeRect(16, 17, tokenWidth, 28);
++    self.scope.frame = NSMakeRect(12, 6, tokenWidth - 24, 17);
++    inputX = NSMaxX(self.scopePill.frame) + 10;
 +  }
++  self.input.frame = NSMakeRect(inputX, 19, width - inputX - 20, 26);
++  CGFloat y = kInputHeight + kInset;
 +  for (HeliumCommandRow* row in self.rows) {
 +    row.frame = NSMakeRect(kInset, y, width - 2 * kInset, kRowHeight);
 +    y += kRowHeight;
@@ -611,10 +703,11 @@
 +    base::OnceClosure on_closed,
 +    base::RepeatingCallback<void(const std::u16string&)> on_query,
 +    base::RepeatingCallback<void(size_t)> on_activate,
-+    base::RepeatingClosure on_escape) {
++    base::RepeatingClosure on_escape,
++    base::RepeatingClosure on_backspace) {
 +  auto* view = new HeliumCommandBarView(
 +      parent, initial_query, std::move(on_closed), std::move(on_query),
-+      std::move(on_activate), std::move(on_escape));
++      std::move(on_activate), std::move(on_escape), std::move(on_backspace));
 +  auto* widget = new views::Widget;
 +  views::Widget::InitParams params(
 +      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
@@ -647,11 +740,13 @@
 +    base::OnceClosure on_closed,
 +    base::RepeatingCallback<void(const std::u16string&)> on_query,
 +    base::RepeatingCallback<void(size_t)> on_activate,
-+    base::RepeatingClosure on_escape)
++    base::RepeatingClosure on_escape,
++    base::RepeatingClosure on_backspace)
 +    : on_closed_(std::move(on_closed)),
 +      on_query_(std::move(on_query)),
 +      on_activate_(std::move(on_activate)),
 +      on_escape_(std::move(on_escape)),
++      on_backspace_(std::move(on_backspace)),
 +      native_(std::make_unique<Native>()) {
 +  SetModalType(ui::mojom::ModalType::kNone);
 +  auto contents = std::make_unique<views::View>();
@@ -677,10 +772,20 @@
 +  pane.input.delegate = pane;
 +  [pane addSubview:pane.input];
 +  pane.scope = [NSTextField labelWithString:@""];
-+  pane.scope.font = [NSFont systemFontOfSize:11];
-+  pane.scope.textColor = NSColor.secondaryLabelColor;
++  pane.scope.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
++  pane.scope.textColor = NSColor.labelColor;
++  pane.scope.lineBreakMode = NSLineBreakByTruncatingTail;
 +  pane.scope.hidden = YES;
-+  [pane addSubview:pane.scope];
++  pane.scopePill = [[NSBox alloc] init];
++  pane.scopePill.boxType = NSBoxCustom;
++  pane.scopePill.titlePosition = NSNoTitle;
++  pane.scopePill.borderWidth = 0;
++  pane.scopePill.cornerRadius = 14;
++  pane.scopePill.fillColor = [NSColor.labelColor colorWithAlphaComponent:0.10];
++  pane.scopePill.contentViewMargins = NSZeroSize;
++  pane.scopePill.hidden = YES;
++  [pane.scopePill.contentView addSubview:pane.scope];
++  [pane addSubview:pane.scopePill];
 +  pane.onQuery = ^(NSString* text) {
 +    on_query_.Run(base::SysNSStringToUTF16(text));
 +  };
@@ -712,11 +817,14 @@
 +      }
 +      return YES;
 +    }
-+    if (command == @selector(deleteBackward:) &&
-+        native_->pane.input.stringValue.length == 0 &&
-+        !native_->pane.scope.hidden) {
-+      on_escape_.Run();
-+      return YES;
++    if (command == @selector(deleteBackward:) && !native_->pane.scope.hidden) {
++      NSText* editor = native_->pane.input.currentEditor;
++      const NSRange selection = editor.selectedRange;
++      if (editor && selection.location == 0 && selection.length == 0 &&
++          ![(NSTextView*)editor hasMarkedText]) {
++        on_backspace_.Run();
++        return YES;
++      }
 +    }
 +    return NO;
 +  };
@@ -809,26 +917,33 @@
 +  if (!GetWidget()) {
 +    return;
 +  }
-+  int height = kInputHeight + 2 * kInset +
-+               native_->pane.rows.count * kRowHeight +
-+               (native_->pane.scope.hidden ? 0 : 26);
++  int height =
++      kInputHeight + 2 * kInset + native_->pane.rows.count * kRowHeight;
 +  if (GetWidget()->GetWindowBoundsInScreen().height() != height) {
 +    GetWidget()->SetSize(gfx::Size(native_->width, height));
 +  }
 +  native_->pane.needsLayout = YES;
 +}
-+void HeliumCommandBarView::SetInputText(const std::u16string& text) {
++void HeliumCommandBarView::SetInputText(const std::u16string& text,
++                                        std::optional<size_t> caret) {
 +  native_->pane.input.stringValue = base::SysUTF16ToNSString(text);
 +  [native_->pane.input selectText:nil];
++  if (caret) {
++    native_->pane.input.currentEditor.selectedRange = NSMakeRange(*caret, 0);
++  }
 +}
 +void HeliumCommandBarView::SetScope(const std::u16string& name) {
-+  native_->pane.scope.stringValue =
-+      base::SysUTF16ToNSString(name);
++  // The installed Helium catalogue has no registered input placeholder.
++  native_->pane.input.placeholderString = @"";
++  native_->pane.scope.stringValue = base::SysUTF16ToNSString(name);
 +  native_->pane.scope.hidden = NO;
++  native_->pane.scopePill.hidden = NO;
 +  ResizeToContents();
 +}
 +void HeliumCommandBarView::ClearScope() {
++  native_->pane.input.placeholderString = @"Search or type a URL";
 +  native_->pane.scope.hidden = YES;
++  native_->pane.scopePill.hidden = YES;
 +  ResizeToContents();
 +}
 +void HeliumCommandBarView::SetItemImage(size_t index, const gfx::Image& image) {
@@ -876,12 +991,77 @@
 +}
 --- a/chrome/browser/ui/helium/helium_command_bar_view.cc
 +++ b/chrome/browser/ui/helium/helium_command_bar_view.cc
-@@ -328,7 +328,7 @@
+@@ -199,10 +199,12 @@
+     base::OnceClosure on_closed,
+     base::RepeatingCallback<void(const std::u16string&)> on_query,
+     base::RepeatingCallback<void(size_t)> on_activate,
+-    base::RepeatingClosure on_escape) {
+-  auto delegate = std::unique_ptr<HeliumCommandBarView>(new HeliumCommandBarView(
+-      parent, initial_query, std::move(on_closed), std::move(on_query),
+-      std::move(on_activate), std::move(on_escape)));
++    base::RepeatingClosure on_escape,
++    base::RepeatingClosure on_backspace) {
++  auto delegate = std::unique_ptr<HeliumCommandBarView>(
++      new HeliumCommandBarView(parent, initial_query, std::move(on_closed),
++                               std::move(on_query), std::move(on_activate),
++                               std::move(on_escape), std::move(on_backspace)));
+   HeliumCommandBarView* view = delegate.get();
+   views::Widget* widget = new views::Widget;
+   views::Widget::InitParams params(
+@@ -234,11 +236,13 @@
+     base::OnceClosure on_closed,
+     base::RepeatingCallback<void(const std::u16string&)> on_query,
+     base::RepeatingCallback<void(size_t)> on_activate,
+-    base::RepeatingClosure on_escape)
++    base::RepeatingClosure on_escape,
++    base::RepeatingClosure on_backspace)
+     : on_closed_(std::move(on_closed)),
+       on_query_(std::move(on_query)),
+       on_activate_(std::move(on_activate)),
+-      on_escape_(std::move(on_escape)) {
++      on_escape_(std::move(on_escape)),
++      on_backspace_(std::move(on_backspace)) {
+   SetModalType(ui::mojom::ModalType::kNone);
+   auto contents = std::make_unique<views::View>();
+   // Bottom inset compensates the main-axis gap below the input, so the empty
+@@ -323,12 +327,17 @@
+   }
+ }
+ 
+-void HeliumCommandBarView::SetInputText(const std::u16string& text) {
++void HeliumCommandBarView::SetInputText(const std::u16string& text,
++                                        std::optional<size_t> caret) {
+   input_->SetText(text);
++  if (caret) {
++    input_->SelectRange(gfx::Range(*caret));
++  }
  }
  
  void HeliumCommandBarView::SetScope(const std::u16string& name) {
 -  scope_bar_->SetText(name + u"   esc to exit");
++  input_->SetPlaceholderText(std::u16string());
 +  scope_bar_->SetText(name);
    scope_bar_->SetVisible(true);
    ResizeToContents();
  }
+@@ -338,6 +347,7 @@
+     return;
+   }
+   scope_bar_->SetVisible(false);
++  input_->SetPlaceholderText(u"Search or type a URL...");
+   ResizeToContents();
+ }
+ 
+@@ -419,9 +429,9 @@
+       // Scope via trailing Space instead.
+       return true;
+     case ui::VKEY_BACK:
+-      // Backspace on empty input exits the scope; otherwise edit text.
+-      if (sender->GetText().empty() && scope_bar_->GetVisible()) {
+-        on_escape_.Run();
++      if (sender->GetCursorPosition() == 0 &&
++          sender->GetSelectedRange().is_empty() && scope_bar_->GetVisible()) {
++        on_backspace_.Run();
+         return true;
+       }
+       return false;
