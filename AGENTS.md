@@ -7,6 +7,16 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The development input `inputs/menu-retention-1/macos` adds window-local lifetime
+holds for sidebar and header menus, including the default-browser footer menu.
+It bridges transient tab expansion locks, preserves the native green-button fix,
+and resumes cursor retention after the final menu closes. Both architecture
+builds and smoke checks pass (Intel via Rosetta). Native arm64 checks confirm
+footer and nested tab-menu holds acquire and release; physical pointer hover
+acceptance remains pending. The preview includes a no-op Sparkle update fixture. See
+[menu reveal retention](agent-docs/project/features/menu-reveal-retention.md).
+This is not in published builds 1 or 2 and is not release-accepted.
+
 The development input `inputs/window-menu-2/macos` retains already revealed
 header/sidebar chrome while the native green-button popover is open, including
 pending collapse timers. It preserves the accepted sidebar-footer-5 base.

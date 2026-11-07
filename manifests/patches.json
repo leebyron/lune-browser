@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "2e7f31800164e6b0913c91ba91b7d351e87e1934",
+    "commit": "cc25e64b6fa85516ce9265f689ee29520f28654c",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -405,6 +405,10 @@
       {
         "path": "patches/helium/ui/window-menu-chrome-retention.patch",
         "sha256": "80f65c22d5e0dea498ab6d786edbe5ad4534aa9332094d58e16d5830d9ea1407"
+      },
+      {
+        "path": "patches/helium/ui/menu-reveal-retention.patch",
+        "sha256": "777ae1c85b5a7d7348c03e960a07ab9ffe9d685c8dd4cba311cb6e0f7f09411a"
       }
     ]
   },
@@ -744,6 +748,19 @@
       "review_status": "reviewed-port",
       "rationale": "Reserve a compact footer for the default-browser prompt and downloaded Sparkle update, retaining existing eligibility, dismissal and relaunch actions. Keep other infobars unchanged.",
       "adaptation": "Unbranded Views feature with the existing macOS Sparkle bridge; see agent-docs/project/features/sidebar-footer.md for validation and limitations."
+    },
+    {
+      "id": "chrome-menu-reveal-retention",
+      "depends_on": [
+        "native-floating-address",
+        "sidebar-footer"
+      ],
+      "patches": [
+        "patches/helium/ui/menu-reveal-retention.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep already revealed sidebar and header surfaces visible throughout menus, including the default-browser footer context menu. Release nested window-local holds on closure or owner destruction and resume pointer retention after command dispatch.",
+      "adaptation": "Locally authored Views and AppKit integration, separate from branding. See agent-docs/project/features/menu-reveal-retention.md for scope and validation limits."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."
