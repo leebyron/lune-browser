@@ -18,12 +18,14 @@ second visible row. Sidebar tab close buttons also appear only on hover, includi
 (with focus retention for an already focused close control). The footer and tabs
 share the same close-button component. Targets are 2 pt larger than the first
 refinement (6 pt larger than the original tab control); a native SF Symbols
-`xmark` at 12 pt medium weight is centered in a 16 pt canvas to match the New
+`xmark` at 11 pt medium weight is centered in a 16 pt canvas to match the New
 Tab plus more closely. The symbol size is independent of the target. Their top,
 bottom and trailing clearances match. Sidebar row side margins are reduced from 6 to 5 pt; tab, New Tab and
 footer icon left insets are increased from 7 to 9 pt. The footer bottom inset
 is reduced from 6 to 5 pt. New Tab suppresses its hover tooltip while retaining
-its accessible name.
+its accessible name. Labeled footer actions also suppress hover tooltips,
+including automatic tooltips on truncated labels. Icon-only collapsed footer
+actions retain their identifying tooltips; accessible names remain present.
 
 The navigation pill has 8 pt clearance after the traffic-light container (up
 from 4 pt) whenever they are adjacent: with a right sidebar or an unpinned,
@@ -74,11 +76,18 @@ alignment. It replaces the default row's flex sizing with fixed-height layout so
 the larger close target cannot change its preferred height on hover. It also
 uses tab-title fading and applies the final right-toggle inset.
 
+`helium/ui/sidebar-footer-label-layout.patch` adds explicit layout invalidation
+when the close control changes visibility. Without a layout manager, visibility
+changes only repainted the previous row, leaving the action at its old full width.
+The row now recomputes the narrower action bounds before painting its faded label.
+This patch also suppresses redundant footer tooltips and reduces the SF symbol
+from 12 to 11 pt while preserving the target and canvas sizes.
+
 ## Development input
 
-The platform input is retained under `inputs/sidebar-footer-4/macos`, commit
-`7ffa2cc196acdae12dd8090ac89f7170c60bb829`. It follows `inputs/edge-frame-17/macos`.
-The core input remains `inputs/floating-address-2/helium`. All four patches were
+The platform input is retained under `inputs/sidebar-footer-5/macos`, commit
+`a1e169e5d79d6936b542e05cb092a98b0acfa944`. It follows `inputs/edge-frame-17/macos`.
+The core input remains `inputs/floating-address-2/helium`. All five patches were
 written in the prepared source tree, refreshed with quilt, strictly replayed and
 unmerged into the platform repository before committing. The lock and patch
 manifest retain the exact commit, tree and patch hashes.
@@ -87,7 +96,7 @@ manifest retain the exact commit, tree and patch hashes.
 
 Evidence is under `.work/sidebar-footer/`:
 
-- Strict canonical replay reproduces all 26 touched files across 96 relevant
+- Strict canonical replay reproduces all 26 touched files across 97 relevant
   patches with zero fuzz, including the existing GRIT-aware name substitution.
 - Five GN header dependency checks pass, along with all 44 repository tests,
   component patch/i18n checks and locked Git-object validation.
@@ -117,9 +126,19 @@ the resting footer and corrected horizontal close-icon position. Hover no longer
 participates in preferred-height calculation, and the default label uses the same
 fade enum as tab titles; these two fixes are verified in source. Native automation
 did not reliably produce footer hover, so a before/after hover screenshot is not
-claimed. The current preview is left pinned on the left for review. Both updated
+claimed. That preview was left pinned on the left for review. Both updated
 architecture builds and smoke checks pass (Intel under Rosetta), and the two
 affected GN target checks, component checks and lock validation pass.
+
+The label correction is retained in `labels/` and
+`smoke-{arm64,x86_64}-labels.json`. Both architecture builds and smoke checks pass
+(Intel under Rosetta), including defaults, settings, artwork and persistence.
+The two affected GN checks, strict patch replay, component checks and lock
+validation also pass. Close visibility now explicitly invalidates the manual
+row layout; labeled-button tooltip suppression and the 11 pt symbol are verified
+in source. The refreshed native preview launched successfully, but automated
+footer hover verification remains incomplete; no hover screenshot acceptance is
+claimed for this revision.
 
 These are incremental development builds, not fresh release preparation. Native Intel hardware,
 real installed updates with this input, and the full horizontal/collapsed/split
