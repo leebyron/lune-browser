@@ -57,7 +57,7 @@ See [the feature evidence](agent-docs/project/features/content-pane-shadow.md).
 This feature is not in published builds 1 or 2.
 
 The development inputs under `inputs/floating-address-2/helium` and
-`inputs/floating-address-19/macos` include
+`inputs/floating-address-20/macos` include
 an editable AppKit glass address capsule, 48 pt distance retention, whole-surface
 focus, fade-only top controls, fullscreen edge reveal, sidebar-aware geometry, and
 softer content/sidebar shadows. The subsequent toolbar revision adds paired
@@ -99,6 +99,7 @@ Other pending interaction checks remain listed in
 [the feature evidence](agent-docs/project/features/floating-address-bar.md).
 Input 18 restores the full popover width, undoing the 4 pt reduction.
 Input 19 derives traffic-light spacing from AppKit and compacts its container.
+Input 20 uses normal omnibox editing text, preserving an empty new-tab field.
 This is not in published builds 1 or 2 and is not release-accepted.
 
 The current development macOS input adds a text-only frame-thickness label

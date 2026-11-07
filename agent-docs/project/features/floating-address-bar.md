@@ -494,10 +494,36 @@ matching hit bounds and toolbar clearance. The first center remains 26 pt
 from the outer corner. Native button dimensions and hover behavior are retained.
 A production-helper AppKit test confirms native spacing and container geometry.
 
+## Address focus uses omnibox editing text
+
+Input 20 uses `GetFormattedFullURL()` when the native field receives focus,
+matching Chromium's normal omnibox. New tabs keep an empty editing field instead
+of exposing the `about:blank` fallback from `GetURL()`. Explicit navigation to
+`about:blank` remains visible; ordinary URLs retain the normal URL formatter.
+
+Combined validation for inputs 18–20 (2026-11-07): strict no-fuzz replay
+matches all 10 touched/current command-palette source files across 43 relevant
+patches. The native AppKit geometry test passes; all 44 repository tests,
+component lint, and lock/ancestry checks pass. Apple silicon compilation and
+smoke/default/settings checks pass. Native arm64 checks confirm both Command-L
+and clicking the new-tab capsule focus an empty field, while explicit navigation
+to `about:blank` still selects that literal address. Creating New Tab through
+the native command palette also focuses the empty address field. The running traffic-light
+centers match the measured 23 pt spacing.
+
+Intel compilation and Rosetta smoke/default/settings checks also pass.
+
+Local evidence: `.work/chrome-polish/replay.json`, `test-buttons.log`,
+`repository-tests.log`, `smoke-{arm64,intel}.json`, and the isolated
+`.work/floating-address/native-polish-check/` preview. The updated interactive
+preview is `native-polish-open`; obsolete command-palette preview processes were
+closed after reproducing their old `about:blank` behavior. These inputs are development
+changes; no signed browser release is published by this update.
+
 ## Pinned inputs
 
-- Platform commit: `707d2942e8279083c4624db4da27ec99e703b57d`.
-- Platform tag: `inputs/floating-address-19/macos`.
+- Platform commit: `17af1f78dbbe2f53fe2fff2723b9749acdcffce5`.
+- Platform tag: `inputs/floating-address-20/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and
