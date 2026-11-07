@@ -1,6 +1,8 @@
 # Sidebar footer
 
 Requested November 7, 2026. Development implementation; not release-accepted.
+The owner accepted the final sidebar/footer design on November 7, 2026, including
+the hover label layout, tooltip removal and smaller close symbol.
 
 ## Behavior
 
@@ -138,7 +140,8 @@ validation also pass. Close visibility now explicitly invalidates the manual
 row layout; labeled-button tooltip suppression and the 11 pt symbol are verified
 in source. The refreshed native preview launched successfully, but automated
 footer hover verification remains incomplete; no hover screenshot acceptance is
-claimed for this revision.
+claimed for this revision. The owner's subsequent visual review accepted the
+result; this is distinct from the automated checks above.
 
 These are incremental development builds, not fresh release preparation. Native Intel hardware,
 real installed updates with this input, and the full horizontal/collapsed/split
