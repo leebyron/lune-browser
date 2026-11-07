@@ -60,7 +60,9 @@ unrelated child views, real remote-view attachment/removal, control detachment,
 and observer teardown. All 44 repository tests pass.
 
 Arm64 and Intel compilation and headless smoke/default/settings/artwork checks
-pass; Intel ran under Rosetta. Owner browser interaction acceptance is pending. Native Intel hardware acceptance remains separate from
+pass; Intel ran under Rosetta. The owner accepted the arm64 browser preview
+on November 7, 2026 ("looks great"). This acceptance does not claim a complete
+automated sweep of every sidebar/fullscreen/menu-action combination. Native Intel hardware acceptance remains separate from
 Intel-under-Rosetta checks.
 
 Local evidence: `.work/window-menu/` contains replay, native tests, component
@@ -68,3 +70,6 @@ checks, and build logs. `native-popover-lifecycle.log` records the real AppKit l
 `native-popover-inspection.log` contains the read-only show/close inspection.
 These explain why ordinary menu notifications were insufficient. No debugger remains
 attached to the probe.
+
+The accepted preview is `.work/window-menu/Lune Window Menu.app`, using a copy
+of the accepted sidebar-footer profile under `.work/window-menu/preview/`.
