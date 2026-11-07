@@ -27,81 +27,53 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   and the address field remain selectable. The sidebar has three pinned tabs and
   no divider above New tab. Light chrome uses the palette’s sage frame; dark chrome
   mixes the frame with 15% of its blue accent for a cooler contrast to the desktop.
-- The browser shell follows the [mounted-left Figma design](https://www.figma.com/design/I39uQunZpu6LsS7mDjcGSh/Untitled?node-id=14-50):
-  200px sidebar, compact system-font tabs/favorites, a 4px inset content pane,
-  and floating glass toolbar groups. The site follows system appearance with
-  Chlorophyll Daylight and Pelagic Signal palettes and monochrome window controls. At widths of 700px or less, the complete browser UI renders at half scale,
-  preserving its sidebar, navigation and trailing controls. The page requests a
-  fixed viewport scale and restricts touch gestures to vertical panning; browsers
-  may still override viewport zoom restrictions for accessibility.
-- During “Just the page,” the sidebar starts pinned. A scroll-driven cursor
-  enters from the screen’s left edge, curves into the header’s right-side toggle,
-  and clicks to unpin it. The toggle is a bare glyph, including on hover. The content
-  snaps to full width behind the still-visible floating panel; the cursor then
-  follows a second curve out through the screen’s top edge. The cursor renders
-  on the desktop so the window does not clip its entrance or exit. Once it is more than 48px beyond
-  the panel, the panel slides off the left
-  edge (260ms, eased translation without a fade). Scrolling back restores the
-  floating panel, then the pinned layout. CSS scroll timelines animate the
-  cursor and registered `--sidebar-fold` property; JavaScript coordinates the
-  pinned/floating/hidden states and supplies the scroll-timeline fallback.
-- Hovering the 4px left rail reveals the floating sidebar without resizing the
-  content. It stays open until the pointer is more than 48px from the panel's
-  outer rectangle (Euclidean distance, including corners), then slides away.
-  The floating surface is inset 8px from the window on its top, bottom,
-  and left, placing it 4px inside the content pane. Floating tabs and favorites have 8px inner margins; the mounted
-  panel reduces its horizontal padding to 4px, producing an effective 8px
-  margin from the window edge and content pane. The mount toggle sits at the header’s right edge and follows the panel
-  padding. Pinned tabs and the tab list keep identical vertical coordinates
-  when pinning changes; only horizontal margins shift. A “New tab” row sits
-  below the pinned tabs and above the regular tabs. Window controls live directly in the window, outside the
-  sliding sidebar and all glass groups, with a fixed resting position. They stay
-  visible while either the sidebar or glass toolbar is visible; when both hide,
-  they follow the last panel to leave and become inert: horizontally with the
-  sidebar (260ms), or with the toolbar’s 180ms fade. When both are hidden,
-  the first panel revealed determines their entrance direction. The top rail
-  reveals both together, and hovering or focusing the controls keeps them open.
-  The illustrated cursor clicks the mounted toggle position. The floating radius is 18px,
-  concentric with the 26px window radius across its 8px inset.
-  The rail also supports keyboard focus and tapping; Escape or tapping content
-  dismisses it. The toggle pins/unpins the panel; subsequent scrolling resumes
-  the illustrated sequence. Reduced motion omits cursor and slide animations.
-  This is an Arc-style interaction approximation, not a claim to reproduce its
-  private animation constants; [Arc documents the sidebar toggle](https://start.arc.net/find-focus).
-- The glass address toolbar starts hidden. A 4px top rail or the first 44px of either
-  visible sidebar reveals it. Once open, the entire window-width header strip
-  retains it until the pointer moves more than 48px below the glass;
-  there is no timer. Glass groups sit 8px from the top and right window edges
-  and 12px beyond the floating sidebar. With the sidebar mounted, the navigation
-  group sits 4px inside the content pane and uses a concentric 18px radius. Their width reserves space for either a pinned or visible
-  floating sidebar, independently of the content pane. Its available width
-  animates with the sidebar using the same 260ms easing in both directions,
-  keeping a gap between the panels throughout the slide. A hidden sidebar still leaves room for the fixed
-  window controls. Reenter the rail to reveal it again. Keyboard focus holds it open,
-  the rail supports tapping, and Escape/outside taps dismiss it. Closing the
-  illustrated app, changing tabs, or deactivating the browser resets it.
-- All three header glass groups fade in and out together over 180ms, with no
-  vertical movement, matching the native build. The old slide/fade query-string
-  comparison is retired. Window controls still follow the sidebar horizontally
-  when it is the first surface to enter or the last to leave. Hovering the window
-  controls also reveals the collapsed sidebar and header. Reduced Motion removes
-  sidebar translation. The address remains a read-only illustration.
-- The pinned sidebar shares the painted window material. The detached popover
-  uses translucent, blurred glass with a softer shadow and neutral selection/text
-  colors, approximating the native NSGlassEffectView in CSS. Its inset is 8px;
-  the bare 36×36px toggle has a 4px trailing inset when pinned and 2px when floating.
-  The toggle center stays at y=26px; tab rows retain their vertical positions.
-  Navigation is 76×36px, all glass groups are 36px tall, and the address is centered
-  in the available space between navigation and trailing controls (maximum 480px).
-  These dimensions and interactions were checked against the browser build thread
-  and its native source on 2026-11-06; CSS glass is an approximation of AppKit.
-- Mounting/unmounting snaps the content pane width at the click, without a layout
-  tween. The content pane has a 22px radius, concentric with the 26px
-  outer window across its 4px inset. Native Safari and Photos
-  windows informed the larger radius and inset top row; these are CSS
-  approximations of AppKit geometry. The window uses a non-layout inset hairline and a soft shadow; the content pane
-  shadow is horizontally symmetric, offset 1px downward with a 4px blur and
-  restrained opacity in each appearance.
+- The illustrative shell mirrors the native edge-to-edge frame and sidebar-footer
+  revisions reviewed on 2026-11-07: 16px outer corners, no content gutter, inner
+  radius, outline or shadow. Only the outer window clips the page. A physical-pixel
+  semantic hairline separates the pinned sidebar from content.
+- Pinned and floating sidebars have identical 200px widths, flush top/bottom/left
+  edges and square inner corners. Pinned mode shares the window material;
+  floating mode uses a CSS approximation of native glass with semantic tab colors.
+  Pinning changes the content width instantly without moving any sidebar/header
+  controls. It does not tween page layout.
+- The header is 52px tall: 36px controls and 8px vertical insets. The toggle has
+  a 4px inner-edge inset. Glass groups leave a 12px gap beside either sidebar mode.
+  Window controls use 14px circles at 23px center spacing in an 82×36px container,
+  8px from the window edges. When the sidebar hides, navigation leaves 8px after
+  that container. Its available width follows the sidebar’s 260ms slide.
+- Tabs have 5px side margins, 9px icon insets, 32px heights and 2px row gaps.
+  Three filled pinned tiles use 6px spacing, 2px additional side padding, and
+  a 6px gap before New Tab. New Tab stays above the independently scrolling tabs,
+  with the same colors and spacing as a regular row and no tooltip.
+- Sample tab close marks appear only on hover, including the selected tab. The
+  26px close region holds an 11px glyph. A compact illustrative “Make default
+  browser” footer sits 5px from the bottom and follows the same hover treatment;
+  its label yields space and fades before the close mark without changing height.
+  These sample rows are decorative, like the original tabs; they do not change
+  the visitor’s default browser. No update-ready state is fabricated.
+- During “Just the page,” a scroll-driven cursor enters from the left of the
+  screen, clicks the sidebar toggle and exits through the top. The page immediately
+  fills the window, while the glass sidebar remains until the cursor is more than
+  48px away. The sidebar then slides left over 260ms. Scrolling back reverses it.
+  CSS scroll timelines own the cursor and layout state, with a JavaScript fallback.
+- Windowed reveal bands are 8px at the top and left edges and consume no layout
+  space. The sidebar’s full 52px header also reveals the toolbar. Revealed glass
+  stays until the pointer is 48px away; the header retains the full window-width
+  top strip. An input shield prevents clicks and wheel events reaching the page
+  through visible header gaps. Keyboard focus retains controls; Escape dismisses.
+- All header groups fade over 180ms without vertical movement. The fixed window
+  controls remain while either sidebar or toolbar is visible, following the last
+  surface to leave. Hovering their group reveals the sidebar and header. The
+  address remains read-only and navigation/extension glyphs remain illustrative.
+  The glass colors follow system appearance, not underlying page content.
+- The site keeps Chlorophyll Daylight / Pelagic Signal colors and monochrome
+  window controls. At 700px or less, the complete browser renders at half scale.
+  It requests a fixed viewport scale and vertical touch panning; browsers may
+  override zoom restrictions for accessibility. Reduced Motion removes cursor,
+  launch bounce and sidebar translation.
+- Native OS menus, window dragging/resizing, fullscreen menu-bar offsets and the
+  Command-T palette are not simulated by this marketing illustration. The actual
+  browser’s remaining glass/toolbar issues stay tracked in its own threads.
 - The content keeps a stable reading width while the pane expands, preventing
   text reflow from moving the animation's scroll boundaries.
 - Close and minimize return to the desktop. The third control uses the browser's
