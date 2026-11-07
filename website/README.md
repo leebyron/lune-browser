@@ -23,6 +23,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   ResizeObserver measures the content to set the scroll distance and reading
   indicator, including after fonts load or the viewport changes. Reduced motion
   removes the launch bounce and zoom.
+- Interface surfaces are not text-selectable; headings, prose, attribution links,
+  and the address field remain selectable. The sidebar has three pinned tabs and
+  no divider above New tab. Light chrome uses the palette’s sage frame; dark chrome
+  mixes the frame with 15% of its blue accent for a cooler contrast to the desktop.
 - The browser shell follows the [mounted-left Figma design](https://www.figma.com/design/I39uQunZpu6LsS7mDjcGSh/Untitled?node-id=14-50):
   200px sidebar, compact system-font tabs/favorites, a 4px inset content pane,
   and floating glass toolbar groups. The site follows system appearance with
@@ -142,9 +146,13 @@ The final page credits and links Helium and ungoogled-chromium, followed by the
 Lune author credit. Preserve that attribution when replacing the placeholder
 feature content or changing the story length.
 
-## Security and privacy draft
+## Privacy and security draft
 
-The in-window copy credits both upstream projects in each section. Its sources:
+The story runs Private, Secure, then Minimal. Short, staggered notes and original
+SVG diagrams replace the two-column lists. Privacy highlights ungoogled-chromium
+and uBlock Origin, with Helium credited for its integration. Security focuses on
+HTTPS and site isolation. The closing attribution retains both upstream projects.
+Its sources:
 
 - [Helium](https://helium.computer/): HTTPS, ad/tracker/cookie-banner blocking,
   third-party-cookie defaults, and fingerprinting resistance.
@@ -152,6 +160,7 @@ The in-window copy credits both upstream projects in each section. Its sources:
   Origin, open browser components and services, ungoogled-chromium ancestry.
 - [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium):
   removal of Google web-service dependencies and their background requests.
+- [uBlock Origin](https://github.com/gorhill/uBlock): content filtering.
 - [Chromium Site Isolation](https://www.chromium.org/Home/chromium-security/site-isolation/):
   sandbox and process isolation, described as defenses rather than guarantees.
 
