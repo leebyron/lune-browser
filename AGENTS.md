@@ -57,7 +57,7 @@ See [the feature evidence](agent-docs/project/features/content-pane-shadow.md).
 This feature is not in published builds 1 or 2.
 
 The development inputs under `inputs/floating-address-2/helium` and
-`inputs/floating-address-16/macos` include
+`inputs/floating-address-17/macos` include
 an editable AppKit glass address capsule, 48 pt distance retention, whole-surface
 focus, fade-only top controls, fullscreen edge reveal, sidebar-aware geometry, and
 softer content/sidebar shadows. The subsequent toolbar revision adds paired
@@ -86,12 +86,15 @@ button. Toolbar dragging excludes that panel and its scroll clipping is square.
 Inputs 15–16 add 2 pt per side around pinned tabs, narrow the popover by 2 pt,
 restore its inner-edge resize handle, and move the detached sidebar with the
 fullscreen menu-bar offset while pinned sidebar controls stay fixed. They also
-correct direct frame-view build dependencies.
+correct direct frame-view build dependencies. Input 17 anchors native headers
+and their child control windows during asynchronous vertical resizing, and
+reduces detached width by another 2 pt (4 pt total).
 Both architectures compile and pass headless smoke/default/settings checks
 (Intel via Rosetta). Native arm64 sidebar context-menu, unpin, app-menu, editor,
 and clean-shutdown checks pass. The owner previously accepted
 the distance behavior and animation, and accepted input-16 popover resizing on
-both sides and fullscreen menu-bar synchronization on November 6, 2026.
+both sides and fullscreen menu-bar synchronization on November 6, 2026. The
+owner also accepted input-17 header stability during bottom-edge resizing.
 Other pending interaction checks remain listed in
 [the feature evidence](agent-docs/project/features/floating-address-bar.md).
 This is not in published builds 1 or 2 and is not release-accepted.

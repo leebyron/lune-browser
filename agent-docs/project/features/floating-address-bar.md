@@ -434,10 +434,55 @@ Local evidence: `.work/floating-address/sidebar-sizing-validation.json`,
 `sidebar-sizing-gn-{Default,Intel}.log`,
 `sidebar-sizing-check/shutdown.json`, and `revision-replay.json`.
 
+## Native header anchoring during window resize
+
+Input 17 addresses vertical header jitter during bottom-edge window resizing.
+Chromium's asynchronous resize path supplies the pending compositor geometry
+before AppKit applies the actual window frame. NativeViewHost had been using
+that pending height to flip native header coordinates. The glass/header views
+also lacked native top anchoring, so they could move with the bottom edge until
+the next Views layout corrected them.
+
+Top-anchored, non-hostable native views now use the actual AppKit content height
+for that conversion. Glass controls, their drag region, and the traffic lights
+use `NSViewMinYMargin` to remain attached to the top as AppKit commits the frame.
+The separate toolbar/sidebar controls windows align to their material's actual
+native bounds during frame changes and native resize notifications. The sidebar
+child window retains its header clearance and exposed inner resize band. No
+new timer or positional animation drives this alignment.
+
+The detached sidebar is another 2 pt narrower: a 4 pt total inner-edge reduction
+from its logical layout width. The outer inset and pinned-tab margins are unchanged.
+
+Validation: an isolated AppKit harness extracts the production native view class
+and coordinate-conversion branch. Seven alternating grow/shrink steps preserve
+an 8 pt top inset before and after applying the native window frame. The attached
+child control window stays aligned through native resizing, and realigns after
+an additional simulated bottom-origin displacement and native resize
+notification. A negative control restoring the old pending-height conversion
+fails before the pending resize is applied.
+
+Both architecture builds, strict no-fuzz replay (86 relevant patches and 42
+matching prepared files), frame/Views GN header checks on both architectures,
+component lint, input-lock checks, and all 44 repository tests pass. Arm64 and
+Intel-under-Rosetta smoke/default/settings checks pass. The owner confirmed on
+the rebuilt Apple silicon preview that bottom-edge resizing keeps the traffic
+lights, sidebar toggle, and glass bars fixed relative to the window top.
+
+Automated smoke runs use isolated profiles and block non-localhost DNS. This
+is a test launch restriction, not a browser feature. The interactive preview
+uses the local helper's `--network` option to allow ordinary websites while
+retaining a separate test profile and disabled automatic updates. Native address
+bar navigation to `https://example.com` loaded the public page successfully.
+
+Local evidence: `.work/floating-address/top-anchor-native-test.json`,
+`top-anchor-validation.json`, `top-anchor-smoke-{arm64,intel}.json`, and
+`revision-replay.json`.
+
 ## Pinned inputs
 
-- Platform commit: `71cb42086d33308c04ec4a36bd37eecefb2f1e63`.
-- Platform tag: `inputs/floating-address-16/macos`.
+- Platform commit: `e10f58419526456a88c0cf08be3b32a5f281208f`.
+- Platform tag: `inputs/floating-address-17/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and
@@ -449,6 +494,8 @@ and repeat release gates, including native pointer interaction acceptance for th
 
 ## API evidence
 
+- [Apple view autoresizing](https://developer.apple.com/documentation/appkit/nsview/autoresizingmask-swift.property)
+- [Apple window resize notification](https://developer.apple.com/documentation/appkit/nswindow/didresizenotification)
 - [Apple text-field HIG](https://developer.apple.com/design/human-interface-guidelines/text-fields)
 - [Apple focus-ring mask API](https://developer.apple.com/documentation/appkit/nsview/drawfocusringmask())
 - [Apple NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview)
