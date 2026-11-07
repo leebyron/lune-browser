@@ -494,7 +494,7 @@
    raw_ptr<views::Label> scope_bar_ = nullptr;
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
-@@ -0,0 +1,494 @@
+@@ -0,0 +1,529 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -519,6 +519,7 @@
 +constexpr int kInputHeight = 52;
 +constexpr int kRowHeight = 52;
 +constexpr int kInset = 8;
++constexpr size_t kVisibleResults = 5;
 +
 +NSString* TagForType(HeliumCommandBarItem::Type type) {
 +  switch (type) {
@@ -627,10 +628,21 @@
 +}
 +@end
 +
++@interface HeliumCommandResults : NSView
++@end
++
++@implementation HeliumCommandResults
++- (BOOL)isFlipped {
++  return YES;
++}
++@end
++
 +@interface HeliumCommandPane : NSView <NSTextFieldDelegate>
 +@property(nonatomic, strong) NSTextField* input;
 +@property(nonatomic, strong) NSTextField* scope;
 +@property(nonatomic, strong) NSBox* scopePill;
++@property(nonatomic, strong) NSScrollView* scroll;
++@property(nonatomic, strong) HeliumCommandResults* results;
 +@property(nonatomic, strong) NSMutableArray<HeliumCommandRow*>* rows;
 +@property(nonatomic, copy) void (^onQuery)(NSString*);
 +@property(nonatomic, copy) BOOL (^onCommand)(SEL);
@@ -639,7 +651,8 @@
 +
 +@implementation HeliumCommandPane
 +@synthesize input = _input, scope = _scope, scopePill = _scopePill,
-+            rows = _rows, onQuery = _onQuery, onCommand = _onCommand,
++            scroll = _scroll, results = _results, rows = _rows,
++            onQuery = _onQuery, onCommand = _onCommand,
 +            onActivate = _onActivate;
 +- (BOOL)isFlipped {
 +  return YES;
@@ -671,9 +684,15 @@
 +    inputX = NSMaxX(self.scopePill.frame) + 10;
 +  }
 +  self.input.frame = NSMakeRect(inputX, 19, width - inputX - 20, 26);
-+  CGFloat y = kInputHeight + kInset;
++  const CGFloat resultsWidth = width - 2 * kInset;
++  self.scroll.frame =
++      NSMakeRect(kInset, kInputHeight + kInset, resultsWidth,
++                 std::min(kVisibleResults, self.rows.count) * kRowHeight);
++  self.results.frame =
++      NSMakeRect(0, 0, resultsWidth, self.rows.count * kRowHeight);
++  CGFloat y = 0;
 +  for (HeliumCommandRow* row in self.rows) {
-+    row.frame = NSMakeRect(kInset, y, width - 2 * kInset, kRowHeight);
++    row.frame = NSMakeRect(0, y, resultsWidth, kRowHeight);
 +    y += kRowHeight;
 +  }
 +}
@@ -786,6 +805,17 @@
 +  pane.scopePill.hidden = YES;
 +  [pane.scopePill.contentView addSubview:pane.scope];
 +  [pane addSubview:pane.scopePill];
++  pane.scroll = [[NSScrollView alloc] init];
++  pane.scroll.drawsBackground = NO;
++  pane.scroll.borderType = NSNoBorder;
++  pane.scroll.hasVerticalScroller = YES;
++  pane.scroll.hasHorizontalScroller = NO;
++  pane.scroll.autohidesScrollers = YES;
++  pane.scroll.scrollerStyle = NSScrollerStyleOverlay;
++  pane.scroll.verticalScrollElasticity = NSScrollElasticityNone;
++  pane.results = [[HeliumCommandResults alloc] init];
++  pane.scroll.documentView = pane.results;
++  [pane addSubview:pane.scroll];
 +  pane.onQuery = ^(NSString* text) {
 +    on_query_.Run(base::SysNSStringToUTF16(text));
 +  };
@@ -908,17 +938,19 @@
 +      SetSelected(index);
 +    };
 +    [native_->pane.rows addObject:row];
-+    [native_->pane addSubview:row];
++    [native_->pane.results addSubview:row];
 +  }
 +  UpdateRowHighlight();
 +  ResizeToContents();
++  [native_->pane layoutSubtreeIfNeeded];
++  [native_->pane.results scrollPoint:NSZeroPoint];
 +}
 +void HeliumCommandBarView::ResizeToContents() {
 +  if (!GetWidget()) {
 +    return;
 +  }
-+  int height =
-+      kInputHeight + 2 * kInset + native_->pane.rows.count * kRowHeight;
++  int height = kInputHeight + 2 * kInset +
++               std::min(kVisibleResults, native_->pane.rows.count) * kRowHeight;
 +  if (GetWidget()->GetWindowBoundsInScreen().height() != height) {
 +    GetWidget()->SetSize(gfx::Size(native_->width, height));
 +  }
@@ -957,6 +989,9 @@
 +  size_t count = native_->pane.rows.count;
 +  if (count) {
 +    SetSelected((selected_ + count + delta) % count);
++    [native_->pane layoutSubtreeIfNeeded];
++    HeliumCommandRow* row = native_->pane.rows[selected_];
++    [row scrollRectToVisible:row.bounds];
 +  }
 +}
 +void HeliumCommandBarView::SetSelected(size_t index) {
