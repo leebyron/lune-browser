@@ -57,18 +57,24 @@ See [the feature evidence](agent-docs/project/features/content-pane-shadow.md).
 This feature is not in published builds 1 or 2.
 
 The development inputs under `inputs/floating-address-2/helium` and
-`inputs/floating-address-4/macos` include
+`inputs/floating-address-12/macos` include
 an editable AppKit glass address capsule, 48 pt distance retention, whole-surface
 focus, slide/fade motion, fullscreen edge reveal, sidebar-aware geometry, and
 softer content/sidebar shadows. The subsequent toolbar revision adds paired
 native navigation, the original extension/menu controls in a trailing glass
 group, native window dragging, fixed traffic lights without a pill, and
 4 pt rails with a fixed 26 pt outer radius and 8 pt surface insets.
-The native chrome refinement clips the common frame/material perimeter, removes
-the extra content inset and ordinary outline, keeps fullscreen edge-to-edge,
-reuses native traffic-light hover handling, and stabilizes the sidebar header. Both
-architectures compile and pass smoke checks (Intel via Rosetta). Native arm64
-editor checks pass, and the owner accepted
+The native chrome refinement changes the inherited AppKit frame-radius hook to
+26 pt, removes the extra content inset and outline, and keeps fullscreen
+edge-to-edge. Glass honors profile Light/Dark overrides and follows the OS in
+System mode; native input regions prevent cursor fall-through and enable toolbar dragging only while visible. Sidebar pinning and
+context menus are restored, with pinned-left defaults for new profiles. The
+sidebar toggle stays solely inside the sidebar; its former floating toolbar pill
+is removed. Glass is recreated on appearance changes, detached tab rows use
+AppKit semantic colors, and toolbar cursor regions exclude the resize perimeter.
+Both architectures compile and pass headless smoke/default/settings checks
+(Intel via Rosetta). Native arm64 sidebar context-menu, unpin, app-menu, editor,
+and clean-shutdown checks pass. The owner previously accepted
 the distance behavior and animation. Fullscreen edge pointer behavior and
 synchronized sidebar geometry still need explicit manual acceptance; see
 [the feature evidence](agent-docs/project/features/floating-address-bar.md).

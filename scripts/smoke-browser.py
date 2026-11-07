@@ -58,7 +58,7 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
     """Exercise packaged WebUI and registered defaults in the temporary profile."""
     expected = {
         'helium.browser.layout': 2,
-        'helium.browser.vertical_right_aligned': True,
+        'helium.browser.vertical_right_aligned': False,
         'helium.browser.vertical_address_bar_in_sidebar': True,
         'helium.browser.zen_mode': True,
         'helium.browser.zen_mode_sidebar_pinned': True,

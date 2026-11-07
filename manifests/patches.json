@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "bd8cd36f4f25171d7669da8cc4b13843f172f158",
+    "commit": "4539d268743cc43bd350610ec168f8f75b4cde2c",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -221,6 +221,46 @@
       {
         "path": "patches/helium/ui/floating-chrome-polish.patch",
         "sha256": "6622023748affaa70dc8f7f0310837695b63bd17772437e34692850f4adbc118"
+      },
+      {
+        "path": "patches/helium/ui/native-glass-surfaces.patch",
+        "sha256": "e93f1b4a35adb0623ab972d52c5dd02578cb351184e7dcfea7665e3d1462dfd3"
+      },
+      {
+        "path": "patches/lune/left-sidebar-default.patch",
+        "sha256": "5ebaf96f46259878e2340e024d6892b459c595d6a5b7cffd923940f05c93c72d"
+      },
+      {
+        "path": "patches/helium/ui/glass-fullscreen-controls.patch",
+        "sha256": "f10b7a71d213bc8bd1bd4f13ca4d8ba4678c1c5026a925a31cfab0533d5f97c3"
+      },
+      {
+        "path": "patches/helium/ui/glass-icon-appearance.patch",
+        "sha256": "28172fdb80de82a6c0d75d82cf37b2ea4fade1a8b5bc5abf445e79f5f8be1ae7"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-button-hit-region.patch",
+        "sha256": "4b655632f600ae36a516c91b72e834d5a78de623c379704d48904087391e0a89"
+      },
+      {
+        "path": "patches/helium/ui/glass-live-theme.patch",
+        "sha256": "5ed94bb3c35afa45160d4d2cbd004d4f8d9dbfcb17278debc60e82fb87d81a67"
+      },
+      {
+        "path": "patches/helium/ui/fixed-fullscreen-sidebar-controls.patch",
+        "sha256": "99f4d73880a37dfd97a694a795cab6a859a1471624399f1aac39fc3cf4a110b1"
+      },
+      {
+        "path": "patches/helium/ui/glass-material-appearance.patch",
+        "sha256": "340d289de6a92ad9eddc2128b6a30c92a3e8ad46b98387cfbec2df1df6c2c405"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-toggle-visibility.patch",
+        "sha256": "5e0cd55c1f8a749207c255578173ad2e65759fd5a5e829a6919642b157f38a32"
+      },
+      {
+        "path": "patches/helium/ui/native-glass-theme-and-rows.patch",
+        "sha256": "d6444386404cc7b20bf2dfdf2d84483e88c7e5487f7f14948f7e0f314a214351"
       }
     ]
   },
@@ -344,10 +384,11 @@
       ],
       "patches": [
         "patches/lune/appearance-defaults.patch",
-        "patches/lune/interaction-defaults.patch"
+        "patches/lune/interaction-defaults.patch",
+        "patches/lune/left-sidebar-default.patch"
       ],
       "review_status": "reviewed-port",
-      "rationale": "Match the owner's local Xelium appearance without copying private profile data or consent.",
+      "rationale": "Use the reviewed Lune appearance defaults, with a pinned left sidebar for new profiles; preserve explicit saved preferences.",
       "adaptation": "See agent-docs/project/xelium-ui.md; distribution defaults and attribution stay separate from reusable features. Chromium 158 adaptations: agent-docs/project/builds/2026-11-05-chromium-158-port.md."
     },
     {
@@ -440,10 +481,19 @@
         "patches/helium/ui/glass-address-editor.patch",
         "patches/helium/ui/glass-focus-and-frame-geometry.patch",
         "patches/helium/ui/floating-glass-toolbar.patch",
-        "patches/helium/ui/floating-chrome-polish.patch"
+        "patches/helium/ui/floating-chrome-polish.patch",
+        "patches/helium/ui/native-glass-surfaces.patch",
+        "patches/helium/ui/glass-fullscreen-controls.patch",
+        "patches/helium/ui/glass-icon-appearance.patch",
+        "patches/helium/ui/sidebar-button-hit-region.patch",
+        "patches/helium/ui/glass-live-theme.patch",
+        "patches/helium/ui/fixed-fullscreen-sidebar-controls.patch",
+        "patches/helium/ui/glass-material-appearance.patch",
+        "patches/helium/ui/sidebar-toggle-visibility.patch",
+        "patches/helium/ui/native-glass-theme-and-rows.patch"
       ],
       "review_status": "reviewed-port",
-      "rationale": "Use public AppKit glass for an editable address capsule, paired SF Symbol navigation, and the existing extension/menu controls, with native window dragging, fixed traffic lights, 48 pt distance retention, and 8 pt surface insets.",
+      "rationale": "Use public AppKit glass for an editable address capsule, paired SF Symbol navigation, and the existing extension/menu controls, with native window dragging, fixed traffic lights, 48 pt distance retention, and 8 pt surface insets. Correct the actual native frame shape, honor profile appearance overrides with OS fallback for glass, restore sidebar pinning/context menus, and restrict drag/cursor handling to visible chrome. Keep fullscreen child controls visible, align exposed glass to content corner centers, and retain dragging through physical mouse-up. Recreate the native glass material on appearance changes; use AppKit semantic colors for detached tab rows. Keep the sidebar toggle solely on its sidebar surface, make its native hit region clickable, and preserve the window resize cursor perimeter. Sidebar-contained controls stay fixed during fullscreen menu reveal; top-bar traffic lights follow the menu offset.",
       "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits."
     },
     {

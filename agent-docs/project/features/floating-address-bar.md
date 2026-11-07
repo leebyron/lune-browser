@@ -78,14 +78,16 @@ They appear when the top glass is presented, or when a left-aligned sidebar is
 visible. A right-aligned sidebar does not independently reveal them. Existing
 titlebar buttons are restored outside this layout.
 
-An 8 pt top rail reveals the capsule. Once visible, it stays open while the
+The configured top rail (4 pt by default) reveals the capsule. Once visible, it stays open while the
 pointer remains within the window and no more than 48 pt below its bottom edge,
 across the window's full width. There is no departure timer. Address editing and
 open browser bubbles retain the controls during interaction. Inactive windows
 hide the capsule. Browser and content fullscreen retain edge reveal; content
 fullscreen temporarily treats pinned chrome as unpinned. A fullscreen-only cursor
-sampler covers screen-edge mouse events consumed by AppKit. The glass follows
-the menu-bar offset on screens without a notch. A visible-only cursor refresh
+sampler covers screen-edge mouse events consumed by AppKit. The top address/navigation glass follows
+the menu-bar offset on screens without a notch. Sidebar icons and traffic lights
+remain at a fixed 8 pt top position when that system menu bar is exposed; their
+hit-test exclusions account for the independently offset drag strip. A visible-only cursor refresh
 handles native interaction transitions without a new mouse movement.
 
 The unmounted sidebar uses the same 48 pt retention distance into the page from
@@ -94,14 +96,13 @@ it without the previous window-exit grace timer; active menus and keyboard focus
 retain the existing interaction protections. Its top, bottom, and outer-edge
 insets are 8 pt. New profiles default to 4 pt rails; existing explicit preferences
 remain intact. The macOS outer window radius stays 26 pt regardless of the rail
-setting, applied to both the native content and its common frame/material
-container with public AppKit/Core Animation. Content radii subtract only the
+setting. The current correction updates Chromium’s existing native frame-radius
+hook and keeps the content clip consistent with it; see the investigation below. Content radii subtract only the
 configured rail thickness from that outer radius: 22 pt with a 4 pt rail. The detached sidebar radius is 18 pt (26 minus 8),
 keeping its corners concentric with the window. Mounted sidebars
-retain their layout. The unmounted surface has a centered,
-8-dp ambient shadow at 48/255 black opacity and a 0.5-dp white highlight stroke at
-96/255 opacity (one physical pixel on a 2x display). The border consumes no
-layout space and the shadow does not intercept input.
+retain their layout. The original unmounted surface used a centered ambient
+shadow and a half-point highlight; the current native glass correction delegates
+that surface treatment to AppKit to match the other glass controls.
 
 ## Validation
 
@@ -123,7 +124,7 @@ remain pending explicit manual acceptance. Both final architectures compile;
 native arm64 and Intel under Rosetta pass the final headless smoke checks. These are incremental development
 builds from the quilt-prepared workspace, not fresh CI builds of the new lock.
 
-Strict canonical replay currently applies 62 patches affecting 21 files with
+The preceding toolbar revision’s canonical replay applied 62 patches affecting 21 files with
 `--fuzz=0`, followed by the pinned ungoogled domain substitution, producing
 byte-identical prepared source. The content-shadow refinement belongs to shared
 core; the editor and floating-sidebar treatment depend on the platform UI stack.
@@ -160,8 +161,9 @@ The native chrome refinement addresses the owner's corner, focus, sidebar, and
 fullscreen feedback. It reuses Helium's existing native traffic-light group
 (including its AppKit hover compatibility handling and fullscreen-overlay
 suppression), animates the controls with top/sidebar visibility, and centers the
-first button at the outer corner's 26 pt center. The frame and material container
-share the same outer clip. Single-pane macOS layout reserves only the configured
+first button at the outer corner's 26 pt center. That revision made the frame and material container
+share the same outer clip; the later investigation below corrects the remaining
+native window-shape mismatch. Single-pane macOS layout reserves only the configured
 rail, removing the additional 3 pt split-layout inset and ordinary 1 pt content
 outline. Browser fullscreen, as well as content fullscreen, removes the rails.
 
@@ -198,10 +200,132 @@ and fullscreen top-edge overlay suppression still require manual acceptance.
 Keyboard focus and fullscreen entry are verified separately; they do not prove
 those pointer interactions. These remain development builds, not release acceptance.
 
+## Native frame and glass surface correction
+
+Follow-up feedback showed that the preceding corner inspection was insufficient:
+its 26 pt layer mask did not change the actual AppKit window shape. Source
+investigation found `BrowserWindowFrame::_getCachedWindowCornerRadius` still
+returning 17 pt on macOS 26+. Chromium already overrides that AppKit frame hook
+and uses it for the top and bottom corners. The new patch changes that existing
+override to 26 pt, retaining AppKit's fullscreen handling, rather than adding
+another frame-layer mask. This is inherited Chromium compatibility code, not a
+new public NSWindow corner-radius API. The redundant outer frame-layer clipping
+workaround is removed; the content retains its coradial 22 pt radius at 4 pt rails.
+
+The trailing controls previously combined their own glass window, an extra native
+window shadow, and an asynchronous `orderOut` on dismissal. That completion could
+hide a newly revealed group. The new implementation uses the same in-window
+`HeliumGlassSurface` host as the navigation/address controls; the actual extension
+and menu Views remain in a transparent, shadowless child widget. Hidden controls
+ignore input, and presentation no longer queues a stale native-window hide.
+
+The detached sidebar uses Apple's `NSGlassEffectView` with an 18 pt radius, or
+`NSVisualEffectView` on older systems. Its theme-painted background and duplicate
+custom shadow/outline are suppressed. Browser-owned toolbar/sidebar glyphs and
+tab text use resolved AppKit semantic foreground colors; site favicons and
+extension-provided artwork retain their own identity colors. The sidebar header
+adds 2 pt below its controls. A single SF Symbol sidebar button stays in the
+sidebar's inner corner and moves with that surface. The independently floating
+toolbar pill is removed entirely. Clicking the sidebar button toggles pinning;
+edge entry temporarily reveals a closed, unpinned sidebar. Detached tab rows use
+AppKit selection, hover, label, and focus colors instead of the browser theme.
+
+Chromium composites the page and sidebar together, so placing a background
+NSGlassEffectView below that compositor also places it behind the page. The
+correction retains a layout placeholder in the sidebar region and hosts its
+existing content area in a transparent native child widget above the in-window
+glass. Region ownership checks include those detached controls. The child
+widget shares the browser focus hierarchy, clips to the browser during slides,
+and leaves its header row available to the native controls in the parent window.
+Controls return to the region before switching layouts or destroying the browser.
+
+Windowed pointer entry follows the configured rail thickness. Fullscreen entry
+requires the outermost physical pixel, using AppKit coordinates and backing
+scale. Hidden/offscreen sidebar bounds no longer expand the entry area into page
+content. The 48 pt retention boundary applies only after a surface is revealed.
+Traffic lights move with the actual sidebar bounds rather than translating 12 pt
+inside a stationary clipped host. A drag-start latch retains the top controls
+until physical mouse-up; it does not assume AppKit blocks until dragging ends.
+The installed AppKit `NSWindow.h` documents that `performWindowDragWithEvent:`
+returns immediately and may not deliver `mouseUp`, so release is detected through
+`NSEvent.pressedMouseButtons`.
+
+The native sidebar button toggles pinning from its sidebar position. New profiles default to pinned, left-mounted sidebars;
+existing explicit preferences are preserved. The detached control host forwards
+blank-area context menus to the original browser menu, and the native sidebar
+button also exposes that menu on right click. The visible drag region explicitly
+excludes the moving sidebar button’s bounds, so pointer clicks reach its NSButton
+instead of being swallowed as window drags. Accessibility activation alone did
+not expose that overlap; coordinate-click testing now verifies pinning and unpinning separately from
+accessibility activation. The non-client hit test also recognizes the native
+sidebar host when the top toolbar is hidden; previously it returned a titlebar
+hit and swallowed some clicks. The host stays above the other native surfaces,
+and the detached tab widget leaves the entire button row unobstructed.
+
+Glass materials and semantic icon colors honor Customize Lune’s explicit Light
+or Dark choice. System mode follows the OS appearance. The pinned sidebar button
+uses the same effective appearance as the window pane; the prior OS-only override
+was a regression and is removed. Child-widget glyph colors resolve from their owning browser’s effective
+Light/Dark/Device choice. Native-window appearance alone proved insufficient in
+live tests. Theme refresh also compares the prior glass material appearance,
+preventing AppKit’s earlier window update from skipping cached Views icon updates.
+Assigning appearance directly to the existing effect was still insufficient:
+live Light-to-Dark changes left its material light. The final correction recreates
+only the NSGlassEffectView under the new appearance, preserving its content,
+editor, alpha, and transform. Native inspection verifies Light-to-Dark-to-Light
+changes of the material and glyphs; Device mode returns to the current OS scheme. The visible native toolbar and traffic-light gaps own their input
+and arrow cursor instead of passing it through to the underlying page. The top
+strip only enables window dragging while presented; native drag state retains
+it until the initiating mouse button is released. The permanent hidden titlebar hit
+test no longer makes the same page area draggable after dismissal. The drag
+strip excludes a 6 pt window-edge perimeter from hit testing and arrow cursor
+rectangles so it does not compete with AppKit resize cursors.
+
+The sidebar button has a 6 pt inner margin; the tab region gains 2 pt horizontal
+margin. macOS side-panel headers, including Customize Lune, have 10 pt outer
+padding and a 52 pt minimum height, aligning their title and close button with
+the other headers. Toolbar placement measures
+actual page bounds instead of the outer rail container. In windowed mode the
+inset is the difference between the content radius and the 18 pt glass radius
+(4 pt at the default 22 pt content radius), making exposed corner centers align.
+Fullscreen keeps an 8 pt inset. Sidebar-contained controls and traffic lights
+keep a fixed vertical origin when the system menu bar overlays fullscreen.
+Traffic lights belonging to the exposed top toolbar follow its menu-bar offset.
+Their hit-test exclusions use the actual converted native bounds.
+The detached sidebar still reserves space during
+its reveal. Transparent toolbar/sidebar child widgets explicitly participate in
+existing fullscreen Spaces so the controls appear with their glass backgrounds.
+
+Validation for this revision:
+
+- Strict patch replay passes without fuzz: 80 relevant patches, 37 final source
+  files byte-identical to the prepared tree.
+- Both arm64 and x86_64 compile. GN dependency checks, component patch/i18n lint,
+  input/tag/tree/gitlink validation, and all 44 repository tests pass.
+- Arm64 and Intel-under-Rosetta headless page execution, profile persistence,
+  registered defaults, and settings checks pass. Native Intel remains untested.
+- Native arm64 inspection confirms a fresh pinned-left sidebar, unpinning, the
+  original sidebar options menu on right click, working trailing app menu,
+  fullscreen trailing controls, and Command-L full-URL selection in the preceding
+  revisions. Final arm64 coordinate-click inspection verifies unpinning while
+  the top toolbar is hidden and absence of the former floating toolbar toggle.
+  The material-recreation build verifies Light-to-Dark-to-Light surface and glyph
+  changes, Device selection, and increased Customize Lune header spacing.
+  Test previews exit cleanly with detached controls.
+- The owner confirmed retention throughout a native window drag. Cursor shape, OS
+  appearance switching, fullscreen edge entry, and right-side animation remain
+  manual acceptance checks. Synthetic native clicks do not reliably move the
+  global pointer used by the distance-retention logic; no runtime pass is claimed
+  for those interactions. Earlier owner acceptance covers earlier revisions only.
+
+Local evidence is under `.work/floating-address/`: `surfaces-validation.json`,
+`revision-replay.json`, `surfaces-smoke-{arm64,intel}.json`, the build/test logs, and
+`surfaces-input-check/shutdown.json`.
+
 ## Pinned inputs
 
-- Platform commit: `bd8cd36f4f25171d7669da8cc4b13843f172f158`.
-- Platform tag: `inputs/floating-address-4/macos`.
+- Platform commit: `4539d268743cc43bd350610ec168f8f75b4cde2c`.
+- Platform tag: `inputs/floating-address-12/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and
