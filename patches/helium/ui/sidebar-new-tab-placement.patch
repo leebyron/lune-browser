@@ -1,0 +1,237 @@
+--- a/chrome/browser/ui/tabs/tab_strip_model.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model.cc
+@@ -142,6 +142,13 @@
+ 
+ namespace {
+ 
++bool UsesVerticalTabStrip(TabStripModelDelegate* delegate) {
++  auto* browser = delegate->GetBrowserWindowInterface();
++  auto* controller =
++      browser ? tabs::VerticalTabStripStateController::From(browser) : nullptr;
++  return controller && controller->ShouldDisplayVerticalTabs();
++}
++
+ TabGroupModelFactory* factory_instance = nullptr;
+ 
+ // Works similarly to base::AutoReset but checks for access from the wrong
+@@ -1794,6 +1801,7 @@
+   // to inherit the parent's opener attribute, so that if this tab is then
+   // closed we'll jump back to the parent tab.
+   bool inherit_opener = (add_types & ADD_INHERIT_OPENER) == ADD_INHERIT_OPENER;
++  bool prepended_new_tab = false;
+ 
+   if (ui::PageTransitionTypeIncludingQualifiersIs(transition,
+                                                   ui::PAGE_TRANSITION_LINK) &&
+@@ -1819,7 +1827,11 @@
+           profile_->GetPrefs()->GetBoolean(prefs::kNewTabNextToActive);
+       const auto opener_group = GetTabGroupForTab(active_index());
+ 
+-      if (count() >= 1 && new_tab_next_to_active) {
++      if (!(add_types & ADD_PINNED) &&
++          UsesVerticalTabStrip(delegate())) {
++        index = IndexOfFirstNonPinnedTab();
++        prepended_new_tab = true;
++      } else if (count() >= 1 && new_tab_next_to_active) {
+         if (group_model_ && opener_group && !(add_types & ADD_ACTIVE)) {
+           index = static_cast<int>(
+               group_model_->GetTabGroup(*opener_group)->ListTabs().end());
+@@ -1832,10 +1844,9 @@
+     }
+   }
+ 
+-  // Prevent the tab from being inserted at an index that would make the group
+-  // non-contiguous. Most commonly, the new-tab button always attempts to insert
+-  // at the end of the tab strip. Extensions can insert at an arbitrary index,
+-  // so we have to handle the general case.
++  // Preserve group contiguity for default insertion and explicit positions.
++  // Sidebar new tabs start after pinned tabs; group-specific tabs are clamped
++  // to their requested group below.
+   if (group_model_) {
+     if (group.has_value()) {
+       gfx::Range grouped_tabs =
+@@ -1865,13 +1876,13 @@
+ 
+   if (ui::PageTransitionTypeIncludingQualifiersIs(transition,
+                                                   ui::PAGE_TRANSITION_TYPED) &&
+-      index == count()) {
+-    // Also, any tab opened at the end of the TabStrip with a "TYPED"
+-    // transition inherit opener as well. This covers the cases where the user
+-    // creates a New Tab (e.g. Ctrl+T, or clicks the New Tab button), or types
+-    // in the address bar and presses Alt+Enter. This allows for opening a new
+-    // Tab to quickly look up something. When this Tab is closed, the old one
+-    // is re-activated, not the next-adjacent.
++      (index == count() || prepended_new_tab)) {
++    // Typed tabs opened at the default position inherit their opener, whether
++    // appended in horizontal mode or prepended in the sidebar. This covers the
++    // cases where the user creates a New Tab (e.g. Ctrl+T, or clicks the New
++    // Tab button), or types in the address bar and presses Alt+Enter. This
++    // allows for opening a new Tab to quickly look up something. When this Tab
++    // is closed, the old one is re-activated, not the next-adjacent.
+     inherit_opener = true;
+   }
+   tabs::TabModel* tab_ptr = tab.get();
+@@ -6099,9 +6110,9 @@
+ 
+   if (ui::PageTransitionCoreTypeIs(transition, ui::PAGE_TRANSITION_LINK) &&
+       active_index() != -1) {
+-    if (foreground) {
+-      // If the page was opened in the foreground by a link click in another
+-      // tab, insert it adjacent to the tab that opened that link.
++    if (foreground || UsesVerticalTabStrip(delegate())) {
++      // Sidebar links, including successive background links, open immediately
++      // below the active tab. Horizontal background links retain task ordering.
+       return active_index() + 1;
+     }
+     content::WebContents* const opener = GetActiveWebContents();
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -1010,6 +1010,10 @@
+   std::optional<size_t> bottom_container_index =
+       content_parent->GetIndexOf(bottom_button_container_);
+   CHECK(bottom_container_index.has_value());
++  auto* tab_strip = views::AsViewClass<TabStripView>(view.get());
++  CHECK(tab_strip);
++  tab_strip->SetNewTabButtonContainer(
++      content_parent->RemoveChildViewT(bottom_button_container_.get()));
+   content_parent->AddChildViewAt(std::move(view),
+                                  bottom_container_index.value());
+ 
+@@ -1042,6 +1046,9 @@
+   omnibox_tab_helper_observation_.Reset();
+   ResetExpandOnHoverTimers();
+   is_expanded_on_hover_ = false;
++  auto* tab_strip = views::AsViewClass<TabStripView>(view);
++  CHECK(tab_strip);
++  content_area_view_->AddChildView(tab_strip->RemoveNewTabButtonContainer());
+   return BaseTabStripRegionView::RemoveTabStripView(view);
+ }
+ 
+@@ -1132,13 +1139,11 @@
+ }
+ 
+ gfx::Rect VerticalTabStripRegionView::GetTabStripDraggableBounds() const {
+-  // Tabs should be draggable from the top of the tab strip to the bottom of the
+-  // tab strip's max size, saving space for the bottom button container and
+-  // padding.
++  // The new-tab row is inside the tab strip, between its scroll containers.
++  // Only the outer bottom padding is reserved from the drag area.
+   gfx::Rect tab_strip_draggable_bounds = tab_strip_view()->GetBoundsInScreen();
+   tab_strip_draggable_bounds.set_height(
+       GetBoundsInScreen().bottom() -
+-      bottom_button_container_->GetMinimumSize().height() -
+       GetLayoutConstant(
+           LayoutConstant::kVerticalTabStripUncollapsedVerticalPadding) -
+       tab_strip_draggable_bounds.y());
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
+@@ -492,6 +492,21 @@
+   }
+ }
+ 
++void TabStripView::SetNewTabButtonContainer(
++    std::unique_ptr<views::View> container) {
++  CHECK(orientation_ == TabStripOrientation::kVertical);
++  CHECK(!new_tab_button_container_);
++  new_tab_button_container_ = AddChildViewAt(
++      std::move(container), GetIndexOf(unpinned_tabs_scroll_view_).value());
++  InvalidateLayout();
++}
++
++std::unique_ptr<views::View> TabStripView::RemoveNewTabButtonContainer() {
++  auto* container = new_tab_button_container_.get();
++  new_tab_button_container_ = nullptr;
++  return RemoveChildViewT(container);
++}
++
+ bool TabStripView::IsPositionInWindowCaption(const gfx::Point& point) {
+   for (views::View* child : children()) {
+     if (!child->GetVisible()) {
+@@ -504,6 +519,10 @@
+       continue;
+     }
+ 
++    if (child == new_tab_button_container_) {
++      return false;
++    }
++
+     if (TabScrollButtonContainer* scroll_button_container =
+             views::AsViewClass<TabScrollButtonContainer>(child)) {
+       return scroll_button_container->IsPositionInWindowCaption(point_in_child);
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view.h
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.h
+@@ -61,6 +61,14 @@
+     return unpinned_tabs_scroll_view_;
+   }
+ 
++  // A fixed row between the pinned and unpinned scroll containers. The region
++  // transfers ownership back before this tab strip is removed or replaced.
++  void SetNewTabButtonContainer(std::unique_ptr<views::View> container);
++  std::unique_ptr<views::View> RemoveNewTabButtonContainer();
++  views::View* new_tab_button_container() const {
++    return new_tab_button_container_;
++  }
++
+   void SetCollapsedState(bool is_collapsed);
+   void SetIsAnimatingSize(bool is_animating);
+ 
+@@ -146,6 +154,7 @@
+   raw_ptr<views::ScrollView> pinned_tabs_scroll_view_ = nullptr;
+   raw_ptr<PinnedTabContainerView> pinned_tabs_container_view_ = nullptr;
+   raw_ptr<views::Separator> tabs_separator_ = nullptr;
++  raw_ptr<views::View> new_tab_button_container_ = nullptr;
+   raw_ptr<views::ScrollView> unpinned_tabs_scroll_view_ = nullptr;
+   raw_ptr<UnpinnedTabContainerView> unpinned_tabs_container_view_ = nullptr;
+   raw_ptr<TabScrollButtonContainer> tab_scroll_button_container_ = nullptr;
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
+@@ -280,14 +280,22 @@
+   const int unpinned_preferred_height =
+       unpinned_tabs_scroll_view->GetPreferredSize(size_bounds).height();
+ 
+-  // If the height is bounded, calculate the available space for laying out the
+-  // pinned and unpinned containers.
++  views::View* new_tab_button = tab_strip_view->new_tab_button_container();
++  const int new_tab_height =
++      new_tab_button ? new_tab_button->GetPreferredSize(size_bounds).height()
++                     : 0;
++  const int pinned_gap =
++      pinned_preferred_height && (new_tab_height || unpinned_preferred_height)
++          ? region_vertical_padding
++          : 0;
++  const int new_tab_gap =
++      new_tab_height && unpinned_preferred_height ? region_vertical_padding : 0;
++
++  // Reserve the fixed button row before allocating either scroll viewport.
+   int remaining_height = 0;
+   if (size_bounds.height().is_bounded()) {
+-    remaining_height = size_bounds.height().value();
+-    if (pinned_preferred_height != 0 && unpinned_preferred_height != 0) {
+-      remaining_height -= region_vertical_padding;
+-    }
++    remaining_height = size_bounds.height().value() - new_tab_height -
++                       pinned_gap - new_tab_gap;
+     // Clamp the remaining height to 0 if we have less space.
+     remaining_height = std::max(remaining_height, 0);
+   }
+@@ -315,10 +323,17 @@
+ 
+   if (pinned_container_bounds.height()) {
+     y += pinned_container_bounds.height();
+-    // Add padding only if there are pinned and unpinned tabs.
+-    if (unpinned_preferred_height != 0) {
+-      y += region_vertical_padding;
+-    }
++    y += pinned_gap;
++  }
++
++  if (new_tab_button) {
++    layouts.child_layouts.emplace_back(
++        new_tab_button, true,
++        gfx::Rect(region_horizontal_padding, y,
++                  std::max(0, size_bounds.width().value() -
++                                  2 * region_horizontal_padding),
++                  new_tab_height));
++    y += new_tab_height + new_tab_gap;
+   }
+ 
+   // Place the unpinned container using the entire available width, we do not
