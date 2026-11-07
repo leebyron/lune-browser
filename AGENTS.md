@@ -57,13 +57,16 @@ See [the feature evidence](agent-docs/project/features/content-pane-shadow.md).
 This feature is not in published builds 1 or 2.
 
 The development inputs under `inputs/floating-address-2/helium` and
-`inputs/floating-address-3/macos` include
+`inputs/floating-address-4/macos` include
 an editable AppKit glass address capsule, 48 pt distance retention, whole-surface
 focus, slide/fade motion, fullscreen edge reveal, sidebar-aware geometry, and
 softer content/sidebar shadows. The subsequent toolbar revision adds paired
 native navigation, the original extension/menu controls in a trailing glass
 group, native window dragging, fixed traffic lights without a pill, and
-4 pt rails with a fixed 26 pt outer radius and 8 pt surface insets. Both
+4 pt rails with a fixed 26 pt outer radius and 8 pt surface insets.
+The native chrome refinement clips the common frame/material perimeter, removes
+the extra content inset and ordinary outline, keeps fullscreen edge-to-edge,
+reuses native traffic-light hover handling, and stabilizes the sidebar header. Both
 architectures compile and pass smoke checks (Intel via Rosetta). Native arm64
 editor checks pass, and the owner accepted
 the distance behavior and animation. Fullscreen edge pointer behavior and

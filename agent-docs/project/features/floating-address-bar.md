@@ -50,8 +50,8 @@ The native `NSTextField` is the primary address editor in this layout; the
 sidebar URL row is hidden, with navigation moved to the leading glass pair. Clicking the
 field or pressing Cmd+L selects the complete URL in place, opens autocomplete
 immediately, and animates the text from its centered display toward the left
-editing alignment. The first mouse click selects after AppKit finishes placing
-the caret; subsequent clicks allow ordinary caret positioning. Address focus
+editing alignment. The first mouse click enters editing and returns before AppKit starts caret
+tracking; subsequent clicks allow ordinary caret positioning. Address focus
 retains the top controls until editing ends. Chromium's profile-aware
 `AutocompleteController` supplies URL, history, bookmark, and search matches;
 up to six native suggestion rows appear below the field. Up/Down selects a row,
@@ -72,7 +72,8 @@ Presentation uses a Core Animation translation and AppKit opacity, sliding down
 that motion. AppKit's Reduce Motion preference skips the transition. A reentry
 invalidates the previous completion, so an old fade-out cannot hide a reopened
 surface. Public AppKit standard traffic-light buttons occupy a transparent
-host at a fixed top-left position, without a glass pill or slide animation.
+host with a fixed top-left resting position and no glass pill. Their reveal
+tracks the top bar or left sidebar, remaining visible until both are hidden.
 They appear when the top glass is presented, or when a left-aligned sidebar is
 visible. A right-aligned sidebar does not independently reveal them. Existing
 titlebar buttons are restored outside this layout.
@@ -93,9 +94,9 @@ it without the previous window-exit grace timer; active menus and keyboard focus
 retain the existing interaction protections. Its top, bottom, and outer-edge
 insets are 8 pt. New profiles default to 4 pt rails; existing explicit preferences
 remain intact. The macOS outer window radius stays 26 pt regardless of the rail
-setting, applied to the native content layer with public AppKit/Core Animation.
-Content radii subtract the existing layout padding and configured rail thickness
-from that outer radius. The detached sidebar radius is 18 pt (26 minus 8),
+setting, applied to both the native content and its common frame/material
+container with public AppKit/Core Animation. Content radii subtract only the
+configured rail thickness from that outer radius: 22 pt with a 4 pt rail. The detached sidebar radius is 18 pt (26 minus 8),
 keeping its corners concentric with the window. Mounted sidebars
 retain their layout. The unmounted surface has a centered,
 8-dp ambient shadow at 48/255 black opacity and a 0.5-dp white highlight stroke at
@@ -122,7 +123,7 @@ remain pending explicit manual acceptance. Both final architectures compile;
 native arm64 and Intel under Rosetta pass the final headless smoke checks. These are incremental development
 builds from the quilt-prepared workspace, not fresh CI builds of the new lock.
 
-Strict canonical replay currently applies 60 patches affecting 16 files with
+Strict canonical replay currently applies 62 patches affecting 21 files with
 `--fuzz=0`, followed by the pinned ungoogled domain substitution, producing
 byte-identical prepared source. The content-shadow refinement belongs to shared
 core; the editor and floating-sidebar treatment depend on the platform UI stack.
@@ -153,10 +154,54 @@ Final smoke evidence is `toolbar-smoke-{arm64,intel}.json`; native dark evidence
 is `toolbar-final-dark.png`. The 44 repository tests and locked Git ancestry,
 tree, tag, gitlink, and patch-hash validation pass.
 
+## Native chrome feedback refinement
+
+The native chrome refinement addresses the owner's corner, focus, sidebar, and
+fullscreen feedback. It reuses Helium's existing native traffic-light group
+(including its AppKit hover compatibility handling and fullscreen-overlay
+suppression), animates the controls with top/sidebar visibility, and centers the
+first button at the outer corner's 26 pt center. The frame and material container
+share the same outer clip. Single-pane macOS layout reserves only the configured
+rail, removing the additional 3 pt split-layout inset and ordinary 1 pt content
+outline. Browser fullscreen, as well as content fullscreen, removes the rails.
+
+First pointer focus selects the complete URL before AppKit starts caret tracking.
+AppKit cell metrics center the address field vertically. The site-controls gear
+and reload use 15 pt, medium-weight SF Symbols, matching the navigation pair.
+The actual trailing Views controls keep their existing popup anchors but use
+transparent button decoration and vertical centering inside the glass group.
+The sidebar pin/unpin control sits on the inner edge of a fixed-height header;
+attached and detached sidebar header rows share their vertical origin.
+
+Both final architecture builds and smoke tests pass, including page loading,
+JavaScript, profile persistence, defaults, and settings (Intel under Rosetta).
+Reports are `polish-smoke-{arm64,intel}.json`. The first Intel test attempt failed
+to create a ChromeDriver session without a new macOS crash report; the diagnostic
+rerun with verbose driver logging passed. Its cause is not established, and the
+first attempt is retained as `polish-smoke-intel-first*.log`.
+Native arm64 light/dark inspection confirms
+matching outer corner clips, 4 pt rails, readable selected URL text, matching
+gear/reload symbol weights, and transparent, centered trailing controls. The
+actual Lune menu opens from its glass group. Browser fullscreen inspection shows
+edge-to-edge page content with no rail or ordinary outline. Closing the final
+light preview reports process exit status 0. Evidence:
+`polish-final-{light,dark,fullscreen}.png`,
+`polish-final-{light,dark}/shutdown.json`, and
+`polish-repository-tests.log` (44 passing).
+Strict replay applies 62 patches with no fuzz and reproduces all 21 touched source
+files after domain substitution. Locked ancestry, trees, tags, patch hashes,
+component lint, and the translation registry pass.
+
+The native tool's synthetic pointer does not reliably drive hover tracking.
+First physical click, traffic-light hover/animation, sidebar pin/unpin stability,
+and fullscreen top-edge overlay suppression still require manual acceptance.
+Keyboard focus and fullscreen entry are verified separately; they do not prove
+those pointer interactions. These remain development builds, not release acceptance.
+
 ## Pinned inputs
 
-- Platform commit: `a9a08b3144c7f6d5df16f77bbe79df8c9d45f63b`.
-- Platform tag: `inputs/floating-address-3/macos`.
+- Platform commit: `bd8cd36f4f25171d7669da8cc4b13843f172f158`.
+- Platform tag: `inputs/floating-address-4/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and
