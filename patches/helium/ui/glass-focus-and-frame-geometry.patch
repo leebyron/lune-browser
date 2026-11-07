@@ -1,0 +1,341 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -30,7 +30,7 @@ enum class ToolbarVisibilityStyle;
+ @class FullscreenToolbarController;
+ @class HeliumFullscreenWindowControls;
+ @class HeliumFloatingAddressBar;
+-@class HeliumGlassWindowControls;
++@class HeliumWindowControls;
+ 
+ namespace views {
+ class NativeViewHost;
+@@ -142,7 +142,7 @@ class BrowserFrameViewMac : public Brows
+   // The browser owns the host; the tracker tolerates client-view teardown.
+   views::ViewTracker floating_address_host_;
+   views::ViewTracker floating_window_controls_host_;
+-  HeliumGlassWindowControls* __strong floating_window_controls_ = nil;
++  HeliumWindowControls* __strong floating_window_controls_ = nil;
+   HeliumFloatingAddressBar* __strong floating_address_bar_ = nil;
+   bool floating_address_focus_requested_ = false;
+   std::unique_ptr<base::RepeatingTimer> floating_address_refresh_timer_;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -7,6 +7,8 @@
+ #include <algorithm>
+ #include <vector>
+ 
++#import <QuartzCore/QuartzCore.h>
++
+ #include "base/command_line.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/functional/bind.h"
+@@ -45,7 +47,9 @@
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/browser_widget.h"
+ #include "chrome/browser/ui/views/frame/caption_button_placeholder_container.h"
++#include "chrome/browser/ui/views/frame/contents_container_outline.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
++#include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+@@ -184,9 +188,36 @@
+ // mask. AppKit chooses the ring color and accessibility contrast treatment.
+ @interface HeliumGlassAddressField : NSTextField
+ @property(nonatomic, weak) NSView* focusSurface;
++@property(nonatomic, copy) void (^onInitialFocus)(void);
+ @end
+ @implementation HeliumGlassAddressField
+ @synthesize focusSurface = _focusSurface;
++@synthesize onInitialFocus = _onInitialFocus;
++- (BOOL)becomeFirstResponder {
++  const BOOL accepted = [super becomeFirstResponder];
++  if (accepted) {
++    __weak HeliumGlassAddressField* weakSelf = self;
++    dispatch_async(dispatch_get_main_queue(), ^{
++      HeliumGlassAddressField* field = weakSelf;
++      if (field.currentEditor && field.onInitialFocus) {
++        field.onInitialFocus();
++      }
++    });
++  }
++  return accepted;
++}
++- (void)mouseDown:(NSEvent*)event {
++  const BOOL wasEditing = self.currentEditor != nil;
++  [super mouseDown:event];
++  // NSTextField places the caret after its delegate begins editing. Select
++  // after mouse-up so the first click has the same semantics as Cmd+L.
++  if (!wasEditing) {
++    if (self.onInitialFocus) {
++      self.onInitialFocus();
++    }
++    [self selectText:nil];
++  }
++}
+ - (NSRect)focusRingMaskBounds {
+   return [self convertRect:self.focusSurface.bounds fromView:self.focusSurface];
+ }
+@@ -197,12 +228,13 @@
+ }
+ @end
+ 
+-@interface HeliumGlassWindowControls : HeliumGlassSurface
++@interface HeliumWindowControls : NSView
++- (void)setPresented:(BOOL)presented;
+ - (instancetype)initWithWindow:(NSWindow*)window;
+ - (void)refresh;
+ - (void)restoreTitlebarButtons;
+ @end
+-@implementation HeliumGlassWindowControls {
++@implementation HeliumWindowControls {
+   NSWindow* __weak _browserWindow;
+   NSMutableArray<NSButton*>* _buttons;
+   NSMutableDictionary<NSNumber*, NSNumber*>* _originalHidden;
+@@ -237,10 +269,16 @@
+         NSMakePoint(12 + 26 * _buttons.count, (36 - frame.size.height) / 2);
+     button.frame = frame;
+     [_buttons addObject:button];
+-    [_controls addSubview:button];
++    [self addSubview:button];
+   }
++  self.hidden = YES;
+   return self;
+ }
++- (void)setPresented:(BOOL)presented {
++  // Traffic lights stay at a fixed window-relative position. There is no
++  // material behind them and no translation with the glass or sidebar.
++  self.hidden = !presented;
++}
+ - (void)refresh {
+   for (NSNumber* type in _originalHidden) {
+     [_browserWindow standardWindowButton:static_cast<NSWindowButton>(
+@@ -290,6 +328,7 @@ class HeliumGlassAutocompleteObserver
+ @implementation HeliumFloatingAddressBar {
+   base::WeakPtr<BrowserView> _browserView;
+   HeliumGlassAddressField* _address;
++  NSView* _addressContainer;
+   NSMutableArray<NSButton*>* _suggestions;
+   std::unique_ptr<AutocompleteController> _autocomplete;
+   std::unique_ptr<HeliumGlassAutocompleteObserver> _observer;
+@@ -320,8 +359,12 @@ class HeliumGlassAutocompleteObserver
+   _siteInfo.accessibilityLabel = _siteInfo.toolTip;
+   [_controls addSubview:_siteInfo];
+ 
+-  _address = [[HeliumGlassAddressField alloc]
+-      initWithFrame:NSMakeRect(40, 8, 400, 20)];
++  _addressContainer = [[NSView alloc] initWithFrame:NSMakeRect(40, 8, 400, 20)];
++  _addressContainer.wantsLayer = YES;
++  _addressContainer.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
++  [_controls addSubview:_addressContainer];
++  _address =
++      [[HeliumGlassAddressField alloc] initWithFrame:_addressContainer.bounds];
+   _address.focusSurface = _material;
+   _address.bezeled = NO;
+   _address.drawsBackground = NO;
+@@ -331,7 +374,7 @@ class HeliumGlassAutocompleteObserver
+   _address.usesSingleLineMode = YES;
+   _address.delegate = self;
+   _address.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
+-  [_controls addSubview:_address];
++  [_addressContainer addSubview:_address];
+   _suggestions = [[NSMutableArray alloc] init];
+   _autocomplete = std::make_unique<AutocompleteController>(
+       std::make_unique<ChromeAutocompleteProviderClient>(
+@@ -342,6 +385,12 @@ class HeliumGlassAutocompleteObserver
+   // embedded field's delegate. Consume only Cmd+Return while this editor owns
+   // focus; all other shortcuts continue through the normal responder chain.
+   __weak HeliumFloatingAddressBar* weakSelf = self;
++  _address.onInitialFocus = ^{
++    HeliumFloatingAddressBar* owner = weakSelf;
++    if (owner && !owner->_editing) {
++      [owner beginEditing];
++    }
++  };
+   _keyMonitor = [NSEvent
+       addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown
+                                    handler:^NSEvent*(NSEvent* event) {
+@@ -429,7 +478,7 @@ class HeliumGlassAutocompleteObserver
+ }
+ 
+ - (BOOL)isEditing {
+-  return _editing;
++  return _editing || _address.currentEditor != nil;
+ }
+ 
+ - (CGFloat)preferredHeight {
+@@ -440,12 +489,41 @@ class HeliumGlassAutocompleteObserver
+   if (!_browserView) {
+     return;
+   }
++  const BOOL firstFocus = !_editing;
++  const CGFloat textWidth =
++      [_address.stringValue
++          sizeWithAttributes:@{NSFontAttributeName : _address.font}]
++          .width;
+   _editing = YES;
+   _address.alignment = NSTextAlignmentLeft;
+   _address.stringValue = base::SysUTF8ToNSString(
+       LocationBarModel::From(_browserView->browser())->GetURL().spec());
++  // Populate before animating so the initial suggestion rows have already
++  // established the editor's top-anchored geometry.
++  [self controlTextDidChange:
++            [NSNotification
++                notificationWithName:NSControlTextDidChangeNotification
++                              object:_address]];
+   [self.window makeFirstResponder:_address];
++  _address.currentEditor.alignment = NSTextAlignmentLeft;
+   [_address selectText:nil];
++  // Animate the editor's containing layer, not NSTextField's frame. AppKit
++  // owns a separate field editor whose geometry otherwise lags behind frame
++  // animation, leaving the selection at its old position or clipping it out.
++  [_addressContainer.layer removeAnimationForKey:@"address-alignment"];
++  if (firstFocus &&
++      !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion) {
++    const CGFloat offset =
++        std::max<CGFloat>(0, (_address.bounds.size.width - textWidth) / 2);
++    CABasicAnimation* motion =
++        [CABasicAnimation animationWithKeyPath:@"transform.translation.x"];
++    motion.fromValue = @(offset);
++    motion.toValue = @0;
++    motion.duration = 0.18;
++    motion.timingFunction = [CAMediaTimingFunction
++        functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
++    [_addressContainer.layer addAnimation:motion forKey:@"address-alignment"];
++  }
+ }
+ 
+ - (void)controlTextDidBeginEditing:(NSNotification*)notification {
+@@ -478,6 +556,7 @@ class HeliumGlassAutocompleteObserver
+   }
+   [_suggestions removeAllObjects];
+   _address.alignment = NSTextAlignmentCenter;
++  [_addressContainer.layer removeAnimationForKey:@"address-alignment"];
+   [self refresh];
+ }
+ 
+@@ -943,18 +1022,13 @@ views::LayoutAlignment BrowserFrameViewM
+ gfx::RoundedCornersF BrowserFrameViewMac::GetWindowRoundedCorners() const {
+   if (auto* const widget = GetWidget();
+       widget && !widget->IsFullscreen() && !widget->IsMaximized()) {
+-    return gfx::RoundedCornersF(
+-        GetLayoutConstant(LayoutConstant::kToolbarCornerRadius));
++    return gfx::RoundedCornersF(GetSystemWindowRadius());
+   }
+   return gfx::RoundedCornersF();
+ }
+ 
+ int BrowserFrameViewMac::GetRestoredWindowCornerRadius() const {
+-  // These values are determined empirically.
+-  if (@available(macOS 26, *)) {
+-    return 20;
+-  }
+-  return 16;
++  return GetSystemWindowRadius();
+ }
+ 
+ void BrowserFrameViewMac::SetCaptionButtonsOpacity(float opacity) {
+@@ -973,8 +1047,7 @@ void BrowserFrameViewMac::SetCaptionButt
+ bool BrowserFrameViewMac::ShouldUseHeliumFullscreenWindowControls() const {
+   const auto* browser_view = GetBrowserView();
+   return browser_view->GetIsNormalType() && browser_view->IsFullscreen() &&
+-         !(HasFloatingAddressBar() &&
+-           browser_view->IsVerticalTabStripRightAligned());
++         !HasFloatingAddressBar();
+ }
+ 
+ void BrowserFrameViewMac::UpdateHeliumFullscreenWindowControls() {
+@@ -1224,6 +1297,14 @@ void BrowserFrameViewMac::Layout(PassKey
+     LayoutWindowControlsOverlay();
+   }
+   LayoutSuperclass<BrowserFrameView>(this);
++  if (GetBrowserView()->GetIsNormalType()) {
++    NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
++    NSView* content = window.contentView;
++    content.wantsLayer = YES;
++    content.layer.cornerRadius =
++        GetBrowserView()->IsFullscreen() ? 0 : GetSystemWindowRadius();
++    content.layer.masksToBounds = YES;
++  }
+   UpdateFloatingAddressBar();
+ }
+ 
+@@ -1467,8 +1548,11 @@ void BrowserFrameViewMac::UpdateFloating
+ 
+ void BrowserFrameViewMac::UpdateFloatingWindowControls(bool presented) {
+   auto* view = GetBrowserView();
+-  const bool eligible =
+-      HasFloatingAddressBar() && view->IsVerticalTabStripRightAligned();
++  const bool eligible = HasFloatingAddressBar();
++  const bool left_sidebar_visible = !view->IsVerticalTabStripRightAligned() &&
++                                    (view->IsZenModeSideChromePinned() ||
++                                     view->GetSideChromeRevealRatio() > 0);
++  presented = presented || left_sidebar_visible;
+   auto* host = static_cast<views::NativeViewHost*>(
+       floating_window_controls_host_.view());
+   if (!eligible) {
+@@ -1481,11 +1565,11 @@ void BrowserFrameViewMac::UpdateFloating
+   if (!host) {
+     host = view->AddChildView(std::make_unique<views::NativeViewHost>());
+     floating_window_controls_host_.SetView(host);
+-    floating_window_controls_ = [[HeliumGlassWindowControls alloc]
++    floating_window_controls_ = [[HeliumWindowControls alloc]
+         initWithWindow:GetWidget()->GetNativeWindow().GetNativeNSWindow()];
+     host->Attach(gfx::NativeView(floating_window_controls_));
+   }
+-  host->SetBoundsRect(gfx::Rect(4, 4 + TopUIFullscreenYOffset(), 96, 36));
++  host->SetBoundsRect(gfx::Rect(4, 4, 96, 36));
+   floating_window_controls_.appearance = floating_address_bar_.appearance;
+   [floating_window_controls_ refresh];
+   [floating_window_controls_ setPresented:presented];
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -144,8 +144,8 @@ ZenModeLayoutState GetZenModeLayoutState
+     return state;
+   }
+ 
+-  // Floating panels sit halfway across the configured content-frame rail.
+-  const int inset = ContentsContainerOutline::GetThickness(false) / 2;
++  // Keep detached surfaces eight points inside the window perimeter.
++  const int inset = 8;
+   state.vertical_tab_strip_padding = inset;
+   state.vertical_tab_strip_top_padding = inset;
+   return state;
+@@ -1660,6 +1660,11 @@ BrowserViewTabbedLayoutImpl::CalculatePr
+     int floating_corner_radius = GetGenericFrameRadius();
+     if (zen.floating_vertical_tab_strip) {
+       floating_style = FloatingStyle::kDetached;
++#if BUILDFLAG(IS_MAC)
++      // Concentric with the outer window at the eight-point inset.
++      floating_corner_radius =
++          GetSystemWindowRadius() - 8;
++#endif
+     } else if (vertical_tab_strip_animation.expand_on_hover_width > 0.0) {
+       floating_style = vertical_right_aligned ? FloatingStyle::kAttachedTrailing
+                                               : FloatingStyle::kAttachedLeading;
+--- a/chrome/browser/ui/views/helium/frame_corner_radius.cc
++++ b/chrome/browser/ui/views/helium/frame_corner_radius.cc
+@@ -8,7 +8,11 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ 
+ int GetGenericFrameRadius() {
++#if BUILDFLAG(IS_MAC)
++  return 26;
++#else
+   return 8;
++#endif
+ }
+ 
+ #if !BUILDFLAG(IS_MAC)
+--- a/chrome/browser/ui/views/helium/frame_corner_radius_mac.mm
++++ b/chrome/browser/ui/views/helium/frame_corner_radius_mac.mm
+@@ -5,8 +5,5 @@
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ 
+ int GetSystemWindowRadius() {
+-  if (@available(macOS 26, *)) {
+-    return 17;
+-  }
+-  return 12;
++  return 26;
+ }

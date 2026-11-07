@@ -1,0 +1,685 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view.h
+@@ -176,6 +176,7 @@ class BrowserFrameView : public views::F
+   virtual bool HasFloatingAddressBar() const { return false; }
+   virtual bool FocusFloatingAddressBar() { return false; }
+   virtual void UpdateFloatingAddressBar() {}
++  virtual void ResetFloatingToolbar() {}
+ 
+   // Signals that the frame's minimum size may have changed. This prompts the
+   // widget to update its size constraints by re-querying `GetMinimumSize()`.
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -31,6 +31,9 @@ enum class ToolbarVisibilityStyle;
+ @class HeliumFullscreenWindowControls;
+ @class HeliumFloatingAddressBar;
+ @class HeliumWindowControls;
++@class HeliumGlassNavigation;
++@class HeliumGlassSurface;
++@class HeliumGlassDragRegion;
+ 
+ namespace views {
+ class NativeViewHost;
+@@ -80,6 +83,7 @@ class BrowserFrameViewMac : public Brows
+   bool HasFloatingAddressBar() const override;
+   bool FocusFloatingAddressBar() override;
+   void UpdateFloatingAddressBar() override;
++  void ResetFloatingToolbar() override;
+ 
+   // views::View:
+   gfx::Size GetMinimumSize() const override;
+@@ -115,6 +119,8 @@ class BrowserFrameViewMac : public Brows
+   int TopUIFullscreenYOffset() const;
+   void LayoutWindowControlsOverlay();
+   void UpdateFloatingWindowControls(bool presented);
++  void UpdateFloatingToolbar(const gfx::Rect& region, bool presented);
++  int FloatingToolbarWidth();
+ 
+   void UpdateCaptionButtonPlaceholderContainerBackground();
+ 
+@@ -144,6 +150,15 @@ class BrowserFrameViewMac : public Brows
+   views::ViewTracker floating_window_controls_host_;
+   HeliumWindowControls* __strong floating_window_controls_ = nil;
+   HeliumFloatingAddressBar* __strong floating_address_bar_ = nil;
++  views::ViewTracker floating_navigation_host_;
++  views::ViewTracker floating_drag_host_;
++  views::ViewTracker floating_toolbar_owner_;
++  HeliumGlassNavigation* __strong floating_navigation_ = nil;
++  HeliumGlassDragRegion* __strong floating_drag_region_ = nil;
++  HeliumGlassSurface* __strong floating_toolbar_material_ = nil;
++  std::unique_ptr<views::Widget> floating_toolbar_widget_;
++  bool floating_toolbar_presented_ = false;
++  gfx::Rect floating_toolbar_target_bounds_;
+   bool floating_address_focus_requested_ = false;
+   std::unique_ptr<base::RepeatingTimer> floating_address_refresh_timer_;
+ 
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -4,11 +4,11 @@
+ 
+ #include "chrome/browser/ui/views/frame/browser_frame_view_mac.h"
+ 
++#import <QuartzCore/QuartzCore.h>
++
+ #include <algorithm>
+ #include <vector>
+ 
+-#import <QuartzCore/QuartzCore.h>
+-
+ #include "base/command_line.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/functional/bind.h"
+@@ -19,6 +19,7 @@
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
++#include "chrome/app/chrome_command_ids.h"
+ #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
+ #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
+ #include "chrome/browser/headless/headless_mode_util.h"
+@@ -56,6 +57,7 @@
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip.h"
++#include "chrome/browser/ui/views/toolbar/app_menu_control.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+ #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
+ #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+@@ -93,6 +95,7 @@
+ #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/native/native_view_host.h"
++#include "ui/views/layout/box_layout.h"
+ #include "ui/views/layout/layout_types.h"
+ #include "ui/views/widget/widget.h"
+ #include "ui/views/widget/widget_delegate.h"
+@@ -141,6 +144,7 @@
+     [material addSubview:_controls];
+     _material = material;
+   }
++  _material.wantsLayer = YES;
+   _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+   [self addSubview:_material];
+   self.hidden = YES;
+@@ -151,6 +155,10 @@
+ - (BOOL)isPresented {
+   return _presented;
+ }
++- (void)resizeSubviewsWithOldSize:(NSSize)oldSize {
++  [super resizeSubviewsWithOldSize:oldSize];
++  _material.frame = self.bounds;
++}
+ - (void)setPresented:(BOOL)presented {
+   if (_presented == presented) {
+     return;
+@@ -159,19 +167,36 @@
+   const NSUInteger generation = ++_presentationGeneration;
+   const BOOL reduceMotion =
+       NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
++  const CGFloat from =
++      presented && _fullyHidden
++          ? 12
++          : ((CALayer*)_material.layer.presentationLayer).transform.m42;
++  const CGFloat to = presented || reduceMotion ? 0 : 12;
+   if (presented && _fullyHidden) {
+     _material.alphaValue = 0;
+-    _material.frameOrigin = NSMakePoint(0, reduceMotion ? 0 : 12);
+   }
+   self.hidden = NO;
+   _fullyHidden = NO;
++  _material.frame = self.bounds;
++  [CATransaction begin];
++  [CATransaction setDisableActions:YES];
++  _material.layer.transform = CATransform3DMakeTranslation(0, to, 0);
++  [CATransaction commit];
++  if (!reduceMotion) {
++    CABasicAnimation* motion =
++        [CABasicAnimation animationWithKeyPath:@"transform.translation.y"];
++    motion.fromValue = @(from);
++    motion.toValue = @(to);
++    motion.duration = .18;
++    motion.timingFunction = [CAMediaTimingFunction
++        functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
++    [_material.layer addAnimation:motion forKey:@"glass-presentation"];
++  }
+   __weak HeliumGlassSurface* weakSelf = self;
+   [NSAnimationContext
+       runAnimationGroup:^(NSAnimationContext* context) {
+-        context.duration = reduceMotion ? 0 : 0.18;
++        context.duration = reduceMotion ? 0 : .18;
+         [_material.animator setAlphaValue:presented ? 1 : 0];
+-        [_material.animator
+-            setFrameOrigin:NSMakePoint(0, presented || reduceMotion ? 0 : 12)];
+       }
+       completionHandler:^{
+         HeliumGlassSurface* owner = weakSelf;
+@@ -184,6 +209,101 @@
+ }
+ @end
+ 
++// Only the empty strip participates in native window dragging. The real
++// controls above it retain their normal clicks, text selection and menus.
++@interface HeliumGlassDragRegion : NSView
++@property(nonatomic) NSRect addressBounds;
++@property(nonatomic) NSRect navigationBounds;
++@property(nonatomic) NSRect windowControlsBounds;
++@end
++@implementation HeliumGlassDragRegion
++@synthesize addressBounds = _addressBounds;
++@synthesize navigationBounds = _navigationBounds;
++@synthesize windowControlsBounds = _windowControlsBounds;
++- (BOOL)isFlipped {
++  return YES;
++}
++- (NSView*)hitTest:(NSPoint)point {
++  const NSPoint local = [self convertPoint:point fromView:self.superview];
++  if (!NSPointInRect(local, self.bounds) ||
++      NSPointInRect(local, self.addressBounds) ||
++      NSPointInRect(local, self.navigationBounds) ||
++      NSPointInRect(local, self.windowControlsBounds)) {
++    return nil;
++  }
++  return self;
++}
++- (void)mouseDown:(NSEvent*)event {
++  [self.window performWindowDragWithEvent:event];
++}
++@end
++
++@interface HeliumGlassNavigation : HeliumGlassSurface
++- (instancetype)initWithBrowserView:(BrowserView*)browser;
++- (void)refresh;
++@end
++@implementation HeliumGlassNavigation {
++  base::WeakPtr<BrowserView> _browserView;
++  NSButton* _back;
++  NSButton* _forward;
++}
++- (instancetype)initWithBrowserView:(BrowserView*)browser {
++  self = [super initWithFrame:NSMakeRect(0, 0, 76, 36)];
++  if (!self) {
++    return nil;
++  }
++  _browserView = browser->GetAsWeakPtr();
++  _back = [NSButton
++      buttonWithImage:[NSImage imageWithSystemSymbolName:@"chevron.backward"
++                                accessibilityDescription:nil]
++               target:self
++               action:@selector(goBack:)];
++  _forward = [NSButton
++      buttonWithImage:[NSImage imageWithSystemSymbolName:@"chevron.forward"
++                                accessibilityDescription:nil]
++               target:self
++               action:@selector(goForward:)];
++  _back.frame = NSMakeRect(4, 2, 32, 32);
++  _forward.frame = NSMakeRect(40, 2, 32, 32);
++  for (NSButton* button in @[ _back, _forward ]) {
++    button.bordered = NO;
++    button.image =
++        [button.image imageWithSymbolConfiguration:
++                          [NSImageSymbolConfiguration
++                              configurationWithPointSize:15
++                                                  weight:NSFontWeightMedium]];
++    [_controls addSubview:button];
++  }
++  _back.toolTip = base::SysUTF16ToNSString(
++      l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_BACK));
++  _forward.toolTip = base::SysUTF16ToNSString(
++      l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_FORWARD));
++  _back.toolTip = [_back.toolTip stringByReplacingOccurrencesOfString:@"&"
++                                                           withString:@""];
++  _forward.toolTip =
++      [_forward.toolTip stringByReplacingOccurrencesOfString:@"&"
++                                                  withString:@""];
++  _back.accessibilityLabel = _back.toolTip;
++  _forward.accessibilityLabel = _forward.toolTip;
++  return self;
++}
++- (void)refresh {
++  _back.enabled = _browserView && chrome::CanGoBack(_browserView->browser());
++  _forward.enabled =
++      _browserView && chrome::CanGoForward(_browserView->browser());
++}
++- (void)goBack:(id)sender {
++  if (_browserView) {
++    chrome::ExecuteCommand(_browserView->browser(), IDC_BACK);
++  }
++}
++- (void)goForward:(id)sender {
++  if (_browserView) {
++    chrome::ExecuteCommand(_browserView->browser(), IDC_FORWARD);
++  }
++}
++@end
++
+ // Keep the system focus indicator but supply the whole glass surface as its
+ // mask. AppKit chooses the ring color and accessibility contrast treatment.
+ @interface HeliumGlassAddressField : NSTextField
+@@ -1142,6 +1262,14 @@ gfx::Rect BrowserFrameViewMac::GetWindow
+ }
+ 
+ int BrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
++  for (auto* host :
++       {floating_navigation_host_.view(), floating_drag_host_.view()}) {
++    if (host && host->IsDrawn() &&
++        views::View::ConvertRectToTarget(host, this, host->GetLocalBounds())
++            .Contains(point)) {
++      return HTCLIENT;
++    }
++  }
+   if (auto* host = floating_address_host_.view();
+       host && host->IsDrawn() && !floating_address_bar_.hidden &&
+       views::View::ConvertRectToTarget(host, this, host->GetLocalBounds())
+@@ -1425,7 +1553,8 @@ void BrowserFrameViewMac::UpdateFloating
+       static_cast<views::NativeViewHost*>(floating_address_host_.view());
+   auto* command_bar = HeliumCommandBarController::From(browser_view->browser());
+   const bool command_bar_open = command_bar && command_bar->IsShowing();
+-  bool bubble_open = false;
++  auto* app_menu = browser_view->toolbar_button_provider()->GetAppMenuControl();
++  bool bubble_open = app_menu && app_menu->IsMenuShowing();
+   for (const auto& child :
+        views::Widget::GetAllOwnedWidgets(GetWidget()->GetNativeView())) {
+     if (child != GetWidget() && child->IsVisible() && !child->IsClosed() &&
+@@ -1438,6 +1567,7 @@ void BrowserFrameViewMac::UpdateFloating
+   if (!HasFloatingAddressBar() ||
+       (!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
+       !NSApp.active) {
++    UpdateFloatingToolbar(gfx::Rect(), false);
+     UpdateFloatingWindowControls(false);
+     [floating_address_bar_ setPresented:NO];
+     floating_address_refresh_timer_->Stop();
+@@ -1455,15 +1585,24 @@ void BrowserFrameViewMac::UpdateFloating
+   if (!side.IsEmpty()) {
+     if (browser_view->IsVerticalTabStripRightAligned()) {
+       content.set_width(
+-          std::max(0, std::min(content.right(), side.x() - 8) - content.x()));
++          std::max(0, std::min(content.right(), side.x()) - content.x()));
+     } else {
+       const int right = content.right();
+-      content.set_x(std::max(content.x(), side.right() + 8));
++      content.set_x(std::max(content.x(), side.right()));
+       content.set_width(std::max(0, right - content.x()));
+     }
+   }
+-  const int capsule_width = std::min(480, content.width() - 224);
++  const int toolbar_width = FloatingToolbarWidth();
++  // Fixed traffic lights have priority when the left sidebar is absent.
++  const int leading = std::max(content.x() + 8, 108);
++  const int trailing = std::min(content.right() - 8, browser_view->width() - 8);
++  const gfx::Rect bar_region(leading, 8 + TopUIFullscreenYOffset(),
++                             std::max(0, trailing - leading), 36);
++  const int address_left = leading + 76 + 12;
++  const int address_right = trailing - toolbar_width - 12;
++  const int capsule_width = std::min(480, address_right - address_left);
+   if (capsule_width < 160) {
++    UpdateFloatingToolbar(gfx::Rect(), false);
+     UpdateFloatingWindowControls(false);
+     [floating_address_bar_ setPresented:NO];
+     floating_address_refresh_timer_->Stop();
+@@ -1473,8 +1612,8 @@ void BrowserFrameViewMac::UpdateFloating
+     return;
+   }
+   const gfx::Rect bounds(
+-      content.CenterPoint().x() - capsule_width / 2,
+-      4 + TopUIFullscreenYOffset(), capsule_width,
++      address_left + (address_right - address_left - capsule_width) / 2,
++      8 + TopUIFullscreenYOffset(), capsule_width,
+       floating_address_bar_ ? [floating_address_bar_ preferredHeight] : 36);
+   NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
+   NSView* native_view =
+@@ -1512,6 +1651,7 @@ void BrowserFrameViewMac::UpdateFloating
+   // Keyboard address editing reveals the same surface as pointer entry.
+   const bool present = in_rail || within_retention || editing ||
+                        ([floating_address_bar_ isPresented] && bubble_open);
++  UpdateFloatingToolbar(bar_region, present);
+   UpdateFloatingWindowControls(present);
+   if (present) {
+     if (!host) {
+@@ -1526,6 +1666,15 @@ void BrowserFrameViewMac::UpdateFloating
+     [floating_address_bar_ refresh];
+     host->SetVisible(true);
+     [floating_address_bar_ setPresented:YES];
++    floating_navigation_.appearance = floating_address_bar_.appearance;
++    floating_toolbar_material_.appearance = floating_address_bar_.appearance;
++    if (floating_toolbar_widget_) {
++      floating_toolbar_widget_->GetNativeWindow()
++          .GetNativeNSWindow()
++          .appearance = floating_address_bar_.appearance;
++    }
++    floating_drag_region_.addressBounds = NSMakeRect(
++        bounds.x() - bar_region.x(), 8, bounds.width(), bounds.height());
+     // Recheck while visible so native menus/focus changes that do not generate
+     // a Views mouse event still update the distance boundary after interaction.
+     if (!floating_address_refresh_timer_->IsRunning()) {
+@@ -1575,3 +1724,166 @@ void BrowserFrameViewMac::UpdateFloating
+   [floating_window_controls_ setPresented:presented];
+   host->SetVisible(presented || !floating_window_controls_.hidden);
+ }
++
++int BrowserFrameViewMac::FloatingToolbarWidth() {
++  auto* toolbar = GetBrowserView()->toolbar();
++  if (!HasFloatingAddressBar()) {
++    ResetFloatingToolbar();
++    return 0;
++  }
++  if (!floating_toolbar_widget_) {
++    floating_toolbar_owner_.SetView(toolbar);
++    floating_toolbar_widget_ = std::make_unique<views::Widget>();
++    views::Widget::InitParams params(
++        views::Widget::InitParams::CLIENT_OWNS_WIDGET,
++        views::Widget::InitParams::TYPE_POPUP);
++    params.ownership = views::Widget::InitParams::CLIENT_OWNS_WIDGET;
++    params.parent = GetWidget()->GetNativeView();
++    params.activatable = views::Widget::InitParams::Activatable::kNo;
++    params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
++    params.shadow_type = views::Widget::InitParams::ShadowType::kNone;
++    params.name = "Floating browser actions";
++    floating_toolbar_widget_->Init(std::move(params));
++    auto root = std::make_unique<views::View>();
++    root->SetLayoutManager(std::make_unique<views::BoxLayout>(
++                               views::BoxLayout::Orientation::kHorizontal,
++                               gfx::Insets::VH(0, 4), 0))
++        ->set_cross_axis_alignment(
++            views::BoxLayout::CrossAxisAlignment::kStretch);
++    floating_toolbar_widget_->SetContentsView(std::move(root));
++    NSView* native =
++        floating_toolbar_widget_->GetNativeView().GetNativeNSView();
++    floating_toolbar_material_ =
++        [[HeliumGlassSurface alloc] initWithFrame:native.frame];
++    floating_toolbar_material_.autoresizingMask =
++        NSViewWidthSizable | NSViewHeightSizable;
++    [native.superview addSubview:floating_toolbar_material_
++                      positioned:NSWindowBelow
++                      relativeTo:native];
++    [floating_toolbar_material_ setPresented:YES];
++    NSWindow* window = native.window;
++    native.superview.wantsLayer = YES;
++    native.superview.layer.cornerRadius = 18;
++    native.superview.layer.masksToBounds = YES;
++    window.hasShadow = YES;
++    window.opaque = NO;
++    window.backgroundColor = NSColor.clearColor;
++  }
++  toolbar->SetFloatingNavigation(true);
++  toolbar->SetFloatingControlsHost(floating_toolbar_widget_->GetContentsView());
++  return floating_toolbar_widget_->GetContentsView()
++      ->GetPreferredSize()
++      .width();
++}
++
++void BrowserFrameViewMac::ResetFloatingToolbar() {
++  if (auto* toolbar =
++          static_cast<ToolbarView*>(floating_toolbar_owner_.view())) {
++    toolbar->SetFloatingControlsHost(nullptr);
++    toolbar->SetFloatingNavigation(false);
++  }
++  floating_toolbar_owner_.SetView(nullptr);
++  if (floating_toolbar_widget_) {
++    floating_toolbar_widget_->CloseNow();
++    floating_toolbar_widget_.reset();
++  }
++  floating_toolbar_material_ = nil;
++  floating_toolbar_presented_ = false;
++  floating_toolbar_target_bounds_ = gfx::Rect();
++}
++
++void BrowserFrameViewMac::UpdateFloatingToolbar(const gfx::Rect& region,
++                                                bool presented) {
++  auto* view = GetBrowserView();
++  auto* nav =
++      static_cast<views::NativeViewHost*>(floating_navigation_host_.view());
++  auto* drag = static_cast<views::NativeViewHost*>(floating_drag_host_.view());
++  if (!HasFloatingAddressBar()) {
++    ResetFloatingToolbar();
++  }
++  if (presented && !nav) {
++    drag = view->AddChildView(std::make_unique<views::NativeViewHost>());
++    floating_drag_host_.SetView(drag);
++    floating_drag_region_ =
++        [[HeliumGlassDragRegion alloc] initWithFrame:NSZeroRect];
++    drag->Attach(gfx::NativeView(floating_drag_region_));
++    nav = view->AddChildView(std::make_unique<views::NativeViewHost>());
++    floating_navigation_host_.SetView(nav);
++    floating_navigation_ =
++        [[HeliumGlassNavigation alloc] initWithBrowserView:view];
++    nav->Attach(gfx::NativeView(floating_navigation_));
++  }
++  if (nav) {
++    [floating_navigation_ refresh];
++    [floating_navigation_ setPresented:presented];
++    nav->SetVisible(presented || !floating_navigation_.hidden);
++  }
++  if (drag) {
++    drag->SetVisible(presented);
++  }
++  if (!region.IsEmpty() && nav) {
++    nav->SetBoundsRect(gfx::Rect(region.x(), region.y(), 76, 36));
++    drag->SetBoundsRect(
++        gfx::Rect(region.x(), region.y() - 8, region.width(), 52));
++    floating_drag_region_.navigationBounds = NSMakeRect(0, 8, 76, 36);
++    floating_drag_region_.windowControlsBounds = NSZeroRect;
++    // Address bounds are updated after its editor and popup have laid out.
++  }
++  if (!floating_toolbar_widget_) {
++    return;
++  }
++  NSWindow* window =
++      floating_toolbar_widget_->GetNativeWindow().GetNativeNSWindow();
++  const BOOL reduceMotion =
++      NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
++  if (presented) {
++    const int width =
++        floating_toolbar_widget_->GetContentsView()->GetPreferredSize().width();
++    gfx::Rect bounds(region.right() - width, region.y(), width, 36);
++    views::View::ConvertRectToScreen(view, &bounds);
++    const bool layout_changed =
++        floating_toolbar_widget_->GetWindowBoundsInScreen().size() !=
++        bounds.size();
++    // Keep the native presentation animation intact between geometry updates.
++    if (bounds != floating_toolbar_target_bounds_ ||
++        !floating_toolbar_presented_) {
++      floating_toolbar_widget_->SetBounds(bounds);
++      floating_toolbar_target_bounds_ = bounds;
++    }
++    if (layout_changed || !floating_toolbar_presented_) {
++      view->toolbar()->AbortToolbarContainerAnimationsForZenReveal();
++      floating_toolbar_widget_->LayoutRootViewIfNecessary();
++    }
++    if (!floating_toolbar_presented_) {
++      window.alphaValue = 0;
++      floating_toolbar_widget_->ShowInactive();
++      NSRect target = window.frame;
++      NSRect start = target;
++      start.origin.y += reduceMotion ? 0 : 12;
++      [window setFrame:start display:YES];
++      [NSAnimationContext
++          runAnimationGroup:^(NSAnimationContext* context) {
++            context.duration = reduceMotion ? 0 : .18;
++            [window.animator setFrame:target display:YES];
++            window.animator.alphaValue = 1;
++          }
++          completionHandler:nil];
++    }
++  } else if (floating_toolbar_presented_) {
++    __weak NSWindow* weakWindow = window;
++    NSRect target = window.frame;
++    target.origin.y += reduceMotion ? 0 : 12;
++    [NSAnimationContext
++        runAnimationGroup:^(NSAnimationContext* context) {
++          context.duration = reduceMotion ? 0 : .18;
++          window.animator.alphaValue = 0;
++          [window.animator setFrame:target display:YES];
++        }
++        completionHandler:^{
++          if (weakWindow.alphaValue == 0) {
++            [weakWindow orderOut:nil];
++          }
++        }];
++  }
++  floating_toolbar_presented_ = presented;
++}
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -1234,6 +1234,9 @@ BrowserView::BrowserView(BrowserWindowIn
+ }
+ 
+ BrowserView::~BrowserView() {
++  if (auto* frame = GetFrameView()) {
++    frame->ResetFloatingToolbar();
++  }
+   visual_tab_switcher_.reset();
+   if (toolbar_) {
+     toolbar_->RestoreToolbarControls();
+@@ -2295,21 +2298,10 @@ void BrowserView::UpdateZenModeReveal(bo
+     }
+   }
+ 
+-  // The middle rail belongs to the floating address capsule. Preserve the
+-  // existing toolbar at the outer edges for window, extension and app controls,
+-  // and keep its normal behavior once it is revealed or has keyboard focus.
+-  if (auto* frame = GetFrameView();
+-      frame && frame->HasFloatingAddressBar() &&
+-      !zen_top_chrome_animation_.IsShowing() &&
+-      !HasOpenBubbleFromTopContainer() &&
+-      !(app_menu_control && app_menu_control->IsMenuShowing()) &&
+-      !(GetFocusManager() &&
+-        top_container_->Contains(GetFocusManager()->GetFocusedView()))) {
+-    gfx::Point cursor;
+-    if (GetCursorLocationInBrowserView(&cursor) && cursor.x() >= 96 &&
+-        cursor.x() < width() - 160) {
+-      reveal_top = false;
+-    }
++  // Floating controls fully replace the layout-based header in this mode.
++  // Revealing them must never resize or move the page.
++  if (auto* frame = GetFrameView(); frame && frame->HasFloatingAddressBar()) {
++    reveal_top = false;
+   }
+ 
+   if (reveal_top) {
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -859,14 +859,14 @@ void ToolbarView::Init() {
+       base::BindRepeating(&ToolbarView::OnShowBackButtonChanged,
+                           base::Unretained(this)));
+ 
+-  back_->SetVisible(show_back_button_.GetValue());
++  back_->SetVisible(!floating_navigation_ && show_back_button_.GetValue());
+ 
+   show_reload_button_.Init(
+       prefs::kShowReloadButton, prefs,
+       base::BindRepeating(&ToolbarView::OnShowReloadButtonChanged,
+                           base::Unretained(this)));
+ 
+-  reload_->SetVisible(show_reload_button_.GetValue());
++  reload_->SetVisible(!floating_navigation_ && show_reload_button_.GetValue());
+ 
+   show_vertical_tabs_collapse_button_.Init(
+       prefs::kShowVerticalTabsCollapseButton, prefs,
+@@ -1788,6 +1788,12 @@ gfx::Size ToolbarView::GetMinimumSize()
+ }
+ 
+ void ToolbarView::Layout(PassKey) {
++  // The floating host owns layout while the real controls are detached.
++  // ResponsiveToolbarLayout must not touch children in another widget.
++  if (!floating_controls_state_.empty()) {
++    return;
++  }
++
+   // If we have not been initialized yet just do nothing.
+   if (!initialized_) {
+     return;
+@@ -2330,6 +2336,8 @@ void ToolbarView::SetSidebarControlsHost
+ }
+ 
+ void ToolbarView::RestoreToolbarControls() {
++  SetFloatingControlsHost(nullptr);
++  SetFloatingNavigation(false);
+   if (!sidebar_controls_host_) {
+     return;
+   }
+@@ -2798,12 +2806,12 @@ void ToolbarView::OnShowHomeButtonChange
+ }
+ 
+ void ToolbarView::OnShowBackButtonChanged() {
+-  back_->SetVisible(show_back_button_.GetValue());
++  back_->SetVisible(!floating_navigation_ && show_back_button_.GetValue());
+   InvalidateLayout();
+ }
+ 
+ void ToolbarView::OnShowReloadButtonChanged() {
+-  reload_->SetVisible(show_reload_button_.GetValue());
++  reload_->SetVisible(!floating_navigation_ && show_reload_button_.GetValue());
+   InvalidateLayout();
+ }
+ 
+@@ -2908,6 +2916,7 @@ void ToolbarView::OnTouchUiChanged() {
+ }
+ 
+ void ToolbarView::SetForwardButtonVisibility(bool visible) {
++  visible = visible && !floating_navigation_;
+   if (features::IsWebUIBackForwardButtonEnabled()) {
+     toolbar_webview_->SetForwardVisible(visible);
+   } else {
+@@ -2926,3 +2935,42 @@ gfx::Size ToolbarView::GetBackForwardBut
+ BEGIN_METADATA(ToolbarView)
+ ADD_READONLY_PROPERTY_METADATA(bool, AppMenuFocused)
+ END_METADATA
++
++// Move the actual controls, including extension-owned buttons, so their models,
++// keyboard actions and popup anchors stay intact in the native glass window.
++void ToolbarView::SetFloatingControlsHost(views::View* host) {
++  if (!host) {
++    for (const auto& state : floating_controls_state_) {
++      if (state.view && state.view->parent() != this) {
++        AddChildViewAt(state.view->parent()->RemoveChildViewT(state.view.get()),
++                       std::min(state.original_index, children().size()));
++      }
++    }
++    floating_controls_state_.clear();
++    InvalidateLayout();
++    return;
++  }
++  if (!floating_controls_state_.empty() || !sidebar_controls_host_) {
++    return;
++  }
++  const auto controls = children();
++  for (size_t i = 0; i < controls.size(); ++i) {
++    views::View* control = controls[i];
++    TransferredControlState state;
++    state.view = control;
++    state.original_index = i;
++    floating_controls_state_.push_back(state);
++    host->AddChildView(RemoveChildViewT(control));
++  }
++  AbortToolbarContainerAnimationsForZenReveal();
++}
++
++void ToolbarView::SetFloatingNavigation(bool floating) {
++  if (floating_navigation_ == floating) {
++    return;
++  }
++  floating_navigation_ = floating;
++  OnShowBackButtonChanged();
++  OnShowForwardButtonChanged();
++  OnShowReloadButtonChanged();
++}
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
+@@ -197,6 +197,8 @@ class ToolbarView : public views::Access
+   // Moves toolbar controls into `host`. Passing nullptr restores them.
+   void SetSidebarControlsHost(VerticalTabStripHeaderView* host);
+   void RestoreToolbarControls();
++  void SetFloatingControlsHost(views::View* host);
++  void SetFloatingNavigation(bool floating);
+ 
+   // Accessors.
+   BrowserWindowInterface* browser() const { return browser_; }
+@@ -600,6 +602,8 @@ class ToolbarView : public views::Access
+     std::optional<views::FlexSpecification> original_flex;
+   };
+   std::vector<TransferredControlState> transferred_controls_state_;
++  std::vector<TransferredControlState> floating_controls_state_;
++  bool floating_navigation_ = false;
+ 
+   bool was_mouse_down_ = false;
+ };
