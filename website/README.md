@@ -44,7 +44,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   panel reduces its horizontal padding to 4px, producing an effective 8px
   margin from the window edge and content pane. The mount toggle and new-tab glyph share that padding and shift 4px when
   pinning changes. Window controls live directly in the window, outside the
-  sliding sidebar and all glass groups, and stay fixed in every sidebar state.
+  sliding sidebar and all glass groups, with a fixed resting position. They stay
+  visible while either the sidebar or glass toolbar is visible; when both hide,
+  they share the toolbar’s slide/fade motion and become inert. The top rail
+  reveals both together, and hovering or focusing the controls keeps them open.
   The illustrated cursor clicks the mounted toggle position. The floating radius is 21px,
   concentric with the 26px window radius across its 1px border and 4px inset.
   The rail also supports keyboard focus and tapping; Escape or tapping content

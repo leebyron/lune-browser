@@ -85,12 +85,13 @@ svg { display: block; }
   /* Reserve sidebar space until its exit finishes; reserve it immediately on entry. */
   #lune .window[data-sidebar="hidden"] .toolbar-region { left:92px; transition:left 0s 260ms; }
   #lune .toolbar-rail { position:absolute; inset:0 0 auto; height:8px; padding:0; border:0; background:transparent; cursor:default; pointer-events:auto; }
+  #lune .window[data-sidebar="hidden"] .toolbar-rail { left:-92px; }
   #lune .toolbar-rail:focus-visible { outline-offset:-2px; }
   #lune .toolbar-region[data-open] { pointer-events:auto; }
   #lune .browser-toolbar { position:absolute; left:16px; right:16px; top:14px; height:36px; display:flex; align-items:center; justify-content:space-between; gap:12px; opacity:0; visibility:hidden; transform:translateY(-64px); transition:transform 180ms cubic-bezier(.4,0,1,1),opacity 120ms ease-out,visibility 180ms; pointer-events:none; }
-  #lune .toolbar-region[data-open] .browser-toolbar { opacity:1; visibility:visible; transform:translateY(0); transition:transform 220ms cubic-bezier(.2,.8,.2,1),opacity 120ms ease-out,visibility 0s; pointer-events:auto; }
-  #lune[data-toolbar-motion="fade"] .browser-toolbar { transform:none; transition:opacity 120ms ease-out,visibility 120ms; }
-  #lune[data-toolbar-motion="fade"] .toolbar-region[data-open] .browser-toolbar { transition:opacity 120ms ease-out,visibility 0s; }
+  #lune .toolbar-region[data-open] .browser-toolbar,#lune .window[data-controls-visible] .window-controls { opacity:1; visibility:visible; transform:translateY(0); transition:transform 220ms cubic-bezier(.2,.8,.2,1),opacity 120ms ease-out,visibility 0s; pointer-events:auto; }
+  #lune[data-toolbar-motion="fade"] .browser-toolbar,#lune[data-toolbar-motion="fade"] .window-controls { transform:none; transition:opacity 120ms ease-out,visibility 120ms; }
+  #lune[data-toolbar-motion="fade"] .toolbar-region[data-open] .browser-toolbar,#lune[data-toolbar-motion="fade"] .window[data-controls-visible] .window-controls { transition:opacity 120ms ease-out,visibility 0s; }
   #lune .glass-pill { display:flex; align-items:center; gap:12px; min-height:36px; padding:6px 12px; border-radius:22px; background:linear-gradient(light-dark(#7897512E,#9FC1D22E),light-dark(#E7EDE3C9,#20455AC9)); border:1px solid light-dark(#526B6530,#DCEAF230); box-shadow:0 2px 8px light-dark(#23455020,#04152120),inset 0 .5px light-dark(#FFFFFF55,#F3FAFF55); backdrop-filter:blur(18px); color:light-dark(#526B65,#BBD2DF); }
   #lune .browser-address { position:absolute; left:50%; transform:translateX(-50%); width:min(480px,calc(100% - 224px)); height:36px; min-width:0; font:400 12px/1.3 -apple-system,BlinkMacSystemFont,sans-serif; }
   #lune .address-display { flex:1; min-width:0; width:100%; padding:0; border:0; outline:none; background:transparent; color:inherit; font:inherit; text-align:center; text-overflow:ellipsis; }
@@ -100,7 +101,7 @@ svg { display: block; }
   #lune .demo-cursor { position:absolute; left:0; top:0; z-index:50; pointer-events:none; opacity:0; offset-path:var(--cursor-path); offset-rotate:0deg; offset-anchor:2px 1.5px; transform-origin:2px 1.5px; filter:drop-shadow(0 2px 3px light-dark(#23455055,#04152155)); }
   #lune .demo-click { position:absolute; z-index:45; left:110px; top:32px; width:36px; height:36px; margin:-18px; border:1px solid light-dark(#276C69,#C9F4EF); border-radius:50%; opacity:0; pointer-events:none; }
   #lune .window[data-sidebar-override] { animation:none!important; }
-  #lune .window-controls { position:absolute; z-index:40; left:16px; top:20px; display:flex; align-items:center; background:none; }
+  #lune .window-controls { position:absolute; z-index:40; left:16px; top:20px; display:flex; align-items:center; background:none; opacity:0; visibility:hidden; transform:translateY(-64px); transition:transform 180ms cubic-bezier(.4,0,1,1),opacity 120ms ease-out,visibility 180ms; pointer-events:none; }
   #lune .window-control { position:relative; width:22px; height:24px; padding:0; border:0; background:none; cursor:default; }
   #lune .window-control::before { content:''; position:absolute; width:14px; height:14px; left:4px; top:5px; border-radius:50%; background:light-dark(#A3B4A4,#91A2AE); box-shadow:inset 0 0 0 .5px light-dark(#23455045,#061B2C45),inset 0 .5px .5px light-dark(#23455035,#DDE7EA35); }
   #lune .control-glyph { position:absolute; width:7px; height:7px; top:8.5px; left:7.5px; opacity:0; color:light-dark(#234550,#273C4A); }
@@ -194,7 +195,7 @@ svg { display: block; }
   #lune .demo-cursor,#lune .demo-click { display:none; animation:none; }
   #lune .browser-sidebar { transition:none; }
   #lune .window[data-sidebar="hidden"] .toolbar-region { transition:none; }
-  #lune .browser-toolbar,#lune .toolbar-region[data-open] .browser-toolbar { transform:none; transition:opacity 100ms linear,visibility 100ms; }
+  #lune .browser-toolbar,#lune .toolbar-region[data-open] .browser-toolbar,#lune .window-controls,#lune .window[data-controls-visible] .window-controls { transform:none; transition:opacity 100ms linear,visibility 100ms; }
 }
 
 @media (prefers-color-scheme: light) {

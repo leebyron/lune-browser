@@ -2,6 +2,7 @@
   const root=document.getElementById('lune');
   const scroll=root.querySelector('.scroll'),stage=root.querySelector('.stage'),win=root.querySelector('.window');
   const hero=root.querySelector('.hero'),learn=root.querySelector('.learn'),pages=root.querySelector('.pages');
+  const windowControls=root.querySelector('.window-controls');
   const sidebar=root.querySelector('.browser-sidebar'),sidebarToggle=root.querySelector('.sidebar-toggle');
   const demoCursor=root.querySelector('.demo-cursor'),demoClick=root.querySelector('.demo-click');
   const sidebarRegion=root.querySelector('.sidebar-region'),sidebarRail=root.querySelector('.sidebar-rail');
@@ -80,6 +81,7 @@
     sidebarToggle.setAttribute('aria-pressed', String(!floating));
     sidebarToggle.setAttribute('aria-label', floating ? 'Pin sidebar' : 'Unpin sidebar');
     win.dataset.sidebar = !floating ? 'pinned' : visible ? 'floating' : 'hidden';
+    updateWindowControls();
     if (!nativeTimeline) {
       demoCursor.style.offsetDistance = `${cursorDistance}%`;
       demoCursor.style.opacity = Math.min(clamp(progress / .06), 1 - clamp((progress - .94) / .06));
@@ -114,23 +116,38 @@
     updateSidebar(scroll.scrollTop);
   });
   win.addEventListener('pointerdown', event => {
-    if (sidebarRegion.contains(event.target)) return;
+    if (sidebarRegion.contains(event.target) || windowControls.contains(event.target)) return;
     if (event.pointerType === 'touch') sidebarHovered = false;
     if (sidebarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
     updateSidebar(scroll.scrollTop);
   });
+  function updateWindowControls() {
+    const visible = win.dataset.sidebar !== 'hidden' || toolbarRegion.hasAttribute('data-open');
+    win.toggleAttribute('data-controls-visible', visible);
+    windowControls.inert = !visible;
+    windowControls.setAttribute('aria-hidden', String(!visible));
+  }
+  windowControls.addEventListener('pointerenter', () => {
+    if (win.dataset.sidebar === 'hidden') showToolbar();
+  });
+  windowControls.addEventListener('focusin', () => {
+    if (win.dataset.sidebar === 'hidden') showToolbar();
+  });
+  windowControls.addEventListener('focusout', () => queueMicrotask(dismissDistantPanels));
   function showToolbar() {
     if (!appVisible) return;
     toolbarRegion.dataset.open = '';
     toolbar.inert = false;
     toolbar.setAttribute('aria-hidden', 'false');
     toolbarRail.setAttribute('aria-expanded', 'true');
+    updateWindowControls();
   }
   function hideToolbar() {
     delete toolbarRegion.dataset.open;
     toolbar.inert = true;
     toolbar.setAttribute('aria-hidden', 'true');
     toolbarRail.setAttribute('aria-expanded', 'false');
+    updateWindowControls();
   }
   function distanceFromPanel(point, rect) {
     const dx = Math.max(rect.left - point.x, 0, point.x - rect.right);
@@ -151,8 +168,10 @@
     // Treat its capsules and the gaps between them as one floating top bar.
     const area = toolbarRegion.getBoundingClientRect();
     const rect = {left:area.left + 16,right:area.right - 16,top:area.top + 14,bottom:area.top + 50};
+    const controlsRect = windowControls.getBoundingClientRect();
     if (toolbarRegion.hasAttribute('data-open') && !toolbarRegion.contains(document.activeElement) &&
-        distanceFromPanel(panelPointer, rect) > panelDismissDistance) hideToolbar();
+        !windowControls.contains(document.activeElement) &&
+        Math.min(distanceFromPanel(panelPointer, rect), distanceFromPanel(panelPointer, controlsRect)) > panelDismissDistance) hideToolbar();
   }
   function trackPanelPointer(event) {
     if (event.pointerType === 'touch') return;
@@ -181,7 +200,7 @@
     hideToolbar();
   });
   win.addEventListener('pointerdown', event => {
-    if (toolbarRegion.contains(event.target)) return;
+    if (toolbarRegion.contains(event.target) || windowControls.contains(event.target)) return;
     if (toolbarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
     if (event.pointerType === 'touch') hideToolbar();
     else trackPanelPointer(event);
