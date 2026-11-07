@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "d2dd4a3016b1aa58a567e1f335ceec5824d98310",
+    "commit": "ce68c4197417edd5f54c64c30d453a17d4e7c111",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -381,6 +381,18 @@
       {
         "path": "patches/helium/ui/floating-toolbar-content-opacity.patch",
         "sha256": "272c41867e9cab704bd38b907fa4f38f09966d23619593d07f7db3b494189315"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-footer.patch",
+        "sha256": "565485ff323d90f98e1e932b60c8ed07830dc5e076251db8d877805b0e0057cf"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-close-controls.patch",
+        "sha256": "944278a74a5698f0963cc8163535e79fc5e5b4fd656b3acc82ca47401e4a4373"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-native-close-icons.patch",
+        "sha256": "f3976452e74cb075bc0364af76ae6827b584f197697df88d2a7668d46a590c3f"
       }
     ]
   },
@@ -703,6 +715,20 @@
       "review_status": "reviewed-port",
       "rationale": "Place New Tab below pinned tiles and above regular tabs; prepend default new tabs while opening links immediately after the active tab. Match regular tab hover colors and spacing, with filled pinned tiles and wider matching section spacing.",
       "adaptation": "Locally authored quilt patches, separate from distribution identity; see agent-docs/project/features/sidebar-new-tab.md for behavior and validation."
+    },
+    {
+      "id": "sidebar-footer",
+      "depends_on": [
+        "sidebar-new-tab"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-footer.patch",
+        "patches/helium/ui/sidebar-close-controls.patch",
+        "patches/helium/ui/sidebar-native-close-icons.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Reserve a compact footer for the default-browser prompt and downloaded Sparkle update, retaining existing eligibility, dismissal and relaunch actions. Keep other infobars unchanged.",
+      "adaptation": "Unbranded Views feature with the existing macOS Sparkle bridge; see agent-docs/project/features/sidebar-footer.md for validation and limitations."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."
