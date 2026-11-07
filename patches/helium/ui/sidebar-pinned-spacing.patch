@@ -1,0 +1,14 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
+@@ -306,7 +306,10 @@ views::ProposedLayout TabStripViewLayout
+     int min_pinned_height = 0;
+     if (const auto* pinned_container =
+             tab_strip_view->GetPinnedTabsContainer()) {
+-      min_pinned_height = pinned_container->GetMinimumSize().height();
++      // A single row can be shorter than the scrolling minimum. Do not
++      // turn that minimum into extra blank space below the pinned tiles.
++      min_pinned_height = std::min(
++          pinned_preferred_height, pinned_container->GetMinimumSize().height());
+     }
+     pinned_container_height = CalculatePinnedContainerMainAxisSize(
+         pinned_preferred_height, unpinned_preferred_height, remaining_height,
