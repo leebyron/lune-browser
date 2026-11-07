@@ -1,0 +1,389 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -15443,8 +15443,8 @@
+       </if>
+ 
+       <!-- Default Browser messages -->
+-      <message name="IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL" desc="The label of the 'set as default' button on the default browser infobar.">
+-        Set as default
++      <message name="IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL" desc="The label of the button that makes this the default browser.">
++        Make default browser
+       </message>
+       <if expr="is_win">
+         <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_INSTRUCTION_STEP_1" desc="Instruction step 1 of the default browser visual guided setter.">
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -545,6 +545,7 @@
+     "//chrome/browser/ui/color:color_headers",
+     "//chrome/browser/ui/tabs:tab_strip",
+     "//chrome/browser/ui/views/helium:native_frame_materials",
++    "//chrome/browser/ui/views/tabs/tab",
+     "//components/omnibox/browser:vector_icons",
+     "//components/strings:components_strings_grit",
+     "//components/vector_icons",
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/views/frame/sidebar_footer_view.h"
+ 
+ #include "base/functional/bind.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ref.h"
+ #include "chrome/browser/buildflags.h"
+ #include "chrome/browser/lifetime/application_lifetime.h"
+@@ -14,6 +15,7 @@
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/omnibox/browser/vector_icons.h"
+@@ -42,12 +44,14 @@
+  public:
+   FooterButton(base::RepeatingClosure action,
+                int message,
+-               const gfx::VectorIcon& icon)
++               const gfx::VectorIcon& icon,
++               bool paint_hover = true)
+       : views::LabelButton(std::move(action),
+                            l10n_util::GetStringUTF16(message)),
+-        icon_(icon) {
++        icon_(icon),
++        paint_hover_(paint_hover) {
+     SetHorizontalAlignment(gfx::ALIGN_LEFT);
+-    SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 7)));
++    SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(4, 9, 4, 7)));
+     SetImageLabelSpacing(7);
+     SetPreferredSize(
+         gfx::Size(-1, GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
+@@ -65,7 +69,8 @@
+   }
+ 
+   void OnPaintBackground(gfx::Canvas* canvas) override {
+-    if (GetState() != STATE_HOVERED && GetState() != STATE_PRESSED) {
++    if (!paint_hover_ ||
++        (GetState() != STATE_HOVERED && GetState() != STATE_PRESSED)) {
+       return;
+     }
+     cc::PaintFlags flags;
+@@ -81,9 +86,82 @@
+ 
+  private:
+   const raw_ref<const gfx::VectorIcon> icon_;
++  const bool paint_hover_;
+ };
+ BEGIN_METADATA(FooterButton)
+ END_METADATA
++// One hover surface, including the trailing close control, like a tab row.
++class SidebarDefaultBrowserRow : public views::FlexLayoutView {
++  METADATA_HEADER(SidebarDefaultBrowserRow, views::FlexLayoutView)
++ public:
++  SidebarDefaultBrowserRow() {
++    SetOrientation(views::LayoutOrientation::kHorizontal);
++    SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
++    SetNotifyEnterExitOnChild(true);
++    action_ = AddChildView(std::make_unique<FooterButton>(
++        base::RepeatingClosure(), IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL,
++        omnibox::kProductChromeRefreshOldIcon, false));
++    action_->SetProperty(
++        views::kFlexBehaviorKey,
++        views::FlexSpecification(views::LayoutOrientation::kHorizontal,
++                                 views::MinimumFlexSizeRule::kScaleToZero,
++                                 views::MaximumFlexSizeRule::kUnbounded));
++    close_ = AddChildView(std::make_unique<TabCloseButton>(
++        base::RepeatingClosure(),
++        base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(), 4));
++    const int close_margin =
++        (GetLayoutConstant(LayoutConstant::kVerticalTabHeight) -
++         close_->GetPreferredSize().width()) /
++        2;
++    close_->SetProperty(views::kMarginsKey,
++                        gfx::Insets::TLBR(0, 0, 0, close_margin));
++    close_->SetVisible(false);
++  }
++  views::LabelButton* action() { return action_; }
++  views::LabelButton* close() { return close_; }
++  void SetCollapsed(bool collapsed) {
++    collapsed_ = collapsed;
++    close_->SetVisible(!collapsed_ && IsMouseHovered());
++  }
++  void OnMouseEntered(const ui::MouseEvent& event) override {
++    close_->SetVisible(!collapsed_);
++    SchedulePaint();
++  }
++  void OnMouseExited(const ui::MouseEvent& event) override {
++    close_->SetVisible(false);
++    SchedulePaint();
++  }
++  void OnThemeChanged() override {
++    views::FlexLayoutView::OnThemeChanged();
++    TabStyle::TabColors colors;
++    colors.foreground_color = helium::NativeGlassControlColor(this).value_or(
++        GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive));
++    colors.background_color = GetColorProvider()->GetColor(
++        kColorTabBackgroundInactiveHoverFrameActive);
++    close_->SetColors(colors);
++  }
++  void OnPaintBackground(gfx::Canvas* canvas) override {
++    if (!IsMouseHovered()) {
++      return;
++    }
++    cc::PaintFlags flags;
++    flags.setAntiAlias(true);
++    flags.setColor(
++        helium::NativeGlassColor(this, helium::NativeGlassColorRole::kHover)
++            .value_or(GetColorProvider()->GetColor(
++                kColorTabBackgroundInactiveHoverFrameActive)));
++    canvas->DrawRoundRect(
++        gfx::RectF(GetLocalBounds()),
++        GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius), flags);
++  }
++
++ private:
++  raw_ptr<views::LabelButton> action_;
++  raw_ptr<TabCloseButton> close_;
++  bool collapsed_ = false;
++};
++BEGIN_METADATA(SidebarDefaultBrowserRow)
++END_METADATA
+ }  // namespace
+ 
+ SidebarFooterView::SidebarFooterView(
+@@ -96,28 +174,13 @@
+ 
+   update_button_ = AddChildView(std::make_unique<FooterButton>(
+       base::BindRepeating([] { chrome::AttemptRelaunch(); }),
+-      IDS_RELAUNCH_TO_UPDATE, vector_icons::kRefreshIcon));
++      IDS_APP_MENU_BUTTON_UPDATE_ALT2, vector_icons::kRefreshIcon));
+ 
+-  default_prompt_ = AddChildView(std::make_unique<views::FlexLayoutView>());
+-  default_prompt_->SetOrientation(views::LayoutOrientation::kHorizontal);
+-  default_prompt_->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
+-  default_button_ =
+-      default_prompt_->AddChildView(std::make_unique<FooterButton>(
+-          base::RepeatingClosure(), IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL,
+-          omnibox::kProductChromeRefreshOldIcon));
+-  default_button_->SetProperty(
+-      views::kFlexBehaviorKey,
+-      views::FlexSpecification(views::LayoutOrientation::kHorizontal,
+-                               views::MinimumFlexSizeRule::kScaleToZero,
+-                               views::MaximumFlexSizeRule::kUnbounded));
++  auto* row = AddChildView(std::make_unique<SidebarDefaultBrowserRow>());
++  default_prompt_ = row;
++  default_button_ = row->action();
++  dismiss_button_ = row->close();
+   default_button_->set_context_menu_controller(this);
+-  dismiss_button_ =
+-      default_prompt_->AddChildView(std::make_unique<FooterButton>(
+-          base::RepeatingClosure(), IDS_APP_CLOSE, vector_icons::kCloseIcon));
+-  dismiss_button_->SetText(u"");
+-  dismiss_button_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
+-  dismiss_button_->SetPreferredSize(
+-      gfx::Size(28, GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
+   dismiss_button_->set_context_menu_controller(this);
+ 
+   collapse_subscription_ =
+@@ -162,10 +225,12 @@
+   default_button_->GetViewAccessibility().SetName(
+       l10n_util::GetStringUTF16(IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL));
+   update_button_->SetText(
+-      collapsed ? u"" : l10n_util::GetStringUTF16(IDS_RELAUNCH_TO_UPDATE));
++      collapsed ? u""
++                : l10n_util::GetStringUTF16(IDS_APP_MENU_BUTTON_UPDATE_ALT2));
+   update_button_->GetViewAccessibility().SetName(
+-      l10n_util::GetStringUTF16(IDS_RELAUNCH_TO_UPDATE));
+-  dismiss_button_->SetVisible(!collapsed);
++      l10n_util::GetStringUTF16(IDS_APP_MENU_BUTTON_UPDATE_ALT2));
++  static_cast<SidebarDefaultBrowserRow*>(default_prompt_.get())
++      ->SetCollapsed(collapsed);
+   default_prompt_->SetVisible(has_default_prompt_);
+   update_button_->SetVisible(ready);
+   SetVisible(has_default_prompt_ || ready);
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -331,7 +331,8 @@
+           base::BindRepeating(&TabView::CloseButtonPressed,
+                               base::Unretained(this)),
+           // TODO(crbug.com/467733947): Hook up metrics logging callback.
+-          base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>()))),
++          base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(),
++          orientation_ == TabStripOrientation::kVertical ? 4 : 0))),
+       hover_controller_(gfx::Animation::ShouldRenderRichAnimation()
+                             ? std::make_unique<GlowHoverController>(
+                                   this,
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
+@@ -30,7 +30,9 @@
+ void TabViewVerticalLayout::OnInstalled(views::View* host) {
+   TabView::LayoutManager::OnInstalled(host);
+   tab_children_configs_ = {
+-      TabChildConfig(TabView().close_button_, kIconDesignWidth, kDefaultPadding,
++      TabChildConfig(TabView().close_button_,
++                     GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) + 4,
++                     kDefaultPadding,
+                      /*align_leading=*/false,
+                      /*expand=*/false),
+       TabChildConfig(TabView().icon_, kIconDesignWidth, kHorizontalInset,
+@@ -82,9 +84,14 @@
+                placed_children < 2);
+     const bool is_child_visible = IsChildVisible(child.view, width);
+     if (is_child_visible && can_render_child) {
+-      layouts.child_layouts.emplace_back(
+-          child.view.get(), is_child_visible,
+-          GetChildBounds(bounds_remaining, child, is_centered));
++      gfx::Rect child_bounds =
++          GetChildBounds(bounds_remaining, child, is_centered);
++      if (child.view == TabView().close_button_ && !is_centered) {
++        // Equal outer clearance above, below and to the trailing row edge.
++        child_bounds.set_x(width - (height + child_bounds.width()) / 2);
++      }
++      layouts.child_layouts.emplace_back(child.view.get(), is_child_visible,
++                                         child_bounds);
+ 
+       if (!is_centered) {
+         bounds_remaining.Inset(
+@@ -188,21 +195,9 @@
+       return false;
+     }
+ 
+-    // When uncollapsing the tabstrip, intentionally start showing the close
+-    // button on active non-hovered tabs a little bit sooner than reaching the
+-    // uncollapsed min width, because otherwise the close buttons in a grouped
+-    // split tab will visibly show up at different times due to rounding.
+-    constexpr int kUncollapsedMinWidthThreshold = 3;
+-
+-    const bool hovered_or_focused =
+-        TabView().hovered_ || TabView().HasFocus() ||
+-        (TabView().close_button_ && TabView().close_button_->HasFocus());
+-    if (width <
+-        TabView().UncollapsedMinWidth() - kUncollapsedMinWidthThreshold) {
+-      return TabView().active_ && hovered_or_focused;
+-    }
+-
+-    return TabView().active_ || hovered_or_focused;
++    // Selection does not keep a close icon visible. Preserve keyboard access
++    // while the close control itself has focus.
++    return TabView().hovered_ || TabView().close_button_->HasFocus();
+   }
+ 
+   NOTREACHED() << "Unknown tab child view";
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
+@@ -33,11 +33,12 @@
+ #endif
+ 
+ namespace {
+-gfx::Size GetButtonSize() {
++gfx::Size GetButtonSize(int extra_icon_size) {
+   // The close button is larger than the icon inside to provide a larger hit
+   // target.
+   constexpr int kButtonPadding = 12;
+-  const int icon_size = GetLayoutConstant(LayoutConstant::kTabCloseButtonSize);
++  const int icon_size =
++      GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) + extra_icon_size;
+   const int button_size = icon_size + kButtonPadding;
+   return gfx::Size(button_size, button_size);
+ }
+@@ -47,8 +48,10 @@
+ }  // namespace
+ 
+ TabCloseButton::TabCloseButton(PressedCallback pressed_callback,
+-                               MouseEventCallback mouse_event_callback)
++                               MouseEventCallback mouse_event_callback,
++                               int extra_icon_size)
+     : views::LabelButton(std::move(pressed_callback)),
++      extra_icon_size_(extra_icon_size),
+       mouse_event_callback_(std::move(mouse_event_callback)) {
+   SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
+   GetViewAccessibility().SetName(l10n_util::GetStringUTF16(IDS_ACCNAME_CLOSE));
+@@ -171,7 +174,7 @@
+ 
+ gfx::Size TabCloseButton::CalculatePreferredSize(
+     const views::SizeBounds& available_size) const {
+-  return GetButtonSize();
++  return GetButtonSize(extra_icon_size_);
+ }
+ 
+ views::View* TabCloseButton::TargetForRect(views::View* root,
+@@ -216,15 +219,18 @@
+   SetImageModel(views::Button::STATE_NORMAL,
+                 ui::ImageModel::FromVectorIcon(
+                     icon, colors_.foreground_color,
+-                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize)));
++                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
++                        extra_icon_size_));
+   SetImageModel(views::Button::STATE_HOVERED,
+                 ui::ImageModel::FromVectorIcon(
+                     icon, colors_.foreground_color,
+-                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize)));
++                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
++                        extra_icon_size_));
+   SetImageModel(views::Button::STATE_PRESSED,
+                 ui::ImageModel::FromVectorIcon(
+                     icon, colors_.foreground_color,
+-                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize)));
++                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
++                        extra_icon_size_));
+ }
+ 
+ BEGIN_METADATA(TabCloseButton)
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.h
+@@ -28,7 +28,8 @@
+   //
+   // See note on SetTabColor.
+   TabCloseButton(PressedCallback pressed_callback,
+-                 MouseEventCallback mouse_event_callback);
++                 MouseEventCallback mouse_event_callback,
++                 int extra_icon_size = 0);
+   TabCloseButton(const TabCloseButton&) = delete;
+   TabCloseButton& operator=(const TabCloseButton&) = delete;
+   ~TabCloseButton() override;
+@@ -63,6 +64,7 @@
+   views::View* TargetForRect(views::View* root, const gfx::Rect& rect) override;
+   bool GetHitTestMask(SkPath* mask) const override;
+ 
++  const int extra_icon_size_;
+   MouseEventCallback mouse_event_callback_;
+ 
+   TabStyle::TabColors colors_;
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -191,7 +191,7 @@
+     case LayoutConstant::kVerticalTabMinWidth:
+       return 30;
+     case LayoutConstant::kVerticalTabStripHorizontalPadding:
+-      return 6;
++      return 5;
+     case LayoutConstant::kVerticalTabStripUncollapsedVerticalPadding:
+       return 6;
+     case LayoutConstant::kVerticalTabStripCollapsedVerticalPadding:
+--- a/chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc
++++ b/chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc
+@@ -272,7 +272,9 @@
+ }
+ 
+ gfx::Insets VerticalTabStyleViews::GetContentsInsets() const {
+-  return gfx::Insets::VH(
++  return gfx::Insets::TLBR(
++      GetLayoutConstant(LayoutConstant::kTabVerticalPadding),
++      GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2,
+       GetLayoutConstant(LayoutConstant::kTabVerticalPadding),
+       GetLayoutConstant(LayoutConstant::kTabHorizontalPadding));
+ }
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -32,8 +32,10 @@
+   // Paint exactly one tab-style hover fill; no toolbar ink-drop overlay.
+   views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
+   SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
+-  SetLabelInsets(gfx::Insets::VH(kBasePadding, kBigPadding),
+-                 gfx::Insets::VH(kBasePadding, kBigPadding));
++  SetLabelInsets(gfx::Insets::TLBR(kBasePadding, kBigPadding + 2, kBasePadding,
++                                   kBigPadding),
++                 gfx::Insets::TLBR(kBasePadding, kBigPadding + 2, kBasePadding,
++                                   kBigPadding));
+   SetImageLabelSpacing(kBigPadding);
+   SetShouldShowLabel(true);
+   SetLabelText(l10n_util::GetStringUTF16(IDS_ACCNAME_NEWTAB));
