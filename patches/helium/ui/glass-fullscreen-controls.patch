@@ -1,0 +1,227 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -49,6 +49,7 @@
+ #include "chrome/browser/ui/views/frame/browser_widget.h"
+ #include "chrome/browser/ui/views/frame/caption_button_placeholder_container.h"
+ #include "chrome/browser/ui/views/frame/contents_container_outline.h"
++#include "chrome/browser/ui/views/frame/contents_container_view.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+@@ -102,11 +103,13 @@
+ #include "ui/views/widget/widget_delegate.h"
+ 
+ namespace {
+-NSAppearance* FloatingChromeAppearance() {
+-  // Glass is system chrome even when the browser/page theme is overridden.
+-  const bool dark =
+-      ui::NativeTheme::GetInstanceForNativeUi()->preferred_color_scheme() ==
+-      ui::NativeTheme::PreferredColorScheme::kDark;
++NSAppearance* FloatingChromeAppearance(BrowserView* view) {
++  const auto scheme = ThemeServiceFactory::GetForProfile(view->GetProfile())
++                          ->GetBrowserColorScheme();
++  const bool dark = scheme == ThemeService::BrowserColorScheme::kDark ||
++      (scheme == ThemeService::BrowserColorScheme::kSystem &&
++       ui::NativeTheme::GetInstanceForNativeUi()->preferred_color_scheme() ==
++           ui::NativeTheme::PreferredColorScheme::kDark);
+   return [NSAppearance
+       appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+ }
+@@ -348,6 +351,9 @@ NSAppearance* FloatingChromeAppearance()
+   }
+ }
+ - (BOOL)dragging {
++  if (_dragging && !(NSEvent.pressedMouseButtons & 1)) {
++    _dragging = NO;
++  }
+   return _dragging;
+ }
+ @synthesize enabled = _enabled;
+@@ -372,11 +378,9 @@ NSAppearance* FloatingChromeAppearance()
+     return;
+   }
+   _dragging = YES;
+-  @try {
+-    [self.window performWindowDragWithEvent:event];
+-  } @finally {
+-    _dragging = NO;
+-  }
++  // AppKit can return while the mouse is still down. The presentation latch
++  // ends on physical mouse-up, rather than on this method's return.
++  [self.window performWindowDragWithEvent:event];
+ }
+ @end
+ 
+@@ -515,6 +519,9 @@ NSAppearance* FloatingChromeAppearance()
+   return self;
+ }
+ - (BOOL)dragging {
++  if (_dragging && !(NSEvent.pressedMouseButtons & 1)) {
++    _dragging = NO;
++  }
+   return _dragging;
+ }
+ - (NSView*)hitTest:(NSPoint)point {
+@@ -540,11 +547,9 @@ NSAppearance* FloatingChromeAppearance()
+     return;
+   }
+   _dragging = YES;
+-  @try {
+-    [self.window performWindowDragWithEvent:event];
+-  } @finally {
+-    _dragging = NO;
+-  }
++  // AppKit can return while the mouse is still down. The presentation latch
++  // ends on physical mouse-up, rather than on this method's return.
++  [self.window performWindowDragWithEvent:event];
+ }
+ - (void)setTopPresented:(BOOL)presented sideReveal:(CGFloat)sideReveal {
+   if (_topPresented == presented && _sideReveal == sideReveal) {
+@@ -775,7 +780,7 @@ class HeliumGlassAutocompleteObserver
+   _reload.toolTip = base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
+       loading ? IDS_TOOLTIP_STOP : IDS_TOOLTIP_RELOAD));
+   _reload.accessibilityLabel = _reload.toolTip;
+-  self.appearance = FloatingChromeAppearance();
++  self.appearance = FloatingChromeAppearance(_browserView.get());
+ }
+ 
+ - (void)dealloc {
+@@ -1793,10 +1798,19 @@ void BrowserFrameViewMac::UpdateFloating
+     return;
+   }
+ 
+-  // Content coordinates naturally account for either mounted sidebar edge.
+-  gfx::Rect content = views::View::ConvertRectToTarget(
+-      browser_view->contents_container()->parent(), browser_view,
+-      browser_view->contents_container()->bounds());
++  // Use the page edges, not the outer container (which also owns the rails).
++  // A pill's 18-point radius shares the content corner's center when its inset
++  // is the difference between their radii.
++  gfx::Rect content;
++  for (const auto& container : browser_view->GetContentsContainerViews()) {
++    if (container->GetVisible()) {
++      content.Union(views::View::ConvertRectToTarget(
++          container.get(), browser_view, container->GetContentsViewBounds()));
++    }
++  }
++  const int glass_inset = browser_view->IsFullscreen()
++      ? 8
++      : std::max(0, 26 - ContentsContainerOutline::GetThickness(false) - 18);
+   const gfx::Rect side = browser_view->GetFloatingSidebarBounds();
+   if (!side.IsEmpty()) {
+     if (browser_view->IsVerticalTabStripRightAligned()) {
+@@ -1817,9 +1831,9 @@ void BrowserFrameViewMac::UpdateFloating
+                : 0;
+   const bool right_sidebar = browser_view->IsVerticalTabStripRightAligned();
+   const int leading =
+-      std::max(content.x() + 8, 108) + (right_sidebar ? 0 : toggle_space);
++      std::max(content.x() + glass_inset, 108) + (right_sidebar ? 0 : toggle_space);
+   const int trailing =
+-      std::min(content.right() - 8, browser_view->width() - 8) -
++      std::min(content.right() - glass_inset, browser_view->width() - 8) -
+       (right_sidebar ? toggle_space : 0);
+   const gfx::Rect bar_region(leading, 8 + TopUIFullscreenYOffset(),
+                              std::max(0, trailing - leading), 36);
+@@ -1891,8 +1905,8 @@ void BrowserFrameViewMac::UpdateFloating
+     [floating_address_bar_ refresh];
+     host->SetVisible(true);
+     [floating_address_bar_ setPresented:YES];
+-    floating_navigation_.appearance = FloatingChromeAppearance();
+-    floating_toolbar_material_.appearance = FloatingChromeAppearance();
++    floating_navigation_.appearance = FloatingChromeAppearance(GetBrowserView());
++    floating_toolbar_material_.appearance = FloatingChromeAppearance(GetBrowserView());
+ 
+     floating_drag_region_.addressBounds = NSMakeRect(
+         bounds.x(), 8, bounds.width(), bounds.height());
+@@ -1937,7 +1951,7 @@ void BrowserFrameViewMac::UpdateFloating
+   const gfx::Rect side = view->GetFloatingSidebarBounds();
+   const int x = !presented && !side.IsEmpty() ? side.x() : 8;
+   host->SetBoundsRect(gfx::Rect(x, 8 + TopUIFullscreenYOffset(), 96, 36));
+-  floating_window_controls_.appearance = FloatingChromeAppearance();
++  floating_window_controls_.appearance = FloatingChromeAppearance(GetBrowserView());
+   [floating_window_controls_ refresh];
+   // Move the host with the surface, avoiding clipping translated buttons
+   // inside a stationary NativeViewHost.
+@@ -1963,8 +1977,10 @@ int BrowserFrameViewMac::FloatingToolbar
+     params.activatable = views::Widget::InitParams::Activatable::kNo;
+     params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
+     params.shadow_type = views::Widget::InitParams::ShadowType::kNone;
++    params.child = true;
+     params.name = "Floating browser actions";
+     floating_toolbar_widget_->Init(std::move(params));
++    floating_toolbar_widget_->SetCanAppearInExistingFullscreenSpaces(true);
+     auto root = std::make_unique<views::View>();
+     root->SetLayoutManager(std::make_unique<views::BoxLayout>(
+                                views::BoxLayout::Orientation::kHorizontal,
+@@ -2058,7 +2074,7 @@ void BrowserFrameViewMac::UpdateFloating
+   material_host->SetVisible(presented || !floating_toolbar_material_.hidden);
+   NSWindow* window =
+       floating_toolbar_widget_->GetNativeWindow().GetNativeNSWindow();
+-  NSAppearance* appearance = FloatingChromeAppearance();
++  NSAppearance* appearance = FloatingChromeAppearance(GetBrowserView());
+   if (![window.appearance isEqual:appearance]) {
+     window.appearance = appearance;
+     floating_toolbar_widget_->ResetLastColorProviderKey();
+@@ -2163,6 +2179,7 @@ void BrowserFrameViewMac::UpdateFloating
+       params.child = true;
+       params.name = "Floating sidebar controls";
+       floating_sidebar_widget_->Init(std::move(params));
++      floating_sidebar_widget_->SetCanAppearInExistingFullscreenSpaces(true);
+       floating_sidebar_widget_->SetNativeWindowProperty(
+           BrowserView::kBrowserViewKey, view);
+       floating_sidebar_widget_->SetContentsView(
+@@ -2186,7 +2203,7 @@ void BrowserFrameViewMac::UpdateFloating
+     background->SetVisible(reveal > 0);
+     // The sidebar already supplies its own horizontal slide/fade progress.
+     [floating_sidebar_material_ setRevealFraction:reveal];
+-    floating_sidebar_material_.appearance = FloatingChromeAppearance();
++    floating_sidebar_material_.appearance = FloatingChromeAppearance(GetBrowserView());
+     // Keep the 38-point native header row and 5-point resize band in the
+     // parent window, rather than relying on delayed mouse-event pass-through.
+     bounds.Inset(gfx::Insets::TLBR(38, right ? 5 : 0, 0, right ? 0 : 5));
+@@ -2198,7 +2215,7 @@ void BrowserFrameViewMac::UpdateFloating
+     floating_sidebar_widget_->LayoutRootViewIfNecessary();
+     NSWindow* window =
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+-    NSAppearance* appearance = FloatingChromeAppearance();
++    NSAppearance* appearance = FloatingChromeAppearance(GetBrowserView());
+     if (![window.appearance isEqual:appearance]) {
+       window.appearance = appearance;
+       floating_sidebar_widget_->ResetLastColorProviderKey();
+@@ -2223,11 +2240,15 @@ void BrowserFrameViewMac::UpdateFloating
+     button_host->Attach(gfx::NativeView(floating_sidebar_button_));
+   }
+   const CGFloat closed_x = right ? view->width() - 44 : 108;
+-  const CGFloat open_x =
+-      right ? view->width() - sidebar->width() : sidebar->width() - 36;
++  // Use the resting edge; the reveal interpolation already supplies motion.
++  const int outer_inset = detached ? 8 : 0;
++  const CGFloat open_x = right
++      ? view->width() - outer_inset - sidebar->width() + 8
++      : outer_inset + sidebar->width() - 44;
+   const int x = base::ClampRound(closed_x + (open_x - closed_x) * reveal);
+   button_host->SetBounds(x, 8 + TopUIFullscreenYOffset(), 36, 36);
+-  floating_sidebar_button_.appearance = FloatingChromeAppearance();
++  // Use the same effective scheme as the window pane and other glass surfaces.
++  floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   [floating_sidebar_button_ setPresented:top_presented || reveal > 0];
+   [floating_sidebar_button_ refreshEmbedded:reveal > 0];
+   button_host->SetVisible(top_presented || reveal > 0 ||
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -1743,12 +1743,9 @@ views::View* BrowserView::GetSidebarView
+ }
+ 
+ void BrowserView::ToggleFloatingSidebar() {
+-  if (IsZenModeSideChromePinned() || zen_side_chrome_animation_.IsShowing()) {
+-    ToggleZenModeSideChrome();
+-    return;
+-  }
+-  zen_cursor_exit_timer_.Stop();
+-  UpdateZenModeReveal(false, true);
++  // Hover reveals an unpinned sidebar temporarily. Clicking always changes
++  // pinning, regardless of animation state or pointer-retention timing.
++  ToggleZenModeSideChrome();
+ }
+ 
+ gfx::Rect BrowserView::GetFloatingSidebarBounds() const {
