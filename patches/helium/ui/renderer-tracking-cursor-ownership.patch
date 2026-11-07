@@ -1,0 +1,64 @@
+--- a/content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm
++++ b/content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm
+@@ -279,6 +279,7 @@
+ 
+   // The cursor for the page. This is passed up from the renderer.
+   NSCursor* __strong _currentCursor;
++  NSTrackingArea* __strong _luneCursorTrackingArea;
+ 
+   // Is YES if the cursor is hidden by key events.
+   BOOL _cursorHidden;
+@@ -801,9 +802,34 @@
+   _responderDelegate = delegate;
+ }
+ 
+-- (void)resetCursorRects {
+-  if (_currentCursor)
+-    [self addCursorRect:[self visibleRect] cursor:_currentCursor];
++- (void)updateTrackingAreas {
++  [super updateTrackingAreas];
++  if (!_luneCursorTrackingArea) {
++    // A static page-cursor rectangle also claims the native resize perimeter.
++    // Resolve ownership at dispatch time, including AppKit structural updates.
++    _luneCursorTrackingArea = [[NSTrackingArea alloc]
++        initWithRect:NSZeroRect
++             options:NSTrackingCursorUpdate | NSTrackingActiveAlways |
++                     NSTrackingInVisibleRect
++               owner:self
++            userInfo:nil];
++    [self addTrackingArea:_luneCursorTrackingArea];
++  }
++}
++
++- (void)cursorUpdate:(NSEvent*)event {
++  if (![self isKeyTrackingWindowKey]) {
++    return;
++  }
++  NSCursor* resize = ui::GetWindowResizeCursor(
++      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++  if (resize) {
++    [resize set];
++  } else if ([self shouldChangeCurrentCursor]) {
++    [(_currentCursor ?: NSCursor.arrowCursor) set];
++  } else {
++    [super cursorUpdate:event];
++  }
+ }
+ 
+ - (void)processedGestureScrollEvent:(const blink::WebGestureEvent&)event
+@@ -1171,8 +1197,13 @@
+   if (type == NSEventTypeMouseMoved || type == NSEventTypeLeftMouseDragged ||
+       type == NSEventTypeRightMouseDragged ||
+       type == NSEventTypeOtherMouseDragged) {
+-    if ([self shouldChangeCurrentCursor] &&
+-        [NSCursor currentSystemCursor] != _currentCursor) {
++    NSCursor* resize = ui::GetWindowResizeCursor(
++        self.window,
++        [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++    if (resize && [self isKeyTrackingWindowKey]) {
++      [resize set];
++    } else if ([self shouldChangeCurrentCursor] &&
++               [NSCursor currentSystemCursor] != _currentCursor) {
+       [_currentCursor set];
+     }
+   }
