@@ -1,0 +1,388 @@
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -83,6 +83,7 @@
+         ?hidden="${!this.showHr_(
+             this.pageVisibility_.setTheme, this.pageVisibility_.homeButton)}">
+     </div>
++    <!-- <if expr="not is_macosx"> -->
+     <settings-toggle-button
+         pref-key="helium.browser.rounded_frame"
+         label="$i18n{roundedFrame}">
+@@ -104,6 +105,7 @@
+           .menuOptions="${this.roundedFrameThicknessOptions_}">
+       </settings-dropdown-menu>
+     </div>
++    <!-- </if> -->
+     <settings-toggle-button class="hr"
+         ?hidden="${!this.showNativeFrameMaterialsOption_}"
+         pref-key="helium.browser.native_frame_materials"
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -203,6 +203,7 @@
+   NSView* _material;
+   NSView* _controls;
+ }
++- (CGFloat)materialCornerRadius;
+ - (void)setPresented:(BOOL)presented;
+ - (BOOL)isPresented;
+ - (void)setRevealFraction:(CGFloat)fraction;
+@@ -224,7 +225,7 @@
+     NSGlassEffectView* glass =
+         [[NSGlassEffectView alloc] initWithFrame:self.bounds];
+     glass.style = NSGlassEffectViewStyleRegular;
+-    glass.cornerRadius = 18;
++    glass.cornerRadius = [self materialCornerRadius];
+     glass.contentView = _controls;
+     if (@available(macOS 27, *)) {
+       glass.effectIsInteractive = YES;
+@@ -237,7 +238,7 @@
+     material.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+     material.state = NSVisualEffectStateFollowsWindowActiveState;
+     material.wantsLayer = YES;
+-    material.layer.cornerRadius = 18;
++    material.layer.cornerRadius = [self materialCornerRadius];
+     material.layer.masksToBounds = YES;
+     [material addSubview:_controls];
+     _material = material;
+@@ -250,6 +251,9 @@
+   _material.alphaValue = 0;
+   return self;
+ }
++- (CGFloat)materialCornerRadius {
++  return 18;
++}
+ - (void)setAppearance:(NSAppearance*)appearance {
+   if ([self.appearance isEqual:appearance]) {
+     return;
+@@ -267,7 +271,7 @@
+           [[NSGlassEffectView alloc] initWithFrame:previous.frame];
+       glass.appearance = appearance;
+       glass.style = NSGlassEffectViewStyleRegular;
+-      glass.cornerRadius = 18;
++      glass.cornerRadius = [self materialCornerRadius];
+       if (@available(macOS 27, *)) {
+         glass.effectIsInteractive = YES;
+       }
+@@ -342,6 +346,13 @@
+ @interface HeliumSidebarSurface : HeliumGlassSurface
+ @end
+ @implementation HeliumSidebarSurface
++- (void)resetCursorRects {
++  // This flush material must not replace AppKit resize cursors at the edges.
++  // The inset child widget supplies cursors for the tab controls.
++}
++- (CGFloat)materialCornerRadius {
++  return 0;
++}
+ - (NSView*)hitTest:(NSPoint)point {
+   return nil;
+ }
+@@ -1729,7 +1740,7 @@
+         views::View::ConvertRectToTarget(sidebar, GetBrowserView(),
+                                          sidebar->GetLocalBounds())
+             .Contains(local);
+-    if (!in_sidebar && local.y() >= 0 && local.y() < 52) {
++    if (!in_sidebar && local.y() >= 0 && local.y() < 56) {
+       return HTCLIENT;
+     }
+   }
+@@ -2032,9 +2043,7 @@
+     return;
+   }
+ 
+-  // Use the page edges, not the outer container (which also owns the rails).
+-  // A pill's 18-point radius shares the content corner's center when its inset
+-  // is the difference between their radii.
++  // Keep glass controls eight points inside the available content edges.
+   gfx::Rect content;
+   for (const auto& container : browser_view->GetContentsContainerViews()) {
+     if (container->GetVisible()) {
+@@ -2042,9 +2051,7 @@
+           container.get(), browser_view, container->GetContentsViewBounds()));
+     }
+   }
+-  const int glass_inset = browser_view->IsFullscreen()
+-      ? 8
+-      : std::max(0, 26 - ContentsContainerOutline::GetThickness(false) - 18);
++  const int glass_inset = 8;
+   const gfx::Rect side = browser_view->GetFloatingSidebarBounds();
+   if (!side.IsEmpty()) {
+     if (browser_view->IsVerticalTabStripRightAligned()) {
+@@ -2102,7 +2109,7 @@
+       sidebar->IsDrawn() && browser_view->GetSideChromeRevealRatio() > 0) {
+     sidebar_header = views::View::ConvertRectToTarget(
+         sidebar, browser_view, sidebar->GetLocalBounds());
+-    sidebar_header.set_height(std::min(44, sidebar_header.height()));
++    sidebar_header.set_height(std::min(56, sidebar_header.height()));
+   }
+   const bool in_sidebar_header = sidebar_header.Contains(cursor);
+   // Distance hysteresis: enter through the rail or a visible sidebar header.
+@@ -2189,7 +2196,7 @@
+   const gfx::Rect side = view->GetFloatingSidebarBounds();
+   const int x =
+       !view->IsVerticalTabStripRightAligned() && !presented && !side.IsEmpty()
+-          ? side.x()
++          ? side.x() + 8
+           : 8;
+   // Pinned-sidebar controls stay fixed. Popover and toolbar controls follow
+   // the fullscreen menu bar together.
+@@ -2318,7 +2325,7 @@
+   }
+   if (!region.IsEmpty() && nav) {
+     nav->SetBoundsRect(gfx::Rect(region.x(), region.y(), 76, 36));
+-    gfx::Rect drag_bounds(0, region.y() - 8, view->width(), 52);
++    gfx::Rect drag_bounds(0, region.y() - 8, view->width(), 56);
+     if (auto* panel = view->side_panel(); panel && panel->GetVisible()) {
+       const gfx::Rect panel_bounds = views::View::ConvertRectToTarget(
+           panel, view, panel->GetLocalBounds());
+@@ -2514,18 +2521,20 @@
+         ![floating_sidebar_material_.appearance
+             isEqual:FloatingChromeAppearance(view)];
+     floating_sidebar_material_.appearance = FloatingChromeAppearance(view);
+-    // Keep the entire native button row and 5-point resize band in the
+-    // parent window, rather than relying on delayed mouse-event pass-through.
+-    // Native controls end at y=44 in browser coordinates. The detached
+-    // surface itself starts at y=8; adding 46 to that clipped the first row.
++    // Leave the 56-point header, native outer resize perimeter and sidebar's
++    // inner resize handle in the parent window. The material remains flush;
++    // only the child window that owns tab input is inset.
+     const int header_clearance =
+-        std::max(0, 46 + TopUIFullscreenYOffset() - bounds.y());
++        std::max(0, 56 + TopUIFullscreenYOffset() - bounds.y());
++    const int outer_resize = view->IsFullscreen() ? 0 : 6;
++    const int left_resize = right ? 5 : outer_resize;
++    const int right_resize = right ? outer_resize : 5;
+     floating_sidebar_material_.controlsWindow =
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+-    floating_sidebar_material_.controlsInsets =
+-        NSEdgeInsetsMake(header_clearance, right ? 5 : 0, 0, right ? 0 : 5);
+-    bounds.Inset(gfx::Insets::TLBR(header_clearance, right ? 5 : 0,
+-                                 0, right ? 0 : 5));
++    floating_sidebar_material_.controlsInsets = NSEdgeInsetsMake(
++        header_clearance, left_resize, outer_resize, right_resize);
++    bounds.Inset(gfx::Insets::TLBR(header_clearance, left_resize, outer_resize,
++                                   right_resize));
+     // A child NSWindow is not clipped by its parent during the slide.
+     bounds.Intersect(view->GetLocalBounds());
+     views::View::ConvertRectToScreen(view, &bounds);
+@@ -2567,7 +2576,7 @@
+   const int inset = detached ? 2 : 4;
+   const int x =
+       right ? sidebar_bounds.x() + inset : sidebar_bounds.right() - 36 - inset;
+-  button_host->SetBounds(x, detached ? sidebar_bounds.y() : 8, 36, 36);
++  button_host->SetBounds(x, detached ? sidebar_bounds.y() + 8 : 8, 36, 36);
+   floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   [floating_sidebar_button_ refreshEmbedded:YES];
+   const CGFloat visibility = sidebar_visible ? reveal : 0;
+--- a/chrome/browser/ui/views/frame/contents_container_outline.cc
++++ b/chrome/browser/ui/views/frame/contents_container_outline.cc
+@@ -39,6 +39,11 @@
+ 
+ // static
+ int ContentsContainerOutline::GetThickness(bool is_highlighted) {
++#if BUILDFLAG(IS_MAC)
++  // The native window clips edge-to-edge content. Only split targeting paints
++  // an outline; resizing and reveal use a separate invisible interaction band.
++  return is_highlighted ? kHighlightThickness : 0;
++#else
+   // Read once, so that the whole session uses the same frame thickness.
+   static const int thickness = [] {
+     PrefService* local_state =
+@@ -51,6 +56,7 @@
+         local_state->GetInteger(prefs::kHeliumRoundedFrameThickness), 0, 8);
+   }();
+   return is_highlighted ? std::max(thickness, kHighlightThickness) : thickness;
++#endif
+ }
+ 
+ // static
+@@ -149,7 +155,7 @@
+ void ContentsContainerOutline::OnPaint(gfx::Canvas* canvas) {
+ #if BUILDFLAG(IS_MAC)
+   if (!is_highlighted_) {
+-    return;  // The content edge has a shadow, not an additional outline.
++    return;  // The page reaches the native window edge without an outline.
+   }
+ #endif
+   const int frame_thickness = GetThickness(false);
+--- a/chrome/browser/ui/views/frame/contents_container_view.cc
++++ b/chrome/browser/ui/views/frame/contents_container_view.cc
+@@ -391,6 +391,9 @@
+ }
+ 
+ void ContentsContainerView::UpdateContentsBorder() {
++#if BUILDFLAG(IS_MAC)
++  SetBorder(nullptr);
++#else
+   if (!should_round_contents_) {
+     SetBorder(nullptr);
+     return;
+@@ -414,9 +417,22 @@
+     insets.set_top(0);
+   }
+   SetBorder(views::CreateEmptyBorder(insets));
++#endif
+ }
+ 
+ void ContentsContainerView::UpdateBorderRoundedCorners() {
++#if BUILDFLAG(IS_MAC)
++  // Clip once at the actual window perimeter, including split panes and the
++  // edge beside a pinned sidebar. Per-pane rounding would uncover the frame.
++  const gfx::RoundedCornersF square;
++  container_outline_->SetOuterCornerRadii(square);
++  container_outline_->SetCornerRadii(square);
++  container_outline_->SetContentInsets(std::nullopt);
++  if (capture_contents_border_view_) {
++    capture_contents_border_view_->SetCornerRadii(square);
++  }
++  SetBorderRoundedCornersFrom(square);
++#else
+   if (!should_round_contents_) {
+     SetBorderRoundedCornersFrom(rounded_corner_radii_);
+     return;
+@@ -498,6 +514,7 @@
+     capture_contents_border_view_->SetCornerRadii(container_rounded_corners);
+   }
+   SetBorderRoundedCornersFrom(inner_rounded_corners);
++#endif
+ }
+ 
+ void ContentsContainerView::ChildVisibilityChanged(View* child) {
+@@ -670,14 +687,19 @@
+   gfx::Rect full_contents_bounds = GetContentsBounds();
+   gfx::Rect shadow_bounds = full_contents_bounds;
+   shadow_bounds.Offset(0, 1);
+-  layouts.child_layouts.emplace_back(
+-      content_shadow_anchor_.get(),
+-      (should_round_contents_ ||
+-       (browser_view_->IsFullscreen() &&
+-        browser_view_->ShouldDrawVerticalTabStrip() &&
+-        browser_view_->IsZenModeSideChromePinned())) &&
+-          !full_contents_bounds.IsEmpty(),
+-      shadow_bounds);
++  layouts.child_layouts.emplace_back(content_shadow_anchor_.get(),
++#if BUILDFLAG(IS_MAC)
++                                     false,
++#else
++                                     (should_round_contents_ ||
++                                      (browser_view_->IsFullscreen() &&
++                                       browser_view_
++                                           ->ShouldDrawVerticalTabStrip() &&
++                                       browser_view_
++                                           ->IsZenModeSideChromePinned())) &&
++                                         !full_contents_bounds.IsEmpty(),
++#endif
++                                     shadow_bounds);
+   gfx::Rect devtools_bounds;
+   // The area contents excluding devtools is drawn (ie |contents_view_|,
+   // |new_tab_footer_view_|, etc).
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -146,8 +146,12 @@
+     return state;
+   }
+ 
+-  // Keep detached surfaces eight points inside the window perimeter.
++#if BUILDFLAG(IS_MAC)
++  // The detached sidebar is a square sheet flush with the window edges.
++  const int inset = 0;
++#else
+   const int inset = 8;
++#endif
+   state.vertical_tab_strip_padding = inset;
+   state.vertical_tab_strip_top_padding = inset;
+   return state;
+@@ -1123,7 +1127,7 @@
+                                ->browser_widget()
+                                ->GetFrameView()
+                                ->GetFloatingChromeTopOffset()
+-                         : 8;
++                         : 0;
+       }
+ #endif
+ 
+@@ -1677,9 +1681,7 @@
+     if (zen.floating_vertical_tab_strip) {
+       floating_style = FloatingStyle::kDetached;
+ #if BUILDFLAG(IS_MAC)
+-      // Concentric with the outer window at the eight-point inset.
+-      floating_corner_radius =
+-          GetSystemWindowRadius() - 8;
++      floating_corner_radius = 0;
+ #endif
+     } else if (vertical_tab_strip_animation.expand_on_hover_width > 0.0) {
+       floating_style = vertical_right_aligned ? FloatingStyle::kAttachedTrailing
+--- a/chrome/browser/ui/views/frame/multi_contents_view.cc
++++ b/chrome/browser/ui/views/frame/multi_contents_view.cc
+@@ -580,7 +580,9 @@
+       CalculateSeparatorLayouts(available_space, layouts.child_layouts);
+ 
+   if (IsInSplitView()) {
++#if !BUILDFLAG(IS_MAC)
+     available_space.Inset(split_view_insets_);
++#endif
+   } else if (should_use_rounded_frame) {
+     gfx::Insets single_insets(kSplitViewContentInset);
+     single_insets.set_top(attached_chrome.TopInset());
+--- a/chrome/browser/ui/views/helium/frame_corner_radius_mac.mm
++++ b/chrome/browser/ui/views/helium/frame_corner_radius_mac.mm
+@@ -5,5 +5,5 @@
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ 
+ int GetSystemWindowRadius() {
+-  return 26;
++  return 16;
+ }
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -201,19 +201,14 @@
+   const NSPoint point =
+       [native convertPoint:[window convertPointFromScreen:screen_point]
+                   fromView:nil];
+-  if (point.x < 0 || point.x > NSWidth(native.bounds) || point.y < 0 ||
+-      point.y > NSHeight(native.bounds)) {
++  // Reserve the same six-point perimeter excluded by the native drag region.
++  // AppKit owns resizing; this band only observes the pointer, including the
++  // exterior half of the native edge hit area. It consumes no layout space.
++  constexpr CGFloat rail = 6;
++  if (point.x < -rail || point.x > NSWidth(native.bounds) + rail ||
++      point.y < -rail || point.y > NSHeight(native.bounds) + rail) {
+     return false;
+   }
+-  PrefService* local_state =
+-      g_browser_process ? g_browser_process->local_state() : nullptr;
+-  const CGFloat rail =
+-      local_state &&
+-              local_state->FindPreference(prefs::kHeliumRoundedFrameThickness)
+-          ? std::clamp(
+-                local_state->GetInteger(prefs::kHeliumRoundedFrameThickness), 0,
+-                8)
+-          : 4;
+   const CGFloat y =
+       native.isFlipped ? point.y : NSHeight(native.bounds) - point.y;
+   return top ? y < rail
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
+@@ -194,7 +194,8 @@
+ gfx::Size VerticalTabStripHeaderView::CalculatePreferredSize(
+     const views::SizeBounds& available_size) const {
+   if (HasFloatingControls(browser_view_)) {
+-    return gfx::Size(0, 38);
++    // Reserve the header through y=56, including the four-point row margin.
++    return gfx::Size(0, 52);
+   }
+   if (!GetVisible() || is_collapsed_) {
+     return gfx::Size(0, 0);
+--- a/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
++++ b/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
+@@ -91,8 +91,8 @@
+ - (CGFloat)_getCachedWindowCornerRadius {
+   if (@available(macOS 26, *)) {
+     // Keep the actual AppKit frame, border, shadow and hit shape concentric
+-    // with the 26-point browser perimeter, not just its clipped content layer.
+-    return 26.0;
++    // with the 16-point browser perimeter, not just its clipped content layer.
++    return 16.0;
+   }
+   // Don't mess with the window radius before macOS 26, as concentricity was not
+   // a design element for those releases.
