@@ -1,0 +1,109 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1984,6 +1984,8 @@ int BrowserFrameViewMac::FloatingToolbar
+     params.name = "Floating browser actions";
+     floating_toolbar_widget_->Init(std::move(params));
+     floating_toolbar_widget_->SetCanAppearInExistingFullscreenSpaces(true);
++    floating_toolbar_widget_->SetNativeWindowProperty(
++        BrowserView::kBrowserViewKey, GetBrowserView());
+     auto root = std::make_unique<views::View>();
+     root->SetLayoutManager(std::make_unique<views::BoxLayout>(
+                                views::BoxLayout::Orientation::kHorizontal,
+@@ -2019,6 +2021,8 @@ void BrowserFrameViewMac::ResetFloatingT
+   }
+   floating_toolbar_owner_.SetView(nullptr);
+   if (floating_toolbar_widget_) {
++    floating_toolbar_widget_->SetNativeWindowProperty(
++        BrowserView::kBrowserViewKey, nullptr);
+     floating_toolbar_widget_->CloseNow();
+     floating_toolbar_widget_.reset();
+   }
+@@ -2078,8 +2082,12 @@ void BrowserFrameViewMac::UpdateFloating
+   NSWindow* window =
+       floating_toolbar_widget_->GetNativeWindow().GetNativeNSWindow();
+   NSAppearance* appearance = FloatingChromeAppearance(GetBrowserView());
+-  if (![window.appearance isEqual:appearance]) {
++  // AppKit can update the window before Views refreshes its cached vector
++  // icons. Track the material's previous scheme as well as the NSWindow.
++  if (![window.appearance isEqual:appearance] ||
++      ![floating_toolbar_material_.appearance isEqual:appearance]) {
+     window.appearance = appearance;
++    window.contentView.appearance = appearance;
+     floating_toolbar_widget_->ResetLastColorProviderKey();
+     floating_toolbar_widget_->ScheduleThemeChanged();
+   }
+@@ -2206,7 +2214,10 @@ void BrowserFrameViewMac::UpdateFloating
+     background->SetVisible(reveal > 0);
+     // The sidebar already supplies its own horizontal slide/fade progress.
+     [floating_sidebar_material_ setRevealFraction:reveal];
+-    floating_sidebar_material_.appearance = FloatingChromeAppearance(GetBrowserView());
++    const bool sidebar_appearance_changed =
++        ![floating_sidebar_material_.appearance
++            isEqual:FloatingChromeAppearance(view)];
++    floating_sidebar_material_.appearance = FloatingChromeAppearance(view);
+     // Keep the 38-point native header row and 5-point resize band in the
+     // parent window, rather than relying on delayed mouse-event pass-through.
+     bounds.Inset(gfx::Insets::TLBR(38, right ? 5 : 0, 0, right ? 0 : 5));
+@@ -2219,8 +2230,9 @@ void BrowserFrameViewMac::UpdateFloating
+     NSWindow* window =
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+     NSAppearance* appearance = FloatingChromeAppearance(GetBrowserView());
+-    if (![window.appearance isEqual:appearance]) {
++    if (![window.appearance isEqual:appearance] || sidebar_appearance_changed) {
+       window.appearance = appearance;
++      window.contentView.appearance = appearance;
+       floating_sidebar_widget_->ResetLastColorProviderKey();
+       floating_sidebar_widget_->ScheduleThemeChanged();
+     }
+--- a/chrome/browser/ui/views/helium/BUILD.gn
++++ b/chrome/browser/ui/views/helium/BUILD.gn
+@@ -59,6 +59,8 @@ source_set("native_frame_materials") {
+ 
+     deps += [
+       "//chrome/browser:browser_process",
++      "//chrome/browser/themes",
++      "//ui/native_theme",
+       "//ui/color",
+     ]
+   }
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -8,11 +8,14 @@
+ 
+ #include "base/apple/foundation_util.h"
+ #include "chrome/browser/browser_process.h"
++#include "chrome/browser/themes/theme_service.h"
++#include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
+ #include "ui/views/widget/widget.h"
++#include "ui/native_theme/native_theme.h"
+ 
+ namespace helium {
+ namespace {
+@@ -126,9 +129,20 @@ std::optional<SkColor> NativeGlassContro
+   }
+   NSView* native = view->GetWidget()->GetNativeView().GetNativeNSView();
+   __block SkColor result = SK_ColorBLACK;
+-  // Floating child windows explicitly track the browser appearance override.
+-  // Their content NSView can retain an older appearance during theme updates.
+-  NSAppearance* appearance = native.window.appearance ?: native.effectiveAppearance;
++  NSAppearance* appearance = native.effectiveAppearance;
++  // Resolve from the owning browser even during native child-window theme
++  // propagation, when its NSView/NSWindow appearance can still be stale.
++  if (auto* browser = BrowserView::GetBrowserViewForNativeWindow(
++          view->GetWidget()->GetNativeWindow())) {
++    const auto scheme = ThemeServiceFactory::GetForProfile(browser->GetProfile())
++                            ->GetBrowserColorScheme();
++    const bool dark = scheme == ThemeService::BrowserColorScheme::kDark ||
++        (scheme == ThemeService::BrowserColorScheme::kSystem &&
++         ui::NativeTheme::GetInstanceForNativeUi()->preferred_color_scheme() ==
++             ui::NativeTheme::PreferredColorScheme::kDark);
++    appearance = [NSAppearance
++        appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
++  }
+   [appearance performAsCurrentDrawingAppearance:^{
+     NSColor* color =
+         [(enabled ? NSColor.labelColor : NSColor.disabledControlTextColor)
