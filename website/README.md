@@ -28,9 +28,11 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   and floating glass toolbar groups. The site follows system appearance with
   Chlorophyll Daylight and Pelagic Signal palettes and monochrome window controls. Below 540px, the sidebar floats over the content.
 - During “Just the page,” the sidebar starts pinned. A scroll-driven cursor
-  follows a cubic path into its toggle and clicks to unpin it. The content
+  enters from the screen’s left edge, curves into the header’s right-side toggle,
+  and clicks to unpin it. The toggle is a bare glyph, including on hover. The content
   snaps to full width behind the still-visible floating panel; the cursor then
-  follows a second curve out of the window. Once it is more than 48px beyond
+  follows a second curve out through the screen’s top edge. The cursor renders
+  on the desktop so the window does not clip its entrance or exit. Once it is more than 48px beyond
   the panel, the panel slides off the left
   edge (260ms, eased translation without a fade). Scrolling back restores the
   floating panel, then the pinned layout. CSS scroll timelines animate the
@@ -42,8 +44,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   The floating surface is inset 8px from the window on its top, bottom,
   and left, placing it 4px inside the content pane. Floating tabs and favorites have 8px inner margins; the mounted
   panel reduces its horizontal padding to 4px, producing an effective 8px
-  margin from the window edge and content pane. The mount toggle and new-tab glyph follow the panel padding when
-  pinning changes. Window controls live directly in the window, outside the
+  margin from the window edge and content pane. The mount toggle sits at the header’s right edge and follows the panel
+  padding. Pinned tabs and the tab list keep identical vertical coordinates
+  when pinning changes; only horizontal margins shift. A “New tab” row sits
+  below the pinned tabs and above the regular tabs. Window controls live directly in the window, outside the
   sliding sidebar and all glass groups, with a fixed resting position. They stay
   visible while either the sidebar or glass toolbar is visible; when both hide,
   they follow the last panel to leave and become inert: horizontally with the
@@ -61,7 +65,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   52px top area, including gaps and all three capsules, holds it open. It dismisses
   once the pointer is more than 48px from the bar's resting outer rectangle;
   there is no timer. Glass groups sit 8px from the top and right window edges
-  and 8px beyond the floating sidebar. Their width reserves space for either a pinned or visible
+  and 8px beyond the floating sidebar. With the sidebar mounted, the navigation
+  group sits 4px inside the content pane and uses a concentric 17px radius. Their width reserves space for either a pinned or visible
   floating sidebar, independently of the content pane. Its available width
   animates with the sidebar using the same 260ms easing in both directions,
   keeping a gap between the panels throughout the slide. A hidden sidebar still leaves room for the fixed

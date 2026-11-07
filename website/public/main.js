@@ -30,8 +30,15 @@
     demoDistance = Math.min(460, pageHeight * .65);
     root.style.setProperty('--demo-start', `${demoStart}px`);
     root.style.setProperty('--demo-end', `${demoStart + demoDistance}px`);
-    const incoming = `M ${win.clientWidth + 28} ${pageHeight * .68} C ${win.clientWidth * .44} ${pageHeight * .88}, 18 167, 110 26`;
-    const outgoing = ` C 200 8, ${win.clientWidth * .5} ${pageHeight * .36}, ${win.clientWidth + 28} ${pageHeight * .58}`;
+    // Keep the path in window coordinates, but render the cursor on the desktop
+    // so it can cross the actual screen edges without the window clipping it.
+    const originX = win.offsetLeft + win.clientLeft;
+    const originY = win.offsetTop + win.clientTop;
+    const toggleX = sidebarWidth - 22;
+    demoCursor.style.setProperty('--cursor-origin-x', `${originX}px`);
+    demoCursor.style.setProperty('--cursor-origin-y', `${originY}px`);
+    const incoming = `M ${-originX - 28} ${pageHeight * .38} C ${toggleX * .7} ${pageHeight * .38}, ${toggleX + 48} 100, ${toggleX} 26`;
+    const outgoing = ` C ${toggleX - 32} -24, ${toggleX + 96} ${-originY + 12}, ${toggleX + 140} ${-originY - 36}`;
     // Pause precisely at the toggle, regardless of viewport or curve length.
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', incoming);
@@ -40,8 +47,8 @@
     cursorPath = path;
     cursorPathLength = path.getTotalLength();
     cursorStop = incomingLength / cursorPathLength * 100;
-    win.style.setProperty('--cursor-stop', `${cursorStop}%`);
-    win.style.setProperty('--cursor-path', `path("${incoming + outgoing}")`);
+    demoCursor.style.setProperty('--cursor-stop', `${cursorStop}%`);
+    demoCursor.style.setProperty('--cursor-path', `path("${incoming + outgoing}")`);
     reading = Math.max(0, pages.scrollHeight - pageHeight);
     root.style.setProperty('--reading', `${reading}px`);
     root.style.setProperty('--thumb-size', `${pageHeight / pages.scrollHeight * 100}%`);
