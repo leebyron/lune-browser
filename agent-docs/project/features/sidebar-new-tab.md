@@ -75,7 +75,9 @@ Local evidence is collected under `.work/sidebar-new-tab/`:
 - GN dependency checks pass for the tab model, common/vertical tab Views, and
   vertical tab-strip region (`gn-check.log`).
 - Arm64 and x86_64 compilation and linking pass. The standard browser smoke,
-  defaults, and settings checks pass on arm64 and Intel under Rosetta.
+  defaults, and settings checks pass on arm64 and Intel under Rosetta for the
+  styling input. The final input adds only the pinned-height correction and is
+  validated by both builds and the final native geometry check.
 - Five local ChromeDriver/extension checks pass: default prepend despite the
   next-to-active preference, explicit-index preservation, consecutive
   background links immediately after active, preservation of the active tab,
