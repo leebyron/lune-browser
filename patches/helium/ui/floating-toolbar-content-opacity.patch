@@ -1,0 +1,29 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2543,12 +2543,15 @@
+       floating_toolbar_widget_->LayoutRootViewIfNecessary();
+     }
+     if (!floating_toolbar_presented_) {
+-      window.alphaValue = 0;
++      // Chromium owns NSWindow alpha while waiting for a compositor frame.
++      // Fade the content view so a delayed frame cannot restore a stale zero
++      // window alpha after fullscreen or a size change.
++      window.contentView.alphaValue = 0;
+       floating_toolbar_widget_->ShowInactive();
+       [NSAnimationContext
+           runAnimationGroup:^(NSAnimationContext* context) {
+             context.duration = reduceMotion ? 0 : .18;
+-            window.animator.alphaValue = 1;
++            window.contentView.animator.alphaValue = 1;
+           }
+           completionHandler:nil];
+     }
+@@ -2557,7 +2560,7 @@
+     [NSAnimationContext
+         runAnimationGroup:^(NSAnimationContext* context) {
+           context.duration = reduceMotion ? 0 : .18;
+-          window.animator.alphaValue = 0;
++          window.contentView.animator.alphaValue = 0;
+         }
+         completionHandler:nil];
+   }
