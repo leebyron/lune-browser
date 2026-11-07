@@ -126,6 +126,13 @@ native scrolling; keyboard selection keeps its result in view.
 See [command palette evidence](agent-docs/project/features/command-bar.md).
 This prototype is not in a published browser build or release-accepted.
 
+The development macOS input under `inputs/sidebar-new-tab-2/macos` places New Tab
+below pinned tiles and above regular tabs. Default new tabs prepend; links open
+immediately after the active tab. New Tab uses regular tab hover colors and the
+same 2 pt row spacing; pinned tiles use fills and 6 pt spacing shared with the
+New Tab section gap. See [sidebar evidence](agent-docs/project/features/sidebar-new-tab.md)
+for build and runtime validation. This is not in published builds 1 or 2.
+
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
 never downgrade Chromium to satisfy optional UI patches. Discovery reports stable lag.

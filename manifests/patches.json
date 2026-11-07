@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "17af1f78dbbe2f53fe2fff2723b9749acdcffce5",
+    "commit": "cfaeba22fb561e13ade81ea571c039746330ad25",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -297,6 +297,22 @@
       {
         "path": "patches/helium/ui/native-address-editing-text.patch",
         "sha256": "0cde7c03914ccccfe06414ffd607f3b13ecf9669dd95bff61d4bb119060f5abf"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-new-tab-placement.patch",
+        "sha256": "6d03d0d83614274c3dc0093454c0c3de7cc86373fc995fcb86b1ea3929a8fd7e"
+      },
+      {
+        "path": "patches/helium/ui/tab-model-build-dependencies.patch",
+        "sha256": "e3c21c28a3d0734d27b73b17b565a72afef98523a368a6c5203f282369b931ad"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-tab-row-style.patch",
+        "sha256": "23d13eb10dbd651bc34ebb1fc6ff8f05be4098aa1521ec33ef74bc6bc4c82725"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-pinned-spacing.patch",
+        "sha256": "3a7932e0e9fa9e2bb81d17d3e9f8121c362189ebe82ed0895270eb9073213a9b"
       }
     ]
   },
@@ -587,6 +603,21 @@
       "review_status": "reviewed-port",
       "rationale": "Use AppKit glass and native input/results for Command-T; keep typed URL/search actions within the first two rows and use Helium bang keywords.",
       "adaptation": "Locally authored platform quilt patch at 5e18e95fed03fbe6907bc71debcf7c3caff0cb82; development prototype, not release-accepted. See agent-docs/project/features/command-bar.md."
+    },
+    {
+      "id": "sidebar-new-tab",
+      "depends_on": [
+        "native-floating-address"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-new-tab-placement.patch",
+        "patches/helium/ui/tab-model-build-dependencies.patch",
+        "patches/helium/ui/sidebar-tab-row-style.patch",
+        "patches/helium/ui/sidebar-pinned-spacing.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Place New Tab below pinned tiles and above regular tabs; prepend default new tabs while opening links immediately after the active tab. Match regular tab hover colors and spacing, with filled pinned tiles and wider matching section spacing.",
+      "adaptation": "Locally authored quilt patches, separate from distribution identity; see agent-docs/project/features/sidebar-new-tab.md for behavior and validation."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."
