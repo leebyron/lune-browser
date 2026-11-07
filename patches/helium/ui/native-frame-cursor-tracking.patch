@@ -1,0 +1,64 @@
+--- a/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
++++ b/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
+@@ -8,6 +8,7 @@
+ 
+ #include "base/command_line.h"
+ #include "base/mac/mac_util.h"
++#import "ui/base/cocoa/cursor_utils.h"
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+ 
+@@ -39,10 +40,39 @@
+ @implementation BrowserWindowFrame {
+   BOOL _inFullScreen;
+   BOOL _alwaysShowTrafficLights;
++  NSTrackingArea* __strong _resizeCursorTrackingArea;
+ }
+ 
+ // NSThemeFrame overrides.
+ 
++- (void)updateTrackingAreas {
++  [super updateTrackingAreas];
++  if (!_resizeCursorTrackingArea) {
++    // The full-size content and floating chrome can invalidate their tracking
++    // regions while the pointer is on the frame. Give AppKit a persistent
++    // cursor owner to consult during its structural-region updates, rather
++    // than setting a resize cursor only until its next default-arrow reset.
++    // InVisibleRect follows frame resizing without recreating this area.
++    _resizeCursorTrackingArea = [[NSTrackingArea alloc]
++        initWithRect:NSZeroRect
++             options:NSTrackingCursorUpdate | NSTrackingActiveInKeyWindow |
++                     NSTrackingInVisibleRect
++               owner:self
++            userInfo:nil];
++    [self addTrackingArea:_resizeCursorTrackingArea];
++  }
++}
++
++- (void)cursorUpdate:(NSEvent*)event {
++  NSCursor* resize = ui::GetWindowResizeCursor(
++      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
++  if (resize) {
++    [resize set];
++    return;
++  }
++  [super cursorUpdate:event];
++}
++
+ - (void)layout {
+   [super layout];
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+--- a/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
++++ b/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
+@@ -915,8 +915,10 @@
+   // Full-size browser content overlaps AppKit's interior resize hit targets.
+   // Use the same native predicate as frame mouse-down routing, rather than a
+   // guessed inset, so the content cursor cannot replace a working resize cursor.
++  // Tracking events can carry an old position after chrome layout changes.
+   if (NSCursor* resize =
+-          ui::GetWindowResizeCursor(self, theEvent.locationInWindow)) {
++          ui::GetWindowResizeCursor(
++              self, [self convertPointFromScreen:NSEvent.mouseLocation])) {
+     [resize set];
+     return;
+   }
