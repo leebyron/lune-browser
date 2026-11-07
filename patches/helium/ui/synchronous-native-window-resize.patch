@@ -1,0 +1,443 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -86,7 +86,6 @@
+ #include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/navigation_entry.h"
+ #include "content/public/browser/web_contents.h"
+-#import "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/hit_test.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/page_transition_types.h"
+@@ -195,25 +194,11 @@
+     [controls setFrame:rect display:NO animate:NO];
+   }
+ }
+-- (void)cursorUpdate:(NSEvent*)event {
+-  // Cursor rectangles are processed directly by the owning NSView, before
+-  // NSWindow sees the event. Preserve native resize ownership at this boundary.
+-  NSCursor* resize = ui::GetWindowResizeCursor(
+-      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-  if (resize) {
+-    [resize set];
+-    return;
+-  }
+-  [super cursorUpdate:event];
+-}
+-
+ - (void)resetCursorRects {
+   [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
+ }
+ - (void)mouseMoved:(NSEvent*)event {
+-  NSCursor* resize = ui::GetWindowResizeCursor(
+-      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-  [(resize ?: NSCursor.arrowCursor) set];
++  [NSCursor.arrowCursor set];
+ }
+ @end
+ 
+@@ -555,10 +540,7 @@
+ - (void)mouseMoved:(NSEvent*)event {
+   NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+   if (self.enabled && NSPointInRect(point, [self interactiveBounds])) {
+-    NSCursor* resize = ui::GetWindowResizeCursor(
+-        self.window,
+-        [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-    [(resize ?: NSCursor.arrowCursor) set];
++    [NSCursor.arrowCursor set];
+   }
+ }
+ - (BOOL)isFlipped {
+@@ -900,25 +882,11 @@
+   // Here the entire visible group is chrome, including spaces between buttons.
+   return [super hitTest:point] ?: self;
+ }
+-- (void)cursorUpdate:(NSEvent*)event {
+-  // Cursor rectangles are processed directly by the owning NSView, before
+-  // NSWindow sees the event. Preserve native resize ownership at this boundary.
+-  NSCursor* resize = ui::GetWindowResizeCursor(
+-      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-  if (resize) {
+-    [resize set];
+-    return;
+-  }
+-  [super cursorUpdate:event];
+-}
+-
+ - (void)resetCursorRects {
+   [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
+ }
+ - (void)mouseMoved:(NSEvent*)event {
+-  NSCursor* resize = ui::GetWindowResizeCursor(
+-      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-  [(resize ?: NSCursor.arrowCursor) set];
++  [NSCursor.arrowCursor set];
+ }
+ - (void)mouseDown:(NSEvent*)event {
+   if (!_topPresented || self.hiddenOrHasHiddenAncestor) {
+@@ -2774,16 +2742,13 @@
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+     floating_sidebar_material_.controlsInsets = NSEdgeInsetsMake(
+         header_clearance, left_resize, outer_resize, right_resize);
+-    const gfx::Point sidebar_origin = bounds.origin();
+     bounds.Inset(gfx::Insets::TLBR(header_clearance, left_resize, outer_resize,
+                                    right_resize));
+     // A child NSWindow is not clipped by its parent during the slide.
+     bounds.Intersect(view->GetLocalBounds());
+-    const gfx::Point controls_origin =
+-        bounds.origin() - sidebar_origin.OffsetFromOrigin();
+     views::View::ConvertRectToScreen(view, &bounds);
+     floating_sidebar_widget_->SetBounds(bounds);
+-    sidebar->LayoutFloatingControls(controls_origin);
++    sidebar->LayoutFloatingControls();
+     floating_sidebar_widget_->LayoutRootViewIfNecessary();
+     NSWindow* window =
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -531,21 +531,15 @@
+   InvalidateLayout();
+ }
+ 
+-void VerticalTabStripRegionView::LayoutFloatingControls(
+-    const gfx::Point& host_origin) {
+-  floating_controls_origin_ = host_origin;
+-  LayoutFloatingControls();
+-}
+-
+ void VerticalTabStripRegionView::LayoutFloatingControls() {
+   if (!floating_content_placeholder_) {
+     return;
+   }
+   gfx::Rect bounds = floating_content_placeholder_->bounds();
+-  // The glass and its child window may be at different native/compositor
+-  // resize stages. Keep tab geometry in sidebar coordinates instead of
+-  // subtracting independently updated screen origins.
+-  bounds.Offset(-floating_controls_origin_.x(), -floating_controls_origin_.y());
++  views::View::ConvertRectToScreen(this, &bounds);
++  const gfx::Point origin =
++      content_area_view_->parent()->GetBoundsInScreen().origin();
++  bounds.Offset(-origin.x(), -origin.y());
+   content_area_view_->SetBoundsRect(bounds);
+   content_area_view_->SetVisible(floating_content_placeholder_->GetVisible());
+ }
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
+@@ -105,7 +105,6 @@
+ 
+   void SetFloatingControlsHost(views::View* host);
+   void LayoutFloatingControls();
+-  void LayoutFloatingControls(const gfx::Point& host_origin);
+   bool ContainsRegionView(const views::View* view) const override;
+ 
+   void UpdateInteriorMargin();
+@@ -243,7 +242,6 @@
+ 
+   raw_ptr<views::View> content_area_view_ = nullptr;
+   raw_ptr<views::View> floating_content_placeholder_ = nullptr;
+-  gfx::Point floating_controls_origin_;
+   // Whether a leading exclusion exists due to window controls.
+   bool has_leading_exclusion_ = false;
+   std::unique_ptr<views::ViewDecoration> floating_surface_shadow_;
+--- a/components/remote_cocoa/app_shim/bridged_content_view.mm
++++ b/components/remote_cocoa/app_shim/bridged_content_view.mm
+@@ -373,7 +373,7 @@
+   // NSWindow can query contentView directly, bypassing the frame view's
+   // native resize hit test. Full-size content must yield these same points
+   // before routing them to web content or a floating chrome input shield.
+-  if (ui::GetWindowResizeCursor(
++  if (ui::IsWindowResizePoint(
+           self.window, [self convertPoint:pointInView toView:nil])) {
+     return nil;
+   }
+--- a/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
++++ b/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
+@@ -8,7 +8,6 @@
+ 
+ #include "base/command_line.h"
+ #include "base/mac/mac_util.h"
+-#import "ui/base/cocoa/cursor_utils.h"
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+ 
+@@ -40,39 +39,10 @@
+ @implementation BrowserWindowFrame {
+   BOOL _inFullScreen;
+   BOOL _alwaysShowTrafficLights;
+-  NSTrackingArea* __strong _resizeCursorTrackingArea;
+ }
+ 
+ // NSThemeFrame overrides.
+ 
+-- (void)updateTrackingAreas {
+-  [super updateTrackingAreas];
+-  if (!_resizeCursorTrackingArea) {
+-    // The full-size content and floating chrome can invalidate their tracking
+-    // regions while the pointer is on the frame. Give AppKit a persistent
+-    // cursor owner to consult during its structural-region updates, rather
+-    // than setting a resize cursor only until its next default-arrow reset.
+-    // InVisibleRect follows frame resizing without recreating this area.
+-    _resizeCursorTrackingArea = [[NSTrackingArea alloc]
+-        initWithRect:NSZeroRect
+-             options:NSTrackingCursorUpdate | NSTrackingActiveInKeyWindow |
+-                     NSTrackingInVisibleRect
+-               owner:self
+-            userInfo:nil];
+-    [self addTrackingArea:_resizeCursorTrackingArea];
+-  }
+-}
+-
+-- (void)cursorUpdate:(NSEvent*)event {
+-  NSCursor* resize = ui::GetWindowResizeCursor(
+-      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-  if (resize) {
+-    [resize set];
+-    return;
+-  }
+-  [super cursorUpdate:event];
+-}
+-
+ - (void)layout {
+   [super layout];
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+--- a/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
++++ b/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
+@@ -25,7 +25,6 @@
+ #import "components/remote_cocoa/app_shim/window_touch_bar_delegate.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+ #include "ui/accessibility/platform/ax_platform_node.h"
+-#import "ui/base/cocoa/cursor_utils.h"
+ #import "ui/base/cocoa/default_command_dispatcher_delegate.h"
+ #import "ui/base/cocoa/user_interface_item_command_handler.h"
+ #import "ui/base/cocoa/window_size_constants.h"
+@@ -912,16 +911,6 @@
+ }
+ 
+ - (void)cursorUpdate:(NSEvent*)theEvent {
+-  // Full-size browser content overlaps AppKit's interior resize hit targets.
+-  // Use the same native predicate as frame mouse-down routing, rather than a
+-  // guessed inset, so the content cursor cannot replace a working resize cursor.
+-  // Tracking events can carry an old position after chrome layout changes.
+-  if (NSCursor* resize =
+-          ui::GetWindowResizeCursor(
+-              self, [self convertPointFromScreen:NSEvent.mouseLocation])) {
+-    [resize set];
+-    return;
+-  }
+   // The cursor provided by the delegate should only be applied within the
+   // content area. This is because we rely on the contentView to track the
+   // mouse cursor and forward cursorUpdate: messages up the responder chain.
+--- a/components/remote_cocoa/app_shim/views_nswindow_delegate.mm
++++ b/components/remote_cocoa/app_shim/views_nswindow_delegate.mm
+@@ -15,7 +15,6 @@
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.h"
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_host_helper.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+-#import "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/gfx/geometry/resize_utils.h"
+ 
+@@ -107,10 +106,7 @@
+         break;
+       currentWindow = parentWindow;
+       if ([currentWindow isKeyWindow]) {
+-        NSCursor* resize = ui::GetWindowResizeCursor(
+-            currentWindow,
+-            [currentWindow convertPointFromScreen:NSEvent.mouseLocation]);
+-        [(resize ?: newCursor ?: NSCursor.arrowCursor) set];
++        [(newCursor ? newCursor : [NSCursor arrowCursor]) set];
+         break;
+       }
+     }
+--- a/content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm
++++ b/content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm
+@@ -44,7 +44,6 @@
+ #include "ui/accessibility/platform/browser_accessibility_manager_mac.h"
+ #import "ui/base/clipboard/clipboard_util_mac.h"
+ #import "ui/base/cocoa/appkit_utils.h"
+-#import "ui/base/cocoa/cursor_utils.h"
+ #import "ui/base/cocoa/menu_utils.h"
+ #import "ui/base/cocoa/nsmenu_additions.h"
+ #import "ui/base/cocoa/nsmenuitem_additions.h"
+@@ -279,7 +278,6 @@
+ 
+   // The cursor for the page. This is passed up from the renderer.
+   NSCursor* __strong _currentCursor;
+-  NSTrackingArea* __strong _luneCursorTrackingArea;
+ 
+   // Is YES if the cursor is hidden by key events.
+   BOOL _cursorHidden;
+@@ -802,34 +800,9 @@
+   _responderDelegate = delegate;
+ }
+ 
+-- (void)updateTrackingAreas {
+-  [super updateTrackingAreas];
+-  if (!_luneCursorTrackingArea) {
+-    // A static page-cursor rectangle also claims the native resize perimeter.
+-    // Resolve ownership at dispatch time, including AppKit structural updates.
+-    _luneCursorTrackingArea = [[NSTrackingArea alloc]
+-        initWithRect:NSZeroRect
+-             options:NSTrackingCursorUpdate | NSTrackingActiveAlways |
+-                     NSTrackingInVisibleRect
+-               owner:self
+-            userInfo:nil];
+-    [self addTrackingArea:_luneCursorTrackingArea];
+-  }
+-}
+-
+-- (void)cursorUpdate:(NSEvent*)event {
+-  if (![self isKeyTrackingWindowKey]) {
+-    return;
+-  }
+-  NSCursor* resize = ui::GetWindowResizeCursor(
+-      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-  if (resize) {
+-    [resize set];
+-  } else if ([self shouldChangeCurrentCursor]) {
+-    [(_currentCursor ?: NSCursor.arrowCursor) set];
+-  } else {
+-    [super cursorUpdate:event];
+-  }
++- (void)resetCursorRects {
++  if (_currentCursor)
++    [self addCursorRect:[self visibleRect] cursor:_currentCursor];
+ }
+ 
+ - (void)processedGestureScrollEvent:(const blink::WebGestureEvent&)event
+@@ -1174,10 +1147,7 @@
+   // Because |updateCursor:| changes the current cursor, we have to reset it to
+   // the default cursor on mouse exit.
+   if (type == NSEventTypeMouseExited) {
+-    NSCursor* resize = ui::GetWindowResizeCursor(
+-        self.window,
+-        [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-    [(resize ?: NSCursor.arrowCursor) set];
++    [[NSCursor arrowCursor] set];
+   }
+ 
+   // In macOS immersive fullscreen, the browser UI is held in an AppKit-managed
+@@ -1197,13 +1167,8 @@
+   if (type == NSEventTypeMouseMoved || type == NSEventTypeLeftMouseDragged ||
+       type == NSEventTypeRightMouseDragged ||
+       type == NSEventTypeOtherMouseDragged) {
+-    NSCursor* resize = ui::GetWindowResizeCursor(
+-        self.window,
+-        [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-    if (resize && [self isKeyTrackingWindowKey]) {
+-      [resize set];
+-    } else if ([self shouldChangeCurrentCursor] &&
+-               [NSCursor currentSystemCursor] != _currentCursor) {
++    if ([self shouldChangeCurrentCursor] &&
++        [NSCursor currentSystemCursor] != _currentCursor) {
+       [_currentCursor set];
+     }
+   }
+@@ -3079,12 +3044,6 @@
+   // location before setting the cursor. Also, do not set cursor if it's not a
+   // key window.
+   NSPoint location = [self.window convertPointFromScreen:NSEvent.mouseLocation];
+-  // Full-size web content overlaps native resize targets. Do not mistake
+-  // AppKit's resize arrow for a spurious cursor reset and restore the page's
+-  // cursor on every mouse move or asynchronous renderer update.
+-  if (ui::GetWindowResizeCursor(self.window, location)) {
+-    return NO;
+-  }
+   location = [self convertPoint:location fromView:nil];
+   if (![self mouse:location inRect:[self bounds]] ||
+       ![self isKeyTrackingWindowKey]) {
+--- a/ui/base/cocoa/base_view.mm
++++ b/ui/base/cocoa/base_view.mm
+@@ -6,7 +6,6 @@
+ 
+ #include "base/check_op.h"
+ #include "base/mac/mac_util.h"
+-#import "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/cocoa/tracking_area.h"
+ 
+ NSString* kViewDidBecomeFirstResponder =
+@@ -34,18 +33,6 @@
+   [self disableTracking];
+ }
+ 
+-- (void)cursorUpdate:(NSEvent*)event {
+-  // Cursor rectangles are processed directly by the owning NSView, before
+-  // NSWindow sees the event. Preserve native resize ownership at this boundary.
+-  NSCursor* resize = ui::GetWindowResizeCursor(
+-      self.window, [self.window convertPointFromScreen:NSEvent.mouseLocation]);
+-  if (resize) {
+-    [resize set];
+-    return;
+-  }
+-  [super cursorUpdate:event];
+-}
+-
+ - (void)enableTracking {
+   if (_trackingArea.get()) {
+     return;
+--- a/ui/base/cocoa/cursor_utils.h
++++ b/ui/base/cocoa/cursor_utils.h
+@@ -21,10 +21,10 @@
+ COMPONENT_EXPORT(UI_BASE)
+ NSCursor* GetNativeCursor(const ui::Cursor& cursor);
+ 
+-// Returns the standard frame cursor at AppKit's actual resize hit target, or
+-// nil when the point is not resizable. The location is in window coordinates.
++// Whether the point belongs to AppKit's native resize hit target.
++// The location is in window coordinates.
+ COMPONENT_EXPORT(UI_BASE)
+-NSCursor* GetWindowResizeCursor(NSWindow* window, NSPoint location);
++bool IsWindowResizePoint(NSWindow* window, NSPoint location);
+ #endif  // __OBJC__
+ 
+ }  // namespace ui
+--- a/ui/base/cocoa/cursor_utils.mm
++++ b/ui/base/cocoa/cursor_utils.mm
+@@ -149,32 +149,14 @@
+ 
+ namespace ui {
+ 
+-NSCursor* GetWindowResizeCursor(NSWindow* window, NSPoint location) {
++bool IsWindowResizePoint(NSWindow* window, NSPoint location) {
+   if (!window || !(window.styleMask & NSWindowStyleMaskResizable) ||
+       (window.styleMask & NSWindowStyleMaskFullScreen)) {
+-    return nil;
++    return false;
+   }
+   const long long direction =
+       [window _resizeDirectionForMouseLocation:location];
+-  if (direction < 0 || direction >= 8) {
+-    return nil;
+-  }
+-  // AppKit numbers directions counterclockwise from the right edge.
+-  if (@available(macOS 15, *)) {
+-    static constexpr NSCursorFrameResizePosition positions[] = {
+-        NSCursorFrameResizePositionRight,
+-        NSCursorFrameResizePositionTopRight,
+-        NSCursorFrameResizePositionTop,
+-        NSCursorFrameResizePositionTopLeft,
+-        NSCursorFrameResizePositionLeft,
+-        NSCursorFrameResizePositionBottomLeft,
+-        NSCursorFrameResizePositionBottom,
+-        NSCursorFrameResizePositionBottomRight};
+-    return [NSCursor
+-        frameResizeCursorFromPosition:positions[direction]
+-                         inDirections:NSCursorFrameResizeDirectionsAll];
+-  }
+-  return nil;
++  return direction >= 0 && direction < 8;
+ }
+ 
+ // Match Safari's cursor choices; see
+--- a/ui/base/ui_base_features.cc
++++ b/ui/base/ui_base_features.cc
+@@ -98,7 +98,9 @@
+ 
+ // Make live-resize of an NSWindow be asynchronous (so it doesn't block the
+ // UI thread).
+-BASE_FEATURE(kAsyncLiveResize, base::FEATURE_ENABLED_BY_DEFAULT);
++// Keep native glass, child-window controls and content in the same resize
++// transaction. Asynchronous resizing lets their geometry and cursors diverge.
++BASE_FEATURE(kAsyncLiveResize, base::FEATURE_DISABLED_BY_DEFAULT);
+ 
+ // Keeps the NSWindow invisible (via its `alphaValue`) until the first
+ // compositor frame has been received.
