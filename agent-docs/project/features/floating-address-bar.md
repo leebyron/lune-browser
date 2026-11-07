@@ -337,7 +337,9 @@ the overlap that clipped the first tab row. The sidebar toggle's inner inset is
 inter-group spacing. Entering the visible sidebar's first 44 pt reveals the full
 top bar in either pinned or unpinned mode. Existing distance retention applies.
 
-Top-bar presentation now fades only, including top-bar traffic lights. Sidebar
+Input 13 changed the main top-bar surfaces and traffic lights to fade-only
+presentation. Subsequent owner testing found a separate frame animation on the
+trailing icon child window; input 14 removes that remaining motion. Sidebar
 slides and the system fullscreen menu-bar offset remain separate behaviors.
 
 Validation: both architecture builds, strict no-fuzz replay (81 patches and 37
@@ -351,10 +353,50 @@ Prior acceptance does not imply acceptance of these new pointer interactions.
 Local evidence: `.work/floating-address/sidebar-validation.json`,
 `sidebar-smoke-{arm64,intel}.json`, and `revision-replay.json`.
 
+## Toolbar and customization follow-up
+
+Input 14 removes the trailing icon child window's independent vertical animation
+and positions it before showing it. Icons and glass use the same destination
+bounds, with opacity-only presentation. Right-side sidebar animation no longer
+supplies the traffic lights' x coordinate; they remain on the left.
+
+Fullscreen content keeps its edge shadow while a vertical sidebar is pinned.
+Hovering visible left traffic lights also reveals the collapsed left sidebar.
+The sidebar stays open throughout its native options menu, then resumes ordinary
+pointer retention after the menu closes. The sidebar SF Symbol is 17 pt; its
+inner inset is 2 pt in popover mode and remains 4 pt when pinned.
+
+The toolbar drag strip excludes the open side-panel bounds. Customize keeps its
+existing WebUI Appearance row as the first item and removes the extra native
+header. A native AppKit glass close button sits alongside that row. Its scroll
+content has square clipping rather than a rounded container; the outer browser
+window still clips to its own rounded frame.
+
+Validation: arm64 and x86_64 builds and headless page/profile/default/settings
+smoke checks pass (Intel under Rosetta). Strict replay passes without fuzz:
+83 relevant patches, 41 final files matching the prepared tree. GN dependency
+checks for both architectures, component lint, locked inputs, and all 44
+repository tests pass.
+
+Native arm64 inspection confirms the existing Appearance row first without an
+extra header, the native glass close working by coordinate click while the top
+bar is visible, dark-mode material/glyph changes, trailing icons contained in
+their glass in both sidebar layouts, right-sidebar unpinning, Command-L selection,
+the pinned-sidebar context menu, and a visible fullscreen content-edge shadow.
+The preview exits cleanly. Hover-triggered reveals, transient right-sidebar
+traffic-light placement, fade timing, and detached context-menu retention still
+require real-pointer acceptance. Scroll clipping is source-verified; the inspected
+panel did not overflow, so its scrolling appearance remains a manual check.
+No acceptance is inferred from earlier builds.
+
+Local evidence: `.work/floating-address/toolbar-panel-validation.json`,
+`toolbar-panel-smoke-{arm64,intel}.json`, `toolbar-panel-check/shutdown.json`, and
+`revision-replay.json`.
+
 ## Pinned inputs
 
-- Platform commit: `03622ffc9ad5b6a2ea3c417f0d50208a3d16bb7b`.
-- Platform tag: `inputs/floating-address-13/macos`.
+- Platform commit: `aa978530ef66f3009b53a7e46ea7d135c2b2c87d`.
+- Platform tag: `inputs/floating-address-14/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and

@@ -57,7 +57,7 @@ See [the feature evidence](agent-docs/project/features/content-pane-shadow.md).
 This feature is not in published builds 1 or 2.
 
 The development inputs under `inputs/floating-address-2/helium` and
-`inputs/floating-address-13/macos` include
+`inputs/floating-address-14/macos` include
 an editable AppKit glass address capsule, 48 pt distance retention, whole-surface
 focus, fade-only top controls, fullscreen edge reveal, sidebar-aware geometry, and
 softer content/sidebar shadows. The subsequent toolbar revision adds paired
@@ -76,7 +76,13 @@ AppKit semantic colors, and toolbar cursor regions exclude the resize perimeter.
 The owner accepted resize cursors and fullscreen behavior on input 12. Input 13
 restores detached-sidebar blank-area drag/context-menu routing and top-row
 clearance, uses a 12 pt adjacent glass gap and 4 pt toggle inset, and reveals the
-top bar from either sidebar header.
+top bar from either sidebar header. Input 14 removes the trailing icon window's
+remaining vertical motion, keeps traffic lights on the left during right-sidebar
+animation, retains sidebar menus and the fullscreen pinned-sidebar shadow, and
+reveals the left sidebar from visible traffic lights. Its larger toggle uses a
+2 pt popover inset, retaining 4 pt when pinned. Customize removes its extra native
+header, keeps the existing Appearance row first, and adds a native glass close
+button. Toolbar dragging excludes that panel and its scroll clipping is square.
 Both architectures compile and pass headless smoke/default/settings checks
 (Intel via Rosetta). Native arm64 sidebar context-menu, unpin, app-menu, editor,
 and clean-shutdown checks pass. The owner previously accepted
