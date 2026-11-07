@@ -1,0 +1,15 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1032,8 +1032,10 @@
+   _editing = YES;
+   _address.userEditing = YES;
+   _address.alignment = NSTextAlignmentLeft;
+-  _address.stringValue = base::SysUTF8ToNSString(
+-      LocationBarModel::From(_browserView->browser())->GetURL().spec());
++  // Match the normal omnibox's editing text, including an empty new-tab
++  // field. GetURL() supplies about:blank when the page URL should be hidden.
++  _address.stringValue = base::SysUTF16ToNSString(
++      LocationBarModel::From(_browserView->browser())->GetFormattedFullURL());
+   // Populate before animating so the initial suggestion rows have already
+   // established the editor's top-anchored geometry.
+   [self controlTextDidChange:
