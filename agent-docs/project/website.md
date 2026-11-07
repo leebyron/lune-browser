@@ -44,9 +44,10 @@ The glass toolbar fades in from the top rail or either sidebar header, matching
 the native browser. The pinned sidebar uses the window material; its floating
 popover is a flush square CSS glass sheet. The window has 16px outer corners and
 edge-to-edge content without gutters or an inner shadow. Both sidebar modes share
-header/row geometry; the pinned edge has a semantic hairline. The sample footer
-and hover-only close marks follow the native sidebar-footer revision. Browser screenshots remain
-placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
+header/row geometry; the pinned edge has a semantic hairline. Tab rows use native
+standard-density dimensions and combined region/row insets, with hover-only close
+marks. The illustration omits default-browser and update prompts. Browser
+screenshots remain placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
 architecture hints, otherwise offering both choices. Downloads remain disabled
 and labeled Coming soon pending validated public releases.
 

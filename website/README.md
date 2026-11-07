@@ -41,16 +41,16 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   Window controls use 14px circles at 23px center spacing in an 82×36px container,
   8px from the window edges. When the sidebar hides, navigation leaves 8px after
   that container. Its available width follows the sidebar’s 260ms slide.
-- Tabs have 5px side margins, 9px icon insets, 32px heights and 2px row gaps.
-  Three filled pinned tiles use 6px spacing, 2px additional side padding, and
+- Tabs follow the native standard density: 30px heights, 8px corners, 2px row
+  gaps, and 9px side margins (4px region inset plus 5px row margin). Icons have
+  a 9px leading inset and a 7px gap before the label.
+  Three filled pinned tiles use 6px spacing and
   a 6px gap before New Tab. New Tab stays above the independently scrolling tabs,
   with the same colors and spacing as a regular row and no tooltip.
 - Sample tab close marks appear only on hover, including the selected tab. The
-  26px close region holds an 11px glyph. A compact illustrative “Make default
-  browser” footer sits 5px from the bottom and follows the same hover treatment;
-  its label yields space and fades before the close mark without changing height.
-  These sample rows are decorative, like the original tabs; they do not change
-  the visitor’s default browser. No update-ready state is fabricated.
+  32px close region holds an 11px glyph centered 15px from the trailing row edge.
+  Labels yield space and fade before the close mark without changing row height.
+  The illustration omits default-browser and update prompts.
 - During “Just the page,” a scroll-driven cursor enters from the left of the
   screen, clicks the sidebar toggle and exits through the top. The page immediately
   fills the window, while the glass sidebar remains until the cursor is more than
