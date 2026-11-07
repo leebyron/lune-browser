@@ -1,0 +1,838 @@
+--- a/chrome/browser/mac/BUILD.gn
++++ b/chrome/browser/mac/BUILD.gn
+@@ -50,6 +50,11 @@
+   public_deps = [ "//base" ]
+ }
+ 
++source_set("sparkle_headers") {
++  public = [ "sparkle_glue.h" ]
++  public_deps = [ "//base" ]
++}
++
+ source_set("mac") {
+   public = [
+     "auth_session_request.h",
+--- a/chrome/browser/mac/sparkle_glue.h
++++ b/chrome/browser/mac/sparkle_glue.h
+@@ -9,6 +9,14 @@
+ #ifndef CHROME_BROWSER_MAC_SPARKLE_GLUE_H_
+ #define CHROME_BROWSER_MAC_SPARKLE_GLUE_H_
+ 
++#include <optional>
++#include <string>
++
++#include "base/callback_list.h"
++#include "base/functional/callback.h"
++
++class Profile;
++
+ #if defined(__OBJC__)
+ 
+ #import <AppKit/AppKit.h>
+@@ -86,6 +94,10 @@
+ // Check if current application has an update which is ready to be installed.
+ bool ApplicationIsNearlyUpdated();
+ 
++// UI-sequence notification, also usable before Sparkle is initialized.
++base::CallbackListSubscription RegisterUpdateReadyChanged(
++    base::RepeatingClosure callback);
++
+ // Replace the underlying profile tied to the updater with another one.
+ void SwitchUnderlyingUpdaterProfile(Profile* profile);
+ 
+--- a/chrome/browser/mac/sparkle_glue.mm
++++ b/chrome/browser/mac/sparkle_glue.mm
+@@ -12,8 +12,9 @@
+ #include "base/command_line.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback_helpers.h"
+-#include "base/memory/weak_ptr.h"
+ #include "base/logging.h"
++#include "base/memory/weak_ptr.h"
++#include "base/no_destructor.h"
+ #include "base/sequence_checker.h"
+ #include "base/strings/escape.h"
+ #include "base/strings/sys_string_conversions.h"
+@@ -33,12 +34,19 @@
+ #include "content/public/browser/browser_task_traits.h"
+ #include "content/public/browser/browser_thread.h"
+ #include "content/public/browser/web_contents.h"
++#include "third_party/sparkle/Sparkle/SPUHeadlessUserDriver.h"
++#include "third_party/sparkle/Sparkle/Sparkle.h"
+ #include "ui/base/l10n/l10n_util.h"
+ 
+-#include "third_party/sparkle/Sparkle/Sparkle.h"
+-#include "third_party/sparkle/Sparkle/SPUHeadlessUserDriver.h"
++namespace {
++base::RepeatingClosureList& UpdateReadyCallbacks() {
++  static base::NoDestructor<base::RepeatingClosureList> callbacks;
++  return *callbacks;
++}
++}  // namespace
+ 
+-@interface SparkleDriver : SPUHeadlessUserDriver {}
++@interface SparkleDriver : SPUHeadlessUserDriver {
++}
+ @end
+ 
+ // SparkleObserver is a simple notification observer for Sparkle status.
+@@ -107,12 +115,13 @@
+   [self updateStatus:VersionUpdater::UPDATING error_string:nil];
+ }
+ 
+-- (BOOL)updater:(SPUUpdater *)updater
+-          shouldPostponeRelaunchForUpdate:(SUAppcastItem *)item
+-          untilInvokingBlock:(void (^)(void))installHandler {
++- (BOOL)updater:(SPUUpdater*)updater
++    shouldPostponeRelaunchForUpdate:(SUAppcastItem*)item
++                 untilInvokingBlock:(void (^)(void))installHandler {
+   currentlyDownloadedVersion_ = item.versionString;
+-  [self updateStatus:VersionUpdater::NEARLY_UPDATED error_string:nil];
+   self.invocationBlock = installHandler;
++  [self updateStatus:VersionUpdater::NEARLY_UPDATED error_string:nil];
++  UpdateReadyCallbacks().Notify();
+   return YES;
+ }
+ 
+@@ -354,12 +363,18 @@
+ 
+ namespace helium {
+ 
++base::CallbackListSubscription RegisterUpdateReadyChanged(
++    base::RepeatingClosure callback) {
++  return UpdateReadyCallbacks().Add(std::move(callback));
++}
++
+ void RelaunchBrowserUsingSparkle() {
+   SparkleObserver* observer = VersionUpdaterSparkle::sparkle_observer_;
+ 
+   // Tell Sparkle to restart if possible.
+   if (observer && observer.invocationBlock) {
+     VersionUpdaterSparkle::sparkle_observer_ = nullptr;
++    UpdateReadyCallbacks().Notify();
+     observer.invocationBlock();
+   }
+ }
+--- a/chrome/browser/ui/startup/default_browser_prompt/BUILD.gn
++++ b/chrome/browser/ui/startup/default_browser_prompt/BUILD.gn
+@@ -77,7 +77,9 @@
+     "//chrome/browser/ui/actions:actions_headers",
+     "//chrome/browser/ui/browser_window",
+     "//chrome/browser/ui/tabs:tab_strip",
++    "//chrome/browser/ui/views/frame:sidebar_footer",
+     "//chrome/browser/ui/views/frame:toolbar_button_provider",
++    "//chrome/browser/ui/views/frame:vertical_tab_strip_region_view",
+     "//chrome/browser/ui/views/toolbar",
+     "//chrome/browser/ui/webui/default_browser:default_browser_modal",
+     "//components/infobars/content",
+--- a/chrome/browser/ui/startup/default_browser_prompt/default_browser_infobar_manager.cc
++++ b/chrome/browser/ui/startup/default_browser_prompt/default_browser_infobar_manager.cc
+@@ -26,6 +26,10 @@
+ #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_manager.h"
+ #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_prefs.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/frame/sidebar_footer_view.h"
++#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/grit/generated_resources.h"
+@@ -94,12 +98,27 @@
+ 
+ void DefaultBrowserInfoBarManager::ShowForBrowser(
+     BrowserWindowInterface* browser) {
+-  // The BrowserTabStripTracker will handle showing infobars for both existing
+-  // and newly created browsers, so we don't need to do anything here.
++  if (IsMigrated()) {
++    return;
++  }
++  if (auto* controller = tabs::VerticalTabStripStateController::From(browser)) {
++    sidebar_browsers_.try_emplace(
++        browser, controller->RegisterOnModeChanged(base::BindRepeating(
++                     [](base::WeakPtr<DefaultBrowserInfoBarManager> manager,
++                        BrowserWindowInterface* browser,
++                        tabs::VerticalTabStripStateController*) {
++                       if (manager) {
++                         manager->UpdateBrowserPrompt(browser);
++                       }
++                     },
++                     weak_factory_.GetWeakPtr(), browser)));
++    UpdateBrowserPrompt(browser);
++  }
+ }
+ 
+ void DefaultBrowserInfoBarManager::CloseForBrowser(
+     BrowserWindowInterface* browser) {
++  sidebar_browsers_.erase(browser);
+   if (IsMigrated()) {
+     // The framework reports kIgnored when the last instance goes away with
+     // its window; OnInfoBarResult records it.
+@@ -130,6 +149,7 @@
+   browser_tab_strip_tracker_.reset();
+ 
+   ProcessIgnore();
++  CloseAllPromptsSoon(CloseReason::kDismiss);
+ }
+ 
+ void DefaultBrowserInfoBarManager::CloseAllPromptInstances() {
+@@ -138,6 +158,18 @@
+     return;
+   }
+ 
++  sidebar_action_pending_ = false;
++  weak_factory_.InvalidateWeakPtrs();
++  for (const auto& [browser, subscription] : sidebar_browsers_) {
++    if (auto* view = BrowserView::GetBrowserViewForBrowser(browser)) {
++      auto* region =
++          static_cast<VerticalTabStripRegionView*>(view->GetSidebarView());
++      if (region) {
++        region->footer()->SetDefaultBrowserPrompt({}, {}, {});
++      }
++    }
++  }
++  sidebar_browsers_.clear();
+   user_initiated_info_bar_close_pending_.reset();
+ 
+   browser_tab_strip_tracker_.reset();
+@@ -188,6 +220,13 @@
+     TabStripModel* tab_strip_model,
+     const TabStripModelChange& change,
+     const TabStripSelectionChange& selection) {
++  for (const auto& [browser, subscription] : sidebar_browsers_) {
++    if (browser->GetTabStripModel() == tab_strip_model &&
++        UsesSidebar(browser)) {
++      UpdateBrowserPrompt(browser);
++      return;
++    }
++  }
+   if (change.type() == TabStripModelChange::kInserted) {
+     for (const auto& contents : change.GetInsert()->contents) {
+       if (!infobars_.contains(contents.contents)) {
+@@ -278,6 +317,73 @@
+       infobars::InfoBarDelegate::DEFAULT_BROWSER_INFOBAR_DELEGATE);
+ }
+ 
++bool DefaultBrowserInfoBarManager::UsesSidebar(
++    BrowserWindowInterface* browser) const {
++  auto* controller = tabs::VerticalTabStripStateController::From(browser);
++  auto* view = BrowserView::GetBrowserViewForBrowser(browser);
++  return controller && controller->ShouldDisplayVerticalTabs() && view &&
++         view->GetSidebarView();
++}
++
++void DefaultBrowserInfoBarManager::UpdateBrowserPrompt(
++    BrowserWindowInterface* browser) {
++  auto* view = BrowserView::GetBrowserViewForBrowser(browser);
++  auto* region =
++      view ? static_cast<VerticalTabStripRegionView*>(view->GetSidebarView())
++           : nullptr;
++  const bool sidebar = UsesSidebar(browser);
++  if (region) {
++    auto callback = [&](SidebarAction action) {
++      return base::BindRepeating(&DefaultBrowserInfoBarManager::OnSidebarAction,
++                                 weak_factory_.GetWeakPtr(),
++                                 browser->GetProfile(), action);
++    };
++    region->footer()->SetDefaultBrowserPrompt(
++        sidebar ? callback(SidebarAction::kAccept) : base::RepeatingClosure(),
++        sidebar ? callback(SidebarAction::kDismiss) : base::RepeatingClosure(),
++        sidebar ? callback(SidebarAction::kReject) : base::RepeatingClosure());
++  }
++  auto* model = browser->GetTabStripModel();
++  for (int i = 0; i < model->count(); ++i) {
++    auto* contents = model->GetWebContentsAt(i);
++    auto it = infobars_.find(contents);
++    if (sidebar && it != infobars_.end()) {
++      auto* bar = it->second.get();
++      bar->owner()->RemoveObserver(this);
++      static_cast<ConfirmInfoBarDelegate*>(bar->delegate())
++          ->RemoveObserver(this);
++      infobars_.erase(it);
++      bar->RemoveSelf();
++    } else if (!sidebar && it == infobars_.end()) {
++      CreateInfoBarForWebContents(contents, browser->GetProfile());
++    }
++  }
++}
++
++void DefaultBrowserInfoBarManager::OnSidebarAction(Profile* profile,
++                                                   SidebarAction action) {
++  if (sidebar_action_pending_) {
++    return;
++  }
++  sidebar_action_pending_ = true;
++  // Match the legacy delegate's preference updates, then use the same
++  // controller and global dismissal path. Defer destruction until after the
++  // button callback.
++  if (action == SidebarAction::kReject) {
++    g_browser_process->local_state()->SetBoolean(
++        prefs::kHeliumDefaultBrowserRejected, true);
++  } else {
++    chrome::startup::default_prompt::UpdatePrefsForDismissedPrompt(profile);
++  }
++  if (action == SidebarAction::kAccept) {
++    ProcessAccept();
++  } else {
++    ProcessDismiss();
++  }
++  CloseAllPromptsSoon(action == SidebarAction::kAccept ? CloseReason::kAccept
++                                                       : CloseReason::kDismiss);
++}
++
+ void DefaultBrowserInfoBarManager::ProcessAccept() {
+   base::UmaHistogramCounts100("DefaultBrowser.InfoBar.TimesShownBeforeAccept",
+                               g_browser_process->local_state()->GetInteger(
+--- a/chrome/browser/ui/startup/default_browser_prompt/default_browser_infobar_manager.h
++++ b/chrome/browser/ui/startup/default_browser_prompt/default_browser_infobar_manager.h
+@@ -10,6 +10,7 @@
+ #include <optional>
+ 
+ #include "base/memory/raw_ptr.h"
++#include "base/memory/weak_ptr.h"
+ #include "base/scoped_observation.h"
+ #include "chrome/browser/default_browser/default_browser_controller.h"
+ #include "chrome/browser/infobars/infobar_spec.h"
+@@ -92,6 +93,14 @@
+                        infobars::InfoBarResult result);
+   void HideInfoBar();
+ 
++  bool UsesSidebar(BrowserWindowInterface* browser) const;
++  void UpdateBrowserPrompt(BrowserWindowInterface* browser);
++  enum class SidebarAction { kAccept, kDismiss, kReject };
++  void OnSidebarAction(Profile* profile, SidebarAction action);
++  bool sidebar_action_pending_ = false;
++  std::map<BrowserWindowInterface*, base::CallbackListSubscription>
++      sidebar_browsers_;
++
+   void ProcessAccept();
+   void ProcessDismiss();
+   void ProcessIgnore();
+@@ -118,6 +127,7 @@
+ 
+   std::optional<DefaultBrowserPromptManager::CloseReason>
+       user_initiated_info_bar_close_pending_;
++  base::WeakPtrFactory<DefaultBrowserInfoBarManager> weak_factory_{this};
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_STARTUP_DEFAULT_BROWSER_PROMPT_DEFAULT_BROWSER_INFOBAR_MANAGER_H_
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -526,6 +526,36 @@
+   ]
+ }
+ 
++source_set("sidebar_footer") {
++  public = [ "sidebar_footer_view.h" ]
++  sources = [ "sidebar_footer_view.cc" ]
++  public_deps = [
++    "//base",
++    "//ui/menus",
++    "//ui/views",
++  ]
++  deps = [
++    ":browser_view_header",
++    ":frame",
++    "//chrome/app:branded_strings",
++    "//chrome/app:generated_resources",
++    "//chrome/browser:buildflags",
++    "//chrome/browser/lifetime",
++    "//chrome/browser/ui:layout_constants",
++    "//chrome/browser/ui/color:color_headers",
++    "//chrome/browser/ui/tabs:tab_strip",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
++    "//components/omnibox/browser:vector_icons",
++    "//components/strings:components_strings_grit",
++    "//components/vector_icons",
++    "//ui/base",
++    "//ui/strings",
++  ]
++  if (is_mac) {
++    deps += [ "//chrome/browser/mac:sparkle_headers" ]
++  }
++}
++
+ source_set("vertical_tab_strip_region_view") {
+   public = [
+     "../tabs/vertical/vertical_tab_strip_header_view.h",
+@@ -561,6 +591,7 @@
+     ":frame_separator",
+     ":safe_invoke",
+     ":shadow",
++    ":sidebar_footer",
+     "//chrome/app:generated_resources",
+     "//chrome/browser/ui:browser_actions",
+     "//chrome/browser/ui:browser_element_identifiers",
+--- /dev/null
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -0,0 +1,211 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/ui/views/frame/sidebar_footer_view.h"
++
++#include "base/functional/bind.h"
++#include "base/memory/raw_ref.h"
++#include "chrome/browser/buildflags.h"
++#include "chrome/browser/lifetime/application_lifetime.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "chrome/grit/branded_strings.h"
++#include "chrome/grit/generated_resources.h"
++#include "components/omnibox/browser/vector_icons.h"
++#include "components/strings/grit/components_strings.h"
++#include "components/vector_icons/vector_icons.h"
++#include "ui/base/l10n/l10n_util.h"
++#include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/gfx/canvas.h"
++#include "ui/strings/grit/ui_strings.h"
++#include "ui/views/accessibility/view_accessibility.h"
++#include "ui/views/border.h"
++#include "ui/views/controls/button/label_button.h"
++#include "ui/views/controls/menu/menu_runner.h"
++#include "ui/views/view_class_properties.h"
++#include "ui/views/widget/widget.h"
++
++#if BUILDFLAG(ENABLE_SPARKLE)
++#include "chrome/browser/mac/sparkle_glue.h"
++#endif
++
++namespace {
++// Match the density and native colors of the surrounding tab rows. A footer
++// action keeps its preferred height even when the tabs have room to grow.
++class FooterButton : public views::LabelButton {
++  METADATA_HEADER(FooterButton, views::LabelButton)
++ public:
++  FooterButton(base::RepeatingClosure action,
++               int message,
++               const gfx::VectorIcon& icon)
++      : views::LabelButton(std::move(action),
++                           l10n_util::GetStringUTF16(message)),
++        icon_(icon) {
++    SetHorizontalAlignment(gfx::ALIGN_LEFT);
++    SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 7)));
++    SetImageLabelSpacing(7);
++    SetPreferredSize(
++        gfx::Size(-1, GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
++    SetTooltipText(l10n_util::GetStringUTF16(message));
++    GetViewAccessibility().SetName(l10n_util::GetStringUTF16(message));
++  }
++
++  void OnThemeChanged() override {
++    views::LabelButton::OnThemeChanged();
++    const SkColor color = helium::NativeGlassControlColor(this).value_or(
++        GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive));
++    SetEnabledTextColors(color);
++    SetImageModel(STATE_NORMAL,
++                  ui::ImageModel::FromVectorIcon(*icon_, color, 16));
++  }
++
++  void OnPaintBackground(gfx::Canvas* canvas) override {
++    if (GetState() != STATE_HOVERED && GetState() != STATE_PRESSED) {
++      return;
++    }
++    cc::PaintFlags flags;
++    flags.setAntiAlias(true);
++    flags.setColor(
++        helium::NativeGlassColor(this, helium::NativeGlassColorRole::kHover)
++            .value_or(GetColorProvider()->GetColor(
++                kColorTabBackgroundInactiveHoverFrameActive)));
++    canvas->DrawRoundRect(
++        gfx::RectF(GetLocalBounds()),
++        GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius), flags);
++  }
++
++ private:
++  const raw_ref<const gfx::VectorIcon> icon_;
++};
++BEGIN_METADATA(FooterButton)
++END_METADATA
++}  // namespace
++
++SidebarFooterView::SidebarFooterView(
++    BrowserWindowInterface* browser,
++    tabs::VerticalTabStripStateController* state_controller)
++    : browser_(browser), state_controller_(state_controller) {
++  SetOrientation(views::LayoutOrientation::kVertical);
++  SetCrossAxisAlignment(views::LayoutAlignment::kStretch);
++  SetDefault(views::kMarginsKey, gfx::Insets::TLBR(2, 0, 0, 0));
++
++  update_button_ = AddChildView(std::make_unique<FooterButton>(
++      base::BindRepeating([] { chrome::AttemptRelaunch(); }),
++      IDS_RELAUNCH_TO_UPDATE, vector_icons::kRefreshIcon));
++
++  default_prompt_ = AddChildView(std::make_unique<views::FlexLayoutView>());
++  default_prompt_->SetOrientation(views::LayoutOrientation::kHorizontal);
++  default_prompt_->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
++  default_button_ =
++      default_prompt_->AddChildView(std::make_unique<FooterButton>(
++          base::RepeatingClosure(), IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL,
++          omnibox::kProductChromeRefreshOldIcon));
++  default_button_->SetProperty(
++      views::kFlexBehaviorKey,
++      views::FlexSpecification(views::LayoutOrientation::kHorizontal,
++                               views::MinimumFlexSizeRule::kScaleToZero,
++                               views::MaximumFlexSizeRule::kUnbounded));
++  default_button_->set_context_menu_controller(this);
++  dismiss_button_ =
++      default_prompt_->AddChildView(std::make_unique<FooterButton>(
++          base::RepeatingClosure(), IDS_APP_CLOSE, vector_icons::kCloseIcon));
++  dismiss_button_->SetText(u"");
++  dismiss_button_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
++  dismiss_button_->SetPreferredSize(
++      gfx::Size(28, GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
++  dismiss_button_->set_context_menu_controller(this);
++
++  collapse_subscription_ =
++      state_controller_->RegisterOnCollapseChanged(base::BindRepeating(
++          [](SidebarFooterView* footer, tabs::VerticalTabStripCollapseState) {
++            footer->UpdateState();
++          },
++          base::Unretained(this)));
++#if BUILDFLAG(ENABLE_SPARKLE)
++  update_subscription_ = helium::RegisterUpdateReadyChanged(base::BindRepeating(
++      &SidebarFooterView::UpdateState, base::Unretained(this)));
++#endif
++  UpdateState();
++}
++
++SidebarFooterView::~SidebarFooterView() = default;
++
++void SidebarFooterView::SetDefaultBrowserPrompt(base::RepeatingClosure accept,
++                                                base::RepeatingClosure dismiss,
++                                                base::RepeatingClosure reject) {
++  has_default_prompt_ = !accept.is_null();
++  default_button_->SetCallback(std::move(accept));
++  dismiss_ = std::move(dismiss);
++  reject_ = std::move(reject);
++  dismiss_button_->SetCallback(dismiss_);
++  UpdateState();
++}
++
++void SidebarFooterView::UpdateState() {
++  bool ready = false;
++#if BUILDFLAG(ENABLE_SPARKLE)
++  ready = helium::ApplicationIsNearlyUpdated();
++#endif
++  const bool collapsed = state_controller_->GetCollapseState() ==
++                         tabs::VerticalTabStripCollapseState::kCollapsed;
++  // Keep actions reachable in the narrow strip; their full names remain in
++  // accessibility and tooltips. Expand-on-hover restores the full labels.
++  default_button_->SetText(
++      collapsed ? u""
++                : l10n_util::GetStringUTF16(
++                      IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL));
++  default_button_->GetViewAccessibility().SetName(
++      l10n_util::GetStringUTF16(IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL));
++  update_button_->SetText(
++      collapsed ? u"" : l10n_util::GetStringUTF16(IDS_RELAUNCH_TO_UPDATE));
++  update_button_->GetViewAccessibility().SetName(
++      l10n_util::GetStringUTF16(IDS_RELAUNCH_TO_UPDATE));
++  dismiss_button_->SetVisible(!collapsed);
++  default_prompt_->SetVisible(has_default_prompt_);
++  update_button_->SetVisible(ready);
++  SetVisible(has_default_prompt_ || ready);
++  PreferredSizeChanged();
++}
++
++void SidebarFooterView::ShowContextMenuForViewImpl(
++    views::View* source,
++    const gfx::Point& point,
++    ui::mojom::MenuSourceType source_type) {
++  if (!has_default_prompt_) {
++    return;
++  }
++  menu_runner_.reset();
++  menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
++  menu_model_->AddItem(0, l10n_util::GetStringUTF16(IDS_APP_CLOSE));
++  menu_model_->AddItem(
++      1, l10n_util::GetStringUTF16(IDS_CARET_BROWSING_DO_NOT_ASK));
++  menu_lock_ =
++      BrowserView::GetBrowserViewForBrowser(browser_)
++          ->tab_strip_view()
++          ->GetExpandOnHoverLock(ExpandOnHoverLockType::kKeepCurrentState);
++  menu_runner_ = std::make_unique<views::MenuRunner>(
++      menu_model_.get(), views::MenuRunner::CONTEXT_MENU,
++      base::BindRepeating(
++          [](SidebarFooterView* footer) { footer->menu_lock_.reset(); },
++          base::Unretained(this)));
++  menu_runner_->RunMenuAt(source->GetWidget(), nullptr,
++                          gfx::Rect(point, gfx::Size()),
++                          views::MenuAnchorPosition::kTopLeft, source_type);
++}
++
++void SidebarFooterView::ExecuteCommand(int command_id, int event_flags) {
++  // The manager posts closure of all prompts, so menu dispatch can finish
++  // safely.
++  auto action = command_id == 1 ? reject_ : dismiss_;
++  if (action) {
++    action.Run();
++  }
++}
++
++BEGIN_METADATA(SidebarFooterView)
++END_METADATA
+--- /dev/null
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.h
+@@ -0,0 +1,62 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_VIEWS_FRAME_SIDEBAR_FOOTER_VIEW_H_
++#define CHROME_BROWSER_UI_VIEWS_FRAME_SIDEBAR_FOOTER_VIEW_H_
++
++#include "base/callback_list.h"
++#include "base/functional/callback.h"
++#include "base/memory/raw_ptr.h"
++#include "ui/menus/simple_menu_model.h"
++#include "ui/views/context_menu_controller.h"
++#include "ui/views/layout/flex_layout_view.h"
++
++class BrowserWindowInterface;
++class ExpandOnHoverLock;
++namespace views {
++class LabelButton;
++class MenuRunner;
++}  // namespace views
++namespace tabs {
++class VerticalTabStripStateController;
++}
++
++// Browser-level actions below the scrolling tabs. Intentionally not a general
++// infobar host: security, sharing and page-specific notices remain in place.
++class SidebarFooterView : public views::FlexLayoutView,
++                          public views::ContextMenuController,
++                          public ui::SimpleMenuModel::Delegate {
++  METADATA_HEADER(SidebarFooterView, views::FlexLayoutView)
++ public:
++  SidebarFooterView(BrowserWindowInterface* browser,
++                    tabs::VerticalTabStripStateController* state_controller);
++  ~SidebarFooterView() override;
++  void SetDefaultBrowserPrompt(base::RepeatingClosure accept,
++                               base::RepeatingClosure dismiss,
++                               base::RepeatingClosure reject);
++
++ private:
++  void UpdateState();
++  void ShowContextMenuForViewImpl(
++      views::View* source,
++      const gfx::Point& point,
++      ui::mojom::MenuSourceType source_type) override;
++  void ExecuteCommand(int command_id, int event_flags) override;
++  raw_ptr<BrowserWindowInterface> browser_;
++  base::RepeatingClosure dismiss_;
++  base::RepeatingClosure reject_;
++  std::unique_ptr<ExpandOnHoverLock> menu_lock_;
++  std::unique_ptr<ui::SimpleMenuModel> menu_model_;
++  std::unique_ptr<views::MenuRunner> menu_runner_;
++  raw_ptr<tabs::VerticalTabStripStateController> state_controller_;
++  raw_ptr<views::FlexLayoutView> default_prompt_;
++  raw_ptr<views::LabelButton> default_button_;
++  raw_ptr<views::LabelButton> dismiss_button_;
++  raw_ptr<views::LabelButton> update_button_;
++  bool has_default_prompt_ = false;
++  base::CallbackListSubscription collapse_subscription_;
++  base::CallbackListSubscription update_subscription_;
++};
++
++#endif
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -43,6 +43,7 @@
+ #include "chrome/browser/ui/views/frame/frame_separator.h"
+ #include "chrome/browser/ui/views/frame/safe_invoke/safe_invoke.h"
+ #include "chrome/browser/ui/views/frame/shadow_frame_view.h"
++#include "chrome/browser/ui/views/frame/sidebar_footer_view.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h"
+ #include "chrome/browser/ui/views/tabs/common/root_tab_collection_node.h"
+@@ -198,8 +199,15 @@
+                                views::MaximumFlexSizeRule::kUnbounded));
+   bottom_button_container_->SetProperty(
+       views::kMarginsKey,
+-      gfx::Insets::TLBR(kBottomContainerGap, region_horizontal_padding,
+-                        0, region_horizontal_padding));
++      gfx::Insets::TLBR(kBottomContainerGap, region_horizontal_padding, 0,
++                        region_horizontal_padding));
++
++  footer_ =
++      content_area_view_->AddChildView(std::make_unique<SidebarFooterView>(
++          browser_view->browser(), state_controller_));
++  footer_->SetProperty(views::kMarginsKey,
++                       gfx::Insets::TLBR(4, region_horizontal_padding, 6,
++                                         region_horizontal_padding));
+ 
+   gemini_button_ =
+       content_area_view_->AddChildView(std::make_unique<views::View>());
+@@ -328,6 +336,11 @@
+     return false;
+   }
+ 
++  if (content_area_view_->GetVisible() && footer_->GetVisible() &&
++      IsHitInView(footer_, point)) {
++    return false;
++  }
++
+   if (content_area_view_->GetVisible() && header_view_->GetVisible() &&
+       IsHitInView(header_view_, point)) {
+     gfx::Point point_in_header = point;
+@@ -1016,7 +1029,7 @@
+   view->SetProperty(
+       views::kFlexBehaviorKey,
+       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
+-                               views::MaximumFlexSizeRule::kPreferred));
++                               views::MaximumFlexSizeRule::kUnbounded));
+   view->SetProperty(views::kMarginsKey,
+                     gfx::Insets::TLBR(0, 0, kBottomContainerGap, 0));
+ 
+@@ -1154,14 +1167,9 @@
+ }
+ 
+ gfx::Rect VerticalTabStripRegionView::GetTabStripDraggableBounds() const {
+-  // The new-tab row is inside the tab strip, between its scroll containers.
+-  // Only the outer bottom padding is reserved from the drag area.
++  // The scrolling tabs and New Tab row own this space. Footer actions are
++  // outside the tab drag target, including when the sidebar is detached.
+   gfx::Rect tab_strip_draggable_bounds = tab_strip_view()->GetBoundsInScreen();
+-  tab_strip_draggable_bounds.set_height(
+-      GetBoundsInScreen().bottom() -
+-      GetLayoutConstant(
+-          LayoutConstant::kVerticalTabStripUncollapsedVerticalPadding) -
+-      tab_strip_draggable_bounds.y());
+   return tab_strip_draggable_bounds;
+ }
+ 
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
+@@ -41,6 +41,7 @@
+ class VerticalTabStripFocusSwipeController;
+ class VerticalTabStripHeaderView;
+ class ShadowFrameView;
++class SidebarFooterView;
+ 
+ namespace tabs {
+ class VerticalTabStripStateController;
+@@ -84,6 +85,7 @@
+     return bottom_button_container_;
+   }
+ 
++  SidebarFooterView* footer() const { return footer_; }
+   LocationBarView* GetLocationBarView() const;
+   VerticalTabStripHeaderView* header_view() const { return header_view_; }
+ 
+@@ -253,6 +255,7 @@
+   gfx::Insets interior_margin_;
+ 
+   raw_ptr<VerticalTabStripHeaderView> header_view_ = nullptr;
++  raw_ptr<SidebarFooterView> footer_ = nullptr;
+   raw_ptr<VerticalTabStripBottomContainer> bottom_button_container_ = nullptr;
+   raw_ptr<views::View> gemini_button_ = nullptr;
+   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
+--- a/chrome/browser/ui/views/toolbar/BUILD.gn
++++ b/chrome/browser/ui/views/toolbar/BUILD.gn
+@@ -241,6 +241,7 @@
+     "//chrome/app/theme:theme_resources_grit",
+     "//chrome/app/vector_icons",
+     "//chrome/browser:browser_process",
++    "//chrome/browser:buildflags",
+     "//chrome/browser:chained_back_navigation_tracker",
+     "//chrome/browser:flags",
+     "//chrome/browser:primitives",
+@@ -319,6 +320,7 @@
+     "//chrome/browser/ui/views/frame:horizontal_tab_strip_region_view",
+     "//chrome/browser/ui/views/frame:toolbar_button_provider",
+     "//chrome/browser/ui/views/frame:top_container_view",
++    "//chrome/browser/ui/views/frame:vertical_tab_strip_region_view",
+     "//chrome/browser/ui/views/glic",
+     "//chrome/browser/ui/views/global_media_controls",
+     "//chrome/browser/ui/views/helium:native_frame_materials",
+@@ -402,6 +404,9 @@
+     deps += [ "//chrome/browser/ui/ai_overlay_dialog" ]
+   }
+   deps += [ "//chrome/browser/ui/views/extensions:extensions_toolbar_desktop" ]
++  if (is_mac) {
++    deps += [ "//chrome/browser/mac:sparkle_headers" ]
++  }
+ }
+ 
+ if (!is_android) {
+--- a/chrome/browser/ui/views/toolbar/browser_app_menu_button.cc
++++ b/chrome/browser/ui/views/toolbar/browser_app_menu_button.cc
+@@ -12,6 +12,11 @@
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
+ #include "build/branding_buildflags.h"
++#include "chrome/browser/buildflags.h"
++#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
++#if BUILDFLAG(ENABLE_SPARKLE)
++#include "chrome/browser/mac/sparkle_glue.h"
++#endif
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/app_menu/action_app_menu.h"
+@@ -68,6 +73,16 @@
+   label()->SetSkipSubpixelRenderingOpacityCheck(true);
+   label()->layer()->SetFillsBoundsOpaquely(false);
+   label()->SetSubpixelRenderingEnabled(false);
++  if (auto* controller = tabs::VerticalTabStripStateController::From(
++          toolbar_view_->browser())) {
++    sidebar_mode_subscription_ =
++        controller->RegisterOnModeChanged(base::BindRepeating(
++            [](BrowserAppMenuButton* button,
++               tabs::VerticalTabStripStateController*) {
++              button->UpdateThemeBasedState();
++            },
++            base::Unretained(this)));
++  }
+ }
+ 
+ BrowserAppMenuButton::~BrowserAppMenuButton() = default;
+@@ -197,10 +212,21 @@
+ }
+ 
+ void BrowserAppMenuButton::UpdateTextAndHighlightColor() {
++  auto presentation = type_and_severity_;
++#if BUILDFLAG(ENABLE_SPARKLE)
++  auto* controller =
++      tabs::VerticalTabStripStateController::From(toolbar_view_->browser());
++  if (presentation.type ==
++          AppMenuIconController::IconType::kUpgradeNotification &&
++      helium::ApplicationIsNearlyUpdated() && controller &&
++      controller->ShouldDisplayVerticalTabs()) {
++    presentation = {};
++  }
++#endif
+   const std::u16string text = AppMenuIconController::GetIconLabel(
+-      type_and_severity_.type, type_and_severity_.severity);
+-  SetTooltipText(AppMenuIconController::GetIconTooltip(
+-      type_and_severity_.type, type_and_severity_.severity));
++      presentation.type, presentation.severity);
++  SetTooltipText(AppMenuIconController::GetIconTooltip(presentation.type,
++                                                       presentation.severity));
+   SetHighlight(text, GetHighlightColor());
+ }
+ 
+--- a/chrome/browser/ui/views/toolbar/browser_app_menu_button.h
++++ b/chrome/browser/ui/views/toolbar/browser_app_menu_button.h
+@@ -5,6 +5,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_TOOLBAR_BROWSER_APP_MENU_BUTTON_H_
+ #define CHROME_BROWSER_UI_VIEWS_TOOLBAR_BROWSER_APP_MENU_BUTTON_H_
+ 
++#include "base/callback_list.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/scoped_observation.h"
+@@ -65,6 +66,7 @@
+   gfx::Size GetMinimumSize() const override;
+ 
+  private:
++  base::CallbackListSubscription sidebar_mode_subscription_;
+   void OnTouchUiChanged();
+ 
+   void ButtonPressed(const ui::Event& event);
