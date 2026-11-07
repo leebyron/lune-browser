@@ -23,6 +23,7 @@
     pageHeight = root.querySelector('.viewport').clientHeight;
     const sidebarWidth = parseFloat(style.getPropertyValue('--sidebar-width'));
     browserScale = parseFloat(style.getPropertyValue('--browser-scale'));
+    root.style.setProperty('--hairline', `${1 / (devicePixelRatio * browserScale)}px`);
     root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 2 * parseFloat(style.getPropertyValue('--rail')) - sidebarWidth)}px`);
     const minimal = root.querySelector('.minimal-story');
     demoStart = readingStart + minimal.offsetTop - pageHeight * .4;
@@ -79,7 +80,7 @@
     const cursorDistance = progress <= .44 ? clamp(progress / .44) * cursorStop : cursorStop + clamp((progress - .64) / .36) * (100 - cursorStop);
     const cursorPoint = cursorPath.getPointAtLength(cursorDistance / 100 * cursorPathLength);
     const demoHolding = sidebarOverride === null && (progress < .5 || distanceFromPanel({x:cursorPoint.x / browserScale,y:cursorPoint.y / browserScale},
-      {left:8,right:8 + sidebar.offsetWidth,top:8,bottom:win.clientHeight - 8}) <= panelDismissDistance);
+      {left:0,right:sidebar.offsetWidth,top:0,bottom:win.clientHeight}) <= panelDismissDistance);
     const keyboardFocus = Boolean(sidebarRegion.querySelector(':focus-visible'));
     const visible = !floating || demoHolding || sidebarHovered || keyboardFocus;
     sidebar.inert = !visible;
@@ -157,6 +158,7 @@
   function showToolbar() {
     if (!appVisible) return;
     toolbarRegion.dataset.open = '';
+    win.dataset.toolbarOpen = '';
     toolbar.inert = false;
     toolbar.setAttribute('aria-hidden', 'false');
     toolbarRail.setAttribute('aria-expanded', 'true');
@@ -164,6 +166,7 @@
   }
   function hideToolbar() {
     delete toolbarRegion.dataset.open;
+    delete win.dataset.toolbarOpen;
     toolbar.inert = true;
     toolbar.setAttribute('aria-hidden', 'true');
     toolbarRail.setAttribute('aria-expanded', 'false');
@@ -201,7 +204,7 @@
     panelPointer = {x:event.clientX,y:event.clientY};
     const bounds = sidebar.getBoundingClientRect();
     if (win.dataset.sidebar !== 'hidden' && panelPointer.x >= bounds.left && panelPointer.x <= bounds.right &&
-        panelPointer.y >= bounds.top && panelPointer.y <= bounds.top + 44 * browserScale) showToolbar();
+        panelPointer.y >= bounds.top && panelPointer.y <= bounds.top + 52 * browserScale) showToolbar();
     dismissDistantPanels();
   }
   document.addEventListener('pointermove', trackPanelPointer, {passive:true});
@@ -218,6 +221,12 @@
   });
   toolbarRegion.addEventListener('pointerleave', trackPanelPointer);
   toolbarRail.addEventListener('click', showToolbar);
+  const headerShield = root.querySelector('.header-shield');
+  headerShield.addEventListener('pointerenter', showToolbar);
+  win.addEventListener('wheel', event => {
+    const top = win.getBoundingClientRect().top;
+    if (win.hasAttribute('data-toolbar-open') && event.clientY >= top && event.clientY < top + 52 * browserScale) event.preventDefault();
+  }, {passive:false});
   toolbarRegion.addEventListener('focusin', showToolbar);
   toolbarRegion.addEventListener('focusout', () => queueMicrotask(dismissDistantPanels));
   toolbarRegion.addEventListener('keydown', event => {
