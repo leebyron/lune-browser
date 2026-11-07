@@ -526,8 +526,8 @@ changes; no signed browser release is published by this update.
 
 ## Pinned inputs
 
-- Platform commit: `60529e0d37812d2ec9e211530c1b4e7bf27421b5`.
-- Platform tag: `inputs/edge-frame-5/macos`.
+- Platform commit: `4cf8f82964ebad06ccfd18e73ba9dac27d16919b`.
+- Platform tag: `inputs/edge-frame-10/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and

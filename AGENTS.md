@@ -102,13 +102,12 @@ Input 19 derives traffic-light spacing from AppKit and compacts its container.
 Input 20 uses normal omnibox editing text, preserving an empty new-tab field.
 This is not in published builds 1 or 2 and is not release-accepted.
 
-The development input `inputs/edge-frame-5/macos` supersedes the earlier frame
+The development input `inputs/edge-frame-10/macos` supersedes the earlier frame
 geometry on macOS: a 16 pt native window perimeter, no content gutter, outline,
 or drop shadow, and a flush square glass popover sidebar. A separate 8 pt edge
 interaction band reveals chrome while AppKit retains native resizing; fullscreen
 uses four physical top pixels and one side pixel for reveal. The header region
-is 56 pt tall
-with controls inset 8 pt. The obsolete macOS frame/gutter settings are hidden.
+is 52 pt tall with controls inset 8 pt. The obsolete macOS frame/gutter settings are hidden.
 Both architecture builds and smoke/default/settings checks pass (Intel via
 Rosetta); arm64 inspection confirms the full-window viewport and header inset.
 The owner accepted input-2 edge reveal. Input 3 aligns pin/unpin geometry, moves
@@ -119,7 +118,31 @@ pinned blank-space events through AppKit. The owner confirmed pinned-sidebar
 dragging and right-click menus work on input 4; fullscreen menu motion and
 pin/unpin geometry still await acceptance. Input 5 widens reveal to those 8/4/1
 thresholds and allows full-header dragging for presses not claimed by AppKit
-for resizing, eliminating the inert strip above the controls.
+for resizing, eliminating the inert strip above the controls. The owner confirmed
+both drag and resize work on input 5, but reported cursor flicker. Input 6 defers
+content cursor updates to AppKit over its actual resize targets and tears down
+the floating autocomplete before profile services are destroyed. Arm64 native
+fullscreen, private-window close, fullscreen-window close and clean quit checks
+pass. The owner reported input-6 cursor flicker remained. Inputs 7–8 use
+Apple's standard frame cursors and prevent renderer/glass/child-window cursor
+overrides at native resize targets. They also initialize the popover drag handler
+before the first header reveal. Extracted native tests pass all eight resize
+directions and verify the renderer yields those targets. Final pointer acceptance
+is still pending.
+
+Edge-frame input 9 follows a live debugger trace of AppKit cursor-rectangle
+updates bypassing the window cursor handler. The shared Cocoa BaseView and
+native chrome views preserve resize cursor ownership at that dispatch boundary.
+The owner accepted input-8 popover dragging; cursor stability remains unaccepted.
+The header is now 52 pt (36 pt controls plus 8 pt above/below), superseding 56 pt.
+The popover tab child window excludes only the native buttons, avoiding clipping
+New Tab. The owner accepted input-9 header and popover geometry but reported
+resize cursor flicker remains. Input 10 gives the existing native frame a
+persistent AppKit cursor-update tracking area and uses current pointer positions
+in the window handler, following a live trace of structural cursor resets.
+Both architecture builds and smoke checks pass (Intel via Rosetta), but the
+owner reports input 10 still has inconsistent resize cursors. This remains an
+open interaction defect, not an accepted cursor fix.
 See [edge-to-edge frame evidence](agent-docs/project/features/edge-to-edge-frame.md).
 This development revision is not in published builds 1 or 2.
 
