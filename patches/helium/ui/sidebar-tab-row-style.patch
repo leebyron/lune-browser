@@ -1,0 +1,253 @@
+--- a/chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h
++++ b/chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h
+@@ -27,6 +27,8 @@ class PinnedTabContainerView
+   METADATA_HEADER(PinnedTabContainerView, TabCollectionZOrderManager)
+ 
+  public:
++  static constexpr int kTabPadding = 6;
++
+   explicit PinnedTabContainerView(TabCollectionNode* collection_node);
+   PinnedTabContainerView(const PinnedTabContainerView&) = delete;
+   PinnedTabContainerView& operator=(const PinnedTabContainerView&) = delete;
+@@ -58,8 +60,6 @@ class PinnedTabContainerView
+   friend class PinnedTabContainerViewVerticalLayout;
+   friend class PinnedTabContainerViewHorizontalLayout;
+ 
+-  static constexpr int kTabPadding = 4;
+-
+   // DraggedTabsContainer:
+   views::ScrollView* GetScrollViewForContainer() const override;
+   void UpdateTargetLayoutForDrag(
+--- a/chrome/browser/ui/views/tabs/common/split_tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/split_tab_view.cc
+@@ -208,7 +208,10 @@ void SplitTabView::OnDataChanged() {
+ }
+ 
+ void SplitTabView::UpdateBorder() {
+-  if (pinned_) {
++  if (pinned_ && orientation_ == TabStripOrientation::kVertical) {
++    SetBorder(views::CreateEmptyBorder(gfx::Insets(
++        GetLayoutConstant(LayoutConstant::kVerticalTabPinnedBorderThickness))));
++  } else if (pinned_) {
+     const bool is_frame_active =
+         GetWidget() ? GetWidget()->ShouldPaintAsActive() : true;
+     SetBorder(views::CreateRoundedRectBorder(
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
+@@ -14,6 +14,7 @@
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
+ #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
++#include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.h"
+ #include "chrome/browser/ui/views/tabs/horizontal/horizontal_tab_closing_helper.h"
+ #include "chrome/browser/ui/views/tabs/horizontal/tab_scroll_button_container.h"
+ #include "ui/views/controls/scroll_view.h"
+@@ -265,9 +266,6 @@ views::ProposedLayout TabStripViewLayout
+   const int region_horizontal_padding =
+       GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
+ 
+-  const int region_vertical_padding = GetLayoutConstant(
+-      LayoutConstant::kVerticalTabStripCollapsedVerticalPadding);
+-
+   int y = 0;
+ 
+   // Determine container preferred heights.
+@@ -286,10 +284,12 @@ views::ProposedLayout TabStripViewLayout
+                      : 0;
+   const int pinned_gap =
+       pinned_preferred_height && (new_tab_height || unpinned_preferred_height)
+-          ? region_vertical_padding
++          ? PinnedTabContainerView::kTabPadding
+           : 0;
+   const int new_tab_gap =
+-      new_tab_height && unpinned_preferred_height ? region_vertical_padding : 0;
++      new_tab_height && unpinned_preferred_height
++          ? UnpinnedTabContainerViewVerticalLayout::kTabVerticalPadding
++          : 0;
+ 
+   // Reserve the fixed button row before allocating either scroll viewport.
+   int remaining_height = 0;
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -1262,17 +1262,9 @@ void TabView::UpdateBorder() {
+   }
+ 
+   if (pinned_) {
+-    if (split_) {
+-      // Insets for border handled by the `SplitTabView`.
+-      SetBorder(views::CreateEmptyBorder(gfx::Insets(GetLayoutConstant(
+-          LayoutConstant::kVerticalTabPinnedBorderThickness))));
+-    } else {
+-      SetBorder(views::CreateRoundedRectBorder(
+-          GetLayoutConstant(LayoutConstant::kVerticalTabPinnedBorderThickness),
+-          GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius),
+-          IsFrameActive() ? kColorVerticalTabPinnedOutline
+-                          : kColorTabDividerFrameInactive));
+-    }
++    // Preserve favicon/content geometry without outlining the pinned tile.
++    SetBorder(views::CreateEmptyBorder(gfx::Insets(
++        GetLayoutConstant(LayoutConstant::kVerticalTabPinnedBorderThickness))));
+   } else if (GetBorder()) {
+     SetBorder(nullptr);
+   }
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -20,10 +20,6 @@
+ #include "ui/views/view.h"
+ #include "ui/views/view_utils.h"
+ 
+-namespace {
+-constexpr int kTabVerticalPadding = 2;
+-}  // namespace
+-
+ UnpinnedTabContainerViewVerticalLayout::
+     UnpinnedTabContainerViewVerticalLayout() = default;
+ UnpinnedTabContainerViewVerticalLayout::
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.h
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.h
+@@ -15,6 +15,8 @@ struct ProposedLayout;
+ class UnpinnedTabContainerViewVerticalLayout
+     : public UnpinnedTabContainerView::LayoutManager {
+  public:
++  static constexpr int kTabVerticalPadding = 2;
++
+   UnpinnedTabContainerViewVerticalLayout();
+   UnpinnedTabContainerViewVerticalLayout(
+       const UnpinnedTabContainerViewVerticalLayout&) = delete;
+--- a/chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc
++++ b/chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc
+@@ -191,6 +191,9 @@ bool VerticalTabStyleViews::ShouldPaintT
+     TabStyle::TabSelectionState selection_state,
+     bool has_custom_background,
+     bool hovered) const {
++  if (delegate_->IsPinned()) {
++    return true;
++  }
+   if (helium::IsNativeGlassControl(delegate_->GetView()) ||
+       helium::ShouldUseNativeFrameMaterials(
+           delegate_->GetBrowserWindowInterface())) {
+@@ -221,8 +224,11 @@ SkColor VerticalTabStyleViews::GetCurren
+     const auto color = helium::NativeGlassColor(
+         delegate_->GetView(), selected ? helium::NativeGlassColorRole::kSelection
+                                       : helium::NativeGlassColorRole::kHover);
+-    return color_utils::AlphaBlend(*color, SK_ColorTRANSPARENT,
+-        selected ? 1.0f : static_cast<float>(delegate_->GetHoverAnimationValue()));
++    const float hover = static_cast<float>(delegate_->GetHoverAnimationValue());
++    const float opacity = selected                ? 1.0f
++                          : delegate_->IsPinned() ? 0.5f + 0.5f * hover
++                                                  : hover;
++    return color_utils::AlphaBlend(*color, SK_ColorTRANSPARENT, opacity);
+   }
+   if (helium::ShouldUseNativeFrameMaterials(
+           delegate_->GetBrowserWindowInterface()) &&
+@@ -232,9 +238,10 @@ SkColor VerticalTabStyleViews::GetCurren
+                             : true;
+     const SkColor color = tab_style()->GetTabBackgroundColor(
+         selection_state, true, active, delegate_->GetView()->GetColorProvider());
++    const float hover = static_cast<float>(delegate_->GetHoverAnimationValue());
+     return color_utils::AlphaBlend(
+         color, SK_ColorTRANSPARENT,
+-        static_cast<float>(delegate_->GetHoverAnimationValue()));
++        delegate_->IsPinned() ? 0.5f + 0.5f * hover : hover);
+   }
+   const bool frame_glass = delegate_->IsGlassFrame();
+   return tab_style()->GetCurrentTabBackgroundColor(
+--- a/chrome/browser/ui/views/tabs/vertical/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/vertical/BUILD.gn
+@@ -70,6 +70,7 @@ source_set("impl") {
+     "//chrome/browser/ui/tabs/saved_tab_groups",
+     "//chrome/browser/ui/user_education",
+     "//chrome/browser/ui/views:layout_provider",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui/views/frame",
+     "//chrome/browser/ui/views/frame:browser_view_header",
+     "//chrome/browser/ui/views/frame:vertical_tab_strip_region_view",
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -6,9 +6,13 @@
+ 
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/gfx/canvas.h"
++#include "ui/views/animation/ink_drop.h"
++#include "ui/views/widget/widget.h"
+ 
+ namespace {
+ 
+@@ -24,7 +28,9 @@ VerticalNewTabButton::VerticalNewTabButt
+           GetLayoutConstant(LayoutConstant::kVerticalTabStripNewTabButtonSize),
+           kIconSize) {
+   SetCornerRadius(GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius));
+-  SetForegroundColorId(kColorToolbarButtonIconDisabled);
++  SetForegroundColorId(kColorTabForegroundInactiveFrameActive);
++  // Paint exactly one tab-style hover fill; no toolbar ink-drop overlay.
++  views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
+   SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
+   SetLabelInsets(gfx::Insets::VH(kBasePadding, kBigPadding),
+                  gfx::Insets::VH(kBasePadding, kBigPadding));
+@@ -37,5 +43,43 @@ VerticalNewTabButton::VerticalNewTabButt
+ 
+ VerticalNewTabButton::~VerticalNewTabButton() = default;
+ 
++void VerticalNewTabButton::OnPaintBackground(gfx::Canvas* canvas) {
++  if (GetState() != STATE_HOVERED && GetState() != STATE_PRESSED) {
++    return;
++  }
++  const bool active = !GetWidget() || GetWidget()->ShouldPaintAsActive();
++  const auto native_color =
++      helium::NativeGlassColor(this, helium::NativeGlassColorRole::kHover);
++  cc::PaintFlags flags;
++  flags.setAntiAlias(true);
++  flags.setColor(native_color.value_or(GetColorProvider()->GetColor(
++      active ? kColorTabBackgroundInactiveHoverFrameActive
++             : kColorTabBackgroundInactiveHoverFrameInactive)));
++  canvas->DrawRoundRect(
++      gfx::RectF(GetLocalBounds()),
++      GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius), flags);
++}
++
++void VerticalNewTabButton::OnThemeChanged() {
++  shared::NewTabButton::OnThemeChanged();
++  UpdateTabForeground();
++}
++
++void VerticalNewTabButton::StateChanged(ButtonState old_state) {
++  shared::NewTabButton::StateChanged(old_state);
++  UpdateTabForeground();
++}
++
++void VerticalNewTabButton::UpdateTabForeground() {
++  const bool active = !GetWidget() || GetWidget()->ShouldPaintAsActive();
++  const bool hovered =
++      GetState() == STATE_HOVERED || GetState() == STATE_PRESSED;
++  SetForegroundColorId(
++      hovered ? (active ? kColorTabForegroundInactiveHoverFrameActive
++                        : kColorTabForegroundInactiveHoverFrameInactive)
++              : (active ? kColorTabForegroundInactiveFrameActive
++                        : kColorTabForegroundInactiveFrameInactive));
++}
++
+ BEGIN_METADATA(VerticalNewTabButton)
+ END_METADATA
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
+@@ -17,6 +17,15 @@ class VerticalNewTabButton : public shar
+  public:
+   explicit VerticalNewTabButton(BrowserWindowInterface* browser);
+   ~VerticalNewTabButton() override;
++
++  void OnPaintBackground(gfx::Canvas* canvas) override;
++  void OnThemeChanged() override;
++
++ protected:
++  void StateChanged(ButtonState old_state) override;
++
++ private:
++  void UpdateTabForeground();
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_NEW_TAB_BUTTON_H_
