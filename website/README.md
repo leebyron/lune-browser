@@ -42,7 +42,9 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   The floating surface extends 4px beyond the content pane on its top, bottom,
   and left. Floating tabs and favorites have 8px inner margins; the mounted
   panel reduces its horizontal padding to 4px, producing an effective 8px
-  margin from the window edge and content pane. The floating radius is 13px,
+  margin from the window edge and content pane. The window controls, mount
+  toggle, and new-tab glyph share that padding and shift 4px when pinning changes.
+  The illustrated cursor clicks the mounted toggle position. The floating radius is 13px,
   concentric with the 18px window radius across its 1px border and 4px inset.
   The rail also supports keyboard focus and tapping; Escape or tapping content
   dismisses it. The toggle pins/unpins the panel; subsequent scrolling resumes
