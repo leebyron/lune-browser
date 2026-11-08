@@ -15,8 +15,11 @@ sidebar-footer close icons use 11 pt medium. Navigation, site info, reload, and
 trailing icons fade their semantic hover color over 100 ms. The address glass
 caps at half the available header width, and the Extensions menu button has no
 layout gap before the first extension.
-The rebuilt arm64 preview retains a clickable ellipsis after opening Customize;
-owner visual and focus-transition acceptance remains pending. The candidate is
+The rebuilt arm64 preview retains a clickable ellipsis after opening Customize.
+The owner accepted the visuals on November 7, 2026, then supplied a Profile hover
+crash report. Its animation-callback routing fix passes both architecture builds,
+callback regression checks, and an arm64 Profile-menu interaction check.
+The candidate is
 not yet in the development lock or a published build. See
 [trailing toolbar controls](agent-docs/project/features/trailing-toolbar-controls.md).
 

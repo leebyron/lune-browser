@@ -23,6 +23,9 @@ symbol = source[start:end]
 frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
 start = frame.index('@interface HeliumHeaderSymbolButton : NSButton')
 header_button = frame[start:frame.index('@interface HeliumGlassNavigation', start)]
+avatar_source = (args.source / 'chrome/browser/ui/views/profiles/avatar_toolbar_button.cc').read_text()
+start = avatar_source.index('void AvatarToolbarButton::AnimationProgressed(')
+avatar_callbacks = avatar_source[start:avatar_source.index('\nstd::optional<SkColor>', start)]
 # Stand-ins isolate the AppKit calls from Chromium's Views and Skia runtime.
 # Actual image masking, input and layout are checked in the browser preview.
 prefix = r'''
@@ -31,6 +34,8 @@ prefix = r'''
 #include <cassert>
 #include <string_view>
 #include <initializer_list>
+#include <optional>
+#include <string>
 using SkColor = unsigned;
 namespace views { struct View { bool floating; }; }
 bool IsFloatingToolbarControl(const views::View* view) { return view->floating; }
@@ -42,9 +47,49 @@ struct ImageSkiaOperations {
 };
 }
 '''
+avatar_fixture = r'''
+namespace gfx {
+struct Animation { double value = 0; double GetCurrentValue() const { return value; } };
+enum { ELIDE_TAIL };
+}
+#define CHECK_EQ(a, b) assert((a) == (b))
+struct ToolbarButton {
+  gfx::Animation hover;
+  int hover_progressed = 0, hover_ended = 0;
+  const gfx::Animation& hover_animation() const { return hover; }
+  void AnimationProgressed(const gfx::Animation*) { ++hover_progressed; }
+  void AnimationEnded(const gfx::Animation*) { ++hover_ended; }
+};
+struct AvatarToolbarButton : ToolbarButton {
+  gfx::Animation slide_animation_;
+  int size_changes = 0, text_updates = 0, highlight_updates = 0, elide_updates = 0;
+  AvatarToolbarButton* label() { return this; }
+  void SetElideBehavior(int) { ++elide_updates; }
+  void PreferredSizeChanged() { ++size_changes; }
+  void SetHighlight(std::u16string, std::nullopt_t) { ++highlight_updates; }
+  void UpdateText() { ++text_updates; }
+  void AnimationProgressed(const gfx::Animation*);
+  void AnimationEnded(const gfx::Animation*);
+};
+'''
 tests = r'''
 int main() {
  @autoreleasepool {
+  AvatarToolbarButton avatar;
+  avatar.AnimationProgressed(&avatar.hover);
+  avatar.AnimationEnded(&avatar.hover);
+  assert(avatar.hover_progressed == 1 && avatar.hover_ended == 1);
+  assert(avatar.size_changes == 0 && avatar.text_updates == 0 && avatar.elide_updates == 0);
+  avatar.AnimationProgressed(&avatar.slide_animation_);
+  assert(avatar.size_changes == 1 && avatar.hover_progressed == 1);
+  avatar.slide_animation_.value = 1;
+  avatar.AnimationEnded(&avatar.slide_animation_);
+  assert(avatar.elide_updates == 1 && avatar.text_updates == 0);
+  avatar.slide_animation_.value = 0;
+  avatar.AnimationEnded(&avatar.slide_animation_);
+  assert(avatar.elide_updates == 2 && avatar.text_updates == 1 && avatar.highlight_updates == 1);
+  assert(avatar.hover_ended == 1);
+  puts("PASS: production Profile callbacks separate hover and identity-pill animations");
   setbuf(stdout, nullptr);
   [NSApplication sharedApplication];
   HeliumHeaderSymbolButton* button = [HeliumHeaderSymbolButton
@@ -167,7 +212,8 @@ int main() {
 '''
 with tempfile.TemporaryDirectory(prefix='lune-toolbar-') as directory:
     path = Path(directory) / 'test.mm'
-    path.write_text(prefix + enum + selector + symbol + header_button + tests)
+    path.write_text(prefix + enum + selector + symbol + header_button +
+                    avatar_fixture + avatar_callbacks + tests)
     binary = path.with_suffix('')
     subprocess.run(['xcrun', 'clang++', *(['-arch', args.arch] if args.arch else []),
                     '-std=c++20', '-fobjc-arc', '-framework', 'AppKit', str(path),

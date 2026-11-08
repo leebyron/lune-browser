@@ -3,8 +3,9 @@
 Development work for [issue #9](https://github.com/leebyron/lune-browser/issues/9),
 requested November 7, 2026. The current candidate is based on accepted
 `inputs/sidebar-pin-activation-2/macos`. The current local platform head is
-`16ae3a20e100371982d77bac4183de9fed4f8d1a` (tree
-`2e945f0268ef2ebc70d833a8ab66cec2f2778aad`). Final visual acceptance is pending;
+`e5696674b256c7ca7233f3425e4bb7678542225c` (tree
+`50694b2daeb4c0b7c674566e0c7671caf937419b`). The owner accepted the final visuals
+on November 7, 2026. A subsequently reported Profile animation crash is fixed;
 this is not in published builds 1 or 2 and is not release-accepted.
 
 ## Candidate behavior
@@ -96,7 +97,8 @@ scope, light/dark semantic state colors, native 100 ms hover transitions and
 mid-transition reversal, and pressed/disabled precedence. Its stand-ins do not exercise Skia
 masking, Views layout, or real browser input.
 
-The current arm64 and Intel browser builds pass. The preceding headless smoke checks pass,
+The current arm64 and Intel browser builds pass, including the Profile animation fix.
+The preceding headless smoke checks pass,
 including page loading, JavaScript, persisted profile data, defaults, and settings.
 Native Intel hardware validation is not implied.
 Toolbar and Profile header-dependency checks pass.
@@ -108,13 +110,30 @@ not fix the missing ellipsis. With the subsequent animation-width correction,
 Appearance and Toolbar settings retain the ellipsis and clicking it opens the
 Lune menu. The inactive preview retains the header and sidebar. The owner
 reported that this preview looked good except for visual refinements, now
-included in the rebuilt preview. Final visual acceptance and the complete
-interaction matrix remain outstanding.
+included in the rebuilt preview. The owner accepted the resulting appearance.
+The complete interaction matrix remains outstanding.
 
 The current arm64 preview also confirms that the ellipsis opens its menu after
 Customize opens, with the new padding, extension spacing, and responsive address
 width present. The 100 ms timing and reversal are checked by the native harness;
-owner assessment of the final hover feel remains pending.
+the owner accepted the final hover feel and extension spacing.
+
+The owner then supplied a crash report from that preview. Its framework UUID
+matches the arm64 debug symbols. Symbolication locates the fatal assertion in
+`AvatarToolbarButton::AnimationProgressed`, reached from `gfx::ThrobAnimation`.
+The profile button's pre-existing callbacks require its identity-pill slide
+animation, while enabling the new shared hover fade also sends them hover
+callbacks. Both progress and completion now recognize the inherited hover
+animation and forward it to `ToolbarButton`; the identity-pill path and its
+unexpected-animation assertion remain intact. The native harness compiles these
+production callback bodies with stand-ins and checks hover forwarding separately
+from identity-pill progress, expanded completion, and collapsed completion.
+Both architectures pass this regression check. In the rebuilt arm64 browser,
+pointer-driven Profile-menu opening and dismissal pass, and the browser remains
+responsive afterward. The owner reports being idle at the time of the original
+crash, consistent with its asynchronous animation-timer stack; no click is
+required for that callback. Owner retry after the crash fix remains pending,
+so issue #9 remains open.
 
 The no-op Sparkle readiness fixture was restored against matching debug symbols
 after rebuilding. It does not download or install an update.
