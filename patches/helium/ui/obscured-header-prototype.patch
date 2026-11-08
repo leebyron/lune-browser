@@ -10,7 +10,20 @@
    };
 --- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
-@@ -2789,7 +2789,9 @@
+@@ -1296,9 +1296,10 @@
+     _back.frame = NSMakeRect(forward ? 4 : 2, 2, 32, 32);
+     _forward.frame = NSMakeRect(back ? 36 : 2, 2, 32, 32);
+   }
+-  _back.enabled = _browserView && chrome::CanGoBack(_browserView->browser());
++  const bool has_contents = _browserView && _browserView->GetActiveWebContents();
++  _back.enabled = has_contents && chrome::CanGoBack(_browserView->browser());
+   _forward.enabled =
+-      _browserView && chrome::CanGoForward(_browserView->browser());
++      has_contents && chrome::CanGoForward(_browserView->browser());
+ }
+ - (void)goBack:(id)sender {
+   if (_browserView) {
+@@ -2789,7 +2790,9 @@
    const auto* view = GetBrowserView();
    return view->IsZenModeEnabledForLayout() &&
           view->IsVerticalAddressBarInSidebar() &&
@@ -21,7 +34,7 @@
  }
  
  bool BrowserFrameViewMac::FocusFloatingAddressBar() {
-@@ -2836,7 +2838,8 @@
+@@ -2836,7 +2839,8 @@
                                  browser_view->IsChromeRevealHeldForMenu();
    const bool customize_open = browser_view->IsCustomizeChromeShowing();
    if (!HasFloatingAddressBar() ||
@@ -31,7 +44,7 @@
         ((!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
          !NSApp.active))) {
      UpdateFloatingToolbar(gfx::Rect(), false);
-@@ -2950,7 +2953,7 @@
+@@ -2950,7 +2954,7 @@
    // Preserve presentation while AppKit tracks a resize or the green-button
    // menu (or another chrome menu). Geometry still updates, and hidden
    // surfaces are not forced open.
@@ -40,13 +53,45 @@
        ((resizing || window_menu_open)
            ? [floating_address_bar_ isPresented]
            : dragging || in_rail || in_sidebar_header || within_retention ||
+@@ -2958,8 +2962,14 @@
+   UpdateFloatingToolbar(bar_region, present);
+   UpdateFloatingWindowControls(present);
+   UpdateFloatingSidebar(present);
+-  if ((present || browser_view->GetSideChromeRevealRatio() > 0) &&
+-      !floating_address_refresh_timer_->IsRunning()) {
++  const bool needs_cursor_poll = browser_view->IsZenModeTopChromePinned()
++      ? (browser_view->GetSideChromeRevealRatio() > 0 &&
++         !browser_view->IsZenModeSideChromePinned())
++      : (present || browser_view->GetSideChromeRevealRatio() > 0);
++  if (!needs_cursor_poll) {
++    floating_address_refresh_timer_->Stop();
++  }
++  if (needs_cursor_poll && !floating_address_refresh_timer_->IsRunning()) {
+     floating_address_refresh_timer_->Start(
+         FROM_HERE, base::Milliseconds(100),
+         base::BindRepeating(&BrowserView::UpdateZenModeRevealFromCursor,
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -1794,6 +1794,9 @@
+@@ -1766,6 +1766,13 @@
+   if (!zen_mode_enabled_) {
+     return 1.f;
+   }
++#if BUILDFLAG(IS_MAC)
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
++          "lune-obscured-header-prototype") && IsVerticalAddressBarInSidebar()) {
++    // Native floating controls remain visible without reserving a Views toolbar.
++    return 0.f;
++  }
++#endif
+   return zen_top_chrome_animation_.GetCurrentValue();
+ }
+ 
+@@ -1794,6 +1801,10 @@
    if (fullscreen_utils::IsInContentFullscreen(browser())) {
      return false;
    }
-+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("lune-obscured-header-prototype")) {
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
++          "lune-obscured-header-prototype")) {
 +    return zen_mode_enabled_;
 +  }
  #endif
@@ -98,16 +143,17 @@
      layout_size = GetPageScaleConstraintsSet().GetLayoutSize();
 --- a/third_party/blink/renderer/core/frame/visual_viewport.cc
 +++ b/third_party/blink/renderer/core/frame/visual_viewport.cc
-@@ -32,6 +32,8 @@
+@@ -32,6 +32,9 @@
  
  #include <memory>
  
 +#include "base/command_line.h"
++#include "ui/display/screen_info.h"
 +
  #include "base/metrics/field_trial_params.h"
  #include "base/metrics/histogram_functions.h"
  #include "base/task/single_thread_task_runner.h"
-@@ -314,6 +316,26 @@
+@@ -314,6 +317,26 @@
      }
    }
  
@@ -134,7 +180,7 @@
    if (overscroll_type_ == OverscrollType::kTransform) {
      DCHECK(!transform_parent->Unalias().IsInSubtreeOfPageScale());
  
-@@ -496,9 +518,25 @@
+@@ -496,9 +519,25 @@
  
  VisualViewport::~VisualViewport() = default;
  
@@ -160,7 +206,7 @@
    visitor->Trace(device_emulation_transform_node_);
    visitor->Trace(overscroll_elasticity_transform_node_);
    visitor->Trace(page_scale_node_);
-@@ -578,7 +616,7 @@
+@@ -578,7 +617,7 @@
    if (scrollbar_inclusion == kExcludeScrollbars)
      visible_size = gfx::SizeF(ExcludeScrollbars(size_));
  
@@ -169,7 +215,7 @@
    visible_size.Scale(1 / scale_);
  
    return gfx::RectF(ScrollPosition(), visible_size);
-@@ -1198,6 +1236,7 @@
+@@ -1198,6 +1237,7 @@
  gfx::RectF VisualViewport::ViewportToRootFrame(
      const gfx::RectF& rect_in_viewport) const {
    gfx::RectF rect_in_root_frame = rect_in_viewport;
@@ -177,7 +223,7 @@
    rect_in_root_frame.Scale(1 / Scale());
    rect_in_root_frame.Offset(GetScrollOffset());
    return rect_in_root_frame;
-@@ -1214,6 +1253,7 @@
+@@ -1214,6 +1254,7 @@
    gfx::RectF rect_in_viewport = rect_in_root_frame;
    rect_in_viewport.Offset(-GetScrollOffset());
    rect_in_viewport.Scale(Scale());
@@ -185,7 +231,7 @@
    return rect_in_viewport;
  }
  
-@@ -1226,6 +1266,7 @@
+@@ -1226,6 +1267,7 @@
  gfx::PointF VisualViewport::ViewportToRootFrame(
      const gfx::PointF& point_in_viewport) const {
    gfx::PointF point_in_root_frame = point_in_viewport;
@@ -193,7 +239,7 @@
    point_in_root_frame.Scale(1 / Scale());
    point_in_root_frame += GetScrollOffset();
    return point_in_root_frame;
-@@ -1236,6 +1277,7 @@
+@@ -1236,6 +1278,7 @@
    gfx::PointF point_in_viewport = point_in_root_frame;
    point_in_viewport -= GetScrollOffset();
    point_in_viewport.Scale(Scale());
@@ -201,7 +247,7 @@
    return point_in_viewport;
  }
  
-@@ -1329,6 +1371,7 @@
+@@ -1329,6 +1372,7 @@
    scrollbar_layer_vertical_.reset();
    scrollbar_delegate_horizontal_.reset();
    scrollbar_delegate_vertical_.reset();
@@ -244,6 +290,19 @@
  
          if (object_.IsLayoutReplaced()) {
            // TODO(crbug.com/1248598): Should we use non-snapped clip rect for
+@@ -3419,6 +3425,12 @@
+                 kExcludeOverlayScrollbarSizeForHitTesting);
+         clip_rect_excluding_overlay_scrollbars.Move(
+             context_.current.paint_offset);
++        if (object_.IsLayoutView() && object_.GetFrame()->IsOutermostMainFrame()) {
++          const auto& viewport = object_.GetFrame()->GetPage()->GetVisualViewport();
++          LayoutUnit inset(viewport.ObscuredTopInset() / viewport.Scale());
++          clip_rect_excluding_overlay_scrollbars.offset.top -= inset;
++          clip_rect_excluding_overlay_scrollbars.size.height += inset;
++        }
+         state.layout_clip_rect_excluding_overlay_scrollbars =
+             FloatClipRect(gfx::RectF(clip_rect_excluding_overlay_scrollbars));
+       } else {
 --- a/third_party/blink/renderer/core/paint/view_painter.cc
 +++ b/third_party/blink/renderer/core/paint/view_painter.cc
 @@ -8,6 +8,8 @@
@@ -271,3 +330,18 @@
  }
  
  bool ViewPainter::ShouldApplyRootBackgroundBehavior(const Document& document) {
+--- a/third_party/blink/renderer/core/layout/layout_view.cc
++++ b/third_party/blink/renderer/core/layout/layout_view.cc
+@@ -165,6 +165,12 @@
+       // Start with a rect sized to the frame, to ensure we include the
+       // scrollbars.
+       hit_test_area.size = PhysicalSize(frame_view->Size());
++      if (GetFrame()->IsOutermostMainFrame()) {
++        const auto& viewport = GetFrame()->GetPage()->GetVisualViewport();
++        LayoutUnit inset(viewport.ObscuredTopInset() / viewport.Scale());
++        hit_test_area.offset.top -= inset;
++        hit_test_area.size.height += inset;
++      }
+       if (RuntimeEnabledFeatures::UnboundedElementEnabled() &&
+           GetDocument().HasActiveUnboundedElements()) {
+         hit_test_area = PhysicalRect(InfiniteIntRect());

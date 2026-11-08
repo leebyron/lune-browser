@@ -1,0 +1,59 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -17,6 +17,7 @@
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "ui/gfx/image/image.h"
+ #include "ui/native_theme/native_theme.h"
++#include "ui/views/border.h"
+ #include "ui/views/controls/native/native_view_host.h"
+ #include "ui/views/layout/fill_layout.h"
+ #include "ui/views/widget/widget.h"
+@@ -24,6 +25,9 @@
+ namespace {
+ constexpr int kWidth = 560;
+ constexpr int kInputHeight = 52;
++// Keep the glass's native edge effects inside the translucent popup window.
++// A window ending at the material bounds cuts those effects into square corners.
++constexpr int kGlassOutset = 16;
+ constexpr size_t kVisibleResults = 5;
+ 
+ NSString* TagForType(HeliumCommandBarItem::Type type) {
+@@ -158,11 +162,13 @@ HeliumCommandBarView* HeliumCommandBarVi
+   widget->Init(std::move(params));
+   auto* parent_widget = views::Widget::GetWidgetForNativeView(parent);
+   const gfx::Rect bounds = parent_widget->GetWindowBoundsInScreen();
+-  view->native_->width = std::min(kWidth, std::max(280, bounds.width() - 32));
++  view->native_->width =
++      std::min(kWidth, std::max(280, bounds.width() - 32 - 2 * kGlassOutset));
++  const int window_width = view->native_->width + 2 * kGlassOutset;
+   widget->SetBounds(
+-      gfx::Rect(bounds.x() + (bounds.width() - view->native_->width) / 2,
+-                bounds.y() + bounds.height() / 5, view->native_->width,
+-                kInputHeight + 2 * kHeliumNativeResultInset));
++      gfx::Rect(bounds.x() + (bounds.width() - window_width) / 2,
++                bounds.y() + bounds.height() / 5 - kGlassOutset, window_width,
++                kInputHeight + 2 * kHeliumNativeResultInset + 2 * kGlassOutset));
+   view->native_->host->Attach(gfx::NativeView(view->native_->material));
+   widget->Show();
+   widget->AddObserver(view);
+@@ -188,6 +194,7 @@ HeliumCommandBarView::HeliumCommandBarVi
+       native_(std::make_unique<Native>()) {
+   SetModalType(ui::mojom::ModalType::kNone);
+   auto contents = std::make_unique<views::View>();
++  contents->SetBorder(views::CreateEmptyBorder(gfx::Insets(kGlassOutset)));
+   contents->SetLayoutManager(std::make_unique<views::FillLayout>());
+   native_->host =
+       contents->AddChildView(std::make_unique<views::NativeViewHost>());
+@@ -387,10 +394,10 @@ void HeliumCommandBarView::ResizeToConte
+   if (!GetWidget()) {
+     return;
+   }
+-  int height = kInputHeight + 2 * kHeliumNativeResultInset +
++  int height = kInputHeight + 2 * kHeliumNativeResultInset + 2 * kGlassOutset +
+                std::min(kVisibleResults, native_->pane.rows.count) * kHeliumNativeResultRowHeight;
+   if (GetWidget()->GetWindowBoundsInScreen().height() != height) {
+-    GetWidget()->SetSize(gfx::Size(native_->width, height));
++    GetWidget()->SetSize(gfx::Size(native_->width + 2 * kGlassOutset, height));
+   }
+   native_->pane.needsLayout = YES;
+ }
