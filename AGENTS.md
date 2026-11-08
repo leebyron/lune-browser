@@ -7,6 +7,24 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The owner accepted issue #7's final Content aware implementation and visual
+refinements on November 8, 2026, and authorized publishing and resolving the issue.
+The reviewed platform stack is `topic/chrome-appearance-reviewed`: three signed,
+single-thesis commits for content adaptation and foreground legibility, shared
+theme tint, and native header shadows. Content aware defaults on while respecting
+saved opt-outs; regular glass and attached controls survive toggling. The tint
+is the HSL midpoint of light/dark theme accents at 5%, identical across schemes.
+Header shadows use 5% black, 10 pt blur, and a 3 pt downward offset. The sidebar
+keeps AppKit's native large-surface behavior, with no dependency on header
+visibility or page sampling. Its lack of toolbar-style light/dark inversion
+remains a known native limitation. Inactive tint rendering remains unverified;
+no activation workaround was added. Each commit compiles its changed units,
+strict replay matches all accepted source bytes, and native checks pass on both
+architectures. Both browser builds pass for the identical final source; Intel
+runtime checks use Rosetta. The draft remains preserved. The candidate is not
+in the development lock or published binaries. See
+[native chrome appearance](agent-docs/project/features/chrome-appearance.md).
+
 `main` contains the project definition, locked development build inputs, local
 build commands, validation tests/CI, and the Cloudflare website. Imported histories
 are published on `component/helium`, `component/macos`, and `component/services`;
