@@ -61,8 +61,9 @@ debugger remains attached.
 The preview is `.work/sidebar-pin-activation/Lune Sidebar Pin.app`, using an
 isolated profile under `.work/sidebar-pin-activation/preview/`. Its sidebar is
 pinned for comparing the pin button with the traffic lights. The requested
-no-op Sparkle update fixture is restored. Owner visual acceptance is pending;
-this is not a claim of a complete fullscreen/left/right appearance matrix or
+no-op Sparkle update fixture is restored. The owner accepted the focused and
+inactive appearances on November 7, 2026 ("looks great"); issue #10 is resolved.
+This is not a claim of a complete fullscreen/left/right appearance matrix or
 native Intel hardware acceptance.
 
 Evidence is under `.work/sidebar-pin-activation/`; the prepared-source replay

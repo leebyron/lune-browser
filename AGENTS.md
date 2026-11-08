@@ -15,8 +15,8 @@ dark; input 2 removes that override without changing symbol weight or size.
 It remains clickable and updates without pointer movement. Native activation,
 owner-isolation, and teardown tests pass on arm64 and Intel via Rosetta. Both
 browser builds and the arm64 smoke check pass. Live arm64 inspection verifies
-active/inactive tint and independent window states; owner visual acceptance is
-pending. See
+active/inactive tint and independent window states. The owner accepted input 2
+on November 7, 2026; issue #10 is resolved. See
 [sidebar pin activation](agent-docs/project/features/sidebar-pin-activation.md).
 This is not in published builds 1 or 2 or release-accepted.
 
