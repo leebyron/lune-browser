@@ -7,7 +7,7 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-The local `trailing-toolbar-controls` candidate for issue #9 adds native toolbar
+The local `trailing-toolbar-reviewed` candidate for issue #9 adds native toolbar
 symbols and semantic state colors, tighter spacing, immediate preferred widths
 for floating action containers, and a window-local Customize reveal hold.
 Header SF Symbols, including Customize close, use 16 pt medium, with 14 pt site
@@ -43,8 +43,21 @@ The next fixes remove the header drag shield above the raised right-sidebar rows
 return hidden Reload's 32 pt width to long addresses and editing while keeping
 short addresses stable, and toggle Site Information closed on a second click.
 Both browser builds and native gesture/address-layout checks pass; Back/Forward
-held menus pass live arm64 inspection. Final sidebar, Site Information, and Reload
-held-menu live checks remain pending. The candidate is not yet
+held menus pass live arm64 inspection. The owner accepted the sidebar hit-region
+and reclaimed-address-space fixes,
+but Site Information still reopened on release. A subsequent widget lifecycle
+observer now suppresses that release even after focus-loss dismissal destroys
+the bubble. Both builds pass, and the owner confirmed a second click leaves
+Site Information closed after release. A held Reload now also passes live
+arm64 inspection with DevTools open. The issue #9 work is consolidated into
+nine signed, single-thesis platform commits on `trailing-toolbar-reviewed`;
+the stack is imported locally as `topic/trailing-toolbar-reviewed`, and the draft
+branch remains preserved. The review removes duplicate sidebar margin
+state, shares an opaque native symbol mask across color states, and centralizes
+navigation menu wiring. Changed implementation units compile at every commit
+boundary, and strict replay reproduces the final source. Final full builds,
+native regression checks, and headless UI/settings/persistence smoke checks pass
+on both architectures (Intel under Rosetta). The candidate is not yet
 in the development lock or a published build. See
 [trailing toolbar controls](agent-docs/project/features/trailing-toolbar-controls.md).
 

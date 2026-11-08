@@ -3,8 +3,8 @@
 Development work for [issue #9](https://github.com/leebyron/lune-browser/issues/9),
 requested November 7, 2026. The current candidate is based on accepted
 `inputs/sidebar-pin-activation-2/macos`. The current local platform head is
-`76cd8d6e67bcc4b7529c8aec351ae1912dde998f` (tree
-`6387f07c6ee14d8307ce3b910df6d03a549f2e8d`). The owner accepted the preceding visuals
+`83fba93ff1abb4b635f044be36a24d50365200bf` (tree
+`e30c02540ce97e9a7dabbab80c6ddd95a557a065`). The owner accepted the preceding visuals
 on November 7, 2026. A subsequently reported Profile animation crash is fixed;
 this is not in published builds 1 or 2 and is not release-accepted.
 
@@ -308,3 +308,90 @@ sidebar, Site Information toggle, and Reload hold checks remain pending: owner
 interaction changed the controls during automation, followed by a click timeout.
 The owner has been asked to verify the three latest refinements. The no-op Sparkle
 update-ready fixture is restored against matching debug symbols.
+
+The owner accepted the raised sidebar row interaction and reclaimed address
+space on November 7, 2026, but rejected the first Site Information toggle:
+it still closed on mouse-down and reopened on mouse-up. The mouse-down monitor
+was insufficient when Chromium processed focus-loss dismissal first.
+
+Platform commit `d743d0e3` replaces that attempt with widget lifecycle observation.
+When the bubble hides or is destroyed during a physical press over its own icon,
+the owner records a release-suppression latch. The button's action consumes that
+latch instead of reopening the bubble. A mouse-up monitor clears any unused
+latch after NSButton dispatch, so releasing elsewhere cannot suppress a later
+click. The observer covers both ordinary and internal-page bubbles, keeps a weak
+Objective-C owner, and unregisters during destruction/shutdown. Strict replay
+passes for 111 affected patches across 59 files; patch lint passes. Both builds
+pass. The owner confirmed on November 7, 2026 that a second click now leaves
+Site Information closed after releasing the mouse.
+
+
+## Reviewed commit stack
+
+At the owner's request, the issue #9 iteration was reviewed and consolidated on
+local platform branch `trailing-toolbar-reviewed`, based on accepted
+`inputs/sidebar-pin-activation-2/macos`. The original `trailing-toolbar-controls`
+platform branch remains at `b4d517bd` with the complete draft history. The reviewed
+stack is also imported into this repository as local branch
+`topic/trailing-toolbar-reviewed`, without changing component pins. Earlier
+commit IDs in this document refer to that preserved history.
+
+Three implementation simplifications retain the accepted behavior:
+
+- The sidebar header computes its margins in one method. Comparing the actual
+  margins replaces the redundant cached empty-header flag and duplicate layout
+  calculation, including transitions back to the ordinary header.
+- Toolbar state images share one opaque SF Symbol mask, tinted with each native
+  semantic color. This avoids four separate AppKit symbol renders without
+  multiplying the normal state's alpha into the other states.
+- One helper wires the original Chromium menu provider to all three native
+  navigation buttons. Menu lookup is separated from invocation instead of using
+  a `check_only` mode, while retaining weak window ownership and menu gates.
+
+The Site Information lifecycle observer, its release suppression, and AppKit
+press recognizer remain intact: their event-ordering behavior was necessary to
+fix the observed regressions. Extension artwork, semantic state colors, accepted
+spacing, toggle behavior, and popup models are preserved.
+
+Each commit adds one final-form patch and its series entry. Follow-up fixes are
+folded into the behavior they correct, so intermediate commits do not first
+introduce the Profile hover crash, null drag-icon crash, or rejected Site
+Information implementation. Apply the stack in the listed order; it is a series
+of buildable changes, not nine mutually independent cherry-picks.
+
+| Commit | Single thesis |
+| --- | --- |
+| `dacfaa17` | Use native symbols and semantic hover colors for browser controls |
+| `417cf7a5` | Size floating toolbar groups from intended control visibility |
+| `aec23824` | Honor toolbar preferences in native navigation and sidebars |
+| `f6aa0511` | Use native globe symbols for internal and default tab icons |
+| `da3907f5` | Preserve sidebar footer order across tab layout switches |
+| `9b1b8af1` | Keep browser chrome revealed while Customize is open |
+| `5c132f5b` | Route native navigation context and hold menus to Chromium |
+| `fcae8e0b` | Scale the address capsule and reclaim hidden Reload space |
+| `83fba93f` | Keep Site Information closed after a second button click |
+
+Every commit's changed C++/Objective-C implementation units passed arm64
+compilation with a fresh GN generation, and each platform patch passed lint.
+The consolidated series replays 108 affected patches across 59 files with zero
+fuzz and reproduces the simplified
+prepared source byte for byte. These checks validate the commit boundaries;
+whole-browser builds are checked at the final head rather than linked nine times.
+
+The final head builds completely for arm64 and x86_64. Native symbol/state,
+Profile animation, press-menu, and address-layout regressions pass on arm64 and
+Intel under Rosetta. Headless page loading, JavaScript, profile persistence,
+UI defaults, and settings checks pass on both architectures (Intel under Rosetta).
+The arm64 preview is open with the existing no-op Sparkle update-ready fixture
+restored. These are development checks, not release acceptance.
+The regression-harness extraction boundary is a separate orchestration commit,
+`8950f75`, so it stops at the native button's implementation instead of capturing
+unrelated menu-wiring helpers. No release input, published build, or update feed
+was changed.
+
+
+On the final arm64 preview, a 750 ms press on Reload with DevTools open exposes
+Chromium's Normal Reload, Hard Reload, and Empty Cache and Hard Reload menu.
+The menu remains open after release. DevTools was then closed. This completes
+the earlier pending live Reload hold check; the common recognizer's cancellation
+and short-click behavior also pass the native tests on both architectures.
