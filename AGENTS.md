@@ -16,8 +16,8 @@ now checks its running flag rather than its presence. Both architecture builds
 and native regression checks pass (Intel via Rosetta), including idle attached
 menu helpers. Arm64 smoke checks pass; the input-2 Intel browser smoke run was
 interrupted to reopen the owner test preview. Arm64 checks confirm footer and nested tab-menu holds acquire and
-release; physical pointer hover
-acceptance remains pending. The preview includes a no-op Sparkle update fixture. See
+release. The owner confirmed normal sidebar dismissal and accepted the fix
+on November 7, 2026; issue #8 is resolved. The preview includes a no-op Sparkle update fixture. See
 [menu reveal retention](agent-docs/project/features/menu-reveal-retention.md).
 This is not in published builds 1 or 2 and is not release-accepted.
 

@@ -74,7 +74,10 @@ architectures (Intel via Rosetta). Arm64 headless smoke/default/settings/artwork
 and persistence checks pass. The new unpinned arm64 preview starts with its sidebar
 hidden. The Intel browser smoke run was interrupted at the owner's request to
 reopen the preview immediately; it is not recorded as passed for input 2.
-Physical pointer acceptance and native Intel hardware acceptance remain pending. The glass contrast and trailing button
+The owner confirmed that the rebuilt sidebar reveals and dismisses normally,
+then accepted it: “looks good, this one seems solved.” Issue #8 is resolved.
+This is focused arm64 acceptance, not a complete multi-window/fullscreen matrix
+or native Intel hardware acceptance. The glass contrast and trailing button
 styling issues remain in issues #7 and #9.
 
 ## Preview update fixture
