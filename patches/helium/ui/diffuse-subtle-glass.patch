@@ -1,0 +1,22 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -201,7 +201,7 @@ NSColor* FloatingChromeTintColor(Browser
+   return [NSColor colorWithSRGBRed:SkColorGetR(color) / 255.0
+                             green:SkColorGetG(color) / 255.0
+                              blue:SkColorGetB(color) / 255.0
+-                            alpha:.07];
++                            alpha:.05];
+ }
+ 
+ NSAppearance* FloatingChromeAppearance(BrowserView* view) {
+@@ -358,8 +358,8 @@ NSAppearance* FloatingChromeAppearance(B
+       self.clipsToBounds = NO;
+       _material.clipsToBounds = NO;
+       NSShadow* shadow = [[NSShadow alloc] init];
+-      shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.08];
+-      shadow.shadowBlurRadius = 8;
++      shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.05];
++      shadow.shadowBlurRadius = 10;
+       shadow.shadowOffset = NSMakeSize(0, -3);
+       _material.shadow = shadow;
+       [self updateShadowPath];
