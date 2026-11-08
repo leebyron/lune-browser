@@ -1,0 +1,130 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -376,27 +376,19 @@
+   }
+   NSAppearance* appearance = [NSAppearance
+       appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+-  if (@available(macOS 26, *)) {
+-    NSGlassEffectView* glass =
+-        [[NSGlassEffectView alloc] initWithFrame:pane.frame];
+-    glass.appearance = appearance;
+-    glass.style = NSGlassEffectViewStyleRegular;
+-    glass.cornerRadius = 20;
+-    glass.contentView = pane;
+-    native_->material = glass;
+-  } else {
+-    NSVisualEffectView* effect =
+-        [[NSVisualEffectView alloc] initWithFrame:pane.frame];
+-    effect.appearance = appearance;
+-    effect.material = NSVisualEffectMaterialPopover;
+-    effect.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+-    effect.state = NSVisualEffectStateActive;
+-    effect.wantsLayer = YES;
+-    effect.layer.cornerRadius = 20;
+-    effect.layer.masksToBounds = YES;
+-    [effect addSubview:pane];
+-    native_->material = effect;
+-  }
++  // Match floating chrome's appearance-driven material. This popup has its
++  // own transparent window, so its blur samples behind that window.
++  NSVisualEffectView* effect =
++      [[NSVisualEffectView alloc] initWithFrame:pane.frame];
++  effect.appearance = appearance;
++  effect.material = NSVisualEffectMaterialPopover;
++  effect.blendingMode = NSVisualEffectBlendingModeBehindWindow;
++  effect.state = NSVisualEffectStateActive;
++  effect.wantsLayer = YES;
++  effect.layer.cornerRadius = 20;
++  effect.layer.masksToBounds = YES;
++  [effect addSubview:pane];
++  native_->material = effect;
+   native_->material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+ }
+ 
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -266,28 +266,20 @@
+   }
+   _controls = [[NSView alloc] initWithFrame:self.bounds];
+   _controls.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-  if (@available(macOS 26, *)) {
+-    NSGlassEffectView* glass =
+-        [[NSGlassEffectView alloc] initWithFrame:self.bounds];
+-    glass.style = NSGlassEffectViewStyleRegular;
+-    glass.cornerRadius = [self materialCornerRadius];
+-    glass.contentView = _controls;
+-    if (@available(macOS 27, *)) {
+-      glass.effectIsInteractive = YES;
+-    }
+-    _material = glass;
+-  } else {
+-    NSVisualEffectView* material =
+-        [[NSVisualEffectView alloc] initWithFrame:self.bounds];
+-    material.material = NSVisualEffectMaterialPopover;
+-    material.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+-    material.state = NSVisualEffectStateFollowsWindowActiveState;
+-    material.wantsLayer = YES;
+-    material.layer.cornerRadius = [self materialCornerRadius];
+-    material.layer.masksToBounds = YES;
+-    [material addSubview:_controls];
+-    _material = material;
+-  }
++  // Regular Liquid Glass can invert its backdrop treatment independently of
++  // the explicit browser appearance. Our Views foreground lives in separate
++  // child windows, so use an appearance-driven AppKit material consistently
++  // for native and Views chrome. AppKit retains blur and accessibility policy.
++  NSVisualEffectView* material =
++      [[NSVisualEffectView alloc] initWithFrame:self.bounds];
++  material.material = NSVisualEffectMaterialPopover;
++  material.blendingMode = NSVisualEffectBlendingModeWithinWindow;
++  material.state = NSVisualEffectStateFollowsWindowActiveState;
++  material.wantsLayer = YES;
++  material.layer.cornerRadius = [self materialCornerRadius];
++  material.layer.masksToBounds = YES;
++  [material addSubview:_controls];
++  _material = material;
+   _material.wantsLayer = YES;
+   _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+   [self addSubview:_material];
+@@ -305,37 +297,10 @@
+   }
+   [super setAppearance:appearance];
+   _controls.appearance = appearance;
+-  if (@available(macOS 26, *)) {
+-    // Glass caches its backdrop treatment when attached. Recreate only the
+-    // effect on a scheme change, retaining the editor and actual controls.
+-    // Construct it in the requested drawing appearance as well as assigning
+-    // the view appearance before it joins the native host hierarchy.
+-    NSView* previous = _material;
+-    [appearance performAsCurrentDrawingAppearance:^{
+-      NSGlassEffectView* glass =
+-          [[NSGlassEffectView alloc] initWithFrame:previous.frame];
+-      glass.appearance = appearance;
+-      glass.style = NSGlassEffectViewStyleRegular;
+-      glass.cornerRadius = [self materialCornerRadius];
+-      if (@available(macOS 27, *)) {
+-        glass.effectIsInteractive = YES;
+-      }
+-      ((NSGlassEffectView*)previous).contentView = nil;
+-      glass.contentView = _controls;
+-      glass.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-      glass.wantsLayer = YES;
+-      glass.alphaValue = previous.alphaValue;
+-      glass.hidden = previous.hidden;
+-      glass.layer.transform = previous.layer.transform;
+-      [self addSubview:glass positioned:NSWindowBelow relativeTo:previous];
+-      [previous removeFromSuperview];
+-      _material = glass;
+-    }];
+-  } else {
+-    // NSVisualEffectView chooses its vibrant variant from the parent.
+-    _material.appearance = nil;
+-    _material.needsDisplay = YES;
+-  }
++  // Inherit the browser's appearance without replacing the material or
++  // reparenting controls. Editing focus, fades and reveal state stay intact.
++  _material.appearance = nil;
++  _material.needsDisplay = YES;
+ }
+ - (void)setRevealFraction:(CGFloat)fraction {
+   ++_presentationGeneration;
