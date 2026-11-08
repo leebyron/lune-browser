@@ -30,8 +30,14 @@ checks pass on both architectures, including midpoint edge cases and scheme
 independence. Both browser builds and smoke checks pass at 10%; live inspection
 confirms identical tint on all five glass surfaces across Light/Dark. The owner
 then requested 7%; both browser builds and native checks pass, and live arm64
-inspection confirms the reduced alpha on all five surfaces. Visual acceptance
-of 7% is pending.
+inspection confirms the reduced alpha on all five surfaces. The owner accepted
+7% on November 8, 2026. A follow-up adds a native shadow beneath header glass,
+with an explicit rounded outline that follows resizing and fades with the
+material. Native checks and browser builds pass on both architectures. Preview
+refresh and visual acceptance await the Mac unlock. The owner also reported tint disappearing on focus loss.
+There is no activation-dependent tint clearing; native inactive rendering is the
+likely explanation, but a live comparison is blocked by the locked Mac. No
+inactive-material workaround was added.
 See
 [native chrome appearance](agent-docs/project/features/chrome-appearance.md).
 

@@ -5,7 +5,7 @@ the accepted media-toolbar platform head
 `41312cdfc8fa0ec20a49396fb3355c9a01024a8c`. The local candidate is on
 `stable-chrome-appearance`, imported as `topic/stable-chrome-appearance`.
 The current signed platform head is
-`a6a502098c297ed8672cbaca42b4688430f232f2`. It is not in the development lock or
+`86aba2f195484f47b86093e9ab71d3d22205f4b0`. It is not in the development lock or
 published builds.
 
 ## Reproduction
@@ -103,8 +103,39 @@ and smoke checks passed, and live inspection confirmed tint on every surface.
 The owner found it too intense and requested one shared tint across schemes,
 using their HSL midpoint at one third of the strength. The current candidate
 implemented that refinement. After reviewing the 10% preview, the owner asked
-for 7%; the midpoint computation remains unchanged. Visual acceptance of 7%
-is pending.
+for 7%; the midpoint computation remains unchanged. The owner accepted the 7%
+tint on November 8, 2026, then requested stronger header shadows and asked why
+tint appears to disappear when the window loses focus.
+
+## Header shadows and inactive windows
+
+The next candidate adds AppKit `NSShadow` to the existing header material views:
+24% black, 8 pt blur, and a 3 pt downward offset. Navigation, address, trailing
+controls, and Customize close receive it; the sidebar and its toggle do not.
+The shadow shares the material's existing fade and does not enlarge hit regions.
+An explicit rounded Core Animation shadow path updates only when bounds change,
+including the address suggestions expanding vertically. Native `NSShadow`
+ownership is necessary: direct layer shadow settings were reset by AppKit during
+appearance changes. No new window, timer, polling, or page sampling is added.
+
+Native checks cover the shadow silhouette, width/height changes, appearance
+changes, reveal interruption, and absence of an added sidebar shadow on arm64
+and x86_64 under Rosetta. Full browser builds pass on both architectures, along
+with strict replay, patch lint, root validation, and changed documentation links.
+The prior tint settings smoke matrix was not repeated for the shadow-only change.
+The stronger-shadow binaries are built but the running preview still contains
+the accepted 7% tint candidate without these shadows. Refreshing and visually
+checking that preview awaits the Mac unlock; shadow visual acceptance is pending.
+
+The tint code has no activation-dependent clearing or alternate color. Live
+inspection confirmed the selected Green midpoint remains assigned at 7% while
+the preview is active. The attempted deactivation did not change the app's active
+flag, so it is not evidence of an active/inactive comparison. The Mac then locked,
+blocking further visual inspection. Native inactive rendering is the likely
+explanation for the owner's observation, but the exact transition remains to be
+verified. The public macOS 27.2 SDK exposes no activity-state override on
+[`NSGlassEffectView`](https://developer.apple.com/documentation/appkit/nsglasseffectview).
+No workaround or inactive tint override was implemented.
 
 ## Validation
 
@@ -114,7 +145,7 @@ architectures' UI/settings/appearance/persistence smoke checks, including a
 fresh-profile Content aware value of true and an explicit saved false after
 restart. Intel checks run under Rosetta, not native Intel hardware.
 
-Strict replay passes across 145 relevant patches and 17 changed source files,
+Strict replay passes across 146 relevant patches and 17 changed source files,
 including the production GRIT-aware name transform. Patch lint, root validation,
 and GN header dependency checks pass. The repository's 44 unit tests pass. The focused native harness covers the
 material implementations and appearance bridge.

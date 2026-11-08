@@ -173,6 +173,14 @@ int main() {
   NSView* controls = surface.controls;
   assert([surface.effect isKindOfClass:NSGlassEffectView.class]);
   assert(!surface.backdrop.hidden);
+  [surface layoutSubtreeIfNeeded];
+  assert(!surface.clipsToBounds && !material.clipsToBounds);
+  assert(material.shadow != nil);
+  assert(CGRectContainsRect(CGRectInset(material.bounds, -.001, -.001),
+                            CGPathGetBoundingBox(material.layer.shadowPath)));
+  assert(CGRectContainsRect(CGPathGetBoundingBox(material.layer.shadowPath),
+                            CGRectInset(material.bounds, .001, .001)));
+  assert(!CGPathContainsPoint(material.layer.shadowPath, nullptr, CGPointMake(0, 0), false));
   NSView* original_effect = surface.effect;
   assert(surface.hidden && !surface.isPresented && material.alphaValue == 0);
   NSTextField* field = [[NSTextField alloc] initWithFrame:NSMakeRect(30, 0, 280, 36)];
@@ -197,6 +205,7 @@ int main() {
       assert(field.superview == controls && window.firstResponder == responder);
       assert([field.stringValue isEqual:@"preserve editor contents"]);
       assert(Dark(material) == dark && Dark(field) == dark);
+      assert(material.shadow != nil && material.layer.shadowOpacity > 0);
       assert(Dark(other));
       assert(!surface.hidden && surface.isPresented && material.alphaValue == .4);
     }
@@ -225,6 +234,18 @@ int main() {
   [surface setFrame:NSMakeRect(10, 10, 500, 36)];
   [surface layoutSubtreeIfNeeded];
   assert(NSEqualRects(material.frame, surface.bounds));
+  assert(CGRectContainsRect(CGRectInset(material.bounds, -.001, -.001),
+                            CGPathGetBoundingBox(material.layer.shadowPath)));
+  assert(CGRectContainsRect(CGPathGetBoundingBox(material.layer.shadowPath),
+                            CGRectInset(material.bounds, .001, .001)));
+  // Address suggestions expand the same material vertically.
+  [surface setFrameSize:NSMakeSize(500, 108)];
+  [surface layoutSubtreeIfNeeded];
+  assert(fabs(CGPathGetBoundingBox(material.layer.shadowPath).size.height - 108) < .001);
+  [surface setFrameSize:NSMakeSize(500, 36)];
+  [surface layoutSubtreeIfNeeded];
+  assert(fabs(CGPathGetBoundingBox(material.layer.shadowPath).size.height - 36) < .001);
+  assert([material.layer animationForKey:@"shadowPath"] == nil);
   assert(((NSGlassEffectView*)surface.effect).cornerRadius == 18);
   assert(surface.backdrop.layer.cornerRadius == 18);
   assert(NSEqualRects(controls.frame, surface.bounds));
@@ -244,6 +265,7 @@ int main() {
                             [settled timeIntervalSinceNow] <= 0; });
   assert(!surface.hidden && surface.isPresented && material.alphaValue == 1);
   HeliumSidebarSurface* sidebar = [[HeliumSidebarSurface alloc] initWithFrame:NSMakeRect(0,0,200,300)];
+  assert(sidebar.subviews.firstObject.shadow == nil);
   assert(sidebar.materialCornerRadius == 0 && [sidebar hitTest:NSZeroPoint] == nil);
   for (int dark = 0; dark <= 1; ++dark) {
     for (int aware = 0; aware <= 1; ++aware) {
