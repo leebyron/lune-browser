@@ -14,9 +14,13 @@ and corrects coordinates from the trailing controls' child window. Momentum keep
 its receiver, and direct delivery completes Chromium's wheel-end cleanup.
 Autocomplete and extension popups retain their own scrolling. Both architecture
 builds, native routing/appearance checks, and browser UI/settings/persistence smoke
-checks pass (Intel under Rosetta). Arm64 browser interaction checks cover address editing, controls, gaps, nested scrolling, split panes, popup
-exclusion, and fullscreen. Hardware trackpad feel and native Intel acceptance
-remain unverified. The signed platform commit is `d0c49b0a`; this candidate is not
+checks pass (Intel under Rosetta). Arm64 browser interaction checks cover address
+editing, controls, gaps, nested scrolling, split panes, popup exclusion, and
+fullscreen. The owner confirmed scrolling across all header areas on November 8,
+2026 in the distinctly named Lune Scroll Test preview. A simplicity review retained
+the shared router, original events, weak momentum target, and existing Chromium
+cleanup without additional implementation changes. Native Intel acceptance remains
+unverified. The signed platform commit is `d0c49b0a`; this candidate is not
 in the development lock or published builds. See
 [header scroll-through](agent-docs/project/features/header-scroll-through.md).
 

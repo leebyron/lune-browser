@@ -33,8 +33,26 @@ Developed in the prepared Chromium 158 tree with quilt, as
 `helium/ui/header-scroll-through.patch`, then unmerged into the macOS component.
 The signed platform commit is `d0c49b0adb64fc3c445e1434b49e4b5804d05cc6`,
 available locally as `topic/header-scroll-through`. It is based on the accepted
-appearance stack at `622ccfac` (`topic/chrome-appearance-reviewed`), including reviewed toolbar and
-media controls. It does not change the development lock or published binaries.
+appearance stack at `622ccfac` (`topic/chrome-appearance-reviewed`), including
+reviewed toolbar and media controls. It does not change the development lock or
+published binaries.
+
+## Simplicity review
+
+The November 8 review retained the accepted implementation without changes:
+
+- One window-scoped routing decision handles all header surfaces, including the
+  trailing controls' separate native window. Per-control overrides would duplicate
+  routing and lifetime rules across AppKit and Views controls.
+- The only gesture state is a weak receiver reference for momentum. The original
+  event reaches the existing native content receiver; there is no synthesized
+  event, redispatch loop, timer, or separate scrolling implementation.
+- Existing Views/native hit testing chooses the content, including split panes
+  and nested scrollers. Menu, popup, sidebar, and modal exclusions keep browser UI
+  events out of the page.
+- The shared event builder corrects source-window coordinates. The renderer reuses
+  its existing wheel-end cleanup when the overlay consumes an event before the
+  native end monitor sees it; it does not add another cleanup mechanism.
 
 ## Validation
 
@@ -69,7 +87,20 @@ wheel input confirm:
 An isolated browser debug trace also confirmed that the local monitor invokes the
 router and consumes the forwarded event. The final fixture recorded exactly three
 page events from three header scrolls, with none from autocomplete or the popup.
-Native hardware trackpad feel and native Intel acceptance remain unverified.
+The owner initially reported that navigation/address scrolling worked while gaps
+and trailing buttons did not. Inspection found the older appearance preview still
+running without the scroll router, while the original scroll-test process had
+stopped. The framework hash of the reopened scroll preview matched the tested
+build. A separate test-only bundle identity (`computer.lune.browser.scrolltest`)
+and the title “Lune scroll fix #16 — d0c49b0a” now distinguish it from older previews.
+The owner confirmed scrolling works across all header areas in that identified
+preview on November 8, 2026. No routing change was needed for the retest.
+
+Automated input is not a substitute for this owner check: a later tool-generated
+event over the trailing child window carried coordinates outside that window and
+was correctly declined. Real gesture acceptance comes from the owner's retest;
+native fixtures separately establish cross-window conversion and momentum state.
+Native Intel acceptance remains unverified.
 Docked DevTools, modal exclusions, and pinned-sidebar behavior are source-reviewed
 but have not received live interaction checks for this candidate.
 
