@@ -1,0 +1,267 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -383,16 +383,25 @@ HeliumCommandBarView::HeliumCommandBarVi
+       browser_view->GetProfile()->GetPrefs()->GetBoolean(
+           prefs::kHeliumContentAwareChrome);
+   if (@available(macOS 26, *)) {
+-    if (content_aware) {
+-      NSGlassEffectView* glass =
+-          [[NSGlassEffectView alloc] initWithFrame:pane.frame];
+-      glass.appearance = appearance;
+-      glass.style = NSGlassEffectViewStyleRegular;
+-      glass.cornerRadius = 20;
+-      // Let the pane inherit AppKit's adaptive foreground appearance.
+-      glass.contentView = pane;
+-      native_->material = glass;
+-    }
++    NSView* material = [[NSView alloc] initWithFrame:pane.frame];
++    material.appearance = appearance;
++    NSView* backdrop = [[NSView alloc] initWithFrame:material.bounds];
++    backdrop.wantsLayer = YES;
++    backdrop.layer.cornerRadius = 20;
++    backdrop.layer.backgroundColor =
++        [(dark ? NSColor.blackColor : NSColor.whiteColor)
++            colorWithAlphaComponent:.8].CGColor;
++    backdrop.hidden = content_aware;
++    backdrop.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++    [material addSubview:backdrop];
++    NSGlassEffectView* glass =
++        [[NSGlassEffectView alloc] initWithFrame:material.bounds];
++    glass.style = NSGlassEffectViewStyleRegular;
++    glass.cornerRadius = 20;
++    glass.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++    glass.contentView = pane;
++    [material addSubview:glass];
++    native_->material = material;
+   }
+   if (!native_->material) {
+     NSVisualEffectView* effect =
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -263,13 +263,15 @@ NSAppearance* FloatingChromeAppearance(B
+ @interface HeliumGlassSurface : HeliumChromeHitRegion {
+  @protected
+   NSView* _material;
++  NSView* _effect;
++  NSView* _backdrop;
+   HeliumGlassContent* _controls;
+ }
+ @property(nonatomic) BOOL contentAware;
+ @property(nonatomic, copy) void (^onAppearanceChanged)(NSAppearance*);
+ - (void)publishForegroundAppearance;
+ - (NSAppearance*)foregroundAppearance;
+-- (void)replaceMaterial;
++- (void)updateBackdrop;
+ - (CGFloat)materialCornerRadius;
+ - (void)setPresented:(BOOL)presented;
+ - (BOOL)isPresented;
+@@ -280,7 +282,6 @@ NSAppearance* FloatingChromeAppearance(B
+   BOOL _presented;
+   BOOL _fullyHidden;
+   NSUInteger _presentationGeneration;
+-  BOOL _replacingMaterial;
+ }
+ @synthesize contentAware = _contentAware;
+ @synthesize onAppearanceChanged = _onAppearanceChanged;
+@@ -289,114 +290,95 @@ NSAppearance* FloatingChromeAppearance(B
+   if (!self) {
+     return nil;
+   }
++  // Keep the material and its content attached for their entire lifetime.
++  // Reparenting NSGlassEffectView.contentView can collapse its dimensions.
++  _material = [[NSView alloc] initWithFrame:self.bounds];
++  _material.wantsLayer = YES;
++  _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  _backdrop = [[NSView alloc] initWithFrame:self.bounds];
++  _backdrop.wantsLayer = YES;
++  _backdrop.layer.cornerRadius = [self materialCornerRadius];
++  _backdrop.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  [_material addSubview:_backdrop];
+   _controls = [[HeliumGlassContent alloc] initWithFrame:self.bounds];
+   __weak HeliumGlassSurface* weakSelf = self;
+   _controls.onAppearanceChanged = ^{
+     [weakSelf publishForegroundAppearance];
+   };
+   _controls.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-  [self replaceMaterial];
++  if (@available(macOS 26, *)) {
++    NSGlassEffectView* glass =
++        [[NSGlassEffectView alloc] initWithFrame:self.bounds];
++    glass.style = NSGlassEffectViewStyleRegular;
++    glass.cornerRadius = [self materialCornerRadius];
++    if (@available(macOS 27, *)) {
++      glass.effectIsInteractive = YES;
++    }
++    // Inherit AppKit's actual foreground appearance in both modes, including
++    // transitions and accessibility overrides.
++    glass.contentView = _controls;
++    _effect = glass;
++  } else {
++    NSVisualEffectView* effect =
++        [[NSVisualEffectView alloc] initWithFrame:self.bounds];
++    effect.material = NSVisualEffectMaterialPopover;
++    effect.blendingMode = NSVisualEffectBlendingModeWithinWindow;
++    effect.state = NSVisualEffectStateFollowsWindowActiveState;
++    effect.wantsLayer = YES;
++    effect.layer.cornerRadius = [self materialCornerRadius];
++    effect.layer.masksToBounds = YES;
++    [effect addSubview:_controls];
++    _effect = effect;
++  }
++  _effect.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  [_material addSubview:_effect];
++  [self addSubview:_material];
++  [self updateBackdrop];
+   self.hidden = YES;
+   _fullyHidden = YES;
+   _material.alphaValue = 0;
+   return self;
+ }
+ - (void)setContentAware:(BOOL)contentAware {
++  if (_contentAware == contentAware) {
++    return;
++  }
++  _contentAware = contentAware;
++  [self updateBackdrop];
++}
++- (void)updateBackdrop {
++  // Regular glass has no public switch to disable backdrop adaptation. Keep
++  // that same glass, but bound the sampled luminance with a neutral profile
++  // backdrop. Content-aware mode removes it and samples the page directly.
++  // The remaining transparency retains the page's color and glass refraction.
++  BOOL has_glass = NO;
+   if (@available(macOS 26, *)) {
+-    if (_contentAware == contentAware) {
+-      return;
+-    }
+-    _contentAware = contentAware;
+-    [self replaceMaterial];
++    has_glass = [_effect isKindOfClass:NSGlassEffectView.class];
+   }
++  _backdrop.hidden = _contentAware || !has_glass;
++  const BOOL dark = [[self.effectiveAppearance bestMatchFromAppearancesWithNames:
++      @[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]]
++      isEqual:NSAppearanceNameDarkAqua];
++  _backdrop.layer.backgroundColor =
++      [(dark ? NSColor.blackColor : NSColor.whiteColor)
++          colorWithAlphaComponent:.8].CGColor;
++  [self publishForegroundAppearance];
+ }
+ - (NSAppearance*)foregroundAppearance {
+-  return _contentAware ? _controls.effectiveAppearance : nil;
++  if (@available(macOS 26, *)) {
++    return _controls.effectiveAppearance;
++  }
++  return nil;
+ }
+ - (void)setOnAppearanceChanged:(void (^)(NSAppearance*))callback {
+   _onAppearanceChanged = [callback copy];
+   [self publishForegroundAppearance];
+ }
+ - (void)publishForegroundAppearance {
+-  if (!_replacingMaterial && _onAppearanceChanged) {
++  if (_onAppearanceChanged) {
+     _onAppearanceChanged([self foregroundAppearance]);
+   }
+ }
+-- (void)replaceMaterial {
+-  _replacingMaterial = YES;
+-  NSView* previous = _material;
+-  NSRect frame = previous ? previous.frame : self.bounds;
+-  NSWindow* window = self.window;
+-  NSResponder* responder = window.firstResponder;
+-  NSControl* editing_control = nil;
+-  NSRange selection = NSMakeRange(NSNotFound, 0);
+-  // Detaching a field from its old material ends field editing. Restore the
+-  // owning control immediately so its deferred end-edit callback sees the
+-  // same editor, text and selection after this transaction.
+-  NSMutableArray<NSView*>* descendants =
+-      [NSMutableArray arrayWithObject:_controls];
+-  while (descendants.count) {
+-    NSView* child = descendants.lastObject;
+-    [descendants removeLastObject];
+-    [descendants addObjectsFromArray:child.subviews];
+-    if ([child isKindOfClass:NSControl.class] && responder &&
+-        [(NSControl*)child currentEditor] == responder) {
+-      editing_control = (NSControl*)child;
+-      selection = editing_control.currentEditor.selectedRange;
+-      break;
+-    }
+-  }
+-  if (@available(macOS 26, *)) {
+-    if ([previous isKindOfClass:NSGlassEffectView.class]) {
+-      ((NSGlassEffectView*)previous).contentView = nil;
+-    }
+-  }
+-  [_controls removeFromSuperview];
+-  // Do not override the foreground appearance: NSGlassEffectView communicates
+-  // its adaptive light/dark treatment through the content view's inheritance.
+-  _controls.appearance = nil;
+-  _material = nil;
+-  if (@available(macOS 26, *)) {
+-    if (_contentAware) {
+-      NSGlassEffectView* glass = [[NSGlassEffectView alloc] initWithFrame:frame];
+-      glass.style = NSGlassEffectViewStyleRegular;
+-      glass.cornerRadius = [self materialCornerRadius];
+-      if (@available(macOS 27, *)) {
+-        glass.effectIsInteractive = YES;
+-      }
+-      glass.contentView = _controls;
+-      _material = glass;
+-    }
+-  }
+-  if (!_material) {
+-    NSVisualEffectView* effect = [[NSVisualEffectView alloc] initWithFrame:frame];
+-    effect.material = NSVisualEffectMaterialPopover;
+-    effect.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+-    effect.state = NSVisualEffectStateFollowsWindowActiveState;
+-    effect.wantsLayer = YES;
+-    effect.layer.cornerRadius = [self materialCornerRadius];
+-    effect.layer.masksToBounds = YES;
+-    [effect addSubview:_controls];
+-    _material = effect;
+-  }
+-  _material.wantsLayer = YES;
+-  _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-  if (previous) {
+-    _material.alphaValue = previous.alphaValue;
+-    _material.hidden = previous.hidden;
+-    _material.layer.transform = previous.layer.transform;
+-  }
+-  [self addSubview:_material];
+-  [previous removeFromSuperview];
+-  if (editing_control) {
+-    [window makeFirstResponder:editing_control];
+-    if (selection.location != NSNotFound) {
+-      editing_control.currentEditor.selectedRange = selection;
+-    }
+-  }
+-  _replacingMaterial = NO;
+-  [self publishForegroundAppearance];
+-}
+ - (CGFloat)materialCornerRadius {
+   return 18;
+ }
+@@ -405,11 +387,7 @@ NSAppearance* FloatingChromeAppearance(B
+     return;
+   }
+   [super setAppearance:appearance];
+-  // Inherit the browser's appearance without replacing the material or
+-  // reparenting controls. Editing focus, fades and reveal state stay intact.
+-  _material.appearance = nil;
+-  _material.needsDisplay = YES;
+-  [self publishForegroundAppearance];
++  [self updateBackdrop];
+ }
+ - (void)setRevealFraction:(CGFloat)fraction {
+   ++_presentationGeneration;
+@@ -426,6 +404,9 @@ NSAppearance* FloatingChromeAppearance(B
+ - (void)resizeSubviewsWithOldSize:(NSSize)oldSize {
+   [super resizeSubviewsWithOldSize:oldSize];
+   _material.frame = self.bounds;
++  _backdrop.frame = _material.bounds;
++  _effect.frame = _material.bounds;
++  _controls.frame = _effect.bounds;
+ }
+ - (void)setPresented:(BOOL)presented {
+   if (_presented == presented) {
