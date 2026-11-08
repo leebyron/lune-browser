@@ -1,0 +1,17 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -159,7 +159,13 @@ int FloatingNavigationWidth(BrowserView*
+ // extension themes, incognito, and Light/Dark/Device retain their precedence.
+ // AppKit applies the tint; this adds no overlays or backdrop sampling.
+ NSColor* FloatingChromeTintColor(BrowserView* view) {
+-  const SkColor color = view->GetColorProvider()->GetColor(kColorToolbar);
++  const auto* colors = view->GetColorProvider();
++  // Frame theme notifications can precede BrowserView's widget attachment.
++  // Surface setup reapplies the tint once the owning color provider exists.
++  if (!colors) {
++    return nil;
++  }
++  const SkColor color = colors->GetColor(kColorToolbar);
+   return [NSColor colorWithSRGBRed:SkColorGetR(color) / 255.0
+                             green:SkColorGetG(color) / 255.0
+                              blue:SkColorGetB(color) / 255.0
