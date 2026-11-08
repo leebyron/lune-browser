@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "ed6847b8cc1cb9c2a604c03070ef75d211280cbd",
+    "commit": "5e0957c52bd848805924a6fd05801d36bd721cf2",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -416,7 +416,7 @@
       },
       {
         "path": "patches/helium/ui/sidebar-pin-activation.patch",
-        "sha256": "c05072ac8bb3d968707b6cc6be109fab4a088d8e030744e9bfa97a19da7c49bb"
+        "sha256": "1c9acb7d9d13e30b387b77a0da5659885a99de47ec1c6935d68abf3e2bb9c5d6"
       }
     ]
   },
@@ -780,7 +780,7 @@
         "patches/helium/ui/sidebar-pin-activation.patch"
       ],
       "review_status": "reviewed-port",
-      "rationale": "Dim the sidebar pin symbol when its owning window or application becomes inactive, using semantic AppKit colors while preserving the enabled action.",
+      "rationale": "Dim the sidebar pin symbol when its owning window or application becomes inactive, using semantic AppKit disabled text while restoring default native rendering when active and preserving the enabled action.",
       "adaptation": "Native activation observers follow the button between windows and are removed at teardown. See agent-docs/project/features/sidebar-pin-activation.md for scope and validation."
     }
   ],

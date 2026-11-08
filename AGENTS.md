@@ -7,8 +7,11 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-The development input `inputs/sidebar-pin-activation-1/macos` makes the sidebar
-pin button follow its owning window/app activation with native semantic colors.
+The development input `inputs/sidebar-pin-activation-2/macos` makes the sidebar
+pin button follow its owning window/app activation. Inactive windows use native
+semantic disabled text; active windows restore AppKit's default symbol rendering.
+The owner accepted the inactive tint but found input 1's explicit active color too
+dark; input 2 removes that override without changing symbol weight or size.
 It remains clickable and updates without pointer movement. Native activation,
 owner-isolation, and teardown tests pass on arm64 and Intel via Rosetta. Both
 browser builds and the arm64 smoke check pass. Live arm64 inspection verifies

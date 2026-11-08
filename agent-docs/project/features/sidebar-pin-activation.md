@@ -5,10 +5,10 @@ Requested November 7, 2026; tracked in [issue #10](https://github.com/leebyron/l
 ## Behavior
 
 The sidebar pin/toggle remains an enabled native SF Symbol button. It uses
-`NSColor.controlTextColor` when its own window is key and the application is
-active, and `NSColor.disabledControlTextColor` otherwise. These semantic colors
-follow the button's effective appearance. The action, pinning preference,
-left/right symbol, layout, and reveal animation are unchanged.
+AppKit's default symbol rendering (`contentTintColor = nil`) when its own window
+is key and the application is active, and `NSColor.disabledControlTextColor`
+otherwise. Both follow the button's effective appearance. The action, pinning
+preference, left/right symbol, layout, and reveal animation are unchanged.
 
 The previous borderless `NSButton` did not adopt the inactive treatment that
 AppKit applies to the native traffic lights. A small `HeliumSidebarPinButton`
@@ -21,11 +21,16 @@ Block observer tokens are owned by the button, and callbacks capture it weakly.
 Moving to another window unregisters the old owner first; detachment and teardown
 remove the observers. This leaves AppKit's own button observers intact.
 
+The owner accepted input 1's faded appearance but found its explicit active
+`controlTextColor` too dark and visually heavier than neighboring icons. Input 2
+clears that override on activation, restoring the original AppKit rendering
+without changing symbol weight, size, or the accepted inactive tint.
+
 ## Input and validation
 
 - Base: accepted `inputs/menu-retention-2/macos`.
-- Input: `inputs/sidebar-pin-activation-1/macos`, commit
-  `ed6847b8cc1cb9c2a604c03070ef75d211280cbd`.
+- Input: `inputs/sidebar-pin-activation-2/macos`, commit
+  `5e0957c52bd848805924a6fd05801d36bd721cf2`.
 - Patch: `patches/helium/ui/sidebar-pin-activation.patch`.
 - Development only, not in published builds 1 or 2 and not release-accepted.
 
@@ -46,11 +51,11 @@ was executed in the native regression harness under Rosetta; a separate full
 Intel browser smoke was not run for this color-only change.
 
 In the real arm64 browser, read-only native inspection confirms active window/app
-state selects `controlTextColor`, app deactivation selects
-`disabledControlTextColor`, and reactivation restores `controlTextColor`, with the
-button enabled throughout. Opening a second Lune window gives the first window
-inactive tint and the second active tint simultaneously. The extra test window
-was closed afterward. Inspection is recorded in `preview/activation.log`; no
+state selects default native rendering, app deactivation selects
+`disabledControlTextColor`, and reactivation restores default native rendering,
+with the button enabled throughout. Input 1 also verified two real Lune windows
+with independent active/inactive tint; input 2 retains the same owner tracking
+and passes the native owner-isolation harness. Inspection is recorded in `preview/activation.log`; no
 debugger remains attached.
 
 The preview is `.work/sidebar-pin-activation/Lune Sidebar Pin.app`, using an

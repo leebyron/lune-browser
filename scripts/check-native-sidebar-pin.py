@@ -46,8 +46,8 @@ static void post(NSNotificationName name, id owner) {
   [NSNotificationCenter.defaultCenter postNotificationName:name object:owner];
 }
 static void expect(HeliumSidebarPinButton* button, BOOL active) {
-  assert([button.contentTintColor isEqual:
-      active ? NSColor.controlTextColor : NSColor.disabledControlTextColor]);
+  assert(active ? button.contentTintColor == nil
+                : [button.contentTintColor isEqual:NSColor.disabledControlTextColor]);
   assert(button.enabled);
 }
 
