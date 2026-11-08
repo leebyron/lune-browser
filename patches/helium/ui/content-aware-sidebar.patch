@@ -1,0 +1,90 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -268,6 +268,7 @@ NSAppearance* FloatingChromeAppearance(B
+   HeliumGlassContent* _controls;
+ }
+ @property(nonatomic) BOOL contentAware;
++@property(nonatomic, weak) HeliumGlassSurface* appearanceFollower;
+ @property(nonatomic, copy) void (^onAppearanceChanged)(NSAppearance*);
+ - (void)publishForegroundAppearance;
+ - (NSAppearance*)foregroundAppearance;
+@@ -284,6 +285,7 @@ NSAppearance* FloatingChromeAppearance(B
+   NSUInteger _presentationGeneration;
+ }
+ @synthesize contentAware = _contentAware;
++@synthesize appearanceFollower = _appearanceFollower;
+ @synthesize onAppearanceChanged = _onAppearanceChanged;
+ - (instancetype)initWithFrame:(NSRect)frame {
+   self = [super initWithFrame:frame];
+@@ -370,11 +372,22 @@ NSAppearance* FloatingChromeAppearance(B
+   }
+   return nil;
+ }
++- (void)setAppearanceFollower:(HeliumGlassSurface*)follower {
++  if (_appearanceFollower == follower) {
++    return;
++  }
++  _appearanceFollower = follower;
++  [self publishForegroundAppearance];
++}
+ - (void)setOnAppearanceChanged:(void (^)(NSAppearance*))callback {
+   _onAppearanceChanged = [callback copy];
+   [self publishForegroundAppearance];
+ }
+ - (void)publishForegroundAppearance {
++  NSAppearance* appearance = [self foregroundAppearance];
++  if (_appearanceFollower && appearance) {
++    _appearanceFollower.appearance = appearance;
++  }
+   if (_onAppearanceChanged) {
+     _onAppearanceChanged([self foregroundAppearance]);
+   }
+@@ -3280,12 +3293,33 @@ void BrowserFrameViewMac::UpdateFloating
+     background->SetVisible(reveal > 0);
+     // The sidebar already supplies its own horizontal slide/fade progress.
+     [floating_sidebar_material_ setRevealFraction:reveal];
++    const bool content_aware = view->GetProfile()->GetPrefs()->GetBoolean(
++        prefs::kHeliumContentAwareChrome);
++    // Large native glass retains its selected light/dark appearance. Follow
++    // the nearby small glass surface's native backdrop adaptation instead.
++    // Keep the sidebar material's native thickness and foreground semantics.
++    HeliumGlassSurface* source = nil;
++    if (content_aware) {
++      if (right && FloatingToolbarWidth() > 0) {
++        source = floating_toolbar_material_;
++      } else if (!right && FloatingNavigationWidth(view) > 0) {
++        source = floating_navigation_;
++      } else {
++        source = floating_address_bar_;
++      }
++    }
++    NSAppearance* sidebar_appearance = [source foregroundAppearance] ?:
++        FloatingChromeAppearance(view);
+     const bool sidebar_appearance_changed =
+-        ![floating_sidebar_material_.appearance
+-            isEqual:FloatingChromeAppearance(view)];
+-    floating_sidebar_material_.contentAware =
+-        view->GetProfile()->GetPrefs()->GetBoolean(prefs::kHeliumContentAwareChrome);
+-    floating_sidebar_material_.appearance = FloatingChromeAppearance(view);
++        ![floating_sidebar_material_.appearance isEqual:sidebar_appearance];
++    floating_sidebar_material_.contentAware = content_aware;
++    floating_sidebar_material_.appearance = sidebar_appearance;
++    floating_navigation_.appearanceFollower =
++        source == floating_navigation_ ? floating_sidebar_material_ : nil;
++    floating_address_bar_.appearanceFollower =
++        source == floating_address_bar_ ? floating_sidebar_material_ : nil;
++    floating_toolbar_material_.appearanceFollower =
++        source == floating_toolbar_material_ ? floating_sidebar_material_ : nil;
+     // Exclude the actual native controls (8 pt inset + 36 pt height), not the
+     // whole header. Layout margins belong to the tab layout, not the child
+     // window clip; excluding them here can cut off the top of New Tab.
+@@ -3379,6 +3413,9 @@ void BrowserFrameViewMac::UpdateFloating
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingSidebar() {
++  floating_navigation_.appearanceFollower = nil;
++  floating_address_bar_.appearanceFollower = nil;
++  floating_toolbar_material_.appearanceFollower = nil;
+   floating_sidebar_material_.onAppearanceChanged = nil;
+   floating_sidebar_material_.controlsWindow = nil;
+   if (auto* sidebar = static_cast<VerticalTabStripRegionView*>(
