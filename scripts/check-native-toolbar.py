@@ -22,7 +22,8 @@ end = source.index('\n}  // namespace helium', start)
 symbol = 'gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor);\n' + source[start:end]
 frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
 start = frame.index('@interface HeliumHeaderSymbolButton : NSButton')
-header_button = frame[start:frame.index('@interface HeliumGlassNavigation', start)]
+button_end = frame.index('\n@end', frame.index('@implementation HeliumHeaderSymbolButton', start))
+header_button = frame[start:button_end + len('\n@end')] + '\n'
 start = frame.index('  NSRect address_frame = _addressContainer.frame;')
 end = frame.index('  self.appearance = FloatingChromeAppearance', start)
 address_layout = (
