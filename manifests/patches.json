@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "10fea4d3026ef108847e58b0556c9688bfcdf3d3",
+    "commit": "ed6847b8cc1cb9c2a604c03070ef75d211280cbd",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -413,6 +413,10 @@
       {
         "path": "patches/helium/ui/window-menu-running-state.patch",
         "sha256": "45be8ef407aec77eebccd4649d4e410c9ce273b3523e9bcb4d490300ab12169c"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-pin-activation.patch",
+        "sha256": "c05072ac8bb3d968707b6cc6be109fab4a088d8e030744e9bfa97a19da7c49bb"
       }
     ]
   },
@@ -766,6 +770,18 @@
       "review_status": "reviewed-port",
       "rationale": "Keep already revealed sidebar and header surfaces visible throughout menus, including the default-browser footer context menu. Release nested window-local holds on closure or owner destruction and resume pointer retention after command dispatch.",
       "adaptation": "Locally authored Views and AppKit integration, separate from branding. See agent-docs/project/features/menu-reveal-retention.md for scope and validation limits."
+    },
+    {
+      "id": "sidebar-pin-activation",
+      "depends_on": [
+        "native-floating-address"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-pin-activation.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Dim the sidebar pin symbol when its owning window or application becomes inactive, using semantic AppKit colors while preserving the enabled action.",
+      "adaptation": "Native activation observers follow the button between windows and are removed at teardown. See agent-docs/project/features/sidebar-pin-activation.md for scope and validation."
     }
   ],
   "policy": "Reviewed ports are already composed into the locked platform commit and verified against series order and SHA-256. Builds never download a moving PR patch or replay an unreviewed head. Chromium upgrades take priority over UI parity; no downgrade to satisfy optional patches."

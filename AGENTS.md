@@ -7,6 +7,16 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The development input `inputs/sidebar-pin-activation-1/macos` makes the sidebar
+pin button follow its owning window/app activation with native semantic colors.
+It remains clickable and updates without pointer movement. Native activation,
+owner-isolation, and teardown tests pass on arm64 and Intel via Rosetta. Both
+browser builds and the arm64 smoke check pass. Live arm64 inspection verifies
+active/inactive tint and independent window states; owner visual acceptance is
+pending. See
+[sidebar pin activation](agent-docs/project/features/sidebar-pin-activation.md).
+This is not in published builds 1 or 2 or release-accepted.
+
 The development input `inputs/menu-retention-2/macos` adds window-local lifetime
 holds for sidebar and header menus, including the default-browser footer menu.
 It bridges transient tab expansion locks, refines the native green-button guard,
