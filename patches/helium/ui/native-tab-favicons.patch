@@ -1,0 +1,106 @@
+--- a/chrome/browser/ui/tab_ui_helper.h
++++ b/chrome/browser/ui/tab_ui_helper.h
+@@ -65,6 +65,12 @@
+   // Retains the previous same-origin favicon while a replacement is pending.
+   ui::ImageModel GetFavicon();
+ 
++  // Compare with the cached default model; newly bound image generators have
++  // distinct identities even when they produce the same artwork.
++  bool IsDefaultFavicon(const ui::ImageModel& favicon) const {
++    return !default_favicon_model_.IsEmpty() && favicon == default_favicon_model_;
++  }
++
+   // Return true if the throbber should be hidden during a page load.
+   bool ShouldHideThrobber() const;
+ 
+--- a/chrome/browser/ui/tabs/tab_data.cc
++++ b/chrome/browser/ui/tabs/tab_data.cc
+@@ -42,6 +42,8 @@
+       tab_interface->IsPinned() || tab_ui_helper->ShouldDisplayFavicon();
+   tab_data.is_monochrome_favicon = tab_ui_helper->IsMonochromeFavicon();
+   tab_data.favicon = tab_ui_helper->GetFavicon();
++  tab_data.is_default_favicon =
++      tab_ui_helper->IsDefaultFavicon(tab_data.favicon);
+   tab_data.should_hide_throbber = tab_ui_helper->ShouldHideThrobber();
+   tab_data.is_crashed = tab_ui_helper->IsCrashed();
+   tab_data.should_display_url = tab_ui_helper->ShouldDisplayURL();
+@@ -91,6 +93,7 @@
+          should_themify_favicon == other.should_themify_favicon &&
+          should_display_favicon == other.should_display_favicon &&
+          is_monochrome_favicon == other.is_monochrome_favicon &&
++         is_default_favicon == other.is_default_favicon &&
+          favicon == other.favicon &&
+          should_hide_throbber == other.should_hide_throbber &&
+          is_crashed == other.is_crashed &&
+--- a/chrome/browser/ui/tabs/tab_data.h
++++ b/chrome/browser/ui/tabs/tab_data.h
+@@ -50,6 +50,7 @@
+   bool should_themify_favicon = false;
+   bool should_display_favicon = true;
+   bool is_monochrome_favicon = false;
++  bool is_default_favicon = false;
+   ui::ImageModel favicon;
+   bool should_hide_throbber = false;
+   bool is_crashed = false;
+--- a/chrome/browser/ui/views/tabs/tab/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/tab/BUILD.gn
+@@ -70,6 +70,7 @@
+     "//chrome/browser/ui/views/frame",
+     "//chrome/browser/ui/views/frame:browser_view_header",
+     "//chrome/browser/ui/views/permissions/chip",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui/views/tabs:base",
+     "//chrome/browser/ui/views/tabs:tab",
+     "//chrome/browser/ui/views/tabs/hovercard",
+--- a/chrome/browser/ui/views/tabs/tab/tab_icon.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_icon.cc
+@@ -14,6 +14,7 @@
+ #include "cc/paint/color_filter.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/favicon/favicon_utils.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+@@ -124,8 +125,13 @@
+ void TabIcon::SetData(const tabs::TabData& data) {
+   const bool was_showing_load = GetShowingLoadingAnimation();
+ 
++  is_internal_page_ = data.visible_url.SchemeIs("chrome") ||
++                      data.visible_url.SchemeIs("chrome-untrusted") ||
++                      data.visible_url.SchemeIs("chrome-search") ||
++                      data.visible_url.IsAboutBlank();
+   inhibit_loading_animation_ = data.should_hide_throbber;
+   is_monochrome_favicon_ = data.is_monochrome_favicon;
++  is_default_favicon_ = data.is_default_favicon;
+   SetIcon(data.favicon, data.should_themify_favicon);
+   SetNetworkState(data.network_state);
+   SetCrashed(data.is_crashed);
+@@ -373,6 +379,16 @@
+     return crashed_icon_;
+   }
+ 
++  if ((is_internal_page_ || is_default_favicon_ || favicon_.IsEmpty()) &&
++      helium::ShouldUseNativeFrameMaterials(this)) {
++    auto symbol = helium::NativeToolbarSymbolForIcon(
++        "kGlobeIcon", gfx::kFaviconSize,
++        helium::NativeGlassControlColor(this).value_or(
++            GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive)));
++    if (!symbol.isNull()) {
++      return symbol;
++    }
++  }
+   return themed_favicon_.isNull() ? favicon_.Rasterize(GetColorProvider())
+                                   : themed_favicon_;
+ }
+--- a/chrome/browser/ui/views/tabs/tab/tab_icon.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_icon.h
+@@ -210,6 +210,8 @@
+ 
+   bool can_paint_to_layer_ = false;
+ 
++  bool is_internal_page_ = false;
++  bool is_default_favicon_ = false;
+   bool has_tab_data_ = false;
+ 
+   bool is_active_tab_ = false;
