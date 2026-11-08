@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lune inset prototype — document origin and scrolling</title>
+<style>
+  html { background: #244634; }
+  body { margin: 0; color: white; font: 16px system-ui; }
+  #origin { height: 52px; background: #e04545; }
+  #fixed { position: fixed; top: 0; right: 20px; background: #2455dd;
+    width: 170px; height: 36px; border: 0; color: white; z-index: 2; }
+  #sticky { position: sticky; top: 0; margin-left: 240px; width: 180px;
+    height: 36px; background: #8833aa; z-index: 1; }
+  main { background: repeating-linear-gradient(#254f76 0 51px, #6895b8 51px 52px);
+    min-height: 2200px; padding: 24px; }
+  #nested { position: fixed; right: 24px; top: 120px; width: 260px; height: 180px;
+    overflow: auto; border: 2px solid white; background: #173625; }
+  #nested > div { height: 900px; padding: 12px; }
+  #target { margin-top: 800px; padding: 8px; }
+</style>
+<div id="origin">Document y=0 — red strip, 52 CSS px tall</div>
+<button id="fixed" onclick="window.clicks++; this.textContent='Clicks: '+window.clicks">Fixed top=0 · click me</button>
+<div id="sticky">Sticky top=0</div>
+<main>
+  <h1>Content scrolls beneath the header</h1>
+  <p>At the top, the empty band should match the green page background.</p>
+  <p>Scroll 26 px, then 52 px: the red strip should enter that band.</p>
+  <p>The blue fixed button and purple sticky label should remain below the header.</p>
+  <p><button onclick="document.documentElement.style.background='#654322'">Change page background</button>
+  <button onclick="document.querySelector('#target').scrollIntoView()">Scroll to target</button></p>
+  <input id="target" value="Anchor and focus target">
+</main>
+<div id="nested"><div>Nested scroller<br>Wheel here should scroll this box.</div></div>
+<script>window.clicks = 0;</script>
