@@ -3,8 +3,8 @@
 Development work for [issue #9](https://github.com/leebyron/lune-browser/issues/9),
 requested November 7, 2026. The current candidate is based on accepted
 `inputs/sidebar-pin-activation-2/macos`. The current local platform head is
-`e5696674b256c7ca7233f3425e4bb7678542225c` (tree
-`50694b2daeb4c0b7c674566e0c7671caf937419b`). The owner accepted the final visuals
+`18948c407919aefea136126891a0f7a3f9231546` (tree
+`b961b5e0c676286761dd6fff2126c3b9b9f9b3fa`). The owner accepted the preceding visuals
 on November 7, 2026. A subsequently reported Profile animation crash is fixed;
 this is not in published builds 1 or 2 and is not release-accepted.
 
@@ -24,7 +24,9 @@ for Cast, `person.crop.circle` for Profiles,
 and `ellipsis` for More. Active split orientation indicators retain their existing distinct artwork.
 
 Browser-owned SF Symbols use 16 pt medium configuration across the native
-header, sidebar pin, trailing controls, command palette, and application menus.
+header, sidebar pin, trailing controls, command palette, and application menus,
+except Site Information and Reload/Stop, which now use 14 pt medium at the owner's
+request. Their 32 pt hit targets are unchanged.
 The Customize close symbol also uses 16 pt medium because it is a header
 control. Tab and sidebar-footer close symbols use 11 pt medium weight. The owner
 requested a weight increase for close icons and then all header icons, explicitly
@@ -49,10 +51,12 @@ colors over 100 ms in either direction; reversing during the fade continues from
 the current color. Pressed and disabled states take precedence immediately.
 Native tracking timers stop on removal and teardown.
 
-Transferred margins are saved and restored. The floating group has 4 pt left and 6 pt right
-outer padding and 2 pt gaps. The owner requested an extra 2 pt on each side after
-reviewing the initial 2 pt padding, then another 2 pt after the ellipsis. Ordinary icon targets are 32 pt (34 pt in
-comfortable density); the icon-only ellipsis target is 4 pt narrower. Labeled menu states
+Transferred margins are saved and restored. The floating group has 4 pt outer
+padding on both sides and 2 pt gaps. The extra 2 pt previously added at the
+trailing edge now belongs to the ellipsis hit target: 1 pt on each side.
+Ordinary icon targets are 32 pt (34 pt in comfortable density); the icon-only
+ellipsis target is now 2 pt narrower, increasing from 28 to 30 pt at standard
+density. Labeled menu states
 retain their normal preferred width. Image padding derives from the intended
 target size rather than the previous allocated width, avoiding stale insets
 when the menu chip shrinks. This alone did not resolve the owner's missing
@@ -71,6 +75,12 @@ The container's collapsed 2 pt margins are assigned only to each extension's
 trailing side, with zero margins on the menu button. This preserves 2 pt between
 extensions as pins are added or reordered. Returning the controls to the ordinary
 toolbar restores its original margin defaults.
+
+An empty trailing group reports zero width and immediately hides its glass and
+child input window. A recursive visible-button check ignores empty containers
+whose padding or animation can otherwise reserve a sliver. Disabled buttons still
+count as items. The controls stay attached, so enabling an item restores the
+group; the address layout also drops the inter-group gap while it is empty.
 
 A native vertical `NSBoxSeparator` separates Back and Forward inside their
 existing glass group. Both 32 pt targets move 2 pt closer to the separator
@@ -97,7 +107,8 @@ scope, light/dark semantic state colors, native 100 ms hover transitions and
 mid-transition reversal, and pressed/disabled precedence. Its stand-ins do not exercise Skia
 masking, Views layout, or real browser input.
 
-The current arm64 and Intel browser builds pass, including the Profile animation fix.
+The current arm64 and Intel browser builds pass, including the Profile animation
+fix and the latest sizing, hit-target, and empty-group refinements.
 The preceding headless smoke checks pass,
 including page loading, JavaScript, persisted profile data, defaults, and settings.
 Native Intel hardware validation is not implied.
@@ -117,6 +128,12 @@ The current arm64 preview also confirms that the ellipsis opens its menu after
 Customize opens, with the new padding, extension spacing, and responsive address
 width present. The 100 ms timing and reversal are checked by the native harness;
 the owner accepted the final hover feel and extension spacing.
+
+The latest arm64 preview confirms the 14 pt address icons and revised ellipsis
+spacing. Turning off Extensions and then Main Menu removes the trailing glass
+entirely. Re-enabling Main Menu restores the group, and its menu remains clickable
+after Extensions is restored too. Both preferences were returned to their original
+enabled values, leaving all other customization settings unchanged.
 
 The owner then supplied a crash report from that preview. Its framework UUID
 matches the arm64 debug symbols. Symbolication locates the fatal assertion in
