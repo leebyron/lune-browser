@@ -5,7 +5,7 @@ the accepted media-toolbar platform head
 `41312cdfc8fa0ec20a49396fb3355c9a01024a8c`. The local candidate is on
 `stable-chrome-appearance`, imported as `topic/stable-chrome-appearance`.
 The current signed platform head is
-`18b7827d15c1def4633e721a246e2fe942c1cdac`. It is not in the development lock or
+`f45dd8dc2f05fca38cfdb77ff93d50d7027338e8`. It is not in the development lock or
 published builds.
 
 ## Reproduction
@@ -68,7 +68,7 @@ The persistent glass revision removes both the substitution and reparenting.
 At the owner's request, the floating sidebar, address, navigation, trailing
 controls, and Customize close glass use AppKit's public `tintColor` property.
 The tint uses the HSL midpoint of the owning browser theme's light and dark
-`ui::kColorSysPrimary` accents at 7% alpha. Hue follows the shorter circular
+`ui::kColorSysPrimary` accents at 5% alpha. Hue follows the shorter circular
 arc; achromatic endpoints retain the chromatic endpoint's hue. Both variants
 come from cached Chromium color providers using the same owning browser key,
 changing only the scheme. Custom themes, user colors, and incognito palette
@@ -90,7 +90,7 @@ independence, custom-theme changes, hue wraparound, and achromatic endpoints.
 The midpoint implementation passed full builds and browser smoke checks on both
 architectures at 10%. Live inspection confirmed all five glass surfaces retained
 identical sRGB tint components across Light/Dark with the selected Green theme,
-while foregrounds continued to follow the native material. The final 7% strength
+while foregrounds continued to follow the native material. The earlier 7% strength
 refinement passes both browser builds and native checks. Live arm64 inspection
 confirms 7% alpha on all five surfaces with the same midpoint color. The full
 settings smoke matrix was not repeated for the alpha-only refinement.
@@ -110,7 +110,7 @@ tint appears to disappear when the window loses focus.
 ## Header shadows and inactive windows
 
 The candidate adds AppKit `NSShadow` to the existing header material views:
-8% black, 8 pt blur, and a 3 pt downward offset. Navigation, address, trailing
+5% black, 10 pt blur, and a 3 pt downward offset. Navigation, address, trailing
 controls, and Customize close receive it; the sidebar and its toggle do not.
 The shadow shares the material's existing fade and does not enlarge hit regions.
 An explicit rounded Core Animation shadow path updates only when bounds change,
@@ -134,12 +134,26 @@ to 16%, retaining the 8 pt blur, 3 pt offset, and accepted 7% tint. Native check
 and full browser builds pass on both architectures. The refreshed Light/Citron
 preview shows the softer shadow, with live native inspection confirming 16%
 shadow opacity on all four header surfaces and unchanged 7% tint on all five
-tinted surfaces. The owner still found 16% too bold and requested 8%. The current
-refinement changes only shadow opacity to 8%; the blur, offset, and 7% glass tint
+tinted surfaces. The owner still found 16% too bold and requested 8%. That
+refinement changed only shadow opacity to 8%; the blur, offset, and 7% glass tint
 remain unchanged. Native checks and full browser builds pass on both architectures. The refreshed Light/Citron preview and requested screenshot show the 8%
 version with Customize open; live native inspection confirms 8% shadows on all
-four header surfaces and unchanged 7% tint. Owner visual acceptance is pending. The preceding report of faint shadows was made
-against the older preview.
+four header surfaces and unchanged 7% tint. The owner said this looked okay, then
+requested a possible 5% shadow, more diffusion, and 5% glass tint. The current
+refinement uses 5% black with a 10 pt blur, retaining the 3 pt offset, and reduces
+the shared midpoint tint to 5%. Native checks pass on both architectures. The
+arm64 build and refreshed Light/Citron inspection pass: all five tinted surfaces
+report 5% alpha, all four header shadows report 5% black with 10 pt blur and a
+3 pt downward offset, and the sidebar has no added shadow. The screenshot is
+`.work/glass-appearance/customize-shadow5-tint5.png`, with Customize open.
+The Intel build also passes; owner visual acceptance is pending.
+
+The shadow remains neutral. Colored glass can transmit its own hue; an inverted
+hue is not intrinsic to tinted glass. Complementary colored shadows can result
+from blocking one of multiple differently colored light sources, as demonstrated
+by the [Exploratorium](https://www.exploratorium.edu/snacks/colored-shadows).
+A matching shadow tint would be a visual approximation of transmitted light,
+not a required change to this occlusion shadow.
 
 The tint code has no activation-dependent clearing or alternate color. Live
 inspection confirmed the selected Green midpoint remains assigned at 7% while
@@ -154,13 +168,15 @@ No workaround or inactive tint override was implemented.
 
 ## Validation
 
-The final 7% midpoint candidate passes full arm64 and x86_64 browser builds and
-native regression checks. The same implementation at 10% passed both
+The current 5% midpoint tint and diffuse 5% shadow candidate passes full arm64
+and x86_64 browser builds and native regression checks. The full settings smoke
+matrix was not repeated for these opacity/blur changes. The tint implementation
+at 10% passed both
 architectures' UI/settings/appearance/persistence smoke checks, including a
 fresh-profile Content aware value of true and an explicit saved false after
 restart. Intel checks run under Rosetta, not native Intel hardware.
 
-Strict replay passes across 148 relevant patches and 17 changed source files,
+Strict replay passes across 149 relevant patches and 17 changed source files,
 including the production GRIT-aware name transform. Patch lint, root validation,
 and GN header dependency checks pass. The repository's 44 unit tests pass. The focused native harness covers the
 material implementations and appearance bridge.

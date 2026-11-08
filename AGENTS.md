@@ -24,7 +24,7 @@ is not in the development lock or
 published builds. A follow-up adds native `tintColor` from the selected browser
 theme to header and floating sidebar glass. The owner found the initial 12%
 surface tint too faint and the subsequent 30% accent tint too intense. The current
-candidate uses the HSL midpoint of the theme's light/dark accents at 7%, keeping
+candidate uses the HSL midpoint of the theme's light/dark accents at 5%, keeping
 tint identical across schemes while AppKit supplies the material tone. Native
 checks pass on both architectures, including midpoint edge cases and scheme
 independence. Both browser builds and smoke checks pass at 10%; live inspection
@@ -39,10 +39,16 @@ inspection verifies the shadow settings and unchanged 7% tint. The owner found
 24% shadow opacity too strong; the next refinement reduces it to 16%, retaining
 its blur and offset. Native checks and browser builds pass on both architectures.
 The refreshed Light-mode preview verified 16% shadows with unchanged 7% tint.
-The owner still found these too bold and requested 8%. The current refinement
-changes only shadow opacity to 8%. Native checks and browser builds pass on both
+The owner still found these too bold and requested 8%. That refinement
+changed only shadow opacity to 8%. Native checks and browser builds pass on both
 architectures. The refreshed Light-mode preview and screenshot verify 8% shadows
-with unchanged 7% tint. Owner visual acceptance is pending. The owner also reported tint disappearing
+with unchanged 7% tint. The owner said the 8% shadow looked okay, then requested
+softer, more diffuse shadows and 5% glass tint. The current refinement uses 5% neutral black shadows
+with a 10 pt blur and the existing 3 pt offset, plus 5% midpoint glass tint.
+Native checks and browser builds pass on both architectures. The refreshed
+arm64 Light/Citron preview confirms the new values on all surfaces, with Customize
+open in the saved screenshot. Owner visual acceptance is pending.
+The owner also reported tint disappearing
 on focus loss. There is no activation-dependent tint clearing; native inactive
 rendering is the likely explanation, but automation has not produced a verified
 inactive transition. No

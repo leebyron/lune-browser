@@ -140,7 +140,7 @@ int main() {
   ui::TestColorProvider colors{0xff276c69};
   browser.colors = &colors;
   NSColor* light_tint = FloatingChromeTintColor(&browser);
-  assert(fabs(light_tint.alphaComponent - .07) < .0001);
+  assert(fabs(light_tint.alphaComponent - .05) < .0001);
   browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
   assert([FloatingChromeTintColor(&browser) isEqual:light_tint]);
   browser.widget.key.custom_theme = true;
@@ -214,7 +214,7 @@ int main() {
     // Theme changes must preserve the same live material, editor and selection,
     // including while switching fixed/adaptive mode.
     NSColor* tint = [(i % 2 ? NSColor.systemBlueColor : NSColor.systemGreenColor)
-        colorWithAlphaComponent:.07];
+        colorWithAlphaComponent:.05];
     surface.themeTintColor = tint;
     surface.contentAware = i % 2 == 0;
     assert([((NSGlassEffectView*)surface.effect).tintColor isEqual:tint]);
