@@ -260,7 +260,7 @@ int main() {
   puts("PASS: native header hover fades, reversal, and semantic pressed/disabled colors");
   assert([NSImage imageWithSystemSymbolName:@"slider.horizontal.below.rectangle"
       accessibilityDescription:nil]);
-  assert([NSImage imageWithSystemSymbolName:@"waveform"
+  assert([NSImage imageWithSystemSymbolName:@"play.circle"
       accessibilityDescription:nil]);
   views::View view{true};
   for (auto name : {"kMoreVertIcon", "kChromeExtensionIcon", "kDownloadIcon",
