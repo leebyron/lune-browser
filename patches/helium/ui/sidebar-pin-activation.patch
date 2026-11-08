@@ -1,0 +1,67 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -380,6 +380,55 @@
+ }
+ @end
+ 
++// Borderless symbol buttons do not receive the native traffic lights' inactive
++// window treatment. Keep the sidebar action enabled while matching that state.
++@interface HeliumSidebarPinButton : NSButton
++@end
++@implementation HeliumSidebarPinButton {
++  NSMutableArray<id>* _activationObservers;
++}
++- (void)stopObservingActivation {
++  for (id observer in _activationObservers) {
++    [NSNotificationCenter.defaultCenter removeObserver:observer];
++  }
++  [_activationObservers removeAllObjects];
++}
++- (void)dealloc {
++  [self stopObservingActivation];
++}
++- (void)updateActivationTint {
++  const BOOL active = NSApp.active && self.window.isKeyWindow;
++  self.contentTintColor = active ? NSColor.controlTextColor
++                                 : NSColor.disabledControlTextColor;
++}
++- (void)viewDidMoveToWindow {
++  [super viewDidMoveToWindow];
++  [self stopObservingActivation];
++  if (self.window) {
++    _activationObservers = [NSMutableArray array];
++    __weak HeliumSidebarPinButton* weakSelf = self;
++    for (NSNotificationName name in @[
++           NSWindowDidBecomeKeyNotification, NSWindowDidResignKeyNotification,
++           NSApplicationDidBecomeActiveNotification,
++           NSApplicationDidResignActiveNotification
++         ]) {
++      const BOOL window_notification =
++          [name isEqualToString:NSWindowDidBecomeKeyNotification] ||
++          [name isEqualToString:NSWindowDidResignKeyNotification];
++      id observer = [NSNotificationCenter.defaultCenter
++          addObserverForName:name
++                      object:window_notification ? self.window : NSApp
++                       queue:nil
++                  usingBlock:^(NSNotification* notification) {
++                    [weakSelf updateActivationTint];
++                  }];
++      [_activationObservers addObject:observer];
++    }
++  }
++  [self updateActivationTint];
++}
++@end
++
+ @interface HeliumGlassSidebarButton : HeliumGlassSurface
+ - (instancetype)initWithBrowserView:(BrowserView*)view;
+ - (void)refreshEmbedded:(BOOL)embedded;
+@@ -394,7 +443,7 @@
+     return nil;
+   }
+   _browser = view->GetAsWeakPtr();
+-  _button = [NSButton
++  _button = [HeliumSidebarPinButton
+       buttonWithImage:[NSImage imageWithSystemSymbolName:@"sidebar.left"
+                                 accessibilityDescription:nil]
+                target:self
