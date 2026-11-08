@@ -2,11 +2,40 @@
 
 Work for [issue #7](https://github.com/leebyron/lune-browser/issues/7), based on
 the accepted media-toolbar platform head
-`41312cdfc8fa0ec20a49396fb3355c9a01024a8c`. The local candidate is on
-`stable-chrome-appearance`, imported as `topic/stable-chrome-appearance`.
+`41312cdfc8fa0ec20a49396fb3355c9a01024a8c`. The reviewed candidate is on
+`chrome-appearance-reviewed`, imported as `topic/chrome-appearance-reviewed`.
 The current signed platform head is
-`f45dd8dc2f05fca38cfdb77ff93d50d7027338e8`. It is not in the development lock or
+`622ccfac0e0f7394169fd5fd4d58f78364b551fd`. It is not in the development lock or
 published builds.
+
+## Reviewed commit stack
+
+The owner accepted the final 5% tint and diffuse 5% shadow, then requested
+single-thesis commits before publication. Fourteen development commits were
+consolidated into three signed platform commits on the accepted media-toolbar
+base. The draft remains preserved on `stable-chrome-appearance`.
+
+1. `cbb8838f0a11df3dc4c24372b64f39245959b5fc` — Keep native glass controls legible with configurable content adaptation.
+2. `c1a1635dbeddb559b1afcd0881d4aad5cddecd6e` — Tint native browser glass with a shared light and dark theme midpoint.
+3. `622ccfac0e0f7394169fd5fd4d58f78364b551fd` — Add subtle native shadows to floating header glass.
+
+Each commit adds one quilt patch and its series entry. The first includes the
+Customize preference, default-on persistence, persistent regular glass, fixed
+backdrop policy, and foreground bridge as one coherent appearance feature. The
+second contains the final scheme-independent midpoint tint and initialization
+guard. The third contains the final shadow geometry and native lifetime policy.
+Rejected material substitutions, sidebar/header coupling, and intermediate tint
+and shadow strengths are absent from the reviewed patches.
+
+Changed implementation units compile at each commit boundary (7, 1, and 1 units,
+respectively). Strict zero-fuzz replay reproduces all 17 affected source files
+byte for byte against the accepted preview source, including production name and
+domain transformations. Both architecture native regression checks pass again.
+No browser behavior changed during consolidation, so the final 5% arm64/Intel
+build results and owner-approved live preview apply to the identical source.
+The full UI/settings/persistence smoke matrix remains the earlier result recorded
+below; it was not rerun for history consolidation. This publishes source only,
+without changing the development lock or distributing new browser binaries.
 
 ## Reproduction
 
@@ -146,7 +175,8 @@ arm64 build and refreshed Light/Citron inspection pass: all five tinted surfaces
 report 5% alpha, all four header shadows report 5% black with 10 pt blur and a
 3 pt downward offset, and the sidebar has no added shadow. The screenshot is
 `.work/glass-appearance/customize-shadow5-tint5.png`, with Customize open.
-The Intel build also passes; owner visual acceptance is pending.
+The Intel build also passes. The owner accepted this preview on November 8,
+2026 and authorized publishing the focused commit stack and resolving issue #7.
 
 The shadow remains neutral. Colored glass can transmit its own hue; an inverted
 hue is not intrinsic to tinted glass. Complementary colored shadows can result
@@ -176,7 +206,7 @@ architectures' UI/settings/appearance/persistence smoke checks, including a
 fresh-profile Content aware value of true and an explicit saved false after
 restart. Intel checks run under Rosetta, not native Intel hardware.
 
-Strict replay passes across 149 relevant patches and 17 changed source files,
+Strict replay passes across 138 relevant patches and 17 changed source files,
 including the production GRIT-aware name transform. Patch lint, root validation,
 and GN header dependency checks pass. The repository's 44 unit tests pass. The focused native harness covers the
 material implementations and appearance bridge.

@@ -7,53 +7,22 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-The local issue #7 candidate on `topic/stable-chrome-appearance` adds a
-Content aware toggle to Customize, enabled by default while respecting saved
-opt-outs. Each glass surface's effective appearance reaches its native and Views
-controls. The owner confirmed adaptive icon colors and the center-pill toggle
-fix. Both modes retain regular Liquid Glass and attached controls; a neutral
-profile backdrop stabilizes fixed Light/Dark/Device mode. The owner rejected
-making the sidebar follow header glass because it lagged and stopped adapting
-when the header hid. That dependency is removed. The owner requires native UI
-primitives; no proposed page sampling was implemented. The opaque sidebar keeps
-AppKit's native large-surface behavior, which does not invert light/dark like
-small toolbar glass. This remains a known limitation. Both browser builds, native
-regressions, strict patch replay, and UI/settings/persistence smoke checks pass,
-including default-on and saved-off behavior (Intel under Rosetta). The candidate
-is not in the development lock or
-published builds. A follow-up adds native `tintColor` from the selected browser
-theme to header and floating sidebar glass. The owner found the initial 12%
-surface tint too faint and the subsequent 30% accent tint too intense. The current
-candidate uses the HSL midpoint of the theme's light/dark accents at 5%, keeping
-tint identical across schemes while AppKit supplies the material tone. Native
-checks pass on both architectures, including midpoint edge cases and scheme
-independence. Both browser builds and smoke checks pass at 10%; live inspection
-confirms identical tint on all five glass surfaces across Light/Dark. The owner
-then requested 7%; both browser builds and native checks pass, and live arm64
-inspection confirms the reduced alpha on all five surfaces. The owner accepted
-7% on November 8, 2026. A follow-up adds a native shadow beneath header glass,
-with an explicit rounded outline that follows resizing and fades with the
-material. Native checks and browser builds pass on both architectures. Preview
-refresh after unlocking confirms visibly stronger shadows in Light mode; native
-inspection verifies the shadow settings and unchanged 7% tint. The owner found
-24% shadow opacity too strong; the next refinement reduces it to 16%, retaining
-its blur and offset. Native checks and browser builds pass on both architectures.
-The refreshed Light-mode preview verified 16% shadows with unchanged 7% tint.
-The owner still found these too bold and requested 8%. That refinement
-changed only shadow opacity to 8%. Native checks and browser builds pass on both
-architectures. The refreshed Light-mode preview and screenshot verify 8% shadows
-with unchanged 7% tint. The owner said the 8% shadow looked okay, then requested
-softer, more diffuse shadows and 5% glass tint. The current refinement uses 5% neutral black shadows
-with a 10 pt blur and the existing 3 pt offset, plus 5% midpoint glass tint.
-Native checks and browser builds pass on both architectures. The refreshed
-arm64 Light/Citron preview confirms the new values on all surfaces, with Customize
-open in the saved screenshot. Owner visual acceptance is pending.
-The owner also reported tint disappearing
-on focus loss. There is no activation-dependent tint clearing; native inactive
-rendering is the likely explanation, but automation has not produced a verified
-inactive transition. No
-inactive-material workaround was added.
-See
+The owner accepted issue #7's final Content aware implementation and visual
+refinements on November 8, 2026, and authorized publishing and resolving the issue.
+The reviewed platform stack is `topic/chrome-appearance-reviewed`: three signed,
+single-thesis commits for content adaptation and foreground legibility, shared
+theme tint, and native header shadows. Content aware defaults on while respecting
+saved opt-outs; regular glass and attached controls survive toggling. The tint
+is the HSL midpoint of light/dark theme accents at 5%, identical across schemes.
+Header shadows use 5% black, 10 pt blur, and a 3 pt downward offset. The sidebar
+keeps AppKit's native large-surface behavior, with no dependency on header
+visibility or page sampling. Its lack of toolbar-style light/dark inversion
+remains a known native limitation. Inactive tint rendering remains unverified;
+no activation workaround was added. Each commit compiles its changed units,
+strict replay matches all accepted source bytes, and native checks pass on both
+architectures. Both browser builds pass for the identical final source; Intel
+runtime checks use Rosetta. The draft remains preserved. The candidate is not
+in the development lock or published binaries. See
 [native chrome appearance](agent-docs/project/features/chrome-appearance.md).
 
 The accepted issue #15 candidate on `topic/media-toolbar-controls` restores the
