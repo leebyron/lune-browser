@@ -7,7 +7,7 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-The local issue #15 candidate on `topic/media-toolbar-controls` restores the
+The accepted issue #15 candidate on `topic/media-toolbar-controls` restores the
 existing media controller in the floating trailing group, orders its control
 before Home, and uses `play.circle` in both the toolbar and Customize. The owner
 confirmed it appears and requested no gap before the next icon; a floating
@@ -16,8 +16,9 @@ Two signed platform commits follow the reviewed issue #9 stack. Both architectur
 focused controller/symbol checks, and UI/settings/persistence smoke checks pass
 (Intel via Rosetta). Live arm64 playback, multi-session controls, preference
 toggles, empty/single-item groups, classic restoration, fullscreen, and appearance
-checks pass. Owner acceptance is pending; the candidate is not in the development
-lock or published builds. The unchanged full native gesture fixture failed its
+checks pass. The owner accepted the refined preview on November 7, 2026 and
+authorized pushing the commits and closing #15. The candidate is not in the
+development lock or published builds. The unchanged full native gesture fixture failed its
 short-click check; focused symbol checks pass. See
 [media toolbar controls](agent-docs/project/features/media-toolbar-controls.md).
 

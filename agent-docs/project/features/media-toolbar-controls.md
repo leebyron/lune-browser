@@ -1,6 +1,6 @@
 # Floating Media Controls
 
-Candidate for [issue #15](https://github.com/leebyron/lune-browser/issues/15),
+Accepted candidate for [issue #15](https://github.com/leebyron/lune-browser/issues/15),
 based on the reviewed issue #9 stack at
 `83fba93ff1abb4b635f044be36a24d50365200bf`.
 The signed platform head is
@@ -9,8 +9,8 @@ The signed platform head is
 `topic/media-toolbar-controls`. Root validation and documentation live on
 `media-toolbar-controls`. No development lock, input tag, release, or update
 feed has changed. The owner confirmed the control appears and requested
-`play.circle` plus no gap before the next icon. Acceptance of that refinement
-is pending.
+`play.circle` plus no gap before the next icon. The owner accepted the refined
+preview on November 7, 2026 and authorized pushing the commits and closing #15.
 
 ## Change
 
