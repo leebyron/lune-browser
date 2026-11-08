@@ -7,6 +7,26 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The accepted issue #16 implementation on `topic/header-scroll-through` forwards native
+wheel events over floating header controls and gaps to content under the pointer,
+including nested scrollers and either split pane. It preserves the original event
+and corrects coordinates from the trailing controls' child window. Momentum keeps
+its receiver, and direct delivery completes Chromium's wheel-end cleanup.
+Autocomplete and extension popups retain their own scrolling. Both architecture
+builds, native routing/appearance checks, and browser UI/settings/persistence smoke
+checks pass (Intel under Rosetta). Arm64 browser interaction checks cover address
+editing, controls, gaps, nested scrolling, split panes, popup exclusion, and
+fullscreen. The owner confirmed scrolling across all header areas on November 8,
+2026 in the distinctly named Lune Scroll Test preview and authorized publishing
+the commits and resolving the issue. A simplicity review retained
+the shared router, original events, weak momentum target, and existing Chromium
+cleanup without additional implementation changes. Native Intel acceptance remains
+unverified. The signed platform commit `d0c49b0a` is published on
+`topic/header-scroll-through`; the regression fixture and evidence are published
+on `header-scroll-evidence`. This implementation is not
+in the development lock or published builds. See
+[header scroll-through](agent-docs/project/features/header-scroll-through.md).
+
 The owner accepted issue #7's final Content aware implementation and visual
 refinements on November 8, 2026, and authorized publishing and resolving the issue.
 The reviewed platform stack is `topic/chrome-appearance-reviewed`: three signed,
