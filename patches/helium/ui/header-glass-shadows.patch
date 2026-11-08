@@ -1,0 +1,110 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -325,6 +325,8 @@ NSAppearance* FloatingChromeAppearance(B
+ - (NSAppearance*)foregroundAppearance;
+ - (void)updateBackdrop;
+ - (CGFloat)materialCornerRadius;
++- (BOOL)usesHeaderShadow;
++- (void)updateShadowPath;
+ - (void)setPresented:(BOOL)presented;
+ - (BOOL)isPresented;
+ - (void)setRevealFraction:(CGFloat)fraction;
+@@ -334,6 +336,8 @@ NSAppearance* FloatingChromeAppearance(B
+   BOOL _presented;
+   BOOL _fullyHidden;
+   NSUInteger _presentationGeneration;
++  NSRect _shadowBounds;
++  BOOL _hasShadowPath;
+ }
+ @synthesize contentAware = _contentAware;
+ @synthesize themeTintColor = _themeTintColor;
+@@ -348,6 +352,19 @@ NSAppearance* FloatingChromeAppearance(B
+   _material = [[NSView alloc] initWithFrame:self.bounds];
+   _material.wantsLayer = YES;
+   _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  if (@available(macOS 26, *)) {
++    if ([self usesHeaderShadow]) {
++      // Keep depth with the fading material, without expanding its hit region.
++      self.clipsToBounds = NO;
++      _material.clipsToBounds = NO;
++      NSShadow* shadow = [[NSShadow alloc] init];
++      shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.24];
++      shadow.shadowBlurRadius = 8;
++      shadow.shadowOffset = NSMakeSize(0, -3);
++      _material.shadow = shadow;
++      [self updateShadowPath];
++    }
++  }
+   _backdrop = [[NSView alloc] initWithFrame:self.bounds];
+   _backdrop.wantsLayer = YES;
+   _backdrop.layer.cornerRadius = [self materialCornerRadius];
+@@ -444,6 +461,27 @@ NSAppearance* FloatingChromeAppearance(B
+ - (CGFloat)materialCornerRadius {
+   return 18;
+ }
++- (BOOL)usesHeaderShadow {
++  return YES;
++}
++- (void)updateShadowPath {
++  if (!_material.shadow ||
++      (_hasShadowPath && NSEqualRects(_shadowBounds, self.bounds))) {
++    return;
++  }
++  // Supply the silhouette explicitly so Core Animation need not derive it
++  // from the live glass and controls. Recompute only when geometry changes.
++  _shadowBounds = self.bounds;
++  _hasShadowPath = YES;
++  const CGFloat radius = [self materialCornerRadius];
++  CGPathRef path = CGPathCreateWithRoundedRect(
++      self.bounds, radius, radius, nullptr);
++  [CATransaction begin];
++  [CATransaction setDisableActions:YES];
++  _material.layer.shadowPath = path;
++  [CATransaction commit];
++  CGPathRelease(path);
++}
+ - (void)setAppearance:(NSAppearance*)appearance {
+   if ([self.appearance isEqual:appearance]) {
+     return;
+@@ -463,12 +501,21 @@ NSAppearance* FloatingChromeAppearance(B
+ - (BOOL)isPresented {
+   return _presented;
+ }
++- (void)setFrame:(NSRect)frame {
++  [super setFrame:frame];
++  [self updateShadowPath];
++}
++- (void)setFrameSize:(NSSize)size {
++  [super setFrameSize:size];
++  [self updateShadowPath];
++}
+ - (void)resizeSubviewsWithOldSize:(NSSize)oldSize {
+   [super resizeSubviewsWithOldSize:oldSize];
+   _material.frame = self.bounds;
+   _backdrop.frame = _material.bounds;
+   _effect.frame = _material.bounds;
+   _controls.frame = _effect.bounds;
++  [self updateShadowPath];
+ }
+ - (void)setPresented:(BOOL)presented {
+   if (_presented == presented) {
+@@ -508,6 +555,9 @@ NSAppearance* FloatingChromeAppearance(B
+ @interface HeliumSidebarSurface : HeliumGlassSurface
+ @end
+ @implementation HeliumSidebarSurface
++- (BOOL)usesHeaderShadow {
++  return NO;
++}
+ - (void)resetCursorRects {
+   // This flush material must not replace AppKit resize cursors at the edges.
+   // The inset child widget supplies cursors for the tab controls.
+@@ -594,6 +644,9 @@ NSAppearance* FloatingChromeAppearance(B
+   base::WeakPtr<BrowserView> _browser;
+   NSButton* _button;
+ }
++- (BOOL)usesHeaderShadow {
++  return NO;
++}
+ - (instancetype)initWithBrowserView:(BrowserView*)view {
+   self = [super initWithFrame:NSMakeRect(0, 0, 36, 36)];
+   if (!self) {
