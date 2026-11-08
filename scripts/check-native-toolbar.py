@@ -8,6 +8,8 @@ import tempfile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('source', type=Path)
 parser.add_argument('--arch', choices=('arm64', 'x86_64'))
+parser.add_argument('--symbols-only', action='store_true',
+                    help='Check symbol rendering and semantic colors without input fixtures')
 args = parser.parse_args()
 root = args.source / 'chrome/browser/ui/views/helium'
 source = (root / 'native_frame_materials_mac.mm').read_text()
@@ -258,6 +260,8 @@ int main() {
   puts("PASS: native header hover fades, reversal, and semantic pressed/disabled colors");
   assert([NSImage imageWithSystemSymbolName:@"slider.horizontal.below.rectangle"
       accessibilityDescription:nil]);
+  assert([NSImage imageWithSystemSymbolName:@"waveform"
+      accessibilityDescription:nil]);
   views::View view{true};
   for (auto name : {"kMoreVertIcon", "kChromeExtensionIcon", "kDownloadIcon",
                     "kPrintIcon", "kHistoryIcon", "kTranslateIcon", "kShareIcon",
@@ -265,6 +269,8 @@ int main() {
                     "kDeleteIcon", "kCastIcon", "kQrCodeIcon", "kCodeIcon",
                     "kTableChartIcon", "kLinkIcon", "kEditIcon", "kAccountBoxIcon",
                     "kQueueMusicIcon", "kAccountCircleIcon", "kManageSearchIcon",
+                    "kMediaToolbarButtonChromeRefreshOldIcon",
+                    "kMediaToolbarButtonTouchOldIcon",
                     "kTabSearchTabStripOldIcon", "kIncognitoIcon",
                     "kIncognitoRefreshMenuOldIcon", "kHomeIcon", "kAddIcon", "kGlobeIcon",
                     "kArrowBackIcon", "kArrowForwardIcon", "kRefreshIcon",
@@ -326,6 +332,9 @@ int main() {
  }
 }
 '''
+if args.symbols_only:
+    tests = ('int main() { @autoreleasepool {\n' +
+             tests[tests.index('  assert([NSImage imageWithSystemSymbolName:'):])
 with tempfile.TemporaryDirectory(prefix='lune-toolbar-') as directory:
     path = Path(directory) / 'test.mm'
     path.write_text(prefix + enum + selector + symbol + header_button + address_layout +

@@ -7,6 +7,18 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The local issue #15 candidate on `topic/media-toolbar-controls` restores the
+existing media controller in the floating trailing group, orders its control
+before Home, and uses `waveform` in both the toolbar and Customize. One signed
+platform commit follows the reviewed issue #9 stack. Both architecture builds,
+focused controller/symbol checks, and UI/settings/persistence smoke checks pass
+(Intel via Rosetta). Live arm64 playback, multi-session controls, preference
+toggles, empty/single-item groups, classic restoration, fullscreen, and appearance
+checks pass. Owner acceptance is pending; the candidate is not in the development
+lock or published builds. The unchanged full native gesture fixture failed its
+short-click check; focused symbol checks pass. See
+[media toolbar controls](agent-docs/project/features/media-toolbar-controls.md).
+
 The local `trailing-toolbar-reviewed` candidate for issue #9 adds native toolbar
 symbols and semantic state colors, tighter spacing, immediate preferred widths
 for floating action containers, and a window-local Customize reveal hold.
