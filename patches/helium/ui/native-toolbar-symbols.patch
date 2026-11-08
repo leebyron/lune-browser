@@ -1,0 +1,1063 @@
+--- a/chrome/browser/ui/cocoa/main_menu_builder.mm
++++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
+@@ -700,6 +700,9 @@
+   if (sf_symbol_name_) {
+     item.image = [NSImage imageWithSystemSymbolName:sf_symbol_name_
+                            accessibilityDescription:nil];
++    item.image = [item.image imageWithSymbolConfiguration:
++        [NSImageSymbolConfiguration configurationWithPointSize:16
++                                                       weight:NSFontWeightMedium]];
+     if (@available(macOS 27, *)) {
+       item.preferredImageVisibility = NSMenuItemImageVisibilityVisible;
+     }
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -432,6 +432,9 @@
+             : @"globe";
+     row.resultImage = [NSImage imageWithSystemSymbolName:symbol
+                                 accessibilityDescription:nil];
++    row.resultImage = [row.resultImage imageWithSymbolConfiguration:
++        [NSImageSymbolConfiguration configurationWithPointSize:16
++                                                       weight:NSFontWeightMedium]];
+     row.accessibilityLabel =
+         [NSString stringWithFormat:@"%@, %@, %@", row.primaryText,
+                                    row.secondaryText, row.tagText];
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -481,7 +481,7 @@
+        accessibilityDescription:nil]
+       imageWithSymbolConfiguration:
+           [NSImageSymbolConfiguration
+-              configurationWithPointSize:17
++              configurationWithPointSize:16
+                                   weight:NSFontWeightMedium]];
+   // Move the one control into the sidebar surface without a second glass pill.
+   NSView* parent = embedded ? self : _controls;
+@@ -509,6 +509,9 @@
+                                             accessibilityDescription:nil]
+                            target:self
+                            action:@selector(closePanel:)];
++    button.image = [button.image imageWithSymbolConfiguration:
++        [NSImageSymbolConfiguration configurationWithPointSize:16
++                                                       weight:NSFontWeightMedium]];
+     button.bordered = NO;
+     button.frame = NSMakeRect(0, 0, 36, 36);
+     button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+@@ -755,6 +758,99 @@
+ };
+ }  // namespace
+ 
++// Match the Views toolbar's semantic symbol colors without a hover bezel.
++@interface HeliumHeaderSymbolButton : NSButton
++@end
++@implementation HeliumHeaderSymbolButton {
++  NSTrackingArea* _symbolTrackingArea;
++  BOOL _symbolHovered;
++  NSTimer* _symbolFadeTimer;
++  CGFloat _symbolHoverAmount;
++  CGFloat _symbolFadeFrom;
++  NSTimeInterval _symbolFadeStart;
++}
++- (void)dealloc {
++  [_symbolFadeTimer invalidate];
++}
++- (void)viewDidMoveToWindow {
++  [super viewDidMoveToWindow];
++  if (!self.window) {
++    [_symbolFadeTimer invalidate];
++    _symbolFadeTimer = nil;
++    _symbolHovered = NO;
++    _symbolHoverAmount = 0;
++  }
++}
++- (void)advanceSymbolFade {
++  const CGFloat progress = std::clamp(
++      (NSDate.timeIntervalSinceReferenceDate - _symbolFadeStart) / 0.1,
++      0.0, 1.0);
++  const CGFloat target = _symbolHovered ? 1 : 0;
++  _symbolHoverAmount = _symbolFadeFrom + (target - _symbolFadeFrom) * progress;
++  self.needsDisplay = YES;
++  if (progress >= 1) {
++    [_symbolFadeTimer invalidate];
++    _symbolFadeTimer = nil;
++  }
++}
++- (void)setSymbolHovered:(BOOL)hovered {
++  if (_symbolHovered == hovered) {
++    return;
++  }
++  if (_symbolFadeTimer) {
++    [self advanceSymbolFade];
++    [_symbolFadeTimer invalidate];
++  }
++  _symbolHovered = hovered;
++  _symbolFadeFrom = _symbolHoverAmount;
++  _symbolFadeStart = NSDate.timeIntervalSinceReferenceDate;
++  __weak HeliumHeaderSymbolButton* weakSelf = self;
++  _symbolFadeTimer = [NSTimer timerWithTimeInterval:1.0 / 60 repeats:YES
++      block:^(NSTimer* timer) {
++        [weakSelf advanceSymbolFade];
++      }];
++  [NSRunLoop.mainRunLoop addTimer:_symbolFadeTimer forMode:NSRunLoopCommonModes];
++}
++- (void)updateTrackingAreas {
++  [super updateTrackingAreas];
++  if (_symbolTrackingArea) {
++    [self removeTrackingArea:_symbolTrackingArea];
++  }
++  _symbolTrackingArea = [[NSTrackingArea alloc]
++      initWithRect:NSZeroRect
++           options:NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways |
++                   NSTrackingInVisibleRect
++             owner:self
++          userInfo:nil];
++  [self addTrackingArea:_symbolTrackingArea];
++  [self setSymbolHovered:self.window && NSMouseInRect(
++      [self convertPoint:self.window.mouseLocationOutsideOfEventStream
++                fromView:nil], self.visibleRect, self.isFlipped)];
++  self.needsDisplay = YES;
++}
++- (void)mouseEntered:(NSEvent*)event {
++  [self setSymbolHovered:YES];
++}
++- (void)mouseExited:(NSEvent*)event {
++  [self setSymbolHovered:NO];
++}
++- (void)drawRect:(NSRect)dirtyRect {
++  NSColor* tint = NSColor.secondaryLabelColor;
++  if (!self.enabled) {
++    tint = NSColor.disabledControlTextColor;
++  } else if (self.cell.isHighlighted) {
++    tint = [tint colorWithSystemEffect:NSColorSystemEffectPressed];
++  } else {
++    NSColor* hover = [tint colorWithSystemEffect:NSColorSystemEffectRollover];
++    tint = [tint blendedColorWithFraction:_symbolHoverAmount ofColor:hover];
++  }
++  if (![self.contentTintColor isEqual:tint]) {
++    self.contentTintColor = tint;
++  }
++  [super drawRect:dirtyRect];
++}
++@end
++
+ @interface HeliumGlassNavigation : HeliumGlassSurface
+ - (instancetype)initWithBrowserView:(BrowserView*)browser;
+ - (void)refresh;
+@@ -770,12 +866,12 @@
+     return nil;
+   }
+   _browserView = browser->GetAsWeakPtr();
+-  _back = [NSButton
++  _back = [HeliumHeaderSymbolButton
+       buttonWithImage:[NSImage imageWithSystemSymbolName:@"chevron.backward"
+                                 accessibilityDescription:nil]
+                target:self
+                action:@selector(goBack:)];
+-  _forward = [NSButton
++  _forward = [HeliumHeaderSymbolButton
+       buttonWithImage:[NSImage imageWithSystemSymbolName:@"chevron.forward"
+                                 accessibilityDescription:nil]
+                target:self
+@@ -787,7 +883,7 @@
+     button.image =
+         [button.image imageWithSymbolConfiguration:
+                           [NSImageSymbolConfiguration
+-                              configurationWithPointSize:15
++                              configurationWithPointSize:16
+                                                   weight:NSFontWeightMedium]];
+     [_controls addSubview:button];
+   }
+@@ -1035,7 +1131,7 @@
+   BOOL _editing;
+   id _keyMonitor;
+   NSButton* _siteInfo;
+-  NSButton* _reload;
++  HeliumHeaderSymbolButton* _reload;
+ }
+ 
+ - (instancetype)initWithBrowserView:(BrowserView*)browserView {
+@@ -1045,14 +1141,14 @@
+   }
+   _browserView = browserView->GetAsWeakPtr();
+   _siteInfo =
+-      [NSButton buttonWithImage:[NSImage imageWithSystemSymbolName:@"gearshape"
++      [HeliumHeaderSymbolButton buttonWithImage:[NSImage imageWithSystemSymbolName:@"slider.horizontal.below.rectangle"
+                                           accessibilityDescription:nil]
+                          target:self
+                          action:@selector(showSiteInfo:)];
+   _siteInfo.image =
+       [_siteInfo.image imageWithSymbolConfiguration:
+                            [NSImageSymbolConfiguration
+-                               configurationWithPointSize:15
++                               configurationWithPointSize:14
+                                                    weight:NSFontWeightMedium]];
+   _siteInfo.bordered = NO;
+   _siteInfo.frame = NSMakeRect(4, 2, 32, 32);
+@@ -1118,7 +1214,7 @@
+       self, browserView->GetProfile());
+   _autocomplete->AddObserver(_observer.get());
+ 
+-  _reload = [NSButton
++  _reload = [HeliumHeaderSymbolButton
+       buttonWithImage:[NSImage imageWithSystemSymbolName:@"arrow.clockwise"
+                                 accessibilityDescription:nil]
+                target:self
+@@ -1165,7 +1261,7 @@
+   _reload.image =
+       [_reload.image imageWithSymbolConfiguration:
+                          [NSImageSymbolConfiguration
+-                             configurationWithPointSize:15
++                             configurationWithPointSize:14
+                                                  weight:NSFontWeightMedium]];
+   _reload.toolTip = base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
+       loading ? IDS_TOOLTIP_STOP : IDS_TOOLTIP_RELOAD));
+--- a/chrome/browser/ui/views/helium/BUILD.gn
++++ b/chrome/browser/ui/views/helium/BUILD.gn
+@@ -43,6 +43,9 @@
+     "//build:buildflag_header_h",
+     "//chrome/browser/profiles:profile",
+     "//chrome/browser/ui:ui_features",
++    "//chrome/browser/ui:layout_constants",
++    "//ui/gfx",
++    "//ui/gfx/geometry",
+     "//chrome/browser/ui/browser_window",
+     "//chrome/browser/ui/views/frame:browser_view_header",
+     "//chrome/common:constants",
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -14,8 +14,10 @@
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
+-#include "ui/views/widget/widget.h"
++#include "ui/gfx/image/image_skia_operations.h"
++#include "ui/gfx/image/image_skia_util_mac.h"
+ #include "ui/native_theme/native_theme.h"
++#include "ui/views/widget/widget.h"
+ 
+ namespace helium {
+ namespace {
+@@ -154,6 +156,17 @@
+     switch (role) {
+       case NativeGlassColorRole::kLabel:
+         break;
++      case NativeGlassColorRole::kToolbarLabel:
++        semantic = NSColor.secondaryLabelColor;
++        break;
++      case NativeGlassColorRole::kToolbarHover:
++        semantic = [NSColor.secondaryLabelColor
++            colorWithSystemEffect:NSColorSystemEffectRollover];
++        break;
++      case NativeGlassColorRole::kToolbarPressed:
++        semantic = [NSColor.secondaryLabelColor
++            colorWithSystemEffect:NSColorSystemEffectPressed];
++        break;
+       case NativeGlassColorRole::kDisabledLabel:
+         semantic = NSColor.disabledControlTextColor;
+         break;
+@@ -225,3 +238,142 @@
+                     : point.x < rail);
+ }
+ }  // namespace helium
++
++namespace helium {
++
++gfx::ImageSkia NativeToolbarSymbol(const views::View* view,
++                                 const char* icon_name, int size,
++                                 SkColor color) {
++  if (!IsFloatingToolbarControl(view)) {
++    return {};
++  }
++  return NativeToolbarSymbolForIcon(icon_name, size, color);
++}
++
++gfx::ImageSkia NativeToolbarSymbolForIcon(const char* icon_name_or_null, int size,
++                                        SkColor color) {
++  // Drag reordering deliberately supplies VectorIcon::EmptyIcon(), whose
++  // name is null. Preserve that empty placeholder instead of reading it.
++  if (!icon_name_or_null) {
++    return {};
++  }
++  const std::string_view icon_name(icon_name_or_null);
++  NSString* name = nil;
++  // Only replace recognized browser artwork. Extension-provided images and
++  // specialized warning/status icons retain their original representation.
++  if (icon_name == "kMoreVertIcon" ||
++      icon_name == "kBrowserToolsChromeRefreshOldIcon" ||
++      icon_name == "kBrowserToolsTouchOldIcon" ||
++      icon_name == "kBrowserToolsOldIcon") {
++    name = @"ellipsis";
++  } else if (icon_name == "kChromeExtensionIcon" ||
++             icon_name == "kExtensionIcon" ||
++             icon_name == "kExtensionChromeRefreshOldIcon" ||
++             icon_name == "kExtensionOldIcon") {
++    name = @"puzzlepiece.extension";
++  } else if (icon_name == "kDownloadIcon" ||
++             icon_name == "kDownloadToolbarButtonChromeRefreshOldIcon") {
++    name = @"arrow.down.circle";
++  } else if (icon_name == "kSplitSceneIcon" ||
++             icon_name == "kSplitSceneOldIcon") {
++    name = @"rectangle.split.2x1";
++  } else if (icon_name == "kPrintIcon" || icon_name == "kPrintMenuOldIcon") {
++    name = @"printer";
++  } else if (icon_name == "kHistoryIcon" ||
++             icon_name == "kHistoryChromeRefreshOldIcon") {
++    name = @"clock.arrow.circlepath";
++  } else if (icon_name == "kTranslateIcon") {
++    name = @"translate";
++  } else if (icon_name == "kShareIcon") {
++    name = @"square.and.arrow.up";
++  } else if (icon_name == "kHotelClassIcon" ||
++             icon_name == "kBookmarksSidePanelRefreshOldIcon") {
++    name = @"book";
++  } else if (icon_name == "kDeleteIcon" ||
++             icon_name == "kTrashCanRefreshOldIcon") {
++    name = @"trash";
++  } else if (icon_name == "kCastIcon" ||
++             icon_name == "kCastChromeRefreshOldIcon") {
++    name = @"airplay.video";
++  } else if (icon_name == "kQrCodeIcon" ||
++             icon_name == "kQrCodeChromeRefreshOldIcon") {
++    name = @"qrcode";
++  } else if (icon_name == "kCodeIcon" ||
++             icon_name == "kDeveloperToolsOldIcon") {
++    name = @"chevron.left.forwardslash.chevron.right";
++  } else if (icon_name == "kTableChartIcon") {
++    name = @"memorychip";
++  } else if (icon_name == "kLinkIcon" ||
++             icon_name == "kLinkChromeRefreshOldIcon") {
++    name = @"square.and.arrow.up";
++  } else if (icon_name == "kEditIcon" ||
++             icon_name == "kEditChromeRefreshOldIcon") {
++    name = @"slider.horizontal.2.square";
++  } else if (icon_name == "kAccountBoxIcon" || icon_name == "kAccountBoxOldIcon" ||
++             icon_name == "kAccountCircleIcon" ||
++             icon_name == "kAccountCircleChromeRefreshOldIcon") {
++    name = @"person.crop.circle";
++  } else if (icon_name == "kManageSearchIcon" ||
++             icon_name == "kTabSearchTabStripOldIcon") {
++    name = @"rectangle.and.text.magnifyingglass";
++  } else if (icon_name == "kIncognitoIcon" ||
++             icon_name == "kIncognitoRefreshMenuOldIcon" ||
++             icon_name == "kIncognitoCircleFilledIcon" ||
++             icon_name == "kIncognitoOldIcon") {
++    name = @"eye.slash";
++  } else if (icon_name == "kQueueMusicIcon" ||
++             icon_name == "kMediaToolbarButtonChromeRefreshOldIcon" ||
++             icon_name == "kMediaToolbarButtonTouchOldIcon") {
++    name = @"music.note.list";
++  }
++  if (icon_name == "kArrowBackIcon" ||
++      icon_name == "kBackArrowChromeRefreshOldIcon") {
++    name = @"chevron.backward";
++  } else if (icon_name == "kArrowForwardIcon" ||
++             icon_name == "kForwardArrowChromeRefreshOldIcon") {
++    name = @"chevron.forward";
++  } else if (icon_name == "kRefreshIcon" ||
++             icon_name == "kReloadChromeRefreshOldIcon") {
++    name = @"arrow.clockwise";
++  } else if (icon_name == "kHomeIcon" ||
++             icon_name == "kNavigateHomeChromeRefreshOldIcon") {
++    name = @"house";
++  } else if (icon_name == "kSidebarLeftIcon") {
++    name = @"sidebar.left";
++  } else if (icon_name == "kSidebarRightIcon") {
++    name = @"sidebar.right";
++  } else if (icon_name == "kAddIcon" ||
++             icon_name == "kAddWeight500CustomIcon") {
++    name = @"plus";
++  } else if (icon_name == "kGlobeIcon") {
++    name = @"globe";
++  }
++  if (!name) {
++    return {};
++  }
++  NSImage* symbol = [NSImage imageWithSystemSymbolName:name
++                              accessibilityDescription:nil];
++  if (!symbol) {
++    return {};
++  }
++  symbol = [symbol imageWithSymbolConfiguration:
++      [NSImageSymbolConfiguration configurationWithPointSize:16
++                                                     weight:NSFontWeightMedium]];
++  NSImage* image = [NSImage imageWithSize:NSMakeSize(size, size) flipped:NO
++      drawingHandler:^BOOL(NSRect bounds) {
++    NSSize symbol_size = symbol.size;
++    // Fit tall/wide symbols without changing the common image/target center.
++    const CGFloat scale = std::min<CGFloat>(1, std::min(
++        size / symbol_size.width, size / symbol_size.height));
++    symbol_size.width *= scale;
++    symbol_size.height *= scale;
++    [symbol drawInRect:NSMakeRect((size - symbol_size.width) / 2,
++                                 (size - symbol_size.height) / 2,
++                                 symbol_size.width, symbol_size.height)];
++    return YES;
++  }];
++  return gfx::ImageSkiaOperations::CreateColorMask(
++      gfx::ImageSkiaFromNSImage(image), color);
++}
++
++}  // namespace helium
+--- a/chrome/browser/ui/views/helium/native_frame_materials.cc
++++ b/chrome/browser/ui/views/helium/native_frame_materials.cc
+@@ -4,18 +4,35 @@
+ 
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ 
++#include <algorithm>
++
+ #include "build/build_config.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
++#include "ui/gfx/image/image_skia.h"
+ #include "ui/views/view.h"
+ #include "ui/views/widget/widget.h"
+ 
+ namespace helium {
+ 
++bool IsFloatingToolbarControl(const views::View* view) {
++#if BUILDFLAG(IS_MAC)
++  return view && view->GetWidget() &&
++         view->GetWidget()->GetName() == "Floating browser actions";
++#else
++  return false;
++#endif
++}
++
++int FloatingToolbarButtonSize() {
++  return std::max(32, GetLayoutConstant(LayoutConstant::kToolbarButtonHeight));
++}
++
+ bool IsNativeGlassControl(const views::View* view) {
+ #if BUILDFLAG(IS_MAC)
+   const auto* widget = view ? view->GetWidget() : nullptr;
+@@ -74,6 +91,13 @@
+ }
+ 
+ #if !BUILDFLAG(IS_MAC)
++gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor) {
++  return {};
++}
++gfx::ImageSkia NativeToolbarSymbol(const views::View*, const char*, int,
++                                 SkColor) {
++  return {};
++}
+ std::optional<SkColor> NativeGlassColor(const views::View*, NativeGlassColorRole) {
+   return std::nullopt;
+ }
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -6,6 +6,7 @@
+ #define CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_FRAME_MATERIALS_H_
+ 
+ #include <optional>
++#include <string_view>
+ 
+ #include "build/build_config.h"
+ #include "third_party/skia/include/core/SkColor.h"
+@@ -13,14 +14,33 @@
+ class BrowserView;
+ class BrowserWindowInterface;
+ 
++namespace gfx {
++class ImageSkia;
++}  // namespace gfx
++
+ namespace views {
+ class View;
+ }  // namespace views
+ 
+ namespace helium {
+ 
++// Floating controls retain their Views event, accessibility and popup models.
++// AppKit supplies semantic state colors and symbol artwork.
++bool IsFloatingToolbarControl(const views::View* view);
++int FloatingToolbarButtonSize();
++gfx::ImageSkia NativeToolbarSymbol(const views::View* view,
++                                 const char* icon_name, int size,
++                                 SkColor color);
++
++// Shared artwork for native chrome and the Customize toolbar list.
++gfx::ImageSkia NativeToolbarSymbolForIcon(const char* icon_name, int size,
++                                        SkColor color);
++
+ enum class NativeGlassColorRole {
+   kLabel,
++  kToolbarLabel,
++  kToolbarHover,
++  kToolbarPressed,
+   kDisabledLabel,
+   kSelectedLabel,
+   kSelection,
+--- a/chrome/browser/ui/views/profiles/avatar_toolbar_button.cc
++++ b/chrome/browser/ui/views/profiles/avatar_toolbar_button.cc
+@@ -11,6 +11,7 @@
+ #include "base/functional/callback_helpers.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
++#include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/profiles/profile_avatar_icon_util.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+@@ -20,6 +21,7 @@
+ #include "chrome/browser/ui/profiles/profile_colors_util.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/view_ids.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
+@@ -108,6 +110,13 @@
+     return;
+   }
+ 
++  if (helium::IsFloatingToolbarControl(this)) {
++    UpdateIconsWithStandardColors(
++        state_manager_.browser()->GetProfile()->IsIncognitoProfile()
++            ? kIncognitoIcon : kAccountCircleIcon);
++    return;
++  }
++
+   const int icon_size = GetIconSize();
+   const ui::ColorProvider* const color_provider = GetColorProvider();
+   CHECK(color_provider);
+@@ -317,11 +326,23 @@
+ }
+ 
+ void AvatarToolbarButton::AnimationProgressed(const gfx::Animation* animation) {
++  // Hover fading belongs to ToolbarButton, independently of the identity
++  // pill's text/width animation below.
++  if (animation == &hover_animation()) {
++    ToolbarButton::AnimationProgressed(animation);
++    return;
++  }
+   CHECK_EQ(animation, &slide_animation_);
+   PreferredSizeChanged();
+ }
+ 
+ void AvatarToolbarButton::AnimationEnded(const gfx::Animation* animation) {
++  // Hover fading belongs to ToolbarButton, independently of the identity
++  // pill's text/width animation below.
++  if (animation == &hover_animation()) {
++    ToolbarButton::AnimationEnded(animation);
++    return;
++  }
+   CHECK_EQ(animation, &slide_animation_);
+   label()->SetElideBehavior(gfx::ELIDE_TAIL);
+   if (slide_animation_.GetCurrentValue() == 0.0) {
+--- a/chrome/browser/ui/views/profiles/BUILD.gn
++++ b/chrome/browser/ui/views/profiles/BUILD.gn
+@@ -290,6 +290,7 @@
+       "//chrome/browser/ui/browser_window",
+       "//chrome/browser/ui/profiles",
+       "//chrome/browser/ui/user_education",
++      "//chrome/browser/ui/views/helium:native_frame_materials",
+       "//chrome/browser/ui/views/toolbar:impl",
+       "//chrome/browser/ui/web_applications",
+       "//chrome/browser/webauthn",
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
+@@ -10,8 +10,8 @@
+ #include "ui/gfx/image/image_skia_util_mac.h"
+ 
+ ui::ImageModel TabCloseButton::GetSidebarIcon() const {
+-  // Keep the symbol's weight close to the 16 pt New Tab plus, independently of
+-  // the larger button target. AppKit supplies the native xmark geometry.
++  // Close icons are smaller and slightly heavier than other chrome symbols.
++  // Keep their size independent of the larger button target.
+   NSImage* symbol = [NSImage imageWithSystemSymbolName:@"xmark"
+                               accessibilityDescription:nil];
+   symbol = [symbol imageWithSymbolConfiguration:
+--- a/chrome/browser/ui/views/tabs/vertical/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/vertical/BUILD.gn
+@@ -30,6 +30,7 @@
+     "//chrome/browser/ui/views/tabs/dragging:tab_drag_target",
+     "//chrome/browser/ui/views/tabs/shared",
+     "//components/tabs:impl",
++    "//components/prefs",
+     "//ui/base/metadata",
+     "//ui/gfx/geometry",
+     "//ui/views",
+@@ -85,6 +86,7 @@
+     "//components/performance_manager",
+     "//components/tab_groups",
+     "//components/tabs:impl",
++    "//components/prefs",
+     "//content/public/browser",
+     "//skia",
+     "//third_party/abseil-cpp:absl",
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -50,6 +50,19 @@
+   return nullptr;
+ }
+ 
++gfx::ImageSkia VerticalNewTabButton::GetImage(ButtonState state) const {
++  if (helium::ShouldUseNativeFrameMaterials(this)) {
++    auto symbol = helium::NativeToolbarSymbolForIcon(
++        "kAddIcon", 16,
++        helium::NativeGlassControlColor(this, GetEnabled()).value_or(
++            GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive)));
++    if (!symbol.isNull()) {
++      return symbol;
++    }
++  }
++  return shared::NewTabButton::GetImage(state);
++}
++
+ void VerticalNewTabButton::OnPaintBackground(gfx::Canvas* canvas) {
+   if (GetState() != STATE_HOVERED && GetState() != STATE_PRESSED) {
+     return;
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
+@@ -18,6 +18,7 @@
+   explicit VerticalNewTabButton(BrowserWindowInterface* browser);
+   ~VerticalNewTabButton() override;
+ 
++  gfx::ImageSkia GetImage(ButtonState state) const override;
+   void OnPaintBackground(gfx::Canvas* canvas) override;
+   void OnThemeChanged() override;
+   View* GetTooltipHandlerForPoint(const gfx::Point& point) override;
+--- a/chrome/browser/ui/views/toolbar/browser_app_menu_button.cc
++++ b/chrome/browser/ui/views/toolbar/browser_app_menu_button.cc
+@@ -21,6 +21,7 @@
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/app_menu/action_app_menu.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/app_menu.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
+@@ -172,14 +173,7 @@
+                                               : kBrowserToolsTouchOldIcon
+       : features::IsRoundedIconsEnabled() ? kMoreVertIcon
+                                           : kBrowserToolsChromeRefreshOldIcon;
+-  const int icon_size = GetIconSize();
+-
+-  for (auto state : kButtonStates) {
+-    SkColor icon_color = GetForegroundColor(state);
+-    ui::ImageModel model =
+-        ui::ImageModel::FromVectorIcon(icon, icon_color, icon_size);
+-    SetImageModel(state, model);
+-  }
++  UpdateIconsWithStandardColors(icon);
+ }
+ 
+ void BrowserAppMenuButton::OnBoundsChanged(const gfx::Rect& previous_bounds) {
+--- a/chrome/browser/ui/views/toolbar/toolbar_action_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_action_view.cc
+@@ -19,6 +19,7 @@
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/event_utils.h"
+ #include "chrome/browser/ui/views/extensions/extension_context_menu_controller.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
+@@ -102,6 +103,12 @@
+   UpdateState();
+ }
+ 
++void ToolbarActionView::OnPaintBackground(gfx::Canvas* canvas) {
++  if (!helium::IsFloatingToolbarControl(this)) {
++    MenuButton::OnPaintBackground(canvas);
++  }
++}
++
+ ToolbarActionView::~ToolbarActionView() {
+   set_context_menu_controller(nullptr);
+   view_model_->HidePopup();
+@@ -286,6 +293,10 @@
+ 
+ void ToolbarActionView::AddedToWidget() {
+   MenuButton::AddedToWidget();
++  views::InkDrop::Get(this)->SetMode(
++      helium::IsFloatingToolbarControl(this)
++          ? views::InkDropHost::InkDropMode::OFF
++          : views::InkDropHost::InkDropMode::ON);
+ 
+   // This cannot happen until there's a focus controller, which lives on the
+   // widget.
+--- a/chrome/browser/ui/views/toolbar/toolbar_action_view.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_action_view.h
+@@ -98,6 +98,7 @@
+   void UpdateState();
+ 
+   // views::MenuButton:
++  void OnPaintBackground(gfx::Canvas* canvas) override;
+   gfx::Rect GetAnchorBoundsInScreen() const override;
+   std::unique_ptr<views::LabelButtonBorder> CreateDefaultBorder()
+       const override;
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
+ 
++#include "ui/gfx/image/image_skia_operations.h"
++
+ #include <algorithm>
+ #include <memory>
+ #include <optional>
+@@ -140,6 +142,20 @@
+ 
+ ToolbarButton::~ToolbarButton() = default;
+ 
++void ToolbarButton::AddedToWidget() {
++  LabelButton::AddedToWidget();
++  views::InkDrop::Get(this)->SetMode(
++      helium::IsFloatingToolbarControl(this)
++          ? views::InkDropHost::InkDropMode::OFF
++          : views::InkDropHost::InkDropMode::ON);
++}
++
++void ToolbarButton::OnPaintBackground(gfx::Canvas* canvas) {
++  if (!helium::IsFloatingToolbarControl(this)) {
++    LabelButton::OnPaintBackground(canvas);
++  }
++}
++
+ void ToolbarButton::SetHighlight(const std::u16string& highlight_text,
+                                  std::optional<SkColor> highlight_color) {
+   if (highlight_text.empty() && !highlight_color.has_value()) {
+@@ -249,6 +265,16 @@
+ }
+ 
+ SkColor ToolbarButton::GetForegroundColor(ButtonState state) const {
++  if (helium::IsFloatingToolbarControl(this)) {
++    const auto role = state == STATE_DISABLED
++        ? helium::NativeGlassColorRole::kDisabledLabel
++        : state == STATE_PRESSED ? helium::NativeGlassColorRole::kToolbarPressed
++        : state == STATE_HOVERED ? helium::NativeGlassColorRole::kToolbarHover
++                                 : helium::NativeGlassColorRole::kToolbarLabel;
++    if (auto color = helium::NativeGlassColor(this, role)) {
++      return *color;
++    }
++  }
+   if (auto color =
+           helium::NativeGlassControlColor(this, state != STATE_DISABLED)) {
+     return *color;
+@@ -277,6 +303,23 @@
+                                           SkColor pressed_color,
+                                           SkColor disabled_color) {
+   const int icon_size = GetIconSize();
++  const auto native = helium::NativeToolbarSymbol(this, icon.name, icon_size,
++                                                 SK_ColorBLACK);
++  if (!native.isNull()) {
++    SetAnimationDuration(base::Milliseconds(100));
++    SetAnimateOnStateChange(true);
++    // The symbol geometry is identical in every state. Rasterize it once,
++    // then apply each semantic color to that shared alpha mask.
++    for (const auto& [state, color] :
++         {std::pair{STATE_NORMAL, normal_color},
++          std::pair{STATE_HOVERED, hovered_color},
++          std::pair{STATE_PRESSED, pressed_color},
++          std::pair{STATE_DISABLED, disabled_color}}) {
++      SetImageModel(state, ui::ImageModel::FromImageSkia(
++          gfx::ImageSkiaOperations::CreateColorMask(native, color)));
++    }
++    return;
++  }
+   SetImageModel(ButtonState::STATE_NORMAL,
+                 ui::ImageModel::FromVectorIcon(icon, normal_color, icon_size));
+   SetImageModel(ButtonState::STATE_HOVERED,
+@@ -420,11 +463,32 @@
+   return target_contents_size + target_insets.size();
+ }
+ 
++gfx::ImageSkia ToolbarButton::GetImage(ButtonState state) const {
++  if (helium::IsFloatingToolbarControl(this) &&
++      (state == STATE_NORMAL || state == STATE_HOVERED) &&
++      hover_animation().is_animating()) {
++    const auto normal = LabelButton::GetImage(STATE_NORMAL);
++    const auto hovered = LabelButton::GetImage(STATE_HOVERED);
++    if (!normal.isNull() && !hovered.isNull()) {
++      return gfx::ImageSkiaOperations::CreateBlendedImage(
++          normal, hovered, hover_animation().GetCurrentValue());
++    }
++  }
++  return LabelButton::GetImage(state);
++}
++
++void ToolbarButton::AnimationProgressed(const gfx::Animation* animation) {
++  LabelButton::AnimationProgressed(animation);
++  if (helium::IsFloatingToolbarControl(this)) {
++    UpdateImage();
++  }
++}
++
+ void ToolbarButton::StateChanged(ButtonState old_state) {
+   LabelButton::StateChanged(old_state);
+   auto* const ink_drop = views::InkDrop::Get(this);
+ 
+-  if (GetState() == STATE_DISABLED) {
++  if (GetState() == STATE_DISABLED || helium::IsFloatingToolbarControl(this)) {
+     ink_drop->SetMode(views::InkDropHost::InkDropMode::OFF);
+   } else if (old_state == STATE_DISABLED) {
+     ink_drop->SetMode(views::InkDropHost::InkDropMode::ON);
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.h
+@@ -129,7 +129,11 @@
+   void SetLayoutInsetDelta(const gfx::Insets& insets);
+ 
+   // views::LabelButton:
++  void AddedToWidget() override;
++  void OnPaintBackground(gfx::Canvas* canvas) override;
+   void StateChanged(ButtonState old_state) override;
++  gfx::ImageSkia GetImage(ButtonState state) const override;
++  void AnimationProgressed(const gfx::Animation* animation) override;
+   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
+   void OnThemeChanged() override;
+   gfx::Rect GetAnchorBoundsInScreen() const override;
+--- a/chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.cc
+@@ -10,6 +10,7 @@
+ #include "chrome/browser/ui/color/chrome_color_provider_utils.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "components/user_education/common/user_education_class_properties.h"
+ #include "third_party/skia/include/core/SkColor.h"
+ #include "third_party/skia/include/core/SkPath.h"
+@@ -116,7 +117,8 @@
+         const SkColor pressed_color =
+             color_provider ? color_provider->GetColor(ripple_color_id)
+                            : gfx::kPlaceholderColor;
+-        const float pressed_alpha = SkColorGetA(pressed_color);
++        const float pressed_alpha = helium::IsFloatingToolbarControl(host)
++                                        ? 0 : SkColorGetA(pressed_color);
+ 
+         return std::make_unique<views::FloodFillInkDropRipple>(
+             views::InkDrop::Get(host), host->size(),
+@@ -139,7 +141,8 @@
+               ui::kColorButtonFeatureAttentionHighlight);
+         }
+ 
+-        const float hover_alpha = SkColorGetA(hover_color);
++        const float hover_alpha = helium::IsFloatingToolbarControl(host)
++                                      ? 0 : SkColorGetA(hover_color);
+ 
+         auto ink_drop_highlight = std::make_unique<views::InkDropHighlight>(
+             gfx::SizeF(host->size()), SkColorSetA(hover_color, SK_AlphaOPAQUE));
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/BUILD.gn
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/BUILD.gn
+@@ -21,9 +21,12 @@
+     "//chrome/browser/ui:ui_features",
+     "//chrome/browser/ui/actions",
+     "//chrome/browser/ui/actions:actions_headers",
++    "//chrome/browser/ui/actions:actions_util",
+     "//chrome/browser/ui/tabs:features",
+     "//chrome/browser/ui/toolbar/pinned_toolbar",
+     "//chrome/browser/ui/views/frame:browser_view_header",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
++    "//ui/color",
+     "//chrome/browser/ui/webui:webui_util",
+     "//chrome/browser/ui/webui/util",
+     "//components/contextual_tasks/public:feature_list",
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
+@@ -16,6 +16,7 @@
+ #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar.mojom.h"
+ #include "chrome/browser/ui/webui/util/image_util.h"
+ #include "chrome/browser/ui/webui/webui_embedding_context.h"
+@@ -35,11 +36,25 @@
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/models/image_model.h"
+ #include "ui/base/ui_base_features.h"
++#include "ui/color/color_provider.h"
+ #include "ui/display/screen.h"
+ #include "ui/gfx/vector_icon_types.h"
+ #include "ui/views/vector_icons.h"
+ 
+ namespace {
++gfx::ImageSkia RasterizeToolbarIcon(const ui::ImageModel& model,
++                                   const ui::ColorProvider& provider) {
++  if (model.IsVectorIcon()) {
++    auto symbol = helium::NativeToolbarSymbolForIcon(
++        model.GetVectorIcon().vector_icon()->name, 20,
++        provider.GetColor(ui::kColorSysOnSurface));
++    if (!symbol.isNull()) {
++      return symbol;
++    }
++  }
++  return model.Rasterize(&provider);
++}
++
+ std::optional<side_panel::customize_chrome::mojom::ActionId>
+ MojoActionForChromeAction(actions::ActionId action_id) {
+   switch (action_id) {
+@@ -271,12 +286,11 @@
+       prefs()->GetBoolean(prefs::kShowHomeButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kNavigation,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(
+               features::IsRoundedIconsEnabled()
+                   ? kHomeIcon
+                   : kNavigateHomeChromeRefreshOldIcon,
+-              icon_color_id)
+-              .Rasterize(&provider),
++              icon_color_id), provider),
+           scale_factor)));
+ 
+   auto forward_action = side_panel::customize_chrome::mojom::Action::New(
+@@ -285,12 +299,11 @@
+       prefs()->GetBoolean(prefs::kShowForwardButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kNavigation,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(
+               features::IsRoundedIconsEnabled()
+                   ? vector_icons::kArrowForwardIcon
+                   : vector_icons::kForwardArrowChromeRefreshOldIcon,
+-              icon_color_id)
+-              .Rasterize(&provider),
++              icon_color_id), provider),
+           scale_factor)));
+ 
+   auto back_action = side_panel::customize_chrome::mojom::Action::New(
+@@ -299,12 +312,11 @@
+       prefs()->GetBoolean(prefs::kShowBackButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kNavigation,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(
+               features::IsRoundedIconsEnabled()
+                   ? vector_icons::kArrowBackIcon
+                   : vector_icons::kBackArrowChromeRefreshOldIcon,
+-              icon_color_id)
+-              .Rasterize(&provider),
++              icon_color_id), provider),
+           scale_factor)));
+ 
+   auto reload_action = side_panel::customize_chrome::mojom::Action::New(
+@@ -313,12 +325,11 @@
+       prefs()->GetBoolean(prefs::kShowReloadButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kNavigation,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(
+               features::IsRoundedIconsEnabled()
+                   ? vector_icons::kRefreshIcon
+                   : vector_icons::kReloadChromeRefreshOldIcon,
+-              icon_color_id)
+-              .Rasterize(&provider),
++              icon_color_id), provider),
+           scale_factor)));
+ 
+   auto vertical_tabs_collapse_action =
+@@ -329,9 +340,8 @@
+           prefs()->GetBoolean(prefs::kShowVerticalTabsCollapseButton), false,
+           side_panel::customize_chrome::mojom::CategoryId::kNavigation,
+           GURL(webui::EncodePNGAndMakeDataURI(
+-              ui::ImageModel::FromVectorIcon(views::kSidebarLeftIcon,
+-                                             icon_color_id)
+-                  .Rasterize(&provider),
++              RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(views::kSidebarLeftIcon,
++                                             icon_color_id), provider),
+               scale_factor)));
+ 
+   auto dynamic_new_tab_action =
+@@ -343,9 +353,8 @@
+           prefs()->GetBoolean(prefs::kShowDynamicNewTabButton), false,
+           side_panel::customize_chrome::mojom::CategoryId::kNavigation,
+           GURL(webui::EncodePNGAndMakeDataURI(
+-              ui::ImageModel::FromVectorIcon(
+-                  vector_icons::kAddWeight500CustomIcon, icon_color_id)
+-                  .Rasterize(&provider),
++              RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(
++                  vector_icons::kAddWeight500CustomIcon, icon_color_id), provider),
+               scale_factor)));
+ 
+   auto avatar_action = side_panel::customize_chrome::mojom::Action::New(
+@@ -354,12 +363,11 @@
+       prefs()->GetBoolean(prefs::kShowAvatarButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kYourChrome,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(
+               features::IsRoundedIconsEnabled()
+                   ? vector_icons::kAccountCircleIcon
+                   : vector_icons::kAccountCircleChromeRefreshOldIcon,
+-              icon_color_id)
+-              .Rasterize(&provider),
++              icon_color_id), provider),
+           scale_factor)));
+ 
+   auto extensions_action = side_panel::customize_chrome::mojom::Action::New(
+@@ -368,12 +376,11 @@
+       prefs()->GetBoolean(prefs::kShowExtensionsButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kYourChrome,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(
+               features::IsRoundedIconsEnabled()
+                   ? vector_icons::kChromeExtensionIcon
+                   : vector_icons::kExtensionChromeRefreshOldIcon,
+-              icon_color_id)
+-              .Rasterize(&provider),
++              icon_color_id), provider),
+           scale_factor)));
+ 
+   auto menu_action = side_panel::customize_chrome::mojom::Action::New(
+@@ -382,11 +389,10 @@
+       prefs()->GetBoolean(prefs::kShowMenuButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kYourChrome,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                              ? kMoreVertIcon
+                                              : kBrowserToolsOldIcon,
+-                                         icon_color_id)
+-              .Rasterize(&provider),
++                                         icon_color_id), provider),
+           scale_factor)));
+ 
+   auto media_controls_action = side_panel::customize_chrome::mojom::Action::New(
+@@ -396,12 +402,11 @@
+       prefs()->GetBoolean(prefs::kShowMediaButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kYourChrome,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(
+               features::IsRoundedIconsEnabled()
+                   ? kQueueMusicIcon
+                   : kMediaToolbarButtonChromeRefreshOldIcon,
+-              icon_color_id)
+-              .Rasterize(&provider),
++              icon_color_id), provider),
+           scale_factor)));
+ 
+   actions.push_back(std::move(back_action));
+@@ -415,11 +420,10 @@
+       prefs()->GetBoolean(prefs::kPinSplitTabButton), false,
+       side_panel::customize_chrome::mojom::CategoryId::kNavigation,
+       GURL(webui::EncodePNGAndMakeDataURI(
+-          ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
++          RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                              ? kSplitSceneIcon
+                                              : kSplitSceneOldIcon,
+-                                         icon_color_id)
+-              .Rasterize(&provider),
++                                         icon_color_id), provider),
+           scale_factor)));
+ 
+   actions.push_back(std::move(split_tab_action));
+@@ -483,7 +487,7 @@
+             base::UTF16ToUTF8(action_item->GetText()), model_->Contains(id),
+             has_enterprise_controlled_pinned_state, category,
+             GURL(webui::EncodePNGAndMakeDataURI(
+-                recolored_icon.Rasterize(&provider), scale_factor)));
++                RasterizeToolbarIcon(recolored_icon, provider), scale_factor)));
+         actions.push_back(std::move(mojo_action));
+       };
+ 
