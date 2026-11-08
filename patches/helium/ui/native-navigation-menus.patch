@@ -1,0 +1,246 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -68,6 +68,9 @@
+ #include "chrome/browser/ui/views/tabs/tab_strip.h"
+ #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
++#include "chrome/browser/ui/views/toolbar/toolbar_button.h"
++#include "chrome/browser/ui/views/toolbar/reload_button.h"
++#include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+ #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
+ #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+ #include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
+@@ -794,10 +797,34 @@
+ };
+ }  // namespace
+ 
++namespace {
++ToolbarButton* NativeToolbarMenuButton(base::WeakPtr<BrowserView> browser,
++                                      int view_id) {
++  if (!browser || !browser->toolbar()) {
++    return nullptr;
++  }
++  // The original controls may be reparented into a sidebar; resolve them
++  // through their providers rather than searching the view hierarchy.
++  switch (view_id) {
++    case VIEW_ID_BACK_BUTTON:
++      return browser->toolbar_button_provider()->GetBackButton();
++    case VIEW_ID_FORWARD_BUTTON:
++      return browser->toolbar()->forward_button();
++    case VIEW_ID_RELOAD_BUTTON:
++      return browser->toolbar()->reload_button();
++    default:
++      return nullptr;
++  }
++}
++}  // namespace
++
+ // Match the Views toolbar's semantic symbol colors without a hover bezel.
+-@interface HeliumHeaderSymbolButton : NSButton
++@interface HeliumHeaderSymbolButton : NSButton <NSGestureRecognizerDelegate>
++@property(nonatomic, copy) void (^onContextMenu)(NSView* sender);
++@property(nonatomic, copy) BOOL (^canShowContextMenu)(NSView* sender);
+ @end
+ @implementation HeliumHeaderSymbolButton {
++  NSPressGestureRecognizer* _menuPress;
+   NSTrackingArea* _symbolTrackingArea;
+   BOOL _symbolHovered;
+   NSTimer* _symbolFadeTimer;
+@@ -805,11 +832,51 @@
+   CGFloat _symbolFadeFrom;
+   NSTimeInterval _symbolFadeStart;
+ }
++@synthesize onContextMenu = _onContextMenu;
++@synthesize canShowContextMenu = _canShowContextMenu;
++- (void)setOnContextMenu:(void (^)(NSView*))callback {
++  _onContextMenu = [callback copy];
++  if (!_menuPress && callback) {
++    _menuPress = [[NSPressGestureRecognizer alloc]
++        initWithTarget:self action:@selector(showMenuForPress:)];
++    // Match ToolbarButton's existing long-press delay. AppKit delays the
++    // primary events until recognition fails, so a short click still reaches
++    // NSButton while a recognized hold cannot also dispatch navigation.
++    _menuPress.minimumPressDuration = 0.5;
++    _menuPress.delegate = self;
++    [self addGestureRecognizer:_menuPress];
++  }
++  _menuPress.enabled = callback && self.enabled && self.window;
++}
++- (void)setEnabled:(BOOL)enabled {
++  [super setEnabled:enabled];
++  _menuPress.enabled = enabled && self.onContextMenu && self.window;
++}
++- (BOOL)gestureRecognizer:(NSGestureRecognizer*)recognizer
++    shouldAttemptToRecognizeWithEvent:(NSEvent*)event {
++  // Control-click must continue opening its menu immediately.
++  return self.enabled && self.onContextMenu &&
++         (!self.canShowContextMenu || self.canShowContextMenu(self)) &&
++         !(event.modifierFlags & NSEventModifierFlagControl);
++}
++- (BOOL)gestureRecognizerShouldBegin:(NSGestureRecognizer*)recognizer {
++  return self.enabled && self.onContextMenu && self.window &&
++         (!self.canShowContextMenu || self.canShowContextMenu(self)) &&
++         NSMouseInRect([recognizer locationInView:self], self.visibleRect,
++                       self.isFlipped);
++}
++- (void)showMenuForPress:(NSPressGestureRecognizer*)recognizer {
++  if (recognizer.state == NSGestureRecognizerStateBegan && self.enabled &&
++      self.window && self.onContextMenu) {
++    self.onContextMenu(self);
++  }
++}
+ - (void)dealloc {
+   [_symbolFadeTimer invalidate];
+ }
+ - (void)viewDidMoveToWindow {
+   [super viewDidMoveToWindow];
++  _menuPress.enabled = self.window && self.enabled && self.onContextMenu;
+   if (!self.window) {
+     [_symbolFadeTimer invalidate];
+     _symbolFadeTimer = nil;
+@@ -817,6 +884,23 @@
+     _symbolHoverAmount = 0;
+   }
+ }
++- (void)rightMouseDown:(NSEvent*)event {
++  if (self.onContextMenu) {
++    if (self.enabled) {
++      self.onContextMenu(self);
++    }
++    return;
++  }
++  [super rightMouseDown:event];
++}
++- (void)mouseDown:(NSEvent*)event {
++  if (self.onContextMenu &&
++      (event.modifierFlags & NSEventModifierFlagControl)) {
++    [self rightMouseDown:event];
++    return;
++  }
++  [super mouseDown:event];
++}
+ - (void)advanceSymbolFade {
+   const CGFloat progress = std::clamp(
+       (NSDate.timeIntervalSinceReferenceDate - _symbolFadeStart) / 0.1,
+@@ -887,6 +971,27 @@
+ }
+ @end
+ 
++namespace {
++void ConfigureNativeToolbarMenu(HeliumHeaderSymbolButton* native_button,
++                                base::WeakPtr<BrowserView> browser,
++                                int view_id) {
++  native_button.canShowContextMenu = ^BOOL(NSView* sender) {
++    auto* button = NativeToolbarMenuButton(browser, view_id);
++    return sender.window && button && button->CanShowContextMenu();
++  };
++  native_button.onContextMenu = ^(NSView* sender) {
++    auto* button = NativeToolbarMenuButton(browser, view_id);
++    if (!sender.window || !button || !button->CanShowContextMenu()) {
++      return;
++    }
++    const NSRect anchor = [sender.window convertRectToScreen:
++        [sender convertRect:sender.bounds toView:nil]];
++    button->ShowContextMenuAtScreenBounds(
++        gfx::ScreenRectFromNSRect(anchor), ui::mojom::MenuSourceType::kMouse);
++  };
++}
++}  // namespace
++
+ @interface HeliumGlassNavigation : HeliumGlassSurface
+ - (instancetype)initWithBrowserView:(BrowserView*)browser;
+ - (void)refresh;
+@@ -913,6 +1018,8 @@
+                                 accessibilityDescription:nil]
+                target:self
+                action:@selector(goForward:)];
++  ConfigureNativeToolbarMenu(_back, _browserView, VIEW_ID_BACK_BUTTON);
++  ConfigureNativeToolbarMenu(_forward, _browserView, VIEW_ID_FORWARD_BUTTON);
+   _back.frame = NSMakeRect(4, 2, 32, 32);
+   _forward.frame = NSMakeRect(36, 2, 32, 32);
+   for (NSButton* button in @[ _back, _forward ]) {
+@@ -1269,6 +1376,7 @@
+                                 accessibilityDescription:nil]
+                target:self
+                action:@selector(reload:)];
++  ConfigureNativeToolbarMenu(_reload, _browserView, VIEW_ID_RELOAD_BUTTON);
+   _reload.bordered = NO;
+   _reload.frame = NSMakeRect(444, 2, 32, 32);
+   _reload.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -2007,6 +2007,7 @@
+       ":caption_button_placeholder_container",
+       ":contents_container_outline",
+       ":frame",
++      ":toolbar_button_provider",
+       ":glass_frame_service",
+       ":vertical_tab_strip_region_view",
+       "//chrome/app:command_ids",
+@@ -2039,6 +2040,7 @@
+       "//chrome/browser/ui/views/side_panel",
+       "//chrome/browser/ui/views/tabs:tab_strip",
+       "//chrome/browser/ui/views/toolbar",
++      "//chrome/browser/ui/views/toolbar:toolbar_button",
+       "//chrome/browser/ui/views/web_apps/frame_toolbar:web_app_frame_toolbar_utils",
+       "//chrome/browser/ui/web_applications",
+       "//chrome/browser/ui/window_feature_controller",
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -627,6 +627,19 @@
+   ShowDropDownMenu(source_type);
+ }
+ 
++bool ToolbarButton::CanShowContextMenu() {
++  return GetEnabled() && !IsMenuShowing() && ShouldShowMenu();
++}
++
++void ToolbarButton::ShowContextMenuAtScreenBounds(
++    const gfx::Rect& bounds, ui::mojom::MenuSourceType source_type) {
++  if (!CanShowContextMenu()) {
++    return;
++  }
++  next_menu_anchor_bounds_ = bounds;
++  ShowContextMenuForViewImpl(this, bounds.origin(), source_type);
++}
++
+ std::u16string ToolbarButton::GetAlternativeAccessibleName() const {
+   if (!suppressed_tooltip_text_.empty()) {
+     return suppressed_tooltip_text_;
+@@ -679,7 +692,9 @@
+ 
+ void ToolbarButton::ShowMenuForModel(ui::mojom::MenuSourceType source_type,
+                                      ui::MenuModel* menu_model) {
+-  gfx::Rect menu_anchor_bounds = GetAnchorBoundsInScreen();
++  gfx::Rect menu_anchor_bounds =
++      next_menu_anchor_bounds_.value_or(GetAnchorBoundsInScreen());
++  next_menu_anchor_bounds_.reset();
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+   // A window won't overlap between displays on ChromeOS.
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.h
+@@ -165,6 +165,15 @@
+       const gfx::Point& point,
+       ui::mojom::MenuSourceType source_type) override;
+ 
++  // Query the original menu availability for native press recognition.
++  bool CanShowContextMenu();
++
++  // Run the existing menu for a native presentation of this button. The
++  // screen anchor is consumed by this invocation; ordinary Views menus retain
++  // their normal anchors and availability rules.
++  void ShowContextMenuAtScreenBounds(
++      const gfx::Rect& bounds, ui::mojom::MenuSourceType source_type);
++
+   // ui::PropertyHandler:
+   void AfterPropertyChange(const void* key, int64_t old_value) override;
+ 
+@@ -341,6 +350,7 @@
+ 
+   // Indicates if menu is currently showing.
+   bool menu_showing_ = false;
++  std::optional<gfx::Rect> next_menu_anchor_bounds_;
+ 
+   // Whether the menu should be shown when there is a long mouse press or a drag
+   // event.
