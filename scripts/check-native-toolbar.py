@@ -20,6 +20,9 @@ selector = 'NSColor* SelectColor(NativeGlassColorRole role) {\nNSColor* semantic
 start = source.index('gfx::ImageSkia NativeToolbarSymbol(')
 end = source.index('\n}  // namespace helium', start)
 symbol = source[start:end]
+frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
+start = frame.index('@interface HeliumHeaderSymbolButton : NSButton')
+header_button = frame[start:frame.index('@interface HeliumGlassNavigation', start)]
 # Stand-ins isolate the AppKit calls from Chromium's Views and Skia runtime.
 # Actual image masking, input and layout are checked in the browser preview.
 prefix = r'''
@@ -42,7 +45,60 @@ struct ImageSkiaOperations {
 tests = r'''
 int main() {
  @autoreleasepool {
+  setbuf(stdout, nullptr);
   [NSApplication sharedApplication];
+  HeliumHeaderSymbolButton* button = [HeliumHeaderSymbolButton
+      buttonWithImage:[NSImage imageWithSystemSymbolName:@"arrow.clockwise"
+          accessibilityDescription:nil] target:nil action:nil];
+  button.frame = NSMakeRect(0, 0, 32, 32);
+  button.bordered = NO;
+  NSImage* surface = [[NSImage alloc] initWithSize:button.frame.size];
+  auto draw = [&] {
+    [surface lockFocus];
+    [button drawRect:button.bounds];
+    [surface unlockFocus];
+    return [button.contentTintColor colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
+  };
+  auto wait = [](double seconds) {
+    [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:seconds]];
+  };
+  draw();
+  [button setSymbolHovered:YES];
+  wait(.04);
+  double middle = [[button valueForKey:@"symbolHoverAmount"] doubleValue];
+  assert(middle > 0 && middle < 1);
+  // Reversing while in flight must begin at the current amount.
+  [button setSymbolHovered:NO];
+  double reversed = [[button valueForKey:@"symbolHoverAmount"] doubleValue];
+  assert(reversed >= middle && reversed < 1);
+  wait(.13);
+  assert([[button valueForKey:@"symbolHoverAmount"] doubleValue] == 0);
+  [button setSymbolHovered:YES];
+  wait(.13);
+  assert([[button valueForKey:@"symbolHoverAmount"] doubleValue] == 1);
+  auto sameColor = [](NSColor* a, NSColor* b) {
+    b = [b colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
+    printf("actual %.4f %.4f %.4f %.4f expected %.4f %.4f %.4f %.4f\n",
+        a.redComponent,a.greenComponent,a.blueComponent,a.alphaComponent,
+        b.redComponent,b.greenComponent,b.blueComponent,b.alphaComponent);
+    return std::abs(a.redComponent-b.redComponent) < .002 &&
+        std::abs(a.greenComponent-b.greenComponent) < .002 &&
+        std::abs(a.blueComponent-b.blueComponent) < .002 &&
+        std::abs(a.alphaComponent-b.alphaComponent) < .002;
+  };
+  for (NSAppearanceName name in @[NSAppearanceNameAqua,NSAppearanceNameDarkAqua]) {
+    button.appearance = [NSAppearance appearanceNamed:name];
+    [button.appearance performAsCurrentDrawingAppearance:^{
+      assert(sameColor(draw(), SelectColor(NativeGlassColorRole::kToolbarHover)));
+      button.cell.highlighted = YES;
+      assert(sameColor(draw(), SelectColor(NativeGlassColorRole::kToolbarPressed)));
+      button.enabled = NO;
+      assert(sameColor(draw(), SelectColor(NativeGlassColorRole::kDisabledLabel)));
+      button.enabled = YES;
+      button.cell.highlighted = NO;
+    }];
+  }
+  puts("PASS: native header hover fades, reversal, and semantic pressed/disabled colors");
   assert([NSImage imageWithSystemSymbolName:@"slider.horizontal.below.rectangle"
       accessibilityDescription:nil]);
   views::View view{true};
@@ -111,7 +167,7 @@ int main() {
 '''
 with tempfile.TemporaryDirectory(prefix='lune-toolbar-') as directory:
     path = Path(directory) / 'test.mm'
-    path.write_text(prefix + enum + selector + symbol + tests)
+    path.write_text(prefix + enum + selector + symbol + header_button + tests)
     binary = path.with_suffix('')
     subprocess.run(['xcrun', 'clang++', *(['-arch', args.arch] if args.arch else []),
                     '-std=c++20', '-fobjc-arc', '-framework', 'AppKit', str(path),

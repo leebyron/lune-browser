@@ -11,7 +11,10 @@ The local `trailing-toolbar-controls` candidate for issue #9 adds native toolbar
 symbols and semantic state colors, tighter spacing, immediate preferred widths
 for floating action containers, and a window-local Customize reveal hold.
 Header SF Symbols, including Customize close, use 16 pt medium; tab and
-sidebar-footer close icons use 11 pt medium.
+sidebar-footer close icons use 11 pt medium. Navigation, site info, reload, and
+trailing icons fade their semantic hover color over 100 ms. The address glass
+caps at half the available header width, and the Extensions menu button has no
+layout gap before the first extension.
 The rebuilt arm64 preview retains a clickable ellipsis after opening Customize;
 owner visual and focus-transition acceptance remains pending. The candidate is
 not yet in the development lock or a published build. See
