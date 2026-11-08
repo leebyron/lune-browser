@@ -1,0 +1,143 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -116,6 +116,7 @@
+ #include "ui/views/view_targeter.h"
+ #include "ui/views/view_targeter_delegate.h"
+ #include "ui/views/widget/widget.h"
++#include "ui/views/widget/widget_observer.h"
+ #include "ui/views/widget/widget_delegate.h"
+ 
+ namespace {
+@@ -1250,6 +1251,8 @@
+ - (CGFloat)preferredHeight;
+ - (void)updateSuggestions;
+ - (void)acceptAddress;
++- (BOOL)dismissSiteInfo;
++- (void)siteInfoClosing;
+ - (void)shutdown;
+ @end
+ 
+@@ -1276,6 +1279,28 @@
+   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
+ };
+ 
++// Focus-loss dismissal may precede delivery to the native button. Preserve
++// that dismissal across its tracking loop, including asynchronous destruction.
++class HeliumSiteInfoObserver : public views::WidgetObserver {
++ public:
++  HeliumSiteInfoObserver(HeliumFloatingAddressBar* owner, views::Widget* widget)
++      : owner_(owner) {
++    observation_.Observe(widget);
++  }
++  void OnWidgetVisibilityChanged(views::Widget*, bool visible) override {
++    if (!visible) {
++      [owner_ siteInfoClosing];
++    }
++  }
++  void OnWidgetDestroying(views::Widget*) override {
++    [owner_ siteInfoClosing];
++    observation_.Reset();
++  }
++ private:
++  HeliumFloatingAddressBar* __weak owner_;
++  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{this};
++};
++
+ @implementation HeliumFloatingAddressBar {
+   base::WeakPtr<BrowserView> _browserView;
+   HeliumGlassAddressField* _address;
+@@ -1287,6 +1312,10 @@
+   NSInteger _selected;
+   BOOL _editing;
+   id _keyMonitor;
++  id _siteInfoMouseMonitor;
++  base::WeakPtr<views::Widget> _siteInfoWidget;
++  std::unique_ptr<HeliumSiteInfoObserver> _siteInfoObserver;
++  BOOL _suppressSiteInfoRelease;
+   NSButton* _siteInfo;
+   HeliumHeaderSymbolButton* _reload;
+ }
+@@ -1367,6 +1396,19 @@
+                                      }
+                                      return event;
+                                    }];
++  // A dismissed bubble may already be destroyed before mouse-up. Clear its
++  // suppression only after NSButton has dispatched that release's action.
++  _siteInfoMouseMonitor = [NSEvent
++      addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseUp
++      handler:^NSEvent*(NSEvent* event) {
++        dispatch_async(dispatch_get_main_queue(), ^{
++          HeliumFloatingAddressBar* owner = weakSelf;
++          if (owner) {
++            owner->_suppressSiteInfoRelease = NO;
++          }
++        });
++        return event;
++      }];
+   _observer = std::make_unique<HeliumGlassAutocompleteObserver>(
+       self, browserView->GetProfile());
+   _autocomplete->AddObserver(_observer.get());
+@@ -1458,6 +1500,12 @@
+     [NSEvent removeMonitor:_keyMonitor];
+     _keyMonitor = nil;
+   }
++  if (_siteInfoMouseMonitor) {
++    [NSEvent removeMonitor:_siteInfoMouseMonitor];
++    _siteInfoMouseMonitor = nil;
++  }
++  _siteInfoObserver.reset();
++  _siteInfoWidget.reset();
+   if (_autocomplete) {
+     _autocomplete->RemoveObserver(_observer.get());
+     _autocomplete.reset();
+@@ -1677,8 +1725,34 @@
+   return NO;
+ }
+ 
++- (void)siteInfoClosing {
++  if (!(NSEvent.pressedMouseButtons & 1) || !self.window ||
++      _siteInfo.hiddenOrHasHiddenAncestor) {
++    return;
++  }
++  const NSPoint point = [_siteInfo convertPoint:
++      [self.window convertPointFromScreen:NSEvent.mouseLocation] fromView:nil];
++  if (NSMouseInRect(point, _siteInfo.bounds, _siteInfo.isFlipped)) {
++    _suppressSiteInfoRelease = YES;
++  }
++}
++
++- (BOOL)dismissSiteInfo {
++  if (!_siteInfoWidget || _siteInfoWidget->IsClosed() ||
++      !_siteInfoWidget->IsVisible()) {
++    return NO;
++  }
++  _siteInfoWidget->CloseWithReason(views::Widget::ClosedReason::kCloseButtonClicked);
++  _siteInfoWidget.reset();
++  return YES;
++}
++
+ - (void)showSiteInfo:(id)sender {
+-  if (!_browserView) {
++  if (_suppressSiteInfoRelease) {
++    _suppressSiteInfoRelease = NO;
++    return;
++  }
++  if ([self dismissSiteInfo] || !_browserView) {
+     return;
+   }
+   auto* contents = _browserView->GetActiveWebContents();
+@@ -1699,9 +1773,11 @@
+           .AddInitializedCallback(base::DoNothing())
+           .AddPageInfoClosingCallback(base::DoNothing())
+           .Build();
+-  PageInfoBubbleView::CreatePageInfoBubble(std::move(specification))
+-      ->GetWidget()
+-      ->Show();
++  auto* widget = PageInfoBubbleView::CreatePageInfoBubble(std::move(specification))
++                     ->GetWidget();
++  _siteInfoWidget = widget->GetWeakPtr();
++  _siteInfoObserver = std::make_unique<HeliumSiteInfoObserver>(self, widget);
++  widget->Show();
+ }
+ 
+ - (void)reload:(id)sender {
