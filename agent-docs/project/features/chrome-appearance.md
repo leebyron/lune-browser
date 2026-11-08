@@ -5,7 +5,7 @@ the accepted media-toolbar platform head
 `41312cdfc8fa0ec20a49396fb3355c9a01024a8c`. The local candidate is on
 `stable-chrome-appearance`, imported as `topic/stable-chrome-appearance`.
 The current signed platform head is
-`29f9c9166a6c1a811f62df55b1e138382abea42f`. It is not in the development lock or
+`56c7ea7b8df9cbd8b975b38dba09099b034ba641`. It is not in the development lock or
 published builds.
 
 ## Reproduction
@@ -63,6 +63,36 @@ the material change. Native inspection confirmed that reparenting collapsed the
 address content view to zero height and Customize close content to zero width.
 The persistent glass revision removes both the substitution and reparenting.
 
+## Theme tint
+
+At the owner's request, the floating sidebar, address, navigation, trailing
+controls, and Customize close glass use AppKit's public `tintColor` property.
+The tint is the owning browser's resolved `ui::kColorSysPrimary` accent with 30% alpha.
+It follows selected theme colors and Light/Dark/Device through Chromium's color
+provider, including custom-theme and incognito precedence; no palette values
+are duplicated in the reusable feature. Tint follows the selected browser
+scheme; native foreground controls continue to follow the actual glass material.
+
+Existing surfaces update immediately on theme changes, even with the header
+hidden. New surfaces receive the same tint when created. Unchanged colors do not
+reapply the material property. This adds no overlays, timers, capture or pixel
+sampling. Native material identity, attached controls, fixed/adaptive mode, and
+reveal behavior remain intact. Earlier macOS visual-effect fallback and Command-T
+are unchanged. A startup smoke run caught an early theme notification before
+BrowserView widget attachment; tint lookup now tolerates the absent provider and
+applies during surface setup. The native harness covers this initialization
+case as well as theme tint changes with a live editor. Both architecture builds, native checks, and browser smoke checks pass.
+Live arm64 inspection confirms the selected Blue/Light accent reaches all five
+visible glass surfaces at 30% alpha, including the floating sidebar. The header
+tint is visibly stronger; the large sidebar renders it more subtly. Owner
+acceptance of tint strength remains pending.
+
+The first tint candidate used the near-neutral toolbar surface at 12% alpha.
+Native inspection confirmed it reached every target surface, but the owner
+reported that the sidebar change was imperceptible and header tint too faint.
+The current candidate uses the stronger theme accent at 30% alpha; visual
+acceptance remains pending.
+
 ## Validation
 
 The final native-only head passes full arm64 and x86_64 browser builds.
@@ -70,7 +100,7 @@ Both architectures pass UI/settings/persistence checks, including a fresh-profil
 Content aware value of true and an explicit saved false after restart. Intel
 checks run under Rosetta, not native Intel hardware.
 
-Strict replay passes across 130 relevant patches and 15 changed source files,
+Strict replay passes across 143 relevant patches and 16 changed source files,
 including the production GRIT-aware name transform. Patch lint, root validation,
 and GN header dependency checks pass. The repository's 44 unit tests pass. The focused native harness covers the
 material implementations and appearance bridge.

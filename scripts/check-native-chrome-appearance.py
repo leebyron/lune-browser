@@ -18,6 +18,7 @@ frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm'
 start = frame.index('@interface HeliumChromeHitRegion')
 end = frame.index('// An overlay hairline', start)
 surface = frame[start:end]
+tint = frame[frame.index('NSColor* FloatingChromeTintColor('):frame.index('NSAppearance* FloatingChromeAppearance(')]
 command = (args.source / 'chrome/browser/ui/helium/helium_command_bar_view_mac.mm').read_text()
 start = command.index('  NSAppearance* appearance =')
 end = command.index('\n}', start)
@@ -38,6 +39,21 @@ struct CommandNative { NSView* material = nil; };
 NSView* MakeCommandMaterial(NSView* pane, bool dark, bool content_aware) {
   CommandNative native;
   CommandNative* native_ = &native;
+'''
+tint_prefix = r'''
+using SkColor = uint32_t;
+namespace ui { constexpr int kColorSysPrimary = 1; }
+int SkColorGetR(SkColor c) { return (c >> 16) & 255; }
+int SkColorGetG(SkColor c) { return (c >> 8) & 255; }
+int SkColorGetB(SkColor c) { return c & 255; }
+struct TestColorProvider {
+  SkColor accent;
+  SkColor GetColor(int id) const { assert(id == ui::kColorSysPrimary); return accent; }
+};
+struct BrowserView {
+  TestColorProvider* colors = nullptr;
+  const TestColorProvider* GetColorProvider() const { return colors; }
+};
 '''
 bridge_prefix = r'''
 char kGlassControlAppearanceKey;
@@ -81,6 +97,24 @@ bool Dark(NSView* view) {
 int main() {
  @autoreleasepool {
   [NSApplication sharedApplication];
+  // Startup theme notification before attachment must not dereference a
+  // missing provider. Later calls use the owning browser's resolved palette.
+  BrowserView browser;
+  assert(FloatingChromeTintColor(&browser) == nil);
+  TestColorProvider colors{0xff276c69};
+  browser.colors = &colors;
+  NSColor* light_tint = FloatingChromeTintColor(&browser);
+  assert(fabs(light_tint.redComponent - 39.0/255) < .0001);
+  assert(fabs(light_tint.greenComponent - 108.0/255) < .0001);
+  assert(fabs(light_tint.blueComponent - 105.0/255) < .0001);
+  assert(fabs(light_tint.alphaComponent - .30) < .0001);
+  colors.accent = 0xff123456;
+  NSColor* custom_tint = FloatingChromeTintColor(&browser);
+  assert(fabs(custom_tint.redComponent - 18.0/255) < .0001);
+  assert(fabs(custom_tint.greenComponent - 52.0/255) < .0001);
+  assert(fabs(custom_tint.blueComponent - 86.0/255) < .0001);
+  browser.colors = nullptr;
+  assert(FloatingChromeTintColor(&browser) == nil);
   NSWindow* window = [[NSWindow alloc]
       initWithContentRect:NSMakeRect(0, 0, 600, 400)
       styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
@@ -121,7 +155,14 @@ int main() {
     }
   }
   for (int i = 0; i < 4; ++i) {
+    // Theme changes must preserve the same live material, editor and selection,
+    // including while switching fixed/adaptive mode.
+    NSColor* tint = [(i % 2 ? NSColor.systemBlueColor : NSColor.systemGreenColor)
+        colorWithAlphaComponent:.30];
+    surface.themeTintColor = tint;
     surface.contentAware = i % 2 == 0;
+    assert([((NSGlassEffectView*)surface.effect).tintColor isEqual:tint]);
+    assert(other.themeTintColor == nil);
     assert(surface.controls == controls && field.superview == controls);
     assert(window.firstResponder == responder);
     assert(NSEqualRanges(field.currentEditor.selectedRange, NSMakeRange(3, 5)));
@@ -200,7 +241,7 @@ int main() {
 with tempfile.TemporaryDirectory(prefix='lune-chrome-appearance-') as tmp:
     path = Path(tmp)
     (path / 'check.mm').write_text(prefix + command_material +
-        '\nreturn native_->material;\n}\n' + surface + bridge_prefix + bridge + fixture)
+        '\nreturn native_->material;\n}\n' + tint_prefix + tint + surface + bridge_prefix + bridge + fixture)
     subprocess.run(['xcrun', 'clang++', '-std=c++20', '-fobjc-arc',
                     '-arch', args.arch, '-framework', 'AppKit',
                     '-framework', 'QuartzCore', str(path / 'check.mm'),

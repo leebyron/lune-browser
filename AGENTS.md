@@ -21,7 +21,15 @@ small toolbar glass. This remains a known limitation. Both browser builds, nativ
 regressions, strict patch replay, and UI/settings/persistence smoke checks pass,
 including default-on and saved-off behavior (Intel under Rosetta). The candidate
 is not in the development lock or
-published builds. See
+published builds. A follow-up adds 30% native `tintColor` from the selected
+browser theme's accent color to the header and floating sidebar. It follows
+Light/Dark/Device and custom color choices, with no capture or added timers.
+Native tint/editor and startup-provider regression checks, full builds, and
+UI/settings/appearance/persistence smoke checks pass on both architectures.
+Live arm64 inspection confirms 30% tint on header and floating sidebar glass;
+header tint is visibly stronger, while the large sidebar remains subtler.
+Owner acceptance of tint strength is pending.
+See
 [native chrome appearance](agent-docs/project/features/chrome-appearance.md).
 
 The accepted issue #15 candidate on `topic/media-toolbar-controls` restores the
