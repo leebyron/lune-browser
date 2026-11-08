@@ -1,0 +1,491 @@
+--- a/chrome/browser/ui/views/frame/app_menu_button.cc
++++ b/chrome/browser/ui/views/frame/app_menu_button.cc
+@@ -21,6 +21,7 @@
+ #include "chrome/browser/ui/views/chrome_typography.h"
+ #include "chrome/browser/ui/views/frame/app_menu_button_observer.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/app_menu.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+@@ -206,7 +207,7 @@
+   // `default_insets` to reliably acquire the physical trailing inset (`left`
+   // when mirrored/RTL versus `right` in LTR).
+   int margin = 0;
+-  if (maximized_or_fullscreen) {
++  if (maximized_or_fullscreen && !helium::IsFloatingToolbarControl(this)) {
+     const gfx::Insets default_insets =
+         ::GetLayoutInsets(LayoutInset::TOOLBAR_INTERIOR_MARGIN);
+     margin = GetMirrored() ? default_insets.left() : default_insets.right();
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -88,6 +88,7 @@
+ #include "content/public/browser/web_contents.h"
+ #include "ui/base/hit_test.h"
+ #include "ui/base/l10n/l10n_util.h"
++#include "ui/base/metadata/metadata_utils.h"
+ #include "ui/base/page_transition_types.h"
+ #include "ui/base/theme_provider.h"
+ #include "ui/compositor/layer.h"
+@@ -102,9 +103,11 @@
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
+ #include "ui/views/context_menu_controller.h"
++#include "ui/views/controls/button/button.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/native/native_view_host.h"
+ #include "ui/views/layout/box_layout.h"
++#include "ui/views/layout/layout_manager_base.h"
+ #include "ui/views/layout/layout_types.h"
+ #include "ui/views/view_targeter.h"
+ #include "ui/views/view_targeter_delegate.h"
+@@ -112,6 +115,32 @@
+ #include "ui/views/widget/widget_delegate.h"
+ 
+ namespace {
++// Count intended layout visibility, not the previous painted layout. New
++// actions and zero-width containers can be temporarily hidden by animation or
++// overflow; consulting GetVisible() would prevent them from receiving space.
++void CollectFloatingToolbarButtons(views::View* view,
++                                   std::vector<views::View*>& buttons) {
++  bool visible = view->GetVisible();
++  if (auto* parent = view->parent()) {
++    if (auto* layout = ui::metadata::AsClass<views::LayoutManagerBase>(
++            parent->GetLayoutManager())) {
++      visible = layout->CanBeVisible(view);
++    }
++  }
++  if (!visible) {
++    return;
++  }
++  if (views::Button::AsButton(view)) {
++    if (!view->GetPreferredSize().IsEmpty()) {
++      buttons.push_back(view);
++    }
++    return;
++  }
++  for (views::View* child : view->children()) {
++    CollectFloatingToolbarButtons(child, buttons);
++  }
++}
++
+ NSAppearance* FloatingChromeAppearance(BrowserView* view) {
+   const auto scheme = ThemeServiceFactory::GetForProfile(view->GetProfile())
+                           ->GetBrowserColorScheme();
+@@ -857,11 +886,12 @@
+ @end
+ @implementation HeliumGlassNavigation {
+   base::WeakPtr<BrowserView> _browserView;
+-  NSButton* _back;
+-  NSButton* _forward;
++  HeliumHeaderSymbolButton* _back;
++  HeliumHeaderSymbolButton* _forward;
++  NSBox* _separator;
+ }
+ - (instancetype)initWithBrowserView:(BrowserView*)browser {
+-  self = [super initWithFrame:NSMakeRect(0, 0, 76, 36)];
++  self = [super initWithFrame:NSMakeRect(0, 0, 72, 36)];
+   if (!self) {
+     return nil;
+   }
+@@ -877,7 +907,7 @@
+                target:self
+                action:@selector(goForward:)];
+   _back.frame = NSMakeRect(4, 2, 32, 32);
+-  _forward.frame = NSMakeRect(40, 2, 32, 32);
++  _forward.frame = NSMakeRect(36, 2, 32, 32);
+   for (NSButton* button in @[ _back, _forward ]) {
+     button.bordered = NO;
+     button.image =
+@@ -887,6 +917,9 @@
+                                                   weight:NSFontWeightMedium]];
+     [_controls addSubview:button];
+   }
++  _separator = [[NSBox alloc] initWithFrame:NSMakeRect(35.5, 10, 1, 16)];
++  _separator.boxType = NSBoxSeparator;
++  [_controls addSubview:_separator];
+   _back.toolTip = base::SysUTF16ToNSString(
+       l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_BACK));
+   _forward.toolTip = base::SysUTF16ToNSString(
+@@ -2366,8 +2399,9 @@
+       std::min(content.right() - glass_inset, browser_view->width() - 8);
+   const gfx::Rect bar_region(leading, 8 + TopUIFullscreenYOffset(),
+                              std::max(0, trailing - leading), 36);
+-  const int address_left = leading + 76 + 12;
+-  const int address_right = trailing - toolbar_width - 12;
++  const int address_left = leading + 72 + 12;
++  const int address_right =
++      trailing - toolbar_width - (toolbar_width > 0 ? 12 : 0);
+   const int capsule_width = std::min(480, address_right - address_left);
+   if (capsule_width < 160) {
+     UpdateFloatingToolbar(gfx::Rect(), false);
+@@ -2543,7 +2577,7 @@
+     auto root = std::make_unique<views::View>();
+     root->SetLayoutManager(std::make_unique<views::BoxLayout>(
+                                views::BoxLayout::Orientation::kHorizontal,
+-                               gfx::Insets::VH(0, 4), 0))
++                               gfx::Insets::VH(0, 4), 2))
+         ->set_cross_axis_alignment(
+             views::BoxLayout::CrossAxisAlignment::kCenter);
+     floating_toolbar_widget_->SetContentsView(std::move(root));
+@@ -2561,9 +2595,18 @@
+   }
+   toolbar->SetFloatingNavigation(true);
+   toolbar->SetFloatingControlsHost(floating_toolbar_widget_->GetContentsView());
+-  return floating_toolbar_widget_->GetContentsView()
+-      ->GetPreferredSize()
+-      .width();
++  auto* contents = floating_toolbar_widget_->GetContentsView();
++  std::vector<views::View*> buttons;
++  CollectFloatingToolbarButtons(contents, buttons);
++  auto* layout = static_cast<views::BoxLayout*>(contents->GetLayoutManager());
++  layout->set_inside_border_insets(
++      buttons.size() == 1 ? gfx::Insets() : gfx::Insets::VH(0, 4));
++  layout->set_main_axis_alignment(
++      views::BoxLayout::MainAxisAlignment::kCenter);
++  if (buttons.empty()) {
++    return 0;
++  }
++  return buttons.size() == 1 ? 36 : contents->GetPreferredSize().width();
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingToolbar() {
+@@ -2623,7 +2666,7 @@
+     drag->SetVisible(presented);
+   }
+   if (!region.IsEmpty() && nav) {
+-    nav->SetBoundsRect(gfx::Rect(region.x(), region.y(), 76, 36));
++    nav->SetBoundsRect(gfx::Rect(region.x(), region.y(), 72, 36));
+     // Cover the gap above controls even while the fullscreen menu bar lowers
+     // them. Only the controls move; the input shield stays at the window top.
+     gfx::Rect drag_bounds(0, 0, view->width(), region.y() - 8 + 52);
+@@ -2653,10 +2696,25 @@
+     return;
+   }
+   auto* material_host = floating_toolbar_material_host_.view();
+-  [floating_toolbar_material_ setPresented:presented];
+-  material_host->SetVisible(presented || !floating_toolbar_material_.hidden);
+   NSWindow* window =
+       floating_toolbar_widget_->GetNativeWindow().GetNativeNSWindow();
++  const int width = FloatingToolbarWidth();
++  if (width == 0) {
++    // Remove both the surface and its input window immediately. Keep the
++    // controls attached so visibility changes can reveal the group again.
++    [floating_toolbar_material_ setRevealFraction:0];
++    floating_toolbar_material_.controlsWindow = nil;
++    material_host->SetVisible(false);
++    window.ignoresMouseEvents = YES;
++    [window.contentView.layer removeAllAnimations];
++    window.contentView.alphaValue = 0;
++    floating_toolbar_widget_->Hide();
++    floating_toolbar_presented_ = false;
++    floating_toolbar_target_bounds_ = gfx::Rect();
++    return;
++  }
++  [floating_toolbar_material_ setPresented:presented];
++  material_host->SetVisible(presented || !floating_toolbar_material_.hidden);
+   NSAppearance* appearance = FloatingChromeAppearance(GetBrowserView());
+   // AppKit can update the window before Views refreshes its cached vector
+   // icons. Track the material's previous scheme as well as the NSWindow.
+@@ -2670,8 +2728,6 @@
+   const BOOL reduceMotion =
+       NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
+   if (presented) {
+-    const int width =
+-        floating_toolbar_widget_->GetContentsView()->GetPreferredSize().width();
+     gfx::Rect bounds(region.right() - width, region.y(), width, 36);
+     material_host->SetBoundsRect(bounds);
+     window.ignoresMouseEvents = NO;
+@@ -2688,7 +2744,28 @@
+     }
+     if (layout_changed || !floating_toolbar_presented_) {
+       view->toolbar()->AbortToolbarContainerAnimationsForZenReveal();
+-      floating_toolbar_widget_->LayoutRootViewIfNecessary();
++    }
++    // Visibility can change without changing the total width (for example,
++    // replacing a transient action). Keep hit targets and paint in sync.
++    floating_toolbar_widget_->LayoutRootViewIfNecessary();
++    // A nested extension container may retain asymmetric inter-item margins.
++    // Center the sole button itself, not that container's padded bounds.
++    auto* contents = floating_toolbar_widget_->GetContentsView();
++    std::vector<views::View*> buttons;
++    CollectFloatingToolbarButtons(contents, buttons);
++    if (buttons.size() == 1) {
++      auto* button = buttons.front();
++      const gfx::Rect button_bounds = views::View::ConvertRectToTarget(
++          button, contents, button->GetLocalBounds());
++      auto* child = button;
++      while (child->parent() != contents) {
++        child = child->parent();
++      }
++      gfx::Rect child_bounds = child->bounds();
++      child_bounds.Offset(
++          (contents->width() - button_bounds.width()) / 2 - button_bounds.x(),
++          0);
++      child->SetBoundsRect(child_bounds);
+     }
+     if (!floating_toolbar_presented_) {
+       // Chromium owns NSWindow alpha while waiting for a compositor frame.
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -651,6 +651,7 @@
+     "//chrome/browser/ui/views:layout_provider",
+     "//chrome/browser/ui/views/app_menu",
+     "//chrome/browser/ui/views/interaction",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui/views/toolbar",
+     "//ui/views",
+   ]
+--- a/chrome/browser/ui/views/toolbar/browser_app_menu_button.cc
++++ b/chrome/browser/ui/views/toolbar/browser_app_menu_button.cc
+@@ -166,6 +166,18 @@
+       !IsLabelPresentAndVisible());
+ }
+ 
++gfx::Size BrowserAppMenuButton::CalculatePreferredSize(
++    const views::SizeBounds& available_size) const {
++  gfx::Size preferred = ToolbarButton::CalculatePreferredSize(available_size);
++  if (helium::IsFloatingToolbarControl(this) && GetText().empty()) {
++    // The short horizontal ellipsis needs less optical padding than a full
++    // square symbol. Its extra 1 pt per side belongs to the hit target, not
++    // the glass group's outer margin. Preserve labeled action width.
++    preferred.Enlarge(-2, 0);
++  }
++  return preferred;
++}
++
+ void BrowserAppMenuButton::UpdateIcon() {
+   const gfx::VectorIcon& icon =
+       ui::TouchUiController::Get()->touch_ui()
+@@ -297,6 +309,10 @@
+ }
+ 
+ gfx::Size BrowserAppMenuButton::GetMinimumSize() const {
++  if (helium::IsFloatingToolbarControl(this) && GetText().empty()) {
++    const int size = helium::FloatingToolbarButtonSize();
++    return gfx::Size(size - 4, size);
++  }
+   const int size = GetTargetSize().height();
+   return gfx::Size(size, size);
+ }
+--- a/chrome/browser/ui/views/toolbar/browser_app_menu_button.h
++++ b/chrome/browser/ui/views/toolbar/browser_app_menu_button.h
+@@ -64,6 +64,8 @@
+ 
+   // views::View:
+   gfx::Size GetMinimumSize() const override;
++  gfx::Size CalculatePreferredSize(
++      const views::SizeBounds& available_size) const override;
+ 
+  private:
+   base::CallbackListSubscription sidebar_mode_subscription_;
+--- a/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.cc
+@@ -7,6 +7,7 @@
+ #include <ranges>
+ 
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
+ #include "ui/gfx/geometry/rect.h"
+ #include "ui/views/view_class_properties.h"
+@@ -141,7 +142,9 @@
+   int total_width = interior_margin_.width();
+   int left = interior_margin_.left();
+   index = 0;
+-  const int height = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
++  const int height = helium::IsFloatingToolbarControl(host_view())
++                         ? helium::FloatingToolbarButtonSize()
++                         : GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
+   for (auto view : host_view()->children()) {
+     if (visible_child_indices.size() && index == visible_child_indices.back()) {
+       const gfx::Size preferred_size = view->GetPreferredSize();
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -156,6 +156,15 @@
+   }
+ }
+ 
++gfx::Size ToolbarButton::CalculatePreferredSize(
++    const views::SizeBounds& available_size) const {
++  if (helium::IsFloatingToolbarControl(this) && GetText().empty()) {
++    const int size = helium::FloatingToolbarButtonSize();
++    return gfx::Size(size, size);
++  }
++  return LabelButton::CalculatePreferredSize(available_size);
++}
++
+ void ToolbarButton::SetHighlight(const std::u16string& highlight_text,
+                                  std::optional<SkColor> highlight_color) {
+   if (highlight_text.empty() && !highlight_color.has_value()) {
+@@ -449,6 +458,15 @@
+ }
+ 
+ const gfx::Insets ToolbarButton::GetTargetInsets() const {
++  if (helium::IsFloatingToolbarControl(this) && GetText().empty()) {
++    // Derive padding from the intended target, never the previous layout's
++    // width. Reparenting and shrinking an app-menu chip can otherwise cache
++    // oversized insets and clip its image after the target becomes compact.
++    const gfx::Size target = CalculatePreferredSize({});
++    return gfx::Insets::VH(
++        std::max(0, (target.height() - GetIconSize()) / 2),
++        std::max(0, (target.width() - GetIconSize()) / 2));
++  }
+   return layout_insets_.value_or(::GetLayoutInsets(TOOLBAR_BUTTON)) +
+          layout_inset_delta_ + *GetProperty(views::kInternalPaddingKey);
+ }
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.h
+@@ -131,6 +131,8 @@
+   // views::LabelButton:
+   void AddedToWidget() override;
+   void OnPaintBackground(gfx::Canvas* canvas) override;
++  gfx::Size CalculatePreferredSize(
++      const views::SizeBounds& available_size) const override;
+   void StateChanged(ButtonState old_state) override;
+   gfx::ImageSkia GetImage(ButtonState state) const override;
+   void AnimationProgressed(const gfx::Animation* animation) override;
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -85,6 +85,9 @@
+ #include "chrome/browser/ui/views/extensions/extensions_toolbar_coordinator.h"
+ #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/frame/browser_frame_view.h"
++#include "chrome/browser/ui/views/frame/browser_widget.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/frame/custom_corners_background.h"
+ #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/frame/top_container_view.h"
+@@ -255,6 +258,10 @@
+ constexpr int kGlicButtonMargin = 5;
+ 
+ void SetRefreshMargins(views::View* button, bool expanded) {
++  if (helium::IsFloatingToolbarControl(button)) {
++    button->SetProperty(views::kMarginsKey, gfx::Insets());
++    return;
++  }
+   button->SetProperty(
+       views::kMarginsKey,
+       gfx::Insets::VH(
+@@ -2601,6 +2608,10 @@
+ }
+ 
+ gfx::Size ToolbarView::GetToolbarButtonSize() const {
++  if (!floating_controls_state_.empty()) {
++    const int size = helium::FloatingToolbarButtonSize();
++    return gfx::Size(size, size);
++  }
+   // Since DisplayMode::kLocation is for a slimline toolbar showing only compact
+   // location bar used for popups, toolbar buttons (ie downloads) must be
+   // smaller to accommodate the smaller size.
+@@ -2939,16 +2950,40 @@
+ // Move the actual controls, including extension-owned buttons, so their models,
+ // keyboard actions and popup anchors stay intact in the native glass window.
+ void ToolbarView::SetFloatingControlsHost(views::View* host) {
++  auto animation_for = [this](views::View* control)
++      -> views::AnimatingLayoutManager* {
++    if (control == extensions_container_) {
++      return extensions_container_->GetAnimatingLayoutManager();
++    }
++    if (control == pinned_toolbar_actions_container_) {
++      return pinned_toolbar_actions_container_->GetAnimatingLayoutManager();
++    }
++    return nullptr;
++  };
+   if (!host) {
++    if (!floating_controls_state_.empty() && extensions_container_) {
++      extensions_container_->GetTargetLayoutManager()->SetDefault(
++          views::kMarginsKey, gfx::Insets::VH(0, 2));
++      extensions_container_->GetExtensionsButton()->ClearProperty(
++          views::kMarginsKey);
++    }
+     for (const auto& state : floating_controls_state_) {
+       if (state.view && state.view->parent() != this) {
++        if (state.original_margins) {
++          state.view->SetProperty(views::kMarginsKey, *state.original_margins);
++        } else {
++          state.view->ClearProperty(views::kMarginsKey);
++        }
+         AddChildViewAt(state.view->parent()->RemoveChildViewT(state.view.get()),
+                        std::min(state.original_index, children().size()));
++        if (state.original_bounds_animation_mode) {
++          if (auto* animation = animation_for(state.view)) {
++            animation->SetBoundsAnimationMode(
++                *state.original_bounds_animation_mode);
++          }
++        }
+       }
+     }
+-    if (!floating_controls_state_.empty()) {
+-      app_menu_button_->SetPreferredSize(std::nullopt);
+-    }
+     floating_controls_state_.clear();
+     InvalidateLayout();
+     return;
+@@ -2956,15 +2991,43 @@
+   if (!floating_controls_state_.empty() || !sidebar_controls_host_) {
+     return;
+   }
+-  app_menu_button_->SetPreferredSize(gfx::Size(32, 32));
++  if (extensions_container_) {
++    // Keep the extension buttons' 2 pt spacing on their trailing side only.
++    // With collapsed margins, clearing the menu button's margin then leaves
++    // exactly zero gap before the first extension, including after reordering.
++    extensions_container_->GetTargetLayoutManager()->SetDefault(
++        views::kMarginsKey, gfx::Insets::TLBR(0, 0, 0, 2));
++    extensions_container_->GetExtensionsButton()->SetProperty(
++        views::kMarginsKey, gfx::Insets());
++  }
+   const auto controls = children();
+   for (size_t i = 0; i < controls.size(); ++i) {
+     views::View* control = controls[i];
+     TransferredControlState state;
+     state.view = control;
+     state.original_index = i;
++    if (const auto* margins = control->GetProperty(views::kMarginsKey)) {
++      state.original_margins = *margins;
++    }
++    auto* animation = animation_for(control);
++    if (animation) {
++      state.original_bounds_animation_mode = animation->bounds_animation_mode();
++    }
+     floating_controls_state_.push_back(state);
+-    host->AddChildView(RemoveChildViewT(control));
++    // Overflow may have hidden a control without changing its intended
++    // visibility. Preserve that intent when the new layout takes ownership.
++    const bool can_be_visible = layout_manager_->CanBeVisible(control);
++    control->SetProperty(views::kMarginsKey, gfx::Insets());
++    auto owned_control = RemoveChildViewT(control);
++    owned_control->SetVisible(can_be_visible);
++    host->AddChildView(std::move(owned_control));
++    if (animation) {
++      // The child NSWindow must reserve the final width immediately. An
++      // interpolated preferred width can clip the following app-menu target
++      // when Customize or another transient action appears in this group.
++      animation->SetBoundsAnimationMode(
++          views::AnimatingLayoutManager::BoundsAnimationMode::kUseHostBounds);
++    }
+   }
+   AbortToolbarContainerAnimationsForZenReveal();
+ }
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
+@@ -38,6 +38,7 @@
+ #include "ui/views/accessible_pane_view.h"
+ #include "ui/views/animation/animation_delegate_views.h"
+ #include "ui/views/controls/button/menu_button.h"
++#include "ui/views/layout/animating_layout_manager.h"
+ #include "ui/views/mouse_watcher.h"
+ #include "ui/views/view.h"
+ #include "url/origin.h"
+@@ -600,6 +601,9 @@
+     raw_ptr<views::View> view = nullptr;
+     size_t original_index = 0;
+     std::optional<views::FlexSpecification> original_flex;
++    std::optional<gfx::Insets> original_margins;
++    std::optional<views::AnimatingLayoutManager::BoundsAnimationMode>
++        original_bounds_animation_mode;
+   };
+   std::vector<TransferredControlState> transferred_controls_state_;
+   std::vector<TransferredControlState> floating_controls_state_;
