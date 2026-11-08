@@ -7,6 +7,16 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The local `trailing-toolbar-controls` candidate for issue #9 adds native toolbar
+symbols and semantic state colors, tighter spacing, immediate preferred widths
+for floating action containers, and a window-local Customize reveal hold.
+Header SF Symbols, including Customize close, use 16 pt medium; tab and
+sidebar-footer close icons use 11 pt medium.
+The rebuilt arm64 preview retains a clickable ellipsis after opening Customize;
+owner visual and focus-transition acceptance remains pending. The candidate is
+not yet in the development lock or a published build. See
+[trailing toolbar controls](agent-docs/project/features/trailing-toolbar-controls.md).
+
 The development input `inputs/sidebar-pin-activation-2/macos` makes the sidebar
 pin button follow its owning window/app activation. Inactive windows use native
 semantic disabled text; active windows restore AppKit's default symbol rendering.
