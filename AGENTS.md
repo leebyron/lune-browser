@@ -34,7 +34,9 @@ Both architecture builds and native regression checks pass. Live arm64 checks
 confirm toolbar toggles, fallback globe, the 10 pt top inset, stable address text
 when Reload is hidden, and Back/Forward/Reload context menus using the original
 Chromium controls. The owner confirmed the footer stays at the bottom and toolbar
-actions reorder without crashing on November 7, 2026. The candidate is not yet
+actions reorder without crashing on November 7, 2026. The owner also accepted the
+10 pt right-sidebar top inset and stable address text when toggling Reload that
+day. The candidate is not yet
 in the development lock or a published build. See
 [trailing toolbar controls](agent-docs/project/features/trailing-toolbar-controls.md).
 

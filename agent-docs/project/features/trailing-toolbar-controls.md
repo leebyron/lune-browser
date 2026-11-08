@@ -258,3 +258,8 @@ Normal Reload dispatches successfully. Before/after screenshots of the short
 The 10 pt right-header top inset is visible. Reload was restored, DevTools was
 closed, and the preview test page was restored. The no-op Sparkle fixture was
 restored against matching debug symbols.
+
+On November 7, 2026, the owner accepted the latest arm64 preview's 10 pt top
+inset above the right sidebar's tabs and unchanged address-text position when
+toggling Reload. This records visual acceptance of those refinements; the
+candidate remains outside the development lock and published builds.
