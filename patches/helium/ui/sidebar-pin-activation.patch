@@ -22,8 +22,8 @@
 +}
 +- (void)updateActivationTint {
 +  const BOOL active = NSApp.active && self.window.isKeyWindow;
-+  self.contentTintColor = active ? NSColor.controlTextColor
-+                                 : NSColor.disabledControlTextColor;
++  // Let AppKit render the normal symbol; only override the inactive tint.
++  self.contentTintColor = active ? nil : NSColor.disabledControlTextColor;
 +}
 +- (void)viewDidMoveToWindow {
 +  [super viewDidMoveToWindow];
