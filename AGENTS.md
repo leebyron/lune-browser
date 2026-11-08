@@ -7,6 +7,23 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The local issue #7 candidate on `topic/stable-chrome-appearance` adds a
+Content aware toggle to Customize, enabled by default while respecting saved
+opt-outs. Each glass surface's effective appearance reaches its native and Views
+controls. The owner confirmed adaptive icon colors and the center-pill toggle
+fix. Both modes retain regular Liquid Glass and attached controls; a neutral
+profile backdrop stabilizes fixed Light/Dark/Device mode. The owner rejected
+making the sidebar follow header glass because it lagged and stopped adapting
+when the header hid. That dependency is removed. The owner requires native UI
+primitives; no proposed page sampling was implemented. The opaque sidebar keeps
+AppKit's native large-surface behavior, which does not invert light/dark like
+small toolbar glass. This remains a known limitation. Both browser builds, native
+regressions, strict patch replay, and UI/settings/persistence smoke checks pass,
+including default-on and saved-off behavior (Intel under Rosetta). The candidate
+is not in the development lock or
+published builds. See
+[native chrome appearance](agent-docs/project/features/chrome-appearance.md).
+
 The accepted issue #15 candidate on `topic/media-toolbar-controls` restores the
 existing media controller in the floating trailing group, orders its control
 before Home, and uses `play.circle` in both the toolbar and Customize. The owner
