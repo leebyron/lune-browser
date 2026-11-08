@@ -38,8 +38,11 @@ refresh after unlocking confirms visibly stronger shadows in Light mode; native
 inspection verifies the shadow settings and unchanged 7% tint. The owner found
 24% shadow opacity too strong; the next refinement reduces it to 16%, retaining
 its blur and offset. Native checks and browser builds pass on both architectures.
-The refreshed Light-mode preview verifies 16% shadows with unchanged 7% tint.
-Owner visual acceptance is pending. The owner also reported tint disappearing
+The refreshed Light-mode preview verified 16% shadows with unchanged 7% tint.
+The owner still found these too bold and requested 8%. The current refinement
+changes only shadow opacity to 8%. Native checks and browser builds pass on both
+architectures. The refreshed Light-mode preview and screenshot verify 8% shadows
+with unchanged 7% tint. Owner visual acceptance is pending. The owner also reported tint disappearing
 on focus loss. There is no activation-dependent tint clearing; native inactive
 rendering is the likely explanation, but automation has not produced a verified
 inactive transition. No

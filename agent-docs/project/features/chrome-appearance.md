@@ -5,7 +5,7 @@ the accepted media-toolbar platform head
 `41312cdfc8fa0ec20a49396fb3355c9a01024a8c`. The local candidate is on
 `stable-chrome-appearance`, imported as `topic/stable-chrome-appearance`.
 The current signed platform head is
-`10471e2af55b4eab648baf67b13c27cb44d9abcc`. It is not in the development lock or
+`18b7827d15c1def4633e721a246e2fe942c1cdac`. It is not in the development lock or
 published builds.
 
 ## Reproduction
@@ -110,7 +110,7 @@ tint appears to disappear when the window loses focus.
 ## Header shadows and inactive windows
 
 The candidate adds AppKit `NSShadow` to the existing header material views:
-16% black, 8 pt blur, and a 3 pt downward offset. Navigation, address, trailing
+8% black, 8 pt blur, and a 3 pt downward offset. Navigation, address, trailing
 controls, and Customize close receive it; the sidebar and its toggle do not.
 The shadow shares the material's existing fade and does not enlarge hit regions.
 An explicit rounded Core Animation shadow path updates only when bounds change,
@@ -134,8 +134,12 @@ to 16%, retaining the 8 pt blur, 3 pt offset, and accepted 7% tint. Native check
 and full browser builds pass on both architectures. The refreshed Light/Citron
 preview shows the softer shadow, with live native inspection confirming 16%
 shadow opacity on all four header surfaces and unchanged 7% tint on all five
-tinted surfaces. Owner visual acceptance is pending. The
-preceding report of faint shadows was made against the older preview.
+tinted surfaces. The owner still found 16% too bold and requested 8%. The current
+refinement changes only shadow opacity to 8%; the blur, offset, and 7% glass tint
+remain unchanged. Native checks and full browser builds pass on both architectures. The refreshed Light/Citron preview and requested screenshot show the 8%
+version with Customize open; live native inspection confirms 8% shadows on all
+four header surfaces and unchanged 7% tint. Owner visual acceptance is pending. The preceding report of faint shadows was made
+against the older preview.
 
 The tint code has no activation-dependent clearing or alternate color. Live
 inspection confirmed the selected Green midpoint remains assigned at 7% while
@@ -156,7 +160,7 @@ architectures' UI/settings/appearance/persistence smoke checks, including a
 fresh-profile Content aware value of true and an explicit saved false after
 restart. Intel checks run under Rosetta, not native Intel hardware.
 
-Strict replay passes across 147 relevant patches and 17 changed source files,
+Strict replay passes across 148 relevant patches and 17 changed source files,
 including the production GRIT-aware name transform. Patch lint, root validation,
 and GN header dependency checks pass. The repository's 44 unit tests pass. The focused native harness covers the
 material implementations and appearance bridge.
