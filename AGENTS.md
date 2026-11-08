@@ -7,6 +7,21 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The issue #12 candidate on `topic/address-suggestion-selection` adds rounded
+selection fills and shares native result rendering with Command-T. Both menus use
+`HeliumNativeResultRow` for 52 pt rows, 16 pt icons, primary/secondary typography,
+semantic colors, and the 25% selection fill. Address suggestions retain their
+providers, ranking, activation, and keyboard-only selection; Command-T keeps its
+hover selection, optional action labels, and scrolling. Signed platform commits
+`3379baa0` and `f0e2df52` follow the accepted header-scroll stack. Both architecture
+builds, native rendering checks, UI/settings/persistence smoke checks, and strict
+source replay pass (Intel under Rosetta). Live arm64 checks cover selection/wrapping, result replacement/empty
+results, navigation, dismissal, profile appearances, narrow/wide layout, and
+Command-T scrolling. The corrected Lune Suggestions Test preview uses the normal
+unpinned header setting. Owner visual and native Intel acceptance remain
+unverified. The candidate is not in the development lock or published builds.
+See [address suggestion selection](agent-docs/project/features/address-suggestion-selection.md).
+
 The accepted issue #16 implementation on `topic/header-scroll-through` forwards native
 wheel events over floating header controls and gaps to content under the pointer,
 including nested scrollers and either split pane. It preserves the original event
