@@ -3,8 +3,8 @@
 Development work for [issue #9](https://github.com/leebyron/lune-browser/issues/9),
 requested November 7, 2026. The current candidate is based on accepted
 `inputs/sidebar-pin-activation-2/macos`. The current local platform head is
-`18948c407919aefea136126891a0f7a3f9231546` (tree
-`b961b5e0c676286761dd6fff2126c3b9b9f9b3fa`). The owner accepted the preceding visuals
+`9b91701dcd4c3253b9555e4e7df6e2a6035f9021` (tree
+`beba2a85530ca7d0e6d85ddf25a79f390f97e7f2`). The owner accepted the preceding visuals
 on November 7, 2026. A subsequently reported Profile animation crash is fixed;
 this is not in published builds 1 or 2 and is not release-accepted.
 
@@ -26,7 +26,9 @@ and `ellipsis` for More. Active split orientation indicators retain their existi
 Browser-owned SF Symbols use 16 pt medium configuration across the native
 header, sidebar pin, trailing controls, command palette, and application menus,
 except Site Information and Reload/Stop, which now use 14 pt medium at the owner's
-request. Their 32 pt hit targets are unchanged.
+request. Their 32 pt hit targets are unchanged. Reload sits 2 pt from the
+trailing glass edge, reduced from 4 pt; its trailing anchor preserves this inset
+as the capsule resizes.
 The Customize close symbol also uses 16 pt medium because it is a header
 control. Tab and sidebar-footer close symbols use 11 pt medium weight. The owner
 requested a weight increase for close icons and then all header icons, explicitly
@@ -77,9 +79,12 @@ extensions as pins are added or reordered. Returning the controls to the ordinar
 toolbar restores its original margin defaults.
 
 An empty trailing group reports zero width and immediately hides its glass and
-child input window. A recursive visible-button check ignores empty containers
-whose padding or animation can otherwise reserve a sliver. Disabled buttons still
-count as items. The controls stay attached, so enabling an item restores the
+child input window. A recursive button check uses intended layout visibility, including actions
+temporarily hidden during animation or overflow, and ignores empty containers
+whose padding can otherwise reserve a sliver. Disabled buttons still count as
+items. Transferring controls preserves intended visibility rather than a prior
+overflow result. A single item uses a 36 pt circular glass surface and centers
+the actual button, including when a nested container has asymmetric margins. The controls stay attached, so enabling an item restores the
 group; the address layout also drops the inter-group gap while it is empty.
 
 A native vertical `NSBoxSeparator` separates Back and Forward inside their
@@ -134,6 +139,16 @@ spacing. Turning off Extensions and then Main Menu removes the trailing glass
 entirely. Re-enabling Main Menu restores the group, and its menu remains clickable
 after Extensions is restored too. Both preferences were returned to their original
 enabled values, leaving all other customization settings unchanged.
+
+A subsequent owner report exposed newly enabled Customize actions failing to
+appear. The previous empty-group check used painted visibility, and transfer
+could preserve an overflow-hidden container as explicitly hidden. Both now use
+layout visibility intent. Live arm64 checks confirm immediate Bookmarks and
+Downloads additions, repeated removal/re-addition of all ten enabled pinned
+actions, a circular single Customize control, complete removal when Customize
+closes with no remaining actions, and recovery on reopening Customize. A lone
+ellipsis is clickable in its 36 pt circular group. Original preference values
+and action order were restored after testing. The Reload trailing inset is 2 pt.
 
 The owner then supplied a crash report from that preview. Its framework UUID
 matches the arm64 debug symbols. Symbolication locates the fatal assertion in

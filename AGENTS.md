@@ -13,10 +13,12 @@ for floating action containers, and a window-local Customize reveal hold.
 Header SF Symbols, including Customize close, use 16 pt medium, with 14 pt site
 information/reload icons; tab and sidebar-footer close icons use 11 pt medium.
 The ellipsis target includes 1 pt extra padding on each side, and empty trailing
-groups hide both glass and the input window. Navigation, site info, reload, and
+groups hide both glass and the input window. Single-item groups are 36 pt circles
+with the button centered. Layout visibility intent keeps newly enabled Customize
+actions from staying hidden after animation or overflow. Navigation, site info, reload, and
 trailing icons fade their semantic hover color over 100 ms. The address glass
 caps at half the available header width, and the Extensions menu button has no
-layout gap before the first extension.
+layout gap before the first extension. Reload has a 2 pt trailing glass inset.
 The rebuilt arm64 preview retains a clickable ellipsis after opening Customize.
 The owner accepted the visuals on November 7, 2026, then supplied a Profile hover
 crash report. Its animation-callback routing fix passes both architecture builds,
