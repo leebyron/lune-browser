@@ -3,8 +3,8 @@
 Development work for [issue #9](https://github.com/leebyron/lune-browser/issues/9),
 requested November 7, 2026. The current candidate is based on accepted
 `inputs/sidebar-pin-activation-2/macos`. The current local platform head is
-`9b91701dcd4c3253b9555e4e7df6e2a6035f9021` (tree
-`beba2a85530ca7d0e6d85ddf25a79f390f97e7f2`). The owner accepted the preceding visuals
+`aa978f9830059a45a53893aea2c2bc0be3c8955d` (tree
+`33cc10a7250d165d63cf3f9318d6e32052c2dfc5`). The owner accepted the preceding visuals
 on November 7, 2026. A subsequently reported Profile animation crash is fixed;
 this is not in published builds 1 or 2 and is not release-accepted.
 
@@ -21,7 +21,8 @@ The owner's explicit symbol choices are `puzzlepiece.extension` for Extensions,
 `slider.horizontal.2.square` for Customize, `book` for Bookmarks, `airplay.video`
 for Cast, `person.crop.circle` for Profiles,
 `rectangle.and.text.magnifyingglass` for Search Tabs, `eye.slash` for Incognito,
-and `ellipsis` for More. Active split orientation indicators retain their existing distinct artwork.
+`memorychip` for Task Manager, `house` for Home, `plus` for New Tab,
+`globe` for internal/New Tab page tabs and missing favicons, and `ellipsis` for More. Active split orientation indicators retain their existing distinct artwork.
 
 Browser-owned SF Symbols use 16 pt medium configuration across the native
 header, sidebar pin, trailing controls, command palette, and application menus,
@@ -35,7 +36,7 @@ requested a weight increase for close icons and then all header icons, explicitl
 including navigation, site info, reload, the sidebar toggle, and the trailing group.
 The Profile control has a separate image path; while floating it uses the shared
 symbol/state-color renderer, retaining its menu behavior and status labels.
-Extension artwork and favicons retain their own appearance.
+Extension artwork and external-site favicons retain their own appearance.
 
 Apple's [SF Symbols guidance](https://developer.apple.com/design/human-interface-guidelines/sf-symbols)
 and [toolbar guidance](https://developer.apple.com/design/human-interface-guidelines/toolbars)
@@ -103,6 +104,28 @@ both reveal targets without changing pin preferences. Ordinary cursor behavior
 resumes when that entry is no longer visible. The inactive-window early hide
 path also respects this hold so Customize does not lose its header on focus loss.
 
+Customize Toolbar now uses the same SF Symbol mapping as the actual controls.
+Home leads the trailing pill when enabled. The existing Back/Forward toggles
+control the native navigation pill: both buttons retain the separator, one uses
+a centered 36 pt circle, and neither removes the pill. New Tab controls the
+sidebar row and its spacing. Collapse Tabs controls the native sidebar toggle.
+When it is off on the right sidebar, the empty header is replaced by a 10 pt
+top inset; the left sidebar retains its traffic-light space. The old Views pin
+stays hidden while the native sidebar toggle is in use, including preference
+callbacks. The Reload toggle controls the native address-capsule button and
+keeps the address text bounds unchanged when hidden, preserving both the
+centered display position and the leading editing inset.
+
+A second owner crash report, from dragging a pinned toolbar action, matches the
+previous preview's framework UUID. Symbolication reaches
+`ToolbarButton::UpdateIconsWithColors` from `SetIconVisibility(false)` during
+`PinnedToolbarActionsContainer::OnDragUpdated`. Chromium uses
+`VectorIcon::EmptyIcon()` for that placeholder; its name is null. Converting the
+name directly to `std::string_view` violated its non-null contract. The shared
+symbol entry points now accept nullable names and return an empty result for
+that placeholder, preserving Chromium's drag/reorder behavior. Native regression
+checks cover both entry points with null names.
+
 ## Validation and limits
 
 `scripts/check-native-toolbar.py` extracts production symbol/color code and
@@ -113,7 +136,7 @@ mid-transition reversal, and pressed/disabled precedence. Its stand-ins do not e
 masking, Views layout, or real browser input.
 
 The current arm64 and Intel browser builds pass, including the Profile animation
-fix and the latest sizing, hit-target, and empty-group refinements.
+fix, customization parity, and null drag-placeholder handling.
 The preceding headless smoke checks pass,
 including page loading, JavaScript, persisted profile data, defaults, and settings.
 Native Intel hardware validation is not implied.
@@ -164,16 +187,74 @@ Both architectures pass this regression check. In the rebuilt arm64 browser,
 pointer-driven Profile-menu opening and dismissal pass, and the browser remains
 responsive afterward. The owner reports being idle at the time of the original
 crash, consistent with its asynchronous animation-timer stack; no click is
-required for that callback. Owner retry after the crash fix remains pending,
-so issue #9 remains open.
+required for that callback. Subsequent owner acceptance of toolbar drag reordering is recorded below;
+issue #9 remains open while the broader toolbar refinements are reviewed.
 
 The no-op Sparkle readiness fixture was restored against matching debug symbols
 after rebuilding. It does not download or install an update.
 
-Strict replay passes with zero fuzz for 92 affected patches across 42 files.
+Strict replay passes with zero fuzz for 106 affected patches across 59 files.
 The platform patch linter passes.
 
 Local evidence and isolated previews are under `.work/trailing-toolbar/`.
 The preview includes the previously requested no-op Sparkle readiness fixture;
 it does not download or install an update. No issue closure or release is implied
 by these development checks.
+
+The customization/drag candidate at `a097ac04` passes both browser builds,
+both native symbol harness architectures (Intel under Rosetta), focused header
+dependency checks, and headless browser smoke checks on both architectures.
+Live arm64 inspection confirms matching Customize symbols, Home first in the
+trailing group, immediate New Tab row removal/restoration, single-button
+navigation, removal when both navigation toggles are off, and restoration of the
+pair. The right sidebar without a toggle removes its header, and a New Tab tab
+uses the SF globe. Initial pointer automation could not target the window;
+subsequent automated drag attempts left the order unchanged. The owner then
+confirmed successful reordering without a crash in the final preview. The null-placeholder regression checks
+pass. The owner then requested Reload visibility, fallback globe coverage,
+removal of the duplicate Views sidebar button, and an 8 pt empty-header inset;
+the `c568a31b` refinement builds pass on both architectures. Live arm64 checks
+confirm immediate Reload removal/restoration and exactly one native sidebar
+toggle when enabled, with none when disabled. Subsequent fallback-state and
+8 pt spacer corrections pass both browser builds. The later 10 pt inset and
+native navigation menu changes pass both browser builds.
+
+The owner also reported the footer moving above the tabs after switching to
+horizontal tabs and back. `RemoveTabStripView` previously appended its New Tab
+container after the footer. `AddTabStripView` uses that container's slot, so the
+next vertical strip landed below the footer. Detachment now restores the
+container at the outgoing tab strip's original index, preserving header, tabs,
+footer order across orientation changes. This is included in `c568a31b`.
+Live arm64 inspection confirms the footer stays at the bottom after a
+Vertical → Classic → Vertical round trip. The owner independently confirmed the
+footer remains at the bottom on November 7, 2026.
+
+Live inspection also exposed two details corrected in the preceding candidate.
+The default favicon model is an image generator with a cached callback identity;
+comparing it to a newly constructed default model never matched. `TabUIHelper`
+now identifies its own cached default model and carries that state through
+`TabData` to the SF renderer, preserving supplied and retained site favicons.
+The zero-height right header's margin was collapsed by layout, so that revision
+used an explicit 8 pt preferred height with no additional margin. Live arm64
+inspection confirms the no-favicon data page uses the SF globe and
+the right sidebar gains the visible 8 pt top inset. The sidebar was returned to
+its original left side after testing.
+
+The owner requested 10 pt instead of 8 pt for the empty right header, fixed
+address-text spacing when Reload is hidden, and native navigation context menus.
+The current candidate applies those refinements. Native right-click and
+Control-click route to the original Back/Forward and Reload ToolbarButtons via
+stable providers, including when those Views are reparented into a detached
+sidebar. A one-use screen anchor places each existing Chromium menu beneath its
+native glass button. Original history entries, commands, availability rules,
+and window-local menu reveal holds are retained. Chromium's advanced Reload
+menu remains available when DevTools is connected and the button is in Reload
+mode. Native event-routing checks pass on arm64 and Intel under Rosetta.
+Both browser builds and arm64 live menu inspection pass. Back and Forward menus list the
+expected history entries and selecting them navigates correctly. With DevTools
+open, Reload offers Normal Reload, Hard Reload, and Empty Cache and Hard Reload;
+Normal Reload dispatches successfully. Before/after screenshots of the short
+`helium://version` address confirm unchanged text position when Reload is hidden.
+The 10 pt right-header top inset is visible. Reload was restored, DevTools was
+closed, and the preview test page was restored. The no-op Sparkle fixture was
+restored against matching debug symbols.

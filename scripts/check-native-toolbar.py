@@ -19,7 +19,7 @@ end = source.index('    NSColor* color =', start)
 selector = 'NSColor* SelectColor(NativeGlassColorRole role) {\nNSColor* semantic=NSColor.labelColor;\n' + source[start:end] + 'return semantic;\n}\n'
 start = source.index('gfx::ImageSkia NativeToolbarSymbol(')
 end = source.index('\n}  // namespace helium', start)
-symbol = source[start:end]
+symbol = 'gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor);\n' + source[start:end]
 frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
 start = frame.index('@interface HeliumHeaderSymbolButton : NSButton')
 header_button = frame[start:frame.index('@interface HeliumGlassNavigation', start)]
@@ -97,6 +97,24 @@ int main() {
           accessibilityDescription:nil] target:nil action:nil];
   button.frame = NSMakeRect(0, 0, 32, 32);
   button.bordered = NO;
+  __block int contextMenus = 0;
+  button.onContextMenu = ^(NSView* sender) { ++contextMenus; };
+  NSEvent* rightClick = [NSEvent mouseEventWithType:NSEventTypeRightMouseDown
+      location:NSZeroPoint modifierFlags:0 timestamp:0 windowNumber:0
+      context:nil eventNumber:1 clickCount:1 pressure:1];
+  [button rightMouseDown:rightClick];
+  assert(contextMenus == 1);
+  button.enabled = NO;
+  [button rightMouseDown:rightClick];
+  assert(contextMenus == 1);
+  button.enabled = YES;
+  NSEvent* controlClick = [NSEvent mouseEventWithType:NSEventTypeLeftMouseDown
+      location:NSZeroPoint modifierFlags:NSEventModifierFlagControl
+      timestamp:0 windowNumber:0 context:nil eventNumber:1 clickCount:1 pressure:1];
+  [button mouseDown:controlClick];
+  assert(contextMenus == 2);
+  button.onContextMenu = nil;
+  puts("PASS: native right-click and Control-click routing honors enabled state");
   NSImage* surface = [[NSImage alloc] initWithSize:button.frame.size];
   auto draw = [&] {
     [surface lockFocus];
@@ -154,7 +172,9 @@ int main() {
                     "kTableChartIcon", "kLinkIcon", "kEditIcon", "kAccountBoxIcon",
                     "kQueueMusicIcon", "kAccountCircleIcon", "kManageSearchIcon",
                     "kTabSearchTabStripOldIcon", "kIncognitoIcon",
-                    "kIncognitoRefreshMenuOldIcon"}) {
+                    "kIncognitoRefreshMenuOldIcon", "kHomeIcon", "kAddIcon", "kGlobeIcon",
+                    "kArrowBackIcon", "kArrowForwardIcon", "kRefreshIcon",
+                    "kSidebarLeftIcon", "kSidebarRightIcon"}) {
    NSImage* image=NativeToolbarSymbol(&view,name,20,0);
    assert(image && NSEqualSizes(image.size,NSMakeSize(20,20)));
    for (int scale : {1, 2}) {
@@ -185,6 +205,8 @@ int main() {
     assert(count > 4 * scale * scale);
    }
   }
+  assert(!NativeToolbarSymbol(&view,nullptr,20,0));
+  assert(!NativeToolbarSymbolForIcon(nullptr,20,0));
   assert(!NativeToolbarSymbol(&view,"unrecognized-extension-artwork",20,0));
   assert(!NativeToolbarSymbol(&view,"kChromeExtensionOffIcon",20,0));
   view.floating=false;

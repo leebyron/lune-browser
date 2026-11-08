@@ -23,8 +23,19 @@ The rebuilt arm64 preview retains a clickable ellipsis after opening Customize.
 The owner accepted the visuals on November 7, 2026, then supplied a Profile hover
 crash report. Its animation-callback routing fix passes both architecture builds,
 callback regression checks, and an arm64 Profile-menu interaction check.
-The candidate is
-not yet in the development lock or a published build. See
+The next candidate shares those symbols with Customize Toolbar, adds Home first
+in the trailing pill, and honors Back/Forward, New Tab, and Collapse Tabs toggles.
+A right sidebar without its toggle replaces the empty header with a 10 pt top
+inset; the left retains traffic-light space. Reload visibility follows its toggle,
+missing favicons use SF globe, and the duplicate Views sidebar toggle is hidden.
+Orientation changes preserve the footer below the tab strip. Dragging a pinned
+action exposed a null empty-icon name; the shared renderer handles it safely.
+Both architecture builds and native regression checks pass. Live arm64 checks
+confirm toolbar toggles, fallback globe, the 10 pt top inset, stable address text
+when Reload is hidden, and Back/Forward/Reload context menus using the original
+Chromium controls. The owner confirmed the footer stays at the bottom and toolbar
+actions reorder without crashing on November 7, 2026. The candidate is not yet
+in the development lock or a published build. See
 [trailing toolbar controls](agent-docs/project/features/trailing-toolbar-controls.md).
 
 The development input `inputs/sidebar-pin-activation-2/macos` makes the sidebar
