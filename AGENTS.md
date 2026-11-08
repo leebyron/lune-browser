@@ -35,8 +35,11 @@ inspection confirms the reduced alpha on all five surfaces. The owner accepted
 with an explicit rounded outline that follows resizing and fades with the
 material. Native checks and browser builds pass on both architectures. Preview
 refresh after unlocking confirms visibly stronger shadows in Light mode; native
-inspection verifies the shadow settings and unchanged 7% tint. Owner acceptance
-of the refreshed strength is pending. The owner also reported tint disappearing
+inspection verifies the shadow settings and unchanged 7% tint. The owner found
+24% shadow opacity too strong; the next refinement reduces it to 16%, retaining
+its blur and offset. Native checks and browser builds pass on both architectures.
+The refreshed Light-mode preview verifies 16% shadows with unchanged 7% tint.
+Owner visual acceptance is pending. The owner also reported tint disappearing
 on focus loss. There is no activation-dependent tint clearing; native inactive
 rendering is the likely explanation, but automation has not produced a verified
 inactive transition. No
