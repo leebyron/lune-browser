@@ -25,17 +25,22 @@ created no popup window in `NSApp.windows`.
 AppKit uses an out-of-process menu. Read-only runtime inspection showed that its
 show path attaches an `NSThemeWidgetZoomMenuRemoteView` to the originating zoom
 button, calls the remote menu synchronously, and removes that child on return.
-The owner's open/dismiss cycle confirmed that exact attachment at 23:03:54 UTC
+The owner's initial open/dismiss cycle confirmed that exact attachment at 23:03:54 UTC
 and removal at 23:03:57 UTC on November 7. The host window stayed visible and had
 no child windows throughout.
 
-`HeliumFullscreenWindowControls::windowManagementMenuOpen` checks the existing
-zoom-button children for that runtime class. It does not invoke the private
-placeholder getter (which creates the child), modify AppKit's menu, swizzle
-classes, install event taps, or change the menu-hosting preference. The class
-name is an AppKit implementation detail: lookup is guarded, and future macOS
-changes require revalidation. There is no new polling timer; the existing reveal
-refresh queries the property.
+The subsequent menu-retention preview exposed a second AppKit lifecycle: a
+`NSThemeWidgetZoomMenuRemoteView` remained attached with `_runningMenu == false`
+after dismissal. The old presence check returned true indefinitely, freezing the
+detached sidebar even with no menu hold, no bubble, and no drag. The earlier
+attachment/removal observation was real but did not cover cached helpers.
+
+The follow-up `window-menu-running-state.patch` checks the existing helper's
+running flag. It resolves the ivar offset and checks its Boolean encoding at
+runtime; no offset is hard-coded. Missing classes, missing ivars, or changed types
+fall back to no remote-menu retention. This remains a private AppKit dependency
+that needs revalidation with macOS changes. It neither creates the helper nor
+modifies AppKit state, and uses the existing refresh timer.
 
 For AppKit's in-process menu path, the controls also observe native menu tracking
 notifications and match the menu delegate to their own zoom-button cell. The
@@ -73,3 +78,23 @@ attached to the probe.
 
 The accepted preview is `.work/window-menu/Lune Window Menu.app`, using a copy
 of the accepted sidebar-footer profile under `.work/window-menu/preview/`.
+
+## Cached-helper regression follow-up
+
+The fix is carried by `inputs/menu-retention-2/macos`
+(`10fea4d3026ef108847e58b0556c9688bfcdf3d3`), following the general menu-lifetime
+work in [menu reveal retention](menu-reveal-retention.md). The previous input and
+acceptance record above remain historical; presence alone is no longer the test.
+
+The repeatable native regression check is:
+
+```sh
+python3 scripts/check-native-window-menu.py .work/chromium-158/macos/build/src
+```
+
+It compiles the production controls with minimal browser dependencies stubbed,
+then checks independent menu owners and unrelated notifications, idle attached
+helpers, running/closed/running transitions without detachment, and teardown.
+The helper flag changes are confined to a newly allocated test fixture, without
+starting a menu service. Runtime/build follow-up is recorded in the menu-reveal
+feature evidence.

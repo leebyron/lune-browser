@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "cc25e64b6fa85516ce9265f689ee29520f28654c",
+    "commit": "10fea4d3026ef108847e58b0556c9688bfcdf3d3",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -409,6 +409,10 @@
       {
         "path": "patches/helium/ui/menu-reveal-retention.patch",
         "sha256": "777ae1c85b5a7d7348c03e960a07ab9ffe9d685c8dd4cba311cb6e0f7f09411a"
+      },
+      {
+        "path": "patches/helium/ui/window-menu-running-state.patch",
+        "sha256": "45be8ef407aec77eebccd4649d4e410c9ce273b3523e9bcb4d490300ab12169c"
       }
     ]
   },
@@ -664,11 +668,12 @@
         "patches/helium/ui/renderer-tracking-cursor-ownership.patch",
         "patches/helium/ui/synchronous-native-window-resize.patch",
         "patches/helium/ui/floating-toolbar-content-opacity.patch",
-        "patches/helium/ui/window-menu-chrome-retention.patch"
+        "patches/helium/ui/window-menu-chrome-retention.patch",
+        "patches/helium/ui/window-menu-running-state.patch"
       ],
       "review_status": "reviewed-port",
       "rationale": "Use public AppKit glass for an editable omnibox and native navigation, retaining Chromium extension/menu controls in a child widget. Honor profile appearance with OS fallback, standard traffic-light spacing, 48 pt hover retention, native dragging and sidebar menus. The current macOS frame uses a 16 pt perimeter, edge-to-edge content, a flush square full-width glass sidebar, a pinned semantic separator, and a 52 pt header with 36 pt controls and 8 pt outer insets. Reveal uses 8 pt windowed bands and 4 top/1 side physical pixels fullscreen. Both sidebar modes follow the fullscreen menu bar. Native hit routing preserves window resizing; live resize retains existing header/sidebar presentation. Shut down autocomplete before profile teardown. Use the existing synchronous Chromium resize path and remove unsuccessful custom cursor tracking and sidebar-coordinate workarounds; cursor flicker remains unresolved and is deferred in GitHub issue #5. Fade trailing toolbar contents instead of NSWindow alpha, which Chromium owns for compositor visibility. Keep the sidebar toggle within its sidebar and preserve tab interactions, inner-edge resizing, theme semantics and customization panel input exclusions. Retain already revealed chrome for the native green-button menu using its owning button remote-view lifecycle and in-process menu tracking fallback.",
-      "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits."
+      "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits. Native window-menu retention checks the remote helper running flag because AppKit can cache an idle attached helper."
     },
     {
       "id": "frame-thickness-label",

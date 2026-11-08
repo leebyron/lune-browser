@@ -7,12 +7,16 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-The development input `inputs/menu-retention-1/macos` adds window-local lifetime
+The development input `inputs/menu-retention-2/macos` adds window-local lifetime
 holds for sidebar and header menus, including the default-browser footer menu.
-It bridges transient tab expansion locks, preserves the native green-button fix,
-and resumes cursor retention after the final menu closes. Both architecture
-builds and smoke checks pass (Intel via Rosetta). Native arm64 checks confirm
-footer and nested tab-menu holds acquire and release; physical pointer hover
+It bridges transient tab expansion locks, refines the native green-button guard,
+and resumes cursor retention after the final menu closes. Input 2 fixes a stuck
+detached sidebar caused by AppKit retaining an idle remote-menu helper: retention
+now checks its running flag rather than its presence. Both architecture builds
+and native regression checks pass (Intel via Rosetta), including idle attached
+menu helpers. Arm64 smoke checks pass; the input-2 Intel browser smoke run was
+interrupted to reopen the owner test preview. Arm64 checks confirm footer and nested tab-menu holds acquire and
+release; physical pointer hover
 acceptance remains pending. The preview includes a no-op Sparkle update fixture. See
 [menu reveal retention](agent-docs/project/features/menu-reveal-retention.md).
 This is not in published builds 1 or 2 and is not release-accepted.

@@ -35,12 +35,13 @@ safely destroy its presenter or window.
 ## Input and validation
 
 - Base: `inputs/window-menu-2/macos`.
-- Input: `inputs/menu-retention-1/macos`, commit
-  `cc25e64b6fa85516ce9265f689ee29520f28654c`.
-- Patch: `patches/helium/ui/menu-reveal-retention.patch`.
+- Input: `inputs/menu-retention-2/macos`, commit
+  `10fea4d3026ef108847e58b0556c9688bfcdf3d3` (supersedes input 1).
+- Patches: `patches/helium/ui/menu-reveal-retention.patch` and
+  `patches/helium/ui/window-menu-running-state.patch`.
 - Development only; not in published builds 1 or 2 and not release-accepted.
 
-Strict no-fuzz replay passes through 61 relevant patches across all 23 affected
+Strict no-fuzz replay passes through 62 relevant patches across all 24 affected
 files and reproduces the prepared source exactly. The patch includes direct
 `browser_view_header` dependencies for the legacy New Tab button and extension
 context-menu targets. All eight affected GN dependency checks, inherited patch
@@ -48,20 +49,33 @@ and translation lint, lock validation, and all 44 repository tests pass. Evidenc
 is recorded under `.work/menu-retention/`.
 
 Arm64 and Intel builds and headless smoke/default/settings/artwork checks pass;
-Intel ran under Rosetta. Native arm64 checks verify the footer context menu opens
+Intel ran under Rosetta. Input-1 native arm64 checks verify the footer context menu opens
 from a detached sidebar and retains one hold until outside-click cancellation.
 Read-only inspection of the real browser counter records `0 → 1 → 0`. A tab
 context menu acquires two overlapping holds (its presenter and expansion lock);
 selecting Close Other Tabs releases both, returning `2 → 0`. The log is
 `preview/menu-hold-lifecycle.log`; no debugger remains attached.
 
-The native menu stayed open with its sidebar while synthetic scrolling targeted
-the portion beyond the normal 48 pt retention distance. However, automation's
-synthetic pointer does not reliably drive macOS global-pointer hover behavior,
-so physical pointer exit/resume acceptance remains pending. This is not a claim
-of a complete left/right, fullscreen, multi-window or teardown matrix. Native
-Intel hardware acceptance remains separate from Rosetta checks. The glass
-contrast and trailing button styling issues remain in issues #7 and #9.
+The owner then reported that the detached sidebar would not dismiss at all.
+Read-only inspection confirmed the menu hold was zero, no sidebar bubble or drag
+was active, and the real pointer was outside the browser. The separate native
+green-button guard still returned true: AppKit had retained an idle remote helper
+with `_runningMenu == false`. The earlier failure to dismiss was therefore a
+real regression, not merely an automation limitation.
+
+Input 2 replaces that helper-presence check with a runtime-resolved Boolean
+running-state check. The native regression test passes idle cached helpers,
+open/closed/reopened transitions without detachment, independent owners, and
+notification cleanup. See [native window-menu retention](window-menu-retention.md)
+for the compatibility boundary and repeatable test command.
+
+Input-2 arm64 and Intel builds pass, as do native regression tests on both
+architectures (Intel via Rosetta). Arm64 headless smoke/default/settings/artwork
+and persistence checks pass. The new unpinned arm64 preview starts with its sidebar
+hidden. The Intel browser smoke run was interrupted at the owner's request to
+reopen the preview immediately; it is not recorded as passed for input 2.
+Physical pointer acceptance and native Intel hardware acceptance remain pending. The glass contrast and trailing button
+styling issues remain in issues #7 and #9.
 
 ## Preview update fixture
 
@@ -77,5 +91,6 @@ The two footer rows render together. The update row survives dismissal of the
 default-browser prompt, and its click clears the fixture without restarting the
 process. Both prompts were restored afterward. The current preview is
 `.work/menu-retention/Lune Menu Retention.app`, using the isolated profile under
-`.work/menu-retention/preview/`; it is left pinned on the left with a simulated
-update ready. Unpin it to check physical pointer retention across the menu.
+`.work/menu-retention/preview/`; it is left unpinned on the left with a simulated
+update ready. Reveal it at the left edge to check physical pointer retention
+across the menu.
