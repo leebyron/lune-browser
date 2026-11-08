@@ -123,17 +123,23 @@ changes, reveal interruption, and absence of an added sidebar shadow on arm64
 and x86_64 under Rosetta. Full browser builds pass on both architectures, along
 with strict replay, patch lint, root validation, and changed documentation links.
 The prior tint settings smoke matrix was not repeated for the shadow-only change.
-The stronger-shadow binaries are built but the running preview still contains
-the accepted 7% tint candidate without these shadows. Refreshing and visually
-checking that preview awaits the Mac unlock; shadow visual acceptance is pending.
+After the owner unlocked the Mac, the preview was refreshed to the stronger-shadow
+build. Live arm64 inspection confirms visibly stronger shadows over a white page
+in Light mode, including navigation, address, trailing controls, and Customize
+close. Native properties confirm 24% black, 8 pt blur, and a 3 pt downward offset;
+the sidebar has no added shadow and all five tint values remain at 7%. The preview
+is left in Light mode with the owner's Citron theme and Customize open. Owner
+acceptance of this refreshed shadow strength is pending; the preceding report of
+faint shadows was made against the older preview.
 
 The tint code has no activation-dependent clearing or alternate color. Live
 inspection confirmed the selected Green midpoint remains assigned at 7% while
 the preview is active. The attempted deactivation did not change the app's active
-flag, so it is not evidence of an active/inactive comparison. The Mac then locked,
-blocking further visual inspection. Native inactive rendering is the likely
-explanation for the owner's observation, but the exact transition remains to be
-verified. The public macOS 27.2 SDK exposes no activity-state override on
+flag, so it is not evidence of an active/inactive comparison. The Mac then locked. After unlocking, attempts to move focus through Finder's
+window and app menu still left NSApp.active and the browser key-window flag true
+in native inspection. These automation actions therefore do not verify a genuine
+inactive transition. Native inactive rendering remains the likely explanation
+for the owner's observation, but that transition is not yet verified. The public macOS 27.2 SDK exposes no activity-state override on
 [`NSGlassEffectView`](https://developer.apple.com/documentation/appkit/nsglasseffectview).
 No workaround or inactive tint override was implemented.
 
