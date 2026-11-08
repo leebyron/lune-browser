@@ -1,0 +1,41 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -33,7 +33,6 @@
+ #include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+-#include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/cocoa/fullscreen/fullscreen_menubar_tracker.h"
+ #include "chrome/browser/ui/cocoa/fullscreen/fullscreen_toolbar_controller.h"
+ #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+@@ -97,6 +96,7 @@
+ #include "ui/base/metadata/metadata_utils.h"
+ #include "ui/base/page_transition_types.h"
+ #include "ui/base/theme_provider.h"
++#include "ui/color/color_id.h"
+ #include "ui/color/color_provider.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/gfx/canvas.h"
+@@ -155,7 +155,7 @@ int FloatingNavigationWidth(BrowserView*
+                static_cast<int>(prefs->GetBoolean(prefs::kShowForwardButton)));
+ }
+ 
+-// Read the owning browser's resolved toolbar color, so selected accents,
++// Read the owning browser's resolved accent color, so selected accents,
+ // extension themes, incognito, and Light/Dark/Device retain their precedence.
+ // AppKit applies the tint; this adds no overlays or backdrop sampling.
+ NSColor* FloatingChromeTintColor(BrowserView* view) {
+@@ -165,11 +165,11 @@ NSColor* FloatingChromeTintColor(Browser
+   if (!colors) {
+     return nil;
+   }
+-  const SkColor color = colors->GetColor(kColorToolbar);
++  const SkColor color = colors->GetColor(ui::kColorSysPrimary);
+   return [NSColor colorWithSRGBRed:SkColorGetR(color) / 255.0
+                             green:SkColorGetG(color) / 255.0
+                              blue:SkColorGetB(color) / 255.0
+-                            alpha:.12];
++                            alpha:.30];
+ }
+ 
+ NSAppearance* FloatingChromeAppearance(BrowserView* view) {
