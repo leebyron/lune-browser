@@ -21,14 +21,17 @@ small toolbar glass. This remains a known limitation. Both browser builds, nativ
 regressions, strict patch replay, and UI/settings/persistence smoke checks pass,
 including default-on and saved-off behavior (Intel under Rosetta). The candidate
 is not in the development lock or
-published builds. A follow-up adds 30% native `tintColor` from the selected
-browser theme's accent color to the header and floating sidebar. It follows
-Light/Dark/Device and custom color choices, with no capture or added timers.
-Native tint/editor and startup-provider regression checks, full builds, and
-UI/settings/appearance/persistence smoke checks pass on both architectures.
-Live arm64 inspection confirms 30% tint on header and floating sidebar glass;
-header tint is visibly stronger, while the large sidebar remains subtler.
-Owner acceptance of tint strength is pending.
+published builds. A follow-up adds native `tintColor` from the selected browser
+theme to header and floating sidebar glass. The owner found the initial 12%
+surface tint too faint and the subsequent 30% accent tint too intense. The current
+candidate uses the HSL midpoint of the theme's light/dark accents at 7%, keeping
+tint identical across schemes while AppKit supplies the material tone. Native
+checks pass on both architectures, including midpoint edge cases and scheme
+independence. Both browser builds and smoke checks pass at 10%; live inspection
+confirms identical tint on all five glass surfaces across Light/Dark. The owner
+then requested 7%; both browser builds and native checks pass, and live arm64
+inspection confirms the reduced alpha on all five surfaces. Visual acceptance
+of 7% is pending.
 See
 [native chrome appearance](agent-docs/project/features/chrome-appearance.md).
 

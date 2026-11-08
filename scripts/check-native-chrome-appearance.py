@@ -18,7 +18,7 @@ frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm'
 start = frame.index('@interface HeliumChromeHitRegion')
 end = frame.index('// An overlay hairline', start)
 surface = frame[start:end]
-tint = frame[frame.index('NSColor* FloatingChromeTintColor('):frame.index('NSAppearance* FloatingChromeAppearance(')]
+tint = frame[frame.index('SkColor GlassTintMidpoint('):frame.index('NSAppearance* FloatingChromeAppearance(')]
 command = (args.source / 'chrome/browser/ui/helium/helium_command_bar_view_mac.mm').read_text()
 start = command.index('  NSAppearance* appearance =')
 end = command.index('\n}', start)
@@ -41,20 +41,56 @@ NSView* MakeCommandMaterial(NSView* pane, bool dark, bool content_aware) {
   CommandNative* native_ = &native;
 '''
 tint_prefix = r'''
+#include <algorithm>
+#include <cmath>
+#include <numeric>
 using SkColor = uint32_t;
-namespace ui { constexpr int kColorSysPrimary = 1; }
+using SkAlpha = uint8_t;
 int SkColorGetR(SkColor c) { return (c >> 16) & 255; }
 int SkColorGetG(SkColor c) { return (c >> 8) & 255; }
 int SkColorGetB(SkColor c) { return c & 255; }
+SkColor SkColorSetARGB(unsigned a, unsigned r, unsigned g, unsigned b) {
+  return (a << 24) | (r << 16) | (g << 8) | b;
+}
+namespace base {
+template<class T = int> T ClampRound(float v) { return static_cast<T>(std::round(v)); }
+}
+namespace ui {
+constexpr int kColorSysPrimary = 1;
+struct ColorProviderKey {
+  enum class ColorMode { kLight, kDark };
+  ColorMode color_mode = ColorMode::kLight;
+  bool custom_theme = false;
+};
 struct TestColorProvider {
   SkColor accent;
-  SkColor GetColor(int id) const { assert(id == ui::kColorSysPrimary); return accent; }
+  SkColor GetColor(int id) const { assert(id == kColorSysPrimary); return accent; }
+};
+struct ColorProviderManager {
+  TestColorProvider light{0xff276c69}, dark{0xff00d5c6}, custom{0xff123456};
+  static ColorProviderManager& Get() { static ColorProviderManager manager; return manager; }
+  TestColorProvider* GetColorProviderFor(ColorProviderKey key) {
+    if (key.custom_theme) return &custom;
+    return key.color_mode == ColorProviderKey::ColorMode::kLight ? &light : &dark;
+  }
+};
+}
+struct TestWidget {
+  ui::ColorProviderKey key;
+  ui::ColorProviderKey GetColorProviderKey() const { return key; }
 };
 struct BrowserView {
-  TestColorProvider* colors = nullptr;
-  const TestColorProvider* GetColorProvider() const { return colors; }
+  ui::TestColorProvider* colors = nullptr;
+  TestWidget widget;
+  const ui::TestColorProvider* GetColorProvider() const { return colors; }
+  TestWidget* browser_widget() { return &widget; }
 };
 '''
+# Compile Chromium's actual HSL conversion routines as well as the tint helper.
+color_utils = (args.source / 'ui/gfx/color_utils.cc').read_text()
+hue = color_utils[color_utils.index('int calcHue('):color_utils.index('// Assumes sRGB.')]
+hsl = color_utils[color_utils.index('void SkColorToHSL('):color_utils.index('bool IsWithinHSLRange(')]
+tint_prefix += '\nnamespace color_utils { struct HSL { double h, s, l; };\n' + hue + hsl + '}\n'
 bridge_prefix = r'''
 char kGlassControlAppearanceKey;
 namespace views {
@@ -101,18 +137,29 @@ int main() {
   // missing provider. Later calls use the owning browser's resolved palette.
   BrowserView browser;
   assert(FloatingChromeTintColor(&browser) == nil);
-  TestColorProvider colors{0xff276c69};
+  ui::TestColorProvider colors{0xff276c69};
   browser.colors = &colors;
   NSColor* light_tint = FloatingChromeTintColor(&browser);
-  assert(fabs(light_tint.redComponent - 39.0/255) < .0001);
-  assert(fabs(light_tint.greenComponent - 108.0/255) < .0001);
-  assert(fabs(light_tint.blueComponent - 105.0/255) < .0001);
-  assert(fabs(light_tint.alphaComponent - .30) < .0001);
-  colors.accent = 0xff123456;
+  assert(fabs(light_tint.alphaComponent - .07) < .0001);
+  browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
+  assert([FloatingChromeTintColor(&browser) isEqual:light_tint]);
+  browser.widget.key.custom_theme = true;
   NSColor* custom_tint = FloatingChromeTintColor(&browser);
+  assert(![custom_tint isEqual:light_tint]);
   assert(fabs(custom_tint.redComponent - 18.0/255) < .0001);
   assert(fabs(custom_tint.greenComponent - 52.0/255) < .0001);
   assert(fabs(custom_tint.blueComponent - 86.0/255) < .0001);
+  browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kLight;
+  assert([FloatingChromeTintColor(&browser) isEqual:custom_tint]);
+  // Equal endpoints stay unchanged; grays remain neutral; a hue crossing zero
+  // stays red instead of taking the long arc through cyan.
+  assert(GlassTintMidpoint(0xff123456, 0xff123456) == 0xff123456);
+  assert(GlassTintMidpoint(0xff000000, 0xffffffff) == 0xff808080);
+  assert(GlassTintMidpoint(0xffff0033, 0xffff3300) == 0xffff0000);
+  color_utils::HSL midpoint;
+  color_utils::SkColorToHSL(GlassTintMidpoint(0xff808080, 0xff0000ff), &midpoint);
+  assert(fabs(midpoint.h - 2.0/3) < .01);
+  assert(fabs(midpoint.s - .5) < .01);
   browser.colors = nullptr;
   assert(FloatingChromeTintColor(&browser) == nil);
   NSWindow* window = [[NSWindow alloc]
@@ -158,7 +205,7 @@ int main() {
     // Theme changes must preserve the same live material, editor and selection,
     // including while switching fixed/adaptive mode.
     NSColor* tint = [(i % 2 ? NSColor.systemBlueColor : NSColor.systemGreenColor)
-        colorWithAlphaComponent:.30];
+        colorWithAlphaComponent:.07];
     surface.themeTintColor = tint;
     surface.contentAware = i % 2 == 0;
     assert([((NSGlassEffectView*)surface.effect).tintColor isEqual:tint]);

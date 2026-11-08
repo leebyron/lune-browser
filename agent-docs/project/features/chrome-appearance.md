@@ -5,7 +5,7 @@ the accepted media-toolbar platform head
 `41312cdfc8fa0ec20a49396fb3355c9a01024a8c`. The local candidate is on
 `stable-chrome-appearance`, imported as `topic/stable-chrome-appearance`.
 The current signed platform head is
-`56c7ea7b8df9cbd8b975b38dba09099b034ba641`. It is not in the development lock or
+`a6a502098c297ed8672cbaca42b4688430f232f2`. It is not in the development lock or
 published builds.
 
 ## Reproduction
@@ -67,11 +67,14 @@ The persistent glass revision removes both the substitution and reparenting.
 
 At the owner's request, the floating sidebar, address, navigation, trailing
 controls, and Customize close glass use AppKit's public `tintColor` property.
-The tint is the owning browser's resolved `ui::kColorSysPrimary` accent with 30% alpha.
-It follows selected theme colors and Light/Dark/Device through Chromium's color
-provider, including custom-theme and incognito precedence; no palette values
-are duplicated in the reusable feature. Tint follows the selected browser
-scheme; native foreground controls continue to follow the actual glass material.
+The tint uses the HSL midpoint of the owning browser theme's light and dark
+`ui::kColorSysPrimary` accents at 7% alpha. Hue follows the shorter circular
+arc; achromatic endpoints retain the chromatic endpoint's hue. Both variants
+come from cached Chromium color providers using the same owning browser key,
+changing only the scheme. Custom themes, user colors, and incognito palette
+settings remain in that key. No palette values are duplicated in the feature.
+The tint is identical in Light/Dark/Device; AppKit supplies the material tone,
+and foreground controls continue to follow the actual glass appearance.
 
 Existing surfaces update immediately on theme changes, even with the header
 hidden. New surfaces receive the same tint when created. Unchanged colors do not
@@ -81,26 +84,37 @@ reveal behavior remain intact. Earlier macOS visual-effect fallback and Command-
 are unchanged. A startup smoke run caught an early theme notification before
 BrowserView widget attachment; tint lookup now tolerates the absent provider and
 applies during surface setup. The native harness covers this initialization
-case as well as theme tint changes with a live editor. Both architecture builds, native checks, and browser smoke checks pass.
-Live arm64 inspection confirms the selected Blue/Light accent reaches all five
-visible glass surfaces at 30% alpha, including the floating sidebar. The header
-tint is visibly stronger; the large sidebar renders it more subtly. Owner
-acceptance of tint strength remains pending.
+case as well as theme tint changes with a live editor. The balanced tint passes
+native checks on both architectures, including scheme
+independence, custom-theme changes, hue wraparound, and achromatic endpoints.
+The midpoint implementation passed full builds and browser smoke checks on both
+architectures at 10%. Live inspection confirmed all five glass surfaces retained
+identical sRGB tint components across Light/Dark with the selected Green theme,
+while foregrounds continued to follow the native material. The final 7% strength
+refinement passes both browser builds and native checks. Live arm64 inspection
+confirms 7% alpha on all five surfaces with the same midpoint color. The full
+settings smoke matrix was not repeated for the alpha-only refinement.
 
 The first tint candidate used the near-neutral toolbar surface at 12% alpha.
 Native inspection confirmed it reached every target surface, but the owner
 reported that the sidebar change was imperceptible and header tint too faint.
-The current candidate uses the stronger theme accent at 30% alpha; visual
-acceptance remains pending.
+The next candidate used the selected scheme's accent at 30% alpha. Both builds
+and smoke checks passed, and live inspection confirmed tint on every surface.
+The owner found it too intense and requested one shared tint across schemes,
+using their HSL midpoint at one third of the strength. The current candidate
+implemented that refinement. After reviewing the 10% preview, the owner asked
+for 7%; the midpoint computation remains unchanged. Visual acceptance of 7%
+is pending.
 
 ## Validation
 
-The final native-only head passes full arm64 and x86_64 browser builds.
-Both architectures pass UI/settings/persistence checks, including a fresh-profile
-Content aware value of true and an explicit saved false after restart. Intel
-checks run under Rosetta, not native Intel hardware.
+The final 7% midpoint candidate passes full arm64 and x86_64 browser builds and
+native regression checks. The same implementation at 10% passed both
+architectures' UI/settings/appearance/persistence smoke checks, including a
+fresh-profile Content aware value of true and an explicit saved false after
+restart. Intel checks run under Rosetta, not native Intel hardware.
 
-Strict replay passes across 143 relevant patches and 16 changed source files,
+Strict replay passes across 145 relevant patches and 17 changed source files,
 including the production GRIT-aware name transform. Patch lint, root validation,
 and GN header dependency checks pass. The repository's 44 unit tests pass. The focused native harness covers the
 material implementations and appearance bridge.
