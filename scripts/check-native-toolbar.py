@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the floating toolbar's AppKit symbol and semantic-color contracts."""
+"""Check native toolbar symbols, semantic colors, and press-menu routing."""
 import argparse
 from pathlib import Path
 import subprocess
@@ -23,6 +23,12 @@ symbol = 'gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor);\
 frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
 start = frame.index('@interface HeliumHeaderSymbolButton : NSButton')
 header_button = frame[start:frame.index('@interface HeliumGlassNavigation', start)]
+start = frame.index('  NSRect address_frame = _addressContainer.frame;')
+end = frame.index('  self.appearance = FloatingChromeAppearance', start)
+address_layout = (
+    'void ApplyAddressLayout(NSView* _controls, NSView* _addressContainer, '
+    'NSTextField* _address, bool show_reload, bool editing) {\n' +
+    frame[start:end].replace('[self isEditing]', 'editing') + '}\n')
 avatar_source = (args.source / 'chrome/browser/ui/views/profiles/avatar_toolbar_button.cc').read_text()
 start = avatar_source.index('void AvatarToolbarButton::AnimationProgressed(')
 avatar_callbacks = avatar_source[start:avatar_source.index('\nstd::optional<SkColor>', start)]
@@ -46,6 +52,15 @@ struct ImageSkiaOperations {
  static NSImage* CreateColorMask(NSImage* image, SkColor) { return image; }
 };
 }
+'''
+press_fixture = r'''
+@interface ToolbarClickTarget : NSObject
+@property(nonatomic) NSInteger clicks;
+- (void)clicked:(id)sender;
+@end
+@implementation ToolbarClickTarget
+- (void)clicked:(id)sender { ++_clicks; }
+@end
 '''
 avatar_fixture = r'''
 namespace gfx {
@@ -92,6 +107,26 @@ int main() {
   puts("PASS: production Profile callbacks separate hover and identity-pill animations");
   setbuf(stdout, nullptr);
   [NSApplication sharedApplication];
+  NSView* controls = [[NSView alloc] initWithFrame:NSMakeRect(0,0,480,36)];
+  NSView* container = [[NSView alloc] initWithFrame:NSMakeRect(40,8,400,20)];
+  NSTextField* address = [[NSTextField alloc] initWithFrame:container.bounds];
+  address.font = [NSFont systemFontOfSize:13];
+  address.stringValue = @"example.com";
+  ApplyAddressLayout(controls, container, address, true, false);
+  assert(NSWidth(container.frame) == 400 && NSWidth(address.frame) == 400);
+  ApplyAddressLayout(controls, container, address, false, false);
+  assert(NSMinX(container.frame) == 40 && NSWidth(container.frame) == 432);
+  assert(NSWidth(address.frame) == 400);
+  address.stringValue = [@"long-address-segment/" stringByPaddingToLength:200
+      withString:@"long-address-segment/" startingAtIndex:0];
+  ApplyAddressLayout(controls, container, address, false, false);
+  assert(NSWidth(address.frame) == 432);
+  address.stringValue = @"example.com";
+  ApplyAddressLayout(controls, container, address, false, true);
+  assert(NSMinX(container.frame) == 40 && NSWidth(address.frame) == 432);
+  ApplyAddressLayout(controls, container, address, true, true);
+  assert(NSWidth(container.frame) == 400 && NSWidth(address.frame) == 400);
+  puts("PASS: Reload space reclaimed for long addresses/editing; short center and leading inset stable");
   HeliumHeaderSymbolButton* button = [HeliumHeaderSymbolButton
       buttonWithImage:[NSImage imageWithSystemSymbolName:@"arrow.clockwise"
           accessibilityDescription:nil] target:nil action:nil];
@@ -113,8 +148,66 @@ int main() {
       timestamp:0 windowNumber:0 context:nil eventNumber:1 clickCount:1 pressure:1];
   [button mouseDown:controlClick];
   assert(contextMenus == 2);
-  button.onContextMenu = nil;
   puts("PASS: native right-click and Control-click routing honors enabled state");
+  // Exercise AppKit's actual recognizer and NSButton event delivery.
+  // Requires access to the logged-in macOS window server.
+  NSWindow* window = [[NSWindow alloc] initWithContentRect:NSMakeRect(80,80,80,80)
+      styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered defer:NO];
+  window.releasedWhenClosed = NO;
+  [window.contentView addSubview:button];
+  [window orderFront:nil];
+  ToolbarClickTarget* clicks = [[ToolbarClickTarget alloc] init];
+  button.target = clicks;
+  button.action = @selector(clicked:);
+  auto send = [&](NSEventType type, NSPoint point, NSEventModifierFlags flags) {
+    [NSApp postEvent:[NSEvent mouseEventWithType:type location:point
+        modifierFlags:flags timestamp:NSProcessInfo.processInfo.systemUptime
+        windowNumber:window.windowNumber context:nil eventNumber:1
+        clickCount:1 pressure:type == NSEventTypeLeftMouseUp ? 0 : 1] atStart:NO];
+  };
+  auto press = [&](double duration, bool dragOut, bool disable, bool detach) {
+    [NSRunLoop.mainRunLoop addTimer:[NSTimer timerWithTimeInterval:duration repeats:NO block:^(NSTimer*) {
+      send(NSEventTypeLeftMouseUp, dragOut ? NSMakePoint(60,60) : NSMakePoint(16,16), 0);
+    }] forMode:NSRunLoopCommonModes];
+    if (dragOut || disable || detach) {
+      [NSRunLoop.mainRunLoop addTimer:[NSTimer timerWithTimeInterval:.05 repeats:NO block:^(NSTimer*) {
+        if (dragOut) send(NSEventTypeLeftMouseDragged, NSMakePoint(60,60), 0);
+        if (disable) button.enabled = NO;
+        if (detach) [button removeFromSuperview];
+      }] forMode:NSRunLoopCommonModes];
+    }
+    send(NSEventTypeLeftMouseDown, NSMakePoint(16,16), 0);
+    NSDate* end = [NSDate dateWithTimeIntervalSinceNow:duration+.15];
+    while (end.timeIntervalSinceNow > 0) {
+      NSEvent* event = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:end
+          inMode:NSDefaultRunLoopMode dequeue:YES];
+      if (event) [NSApp sendEvent:event];
+    }
+    printf("press %.2f drag=%d disable=%d detach=%d clicks=%ld\n",
+        duration, dragOut, disable, detach, (long)clicks.clicks);
+  };
+  press(.05, false, false, false);
+  assert(clicks.clicks == 1 && contextMenus == 2);
+  press(.7, false, false, false);
+  assert(clicks.clicks == 1 && contextMenus == 3);
+  press(.7, true, false, false);
+  assert(clicks.clicks == 1 && contextMenus == 3);
+  press(.7, false, true, false);
+  assert(clicks.clicks == 1 && contextMenus == 3);
+  button.enabled = YES;
+  press(.7, false, false, true);
+  assert(clicks.clicks == 1 && contextMenus == 3);
+  [window.contentView addSubview:button];
+  press(.05, false, false, false);
+  assert(clicks.clicks == 2 && contextMenus == 3);
+  button.canShowContextMenu = ^BOOL(NSView*) { return NO; };
+  press(.7, false, false, false);
+  assert(clicks.clicks == 3 && contextMenus == 3);
+  button.canShowContextMenu = nil;
+  [button removeFromSuperview];
+  [window close];
+  button.onContextMenu = nil;
+  puts("PASS: short click, held menu without click, drag-out, disable, detach, reuse, and unavailable-menu click fallback");
   NSImage* surface = [[NSImage alloc] initWithSize:button.frame.size];
   auto draw = [&] {
     [surface lockFocus];
@@ -234,10 +327,10 @@ int main() {
 '''
 with tempfile.TemporaryDirectory(prefix='lune-toolbar-') as directory:
     path = Path(directory) / 'test.mm'
-    path.write_text(prefix + enum + selector + symbol + header_button +
-                    avatar_fixture + avatar_callbacks + tests)
+    path.write_text(prefix + enum + selector + symbol + header_button + address_layout +
+                    press_fixture + avatar_fixture + avatar_callbacks + tests)
     binary = path.with_suffix('')
     subprocess.run(['xcrun', 'clang++', *(['-arch', args.arch] if args.arch else []),
                     '-std=c++20', '-fobjc-arc', '-framework', 'AppKit', str(path),
                     '-o', str(binary)], check=True)
-    subprocess.run([str(binary)], check=True)
+    subprocess.run([str(binary)], check=True, timeout=30)

@@ -3,8 +3,8 @@
 Development work for [issue #9](https://github.com/leebyron/lune-browser/issues/9),
 requested November 7, 2026. The current candidate is based on accepted
 `inputs/sidebar-pin-activation-2/macos`. The current local platform head is
-`aa978f9830059a45a53893aea2c2bc0be3c8955d` (tree
-`33cc10a7250d165d63cf3f9318d6e32052c2dfc5`). The owner accepted the preceding visuals
+`76cd8d6e67bcc4b7529c8aec351ae1912dde998f` (tree
+`6387f07c6ee14d8307ce3b910df6d03a549f2e8d`). The owner accepted the preceding visuals
 on November 7, 2026. A subsequently reported Profile animation crash is fixed;
 this is not in published builds 1 or 2 and is not release-accepted.
 
@@ -263,3 +263,48 @@ On November 7, 2026, the owner accepted the latest arm64 preview's 10 pt top
 inset above the right sidebar's tabs and unchanged address-text position when
 toggling Reload. This records visual acceptance of those refinements; the
 candidate remains outside the development lock and published builds.
+
+The next refinement adds 500 ms press-and-hold menus to native Back, Forward,
+and Reload, matching Chromium's existing delay. AppKit press recognition keeps
+short clicks on the normal NSButton path and consumes a recognized hold so
+releasing it cannot also navigate. Right-click and Control-click remain immediate.
+The recognizer checks Chromium's original menu availability before recognition
+and again before beginning; without an available menu, holding and releasing
+still performs the normal button action. Reload therefore retains the existing
+DevTools and Reload-mode gates. Disabling or detaching the button cancels a hold;
+moving outside the gesture tolerance cancels recognition.
+
+The production AppKit button passes real event-queue regression checks on arm64
+and Intel under Rosetta: short clicks, a held menu without duplicate click,
+drag-out, disabling, detaching, reuse after reattachment, and normal-click fallback
+when no menu is available. Strict replay passes for 107 affected patches across
+59 files, and platform patch lint passes. Both browser builds pass at platform
+commit `6d3880a8`. Live arm64 held clicks show the Back and Forward history menus
+without navigating on release; an ordinary Back click navigates normally.
+Reload's held-menu live check remains pending.
+
+The owner then reported three follow-up interaction issues. The right sidebar's
+first row overlapped the floating header's 52 pt native drag shield after the
+header was replaced by the 10 pt inset. The shield now stops at the right
+sidebar edge when Collapse Tabs is off, leaving actual row controls to the
+sidebar's existing hit routing.
+
+Hidden Reload now returns its 32 pt target width to the address container.
+The leading field inset stays at 40 pt. Short display addresses retain their
+previous centering; longer display addresses can use the reclaimed width, and
+editing always uses the entire available field. The production geometry passes
+native checks on arm64 and Intel under Rosetta for short text, long text,
+editing, and restoring Reload.
+
+Site Information now tracks its own bubble widget weakly and closes it on a
+second activation. A window-local mouse-down monitor consumes a second click on
+the icon before focus-loss dismissal can be followed by mouse-up reopening.
+The monitor uses a weak owner, is removed during shutdown, and leaves other
+windows and ordinary outside clicks alone. These three fixes are in platform
+commit `76cd8d6e`; strict replay passes for 110 affected patches across 59 files
+and patch lint passes. Both browser rebuilds pass, and the final arm64 preview is
+open. Native gesture and address-layout checks pass on both architectures. Live
+sidebar, Site Information toggle, and Reload hold checks remain pending: owner
+interaction changed the controls during automation, followed by a click timeout.
+The owner has been asked to verify the three latest refinements. The no-op Sparkle
+update-ready fixture is restored against matching debug symbols.

@@ -36,7 +36,15 @@ when Reload is hidden, and Back/Forward/Reload context menus using the original
 Chromium controls. The owner confirmed the footer stays at the bottom and toolbar
 actions reorder without crashing on November 7, 2026. The owner also accepted the
 10 pt right-sidebar top inset and stable address text when toggling Reload that
-day. The candidate is not yet
+day. The next refinement adds 500 ms press-and-hold menus for Back, Forward, and
+Reload, with native gesture checks passing on both architectures. Normal clicks
+remain available when Chromium has no menu, including Reload without DevTools.
+The next fixes remove the header drag shield above the raised right-sidebar rows,
+return hidden Reload's 32 pt width to long addresses and editing while keeping
+short addresses stable, and toggle Site Information closed on a second click.
+Both browser builds and native gesture/address-layout checks pass; Back/Forward
+held menus pass live arm64 inspection. Final sidebar, Site Information, and Reload
+held-menu live checks remain pending. The candidate is not yet
 in the development lock or a published build. See
 [trailing toolbar controls](agent-docs/project/features/trailing-toolbar-controls.md).
 
