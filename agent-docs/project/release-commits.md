@@ -2,9 +2,10 @@
 
 Status: release procedure agreed November 7, 2026; two-digit release year
 selected November 8, 2026.
-This document defines the target contract. The current packaging tools still use
-integer builds and Chromium display versions; the implementation gaps below must
-be closed before producing a release with this scheme. No release is allocated
+This document defines the release contract. The release-download-flow tooling
+implements date versions, frozen records and GitHub delivery; see
+[the executable runbook](release-delivery.md). The audit checklist below records
+the original migration requirements; actual runtime acceptance remains required. No release is allocated
 by the examples in this document.
 
 ## Identity and version rules
@@ -58,8 +59,8 @@ and the normal profile-compatibility and security-freshness gates.
 
 ## What belongs in the release commit
 
-The proposed entrypoint is `manifests/releases/<version>.json`, an immutable
-record for each allocation. This directory and its schema are not implemented.
+The entrypoint is `manifests/releases/<version>.json`, an immutable
+record for each allocation. The release model validates this record before build, packaging and publication.
 Existing locks remain the canonical source for component details: the release
 record references them by repository-relative path and SHA-256 rather than
 maintaining a second independently editable copy. Resolve paths at the release
@@ -148,9 +149,8 @@ binary needs a new release allocation even if browser source is unchanged.
 3. **Review and commit.** Review only the intended release changes; leave unrelated
    work in its existing checkout and build from a clean release checkout. Run
    `git diff --check` and `python3 scripts/lune.py validate --git-objects`, plus
-   the relevant configuration tests. The future release validator must check the
-   new record, date/sequence consistency, version ordering, hashes, recipe and
-   reachability. Commit with a descriptive message such as
+   the relevant configuration tests. The record validator and reservation command check identity,
+   ordering and hashes; component validation checks reachability. Commit with a descriptive message such as
    `Prepare Lune 26.1108.1 release`. Obtain its full SHA. Do not amend/rebase
    this frozen release commit; corrections get a new allocation.
 4. **Build that exact commit.** Use a clean checkout of the recorded SHA, the
@@ -158,8 +158,8 @@ binary needs a new release allocation even if browser source is unchanged.
    `python3 scripts/lune.py doctor` checks current host prerequisites, but does
    not establish a complete immutable toolchain. Generate release metadata and
    all four version fields from the committed record. Build each architecture
-   from its declared settings. The development wrapper alone does not yet
-   implement this release recipe. Stop on input or environment drift.
+   from its declared settings. Use `scripts/release/build.py` for the frozen recipe; the development
+   wrapper does not enforce this contract. Stop on input or environment drift.
 5. **Validate and package.** Apply every gate in [releases](releases.md), including
    both architecture builds, native Intel acceptance and the installed-app update
    path. Run acceptance browsers sequentially because Sparkle shares bundle
@@ -191,39 +191,32 @@ binary needs a new release allocation even if browser source is unchanged.
    results separately. This procedure does not enable recurring jobs or automatic
    publication.
 
-## Implementation and migration checklist
+## Implementation and remaining acceptance
 
-- Add the final publication/promotion freshness gate and evidence fields from
-  [releases](releases.md#chromium-freshness-gate). Test upstream advancement during
-  a build, lookup failure, stale approvals, known-lag exceptions and channel
-  changes. Discovery alone does not implement this gate.
-- Define and validate the release-record schema and serialized allocation
-  procedure. Preserve `config/release-builds.json` as historical evidence for
-  builds 1 and 2; future releases use the date version without a second counter.
-- Make the build/package pipeline consume the committed version, toolchain and
-  recipe. Today `scripts/release/package.py` accepts integer `--build`, checks the
-  old ledger, uses the Chromium display version and derives names from both.
-  `scripts/release/appcast.py` likewise requires an integer and old filenames.
-  Update these, metadata schemas, consumers, and tests together.
-- Complete the toolchain/transitive-input audit. Current Python requirements
-  and archive hashes help, but Homebrew packages are not version-locked. Release
-  GN overrides are recorded in bootstrap evidence and must become executable,
-  committed configuration. Existing preparation guards cannot attest to arbitrary
-  edits within an already generated Chromium source tree.
-- Add source SHA and Lune version reporting to the relevant UI/diagnostics;
-  inspect all Chromium-generated version consumers before changing them. Verify
-  the outer app and appcast agree without changing framework paths or engine
-  compatibility metadata.
-- Extend source export and cleanliness checks to cover the new files and all
-  inputs. `scripts/release/source.py` currently enumerates only the arm64 download
-  manifest; verify and export the union of both targets' dependencies, deduplicated
-  by identity/hash, so neither target relies on an omitted archive.
-- Test date/year rollover, leading-zero month components, same-day increments,
-  concurrent allocation, frozen retries, rejected version reuse/backdating, and
-  staging-to-stable promotion with Sparkle's actual comparator. Confirm installed
-  updates from legacy build 2 to the first date version on both architectures;
-  comparator ordering alone is not installed-update acceptance.
-- Update release filenames, tags, website metadata, source-kit instructions and
-  update-test expectations. Do not rename or replace published build-1/build-2
-  artifacts, source kits or historical evidence. Their original versions remain
-  valid migration baselines.
+The release-delivery tools now implement frozen records, numeric date versions,
+explicit GN/tool identities, both-target source export, GitHub asset publication,
+paired feed commits, latest aliases, freshness checks, and native Intel promotion
+requirements. `reserve.py` checks retained allocations before creating a record;
+fetch all remote branches first and serialize the reservation commit. This is a
+manual release flow, not a concurrent release scheduler.
+
+The freshness gate fails closed on unknown or behind-Stable results. An approved
+known-lag exception needs a separately reviewed implementation; these tools do
+not silently honor an old approval or bypass the check. Fresh checks run before
+candidate publication and each channel promotion.
+
+The actual Sparkle 2.10.1 comparator accepts the date format and orders it after
+build 2, including same-day and year transitions. Every candidate still needs
+installed-update tests from build 2, matching signed artifacts, both architecture
+runtime checks, and native Intel owner acceptance before stable. Unit tests are
+not substitutes for those gates.
+
+Prepared-source hashes attest the recorded patch/resource paths, not arbitrary
+unlisted files in a reused Chromium tree. Retain pristine archive verification,
+strict replay and source-preparation evidence with the build. A complete
+bit-for-bit reproducible environment remains unproven; tool checks cover the
+recorded compiler/build/PGO, Xcode/SDK/Metal, Python and sccache inputs. Signing
+and notarization credentials stay external.
+
+Do not rename or replace published build-1/build-2 artifacts, source kits or
+historical evidence. They remain valid migration baselines.

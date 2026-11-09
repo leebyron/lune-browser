@@ -125,9 +125,9 @@ The daily release counter starts at 1. Use the same string for the outer app's
 `shortVersionString`, and human-facing release names. Record the assigned release
 date and counter in Git before packaging; rebuilding a commit must not derive a
 new version from the host clock.
-This is an accepted scheme, not yet implemented: packaging and appcast generation
-still use integer build numbers and the locked Chromium version as the display
-version. Published builds 1 and 2 retain their original metadata.
+The release-download-flow implementation uses this scheme in packaging,
+appcasts and frozen release records; installed migration acceptance is still
+required for the first date-versioned release. Published builds 1 and 2 retain their original metadata.
 
 The date version supplies Sparkle's increasing update order; no separate lifetime
 build counter is needed. Serialize allocation, share the version across both
@@ -143,16 +143,18 @@ availability, and validation results under an immutable release tag on `main`.
 Keep permanent component tags reachable as described in [architecture](architecture.md).
 
 Publish and verify both architecture assets before changing either stable feed.
-Use a conditional/serialized feed update so a slower old job cannot replace a
-newer release. With separate feeds, promotion is not a cross-file atomic
-transaction; both feeds must always reference already-available assets, and the
-job must detect and repair partial promotion.
+Use a serialized, fast-forward Git commit for both feed files so a slower old
+job cannot replace a newer release. The GitHub latest-release pointer is a
+separate operation; verify both feeds and the pointer and repair partial
+promotion using the same validated bytes.
 
 ## Sparkle delivery
 
 Use Sparkle 2 as Xelium does, with one Lune-owned HTTPS feed per architecture and
-channel. The selected feeds are `https://lune.computer/updates/stable/mac/appcast-arm64.xml`
-and `appcast-x86_64.xml`, with staging feeds under `/updates/staging/mac/`. Separate
+channel. The selected feeds are
+`https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-arm64.xml`
+and `appcast-x86_64.xml`, with staging under `updates/staging/mac/`. The former
+`lune.computer/updates/` URLs redirect to these GitHub feeds once deployed. Separate
 feeds prevent an Intel client receiving an arm64-only enclosure. Test any future
 shared-feed filtering before adopting it.
 
@@ -217,10 +219,11 @@ failed builds, patch conflicts, signatures, installed-update tests, or other
 release gates. Attach promotion evidence as a separate record; do not rewrite
 published artifacts or their original evidence.
 
-The existing discovery command checks stable and rejects lag, but it is not a
-publication gate. The release/promotion tooling still needs this final check,
-evidence schema, explicit exception input, and stale-decision protection. Until
-implemented, perform and record these steps manually for each release.
+`scripts/release/publish.py` performs fresh checks before public candidate
+publication and each promotion, preserving timestamped observations. It blocks
+lag and lookup failures; no automated exception input is implemented. A known-lag
+release requires a separately reviewed change and explicit scoped approval.
+Discovery observations alone never satisfy the publication gate.
 
 ## Security freshness reporting
 
@@ -229,3 +232,7 @@ base, currently shipped Chromium, the freshness check result and any approved
 exception, and the reason for any lag. Notify on meaningful
 lag, integration failure, missed scheduling, and promotion failure. A daily rebuild
 of old inputs does not improve the browser's security profile.
+
+The executable publication and hardware-acceptance procedure is documented in
+[GitHub delivery](release-delivery.md). Candidate publication, stable promotion
+and website deployment are separate steps; a prerelease is not stable acceptance.

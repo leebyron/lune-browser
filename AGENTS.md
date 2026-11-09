@@ -7,6 +7,18 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+Release delivery preparation is on `release-download-flow`. The requested
+`26.1109.1` is not reserved or published yet. The candidate platform input
+`inputs/release-delivery-1/macos` combines the reviewed Helium update and accepted
+onboarding artwork with GitHub Sparkle endpoints and signed Lune version display.
+The tooling now prepares frozen date-versioned builds, paired GitHub feeds,
+immutable/version-independent downloads, and fail-closed freshness checks.
+Website links and old-feed redirects are prepared but must not reach production
+before stable promotion and public readback. Both architecture compilation and
+signed acceptance are still in progress; the owner has two Intel Macs available
+for final hardware checks. See [release delivery](agent-docs/project/release-delivery.md).
+
+
 The Helium November 9 development input imports main through `0a5feb31`,
 adding independent history/bookmark autocomplete settings while retaining
 Chromium 158.0.8127.18 and the accepted onboarding/UI stack. The four upstream

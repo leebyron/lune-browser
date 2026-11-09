@@ -49,7 +49,10 @@ standard-density dimensions and combined region/row insets, with hover-only clos
 marks. The illustration omits default-browser and update prompts. Browser
 screenshots remain placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
 architecture hints, otherwise offering both choices. Downloads remain disabled
-and labeled Coming soon pending validated public releases.
+and labeled Coming soon in production pending validated public releases. The
+release-download-flow branch prepares permanent GitHub latest-asset links and
+compatibility redirects for the old Sparkle paths. Deploy that branch only after
+[the release promotion gates](release-delivery.md) and public link readback pass.
 
 ## DNS activation
 
@@ -105,7 +108,7 @@ to pull-request code. Rotate/revoke the token in Cloudflare and replace the GitH
 secret if compromised. Verify GitHub runs and live content after setup.
 
 The account ID is public configuration, not a secret. The browser build and
-release pipeline remains unimplemented and does not run from this workflow.
+release pipeline runs separately and does not run from this workflow.
 
 ## References
 
