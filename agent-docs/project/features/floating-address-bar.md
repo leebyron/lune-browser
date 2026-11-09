@@ -6,6 +6,10 @@ a 48 pt distance boundary, requested an editable primary address bar, and an
 8 pt inset for the floating sidebar. Use Apple's
 public UI SDK and the latest mockups from the “Lune: Figma design” chat.
 
+The [2026-11-07 edge-to-edge revision](edge-to-edge-frame.md) supersedes the
+earlier 26 pt perimeter, gutter, content shadow and inset popover geometry below.
+Earlier sections record the implementation history.
+
 ## Reference and scope
 
 [Figma file](https://www.figma.com/design/I39uQunZpu6LsS7mDjcGSh/Untitled).
@@ -522,8 +526,8 @@ changes; no signed browser release is published by this update.
 
 ## Pinned inputs
 
-- Platform commit: `17af1f78dbbe2f53fe2fff2723b9749acdcffce5`.
-- Platform tag: `inputs/floating-address-20/macos`.
+- Platform commit: `d2dd4a3016b1aa58a567e1f335ceec5824d98310`.
+- Platform tag: `inputs/edge-frame-17/macos`.
 - Core commit: `3c3726b5935203480de96fdb08c9839a814fc2b9`
   (`inputs/floating-address-2/helium`).
 - Patch and ordered selection hashes are pinned in `manifests/patches.json` and

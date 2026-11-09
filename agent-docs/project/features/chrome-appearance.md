@@ -1,0 +1,259 @@
+# Native chrome appearance
+
+Work for [issue #7](https://github.com/leebyron/lune-browser/issues/7), based on
+the accepted media-toolbar platform head
+`41312cdfc8fa0ec20a49396fb3355c9a01024a8c`. The reviewed candidate is on
+`chrome-appearance-reviewed`, imported as `topic/chrome-appearance-reviewed`.
+The current signed platform head is
+`622ccfac0e0f7394169fd5fd4d58f78364b551fd`. It is not in the development lock or
+published builds.
+
+## Reviewed commit stack
+
+The owner accepted the final 5% tint and diffuse 5% shadow, then requested
+single-thesis commits before publication. Fourteen development commits were
+consolidated into three signed platform commits on the accepted media-toolbar
+base. The draft remains preserved on `stable-chrome-appearance`.
+
+1. `cbb8838f0a11df3dc4c24372b64f39245959b5fc` — Keep native glass controls legible with configurable content adaptation.
+2. `c1a1635dbeddb559b1afcd0881d4aad5cddecd6e` — Tint native browser glass with a shared light and dark theme midpoint.
+3. `622ccfac0e0f7394169fd5fd4d58f78364b551fd` — Add subtle native shadows to floating header glass.
+
+Each commit adds one quilt patch and its series entry. The first includes the
+Customize preference, default-on persistence, persistent regular glass, fixed
+backdrop policy, and foreground bridge as one coherent appearance feature. The
+second contains the final scheme-independent midpoint tint and initialization
+guard. The third contains the final shadow geometry and native lifetime policy.
+Rejected material substitutions, sidebar/header coupling, and intermediate tint
+and shadow strengths are absent from the reviewed patches.
+
+Changed implementation units compile at each commit boundary (7, 1, and 1 units,
+respectively). Strict zero-fuzz replay reproduces all 17 affected source files
+byte for byte against the accepted preview source, including production name and
+domain transformations. Both architecture native regression checks pass again.
+No browser behavior changed during consolidation, so the final 5% arm64/Intel
+build results and owner-approved live preview apply to the identical source.
+The full UI/settings/persistence smoke matrix remains the earlier result recorded
+below; it was not rerun for history consolidation. This publishes source only,
+without changing the development lock or distributing new browser binaries.
+
+## Reproduction
+
+A local white/black page reproduced the reported failure in the media-toolbar
+preview: regular glass became dark over black content while the address text and
+native/Views toolbar icons remained dark. Native inspection reported Aqua for
+the surface, glass, and explicitly overridden content view. It is therefore not
+safe to infer the composited glass treatment from the glass view's explicit
+appearance alone.
+
+An AppKit comparison reproduced both directions: Aqua glass with dark text over
+black content, and Dark Aqua glass with light text over white content. Removing
+the explicit content-view appearance let native text follow the actual glass
+treatment. Apple's [AppKit guidance](https://developer.apple.com/videos/play/wwdc2025/310/)
+requires foreground content inside `NSGlassEffectView.contentView` to receive
+its legibility treatment. Lune's Views toolbar and detached sidebar are hosted
+in separate transparent windows, so they also need an appearance bridge.
+
+## Behavior
+
+On macOS 26+, the address, navigation, trailing actions, floating sidebar,
+Customize close button, and Command-T all retain native regular Liquid Glass.
+The browser's Light/Dark/Device choice supplies a neutral 80%-opacity layer
+behind the glass in fixed mode. This bounds the sampled background luminance
+while retaining some page color and the native glass effect. The public tint
+property alone did not keep both Light and Dark stable in the native comparison.
+This is a composition policy, not an undocumented glass adaptation override.
+Older systems retain the native visual-effect fallback.
+
+At the owner's request, Customize's Appearance section has a **Content aware**
+toggle. It stores the independent profile preference
+`helium.browser.content_aware_chrome` (default true; explicit saved false remains off), without replacing the
+Light/Dark/Device choice. Enabling it hides the neutral backing so the same glass
+samples the page directly. Older systems do not expose the toggle.
+
+Native foreground controls inherit the glass content appearance in both modes.
+A content-view callback supplies each trailing-action/sidebar widget with its
+own effective appearance. Semantic foreground resolution uses that appearance
+ahead of the profile fallback and invalidates the widget's concrete color/image
+caches on changes. This does not change the browser theme. Weak widget references,
+per-native-host storage, and clearing callbacks during teardown keep state local
+to its owning surface. Extension-provided colored artwork stays intact.
+
+The same material, content view, and controls stay attached across toggles.
+This preserves address editor focus, selection, dimensions, reveal state, and
+clipping. The floating sidebar uses the same glass/backing policy and bridges
+its actual appearance to its tabs and native pin control. Command-T applies the
+same policy when opened.
+
+The first preview substituted popover material in fixed mode and reparented the
+content view when toggled. The owner confirmed adaptive icon colors worked, but
+reported disappearing address controls when disabling the option and rejected
+the material change. Native inspection confirmed that reparenting collapsed the
+address content view to zero height and Customize close content to zero width.
+The persistent glass revision removes both the substitution and reparenting.
+
+## Theme tint
+
+At the owner's request, the floating sidebar, address, navigation, trailing
+controls, and Customize close glass use AppKit's public `tintColor` property.
+The tint uses the HSL midpoint of the owning browser theme's light and dark
+`ui::kColorSysPrimary` accents at 5% alpha. Hue follows the shorter circular
+arc; achromatic endpoints retain the chromatic endpoint's hue. Both variants
+come from cached Chromium color providers using the same owning browser key,
+changing only the scheme. Custom themes, user colors, and incognito palette
+settings remain in that key. No palette values are duplicated in the feature.
+The tint is identical in Light/Dark/Device; AppKit supplies the material tone,
+and foreground controls continue to follow the actual glass appearance.
+
+Existing surfaces update immediately on theme changes, even with the header
+hidden. New surfaces receive the same tint when created. Unchanged colors do not
+reapply the material property. This adds no overlays, timers, capture or pixel
+sampling. Native material identity, attached controls, fixed/adaptive mode, and
+reveal behavior remain intact. Earlier macOS visual-effect fallback and Command-T
+are unchanged. A startup smoke run caught an early theme notification before
+BrowserView widget attachment; tint lookup now tolerates the absent provider and
+applies during surface setup. The native harness covers this initialization
+case as well as theme tint changes with a live editor. The balanced tint passes
+native checks on both architectures, including scheme
+independence, custom-theme changes, hue wraparound, and achromatic endpoints.
+The midpoint implementation passed full builds and browser smoke checks on both
+architectures at 10%. Live inspection confirmed all five glass surfaces retained
+identical sRGB tint components across Light/Dark with the selected Green theme,
+while foregrounds continued to follow the native material. The earlier 7% strength
+refinement passes both browser builds and native checks. Live arm64 inspection
+confirms 7% alpha on all five surfaces with the same midpoint color. The full
+settings smoke matrix was not repeated for the alpha-only refinement.
+
+The first tint candidate used the near-neutral toolbar surface at 12% alpha.
+Native inspection confirmed it reached every target surface, but the owner
+reported that the sidebar change was imperceptible and header tint too faint.
+The next candidate used the selected scheme's accent at 30% alpha. Both builds
+and smoke checks passed, and live inspection confirmed tint on every surface.
+The owner found it too intense and requested one shared tint across schemes,
+using their HSL midpoint at one third of the strength. The current candidate
+implemented that refinement. After reviewing the 10% preview, the owner asked
+for 7%; the midpoint computation remains unchanged. The owner accepted the 7%
+tint on November 8, 2026, then requested stronger header shadows and asked why
+tint appears to disappear when the window loses focus.
+
+## Header shadows and inactive windows
+
+The candidate adds AppKit `NSShadow` to the existing header material views:
+5% black, 10 pt blur, and a 3 pt downward offset. Navigation, address, trailing
+controls, and Customize close receive it; the sidebar and its toggle do not.
+The shadow shares the material's existing fade and does not enlarge hit regions.
+An explicit rounded Core Animation shadow path updates only when bounds change,
+including the address suggestions expanding vertically. Native `NSShadow`
+ownership is necessary: direct layer shadow settings were reset by AppKit during
+appearance changes. No new window, timer, polling, or page sampling is added.
+
+Native checks cover the shadow silhouette, width/height changes, appearance
+changes, reveal interruption, and absence of an added sidebar shadow on arm64
+and x86_64 under Rosetta. Full browser builds pass on both architectures, along
+with strict replay, patch lint, root validation, and changed documentation links.
+The prior tint settings smoke matrix was not repeated for the shadow-only change.
+After the owner unlocked the Mac, the preview was refreshed to the stronger-shadow
+build. Live arm64 inspection confirms visibly stronger shadows over a white page
+in Light mode, including navigation, address, trailing controls, and Customize
+close. Native properties confirm 24% black, 8 pt blur, and a 3 pt downward offset;
+the sidebar has no added shadow and all five tint values remain at 7%. The preview
+was left in Light mode with the owner's Citron theme and Customize open. The owner
+found this 24% shadow too strong. The next refinement reduces only shadow opacity
+to 16%, retaining the 8 pt blur, 3 pt offset, and accepted 7% tint. Native checks
+and full browser builds pass on both architectures. The refreshed Light/Citron
+preview shows the softer shadow, with live native inspection confirming 16%
+shadow opacity on all four header surfaces and unchanged 7% tint on all five
+tinted surfaces. The owner still found 16% too bold and requested 8%. That
+refinement changed only shadow opacity to 8%; the blur, offset, and 7% glass tint
+remain unchanged. Native checks and full browser builds pass on both architectures. The refreshed Light/Citron preview and requested screenshot show the 8%
+version with Customize open; live native inspection confirms 8% shadows on all
+four header surfaces and unchanged 7% tint. The owner said this looked okay, then
+requested a possible 5% shadow, more diffusion, and 5% glass tint. The current
+refinement uses 5% black with a 10 pt blur, retaining the 3 pt offset, and reduces
+the shared midpoint tint to 5%. Native checks pass on both architectures. The
+arm64 build and refreshed Light/Citron inspection pass: all five tinted surfaces
+report 5% alpha, all four header shadows report 5% black with 10 pt blur and a
+3 pt downward offset, and the sidebar has no added shadow. The screenshot is
+`.work/glass-appearance/customize-shadow5-tint5.png`, with Customize open.
+The Intel build also passes. The owner accepted this preview on November 8,
+2026 and authorized publishing the focused commit stack and resolving issue #7.
+
+The shadow remains neutral. Colored glass can transmit its own hue; an inverted
+hue is not intrinsic to tinted glass. Complementary colored shadows can result
+from blocking one of multiple differently colored light sources, as demonstrated
+by the [Exploratorium](https://www.exploratorium.edu/snacks/colored-shadows).
+A matching shadow tint would be a visual approximation of transmitted light,
+not a required change to this occlusion shadow.
+
+The tint code has no activation-dependent clearing or alternate color. Live
+inspection confirmed the selected Green midpoint remains assigned at 7% while
+the preview is active. The attempted deactivation did not change the app's active
+flag, so it is not evidence of an active/inactive comparison. The Mac then locked. After unlocking, attempts to move focus through Finder's
+window and app menu still left NSApp.active and the browser key-window flag true
+in native inspection. These automation actions therefore do not verify a genuine
+inactive transition. Native inactive rendering remains the likely explanation
+for the owner's observation, but that transition is not yet verified. The public macOS 27.2 SDK exposes no activity-state override on
+[`NSGlassEffectView`](https://developer.apple.com/documentation/appkit/nsglasseffectview).
+No workaround or inactive tint override was implemented.
+
+## Validation
+
+The current 5% midpoint tint and diffuse 5% shadow candidate passes full arm64
+and x86_64 browser builds and native regression checks. The full settings smoke
+matrix was not repeated for these opacity/blur changes. The tint implementation
+at 10% passed both
+architectures' UI/settings/appearance/persistence smoke checks, including a
+fresh-profile Content aware value of true and an explicit saved false after
+restart. Intel checks run under Rosetta, not native Intel hardware.
+
+Strict replay passes across 138 relevant patches and 17 changed source files,
+including the production GRIT-aware name transform. Patch lint, root validation,
+and GN header dependency checks pass. The repository's 44 unit tests pass. The focused native harness covers the
+material implementations and appearance bridge.
+
+Native regression checks pass on both architectures. They compile the actual
+surface implementation, Command-T material construction, and appearance bridge.
+They check profile/high-contrast appearances, owner isolation, editor focus and
+selection, interrupted reveal/hide, sizing, sidebar hit behavior, callbacks,
+cache invalidation, and clearing per-widget colors. The persistent-glass fixture
+also starts at zero size, resizes, and toggles repeatedly while checking material
+identity, content dimensions, editor and selection. These tests do not establish
+compositor-level contrast or native Intel hardware acceptance.
+
+Live arm64 inspection confirms that disabling Content aware preserves the center
+pill's text/icons and regular glass; the owner confirmed this fix. The owner also
+confirmed the preceding adaptive foreground implementation works for toolbar
+icons. The floating sidebar remains under review: it looks more opaque and does
+not invert light/dark with the page like the toolbar pills.
+
+A standalone AppKit comparison reproduces this behavior for sidebar-sized regular
+glass, with both square and rounded corners and with or without text content.
+Apple documents that larger glass is more opaque, while smaller glass switches
+between light and dark automatically in its
+[glass sizing guidance](https://developer.apple.com/videos/play/wwdc2025/284/?time=188).
+The clear-style comparison is more transparent but leaves native dark text on a
+dark backdrop, so it is not a safe direct substitution. The owner requested
+retaining the more opaque native material while adapting its color to the page.
+A candidate followed the adjacent header glass, but the owner rejected it:
+sidebar changes lagged the header transition and stopped when the header hid.
+That coupling is removed. The owner then required native UI primitives and
+rejected a proposed compositor-frame sampling approach because of CPU/power
+concerns. No page capture, sampling loop, or hidden glass probe was implemented.
+
+The final sidebar retains regular AppKit glass and its native large-surface
+behavior. Its foreground still follows its own material. It is independent of
+header visibility, but does **not** promise the toolbar's automatic light/dark
+inversion. The public SDK exposes regular/clear styles, tint, geometry, content,
+and interactivity; it does not expose a large-surface adaptation override.
+The request for stronger sidebar adaptation remains a known native limitation,
+not a verified fix. Fullscreen, system accessibility settings, and the complete
+active/inactive browser matrix have not been rerun for this candidate.
+
+```sh
+python3 scripts/check-native-chrome-appearance.py .work/chromium-158/macos/build/src --arch arm64
+python3 scripts/check-native-chrome-appearance.py .work/chromium-158/macos/build/src --arch x86_64
+```
+
+Local evidence and native comparison images are under `.work/glass-appearance/`.
+The new label is an English source string; translations remain subject to the
+existing [string review](string-review.md).

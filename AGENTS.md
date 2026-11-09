@@ -7,6 +7,145 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The local issue #16 candidate on `topic/header-scroll-through` forwards native
+wheel events over floating header controls and gaps to content under the pointer,
+including nested scrollers and either split pane. It preserves the original event
+and corrects coordinates from the trailing controls' child window. Momentum keeps
+its receiver, and direct delivery completes Chromium's wheel-end cleanup.
+Autocomplete and extension popups retain their own scrolling. Both architecture
+builds, native routing/appearance checks, and browser UI/settings/persistence smoke
+checks pass (Intel under Rosetta). Arm64 browser interaction checks cover address
+editing, controls, gaps, nested scrolling, split panes, popup exclusion, and
+fullscreen. The owner confirmed scrolling across all header areas on November 8,
+2026 in the distinctly named Lune Scroll Test preview. A simplicity review retained
+the shared router, original events, weak momentum target, and existing Chromium
+cleanup without additional implementation changes. Native Intel acceptance remains
+unverified. The signed platform commit is `d0c49b0a`; this candidate is not
+in the development lock or published builds. See
+[header scroll-through](agent-docs/project/features/header-scroll-through.md).
+
+The owner accepted issue #7's final Content aware implementation and visual
+refinements on November 8, 2026, and authorized publishing and resolving the issue.
+The reviewed platform stack is `topic/chrome-appearance-reviewed`: three signed,
+single-thesis commits for content adaptation and foreground legibility, shared
+theme tint, and native header shadows. Content aware defaults on while respecting
+saved opt-outs; regular glass and attached controls survive toggling. The tint
+is the HSL midpoint of light/dark theme accents at 5%, identical across schemes.
+Header shadows use 5% black, 10 pt blur, and a 3 pt downward offset. The sidebar
+keeps AppKit's native large-surface behavior, with no dependency on header
+visibility or page sampling. Its lack of toolbar-style light/dark inversion
+remains a known native limitation. Inactive tint rendering remains unverified;
+no activation workaround was added. Each commit compiles its changed units,
+strict replay matches all accepted source bytes, and native checks pass on both
+architectures. Both browser builds pass for the identical final source; Intel
+runtime checks use Rosetta. The draft remains preserved. The candidate is not
+in the development lock or published binaries. See
+[native chrome appearance](agent-docs/project/features/chrome-appearance.md).
+
+The accepted issue #15 candidate on `topic/media-toolbar-controls` restores the
+existing media controller in the floating trailing group, orders its control
+before Home, and uses `play.circle` in both the toolbar and Customize. The owner
+confirmed it appears and requested no gap before the next icon; a floating
+margin adjustment removes the 2 pt gap while preserving the hit target.
+Two signed platform commits follow the reviewed issue #9 stack. Both architecture builds,
+focused controller/symbol checks, and UI/settings/persistence smoke checks pass
+(Intel via Rosetta). Live arm64 playback, multi-session controls, preference
+toggles, empty/single-item groups, classic restoration, fullscreen, and appearance
+checks pass. The owner accepted the refined preview on November 7, 2026 and
+authorized pushing the commits and closing #15. The candidate is not in the
+development lock or published builds. The unchanged full native gesture fixture failed its
+short-click check; focused symbol checks pass. See
+[media toolbar controls](agent-docs/project/features/media-toolbar-controls.md).
+
+The local `trailing-toolbar-reviewed` candidate for issue #9 adds native toolbar
+symbols and semantic state colors, tighter spacing, immediate preferred widths
+for floating action containers, and a window-local Customize reveal hold.
+Header SF Symbols, including Customize close, use 16 pt medium, with 14 pt site
+information/reload icons; tab and sidebar-footer close icons use 11 pt medium.
+The ellipsis target includes 1 pt extra padding on each side, and empty trailing
+groups hide both glass and the input window. Single-item groups are 36 pt circles
+with the button centered. Layout visibility intent keeps newly enabled Customize
+actions from staying hidden after animation or overflow. Navigation, site info, reload, and
+trailing icons fade their semantic hover color over 100 ms. The address glass
+caps at half the available header width, and the Extensions menu button has no
+layout gap before the first extension. Reload has a 2 pt trailing glass inset.
+The rebuilt arm64 preview retains a clickable ellipsis after opening Customize.
+The owner accepted the visuals on November 7, 2026, then supplied a Profile hover
+crash report. Its animation-callback routing fix passes both architecture builds,
+callback regression checks, and an arm64 Profile-menu interaction check.
+The next candidate shares those symbols with Customize Toolbar, adds Home first
+in the trailing pill, and honors Back/Forward, New Tab, and Collapse Tabs toggles.
+A right sidebar without its toggle replaces the empty header with a 10 pt top
+inset; the left retains traffic-light space. Reload visibility follows its toggle,
+missing favicons use SF globe, and the duplicate Views sidebar toggle is hidden.
+Orientation changes preserve the footer below the tab strip. Dragging a pinned
+action exposed a null empty-icon name; the shared renderer handles it safely.
+Both architecture builds and native regression checks pass. Live arm64 checks
+confirm toolbar toggles, fallback globe, the 10 pt top inset, stable address text
+when Reload is hidden, and Back/Forward/Reload context menus using the original
+Chromium controls. The owner confirmed the footer stays at the bottom and toolbar
+actions reorder without crashing on November 7, 2026. The owner also accepted the
+10 pt right-sidebar top inset and stable address text when toggling Reload that
+day. The next refinement adds 500 ms press-and-hold menus for Back, Forward, and
+Reload, with native gesture checks passing on both architectures. Normal clicks
+remain available when Chromium has no menu, including Reload without DevTools.
+The next fixes remove the header drag shield above the raised right-sidebar rows,
+return hidden Reload's 32 pt width to long addresses and editing while keeping
+short addresses stable, and toggle Site Information closed on a second click.
+Both browser builds and native gesture/address-layout checks pass; Back/Forward
+held menus pass live arm64 inspection. The owner accepted the sidebar hit-region
+and reclaimed-address-space fixes,
+but Site Information still reopened on release. A subsequent widget lifecycle
+observer now suppresses that release even after focus-loss dismissal destroys
+the bubble. Both builds pass, and the owner confirmed a second click leaves
+Site Information closed after release. A held Reload now also passes live
+arm64 inspection with DevTools open. The issue #9 work is consolidated into
+nine signed, single-thesis platform commits on `trailing-toolbar-reviewed`;
+the stack is imported locally as `topic/trailing-toolbar-reviewed`, and the draft
+branch remains preserved. The review removes duplicate sidebar margin
+state, shares an opaque native symbol mask across color states, and centralizes
+navigation menu wiring. Changed implementation units compile at every commit
+boundary, and strict replay reproduces the final source. Final full builds,
+native regression checks, and headless UI/settings/persistence smoke checks pass
+on both architectures (Intel under Rosetta). The candidate is not yet
+in the development lock or a published build. See
+[trailing toolbar controls](agent-docs/project/features/trailing-toolbar-controls.md).
+
+The development input `inputs/sidebar-pin-activation-2/macos` makes the sidebar
+pin button follow its owning window/app activation. Inactive windows use native
+semantic disabled text; active windows restore AppKit's default symbol rendering.
+The owner accepted the inactive tint but found input 1's explicit active color too
+dark; input 2 removes that override without changing symbol weight or size.
+It remains clickable and updates without pointer movement. Native activation,
+owner-isolation, and teardown tests pass on arm64 and Intel via Rosetta. Both
+browser builds and the arm64 smoke check pass. Live arm64 inspection verifies
+active/inactive tint and independent window states. The owner accepted input 2
+on November 7, 2026; issue #10 is resolved. See
+[sidebar pin activation](agent-docs/project/features/sidebar-pin-activation.md).
+This is not in published builds 1 or 2 or release-accepted.
+
+The development input `inputs/menu-retention-2/macos` adds window-local lifetime
+holds for sidebar and header menus, including the default-browser footer menu.
+It bridges transient tab expansion locks, refines the native green-button guard,
+and resumes cursor retention after the final menu closes. Input 2 fixes a stuck
+detached sidebar caused by AppKit retaining an idle remote-menu helper: retention
+now checks its running flag rather than its presence. Both architecture builds
+and native regression checks pass (Intel via Rosetta), including idle attached
+menu helpers. Arm64 smoke checks pass; the input-2 Intel browser smoke run was
+interrupted to reopen the owner test preview. Arm64 checks confirm footer and nested tab-menu holds acquire and
+release. The owner confirmed normal sidebar dismissal and accepted the fix
+on November 7, 2026; issue #8 is resolved. The preview includes a no-op Sparkle update fixture. See
+[menu reveal retention](agent-docs/project/features/menu-reveal-retention.md).
+This is not in published builds 1 or 2 and is not release-accepted.
+
+The development input `inputs/window-menu-2/macos` retains already revealed
+header/sidebar chrome while the native green-button popover is open, including
+pending collapse timers. It preserves the accepted sidebar-footer-5 base.
+Native lifecycle, isolated controls tests, both architecture builds and smoke
+checks pass (Intel under Rosetta). The owner accepted the arm64 preview on
+November 7, 2026; issue #6 is resolved. See
+[window-menu retention](agent-docs/project/features/window-menu-retention.md).
+
 `main` contains the project definition, locked development build inputs, local
 build commands, validation tests/CI, and the Cloudflare website. Imported histories
 are published on `component/helium`, `component/macos`, and `component/services`;
@@ -102,6 +241,34 @@ Input 19 derives traffic-light spacing from AppKit and compacts its container.
 Input 20 uses normal omnibox editing text, preserving an empty new-tab field.
 This is not in published builds 1 or 2 and is not release-accepted.
 
+The development input `inputs/edge-frame-17/macos` supersedes the earlier macOS
+frame: a 16 pt native perimeter, edge-to-edge content without gutters or shadow,
+a flush square glass sidebar, and a pinned-only semantic separator. Reveal uses
+8 pt windowed edge bands, four physical top pixels and one side pixel fullscreen.
+The header is 52 pt tall with 36 pt controls and 8 pt outer insets. Both sidebar
+modes follow the fullscreen menu-bar offset and share their header geometry.
+Native blank-space dragging/context menus, the full popover width, standard
+traffic-light spacing, and autocomplete teardown protection remain in place.
+
+The owner accepted header/popover geometry, blank-area dragging and menus, and
+input-13 header/sidebar retention during native resizing. Cursor acceptance was
+subsequently withdrawn: inputs 14–15 did not reliably fix resize cursors or tab
+content drift. Input 16 removes 183 lines of accumulated cursor overrides,
+tracking areas and the unsuccessful local-coordinate workaround. It retains
+native resize hit routing and resize retention, and selects Chromium's existing
+synchronous resize path. The owner initially accepted the synchronous A/B, then
+reported intermittent cursor flicker and invisible toolbar icons; do not treat
+that experiment as cursor acceptance. Input 17 fades toolbar content rather than
+NSWindow opacity, which Chromium also controls while waiting for compositor frames.
+Live inspection confirmed the invisible toolbar window had alpha 0 while still
+visible and clickable. Both architecture builds and smoke checks pass (Intel via
+Rosetta), along with native arm64 fullscreen/menu checks. The owner confirmed
+input-17 icons remain visible but cursors still flicker while Lune is active.
+Further cursor work is deferred at the owner's request and tracked in
+[GitHub issue #5](https://github.com/leebyron/lune-browser/issues/5). These are
+development inputs, not published builds 1 or 2. See
+[edge-to-edge frame evidence](agent-docs/project/features/edge-to-edge-frame.md).
+
 The current development macOS input adds a text-only frame-thickness label
 restoration under `inputs/frame-label-1/macos`. Patch replay and XML checks pass;
 it is included in the day/night development rebuild. Source-string coverage remains
@@ -125,6 +292,27 @@ placeholder or instructional helper text. The panel shows five results with
 native scrolling; keyboard selection keeps its result in view.
 See [command palette evidence](agent-docs/project/features/command-bar.md).
 This prototype is not in a published browser build or release-accepted.
+
+The development macOS input under `inputs/sidebar-new-tab-2/macos` places New Tab
+below pinned tiles and above regular tabs. Default new tabs prepend; links open
+immediately after the active tab. New Tab uses regular tab hover colors and the
+same 2 pt row spacing; pinned tiles use fills and 6 pt spacing shared with the
+New Tab section gap. See [sidebar evidence](agent-docs/project/features/sidebar-new-tab.md)
+for build and runtime validation. This is not in published builds 1 or 2.
+
+The development input `inputs/sidebar-footer-5/macos` adds a compact sidebar
+footer for the default-browser prompt and downloaded Sparkle updates. The default
+row reads “Make default browser”; its close control and sidebar tab close controls
+appear on hover, with native SF Symbols and targets 6 pt larger than the original
+tab control. Row side margins are 1 pt narrower and icon left insets 2 pt larger.
+The footer bottom inset is 5 pt. New Tab has no hover tooltip. Navigation beside
+the traffic lights gains 4 pt of clearance; the right sidebar toggle is inset 9 pt.
+Close symbols are horizontally centered. The default row keeps its height on hover
+and relayouts its faded label when the close control appears. Labeled footer
+actions have no hover tooltip; close symbols use 11 pt SF Symbols.
+Other infobars retain their existing placement. See
+[sidebar footer evidence](agent-docs/project/features/sidebar-footer.md)
+for implementation and validation limits. This is not in published builds 1 or 2.
 
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
