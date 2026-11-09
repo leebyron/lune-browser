@@ -25,6 +25,18 @@ provenance.
 
 ## Current status
 
+On November 9, 2026, [GitHub deployment 42718472336](https://github.com/leebyron/lune-browser/actions/runs/42718472336)
+published commit `fda9741a` as Cloudflare version
+`a5bd0b02-5374-40e5-bd9e-361733c46460`. Lune 26.1109.1 is the public production
+release. Both architecture downloads use fixed GitHub latest-asset links;
+Sparkle uses paired raw GitHub stable feeds. Live HTML, full download hashes,
+old-feed redirects and an actual website download in Lune pass verification.
+The source, signatures, installed updates and owner's deferred native Intel
+checks are recorded in [release evidence](builds/2026-11-09-release-delivery.md).
+Subsequent releases update GitHub's latest pointer and feeds, without redeploying
+these website links. The deployment used the existing local Mac runner and token.
+
+
 As of 2026-11-06, public HTTPS at `lune.computer` is verified to return HTTP 200.
 The apex custom domain is attached and recorded in Wrangler configuration.
 The `CLOUDFLARE_API_TOKEN` repository secret is configured, and a local deployment
@@ -48,11 +60,10 @@ header/row geometry; the pinned edge has a semantic hairline. Tab rows use nativ
 standard-density dimensions and combined region/row insets, with hover-only close
 marks. The illustration omits default-browser and update prompts. Browser
 screenshots remain placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
-architecture hints, otherwise offering both choices. Downloads remain disabled
-and labeled Coming soon in production pending validated public releases. The
-release-download-flow branch prepares permanent GitHub latest-asset links and
-compatibility redirects for the old Sparkle paths. Deploy that branch only after
-[the release promotion gates](release-delivery.md) and public link readback pass.
+architecture hints, otherwise offering both choices. Production download buttons are enabled and point to permanent GitHub
+latest-asset links. Compatibility redirects for the old Sparkle paths are live.
+For future releases, preserve [the promotion ordering](release-delivery.md)
+and public byte readback before moving feeds or latest links.
 
 ## DNS activation
 

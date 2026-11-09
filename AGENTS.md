@@ -23,7 +23,8 @@ remain unverified, not passing. The private optional Intel test kit remains
 available. This production policy supersedes older hardware-blocking summaries
 below. No new public staging release or prerelease is authorized; historical
 build-1/build-2 artifacts remain unchanged. Website download links and old-feed
-redirects are ready for deployment now that public readback passes. See
+redirects are deployed and verified at lune.computer. Setup checks and website
+CI pass on the local Mac runner; a real website download matches the release. See
 [release delivery](agent-docs/project/release-delivery.md) and
 [release evidence](agent-docs/project/builds/2026-11-09-release-delivery.md).
 

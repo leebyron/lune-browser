@@ -4,7 +4,8 @@ Lune 26.1109.1 was published November 9, 2026 with paired stable feeds,
 immutable/version-independent downloads and corresponding source. Anonymous
 readback and installed public HTTPS updates pass on both architectures (Intel
 under Rosetta). The owner explicitly deferred physical Intel testing; these
-results remain unverified. Website deployment is the remaining delivery step.
+results remain unverified. The website is deployed with permanent latest-download
+links and verified compatibility feed redirects.
 See the current acceptance evidence below for authoritative status.
 
 The owner requires production/stable delivery only. Preparation and hardware

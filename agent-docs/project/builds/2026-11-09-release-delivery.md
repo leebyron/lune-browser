@@ -122,7 +122,7 @@ reports the asset uploaded with the exact local size and SHA-256 above. This
 unpublished private draft distributes acceptance materials only; it does not
 create a public staging channel or enable website production downloads.
 
-## Production publication and remaining work
+## Production publication and follow-up
 
 The owner subsequently requested publishing this normal production build and
 fixing any discovered issues in a new version. Physical Intel acceptance is
@@ -150,7 +150,25 @@ pass signing/Gatekeeper checks. The fresh publication observation at
 2026-11-09T23:05:36Z records Chromium macOS Stable 157.0.8103.51; the shipped
 158.0.8127.18 engine is ahead, as disclosed in the release notes.
 
-Production website deployment and live redirect/UI verification remain.
+The [website deployment](https://github.com/leebyron/lune-browser/actions/runs/42718472336)
+and [setup checks](https://github.com/leebyron/lune-browser/actions/runs/42718472284)
+passed on the existing local Mac runner for `fda9741a`. Cloudflare version
+`a5bd0b02-5374-40e5-bd9e-361733c46460` serves the matching production HTML at
+[lune.computer](https://lune.computer/). Both old stable-feed URLs return 302 to
+the matching GitHub feed, whose downloaded bytes match the signed publication.
+The Python-urllib/3.14 user agent receives 403 from Cloudflare; ordinary curl and
+a Sparkle-style user agent receive the correct 302/200 chain. No security rule
+was weakened to accommodate that test client.
+
+Clicking the live website's Apple silicon button in the released Lune app
+completed a native download of `Lune-macos-arm64.dmg`; its full SHA-256 matches
+the release. The architecture-specific latest links are also independently
+verified by full anonymous downloads. The normal production app, launched with
+only the disposable profile argument and no test-feed override, displays
+26.1109.1 and “Lune is up to date.” It remains open after the checks.
+
+All requested production delivery work is complete. Remaining physical hardware
+checks are explicitly deferred follow-up:
 Physical Intel interaction, extension installation/update, wrong-architecture
 rejection and macOS 13 runtime checks remain deferred follow-up, not claimed
 passing and not blocking this owner-approved release. Historical build-1/build-2
