@@ -6,8 +6,9 @@ stack at `7b9dda9113b0e13a8317da9c5452cb5770824130`
 (`topic/command-bar-corners-reviewed`). Main still pins an older browser input;
 no development lock or published build is changed.
 
-Current preview: **Lune Inset Test 5**, with the final “Show toolbar” labels and
-Settings integration. Signed local platform commit `a45e5d396df142edbea4d7496774e8d55612379d`
+Current preview: **Lune Inset Test 6**, with the final “Show toolbar” labels,
+Settings integration and no non-vertical layout selector. Signed local platform
+commit `4c296dcb26161be0651c98d536a45708c2008a9e`
 is retained in both repositories on `prototype/pinned-header-inset-current`.
 “On hover” is the fresh-profile default; “Always” protects every page with the
 52 pt inset; “Always cover (experimental)” retains viewport-fit/env support.
@@ -203,3 +204,22 @@ hash matches the tested build. Evidence is in `.work/header-inset/settings-valid
 and the platform's `prototype/header-inset/settings-validation.json`.
 Intel and owner visual acceptance remain unverified. No inputs or publications
 are changed. The preceding sections document the previous candidates.
+
+
+## Vertical-only Settings choices
+
+The sixth patch, `vertical-only-settings-prototype.patch`, removes the browser
+layout radio group from macOS Settings, matching the earlier window-menu change.
+Classic, Dynamic and Compact are no longer offered. Other layout controls and
+saved values are unchanged; this is a Settings UI removal, not a migration of
+old profiles or removal of underlying layout implementations.
+
+The arm64 build passes in 14.97s, including Settings type and lint checks. The
+existing Settings regression suite passes. The rendered page has no browser-layout
+group or controls bound to the layout preference; the toolbar and sidebar
+position dropdowns remain present. Visual inspection confirms Layout now starts
+with sidebar controls. Six patches strictly replay forward and reverse across
+30 source files. Lune Inset Test 6 is open on Settings with a separate profile;
+its resources match the build. Evidence is in `vertical-only-validation.json`
+and `.work/header-inset/vertical-only-validation/`. Intel and owner acceptance
+remain unverified.
