@@ -90,6 +90,75 @@ class PromotionTests(unittest.TestCase):
                 model.validate_acceptance(data, changed, 'stable')
 
 
+class ManualFixtureTests(unittest.TestCase):
+    def prepare(self, root):
+        import base64
+        import appcast
+        data = dict(version='26.1109.1', downloads={}, assets={})
+        for arch in model.ARCHES:
+            name = model.filename(data['version'], arch)
+            dmg = root / name
+            dmg.write_bytes(arch.encode())
+            row = dict(filename=name, size=dmg.stat().st_size, sha256=model.sha(dmg),
+                       url=f'{model.DOWNLOADS}/v{data["version"]}/{name}')
+            candidate = dict(row, arch=arch, version=data['version'],
+                             chromium_version='158.0.8127.18',
+                             minimum_system_version='13.0',
+                             ed_signature=base64.b64encode(bytes(64)).decode())
+            feed = root / f'appcast-{arch}.xml'
+            feed.write_bytes(appcast.make_feed(candidate, row['url']))
+            data['downloads'][arch] = row
+            data['assets'][feed.name] = dict(size=feed.stat().st_size, sha256=model.sha(feed))
+        (root / 'release.json').write_text(json.dumps(data))
+        return data
+
+    def test_local_feed_preserves_signature_and_serves_only_selected_assets(self):
+        import manual_update_fixture as fixture
+        import threading
+        from urllib.request import build_opener, ProxyHandler
+        from urllib.error import HTTPError
+        import xml.etree.ElementTree as ET
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data = self.prepare(root)
+            for case, offered in [('update', 'x86_64'), ('wrong-architecture', 'arm64')]:
+                with self.subTest(case=case):
+                    server, base, _ = fixture.make_server(root, 'x86_64', case)
+                    thread = threading.Thread(target=server.serve_forever)
+                    thread.start()
+                    opener = build_opener(ProxyHandler({}))
+                    try:
+                        with opener.open(base + 'mac/appcast-x86_64.xml') as response:
+                            xml = ET.fromstring(response.read())
+                        enclosure = xml.find('./channel/item/enclosure')
+                        original = ET.fromstring((root / f'appcast-{offered}.xml').read_bytes())
+                        expected = original.find('./channel/item/enclosure')
+                        self.assertEqual(enclosure.get(f'{{{fixture.SPARKLE}}}edSignature'),
+                                         expected.get(f'{{{fixture.SPARKLE}}}edSignature'))
+                        self.assertEqual(xml.findtext(f'./channel/item/{{{fixture.SPARKLE}}}hardwareRequirements'),
+                                         'arm64' if offered == 'arm64' else None)
+                        with opener.open(enclosure.get('url')) as response:
+                            self.assertEqual(response.read(), offered.encode())
+                        for forbidden in ('release.json', '../release.json', ''):
+                            with self.assertRaises(HTTPError) as error:
+                                opener.open(base + forbidden)
+                            self.assertEqual(error.exception.code, 404)
+                    finally:
+                        server.shutdown()
+                        thread.join()
+                        server.server_close()
+            self.assertEqual(json.loads((root / 'release.json').read_text()), data)
+
+    def test_changed_archive_or_feed_blocks_serving(self):
+        import manual_update_fixture as fixture
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for changed in ('Lune-26.1109.1-macos-x86_64.dmg', 'appcast-x86_64.xml'):
+                self.prepare(root)
+                (root / changed).write_bytes(b'changed')
+                with self.assertRaises(ValueError):
+                    fixture.make_server(root, 'x86_64', 'update')
+
 
 if __name__ == '__main__':
     unittest.main()

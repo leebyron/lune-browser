@@ -153,6 +153,52 @@ install/relaunch, and preserved test data. Do not run baseline and candidate
 updater sessions concurrently. Report any crash, blank window, signing warning,
 or failed update before stable promotion.
 
+### Portable loopback fixture
+
+The handoff includes `manual_update_fixture.py`, the publication manifest and
+both signed DMGs/appcasts, plus the unchanged build-2 Intel baseline. The helper
+uses Python 3.9 or newer without additional packages; check `python3 --version`
+on the test Mac first. It verifies the selected feed and DMG hashes, serves only
+those two paths on 127.0.0.1, and changes only the enclosure URL in memory. It
+neither launches Lune nor changes the signed app or a public channel. Its server
+tests cover exact archive delivery, preserved signatures/hardware requirements,
+rejection of changed files, and denial of unrelated file paths. Running the
+helper alone does not count as browser acceptance.
+
+From the handoff folder, run:
+
+```sh
+python3 manual_update_fixture.py --directory publication --arch x86_64
+```
+
+Keep that terminal open. Copy build 2 from its DMG into a new `update-test`
+folder using Finder, keeping the app named Lune.app. Quit other Lune instances.
+In another terminal, launch that copy with a new disposable profile and the
+local base URL printed by the helper:
+
+```sh
+open -n -a "$PWD/update-test/Lune.app" --args \
+  --user-data-dir="$PWD/update-profile" \
+  --custom-update-server-url=http://127.0.0.1:PRINTED_PORT/
+```
+
+Enable browser updates in Settings, save a test bookmark and preference, then
+use About to install the update and relaunch. Confirm 26.1109.1, public browsing,
+and the saved data after relaunch. Quit the test app before stopping the server.
+Use a second, fresh copy/profile of build 2 for the negative case:
+
+```sh
+python3 manual_update_fixture.py --directory publication --arch x86_64 \
+  --case wrong-architecture
+```
+
+On native Intel, About must decline this Apple silicon offer and retain build 2.
+The feed retains `hardwareRequirements=arm64`; only its test route is named for
+Intel so the Intel updater can inspect and reject it. Apple silicon/Rosetta
+cannot establish this hardware-rejection result. Record both outcomes and any
+error text with the candidate DMG hash. These instructions are prepared;
+owner-run native Intel results remain pending.
+
 ## Acceptance record
 
 `delivery.py --evidence` and `publish.py promote --acceptance` consume the same
