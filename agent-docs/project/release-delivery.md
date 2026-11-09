@@ -119,3 +119,45 @@ browser updates, and use About → Check for Updates. Confirm the offered versio
 install/relaunch, and preserved test data. Do not run baseline and candidate
 updater sessions concurrently. Report any crash, blank window, signing warning,
 or failed update before stable promotion.
+
+## Acceptance record
+
+`delivery.py --evidence` and `publish.py promote --acceptance` consume the same
+JSON shape. Populate it from completed checks, never from planned work:
+
+```json
+{
+  "version": "26.1109.1",
+  "source_commit": "FULL_FROZEN_PROJECT_SHA",
+  "architectures": {
+    "arm64": {
+      "sha256": "EXACT_SIGNED_DMG_SHA256",
+      "install": false,
+      "browse": false,
+      "profile_persistence": false,
+      "signed_app": false,
+      "installed_update": false,
+      "native_hardware": true
+    },
+    "x86_64": {
+      "sha256": "EXACT_SIGNED_DMG_SHA256",
+      "install": false,
+      "browse": false,
+      "profile_persistence": false,
+      "signed_app": false,
+      "installed_update": false,
+      "native_hardware": false,
+      "devices": [],
+      "owner_confirmation": ""
+    }
+  }
+}
+```
+
+Rosetta may establish the Intel row's local software checks for staging; record
+that execution mode explicitly and leave native_hardware false. Stable requires
+native Intel results, model/OS entries in devices, and the owner's actual
+confirmation. Include report hashes and concise test results as additional fields
+so the booleans can be audited. The validation.json uploaded with the candidate
+is immutable; later hardware acceptance is recorded separately in the promoted
+feed commit. Do not overwrite the original candidate evidence.
