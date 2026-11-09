@@ -20,7 +20,7 @@ parser.add_argument('output', type=Path)
 parser.add_argument('evidence', type=Path)
 parser.add_argument('--headed', action='store_true')
 parser.add_argument('--observe', action='store_true')
-parser.add_argument('--classic', action='store_true', help='Isolate renderer checks from native floating UI')
+parser.add_argument('--toggle', action='store_true', help='Check live saved-preference toggles and restart persistence')
 args = parser.parse_args()
 out, evidence = args.output.resolve(), args.evidence.resolve()
 evidence.mkdir(parents=True, exist_ok=True)
@@ -43,7 +43,7 @@ def request(method, path, body=None):
 
 log = (evidence/'chromedriver.log').open('w')
 driver = subprocess.Popen([str(out/'chromedriver'), f'--port={port}',
-                           '--allowed-ips=127.0.0.1'], stdout=log, stderr=subprocess.STDOUT)
+                           '--allowed-ips=127.0.0.1','--verbose'], stdout=log, stderr=subprocess.STDOUT)
 report = {}
 try:
     for _ in range(100):
@@ -57,7 +57,7 @@ try:
         profile = evidence / (label+'-profile')
         assert not profile.exists(), f'Use a fresh evidence directory: {profile}'
         launch_args = ['--disable-background-networking', '--use-mock-keychain', '--force-color-profile=srgb',
-                       '--password-store=basic', '--window-size=1200,900',
+                       '--password-store=basic', '--enable-logging=stderr', '--window-size=1200,900',
                        f'--user-data-dir={profile}']
         if not args.headed:
             launch_args += ['--headless=new']
@@ -69,8 +69,8 @@ try:
                                   'args':launch_args,
                                   'prefs':{'helium.services.enabled':False,
                                            'helium.services.browser_updates':False,
-                                           'helium.browser.layout':0 if args.classic else 2,
-                                           'helium.browser.zen_mode_top_chrome_pinned':False}}}}})
+                                           'helium.browser.layout':2,
+                                           'helium.browser.zen_mode_top_chrome_pinned':enabled}}}}})
         sid = '/session/'+session['sessionId']
         def js(script):
             return request('POST',sid+'/execute/sync',{'script':script,'args':[]})
@@ -186,6 +186,72 @@ try:
             time.sleep(.25)
             cover['ordinary_after_navigation'] = js('return {height:innerHeight,visualHeight:visualViewport.height}')
             report[label]['cover'] = cover
+            if args.toggle and enabled:
+                ordinary_handle = request('GET',sid+'/window')
+                js('window.insetCheckMarker = 42; scrollTo(0,400)')
+                cover_handle = request('POST',sid+'/window/new',{'type':'tab'})['handle']
+                request('POST',sid+'/window',{'handle':cover_handle})
+                request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+                js('window.insetCheckMarker = 42; scrollTo(0,400)')
+                cover_anchor = js("return document.querySelector('main').getBoundingClientRect().top")
+                settings_handle = request('POST',sid+'/window/new',{'type':'tab'})['handle']
+                request('POST',sid+'/window',{'handle':settings_handle})
+                request('POST',sid+'/url',{'url':'chrome://settings/appearance'})
+                def set_pref(key, value):
+                    request('POST',sid+'/window',{'handle':settings_handle})
+                    result = request('POST',sid+'/execute/async',{
+                        'script':"const done=arguments[arguments.length-1]; chrome.settingsPrivate.setPref(arguments[0],arguments[1], '', done)",
+                        'args':[key,value]})
+                    assert result is True, (key,result)
+                    time.sleep(.3)
+                toggles = []
+                for right, pinned in ((False,False),(False,True),(True,True),(True,False)):
+                    set_pref('helium.browser.vertical_right_aligned', right)
+                    set_pref('helium.browser.zen_mode_top_chrome_pinned', pinned)
+                    row = {'right':right,'pinned':pinned}
+                    for tab,handle in (('ordinary',ordinary_handle),('cover',cover_handle)):
+                        request('POST',sid+'/window',{'handle':handle})
+                        value = js("""return {height:innerHeight,scroll:scrollY,marker:window.insetCheckMarker,
+                          anchorTop:document.querySelector('main').getBoundingClientRect().top,
+                          safe:document.querySelector('#safe') ? parseFloat(getComputedStyle(document.querySelector('#safe')).paddingTop) : null}""")
+                        assert value['marker']==42, value
+                        if tab=='ordinary':
+                            assert value['scroll']==400, value
+                        else:
+                            # Removing the page's own safe-area padding invokes CSS
+                            # scroll anchoring: content stays put although scrollY changes.
+                            assert abs(value['anchorTop']-cover_anchor)<1, (value,cover_anchor)
+                        assert value['height']==(848 if tab=='ordinary' and pinned else 900), value
+                        if tab=='cover':
+                            assert value['safe']==(52 if pinned else 0), value
+                        rect = js("return document.querySelector('#fixed').getBoundingClientRect().toJSON()")
+                        old_clicks = js('return clicks')
+                        for kind in ('mousePressed','mouseReleased'):
+                            cdp('Input.dispatchMouseEvent',{'type':kind,'x':rect['x']+rect['width']/2,
+                                'y':rect['y']+rect['height']/2+(52 if pinned and tab=='ordinary' else 0),
+                                'button':'left','clickCount':1})
+                        value['click_aligned'] = js('return clicks')==old_clicks+1
+                        assert value['click_aligned'], value
+                        row[tab]=value
+                    toggles.append(row)
+                report[label]['toggle'] = toggles
+                # End unchecked, restart this exact profile without startup prefs,
+                # and verify both the saved preference and restored page geometry.
+                request('DELETE',sid)
+                time.sleep(1)
+                saved = json.loads((profile/'Default/Preferences').read_text())
+                assert saved['helium']['browser']['zen_mode_top_chrome_pinned'] is False
+                session = request('POST','/session',{'capabilities':{'alwaysMatch':{
+                    'goog:chromeOptions': {'binary':str(out/'Lune.app/Contents/MacOS/Lune'),
+                        'excludeSwitches':['enable-automation'],'args':launch_args}}}})
+                sid = '/session/'+session['sessionId']
+                request('POST',sid+'/url',{'url':Path(__file__).with_name('page.html').resolve().as_uri()})
+                restarted = js('return {height:innerHeight}')
+                assert restarted['height']==900, restarted
+                request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+                restarted['safe'] = cover_metrics()['safe']
+                assert restarted['safe']==0, restarted
+                report[label]['restart_unchecked'] = restarted
             print(label, json.dumps(report[label]), flush=True)
             (evidence/'results.json').write_text(json.dumps(report,indent=2)+'\n')
         finally:

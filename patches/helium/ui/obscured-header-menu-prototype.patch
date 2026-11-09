@@ -1,0 +1,265 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -10387,6 +10387,10 @@ Keep your key file in a safe place. You
+         Use the split view menu to switch between side by side and stacked layouts.
+       </message>
+ 
++      <message name="IDS_ALWAYS_SHOW_CONTROLS" desc="Checkbox in the window context menu to keep the native browser controls visible.">
++        Always show controls
++      </message>
++
+       <!-- Helium Browser Layout Strings -->
+       <if expr="use_titlecase">
+         <then>
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -591,6 +591,7 @@
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/chrome_pages.h"
++#include "chrome/browser/ui/helium/helium_layout_state_controller.h"
+ #include "chrome/browser/ui/dialogs/browser_dialogs.h"
+ #include "chrome/browser/ui/waap/waap_utils.h"
+ #include "chrome/browser/ui/webui/chrome_content_browser_client_webui_part.h"
+@@ -4721,6 +4722,21 @@ void ChromeContentBrowserClient::Overrid
+   Profile* profile = GetProfileForWebPreferences(web_contents);
+   PrefService* prefs = profile->GetPrefs();
+ 
++#if BUILDFLAG(IS_MAC)
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
++          "lune-obscured-header-prototype")) {
++    auto* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
++        web_contents);
++    auto* layout = browser ? HeliumLayoutStateController::From(browser) : nullptr;
++    web_prefs->native_header_inset =
++        browser && browser->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
++                layout && layout->IsVerticalAddressBarInSidebar() &&
++                prefs->GetBoolean(prefs::kHeliumZenModeTopChromePinned)
++            ? 52.f
++            : 0.f;
++  }
++#endif
++
+ // Fill font preferences. These are not registered on Android unless we're built
+ // with extensions (the chrome.fontSettings API can change these).
+ // - http://crbug.com/40337093, http://crbug.com/41304476.
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -633,6 +633,19 @@ bool ShouldShowWindowIcon(const BrowserW
+ 
+ #if BUILDFLAG(IS_MAC)
+ 
++// Preference changes are infrequent. Update every tab, including background
++// renderers, without adding work to scrolling or cursor tracking.
++void UpdateHeaderInsetPreferences(BrowserWindowInterface* browser) {
++  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
++          "lune-obscured-header-prototype")) {
++    return;
++  }
++  auto* model = browser->GetTabStripModel();
++  for (int i = 0; i < model->count(); ++i) {
++    model->GetWebContentsAt(i)->OnWebPreferencesChanged();
++  }
++}
++
+ void GetAnyTabAudioStates(const BrowserWindowInterface* browser,
+                           bool* any_tab_playing_audio,
+                           bool* any_tab_playing_muted_audio) {
+@@ -1801,10 +1814,6 @@ bool BrowserView::IsZenModeTopChromePinn
+   if (fullscreen_utils::IsInContentFullscreen(browser())) {
+     return false;
+   }
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+-          "lune-obscured-header-prototype")) {
+-    return zen_mode_enabled_;
+-  }
+ #endif
+   return zen_mode_enabled_ && browser_->GetProfile()->GetPrefs()->GetBoolean(
+              prefs::kHeliumZenModeTopChromePinned);
+@@ -1956,6 +1965,9 @@ void BrowserView::OnVerticalTabStripMode
+ 
+ void BrowserView::OnToolbarTabStripStateChanged(
+     HeliumLayoutStateController* controller) {
++#if BUILDFLAG(IS_MAC)
++  UpdateHeaderInsetPreferences(browser());
++#endif
+   if (horizontal_tab_strip_region_view_) {
+     if (controller && controller->IsCompactLayout() && GetIsNormalType()) {
+       toolbar_->AttachTabStripRegionView(horizontal_tab_strip_region_view_);
+@@ -2031,6 +2043,9 @@ void BrowserView::OnZenModeSideChromePin
+ }
+ 
+ void BrowserView::OnZenModeTopChromePinnedPrefChanged() {
++#if BUILDFLAG(IS_MAC)
++  UpdateHeaderInsetPreferences(browser());
++#endif
+   if (!zen_mode_enabled_) {
+     return;
+   }
+@@ -4686,6 +4701,13 @@ void BrowserView::OnTabStripModelChanged
+   }
+ 
+   for ([[maybe_unused]] const auto& contents : change.GetInsert()->contents) {
++#if BUILDFLAG(IS_MAC)
++    // A newly created or moved tab now has an owning browser window.
++    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
++            "lune-obscured-header-prototype")) {
++      contents.contents->OnWebPreferencesChanged();
++    }
++#endif
+ #if defined(USE_AURA)
+     // WebContents inserted in tabs might not have been added to the root
+     // window yet. Per http://crbug.com/41089037 add them now since drawing the
+--- a/chrome/browser/ui/views/frame/system_menu_model_builder.cc
++++ b/chrome/browser/ui/views/frame/system_menu_model_builder.cc
+@@ -183,6 +183,12 @@ void SystemMenuModelBuilder::BuildSystem
+   if (!browser()->GetProfile()->IsOffTheRecord()) {
+     model->AddSeparator(ui::NORMAL_SEPARATOR);
+ 
++#if BUILDFLAG(IS_MAC)
++    model->AddCheckItemWithStringId(
++        IDC_BROWSER_LAYOUT_VERTICAL_RIGHT, IDS_BROWSER_LAYOUT_VERTICAL_RIGHT);
++    model->AddCheckItemWithStringId(
++        IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN, IDS_ALWAYS_SHOW_CONTROLS);
++#else
+     browser_layout_menu_contents_ =
+         std::make_unique<ui::SimpleMenuModel>(&menu_delegate_);
+ 
+@@ -205,6 +211,8 @@ void SystemMenuModelBuilder::BuildSystem
+                                   IDS_BROWSER_LAYOUT_MENU,
+                                   browser_layout_menu_contents_.get());
+ 
++#endif
++
+     model->AddItemWithStringId(IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL,
+                                IDS_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL);
+   }
+--- a/chrome/browser/ui/views/frame/system_menu_model_delegate.cc
++++ b/chrome/browser/ui/views/frame/system_menu_model_delegate.cc
+@@ -86,6 +86,11 @@ bool SystemMenuModelDelegate::IsCommandI
+            vertical_tab_controller->IsTabStripRightAligned();
+   }
+ 
++  if (command_id == IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN) {
++    return browser_->GetProfile()->GetPrefs()->GetBoolean(
++        prefs::kHeliumZenModeTopChromePinned);
++  }
++
+   return false;
+ }
+ 
+--- a/third_party/blink/common/web_preferences/web_preferences_mojom_traits.cc
++++ b/third_party/blink/common/web_preferences/web_preferences_mojom_traits.cc
+@@ -244,6 +244,7 @@ bool StructTraits<blink::mojom::WebPrefe
+   out->renderer_wide_named_frame_lookup =
+       data.renderer_wide_named_frame_lookup();
+   out->modal_context_menu = data.modal_context_menu();
++  out->native_header_inset = data.native_header_inset();
+   out->payment_request_enabled = data.payment_request_enabled();
+   out->ai_ot_apis_enabled = data.ai_ot_apis_enabled();
+ 
+--- a/third_party/blink/public/common/web_preferences/web_preferences.h
++++ b/third_party/blink/public/common/web_preferences/web_preferences.h
+@@ -464,6 +464,9 @@ struct BLINK_COMMON_EXPORT WebPreference
+   // blocking user's access to the background web content.
+   bool modal_context_menu = true;
+ 
++  // Browser-owned overlay inset in device-independent pixels. Zero disables it.
++  float native_header_inset = 0;
++
+   // Whether the safe-area-insets should be changed dynamically based on
+   // browser controls shown ratio on Android.
+   bool dynamic_safe_area_insets_enabled = false;
+--- a/third_party/blink/public/common/web_preferences/web_preferences_mojom_traits.h
++++ b/third_party/blink/public/common/web_preferences/web_preferences_mojom_traits.h
+@@ -839,6 +839,11 @@ struct BLINK_COMMON_EXPORT StructTraits<
+     return r.modal_context_menu;
+   }
+ 
++  static float native_header_inset(
++      const blink::web_pref::WebPreferences& r) {
++    return r.native_header_inset;
++  }
++
+   static bool dynamic_safe_area_insets_enabled(
+       const blink::web_pref::WebPreferences& r) {
+     return r.dynamic_safe_area_insets_enabled;
+--- a/third_party/blink/public/mojom/webpreferences/web_preferences.mojom
++++ b/third_party/blink/public/mojom/webpreferences/web_preferences.mojom
+@@ -512,6 +512,9 @@ struct WebPreferences {
+   // blocking user's access to the background web content.
+   bool modal_context_menu = true;
+ 
++  // Browser-owned overlay inset in device-independent pixels. Zero disables it.
++  float native_header_inset = 0;
++
+   // Whether the safe-area-insets should be changed dynamically based on
+   // browser controls shown ratio on Android.
+   [EnableIf=is_android]
+--- a/third_party/blink/renderer/core/exported/web_view_impl.cc
++++ b/third_party/blink/renderer/core/exported/web_view_impl.cc
+@@ -4018,6 +4018,12 @@ void WebViewImpl::UpdateWebPreferences(
+ 
+   ApplyWebPreferences(web_preferences_, this);
+   ApplyCommandLineToSettings(SettingsImpl());
++  auto& viewport = GetPage()->GetVisualViewport();
++  if (viewport.SetHeaderTopInset(web_preferences_.native_header_inset) &&
++      MainFrameImpl()) {
++    UpdateICBAndResizeViewport(viewport.Size());
++    SendResizeEventForMainFrame();
++  }
+ }
+ 
+ void WebViewImpl::AddObserver(WebViewObserver* observer) {
+--- a/third_party/blink/renderer/core/frame/visual_viewport.cc
++++ b/third_party/blink/renderer/core/frame/visual_viewport.cc
+@@ -534,18 +534,25 @@ float VisualViewport::ObscuredTopInset()
+ }
+ 
+ float VisualViewport::HeaderTopInset() const {
+-  // Keep this first experiment off unless explicitly requested. A production
+-  // version must receive window-local geometry with visual properties.
+-  static const bool enabled = base::CommandLine::ForCurrentProcess()->HasSwitch(
+-      "lune-obscured-header-prototype");
+-  if (!enabled || !IsActiveViewport() || Fullscreen::HasFullscreenElements()) {
++  if (!header_top_inset_ || !IsActiveViewport() ||
++      Fullscreen::HasFullscreenElements()) {
+     return 0;
+   }
+   const auto* document = LocalMainFrame().GetDocument();
+   if (!document || document->Url().ProtocolIs("devtools")) {
+     return 0;
+   }
+-  return 52 * GetChromeClient()->GetScreenInfo(LocalMainFrame()).device_scale_factor;
++  return header_top_inset_ *
++         GetChromeClient()->GetScreenInfo(LocalMainFrame()).device_scale_factor;
++}
++
++bool VisualViewport::SetHeaderTopInset(float inset) {
++  if (header_top_inset_ == inset) {
++    return false;
++  }
++  header_top_inset_ = inset;
++  SetNeedsPaintPropertyUpdate();
++  return true;
+ }
+ 
+ void VisualViewport::Trace(Visitor* visitor) const {
+--- a/third_party/blink/renderer/core/frame/visual_viewport.h
++++ b/third_party/blink/renderer/core/frame/visual_viewport.h
+@@ -116,6 +116,7 @@ class CORE_EXPORT VisualViewport : publi
+   // Launch-gated prototype: physical rendering pixels obscured by native UI.
+   float ObscuredTopInset() const;
+   float HeaderTopInset() const;
++  bool SetHeaderTopInset(float inset);
+ 
+   void InitializeScrollbars();
+ 
+@@ -379,6 +380,7 @@ class CORE_EXPORT VisualViewport : publi
+ 
+   TraceablePropertyTreeStateOrAlias parent_property_tree_state_{
+       TraceablePropertyTreeStateOrAlias::kUninitialized};
++  float header_top_inset_ = 0;
+   Member<TransformPaintPropertyNode> obscured_content_transform_node_;
+   Member<TransformPaintPropertyNode> device_emulation_transform_node_;
+   Member<TransformPaintPropertyNode> overscroll_elasticity_transform_node_;
