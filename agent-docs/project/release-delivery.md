@@ -91,6 +91,12 @@ additional CI cost; this work does not activate scheduled release jobs.
    CANDIDATE`, then its `sign` and `package` commands on that directory. Each
    stage refuses existing output. Signing uses nested Chromium signing, Apple
    notarization, stapling, Gatekeeper and Sparkle Ed25519 verification.
+   After signing, use the reviewed `scripts/release/check_runtime.py --app APP
+   --driver DRIVER --directory REPORT_DIRECTORY --version VERSION
+   --chromium-version CHROMIUM --arch ARCH`. It checks signed bundle identity,
+   Mach-O minimums, About and lune://version, real public HTTPS navigation and
+   restart persistence in a disposable profile. It records native versus Rosetta
+   execution and does not count Rosetta as native Intel acceptance.
 5. Exercise the real About-page updater from published build 2 to the candidate
    with `scripts/release/check_update.py --expected-build VERSION`. Run both
    architectures sequentially, including invalid-signature and unsupported-OS
