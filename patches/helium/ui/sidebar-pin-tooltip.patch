@@ -1,0 +1,22 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -730,7 +730,8 @@
+   _button.bordered = NO;
+   _button.frame = NSMakeRect(2, 2, 32, 32);
+   _button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-  _button.toolTip = @"Toggle sidebar";
++  _button.toolTip = view->IsZenModeSideChromePinned()
++                        ? @"Unpin sidebar" : @"Pin sidebar";
+   _button.accessibilityLabel = _button.toolTip;
+   [_controls addSubview:_button];
+   return self;
+@@ -753,6 +754,9 @@
+   if (!_browser) {
+     return;
+   }
++  _button.toolTip = _browser->IsZenModeSideChromePinned()
++                        ? @"Unpin sidebar" : @"Pin sidebar";
++  _button.accessibilityLabel = _button.toolTip;
+   _button.image = [[NSImage
+       imageWithSystemSymbolName:_browser->IsVerticalTabStripRightAligned()
+                                     ? @"sidebar.right"
