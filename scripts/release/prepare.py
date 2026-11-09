@@ -58,6 +58,7 @@ _root_dir="$1"
 source "$_root_dir/devutils/shared.sh"
 prepare_sources true
 configure_siso
+python3 "$_src_dir/third_party/node/node.py" "$_src_dir/components/helium_onboarding/util/generate-i18n.mts"
 '''
     with report.with_suffix('.log').open('x') as log:
         subprocess.run(['/bin/bash', '-c', shell, 'lune-release-prepare', str(platform)],

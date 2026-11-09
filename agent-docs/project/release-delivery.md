@@ -59,7 +59,8 @@ additional CI cost; this work does not activate scheduled release jobs.
    complete patch series without fuzz using `scripts/release/prepare.py
    --platform PLATFORM_CHECKOUT --report PREPARED_REPORT`. It refuses an existing
    source tree, uses the locked host archive manifest and upstream preparation,
-   then inventories source files and symlinks. Output and bookkeeping exclusions
+   generates onboarding's deterministic strings module, then inventories source
+   files and symlinks. Output and bookkeeping exclusions
    are the root out/ and siso_result.json, Git/quilt metadata, Python bytecode,
    and Vite's node_modules/.vite development cache. Keep its archive verification and
    patch log. Existing output caches may be reused only after source comparison.
