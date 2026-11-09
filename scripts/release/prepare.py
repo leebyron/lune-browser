@@ -19,6 +19,10 @@ def inventory(source):
     for directory, dirs, names in os.walk(source, followlinks=False):
         dirs[:] = sorted(d for d in dirs if d not in EXCLUDED
                          and not (Path(directory) == source and d == 'out'))
+        if Path(directory) == source:
+            names = [name for name in names if name != 'siso_result.json']
+        if Path(directory).as_posix().endswith('/node_modules'):
+            dirs[:] = [name for name in dirs if name != '.vite']
         for name in sorted(names + [d for d in dirs if (Path(directory) / d).is_symlink()]):
             path = Path(directory) / name
             relative = path.relative_to(source).as_posix()
