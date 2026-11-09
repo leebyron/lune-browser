@@ -114,8 +114,9 @@ manual instructions. Every included file checksum and ZIP CRC passes; Python
 The owner has been asked to test both Macs and report their models and results.
 
 The complete kit is available under Assets in the
-[private test-kit draft](https://github.com/leebyron/lune-browser/releases/tag/untagged-93bc6c7c5fe5bda46aaf).
-Sign in with repository access, download `Lune-26.1109.1-Intel-test-kit.zip`,
+[private releases page](https://github.com/leebyron/lune-browser/releases).
+Choose the `acceptance-kit-26.1109.1` draft after signing in with repository
+access, download `Lune-26.1109.1-Intel-test-kit.zip`,
 extract it and follow `TESTING.md`; no repository checkout is needed. GitHub
 reports the asset uploaded with the exact local size and SHA-256 above. This
 unpublished private draft distributes acceptance materials only; it does not
@@ -127,7 +128,10 @@ The owner subsequently requested publishing this normal production build and
 fixing any discovered issues in a new version. Physical Intel acceptance is
 therefore deferred, explicitly recorded in the delivery decision and separate
 production acceptance JSON; the frozen source and uploaded validation remain
-unchanged. Local signed checks pass for both architectures. Rosetta results do
+unchanged. The signed private source tag `v26.1109.1` is verified and pushed at
+`24f6531ae722dfa61e214e04a5efde83bf068f4f`. All 20 release tests and five production
+publication tests pass with the explicit deferral; artifact hashes and local
+acceptance remain mandatory. Local signed checks pass for both architectures. Rosetta results do
 not establish native Intel acceptance on
 macOS 13.7.8 and 26.6.2. The owner confirmed the second version on November 9;
 device models and actual native acceptance results remain pending.
