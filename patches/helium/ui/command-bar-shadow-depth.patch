@@ -1,0 +1,50 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -70,6 +70,38 @@ NSString* TagForType(HeliumCommandBarIte
+ 
+ }  // namespace
+ 
++// Supplement the native glass shadow with a faint, explicit silhouette.
++@interface HeliumCommandMaterial : NSView
++@end
++
++@implementation HeliumCommandMaterial
++- (instancetype)initWithFrame:(NSRect)frame {
++  if ((self = [super initWithFrame:frame])) {
++    self.wantsLayer = YES;
++    self.clipsToBounds = NO;
++    NSShadow* shadow = [[NSShadow alloc] init];
++    shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.05];
++    shadow.shadowBlurRadius = 10;
++    shadow.shadowOffset = NSMakeSize(0, -3);
++    self.shadow = shadow;
++    [self updateShadowPath];
++  }
++  return self;
++}
++- (void)setFrameSize:(NSSize)size {
++  [super setFrameSize:size];
++  [self updateShadowPath];
++}
++- (void)updateShadowPath {
++  CGPathRef path = CGPathCreateWithRoundedRect(self.bounds, 20, 20, nullptr);
++  [CATransaction begin];
++  [CATransaction setDisableActions:YES];
++  self.layer.shadowPath = path;
++  [CATransaction commit];
++  CGPathRelease(path);
++}
++@end
++
+ @interface HeliumCommandResults : NSView
+ @end
+ 
+@@ -327,7 +359,7 @@ HeliumCommandBarView::HeliumCommandBarVi
+       browser_view->GetProfile()->GetPrefs()->GetBoolean(
+           prefs::kHeliumContentAwareChrome);
+   if (@available(macOS 26, *)) {
+-    NSView* material = [[NSView alloc] initWithFrame:pane.frame];
++    NSView* material = [[HeliumCommandMaterial alloc] initWithFrame:pane.frame];
+     material.appearance = appearance;
+     NSView* backdrop = [[NSView alloc] initWithFrame:material.bounds];
+     backdrop.wantsLayer = YES;
