@@ -1,0 +1,43 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -30,6 +30,14 @@ constexpr int kInputHeight = 52;
+ constexpr int kGlassOutset = 48;
+ constexpr size_t kVisibleResults = 5;
+ 
++int CommandBarHeight(size_t result_count) {
++  return kInputHeight +
++         (result_count ? kHeliumNativeResultInset +
++                             std::min(kVisibleResults, result_count) *
++                                 kHeliumNativeResultRowHeight
++                       : 0);
++}
++
+ // The native host handles clicks inside the glass. The remaining Views surface
+ // is only transparent space for the shadow, so clicking it dismisses the popup.
+ class CommandBarContents : public views::View {
+@@ -180,7 +188,9 @@ HeliumCommandBarView* HeliumCommandBarVi
+   const int window_width = view->native_->width + 2 * kGlassOutset;
+   widget->SetBounds(
+       gfx::Rect(bounds.x() + (bounds.width() - window_width) / 2,
+-                bounds.y() + bounds.height() / 5 - kGlassOutset, window_width,
++                bounds.y() + (bounds.height() - CommandBarHeight(kVisibleResults)) / 2 -
++                    kGlassOutset,
++                window_width,
+                 kInputHeight + 2 * kGlassOutset));
+   view->native_->host->Attach(gfx::NativeView(view->native_->material));
+   widget->Show();
+@@ -407,12 +417,8 @@ void HeliumCommandBarView::ResizeToConte
+   if (!GetWidget()) {
+     return;
+   }
+-  const size_t visible_rows =
+-      std::min(kVisibleResults, native_->pane.rows.count);
+-  const int height = kInputHeight + 2 * kGlassOutset +
+-      (visible_rows ? kHeliumNativeResultInset +
+-                          visible_rows * kHeliumNativeResultRowHeight
+-                    : 0);
++  const int height = CommandBarHeight(native_->pane.rows.count) +
++                     2 * kGlassOutset;
+   if (GetWidget()->GetWindowBoundsInScreen().height() != height) {
+     GetWidget()->SetSize(gfx::Size(native_->width + 2 * kGlassOutset, height));
+   }
