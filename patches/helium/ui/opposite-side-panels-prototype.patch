@@ -1,0 +1,62 @@
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -241,6 +241,9 @@ export function getHtml(this: SettingsAp
+           $i18n{sidePanelAlignmentChromePanels}
+         </div>
+         <settings-dropdown-menu id="sidePanelPosition"
++<if expr="is_macosx">
++            disabled
++</if>
+             label="${this.i18n(
+                 'sidePanelAlignmentA11yLabel',
+                 '$i18n{sidePanelAlignmentChromePanels}',
+--- a/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
++++ b/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
+@@ -42,6 +42,23 @@
+ 
+ namespace tabs {
+ 
++#if BUILDFLAG(IS_MAC)
++namespace {
++
++void AlignPanelsWithSidebar(PrefService* pref_service) {
++  // Keep browser panels opposite the tab sidebar, including restored profiles
++  // and writes from Settings or another browser window.
++  const bool panel_on_right =
++      !pref_service->GetBoolean(prefs::kHeliumVerticalRightAligned);
++  if (pref_service->GetBoolean(prefs::kSidePanelHorizontalAlignment) !=
++      panel_on_right) {
++    pref_service->SetBoolean(prefs::kSidePanelHorizontalAlignment, panel_on_right);
++  }
++}
++
++}  // namespace
++#endif
++
+ VerticalTabStripStateControllerImpl::VerticalTabStripStateControllerImpl(
+     BrowserWindowInterface& browser_window,
+     PrefService* pref_service,
+@@ -58,6 +75,13 @@ VerticalTabStripStateControllerImpl::Ver
+       browser_window_(browser_window) {
+   pref_change_registrar_.Init(pref_service_);
+ 
++#if BUILDFLAG(IS_MAC)
++  pref_change_registrar_.Add(
++      prefs::kSidePanelHorizontalAlignment,
++      base::BindRepeating(&AlignPanelsWithSidebar, pref_service_));
++  AlignPanelsWithSidebar(pref_service_);
++#endif
++
+   is_vertical_tabs_enabled_ =
+       pref_service_->GetInteger(prefs::kHeliumLayout) ==
+       std::to_underlying(HeliumLayoutType::kVertical);
+@@ -276,6 +300,9 @@ void VerticalTabStripStateControllerImpl
+ }
+ 
+ void VerticalTabStripStateControllerImpl::OnModeChanged() {
++#if BUILDFLAG(IS_MAC)
++  AlignPanelsWithSidebar(pref_service_);
++#endif
+   const bool new_enabled =
+       pref_service_->GetInteger(prefs::kHeliumLayout) ==
+       std::to_underlying(HeliumLayoutType::kVertical);
