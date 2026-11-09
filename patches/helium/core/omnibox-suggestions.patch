@@ -1,6 +1,6 @@
 --- a/components/omnibox/browser/omnibox_pref_names.h
 +++ b/components/omnibox/browser/omnibox_pref_names.h
-@@ -82,6 +82,15 @@ inline constexpr char kShowAiModeOmnibox
+@@ -82,6 +82,15 @@
  // omnibox.
  inline constexpr char kShowSearchTools[] = "omnibox.show_search_tools";
  
@@ -18,16 +18,16 @@
      "omnibox.shown_count_enterprise_search_aggregator_iph";
 --- a/components/omnibox/browser/omnibox_prefs.cc
 +++ b/components/omnibox/browser/omnibox_prefs.cc
-@@ -32,6 +32,9 @@ void RegisterProfilePrefs(PrefRegistrySi
+@@ -32,6 +32,9 @@
    registry->RegisterBooleanPref(
        kShowSearchTools, true, user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
  
 +  registry->RegisterBooleanPref(omnibox::kAutocompleteHistoryEnabled, true);
 +  registry->RegisterBooleanPref(omnibox::kAutocompleteBookmarkEnabled, true);
 +
-   registry->RegisterBooleanPref(omnibox::kDismissedGeminiIph, false);
-   registry->RegisterBooleanPref(
-       omnibox::kDismissedEnterpriseSearchAggregatorIphPrefName, false);
+   registry->RegisterBooleanPref(kDismissedGeminiIph, false);
+   registry->RegisterBooleanPref(kDismissedEnterpriseSearchAggregatorIphPrefName,
+                                 false);
 --- a/components/omnibox/browser/bookmark_provider.cc
 +++ b/components/omnibox/browser/bookmark_provider.cc
 @@ -20,6 +20,7 @@
@@ -38,7 +38,7 @@
  #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
  #include "components/omnibox/browser/page_classification_functions.h"
  #include "components/omnibox/browser/scoring_functor.h"
-@@ -52,6 +53,10 @@ void BookmarkProvider::Start(const Autoc
+@@ -52,6 +53,10 @@
      return;
    }
  
@@ -59,7 +59,7 @@
  #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
  #include "components/url_formatter/elide_url.h"
  #include "third_party/metrics_proto/omnibox_event.pb.h"
-@@ -496,6 +497,11 @@ void HistoryFuzzyProvider::Start(const A
+@@ -496,6 +497,11 @@
                                   bool minimal_changes) {
    TRACE_EVENT0("omnibox", "HistoryFuzzyProvider::Start");
    matches_.clear();
@@ -81,7 +81,7 @@
  #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
  #include "components/omnibox/browser/page_classification_functions.h"
  #include "components/omnibox/browser/url_prefix.h"
-@@ -62,6 +63,11 @@ void HistoryQuickProvider::Start(const A
+@@ -62,6 +63,11 @@
                                   bool minimal_changes) {
    TRACE_EVENT0("omnibox", "HistoryQuickProvider::Start");
    matches_.clear();
@@ -103,7 +103,7 @@
  #include "components/omnibox/browser/url_prefix.h"
  #include "components/omnibox/browser/verbatim_match.h"
  #include "components/prefs/pref_service.h"
-@@ -490,6 +491,12 @@ void HistoryURLProvider::Start(const Aut
+@@ -490,6 +491,12 @@
    if (base::CommandLine::ForCurrentProcess()->HasSwitch("omnibox-autocomplete-filtering"))
      return;
  
@@ -118,7 +118,7 @@
        client()->GetHistoryService();
 --- a/components/omnibox/browser/local_history_zero_suggest_provider.cc
 +++ b/components/omnibox/browser/local_history_zero_suggest_provider.cc
-@@ -117,6 +117,11 @@ void LocalHistoryZeroSuggestProvider::St
+@@ -123,6 +123,11 @@
                                              bool minimal_changes) {
    TRACE_EVENT0("omnibox", "LocalHistoryZeroSuggestProvider::Start");
    Stop(AutocompleteStopReason::kClobbered);
@@ -140,7 +140,7 @@
  #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
  #include "components/omnibox/browser/page_classification_functions.h"
  #include "components/omnibox/browser/remote_suggestions_service.h"
-@@ -693,6 +694,10 @@ void SearchProvider::DoHistoryQuery(bool
+@@ -693,6 +694,10 @@
    raw_keyword_history_results_.clear();
    raw_default_history_results_.clear();
  
@@ -161,7 +161,7 @@
  #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
  #include "components/omnibox/browser/url_prefix.h"
  #include "components/omnibox/common/omnibox_feature_configs.h"
-@@ -217,6 +218,10 @@ void ShortcutsProvider::Start(const Auto
+@@ -217,6 +218,10 @@
    TRACE_EVENT0("omnibox", "ShortcutsProvider::Start");
    matches_.clear();
  
