@@ -20,7 +20,10 @@ onboarding artwork with GitHub Sparkle endpoints and signed Lune version display
 The tooling now prepares frozen date-versioned builds, paired GitHub feeds,
 immutable/version-independent downloads, and fail-closed freshness checks.
 Website links and old-feed redirects are prepared but must not reach production
-before stable promotion and public readback. Complete clean source comparison and both version-display unit compiles pass.
+before stable promotion and public readback. The owner subsequently deferred
+physical Intel testing for 26.1109.1 and requested production publication with
+fixes in subsequent versions. Keep native hardware results marked unverified;
+use the separate production acceptance record, not fabricated passing results. Complete clean source comparison and both version-display unit compiles pass.
 Both frozen architecture builds and their post-build source inventories pass.
 Local signed acceptance passes on Apple silicon and Intel under Rosetta, including
 positive/negative Sparkle tests and runtime persistence. The paired publication

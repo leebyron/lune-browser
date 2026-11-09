@@ -123,8 +123,12 @@ create a public staging channel or enable website production downloads.
 
 ## Remaining gates
 
-Local signed checks pass for both architectures. Rosetta results cannot replace
-the owner's native Intel acceptance on
+The owner subsequently requested publishing this normal production build and
+fixing any discovered issues in a new version. Physical Intel acceptance is
+therefore deferred, explicitly recorded in the delivery decision and separate
+production acceptance JSON; the frozen source and uploaded validation remain
+unchanged. Local signed checks pass for both architectures. Rosetta results do
+not establish native Intel acceptance on
 macOS 13.7.8 and 26.6.2. The owner confirmed the second version on November 9;
 device models and actual native acceptance results remain pending.
 

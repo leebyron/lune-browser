@@ -1,7 +1,9 @@
 # GitHub download and update delivery
 
 Implemented on the release-download-flow branch, November 9, 2026. Publication
-and stable promotion remain gated on the candidate's actual acceptance results.
+and stable promotion use the candidate's actual acceptance results and recorded
+owner decisions. For 26.1109.1, the owner explicitly deferred physical Intel
+testing and requested production publication; those results remain unverified.
 The requested first date-versioned release is 26.1109.1; do not infer that a tag,
 public release, or stable offer exists from this document alone.
 
@@ -119,10 +121,12 @@ additional CI cost; this work does not activate scheduled release jobs.
    build 2's real updater with these exact final DMG bytes; this is a local test,
    not a staging delivery channel. Record hardware results and owner confirmation
    against the DMG hashes. Never label Rosetta checks as native Intel acceptance.
-9. After native Intel acceptance, tag the exact private source commit and run
+9. After native Intel acceptance or an explicit owner-approved deferral recorded
+   in the version/hash-bound acceptance JSON, tag the exact private source commit and run
    the reviewed publisher's `promote --channel stable --source-checkout FROZEN`
    with the publication directory, acceptance JSON, and public checkout. All
-   hardware gates and a fresh Chromium lookup pass before it undrafts the final
+   acceptance checks (including any recorded native Intel deferral) and a fresh
+   Chromium lookup pass before it undrafts the final
    release. It verifies anonymous immutable downloads, rechecks freshness, commits
    both stable feeds, then marks the release latest. Verify both raw feeds,
    both latest aliases, the release page and public HTTPS installed updates,
@@ -138,7 +142,9 @@ Never confuse those two histories. Keep builds 1 and 2 and their source unchange
 The owner has two native Intel Macs running macOS 13.7.8 and 26.6.2, confirmed
 on November 9. The 13.7.8 machine exercises the older-system glass fallback;
 26.6.2 exercises the native glass path. These are planned test environments,
-not completed acceptance results. Use the candidate's Intel DMG on each test Mac. Record model,
+not completed acceptance results. The owner deferred these checks for 26.1109.1;
+keep them as post-release follow-up rather than asserting they passed. Use the
+candidate's Intel DMG on each test Mac. Record model,
 macOS version, downloaded filename/hash and whether Rosetta is involved (native
 Intel is required here). Drag Lune to Applications and launch normally through
 Finder, without bypassing Gatekeeper. Verify About shows the release version and

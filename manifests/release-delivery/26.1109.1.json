@@ -5,7 +5,12 @@
   "channel": "stable",
   "public_staging": false,
   "public_prerelease": false,
-  "publication": "Keep private draft assets until production acceptance passes; publish the final release and stable feeds only.",
+  "publication": "Publish the final production release after artifact verification and freshness checks; physical Intel acceptance is deferred by the owner.",
   "decision": "Owner requested production-only delivery after the source record was frozen. This supersedes its initial staging delivery intention without changing binary inputs.",
-  "native_intel_acceptance_required": true
+  "native_intel_acceptance_required": false,
+  "native_intel_deferral": {
+    "owner_approved": true,
+    "testing_pending": true,
+    "owner_instruction": "Is this just a normal build of the app? why not just publish this version and if it doesnt work perfectly we'll just fix whatever was wrong and publish the next version with the fixes?"
+  }
 }
