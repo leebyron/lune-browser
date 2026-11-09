@@ -25,13 +25,19 @@ layout callback. The native header's cursor polling stops when pinned unless an
 unpinned sidebar still needs retention tracking. This is the low-overhead
 approach under test; measured scroll layout counts are not battery measurements.
 
-The flag is process-wide and geometry is hard-coded. A production version needs
-window-local geometry and actual header visibility. Native visual acceptance,
+The owner accepted the rendered behavior on November 8, 2026. The next
+candidate adds “Tabs on Right Side” and “Always show controls” directly to the
+macOS window context menu, removing the Browser Layout submenu. The checkbox
+reuses the saved top-chrome pin preference and sends a per-WebContents inset
+through WebPreferences. Existing/background tabs update immediately; the owning
+normal browser layout determines whether the inset applies. The experimental
+launch flag and fixed 52 pt header height remain. Menu acceptance,
 Intel, zoom, fullscreen transitions, split panes, accessibility, nonstandard
 windows and PDF/plugin content remain outside the verified prototype scope.
 
-The two signed local platform commits are `31d0a4a988d5a45c389bc23c9dcb20878d889686` (ordinary-page inset)
-and `c707d7ffe105d35bca6311cdb7fc4b8d96a1acab` (cover/safe-area opt-in and fixtures).
+The signed local platform commits are `31d0a4a988d5a45c389bc23c9dcb20878d889686` (ordinary-page inset)
+`c707d7ffe105d35bca6311cdb7fc4b8d96a1acab` (cover/safe-area opt-in and fixtures),
+and `942299eddae59bfa41702b8852549da3893ba3f2` (live window-menu preference and validation).
 They are saved on `prototype/pinned-header-inset-current` in both the isolated
 platform repository and the integration repository; they have not been pushed.
 
@@ -42,14 +48,15 @@ The reversible work is separate from the owner's integration checkout:
 - `.work/header-inset/orchestrator`: this main-based documentation/tooling
   worktree, branch `prototype/header-inset-integration`.
 - `.work/header-inset/platform`: platform branch
-  `prototype/pinned-header-inset-current`, with the two quilt patches
-  `obscured-header-prototype.patch` and `obscured-header-cover-prototype.patch`.
+  `prototype/pinned-header-inset-current`, with the quilt patches
+  `obscured-header-prototype.patch`, `obscured-header-cover-prototype.patch`, and
+  `obscured-header-menu-prototype.patch`.
 - `.work/header-inset/platform/prototype/header-inset`: tracked fixtures,
   ChromeDriver checks, strict forward/reverse replay tool, implementation notes
   and `validation.json`.
 - `.work/header-inset/resume-2026-11-08`: base provenance, old candidate evidence,
   current renderer reports and screenshots.
-- `.work/header-inset/Lune Inset Test 2.app`: distinct disposable-profile preview
+- `.work/header-inset/Lune Inset Test 3.app`: distinct disposable-profile preview
   with ordinary and opted-in page examples.
 
 The original candidate remains at `e8b314ceb0129f67a65ec5cad88e6867d79af613` on
@@ -57,12 +64,13 @@ The original candidate remains at `e8b314ceb0129f67a65ec5cad88e6867d79af613` on
 Keep the workspace at its original path because quilt metadata and build caches
 contain absolute paths.
 
-Enable with `--lune-obscured-header-prototype`; omit it and relaunch to restore
-normal behavior. Saved header pin preferences are not changed. The renderer
+Enable the experimental renderer path with `--lune-obscured-header-prototype`.
+Unchecking “Always show controls” restores auto-hiding controls and removes the
+inset immediately. The saved header pin preference is controlled by the new menu checkbox. The renderer
 patch is experimental, is not a setting in the regular app, and is not a release
 input. See the platform README and validation record for the exact checks.
 
-## Validation on November 8, 2026
+## Initial renderer validation on November 8, 2026
 
 The arm64 browser and ChromeDriver build passes. Headless device scale 1 and
 headed Retina scale 2 checks both pass: a 900 pt surface retains its size while
@@ -76,4 +84,41 @@ clicks. Live cover/contain toggles and navigation back to an ordinary page pass.
 Saved pin preferences remain false in all four disposable test profiles.
 Both quilt patches strictly apply and reverse with zero fuzz, reproducing all
 13 changed source files. This is delta validation, not full distribution replay.
-Native chrome visual acceptance and Intel remain unverified.
+The owner subsequently accepted this rendering. Menu toggle validation is
+recorded separately; Intel remains unverified.
+
+## Cover compatibility finding
+
+The owner reported Apple and Substack headers underneath the controls. Inspection
+of both live pages in candidate `c707d7ff` confirmed `viewport-fit=cover`, a
+computed `env(safe-area-inset-top)` of 52px, and no document fullscreen element.
+Apple's 44px global navigation is fixed at top 0 without top padding; Substack's
+64px top bar begins at y=0 with zero top padding. Their loaded styles use other
+safe-area edges, but their desktop headers do not consume the top inset.
+
+The environment value is delivered correctly. Treating `viewport-fit=cover`
+alone as adequate opt-in to desktop browser controls overlaying content exposes
+a compatibility gap. Recommend retaining the protective browser-owned offset
+for existing sites and requiring a deliberate controls-overlay opt-in. No
+compatibility policy change is included in the menu candidate. Evidence is
+tracked in the platform's `prototype/header-inset/site-compatibility.json`.
+
+WebKit documents that cover removes automatic insetting and authors must
+separately apply safe-area padding: [Designing Websites for iPhone X](https://webkit.org/blog/7929/designing-websites-for-iphone-x/).
+
+## Menu candidate validation on November 8, 2026
+
+The final arm64 browser/ChromeDriver build passes. Headless scale 1 and headed
+Retina scale 2 checks pass live preference toggles with both sidebar orientations,
+ordinary-page scroll retention, cover-page visual anchoring, click alignment and
+saved unchecked preference after relaunch. Three patches strictly apply/reverse
+with zero fuzz and reproduce all 20 affected source files.
+
+Native inspection of Lune Inset Test 3 confirms the requested menu order with
+no Browser Layout submenu. Toggling over Wikipedia at the top removes/restores
+the inset. At scrollY 900, on/off/on keeps scrollY exactly 900 while layout height
+changes 848/900/848; the restored glass header overlays the scrolled content.
+The preview is left with controls enabled. Automated click alignment is verified
+on local fixtures; the native website test covers menu interaction and geometry.
+Evidence is in `.work/header-inset/menu-validation/` and the tracked platform
+validation record. Intel and owner acceptance of the menu candidate remain pending.
