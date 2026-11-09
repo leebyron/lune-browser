@@ -7,6 +7,12 @@ correction and newer acceptance tools are separate commits on
 unchanged. The [evidence index](2026-11-09-release-delivery.json) binds results to
 that source and the final Apple silicon DMG.
 
+The live macOS Stable lookup at 2026-11-09 21:37 UTC reports 157.0.8103.51.
+This candidate's 158.0.8127.18 engine is `ahead`, as permitted by the existing
+freshness policy; it is not the observed Chromium Stable version. Release notes
+record the distinction. Publication and feed promotion must still make fresh
+lookups, and this preparation-time observation cannot substitute for them.
+
 ## Apple silicon
 
 The official build passes compilation and the complete post-build source
