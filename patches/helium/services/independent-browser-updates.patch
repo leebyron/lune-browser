@@ -1,0 +1,55 @@
+--- a/components/helium_services/helium_services_helpers.cc
++++ b/components/helium_services/helium_services_helpers.cc
+@@ -98,8 +98,8 @@
+ }
+ 
+ bool ShouldAccessUpdateService(const PrefService& prefs) {
+-  return ShouldAccessServices(prefs) &&
+-         prefs.GetBoolean(prefs::kHeliumUpdateFetchingEnabled);
++  // Lune updates are independent of the optional Helium services.
++  return prefs.GetBoolean(prefs::kHeliumUpdateFetchingEnabled);
+ }
+ 
+ bool ShouldAccessComponentUpdateService(const PrefService& prefs) {
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -4808,9 +4808,9 @@
+     Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates. Browser updates are provided by Lune at lune.computer.
+   </message>
+   <message name="IDS_LUNE_SERVICES_CONSENT" desc="Lune service provider and update disclosure.">
+-    Allow Lune to connect to Helium-hosted services and to Lune for browser updates. These requests stay disabled until you consent. Turning this off also disables automatic browser updates.
++    Allow Lune to connect to Helium-hosted services. These requests stay disabled until you consent. Browser updates are controlled separately.
+   </message>
+   <message name="IDS_LUNE_SERVICES_UPDATES" desc="Lune service provider and update disclosure.">
+-    Lune checks lune.computer for browser updates and Helium services for component updates. Keep this enabled to receive security fixes.
++    Lune checks lune.computer for browser updates. Keep this enabled to receive security fixes. Component updates also require Helium services to be enabled.
+   </message>
+ </grit-part>
+\ No newline at end of file
+--- a/chrome/browser/resources/settings/privacy_page/services_page.html
++++ b/chrome/browser/resources/settings/privacy_page/services_page.html
+@@ -41,6 +41,12 @@
+ 
+ <settings-subpage page-title="$i18n{heliumServicesTitle}" route-path$="[[routePath]]">
+ <div class="cr-col first">
++            <settings-toggle-button id="updatesToggleButton"
++                pref-key="helium.services.browser_updates"
++                label="$i18n{heliumUpdatesToggle}"
++                sub-label="$i18n{heliumUpdatesToggleDescription}">
++            </settings-toggle-button>
++
+     <template is="dom-if" if="[[!userConsentedPref_.value]]">
+         <div class="cr-row" id="onboarding-notice">
+             <div id="onboarding-text">
+@@ -99,11 +105,6 @@
+                     sub-label="$i18n{heliumSpellcheckToggleDescription}">
+                 </settings-toggle-button>
+             </if>
+-            <settings-toggle-button id="updatesToggleButton"
+-                pref-key="helium.services.browser_updates"
+-                label="$i18n{heliumUpdatesToggle}"
+-                sub-label="$i18n{heliumUpdatesToggleDescription}">
+-            </settings-toggle-button>
+             <settings-toggle-button id="filterlistToggleButton"
+                 pref-key="helium.services.ublock_assets"
+                 label="$i18n{heliumUboToggle}"
