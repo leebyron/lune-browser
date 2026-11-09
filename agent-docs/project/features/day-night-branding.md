@@ -65,3 +65,14 @@ headed execution is not a substitute for that visual acceptance.
 These are development builds, not signed release candidates. Published builds 1
 and 2 and their feeds remain unchanged; native Intel release acceptance remains
 outstanding.
+
+## Local monochrome symbol sizing refinement
+
+The shared monochrome Chromium vector now fits the dual-lune mark to the full
+width of its square canvas, preserving its aspect ratio and vertical centering.
+A 16px icon slot paints a 16 by 14.09px mark, instead of 13.33 by 11.75px.
+All ten mapped consumers, including the default-browser sidebar action, receive
+the same resource. Colored app tiles and layout spacing are unchanged. Generator
+consistency, exact geometry bounds, and all ten source/resource copies pass;
+the arm64 browser build passes. The owner accepted the updated mark in
+Lune Icon Test on November 9, 2026.
