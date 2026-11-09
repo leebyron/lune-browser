@@ -22,12 +22,23 @@ def main():
     if subprocess.check_output(['git', 'diff', 'HEAD', '--', 'config', 'manifests/browser.lock.json',
                                 'manifests/patches.json', 'scripts', 'branding'], cwd=ROOT):
         raise ValueError('Commit release inputs before exporting sources')
+    if subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=normal'], cwd=ROOT):
+        raise ValueError('Source export requires a clean committed checkout')
     lock = json.loads((ROOT / 'manifests/browser.lock.json').read_text())
-    config = configparser.ConfigParser(interpolation=None)
-    config.read(ROOT / 'manifests/downloads-arm64.ini')
+    # Export the union of both host download manifests; shared archives appear once.
+    entries = {}
+    for manifest in lock['download_configs']:
+        config = configparser.ConfigParser(interpolation=None)
+        config.read(ROOT / manifest)
+        for name in config.sections():
+            entry = dict(config[name])
+            filename = entry['download_filename']
+            previous = entries.get(filename)
+            if previous and any(previous.get(k) != entry.get(k) for k in ('url', 'sha256', 'sha512')):
+                raise ValueError(f'Conflicting archive identity: {filename}')
+            entries[filename] = entry
     archives = []
-    for name in config.sections():
-        entry = config[name]
+    for entry in entries.values():
         path = args.archives / entry['download_filename']
         algorithm = 'sha256' if 'sha256' in entry else 'sha512'
         with path.open('rb') as stream:
@@ -59,8 +70,8 @@ The adjacent release assets listed in archives.json are all pinned source/depend
 archives used for this macOS build. Verify their hashes before unpacking.
 
 Extract orchestrator.tar. Read orchestrator/agent-docs/project/building.md and
-builds/2026-11-06-release-bootstrap.md for the pinned Xcode/SDK/Python environment,
-release-specific GN flags, and signing/versioning steps. Apple signing credentials
+release-commits.md for the frozen release record, toolchain and validation rules.
+config/release-recipe.json records GN flags; scripts/release/build.py consumes it. Apple signing credentials
 and Sparkle private keys are intentionally not distributed; use your own for a fork.
 
 Clone macos.bundle at the macOS input tag in manifests/browser.lock.json. Clone
