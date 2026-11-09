@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "ad51e3c36faf6097d0407ead1109e90a88dcaaaf",
+    "commit": "1cabd52145c9dc2ef1b3459c71b0133a81b6c4b4",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -641,6 +641,18 @@
       {
         "path": "patches/helium/ui/command-bar-shared-theme-tint.patch",
         "sha256": "9560c14416201b36732e602edaf2a1fd2c0bde60ae7d04d2f2ee81ecb76348de"
+      },
+      {
+        "path": "patches/lune/setup-baked-wallpapers.patch",
+        "sha256": "6c0b0c4633cb586f2bd2eaa394717364db8e8f5f9027c5b09f40ce0e2eb3988f"
+      },
+      {
+        "path": "patches/lune/github-update-feeds.patch",
+        "sha256": "b49ec51be15a2a575e4a9b59cfac6c6f8089168158fcb01ea3474262454d1079"
+      },
+      {
+        "path": "patches/lune/release-version-ui.patch",
+        "sha256": "6becd6756f44ceea084fd147101d593b307844328e7227dae49bd27f4a46d771"
       }
     ]
   },
@@ -1401,6 +1413,51 @@
       "adaptation": "Developed against the accepted onboarding input; exact zero-fuzz replay of all six affected source files and both architecture builds pass. See agent-docs/project/features/command-bar-corners.md.",
       "commits": [
         "464c529859cd2b723320d3d43b1ddbd7fada1bc4"
+      ]
+    },
+    {
+      "id": "setup-baked-wallpapers",
+      "depends_on": [
+        "onboarding-reviewed-13"
+      ],
+      "patches": [
+        "patches/lune/setup-baked-wallpapers.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use accepted baked cyanotype setup wallpapers.",
+      "adaptation": "Strict zero-fuzz replay passes; release build/runtime acceptance is tracked separately.",
+      "commits": [
+        "605c296e351927da76a114f57470d2201a2e866e"
+      ]
+    },
+    {
+      "id": "github-update-feeds",
+      "depends_on": [
+        "onboarding-reviewed-13"
+      ],
+      "patches": [
+        "patches/lune/github-update-feeds.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use GitHub-hosted architecture-specific appcasts.",
+      "adaptation": "Strict zero-fuzz replay passes; release build/runtime acceptance is tracked separately.",
+      "commits": [
+        "8c11b05f1bfe8fb03d3aee7a81ac682b33cfc4ec"
+      ]
+    },
+    {
+      "id": "lune-release-version-ui",
+      "depends_on": [
+        "onboarding-reviewed-13"
+      ],
+      "patches": [
+        "patches/lune/release-version-ui.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Display the signed Lune version separately from Chromium.",
+      "adaptation": "Strict zero-fuzz replay passes; release build/runtime acceptance is tracked separately.",
+      "commits": [
+        "1cabd52145c9dc2ef1b3459c71b0133a81b6c4b4"
       ]
     }
   ],
