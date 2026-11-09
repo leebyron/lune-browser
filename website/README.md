@@ -166,3 +166,7 @@ Website prose and calls to action match the setup welcome page: regular Inter
 15px/24px body copy, regular 16px/20px pill buttons, teal/cyan primary fill,
 and the outlined ghost secondary action. Headings and native browser-demo
 controls retain their existing typography.
+
+The Dock uses light/dark PNG exports from the same Apple-compiled app icons as
+the browser, including the enlarged mark and native tile edge. These are copied
+by `render-app-icons.py`; no extra CSS glass frame is painted over the Lune icon.

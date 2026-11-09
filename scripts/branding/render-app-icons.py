@@ -52,6 +52,9 @@ def main():
         subprocess.run(['iconutil', '-c', 'iconset', str(output / f'app-{mode}.icns'),
                         '-o', str(iconset)], check=True)
         shutil.copyfile(iconset / 'icon_512x512@2x.png', output / f'lune-{mode}.png')
+        # Use the identical native app icon in the website's interactive Dock.
+        shutil.copyfile(iconset / 'icon_128x128@2x.png',
+                        ROOT / f'website/public/assets/lune-dock-{mode}.png')
 
 
 if __name__ == '__main__':
