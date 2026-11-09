@@ -68,8 +68,11 @@ class SourceInventoryTests(unittest.TestCase):
             (root / 'alias.cc').symlink_to('source.cc')
             (root / 'out').mkdir()
             (root / 'out/generated.cc').write_text('generated')
+            (root / 'fixtures/out').mkdir(parents=True)
+            (root / 'fixtures/out/source.cc').write_text('fixture source')
             files, links = inventory(root)
-            self.assertEqual(files, {'source.cc': model.sha(root / 'source.cc')})
+            self.assertEqual(files, {name: model.sha(root / name)
+                                    for name in ('source.cc', 'fixtures/out/source.cc')})
             self.assertEqual(links, {'alias.cc': 'source.cc'})
 
 

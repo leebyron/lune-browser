@@ -11,13 +11,14 @@ from model import ROOT, sha
 sys.path.insert(0, str(ROOT / 'scripts'))
 import lune
 
-EXCLUDED = {'out', '.git', '.pc', '__pycache__'}
+EXCLUDED = {'.git', '.pc', '__pycache__'}
 
 
 def inventory(source):
     files, links = {}, {}
     for directory, dirs, names in os.walk(source, followlinks=False):
-        dirs[:] = sorted(d for d in dirs if d not in EXCLUDED)
+        dirs[:] = sorted(d for d in dirs if d not in EXCLUDED
+                         and not (Path(directory) == source and d == 'out'))
         for name in sorted(names + [d for d in dirs if (Path(directory) / d).is_symlink()]):
             path = Path(directory) / name
             relative = path.relative_to(source).as_posix()
