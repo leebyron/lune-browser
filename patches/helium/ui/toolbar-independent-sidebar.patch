@@ -1,0 +1,22 @@
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -420,8 +420,7 @@
+ #if BUILDFLAG(IS_MAC)
+   native_glass = style == FloatingStyle::kDetached &&
+                  browser_view()->IsZenModeEnabledForLayout() &&
+-                 browser_view()->IsVerticalAddressBarInSidebar() &&
+-                 !browser_view()->IsZenModeTopChromePinned();
++                 browser_view()->IsVerticalAddressBarInSidebar();
+ #endif
+   const auto* current_background =
+       static_cast<CustomCornersBackground*>(background());
+@@ -1112,8 +1111,7 @@
+   int horizontal_padding = 0;
+ #if BUILDFLAG(IS_MAC)
+   if (browser && browser->IsZenModeEnabledForLayout() &&
+-      browser->IsVerticalAddressBarInSidebar() &&
+-      !browser->IsZenModeTopChromePinned()) {
++      browser->IsVerticalAddressBarInSidebar()) {
+     horizontal_padding = 4;
+   }
+ #endif
