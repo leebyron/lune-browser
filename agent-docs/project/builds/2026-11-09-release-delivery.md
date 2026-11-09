@@ -93,6 +93,15 @@ and retain build 2. The updater-installed app displays the signed Lune/Chromium
 versions, loads public HTTPS sites, initializes uBlock filters and preserves
 profile data across restart. These are local Rosetta checks, not native Intel.
 
+The normal Intel app launch on the Apple silicon test host is refused by Launch
+Services. Both signed bundles retain Chromium's `LSRequiresNativeExecution=true`
+from chrome/app/app-Info.plist. [Apple documents this key](https://developer.apple.com/documentation/bundleresources/information-property-list/lsrequiresnativeexecution)
+as preventing Rosetta app launch. Direct executable testing works, but the native
+UI connector also refuses the bundle, so no headed Intel UI result is claimed.
+The disposable direct-launch process was stopped and the Apple silicon preview
+restored. Native Intel Finder/normal launch remains part of the owner checklist;
+no signed plist or executable was altered to bypass this platform restriction.
+
 All 19 embedded Intel Mach-O slices declare macOS 13.0. Three Sparkle binaries
 are universal and also contain arm64; the Intel slice is explicitly selected
 for this audit. No app bytes were changed by the check.
