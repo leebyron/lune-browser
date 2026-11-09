@@ -32,10 +32,26 @@ the local end monitor has not already run.
 Developed in the prepared Chromium 158 tree with quilt, as
 `helium/ui/header-scroll-through.patch`, then unmerged into the macOS component.
 The signed platform commit is `d0c49b0adb64fc3c445e1434b49e4b5804d05cc6`,
-available locally as `topic/header-scroll-through`. It is based on the accepted
+published as `topic/header-scroll-through`. It is based on the accepted
 appearance stack at `622ccfac` (`topic/chrome-appearance-reviewed`), including
 reviewed toolbar and media controls. It does not change the development lock or
 published binaries.
+
+## Publication
+
+The owner confirmed scrolling across all header areas and authorized publication
+and issue resolution on November 8, 2026. The source is published as two focused
+commits across the component and evidence branches:
+
+- `topic/header-scroll-through`: `d0c49b0a` implements native header wheel forwarding,
+  including the necessary coordinate conversion, gesture cleanup, and builder test.
+- `header-scroll-evidence`: one commit records the native regression fixture,
+  validation, owner acceptance, and simplicity review.
+
+The platform commit is unchanged from the built and owner-tested source. The
+intermediate documentation commits remain in the local draft history. This is a
+source publication; the development lock and published browser binaries are
+unchanged. Native Intel acceptance remains outstanding.
 
 ## Simplicity review
 
