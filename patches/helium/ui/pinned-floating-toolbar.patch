@@ -1,0 +1,26 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2807,10 +2807,7 @@
+ bool BrowserFrameViewMac::HasFloatingAddressBar() const {
+   const auto* view = GetBrowserView();
+   return view->IsZenModeEnabledForLayout() &&
+-         view->IsVerticalAddressBarInSidebar() &&
+-         (!view->IsZenModeTopChromePinned() ||
+-          base::CommandLine::ForCurrentProcess()->HasSwitch(
+-              "lune-obscured-header-prototype"));
++         view->IsVerticalAddressBarInSidebar();
+ }
+ 
+ bool BrowserFrameViewMac::FocusFloatingAddressBar() {
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -1784,8 +1784,7 @@
+     return 1.f;
+   }
+ #if BUILDFLAG(IS_MAC)
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+-          "lune-obscured-header-prototype") && IsVerticalAddressBarInSidebar()) {
++  if (IsVerticalAddressBarInSidebar()) {
+     // Native floating controls remain visible without reserving a Views toolbar.
+     return 0.f;
+   }

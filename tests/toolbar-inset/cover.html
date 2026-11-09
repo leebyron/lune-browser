@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lune inset prototype — page opt-in</title>
+<style>
+  html { background: #123456 linear-gradient(90deg, #123456 0 50%, #abcdef 50% 100%); }
+  body { margin: 0; font: 17px system-ui; color: #fff; }
+  #safe { padding-top: env(safe-area-inset-top, 0px); }
+  header { padding: 24px; background: #132b43aa; }
+  h1 { margin: 16px 0; }
+  main { min-height: 2200px; padding: 24px; background: #203d58; }
+  button, a { font: inherit; }
+  a { color: #c6e7ff; }
+  #fixed { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 8px);
+    right: 20px; width: 170px; height: 36px; background: #2455dd;
+    border: 0; color: white; }
+</style>
+<div id="safe"></div>
+<header>
+  <h1>The page owns the area behind the header</h1>
+  <p>This page opts in with <code>viewport-fit=cover</code>.</p>
+  <p>Its background paints to the top edge. Text and controls use
+    <code>env(safe-area-inset-top)</code> to stay below the header.</p>
+  <p><output id="status"></output></p>
+  <button id="toggle">Toggle page opt-in</button>
+  <a href="page.html">Ordinary-page example</a>
+</header>
+<button id="fixed" onclick="window.clicks++;this.textContent='Clicks: '+window.clicks">Safe-area button</button>
+<main><p>Scroll here, including with the pointer over the native header.</p></main>
+<script>
+  window.clicks = 0;
+  const viewport = document.querySelector('meta[name=viewport]');
+  function updateStatus() {
+    document.querySelector('#status').textContent =
+      `${viewport.content.includes('cover') ? 'Cover' : 'Contain'} · safe inset ${getComputedStyle(document.querySelector('#safe')).paddingTop}`;
+  }
+  document.querySelector('#toggle').onclick = () => {
+    viewport.content = viewport.content.includes('cover') ? 'viewport-fit=contain' : 'viewport-fit=cover';
+    requestAnimationFrame(() => requestAnimationFrame(updateStatus));
+  };
+  addEventListener('resize', updateStatus);
+  updateStatus();
+</script>
