@@ -90,5 +90,11 @@
     }
   ],
   "conclusion": "viewport-fit=cover enables edge-to-edge layout, but these desktop headers do not apply the provided 52px top safe area. This is a compatibility gap in the prototype opt-in policy, not a missing environment value.",
-  "policy_change": "Not implemented; explicit overlay opt-in or default protective inset recommended."
+  "policy_change": "Not implemented; explicit overlay opt-in or default protective inset recommended.",
+  "followup_policy": {
+    "date": "2026-11-08",
+    "requested": "Three mutually exclusive Show top controls modes",
+    "implementation": "Always show consistently uses the 52pt browser-owned inset and adds no header safe-area environment value, irrespective of viewport-fit. Always show with overlay (experimental) retains the original cover behavior. Show on hover remains the default.",
+    "runtime_validation": "See validation.json for the current candidate; the observations above are from the earlier overlay candidate."
+  }
 }

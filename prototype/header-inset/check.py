@@ -70,7 +70,8 @@ try:
                                   'prefs':{'helium.services.enabled':False,
                                            'helium.services.browser_updates':False,
                                            'helium.browser.layout':2,
-                                           'helium.browser.zen_mode_top_chrome_pinned':enabled}}}}})
+                                           'helium.browser.zen_mode_top_chrome_pinned':enabled,
+                                           'helium.browser.top_controls_overlay':enabled}}}}})
         sid = '/session/'+session['sessionId']
         def js(script):
             return request('POST',sid+'/execute/sync',{'script':script,'args':[]})
@@ -205,10 +206,12 @@ try:
                     assert result is True, (key,result)
                     time.sleep(.3)
                 toggles = []
-                for right, pinned in ((False,False),(False,True),(True,True),(True,False)):
+                for right, mode in ((False,0),(False,1),(False,2),(False,1),(True,1),(True,2),(True,0)):
+                    pinned, overlay = mode != 0, mode == 2
                     set_pref('helium.browser.vertical_right_aligned', right)
+                    set_pref('helium.browser.top_controls_overlay', overlay)
                     set_pref('helium.browser.zen_mode_top_chrome_pinned', pinned)
-                    row = {'right':right,'pinned':pinned}
+                    row = {'right':right,'mode':mode,'pinned':pinned,'overlay':overlay}
                     for tab,handle in (('ordinary',ordinary_handle),('cover',cover_handle)):
                         request('POST',sid+'/window',{'handle':handle})
                         value = js("""return {height:innerHeight,scroll:scrollY,marker:window.insetCheckMarker,
@@ -221,17 +224,49 @@ try:
                             # Removing the page's own safe-area padding invokes CSS
                             # scroll anchoring: content stays put although scrollY changes.
                             assert abs(value['anchorTop']-cover_anchor)<1, (value,cover_anchor)
-                        assert value['height']==(848 if tab=='ordinary' and pinned else 900), value
+                        translated = pinned and (tab=='ordinary' or not overlay)
+                        assert value['height']==(848 if translated else 900), value
                         if tab=='cover':
-                            assert value['safe']==(52 if pinned else 0), value
+                            assert value['safe']==(52 if overlay else 0), value
+                            if mode==1:
+                                # Cover metadata must have no effect in protective mode.
+                                js("document.querySelector('meta[name=viewport]').content='viewport-fit=contain'")
+                                time.sleep(.2)
+                                assert cover_metrics()['height']==848 and cover_metrics()['safe']==0
+                                js("document.querySelector('meta[name=viewport]').content='viewport-fit=cover'")
+                                time.sleep(.2)
+                                assert cover_metrics()['height']==848 and cover_metrics()['safe']==0
                         rect = js("return document.querySelector('#fixed').getBoundingClientRect().toJSON()")
                         old_clicks = js('return clicks')
                         for kind in ('mousePressed','mouseReleased'):
                             cdp('Input.dispatchMouseEvent',{'type':kind,'x':rect['x']+rect['width']/2,
-                                'y':rect['y']+rect['height']/2+(52 if pinned and tab=='ordinary' else 0),
+                                'y':rect['y']+rect['height']/2+(52 if translated else 0),
                                 'button':'left','clickCount':1})
                         value['click_aligned'] = js('return clicks')==old_clicks+1
                         assert value['click_aligned'], value
+                        if mode==1 and tab=='cover' and len(toggles)==1:
+                            js('scrollTo(0,0)')
+                            time.sleep(.2)
+                            image = screenshot('protective-cover-top')
+                            colors = [image.getpixel((round(x*scale),round(12*scale)))
+                                      for x in (8,metrics['width']-8)]
+                            assert colors==[(18,52,86),(18,52,86)], colors
+                            js('scrollTo(0,52)')
+                            time.sleep(.2)
+                            image = screenshot('protective-cover-scrolled')
+                            scrolled_color = image.getpixel((round(8*scale),round(12*scale)))
+                            assert scrolled_color!=(18,52,86), scrolled_color
+                            cdp('Performance.enable')
+                            before = perf()
+                            cdp('Input.dispatchMouseEvent',{'type':'mouseWheel','x':600,'y':28,'deltaX':0,'deltaY':80})
+                            time.sleep(.6)
+                            after = perf()
+                            value['protective_scroll_performance_delta'] = {k:after[k]-v for k,v in before.items()}
+                            assert value['protective_scroll_performance_delta']['LayoutCount']==0
+                            assert value['protective_scroll_performance_delta']['RecalcStyleCount']==0
+                            value['protective_top_colors']=colors
+                            value['protective_scrolled_color']=scrolled_color
+                            js(f'scrollTo(0,{value["scroll"]})')
                         row[tab]=value
                     toggles.append(row)
                 report[label]['toggle'] = toggles
@@ -241,6 +276,7 @@ try:
                 time.sleep(1)
                 saved = json.loads((profile/'Default/Preferences').read_text())
                 assert saved['helium']['browser']['zen_mode_top_chrome_pinned'] is False
+                assert saved['helium']['browser']['top_controls_overlay'] is False
                 session = request('POST','/session',{'capabilities':{'alwaysMatch':{
                     'goog:chromeOptions': {'binary':str(out/'Lune.app/Contents/MacOS/Lune'),
                         'excludeSwitches':['enable-automation'],'args':launch_args}}}})
@@ -252,6 +288,45 @@ try:
                 restarted['safe'] = cover_metrics()['safe']
                 assert restarted['safe']==0, restarted
                 report[label]['restart_unchecked'] = restarted
+                persisted_modes = []
+                for mode in (1,2,0):
+                    settings_handle = request('GET',sid+'/window')
+                    request('POST',sid+'/url',{'url':'chrome://settings/appearance'})
+                    set_pref('helium.browser.top_controls_overlay', mode==2)
+                    set_pref('helium.browser.zen_mode_top_chrome_pinned', mode!=0)
+                    request('DELETE',sid)
+                    time.sleep(1)
+                    session = request('POST','/session',{'capabilities':{'alwaysMatch':{
+                        'goog:chromeOptions': {'binary':str(out/'Lune.app/Contents/MacOS/Lune'),
+                            'excludeSwitches':['enable-automation'],'args':launch_args}}}})
+                    sid = '/session/'+session['sessionId']
+                    request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+                    value = cover_metrics()
+                    assert value['height']==(848 if mode==1 else 900), (mode,value)
+                    assert value['safe']==(52 if mode==2 else 0), (mode,value)
+                    persisted_modes.append({'mode':mode,**value})
+                report[label]['persisted_modes'] = persisted_modes
+                request('DELETE',sid)
+                time.sleep(1)
+                default_args = [a for a in launch_args if not a.startswith('--user-data-dir=')]
+                default_args.append(f'--user-data-dir={evidence/"fresh-default-profile"}')
+                session = request('POST','/session',{'capabilities':{'alwaysMatch':{
+                    'goog:chromeOptions': {'binary':str(out/'Lune.app/Contents/MacOS/Lune'),
+                        'excludeSwitches':['enable-automation'],'args':default_args,
+                        'prefs':{'helium.services.enabled':False,'helium.services.browser_updates':False,
+                                 'helium.browser.layout':2}}}}})
+                sid = '/session/'+session['sessionId']
+                request('POST',sid+'/url',{'url':'chrome://settings/appearance'})
+                defaults = request('POST',sid+'/execute/async',{
+                    'script':"""const done=arguments[arguments.length-1];
+                    chrome.settingsPrivate.getPref('helium.browser.zen_mode_top_chrome_pinned', pin =>
+                      chrome.settingsPrivate.getPref('helium.browser.top_controls_overlay', overlay =>
+                        done({pinned:pin.value,overlay:overlay.value})))""",'args':[]})
+                assert defaults=={'pinned':False,'overlay':False}, defaults
+                request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+                report[label]['fresh_default'] = {**defaults,**cover_metrics()}
+                assert report[label]['fresh_default']['height']==900
+                assert report[label]['fresh_default']['safe']==0
             print(label, json.dumps(report[label]), flush=True)
             (evidence/'results.json').write_text(json.dumps(report,indent=2)+'\n')
         finally:
@@ -281,6 +356,8 @@ try:
         assert report['baseline']['cover']['initial']['safe']==0
         print('PASS: inset, scroll-under pixels, background changes and input alignment')
         print('PASS: viewport-fit opt-in, CSS safe-area, background image and dynamic mode changes')
+        if args.toggle:
+            print('PASS: hover/protective/overlay transitions, cover isolation, input and persistence')
         print('Root background-image extension:', report['inset']['background_image_supported'])
 finally:
     driver.terminate()
