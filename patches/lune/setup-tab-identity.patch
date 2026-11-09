@@ -1,0 +1,52 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -367,6 +367,8 @@
+   } else if (icon_name == "kAddIcon" ||
+              icon_name == "kAddWeight500CustomIcon") {
+     name = @"plus";
++  } else if (icon_name == "kMailOutlineIcon") {
++    name = @"envelope.open";
+   } else if (icon_name == "kGlobeIcon") {
+     name = @"globe";
+   }
+--- a/chrome/browser/ui/views/tabs/tab/tab_icon.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_icon.cc
+@@ -129,6 +129,8 @@
+                       data.visible_url.SchemeIs("chrome-untrusted") ||
+                       data.visible_url.SchemeIs("chrome-search") ||
+                       data.visible_url.IsAboutBlank();
++  is_setup_page_ = data.visible_url.SchemeIs("chrome") &&
++                   data.visible_url.host() == "setup";
+   inhibit_loading_animation_ = data.should_hide_throbber;
+   is_monochrome_favicon_ = data.is_monochrome_favicon;
+   is_default_favicon_ = data.is_default_favicon;
+@@ -382,7 +384,7 @@
+   if ((is_internal_page_ || is_default_favicon_ || favicon_.IsEmpty()) &&
+       helium::ShouldUseNativeFrameMaterials(this)) {
+     auto symbol = helium::NativeToolbarSymbolForIcon(
+-        "kGlobeIcon", gfx::kFaviconSize,
++        is_setup_page_ ? "kMailOutlineIcon" : "kGlobeIcon", gfx::kFaviconSize,
+         helium::NativeGlassControlColor(this).value_or(
+             GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive)));
+     if (!symbol.isNull()) {
+--- a/chrome/browser/ui/views/tabs/tab/tab_icon.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_icon.h
+@@ -211,6 +211,7 @@
+   bool can_paint_to_layer_ = false;
+ 
+   bool is_internal_page_ = false;
++  bool is_setup_page_ = false;
+   bool is_default_favicon_ = false;
+   bool has_tab_data_ = false;
+ 
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -2,7 +2,7 @@
+ <grit-part>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_PAGE_TITLE" desc="The title of the Helium setup onboarding page.">
+-  Lune Setup
++  Welcome to Lune
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_BUTTON_USE_DEFAULTS" desc="Button label that skips detailed setup and applies the default onboarding choices.">
