@@ -101,8 +101,11 @@ feeds remain the primary architecture-routing mechanism.
 ## Remaining gates
 
 - Perform native Intel acceptance manually on the owner's Intel Mac.
-- Before stable promotion, recheck Chromium stable freshness and confirm all
-  acceptance evidence. Promote both stable feeds and website links together.
+- Before stable promotion, apply the
+  [macOS Chromium freshness gate](../releases.md#chromium-freshness-gate), record
+  the current comparison and any explicit known-lag exception, and confirm all
+  acceptance evidence. Unknown freshness blocks promotion. Promote both stable
+  feeds and website links together.
 
 No recurring browser build or automatic public promotion is enabled by this work.
 
