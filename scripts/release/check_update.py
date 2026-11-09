@@ -20,6 +20,10 @@ smoke = module_from_spec(spec)
 spec.loader.exec_module(smoke)
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from model import version_key
+
+
 def run(*args):
     return subprocess.run([str(a) for a in args], check=True, text=True, capture_output=True).stdout
 
@@ -85,7 +89,7 @@ def main():
     p.add_argument('--feed', required=True)
     p.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
     p.add_argument('--directory', type=Path, required=True)
-    p.add_argument('--expected-build', type=int, default=2)
+    p.add_argument('--expected-build', default='2')
     p.add_argument('--expect-rejection', choices=['signature', 'unsupported-os'])
     a = p.parse_args()
     a.directory = a.directory.resolve()
@@ -108,7 +112,7 @@ def main():
             run('hdiutil', 'detach', volume)
         verify(app)
         report['before_build'] = info(app)['CFBundleVersion']
-        if int(report['before_build']) >= a.expected_build:
+        if version_key(report['before_build']) >= version_key(a.expected_build):
             raise ValueError('Baseline must be older than the candidate')
         profile = a.directory / 'profile'
         for phase in ['before', 'after']:

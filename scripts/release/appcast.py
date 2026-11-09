@@ -10,8 +10,12 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import sys
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from model import DOWNLOADS, filename, version_parts
 
 SPARKLE = 'http://www.andymatuschak.org/xml-namespaces/sparkle'
 ET.register_namespace('sparkle', SPARKLE)
@@ -22,9 +26,12 @@ def validate_candidate(candidate, path):
         raise ValueError('Only signed and notarized packages may enter a feed')
     if candidate['arch'] not in ('arm64', 'x86_64'):
         raise ValueError('Unsupported architecture')
-    if type(candidate['build']) is not int or candidate['build'] < 1:
-        raise ValueError('Invalid release build number')
-    expected = f"Lune-{candidate['chromium_version']}-{candidate['build']}-macos-{candidate['arch']}.dmg"
+    if 'version' in candidate:
+        expected = filename(candidate['version'], candidate['arch'])
+    else:  # Keep legacy published build metadata usable for update tests.
+        if type(candidate['build']) is not int or candidate['build'] < 1:
+            raise ValueError('Invalid release build number')
+        expected = f"Lune-{candidate['chromium_version']}-{candidate['build']}-macos-{candidate['arch']}.dmg"
     if candidate['filename'] != expected or Path(expected).name != expected:
         raise ValueError('Artifact name does not match its release/architecture')
     if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}', candidate['minimum_system_version']):
@@ -43,15 +50,20 @@ def make_feed(candidate, url):
         raise ValueError('An HTTPS download URL is required')
     if parsed.path.rsplit('/', 1)[-1] != candidate['filename'] or parsed.query or parsed.fragment:
         raise ValueError('Use an immutable URL for the exact release asset')
+    if 'version' in candidate:
+        version_parts(candidate['version'])
+        expected_url = f"{DOWNLOADS}/v{candidate['version']}/{candidate['filename']}"
+        if url != expected_url:
+            raise ValueError('Use the immutable version-specific GitHub asset URL')
     rss = ET.Element('rss', version='2.0')
     channel = ET.SubElement(rss, 'channel')
     ET.SubElement(channel, 'title').text = f"Lune for macOS ({candidate['arch']})"
     ET.SubElement(channel, 'link').text = 'https://lune.computer'
     ET.SubElement(channel, 'description').text = 'Lune browser updates'
     item = ET.SubElement(channel, 'item')
-    ET.SubElement(item, 'title').text = f"Lune {candidate['chromium_version']} (build {candidate['build']})"
-    ET.SubElement(item, f'{{{SPARKLE}}}version').text = str(candidate['build'])
-    ET.SubElement(item, f'{{{SPARKLE}}}shortVersionString').text = candidate['chromium_version']
+    ET.SubElement(item, 'title').text = f"Lune {candidate['version']}" if 'version' in candidate else f"Lune {candidate['chromium_version']} (build {candidate['build']})"
+    ET.SubElement(item, f'{{{SPARKLE}}}version').text = candidate['version'] if 'version' in candidate else str(candidate['build'])
+    ET.SubElement(item, f'{{{SPARKLE}}}shortVersionString').text = candidate.get('version', candidate['chromium_version'])
     ET.SubElement(item, f'{{{SPARKLE}}}minimumSystemVersion').text = candidate['minimum_system_version']
     if candidate['arch'] == 'arm64':
         ET.SubElement(item, f'{{{SPARKLE}}}hardwareRequirements').text = 'arm64'

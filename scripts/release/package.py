@@ -14,7 +14,8 @@ import shutil
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[2]
+from model import ROOT, filename, feed_url, load_record
+
 
 
 def run(*args, capture=False):
@@ -46,10 +47,11 @@ def plist(path):
 
 def inspect_app(app, product, arch, build=None):
     info = plist(app / 'Contents/Info.plist')
+    require(info.get('LSMinimumSystemVersion') == product['minimum_system_version'], 'Wrong minimum macOS version')
     require(info['CFBundleIdentifier'] == product['bundle_id'], 'Wrong bundle identity')
     require(run('lipo', '-archs', app / 'Contents/MacOS/Lune', capture=True).strip() == arch,
             'Wrong binary architecture')
-    expected = f'https://lune.computer/updates/stable/mac/appcast-{arch}.xml'
+    expected = feed_url(arch)
     require(info.get('SUFeedURL') == expected, 'Wrong Sparkle feed')
     require(info.get('SUPublicEDKey') == product['sparkle_public_key'], 'Wrong Sparkle key')
     require(info.get('SUEnableAutomaticChecks') is True, 'Automatic checks must be a plist boolean')
@@ -60,7 +62,9 @@ def inspect_app(app, product, arch, build=None):
     require(plist(framework / 'Resources/Info.plist')['CFBundleShortVersionString'] == '2.10.1',
             'Wrong Sparkle framework version')
     if build is not None:
-        require(info['CFBundleVersion'] == str(build), 'Wrong Lune build number')
+        require(info['CFBundleVersion'] == str(build), 'Wrong Lune release version')
+        require(info['CFBundleShortVersionString'] == str(build), 'Wrong display version')
+        require(info.get('LuneReleaseVersion') == str(build), 'Missing About-page version')
     return info
 
 
@@ -72,8 +76,10 @@ def stage(args):
     require(report['arch'] == args.arch, 'Build report architecture differs')
     require(report['platform_commit'] == lock['components']['macos']['commit'], 'Unpinned build input')
     require(report['args_sha256'] == sha(args.output / 'args.gn'), 'Build arguments changed')
-    allocated = read(ROOT / 'config/release-builds.json')['builds']
-    require(args.build in {row['number'] for row in allocated}, 'Allocate this build number in Git first')
+    load_record(args.version)
+    require(report['release_version'] == args.version, 'Build used a different release record')
+    require(report['release_record_sha256'] == sha(ROOT / f'manifests/releases/{args.version}.json'), 'Release record changed')
+    require(report['orchestrator_commit'] == run('git', '-C', ROOT, 'rev-parse', 'HEAD', capture=True).strip(), 'Build used a different project commit')
     require(not args.directory.exists(), 'Stage already exists; never overwrite a release candidate')
     app = args.output / 'Lune.app'
     info = inspect_app(app, product, args.arch)
@@ -88,20 +94,21 @@ def stage(args):
     args.directory.mkdir(parents=True)
     run('ditto', app, args.directory / 'input/Lune.app')
     run('ditto', args.output / 'Lune Packaging', args.directory / 'input/Lune Packaging')
-    # Sparkle compares the outer app's build number. Keep Chromium's version and
-    # versioned framework layout intact, independently of Lune's release counter.
+    # Version only the outer app. Preserve Chromium's engine/framework identity.
     target = args.directory / 'input/Lune.app/Contents/Info.plist'
-    info['CFBundleVersion'] = str(args.build)
-    info['CFBundleShortVersionString'] = lock['chromium_version']
+    info['CFBundleVersion'] = args.version
+    info['CFBundleShortVersionString'] = args.version
+    info['LuneReleaseVersion'] = args.version
+    info['LuneSourceRevision'] = report['orchestrator_commit']
     target.write_bytes(plistlib.dumps(info))
-    inspect_app(args.directory / 'input/Lune.app', product, args.arch, args.build)
+    inspect_app(args.directory / 'input/Lune.app', product, args.arch, args.version)
     save(args.directory / 'candidate.json', {
-        'build': args.build, 'arch': args.arch, 'chromium_version': lock['chromium_version'],
+        'version': args.version, 'arch': args.arch, 'chromium_version': lock['chromium_version'],
         'platform_commit': report['platform_commit'], 'core_commit': lock['components']['helium']['commit'],
         'orchestrator_commit': run('git', '-C', ROOT, 'rev-parse', 'HEAD', capture=True).strip(),
         'lock_sha256': sha(ROOT / 'manifests/browser.lock.json'),
         'product': product, 'args_sha256': report['args_sha256'],
-        'release_ledger_sha256': sha(ROOT / 'config/release-builds.json'),
+        'release_record_sha256': sha(ROOT / f'manifests/releases/{args.version}.json'),
         'input_executable_sha256': sha(app / 'Contents/MacOS/Lune'),
         'input_framework_sha256': sha(app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework'),
         'signed': False, 'packaged': False, 'published': False,
@@ -111,6 +118,7 @@ def stage(args):
 
 def sign(args):
     candidate = read(args.directory / 'candidate.json')
+    load_record(candidate['version'])
     require(not (args.directory / 'signed').exists(), 'Signing output already exists; inspect before retrying')
     product = candidate['product']
     # This only tests access; the credential remains in Keychain.
@@ -118,7 +126,7 @@ def sign(args):
     run(sys.executable, ROOT / 'scripts/release/sign.py', args.directory,
         product['signing_identity'], product['notary_profile'])
     app = args.directory / 'signed/stable/Lune.app'
-    inspect_app(app, product, candidate['arch'], candidate['build'])
+    inspect_app(app, product, candidate['arch'], candidate['version'])
     run('codesign', '--verify', '--deep', '--strict', app)
     run('xcrun', 'stapler', 'validate', app)
     run('spctl', '--assess', '--type', 'execute', '--verbose=2', app)
@@ -129,12 +137,13 @@ def sign(args):
 
 def package(args):
     candidate = read(args.directory / 'candidate.json')
+    load_record(candidate['version'])
     require(candidate['signed'], 'Sign and notarize the app first')
     product = candidate['product']
     app = args.directory / 'signed/stable/Lune.app'
-    inspect_app(app, product, candidate['arch'], candidate['build'])
+    inspect_app(app, product, candidate['arch'], candidate['version'])
     run('codesign', '--verify', '--deep', '--strict', app)
-    name = f"Lune-{candidate['chromium_version']}-{candidate['build']}-macos-{candidate['arch']}.dmg"
+    name = filename(candidate['version'], candidate['arch'])
     dmg = args.directory / name
     require(not dmg.exists(), 'DMG already exists; never overwrite final bytes')
     volume = args.directory / 'volume'
@@ -156,6 +165,8 @@ def package(args):
     run('codesign', '--verify', '--strict', dmg)
     run('spctl', '--assess', '--type', 'open', '--context', 'context:primary-signature', '--verbose=2', dmg)
     signer = ROOT / '.cache/tools/sparkle-2.10.1/bin/sign_update'
+    recipe = read(ROOT / 'config/release-recipe.json')
+    require(sha(signer) == recipe['sparkle_signer_sha256'], 'Sparkle signing tool changed')
     signature = run(signer, '--account', product['sparkle_account'], '-p', dmg, capture=True).strip()
     require(len(base64.b64decode(signature, validate=True)) == 64, 'Invalid Ed25519 signature')
     run(signer, '--account', product['sparkle_account'], '--verify', dmg, signature)
@@ -173,7 +184,7 @@ def main():
     p.add_argument('--build-report', type=Path, required=True)
     p.add_argument('--smoke-report', type=Path, required=True)
     p.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
-    p.add_argument('--build', type=int, required=True)
+    p.add_argument('--version', required=True)
     p.add_argument('--directory', type=Path, required=True)
     for command in ('sign', 'package'):
         p = sub.add_parser(command)
