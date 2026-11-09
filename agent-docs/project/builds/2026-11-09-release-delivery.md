@@ -76,9 +76,17 @@ Two acceptance-test corrections were required; neither changes browser inputs:
   ChromeDriver's canonical chrome:// URLs and verifies rendered version text.
   The earlier failed reports remain locally available; they are not acceptance.
 
+## Intel build
+
+The frozen official Intel build passes all 17,171 compilation/linking steps and
+the complete post-build source inventory comparison. Its build report records
+5,002.67 seconds for compilation plus the final inventory. Inputs and the
+release source commit match Apple silicon. This proves the source/build gate,
+not signed runtime or native Intel hardware acceptance.
+
 ## Remaining gates
 
-Intel's frozen official build is still compiling. It requires matching signing,
+Intel requires matching signing,
 packaging, smoke/onboarding, signed runtime and positive/negative installed-update
 checks. Rosetta results cannot replace the owner's native Intel acceptance on
 macOS 13.7.8 and 26.6.2. The owner confirmed the second version on November 9;

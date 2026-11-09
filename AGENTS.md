@@ -21,7 +21,9 @@ The tooling now prepares frozen date-versioned builds, paired GitHub feeds,
 immutable/version-independent downloads, and fail-closed freshness checks.
 Website links and old-feed redirects are prepared but must not reach production
 before stable promotion and public readback. Complete clean source comparison and both version-display unit compiles pass.
-The frozen architecture builds and signed acceptance are in progress; the owner has two Intel Macs available
+Both frozen architecture builds and their post-build source inventories pass.
+Apple silicon local signed acceptance passes; Intel smoke/onboarding and signed acceptance
+are in progress. The owner has two Intel Macs (macOS 13.7.8 and 26.6.2) available
 for final hardware checks. See [release delivery](agent-docs/project/release-delivery.md).
 
 
