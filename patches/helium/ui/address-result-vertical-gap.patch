@@ -1,0 +1,12 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1767,7 +1767,8 @@ class HeliumSiteInfoObserver : public vi
+ }
+ 
+ - (CGFloat)preferredHeight {
+-  return 36 + (_matches.empty() ? 0 : 2 * kHeliumNativeResultInset +
++  // Keep 4 pt between the editor and the first result, and 8 pt below the list.
++  return 36 + (_matches.empty() ? 0 : 4 + kHeliumNativeResultInset +
+                                          kHeliumNativeResultRowHeight * _matches.size());
+ }
+ 
