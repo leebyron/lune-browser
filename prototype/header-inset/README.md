@@ -22,6 +22,8 @@ live to the profile's tabs, including background tabs, and survive relaunch.
 Settings → Appearance and behavior includes the same “Show toolbar” dropdown
 and a “Sidebar position” dropdown with Left/Right choices. Both use the existing
 saved preferences and update live when changed from the context menu.
+The macOS Settings layout selector is removed, matching the window menu;
+Settings no longer offers Classic, Dynamic, or Compact tab layouts.
 On macOS, Lune Panels automatically use the side opposite the tab sidebar.
 Their existing position dropdown displays the derived position and is disabled;
 per-panel overrides for separately configurable entries remain independent.
@@ -74,6 +76,7 @@ accepted UI stack and adds separate cover/safe-area, menu, mode, and Settings pa
 - `patches/helium/ui/obscured-header-menu-prototype.patch`
 - `patches/helium/ui/obscured-header-modes-prototype.patch`
 - `patches/helium/ui/obscured-header-settings-prototype.patch`
+- `patches/helium/ui/vertical-only-settings-prototype.patch`
 
 The isolated prepared tree and outputs are in `.work/header-inset/platform`.
 Its historical applied prefix is retained; this is not a fresh release source
@@ -85,7 +88,8 @@ Base and previous-prototype evidence is in
 
 ## Validation and limits
 
-See `settings-validation.json` for the current build, Settings, renderer and
+See `vertical-only-validation.json` for the layout-selector removal check.
+See `settings-validation.json` for the preceding build, Settings, renderer and
 strict replay evidence. `validation.json` retains the preceding mode candidate.
 The runnable check requires Pillow and uses local fixtures and disposable
 profiles. Use a fresh evidence directory for each run:
@@ -105,7 +109,7 @@ changes between all three modes with either sidebar orientation, retains page
 state across the changes, verifies protective mode ignores dynamic viewport-fit
 changes, tests each saved mode after relaunch, and checks fresh-profile defaults. `--observe` records
 renderer probes without assertions.
-The replay check applies and reverses all five patches with `gpatch --fuzz=0` and
+The replay check applies and reverses all six patches with `gpatch --fuzz=0` and
 compares every affected source file. It verifies this delta, not the full stack.
 
 The experimental flag remains process-wide, but the inset is now supplied per
@@ -124,7 +128,7 @@ renderer suite, real Settings control/persistence tests and native menu/Settings
 synchronization checks. See `settings-validation.json`; owner acceptance remains
 pending.
 
-The distinct preview is `.work/header-inset/Lune Inset Test 5.app`, with its own
+The distinct preview is `.work/header-inset/Lune Inset Test 6.app`, with its own
 profile. The older previews and original branch remain available for rollback.
 No release input, published app or update feed is changed.
 
