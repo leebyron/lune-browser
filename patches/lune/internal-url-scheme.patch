@@ -1,0 +1,64 @@
+--- a/chrome/browser/resources/tab_search/tab_search_item.ts
++++ b/chrome/browser/resources/tab_search/tab_search_item.ts
+@@ -216,8 +216,8 @@
+ 
+     // Show chrome:// if it's a chrome internal url
+     const protocol = new URL(normalizeURL(data.tab.url)).protocol;
+-    if (protocol === 'chrome:' || protocol === 'helium:') {
+-      this.$.secondaryTextInner.prepend(document.createTextNode('helium://'));
++    if (protocol === 'chrome:' || protocol === 'lune:') {
++      this.$.secondaryTextInner.prepend(document.createTextNode('lune://'));
+     }
+   }
+ 
+--- a/components/omnibox/browser/builtin_provider.cc
++++ b/components/omnibox/browser/builtin_provider.cc
+@@ -74,7 +74,7 @@
+     for (const std::u16string& url :
+          client_->GetBuiltinsToProvideAsUserTypes()) {
+       DCHECK(url.starts_with(u"chrome://"));
+-      AddBuiltinMatch(std::u16string(url).replace(0, 6, u"helium"),
++      AddBuiltinMatch(std::u16string(url).replace(0, 6, u"lune"),
+                       std::u16string(), styles);
+     }
+   } else {
+--- a/components/url_formatter/url_fixer.cc
++++ b/components/url_formatter/url_fixer.cc
+@@ -40,7 +40,7 @@
+ 
+ // Hardcode these constants to avoid dependences on //chrome and //content.
+ const char kChromeUIScheme[] = "chrome";
+-const char kHeliumUIScheme[] = "helium";
++const char kHeliumUIScheme[] = "lune";
+ const char kDevToolsScheme[] = "devtools";
+ const char kChromeUIDefaultHost[] = "version";
+ const char kViewSourceScheme[] = "view-source";
+--- a/content/public/common/url_constants.h
++++ b/content/public/common/url_constants.h
+@@ -19,7 +19,7 @@
+ inline constexpr char kChromeDevToolsScheme[] = "devtools";
+ inline constexpr char kChromeErrorScheme[] = "chrome-error";
+ inline constexpr char kChromeUIScheme[] = "chrome";  // Used for WebUIs.
+-inline constexpr char kHeliumUIScheme[] = "helium";  // also used for webuis :3
++inline constexpr char kHeliumUIScheme[] = "lune";  // also used for webuis :3
+ inline constexpr char kChromeNativeScheme[] = "chrome-native";
+ inline constexpr char kChromeUIUntrustedScheme[] = "chrome-untrusted";
+ inline constexpr char kViewSourceScheme[] = "view-source";
+--- a/components/url_formatter/url_formatter.cc
++++ b/components/url_formatter/url_formatter.cc
+@@ -632,8 +632,13 @@
+       replacements.SetSchemeStr(content::kHeliumUIScheme);
+       url_ = url.ReplaceComponents(replacements);
+ 
+-      return FormatUrlWithAdjustments(url_, format_types, unescape_rules,
+-                                      new_parsed, prefix_end, adjustments);
++      std::u16string formatted = FormatUrlWithAdjustments(
++          url_, format_types, unescape_rules, new_parsed, prefix_end, adjustments);
++      // Lune's scheme is shorter than chrome; preserve original-to-display
++      // offsets for selections and match highlighting after the replacement.
++      base::OffsetAdjuster::MergeSequentialAdjustments(
++          {{0, url.scheme().size(), url_.scheme().size()}}, adjustments);
++      return formatted;
+     }
+   }
+ 
