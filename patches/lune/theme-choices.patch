@@ -1,0 +1,264 @@
+--- a/chrome/browser/themes/theme_service.cc
++++ b/chrome/browser/themes/theme_service.cc
+@@ -105,6 +105,10 @@
+ 
+ namespace {
+ 
++#if BUILDFLAG(IS_MAC)
++constexpr char kLuneThemeChoicesVersion[] = "lune.theme_choices_version";
++#endif
++
+ #if BUILDFLAG(ENABLE_EXTENSIONS)
+ // Wait this many seconds after startup to garbage collect unused themes.
+ // Removing unused themes is done after a delay because there is no
+@@ -327,6 +331,9 @@
+       prefs::kBrowserColorVariant,
+       static_cast<int>(ui::mojom::BrowserColorVariant::kSystem));
+   registry->RegisterBooleanPref(prefs::kGrayscaleThemeEnabled, false);
++#if BUILDFLAG(IS_MAC)
++  registry->RegisterIntegerPref(kLuneThemeChoicesVersion, 0);
++#endif
+   registry->RegisterBooleanPref(prefs::kBrowserFollowsSystemThemeColors,
+                                 BUILDFLAG(IS_CHROMEOS));
+   registry->RegisterStringPref(prefs::kSavedLocalTheme, "");
+@@ -346,11 +353,25 @@
+ void ThemeService::Init() {
+   theme_helper_->DCheckCalledOnValidSequence();
+ 
++#if !BUILDFLAG(IS_MAC)
+   if (profile_->IsNewProfile() && !UsingPolicyTheme() &&
+       !profile_->GetPrefs()->HasPrefPath(prefs::kCurrentThemeID) &&
+       !profile_->GetPrefs()->HasPrefPath(prefs::kGrayscaleThemeEnabled)) {
+     profile_->GetPrefs()->SetBoolean(prefs::kGrayscaleThemeEnabled, true);
+   }
++#endif
++
++#if BUILDFLAG(IS_MAC)
++  // Before distinct theme choices, Lune's brand mixer also colored Chromium's
++  // grayscale default. Preserve those profiles' visible palette on upgrade.
++  // Later explicit grayscale selections are retained by the version marker.
++  if (profile_->GetPrefs()->GetInteger(kLuneThemeChoicesVersion) < 1) {
++    if (GetIsGrayscale() && !UsingPolicyTheme() && !UsingExtensionTheme()) {
++      profile_->GetPrefs()->ClearPref(prefs::kGrayscaleThemeEnabled);
++    }
++    profile_->GetPrefs()->SetInteger(kLuneThemeChoicesVersion, 1);
++  }
++#endif
+ 
+   InitFromPrefs();
+ 
+@@ -479,7 +500,8 @@
+   }
+ 
+   ClearThemeData(/*reset_all_settings=*/true);
+-  profile_->GetPrefs()->SetBoolean(prefs::kGrayscaleThemeEnabled, true);
++  profile_->GetPrefs()->SetBoolean(prefs::kGrayscaleThemeEnabled,
++                                  !BUILDFLAG(IS_MAC));
+ 
+   NotifyThemeChanged();
+ }
+@@ -489,8 +511,8 @@
+ }
+ 
+ void ThemeService::UseDeviceTheme(bool follow) {
+-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+-  // This toggle is currently supported on ChromeOS and Windows and we only want
++#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
++  // This toggle is currently supported on ChromeOS, Windows and macOS; we only want
+   // platforms to set the value if they have a visible toggle.
+   profile_->GetPrefs()->SetBoolean(prefs::kBrowserFollowsSystemThemeColors,
+                                    follow);
+@@ -508,15 +530,15 @@
+     return GetIsBaseline() && !UsingExtensionTheme();
+   }
+   return pref->GetValue()->GetBool();
+-#elif BUILDFLAG(IS_WIN)
+-  // Always respect the profile preference on Windows. In the default case the
++#elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
++  // Always respect the profile preference on Windows and macOS. In the default case the
+   // preference starts disabled.
+   return profile_->GetPrefs()
+       ->FindPreference(prefs::kBrowserFollowsSystemThemeColors)
+       ->GetValue()
+       ->GetBool();
+ #else
+-  // Only ChromeOS and Windows have this toggle.
++  // Only ChromeOS, Windows and macOS have this toggle.
+   return false;
+ #endif
+ }
+@@ -740,6 +762,14 @@
+     }
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // Mark the native palette explicitly so color providers remain independently
++  // cached for system colors, the built-in palette, and chosen accent colors.
++  key.frame_style = UsingDeviceTheme() && !is_incognito && !is_isolated
++                        ? ui::ColorProviderKey::FrameStyle::kSystem
++                        : ui::ColorProviderKey::FrameStyle::kDefault;
++#endif
++
+   // user_color.
+   if (is_isolated) {
+     key.user_color = std::nullopt;
+@@ -946,8 +976,8 @@
+   SwapThemeSupplier(nullptr);
+   ClearThemePrefs();
+   if (reset_all_settings) {
+-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+-    // This toggle is currently supported on ChromeOS and Windows and we only
++#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
++    // This toggle is currently supported on ChromeOS, Windows and macOS and we only
+     // want platforms to set the value if they have a visible toggle.
+     profile_->GetPrefs()->ClearPref(prefs::kBrowserFollowsSystemThemeColors);
+ #endif
+@@ -980,7 +1010,11 @@
+     if (GetIsGrayscale()) {
+       chrome_colors::RecordDynamicColorOnLoadHistogramForGrayscale();
+     }
++#if !BUILDFLAG(IS_MAC)
+     UseTheme(GetDefaultSystemTheme());
++#endif
++    // macOS baseline themes need no supplier. Restoring them must retain saved
++    // grayscale and system-color preferences instead of resetting the theme.
+     return;
+   }
+ 
+--- a/chrome/browser/ui/color/BUILD.gn
++++ b/chrome/browser/ui/color/BUILD.gn
+@@ -72,7 +72,8 @@
+   }
+ 
+   if (is_mac) {
+-    sources += [ "mac/native_chrome_color_mixer_mac.cc" ]
++    sources += [ "mac/native_chrome_color_mixer_mac.mm" ]
++    deps += [ "//skia" ]
+   }
+ 
+   if (is_win) {
+--- a/chrome/browser/ui/color/chrome_color_mixers.cc
++++ b/chrome/browser/ui/color/chrome_color_mixers.cc
+@@ -36,7 +36,7 @@
+                           const ui::ColorProviderKey& key) {
+   if (!ShouldApplyChromeMaterialOverrides(key) || key.app_controller ||
+       key.forced_colors != ui::ColorProviderKey::ForcedColors::kNone ||
+-      key.user_color_source == ui::ColorProviderKey::UserColorSource::kAccent) {
++      key.user_color_source != ui::ColorProviderKey::UserColorSource::kBaseline) {
+     return;
+   }
+   const bool dark = key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
+--- a/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.cc
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2022 The Chromium Authors
+-// Use of this source code is governed by a BSD-style license that can be
+-// found in the LICENSE file.
+-
+-#include "chrome/browser/ui/color/native_chrome_color_mixer.h"
+-
+-void AddNativeChromeColorMixer(ui::ColorProvider* provider,
+-                               const ui::ColorProviderKey& key) {}
+--- /dev/null
++++ b/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
+@@ -0,0 +1,88 @@
++// Copyright 2026 The Lune Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#import <Cocoa/Cocoa.h>
++
++#include "chrome/browser/ui/color/native_chrome_color_mixer.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
++#include "skia/ext/skia_utils_mac.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_mixer.h"
++#include "ui/color/color_provider.h"
++#include "ui/color/color_provider_key.h"
++#include "ui/color/color_recipe.h"
++
++namespace {
++SkColor SystemColor(NSColor* color) {
++  return skia::NSDeviceColorToSkColor(
++      [color colorUsingColorSpace:NSColorSpace.deviceRGBColorSpace]);
++}
++}  // namespace
++
++void AddNativeChromeColorMixer(ui::ColorProvider* provider,
++                               const ui::ColorProviderKey& key) {
++  if (key.frame_style != ui::ColorProviderKey::FrameStyle::kSystem ||
++      key.custom_theme || key.app_controller ||
++      key.forced_colors != ui::ColorProviderKey::ForcedColors::kNone) {
++    return;
++  }
++  const bool dark = key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
++  const bool high = key.contrast_mode == ui::ColorProviderKey::ContrastMode::kHigh;
++  NSAppearanceName name = dark
++      ? (high ? NSAppearanceNameAccessibilityHighContrastDarkAqua : NSAppearanceNameDarkAqua)
++      : (high ? NSAppearanceNameAccessibilityHighContrastAqua : NSAppearanceNameAqua);
++  [[NSAppearance appearanceNamed:name] performAsCurrentDrawingAppearance:^{
++    auto& mixer = provider->AddMixer();
++    mixer[ui::kColorSysBase] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[ui::kColorSysHeader] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[ui::kColorSysHeaderInactive] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[ui::kColorSysBaseContainer] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[ui::kColorFrameActive] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[ui::kColorFrameInactive] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[kColorToolbar] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[kColorNewTabPageBackground] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[ui::kColorSysSurface] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysSurface1] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysSurface2] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysSurfaceSection] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysSurfaceContainerLowest] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysSurfaceContainerLow] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysSurfaceContainer] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysBaseContainerElevated] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysHeaderContainer] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysHeaderContainerInactive] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysOmniboxContainer] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[kColorTabBackgroundActiveFrameActive] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[kColorTabBackgroundActiveFrameInactive] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[ui::kColorSysSurface3] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[ui::kColorSysSurface4] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[ui::kColorSysSurface5] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[ui::kColorSysSurfaceContainerHigh] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[ui::kColorSysSurfaceContainerHighest] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[ui::kColorSysTonalContainer] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[ui::kColorSysBaseTonalContainer] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[ui::kColorSysNeutralContainer] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[kColorTabBackgroundInactiveFrameActive] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[kColorTabBackgroundInactiveFrameInactive] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    mixer[ui::kColorSysOnSurface] = {SystemColor(NSColor.labelColor)};
++    mixer[ui::kColorSysOnSurfacePrimary] = {SystemColor(NSColor.labelColor)};
++    mixer[ui::kColorSysOnHeaderPrimary] = {SystemColor(NSColor.labelColor)};
++    mixer[ui::kColorSysOnTonalContainer] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorToolbarText] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorToolbarTextDefault] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorToolbarButtonText] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorToolbarButtonIcon] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorToolbarButtonIconDefault] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorTabForegroundActiveFrameActive] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorTabForegroundActiveFrameInactive] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorNewTabPageText] = {SystemColor(NSColor.labelColor)};
++    mixer[ui::kColorSysOnSurfaceSecondary] = {SystemColor(NSColor.secondaryLabelColor)};
++    mixer[ui::kColorSysOnSurfaceSubtle] = {SystemColor(NSColor.secondaryLabelColor)};
++    mixer[ui::kColorSysOnSurfaceVariant] = {SystemColor(NSColor.secondaryLabelColor)};
++    mixer[kColorTabForegroundInactiveFrameActive] = {SystemColor(NSColor.secondaryLabelColor)};
++    mixer[kColorTabForegroundInactiveFrameInactive] = {SystemColor(NSColor.secondaryLabelColor)};
++    mixer[ui::kColorSysPrimary] = {SystemColor(NSColor.controlAccentColor)};
++    mixer[ui::kColorSysOnPrimary] = {SystemColor(NSColor.alternateSelectedControlTextColor)};
++  }];
++}
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -187,6 +187,9 @@
+ }
+ 
+ NSColor* FloatingChromeTintColor(BrowserView* view) {
++  if (ThemeServiceFactory::GetForProfile(view->GetProfile())->UsingDeviceTheme()) {
++    return nil;
++  }
+   // Frame theme notifications can precede BrowserView's widget attachment.
+   // Surface setup reapplies the tint once the owning color provider exists.
+   if (!view->GetColorProvider()) {

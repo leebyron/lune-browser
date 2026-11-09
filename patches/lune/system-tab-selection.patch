@@ -1,0 +1,24 @@
+--- a/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
++++ b/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
+@@ -53,8 +53,8 @@
+     mixer[ui::kColorSysHeaderContainer] = {SystemColor(NSColor.controlBackgroundColor)};
+     mixer[ui::kColorSysHeaderContainerInactive] = {SystemColor(NSColor.controlBackgroundColor)};
+     mixer[ui::kColorSysOmniboxContainer] = {SystemColor(NSColor.controlBackgroundColor)};
+-    mixer[kColorTabBackgroundActiveFrameActive] = {SystemColor(NSColor.controlBackgroundColor)};
+-    mixer[kColorTabBackgroundActiveFrameInactive] = {SystemColor(NSColor.controlBackgroundColor)};
++    mixer[kColorTabBackgroundActiveFrameActive] = {SystemColor(NSColor.selectedContentBackgroundColor)};
++    mixer[kColorTabBackgroundActiveFrameInactive] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
+     mixer[ui::kColorSysSurface3] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
+     mixer[ui::kColorSysSurface4] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
+     mixer[ui::kColorSysSurface5] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
+@@ -74,8 +74,8 @@
+     mixer[kColorToolbarButtonText] = {SystemColor(NSColor.labelColor)};
+     mixer[kColorToolbarButtonIcon] = {SystemColor(NSColor.labelColor)};
+     mixer[kColorToolbarButtonIconDefault] = {SystemColor(NSColor.labelColor)};
+-    mixer[kColorTabForegroundActiveFrameActive] = {SystemColor(NSColor.labelColor)};
+-    mixer[kColorTabForegroundActiveFrameInactive] = {SystemColor(NSColor.labelColor)};
++    mixer[kColorTabForegroundActiveFrameActive] = {SystemColor(NSColor.alternateSelectedControlTextColor)};
++    mixer[kColorTabForegroundActiveFrameInactive] = {SystemColor(NSColor.unemphasizedSelectedTextColor)};
+     mixer[kColorNewTabPageText] = {SystemColor(NSColor.labelColor)};
+     mixer[ui::kColorSysOnSurfaceSecondary] = {SystemColor(NSColor.secondaryLabelColor)};
+     mixer[ui::kColorSysOnSurfaceSubtle] = {SystemColor(NSColor.secondaryLabelColor)};
