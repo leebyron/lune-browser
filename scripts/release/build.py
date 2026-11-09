@@ -10,6 +10,7 @@ import time
 from model import ROOT, feed_url, git, load_record, sha
 sys.path.insert(0, str(ROOT / 'scripts'))
 import lune
+from prepare import inventory
 
 
 def main():
@@ -30,17 +31,14 @@ def main():
     for component in ('helium', 'macos'):
         if prepared[component] != lock['components'][component]['commit']:
             raise ValueError('Prepared source uses different component inputs')
-    if not prepared.get('strict_replay_passed') or not prepared.get('files'):
-        raise ValueError('Strict source replay evidence required')
+    if not prepared.get('strict_replay_passed') or prepared.get('inventory_version') != 1:
+        raise ValueError('Strict preparation and complete source inventory required')
     def verify_sources():
-        for name, digest in prepared['files'].items():
-            path = (src / name).resolve()
-            if not path.is_relative_to(src) or not path.is_file() or sha(path) != digest:
-                raise ValueError(f'Prepared source changed: {name}')
-        for name in prepared.get('absent', []):
-            path = (src / name).resolve()
-            if not path.is_relative_to(src) or path.exists():
-                raise ValueError(f'Deleted prepared source reappeared: {name}')
+        files, links = inventory(src)
+        if files != prepared['files'] or links != prepared['symlinks']:
+            changed = sorted(name for name in files.keys() | prepared['files'].keys()
+                             if files.get(name) != prepared['files'].get(name))
+            raise ValueError(f'Prepared source changed: {changed[:20]}; check symlinks too')
     verify_sources()
     env = lune.build_env()
     def output(*cmd): return subprocess.check_output(cmd, text=True, env=env).strip()

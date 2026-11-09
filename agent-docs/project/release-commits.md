@@ -211,9 +211,11 @@ installed-update tests from build 2, matching signed artifacts, both architectur
 runtime checks, and native Intel owner acceptance before stable. Unit tests are
 not substitutes for those gates.
 
-Prepared-source hashes attest the recorded patch/resource paths, not arbitrary
-unlisted files in a reused Chromium tree. Retain pristine archive verification,
-strict replay and source-preparation evidence with the build. A complete
+`prepare.py` inventories every prepared source file and symlink except output
+and bookkeeping directories. `build.py` compares that complete inventory before
+and after compilation, including added or removed files. Reusing cached outputs
+requires comparison with a clean preparation from the locked archives. Retain
+archive verification, strict replay and preparation evidence. A complete
 bit-for-bit reproducible environment remains unproven; tool checks cover the
 recorded compiler/build/PGO, Xcode/SDK/Metal, Python and sccache inputs. Signing
 and notarization credentials stay external.

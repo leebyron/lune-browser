@@ -56,9 +56,11 @@ additional CI cost; this work does not activate scheduled release jobs.
 ## Commands and gates
 
 1. Integrate source changes, review and retain component input tags, verify the
-   complete patch series without fuzz, and prepare resources/name substitutions.
-   Record hashes of the prepared patch/resource files and component commits in
-   an ignored prepared-source report. Retain archive verification evidence.
+   complete patch series without fuzz using `scripts/release/prepare.py
+   --platform PLATFORM_CHECKOUT --report PREPARED_REPORT`. It refuses an existing
+   source tree, uses the locked host archive manifest and upstream preparation,
+   then inventories source files and symlinks. Keep its archive verification and
+   patch log. Existing output caches may be reused only after source comparison.
 2. Finish tools and source validation and commit release notes. Fetch remote
    branches and tags, then run `scripts/release/reserve.py --version VERSION`.
    Review and commit the resulting record, serializing against other allocations.

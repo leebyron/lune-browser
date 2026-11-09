@@ -59,5 +59,19 @@ class AllocationTests(unittest.TestCase):
                 check_allocation(version, {'26.1109.1'})
 
 
+class SourceInventoryTests(unittest.TestCase):
+    def test_inventory_tracks_sources_and_symlinks_but_excludes_outputs(self):
+        from prepare import inventory
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'source.cc').write_text('source')
+            (root / 'alias.cc').symlink_to('source.cc')
+            (root / 'out').mkdir()
+            (root / 'out/generated.cc').write_text('generated')
+            files, links = inventory(root)
+            self.assertEqual(files, {'source.cc': model.sha(root / 'source.cc')})
+            self.assertEqual(links, {'alias.cc': 'source.cc'})
+
+
 if __name__ == '__main__':
     unittest.main()
