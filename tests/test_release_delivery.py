@@ -53,6 +53,23 @@ class DeliveryTests(unittest.TestCase):
 
 
 class PromotionTests(unittest.TestCase):
+    def test_release_lookup_includes_drafts_on_later_pages(self):
+        import publish
+        draft = dict(tag_name='v26.1109.1', draft=True, assets=[])
+        pages = [[dict(tag_name='build-2', draft=False)], [draft]]
+        with patch('publish.gh', return_value=json.dumps(pages)) as api:
+            self.assertEqual(publish.release('v26.1109.1'), draft)
+        api.assert_called_once_with('api', f'repos/{model.REPOSITORY}/releases',
+                                    '--paginate', '--slurp')
+
+    def test_release_lookup_rejects_missing_or_ambiguous_tags(self):
+        import publish
+        row = dict(tag_name='v26.1109.1', draft=True)
+        for pages in [[], [[row], [row]]]:
+            with self.subTest(pages=pages), patch('publish.gh', return_value=json.dumps(pages)):
+                with self.assertRaisesRegex(ValueError, 'exactly one visible release'):
+                    publish.release('v26.1109.1')
+
     def test_native_acceptance_is_required_only_for_stable(self):
         data = dict(version='26.1109.1', source_commit='a' * 40,
                     downloads={arch: {'sha256': arch} for arch in model.ARCHES})

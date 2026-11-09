@@ -47,8 +47,19 @@ def fresh(data,directory,phase):
     return evidence
 
 
+def releases():
+    # The tag endpoint is for published releases. Authenticated listings also
+    # include drafts visible to this repository's publisher.
+    return [row for page in json.loads(gh(
+        'api', f'repos/{REPOSITORY}/releases', '--paginate', '--slurp'))
+        for row in page]
+
+
 def release(tag):
-    return json.loads(gh('api',f'repos/{REPOSITORY}/releases/tags/{tag}'))
+    matches = [row for row in releases() if row['tag_name'] == tag]
+    if len(matches) != 1:
+        raise ValueError(f'Expected exactly one visible release for {tag}; found {len(matches)}')
+    return matches[0]
 
 
 def check_assets(data,remote):
@@ -75,7 +86,7 @@ def upload(a):
         if digest!=row[algorithm]:raise ValueError('Source archive changed')
         paths.append(p)
     fresh(data,a.directory,'candidate')
-    existing=[r for page in json.loads(gh('api',f'repos/{REPOSITORY}/releases','--paginate','--slurp')) for r in page]
+    existing=releases()
     if any(r['tag_name']==data['tag'] for r in existing):
         raise ValueError('Release already exists; inspect it rather than replacing assets')
     notes=a.notes_file or a.source_checkout/f"agent-docs/project/releases/{data['version']}.md"
@@ -106,7 +117,7 @@ def promote(a):
     validate_acceptance(data, json.loads(a.acceptance.read_text()), a.channel)
     acceptance=json.loads(a.acceptance.read_text())
     if a.channel=='stable':
-        published=[r for page in json.loads(gh('api',f'repos/{REPOSITORY}/releases','--paginate','--slurp')) for r in page]
+        published=releases()
         for r in published:
             if not r['draft'] and not r['prerelease'] and r['tag_name'].startswith('v'):
                 if version_key(r['tag_name'][1:])>version_key(data['version']):
