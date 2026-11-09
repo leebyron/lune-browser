@@ -6,12 +6,12 @@ stack at `7b9dda9113b0e13a8317da9c5452cb5770824130`
 (`topic/command-bar-corners-reviewed`). Main still pins an older browser input;
 no development lock or published build is changed.
 
-Current preview: **Lune Inset Test 4**, with the three-choice “Show top controls”
-submenu. Hover is the fresh-profile default; normal Always show protects every
-page with the 52 pt inset; experimental overlay retains viewport-fit/env support.
-The signed local mode commit is `cdec625c16d7fb851ee5740dbfb9064434b88d63`, atop
-the earlier prototype stack, imported on `prototype/pinned-header-inset-current`.
-See the three-choice section below for current validation and acceptance limits.
+Current preview: **Lune Inset Test 5**, with the final “Show toolbar” labels and
+Settings integration. Signed local platform commit `a45e5d396df142edbea4d7496774e8d55612379d`
+is retained in both repositories on `prototype/pinned-header-inset-current`.
+“On hover” is the fresh-profile default; “Always” protects every page with the
+52 pt inset; “Always cover (experimental)” retains viewport-fit/env support.
+The latest section records Settings and native synchronization validation.
 
 ## Initial implementation and earlier candidates
 
@@ -170,3 +170,36 @@ show for owner review. Source replay covers 25 files across all four patches;
 the preview framework hash matches the tested build. Evidence is in
 `.work/header-inset/modes-validation/` and the tracked platform validation record.
 No Intel build or owner acceptance of this revision is claimed.
+
+
+## Toolbar and sidebar Settings
+
+The fifth quilt patch, `obscured-header-settings-prototype.patch`, changes the
+window-menu labels to “Sidebar on right” and “Show toolbar”, with exactly
+“On hover”, “Always”, and “Always cover (experimental)” as mutually exclusive
+choices. Appearance and behavior now contains matching “Show toolbar” and
+“Sidebar position” dropdowns. The sidebar options are “Left” and “Right”.
+Both controls reuse the existing preferences, so menu changes update Settings
+and Settings changes immediately affect the native browser.
+
+On macOS, the native sidebar controller keeps the default Lune Panels position
+opposite the tab sidebar, on startup and when either preference changes. The
+existing Lune Panels dropdown displays that derived value and is disabled.
+Independent per-panel overrides remain configurable. This uses preference
+notifications, with no polling or renderer changes.
+
+The arm64 browser/ChromeDriver build passes (5m54s), including Settings type and
+lint checks. Real Settings controls pass all three modes, both sidebar positions,
+backend-to-UI updates, conflicting panel writes, saved selections after restart,
+and correction of a conflicting saved panel position at startup. The headless
+renderer suite passes geometry, pixels, scroll/input alignment, live transitions,
+and persistence. Five patches strictly replay and reverse across 29 source files.
+
+Native Lune Inset Test 5 inspection verifies exact labels and exclusive menu
+checkmarks, menu-to-Settings and Settings-to-menu synchronization, both sidebar /
+panel pairings, and the displayed disabled Lune Panels dropdown. The preview is
+left on Appearance with Always, sidebar Left, and panels Right. Its framework
+hash matches the tested build. Evidence is in `.work/header-inset/settings-validation/`
+and the platform's `prototype/header-inset/settings-validation.json`.
+Intel and owner visual acceptance remain unverified. No inputs or publications
+are changed. The preceding sections document the previous candidates.
