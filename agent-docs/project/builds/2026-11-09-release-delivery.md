@@ -76,7 +76,8 @@ Two acceptance-test corrections were required; neither changes browser inputs:
 Intel's frozen official build is still compiling. It requires matching signing,
 packaging, smoke/onboarding, signed runtime and positive/negative installed-update
 checks. Rosetta results cannot replace the owner's native Intel acceptance on
-macOS 13.7.8 and the second Intel Mac (exact version pending).
+macOS 13.7.8 and 26.6.2. The owner confirmed the second version on November 9;
+device models and actual native acceptance results remain pending.
 
 Intel headed/native interaction, extension installation/update, wrong-architecture
 offer rejection on native Intel, public HTTPS installed updates, fresh Chromium

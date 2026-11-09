@@ -135,9 +135,10 @@ Never confuse those two histories. Keep builds 1 and 2 and their source unchange
 
 ## Manual Intel checklist
 
-The owner has two native Intel Macs: one runs macOS 13.7.8; the second version
-will be recorded at acceptance. The 13.7.8 machine also exercises the older-system
-glass fallback. Use the candidate's Intel DMG on each test Mac. Record model,
+The owner has two native Intel Macs running macOS 13.7.8 and 26.6.2, confirmed
+on November 9. The 13.7.8 machine exercises the older-system glass fallback;
+26.6.2 exercises the native glass path. These are planned test environments,
+not completed acceptance results. Use the candidate's Intel DMG on each test Mac. Record model,
 macOS version, downloaded filename/hash and whether Rosetta is involved (native
 Intel is required here). Drag Lune to Applications and launch normally through
 Finder, without bypassing Gatekeeper. Verify About shows the release version and
