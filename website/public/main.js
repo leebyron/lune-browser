@@ -301,10 +301,10 @@
         button.dataset.architecture = build;
         button.removeAttribute('popovertarget');
         button.querySelector('.download-chevron').remove();
-        button.setAttribute('aria-label', `Download for ${label} — coming soon`);
-        button.title = `Download for ${label} — coming soon`;
-        // Enable and link the selected build only after public releases are validated.
-        button.disabled = true;
+        button.setAttribute('aria-label', `Download for ${label}`);
+        button.title = `Download for ${label}`;
+        const url = `https://github.com/leebyron/lune-downloads/releases/latest/download/Lune-macos-${build}.dmg`;
+        button.addEventListener('click', () => { window.location.assign(url); });
       });
     } catch {
       // Privacy settings can deny high-entropy hints. Leave the explicit choices available.

@@ -170,3 +170,16 @@ controls retain their existing typography.
 The Dock uses light/dark PNG exports from the same Apple-compiled app icons as
 the browser, including the enlarged mark and native tile edge. These are copied
 by `render-app-icons.py`; no extra CSS glass frame is painted over the Lune icon.
+
+## Release download links
+
+The download chooser uses GitHub latest-release aliases Lune-macos-arm64.dmg
+and Lune-macos-x86_64.dmg. Explicit architecture hints select the matching link;
+otherwise both remain available. Keep these names identical across stable
+releases so website redeployment is unnecessary for each new browser version.
+The legacy update URLs redirect to GitHub-hosted architecture-specific appcasts.
+Deploy these enabled links only after both latest assets and stable feeds pass
+public readback. See [release delivery](../agent-docs/project/release-delivery.md).
+
+The public GitHub link points to `leebyron/lune-downloads`, where downloads and
+corresponding source kits are accessible without private repository access.
