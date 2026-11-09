@@ -6,9 +6,9 @@ stack at `7b9dda9113b0e13a8317da9c5452cb5770824130`
 (`topic/command-bar-corners-reviewed`). Main still pins an older browser input;
 no development lock or published build is changed.
 
-Current preview: **Lune Inset Test 6**, with the final “Show toolbar” labels,
+Current preview: **Lune Inset Test 7**, with the final “Show toolbar” labels,
 Settings integration and no non-vertical layout selector. The reviewed platform
-stack is `topic/header-inset-reviewed` at `cab5ea9edada5d7e005fe21bd74fd3ddfc7c2d25`.
+stack is `topic/header-inset-reviewed` at `01905fc411a170d7498ea04b3e315111bb806925`.
 The original local development history remains on
 `prototype/pinned-header-inset-current` for rollback.
 “On hover” is the fresh-profile default; “Always” protects every page with the
@@ -257,3 +257,17 @@ quilt replay fixture containing affected files, not a complete Chromium tree.
 Detailed audit and replay hashes are in the platform branch at
 `prototype/header-inset/reviewed-history.json`. No development lock, release,
 or update feed is changed by publishing these branches.
+
+
+## Customize content top spacing
+
+The owner requested a 52px top margin for Customize Lune content. The focused
+follow-up `01905fc4` changes the macOS shared Customize container's top padding
+from 8px to 52px, preserving the container height and native close control.
+The arm64 build passes in 13.22s. Runtime measurement of the overview confirms
+computed padding 52px and content origin y=52. Native inspection shows the
+Appearance card below the close control. The owner accepted Test 7 and
+explicitly authorized committing and pushing the change on November 8, 2026.
+Ten implementation patches replay forward/reverse across 31 source files,
+matching the prepared build source. Evidence is in the platform's
+`prototype/header-inset/customize-validation.json`. Intel was not rebuilt.
