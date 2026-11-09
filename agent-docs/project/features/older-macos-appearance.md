@@ -21,6 +21,8 @@ The owner explicitly wants the native-feeling smaller window radius on older
 macOS. Preserve the OS frame shape; match Lune's content to it. Do not force the
 newer radius onto older window frames. Add a thin adaptive edge to fallback
 control surfaces, similar to the existing sidebar/content separator.
+The owner explicitly includes Command-T in the border treatment and requests
+the same existing 5% drop shadow for controls and Command-T on pre-glass macOS.
 
 ## Source findings
 
@@ -49,6 +51,9 @@ Inspected the prepared release source and platform input
 - Command-T in `chrome/browser/ui/helium/helium_command_bar_view_mac.mm` has a
   separate `NSVisualEffectView` fallback. Include it in the surface audit;
   changing only the shared header host would not cover all fallback surfaces.
+  Its `HeliumCommandMaterial` wrapper supplies the 5% shadow, but only the
+  macOS 26+ branch creates that wrapper. The fallback directly hosts the pane in
+  a masked effect view, so it also misses the explicit supplemental shadow.
 
 ## API availability and proposed correction
 
@@ -81,6 +86,17 @@ than every icon within a group. Cover navigation, address/results, trailing
 controls, Customize close and Command-T; retain the square floating sidebar
 shape. The edge must not add layout inset, intercept events, or duplicate the
 pinned sidebar separator. Keep native macOS 26+ glass treatment unchanged.
+
+Carry the existing supplemental shadow onto pre-glass controls and Command-T:
+5% black, 10 pt blur and a 3 pt downward offset. Reuse the existing styling rather
+than introducing another shadow recipe. The shadow must live on an unclipped
+outer material host, with the rounded fallback blur/content clipped inside it;
+placing the shadow on the masked effect layer risks clipping it away. Preserve
+Command-T's existing 48 pt shadow clearance and its margin-click dismissal,
+and keep the control shadows within the existing visual/input separation.
+Check resizing, result-list growth, reveal/fade and display-scale changes for
+clipping or stale shadow paths. This request covers the existing shadow-bearing
+controls and Command-T; it does not add a new content-pane shadow.
 
 Use public AppKit/Core Animation drawing; no new private API is needed for an
 outline. Resolve the edge color again when effective appearance changes (a
