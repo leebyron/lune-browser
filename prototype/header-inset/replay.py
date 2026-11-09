@@ -19,7 +19,9 @@ names = ['helium/ui/obscured-header-prototype.patch',
          'helium/ui/obscured-header-menu-prototype.patch',
          'helium/ui/obscured-header-modes-prototype.patch',
          'helium/ui/obscured-header-settings-prototype.patch',
-         'helium/ui/vertical-only-settings-prototype.patch']
+         'helium/ui/vertical-only-settings-prototype.patch',
+    'helium/ui/customize-content-top-inset.patch',
+]
 args.evidence.mkdir(parents=True, exist_ok=True)
 patches = [platform/'patches'/name for name in names]
 baseline = {}
