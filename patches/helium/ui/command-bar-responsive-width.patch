@@ -1,0 +1,21 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -23,7 +23,8 @@
+ #include "ui/views/widget/widget.h"
+ 
+ namespace {
+-constexpr int kWidth = 560;
++constexpr int kWidth = 600;
++constexpr int kWindowSideMargin = 36;
+ constexpr int kInputHeight = 52;
+ // Keep the glass's native edge effects inside the translucent popup window.
+ // A window ending at the material bounds cuts those effects into square corners.
+@@ -184,7 +185,7 @@ HeliumCommandBarView* HeliumCommandBarVi
+   auto* parent_widget = views::Widget::GetWidgetForNativeView(parent);
+   const gfx::Rect bounds = parent_widget->GetWindowBoundsInScreen();
+   view->native_->width =
+-      std::min(kWidth, std::max(280, bounds.width() - 32 - 2 * kGlassOutset));
++      std::min(kWidth, std::max(0, bounds.width() - 2 * kWindowSideMargin));
+   const int window_width = view->native_->width + 2 * kGlassOutset;
+   widget->SetBounds(
+       gfx::Rect(bounds.x() + (bounds.width() - window_width) / 2,
