@@ -1,0 +1,365 @@
+#!/usr/bin/env python3
+"""Exercise actual renderer pixels and input, with and without the opt-in flag.
+
+Requires Pillow. Uses only disposable profiles, a local fixture and ChromeDriver.
+"""
+import argparse
+import base64
+import io
+import json
+import socket
+import subprocess
+import time
+from pathlib import Path
+from urllib.error import HTTPError
+from urllib.request import Request, ProxyHandler, build_opener
+from PIL import Image
+
+parser = argparse.ArgumentParser()
+parser.add_argument('output', type=Path)
+parser.add_argument('evidence', type=Path)
+parser.add_argument('--headed', action='store_true')
+parser.add_argument('--observe', action='store_true')
+parser.add_argument('--toggle', action='store_true', help='Check live saved-preference toggles and restart persistence')
+args = parser.parse_args()
+out, evidence = args.output.resolve(), args.evidence.resolve()
+evidence.mkdir(parents=True, exist_ok=True)
+with socket.socket() as sock:
+    sock.bind(('127.0.0.1', 0))
+    port = sock.getsockname()[1]
+opener = build_opener(ProxyHandler({}))
+
+def request(method, path, body=None):
+    data = None if body is None else json.dumps(body).encode()
+    try:
+        with opener.open(Request(f'http://127.0.0.1:{port}' + path, data=data,
+                                 method=method, headers={'Content-Type':'application/json'}), timeout=90) as response:
+            value = json.load(response)['value']
+    except HTTPError as error:
+        raise RuntimeError(error.read().decode()) from error
+    if isinstance(value, dict) and 'error' in value:
+        raise RuntimeError(value)
+    return value
+
+log = (evidence/'chromedriver.log').open('w')
+driver = subprocess.Popen([str(out/'chromedriver'), f'--port={port}',
+                           '--allowed-ips=127.0.0.1','--verbose'], stdout=log, stderr=subprocess.STDOUT)
+report = {}
+try:
+    for _ in range(100):
+        try:
+            if request('GET','/status')['ready']:
+                break
+        except OSError:
+            time.sleep(.1)
+    for enabled in (False, True):
+        label = 'inset' if enabled else 'baseline'
+        profile = evidence / (label+'-profile')
+        assert not profile.exists(), f'Use a fresh evidence directory: {profile}'
+        launch_args = ['--disable-background-networking', '--use-mock-keychain', '--force-color-profile=srgb',
+                       '--password-store=basic', '--enable-logging=stderr', '--window-size=1200,900',
+                       f'--user-data-dir={profile}']
+        if not args.headed:
+            launch_args += ['--headless=new']
+        if enabled:
+            launch_args += ['--lune-obscured-header-prototype']
+        session = request('POST','/session',{'capabilities':{'alwaysMatch':{
+            'goog:chromeOptions': {'binary':str(out/'Lune.app/Contents/MacOS/Lune'),
+                                  'excludeSwitches':['enable-automation'],
+                                  'args':launch_args,
+                                  'prefs':{'helium.services.enabled':False,
+                                           'helium.services.browser_updates':False,
+                                           'helium.browser.layout':2,
+                                           'helium.browser.zen_mode_top_chrome_pinned':enabled,
+                                           'helium.browser.top_controls_overlay':enabled}}}}})
+        sid = '/session/'+session['sessionId']
+        def js(script):
+            return request('POST',sid+'/execute/sync',{'script':script,'args':[]})
+        def cdp(cmd, params=None):
+            return request('POST',sid+'/goog/cdp/execute',{'cmd':cmd,'params':params or {}})
+        def screenshot(name):
+            png = base64.b64decode(cdp('Page.captureScreenshot',{'captureBeyondViewport':False})['data'])
+            (evidence/f'{label}-{name}.png').write_bytes(png)
+            return Image.open(io.BytesIO(png)).convert('RGB')
+        try:
+            request('POST',sid+'/url',{'url':Path(__file__).with_name('page.html').resolve().as_uri()})
+            time.sleep(.5)
+            metrics = js('''return {height:innerHeight, width:innerWidth, dpr:devicePixelRatio,
+              visualHeight:visualViewport.height, clientHeight:document.documentElement.clientHeight,
+              fixed:document.querySelector('#fixed').getBoundingClientRect().toJSON(),
+              origin:document.querySelector('#origin').getBoundingClientRect().toJSON()};''')
+            samples = []
+            for scroll in (0,26,52,160):
+                js(f'window.scrollTo(0,{scroll})')
+                time.sleep(.15)
+                image = screenshot(f'scroll-{scroll}')
+                scale = image.width/metrics['width']
+                colors = [image.getpixel((round(8*scale),round(y*scale))) for y in (8,28,54,80)]
+                samples.append({'scroll':js('return scrollY'), 'image':image.size,
+                                'colors':colors, 'scale':scale})
+            js('window.scrollTo(0,0)')
+            time.sleep(.15)
+            rect = js("return document.querySelector('#fixed').getBoundingClientRect().toJSON()")
+            x = rect['x']+rect['width']/2
+            y = rect['y']+rect['height']/2+(52 if enabled else 0)
+            for kind in ('mousePressed','mouseReleased'):
+                cdp('Input.dispatchMouseEvent',{'type':kind,'x':x,'y':y,'button':'left','clickCount':1})
+            clicks = js('return window.clicks')
+            js("document.documentElement.style.background='#654322'")
+            time.sleep(.15)
+            image = screenshot('background-changed')
+            changed_color = image.getpixel((round(8*scale),round(28*scale)))
+            js("document.documentElement.style.background='transparent'; document.body.style.background='#123456'")
+            time.sleep(.15)
+            image = screenshot('body-background')
+            body_color = image.getpixel((round(8*scale),round(28*scale)))
+            js("""document.body.style.background='transparent';
+                document.documentElement.style.background='linear-gradient(90deg,#123456 0 50%,#abcdef 50% 100%)'""")
+            time.sleep(.15)
+            image = screenshot('background-image')
+            background_image = [image.getpixel((round(x*scale),round(28*scale)))
+                                for x in (8,metrics['width']-8)]
+            js("document.documentElement.style.background='#244634'")
+            js("document.querySelector('#target').scrollIntoView()")
+            time.sleep(.15)
+            target = js("return document.querySelector('#target').getBoundingClientRect().toJSON()")
+            screenshot('anchor')
+            js("""window.originClicks=0; document.querySelector('#origin').onclick=()=>window.originClicks++;
+                window.lastClick=null; document.addEventListener('click',event=>{
+                  window.lastClick={target:event.target.id, y:event.clientY, pageY:event.pageY};
+                });""")
+            js('window.scrollTo(0,52)')
+            time.sleep(.15)
+            for kind in ('mousePressed','mouseReleased'):
+                cdp('Input.dispatchMouseEvent',{'type':kind,'x':600,'y':28,'button':'left','clickCount':1})
+            origin_clicks = js('return window.originClicks')
+            strip_click = js('return window.lastClick')
+            cdp('Performance.enable')
+            def perf():
+                return {m['name']:m['value'] for m in cdp('Performance.getMetrics')['metrics']
+                        if m['name'] in ('LayoutCount','RecalcStyleCount','LayoutDuration')}
+            before = perf()
+            cdp('Input.dispatchMouseEvent',{'type':'mouseWheel','x':600,'y':28,'deltaX':0,'deltaY':80})
+            time.sleep(.6)
+            wheel_scroll = js('return scrollY')
+            after = perf()
+            js("document.querySelector('#nested').style.top='-30px'")
+            time.sleep(.15)
+            cdp('Input.dispatchMouseEvent',{'type':'mouseWheel','x':metrics['width']-100,
+                                          'y':28,'deltaX':0,'deltaY':80})
+            time.sleep(.6)
+            nested_scroll = js("return document.querySelector('#nested').scrollTop")
+            report[label] = {'metrics':metrics,'samples':samples,'clicks':clicks,
+                             'changed_color':changed_color,'anchor':target,
+                             'body_color':body_color,'background_image':background_image,
+                             'background_image_supported':background_image==[(18,52,86),(171,205,239)],
+                             'origin_clicks':origin_clicks,'wheel_scroll':wheel_scroll,
+                             'strip_click':strip_click,
+                             'nested_scroll':nested_scroll,
+                             'scroll_performance_delta':{k:after[k]-v for k,v in before.items()}}
+            request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+            time.sleep(.35)
+            def cover_metrics():
+                return js("""return {height:innerHeight, visualHeight:visualViewport.height,
+                    safe:parseFloat(getComputedStyle(document.querySelector('#safe')).paddingTop),
+                    fixed:document.querySelector('#fixed').getBoundingClientRect().toJSON()};""")
+            def click_cover():
+                rect = js("return document.querySelector('#fixed').getBoundingClientRect().toJSON()")
+                for kind in ('mousePressed','mouseReleased'):
+                    cdp('Input.dispatchMouseEvent',{'type':kind,'x':rect['x']+rect['width']/2,
+                        'y':rect['y']+rect['height']/2,'button':'left','clickCount':1})
+            cover = {'initial':cover_metrics()}
+            image = screenshot('cover')
+            cover['top_colors'] = [image.getpixel((round(x*scale),round(12*scale)))
+                                  for x in (8,metrics['width']-8)]
+            click_cover()
+            cover['first_clicks'] = js('return clicks')
+            js("document.querySelector('meta[name=viewport]').content='viewport-fit=contain'")
+            time.sleep(.25)
+            cover['contain'] = cover_metrics()
+            screenshot('cover-to-contain')
+            js("document.querySelector('meta[name=viewport]').content='viewport-fit=cover'")
+            time.sleep(.25)
+            cover['restored'] = cover_metrics()
+            click_cover()
+            cover['restored_clicks'] = js('return clicks')
+            request('POST',sid+'/url',{'url':Path(__file__).with_name('page.html').resolve().as_uri()})
+            time.sleep(.25)
+            cover['ordinary_after_navigation'] = js('return {height:innerHeight,visualHeight:visualViewport.height}')
+            report[label]['cover'] = cover
+            if args.toggle and enabled:
+                ordinary_handle = request('GET',sid+'/window')
+                js('window.insetCheckMarker = 42; scrollTo(0,400)')
+                cover_handle = request('POST',sid+'/window/new',{'type':'tab'})['handle']
+                request('POST',sid+'/window',{'handle':cover_handle})
+                request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+                js('window.insetCheckMarker = 42; scrollTo(0,400)')
+                cover_anchor = js("return document.querySelector('main').getBoundingClientRect().top")
+                settings_handle = request('POST',sid+'/window/new',{'type':'tab'})['handle']
+                request('POST',sid+'/window',{'handle':settings_handle})
+                request('POST',sid+'/url',{'url':'chrome://settings/appearance'})
+                def set_pref(key, value):
+                    request('POST',sid+'/window',{'handle':settings_handle})
+                    result = request('POST',sid+'/execute/async',{
+                        'script':"const done=arguments[arguments.length-1]; chrome.settingsPrivate.setPref(arguments[0],arguments[1], '', done)",
+                        'args':[key,value]})
+                    assert result is True, (key,result)
+                    time.sleep(.3)
+                toggles = []
+                for right, mode in ((False,0),(False,1),(False,2),(False,1),(True,1),(True,2),(True,0)):
+                    pinned, overlay = mode != 0, mode == 2
+                    set_pref('helium.browser.vertical_right_aligned', right)
+                    set_pref('helium.browser.top_controls_overlay', overlay)
+                    set_pref('helium.browser.zen_mode_top_chrome_pinned', pinned)
+                    row = {'right':right,'mode':mode,'pinned':pinned,'overlay':overlay}
+                    for tab,handle in (('ordinary',ordinary_handle),('cover',cover_handle)):
+                        request('POST',sid+'/window',{'handle':handle})
+                        value = js("""return {height:innerHeight,scroll:scrollY,marker:window.insetCheckMarker,
+                          anchorTop:document.querySelector('main').getBoundingClientRect().top,
+                          safe:document.querySelector('#safe') ? parseFloat(getComputedStyle(document.querySelector('#safe')).paddingTop) : null}""")
+                        assert value['marker']==42, value
+                        if tab=='ordinary':
+                            assert value['scroll']==400, value
+                        else:
+                            # Removing the page's own safe-area padding invokes CSS
+                            # scroll anchoring: content stays put although scrollY changes.
+                            assert abs(value['anchorTop']-cover_anchor)<1, (value,cover_anchor)
+                        translated = pinned and (tab=='ordinary' or not overlay)
+                        assert value['height']==(848 if translated else 900), value
+                        if tab=='cover':
+                            assert value['safe']==(52 if overlay else 0), value
+                            if mode==1:
+                                # Cover metadata must have no effect in protective mode.
+                                js("document.querySelector('meta[name=viewport]').content='viewport-fit=contain'")
+                                time.sleep(.2)
+                                assert cover_metrics()['height']==848 and cover_metrics()['safe']==0
+                                js("document.querySelector('meta[name=viewport]').content='viewport-fit=cover'")
+                                time.sleep(.2)
+                                assert cover_metrics()['height']==848 and cover_metrics()['safe']==0
+                        rect = js("return document.querySelector('#fixed').getBoundingClientRect().toJSON()")
+                        old_clicks = js('return clicks')
+                        for kind in ('mousePressed','mouseReleased'):
+                            cdp('Input.dispatchMouseEvent',{'type':kind,'x':rect['x']+rect['width']/2,
+                                'y':rect['y']+rect['height']/2+(52 if translated else 0),
+                                'button':'left','clickCount':1})
+                        value['click_aligned'] = js('return clicks')==old_clicks+1
+                        assert value['click_aligned'], value
+                        if mode==1 and tab=='cover' and len(toggles)==1:
+                            js('scrollTo(0,0)')
+                            time.sleep(.2)
+                            image = screenshot('protective-cover-top')
+                            colors = [image.getpixel((round(x*scale),round(12*scale)))
+                                      for x in (8,metrics['width']-8)]
+                            assert colors==[(18,52,86),(18,52,86)], colors
+                            js('scrollTo(0,52)')
+                            time.sleep(.2)
+                            image = screenshot('protective-cover-scrolled')
+                            scrolled_color = image.getpixel((round(8*scale),round(12*scale)))
+                            assert scrolled_color!=(18,52,86), scrolled_color
+                            cdp('Performance.enable')
+                            before = perf()
+                            cdp('Input.dispatchMouseEvent',{'type':'mouseWheel','x':600,'y':28,'deltaX':0,'deltaY':80})
+                            time.sleep(.6)
+                            after = perf()
+                            value['protective_scroll_performance_delta'] = {k:after[k]-v for k,v in before.items()}
+                            assert value['protective_scroll_performance_delta']['LayoutCount']==0
+                            assert value['protective_scroll_performance_delta']['RecalcStyleCount']==0
+                            value['protective_top_colors']=colors
+                            value['protective_scrolled_color']=scrolled_color
+                            js(f'scrollTo(0,{value["scroll"]})')
+                        row[tab]=value
+                    toggles.append(row)
+                report[label]['toggle'] = toggles
+                # End unchecked, restart this exact profile without startup prefs,
+                # and verify both the saved preference and restored page geometry.
+                request('DELETE',sid)
+                time.sleep(1)
+                saved = json.loads((profile/'Default/Preferences').read_text())
+                assert saved['helium']['browser']['zen_mode_top_chrome_pinned'] is False
+                assert saved['helium']['browser']['top_controls_overlay'] is False
+                session = request('POST','/session',{'capabilities':{'alwaysMatch':{
+                    'goog:chromeOptions': {'binary':str(out/'Lune.app/Contents/MacOS/Lune'),
+                        'excludeSwitches':['enable-automation'],'args':launch_args}}}})
+                sid = '/session/'+session['sessionId']
+                request('POST',sid+'/url',{'url':Path(__file__).with_name('page.html').resolve().as_uri()})
+                restarted = js('return {height:innerHeight}')
+                assert restarted['height']==900, restarted
+                request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+                restarted['safe'] = cover_metrics()['safe']
+                assert restarted['safe']==0, restarted
+                report[label]['restart_unchecked'] = restarted
+                persisted_modes = []
+                for mode in (1,2,0):
+                    settings_handle = request('GET',sid+'/window')
+                    request('POST',sid+'/url',{'url':'chrome://settings/appearance'})
+                    set_pref('helium.browser.top_controls_overlay', mode==2)
+                    set_pref('helium.browser.zen_mode_top_chrome_pinned', mode!=0)
+                    request('DELETE',sid)
+                    time.sleep(1)
+                    session = request('POST','/session',{'capabilities':{'alwaysMatch':{
+                        'goog:chromeOptions': {'binary':str(out/'Lune.app/Contents/MacOS/Lune'),
+                            'excludeSwitches':['enable-automation'],'args':launch_args}}}})
+                    sid = '/session/'+session['sessionId']
+                    request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+                    value = cover_metrics()
+                    assert value['height']==(848 if mode==1 else 900), (mode,value)
+                    assert value['safe']==(52 if mode==2 else 0), (mode,value)
+                    persisted_modes.append({'mode':mode,**value})
+                report[label]['persisted_modes'] = persisted_modes
+                request('DELETE',sid)
+                time.sleep(1)
+                default_args = [a for a in launch_args if not a.startswith('--user-data-dir=')]
+                default_args.append(f'--user-data-dir={evidence/"fresh-default-profile"}')
+                session = request('POST','/session',{'capabilities':{'alwaysMatch':{
+                    'goog:chromeOptions': {'binary':str(out/'Lune.app/Contents/MacOS/Lune'),
+                        'excludeSwitches':['enable-automation'],'args':default_args,
+                        'prefs':{'helium.services.enabled':False,'helium.services.browser_updates':False,
+                                 'helium.browser.layout':2}}}}})
+                sid = '/session/'+session['sessionId']
+                request('POST',sid+'/url',{'url':'chrome://settings/appearance'})
+                defaults = request('POST',sid+'/execute/async',{
+                    'script':"""const done=arguments[arguments.length-1];
+                    chrome.settingsPrivate.getPref('helium.browser.zen_mode_top_chrome_pinned', pin =>
+                      chrome.settingsPrivate.getPref('helium.browser.top_controls_overlay', overlay =>
+                        done({pinned:pin.value,overlay:overlay.value})))""",'args':[]})
+                assert defaults=={'pinned':False,'overlay':False}, defaults
+                request('POST',sid+'/url',{'url':Path(__file__).with_name('cover.html').resolve().as_uri()})
+                report[label]['fresh_default'] = {**defaults,**cover_metrics()}
+                assert report[label]['fresh_default']['height']==900
+                assert report[label]['fresh_default']['safe']==0
+            print(label, json.dumps(report[label]), flush=True)
+            (evidence/'results.json').write_text(json.dumps(report,indent=2)+'\n')
+        finally:
+            request('DELETE',sid)
+    (evidence/'results.json').write_text(json.dumps(report,indent=2)+'\n')
+    if not args.observe:
+        assert report['baseline']['clicks']==1
+        assert report['inset']['clicks']==1
+        assert report['baseline']['metrics']['height']-report['inset']['metrics']['height']==52
+        assert tuple(report['inset']['samples'][0]['colors'][0])==(36,70,52)
+        assert tuple(report['inset']['samples'][2]['colors'][1])==(224,69,69)
+        assert tuple(report['inset']['changed_color'])==(101,67,34)
+        assert tuple(report['inset']['body_color'])==(18,52,86)
+        # Image extension is a capability probe, beyond this color-only prototype.
+        assert report['inset']['origin_clicks']==1
+        assert report['inset']['wheel_scroll']>52
+        assert report['inset']['nested_scroll']>0
+        assert report['inset']['scroll_performance_delta']['LayoutCount']==0
+        cover = report['inset']['cover']
+        assert cover['initial']['safe']==52
+        assert cover['initial']['height']==report['baseline']['metrics']['height']
+        assert cover['contain']['safe']==0 and cover['contain']['height']==report['inset']['metrics']['height']
+        assert cover['restored']['safe']==52 and cover['restored']['height']==cover['initial']['height']
+        assert cover['first_clicks']==1 and cover['restored_clicks']==2
+        assert [tuple(c) for c in cover['top_colors']]==[(18,52,86),(171,205,239)]
+        assert cover['ordinary_after_navigation']['height']==report['inset']['metrics']['height']
+        assert report['baseline']['cover']['initial']['safe']==0
+        print('PASS: inset, scroll-under pixels, background changes and input alignment')
+        print('PASS: viewport-fit opt-in, CSS safe-area, background image and dynamic mode changes')
+        if args.toggle:
+            print('PASS: hover/protective/overlay transitions, cover isolation, input and persistence')
+        print('Root background-image extension:', report['inset']['background_image_supported'])
+finally:
+    driver.terminate()
+    driver.wait(timeout=20)
+    log.close()
