@@ -158,6 +158,12 @@ Before enabling automation, define and validate a versioned lock schema containi
 - Download/dependency hashes, toolchain/SDK/Sparkle versions, GN arguments.
 - Target architecture, channel, build number, and required validation policy.
 
+For the release-commit contract, the build version is the same `YY.MMDD.N`
+string used for display and Sparkle ordering. The enclosing Git commit supplies
+the orchestrator SHA; do not embed a commit's own SHA in its lock. See
+[release commits](release-commits.md) for required records, hash boundaries,
+preparation steps and the remaining implementation work.
+
 Service deployment locks are separate from browser release locks, linked by a
 service protocol/config version. A service outage or website edit should not
 force a Chromium rebuild. Release reports add artifact hashes, signatures,

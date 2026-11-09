@@ -48,6 +48,12 @@ and forward-port the required patch stack. An older development candidate is not
 a current-security release. Compatibility conflicts block that candidate; they
 never silently pin the project to an older Chromium.
 
+Every public release and feed/website promotion rechecks the latest macOS stable
+Chromium. Known lag requires an explicit, recorded owner exception for that
+release; failed lookups leave freshness unknown and block promotion. See the
+[release freshness gate](releases.md#chromium-freshness-gate). An exception does
+not make an older browser current or waive other release checks.
+
 Daily polling reduces avoidable delay; it cannot promise the latest security
 fixes at all times. Chromium, ungoogled-chromium, Helium compatibility, build
 capacity, and failed validation can each introduce lag. Track Chromium stable
@@ -79,6 +85,8 @@ No public browser release, deployed browser services, or recurring browser sched
 
 - [Architecture](architecture.md): repository histories, patch selection, Git flow.
 - [Releases](releases.md): daily integration, signing, publication, update gates.
+- [Release commits](release-commits.md): version rules, frozen inputs, provenance,
+  preparation procedure and tooling migration.
 - [Services](services.md): self-hosting and website boundaries.
 - [Roadmap](roadmap.md): implementation sequence and acceptance checks.
 - [Research](research.md): current upstream evidence and limitations.

@@ -14,13 +14,14 @@ lock. Skip rebuilding when all effective inputs are unchanged. Allow manual
 dispatch for urgent fixes. Deduplicate candidates by input hash and serialize
 promotion per release channel.
 
-Chromium stable determines the target, independently of downstream release
-cadence. Before promotion, query stable again and require the candidate to match
-or supersede it; an unavailable freshness check blocks promotion. A newer stable
-release discovered during compilation requires a new integration candidate.
-Older development builds may finish for diagnostic evidence, but cannot be
-promoted as current releases. This is the required release policy; automatic
-promotion and its final freshness gate are not yet implemented.
+Chromium's latest macOS stable release determines the target, independently of
+downstream release cadence. Check at input selection and again immediately before
+release publication or feed/website promotion. A candidate behind stable is
+blocked by default; the owner may explicitly approve a recorded exception for
+that release after acknowledging the gap. An unavailable check means freshness
+is unknown and blocks promotion. See the [freshness gate](#chromium-freshness-gate)
+for evidence and exception requirements. Automatic promotion and this final gate
+are not yet implemented.
 
 GitHub Actions can coordinate the jobs; a reliable external cron can dispatch the
 same workflow if needed. Use an off-hour-minute schedule and a missed-run monitor:
@@ -88,7 +89,9 @@ and provenance of the validated candidate; credentials are scoped to that step.
 6. Test an installed previous Lune release updating to the candidate through a
    staging feed on both architectures, followed by relaunch and profile checks.
    Also test a bad signature, incompatible OS, and wrong-architecture offer.
-7. Verify published downloads, hashes, source/provenance attachments, and feed
+7. Apply the [Chromium freshness gate](#chromium-freshness-gate) before public
+   release publication and again immediately before feed/website promotion.
+   Verify published downloads, hashes, source/provenance attachments, and feed
    consistency before promotion. Verify feed readback afterward.
 
 At bootstrap, keep public auto-promotion disabled until the two-release update
@@ -115,14 +118,26 @@ the appcast commit/push block; a Lune draft must never advance a public feed.
 
 ## Versioning and publication
 
-Use a monotonically increasing numeric Lune build number for `CFBundleVersion`
-and Sparkle's `version`. Allocate it centrally with a serialized writer; timestamps
-alone can collide or go backwards. Use the same candidate build number for both
-architectures and include it in release tags and filenames. Record Chromium,
-ungoogled, and Helium versions separately in the manifest and About/release notes.
-An upstream version string alone cannot distinguish two Lune patch builds.
+The owner selected `YY.MMDD.N` for Lune's release version on November 8, 2026:
+for example, `26.1108.1`, then `26.1108.2` for the next release that day.
+The daily release counter starts at 1. Use the same string for the outer app's
+`CFBundleVersion` and `CFBundleShortVersionString`, Sparkle's `version` and
+`shortVersionString`, and human-facing release names. Record the assigned release
+date and counter in Git before packaging; rebuilding a commit must not derive a
+new version from the host clock.
+This is an accepted scheme, not yet implemented: packaging and appcast generation
+still use integer build numbers and the locked Chromium version as the display
+version. Published builds 1 and 2 retain their original metadata.
 
-Proposed artifact naming: `Lune-<version>-<build>-macos-<arch>.dmg`.
+The date version supplies Sparkle's increasing update order; no separate lifetime
+build counter is needed. Serialize allocation, share the version across both
+architectures, and retain the full source SHA separately. Record Chromium,
+ungoogled, and Helium identities in the locked inputs and release provenance.
+Show Lune and Chromium versions separately in About. See
+[release commits and version information](release-commits.md) for the required
+input record, calendar rules, preparation procedure, evidence, and migration gaps.
+
+Target artifact naming: `Lune-<version>-macos-<arch>.dmg`, tagged `v<version>`.
 Publish DMGs, SHA-256 sums, source locks, patch provenance, corresponding source
 availability, and validation results under an immutable release tag on `main`.
 Keep permanent component tags reachable as described in [architecture](architecture.md).
@@ -159,9 +174,58 @@ For already-updated clients, publish a corrective build with a higher version;
 do not assume Sparkle can downgrade the app or that an older browser can safely
 read a newer profile. Website/download metadata follows successful feed promotion.
 
+## Chromium freshness gate
+
+This applies to every release, including public prereleases, manual releases,
+and staging-to-stable promotion. Use the official
+[Chromium Dash macOS stable endpoint](https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1)
+with `channel=Stable` and `platform=Mac`. Do not substitute the latest Helium or
+ungoogled release, another operating system's channel, or a previous discovery
+result. Compare the full numeric Chromium version in the frozen release inputs
+and packaged app with the freshly returned version. A newer candidate must be
+identified as ahead of the observed stable version, not mislabeled as matching it.
+
+Check when selecting inputs and immediately before making a release publicly
+available. Recheck immediately before promoting its feeds and website links,
+even when the same bytes already passed staging. A stable update arriving during
+compilation or acceptance invalidates an earlier claim that the candidate is
+current; normally prepare a new candidate on the newer Chromium.
+
+Record the following in release/promotion evidence, without amending the frozen
+release commit:
+
+- Lune version, full release commit SHA, target architectures and delivery channel.
+- Candidate Chromium version and freshly observed latest macOS stable version.
+- Check timestamp in UTC, source URL/channel/platform, and the returned release
+  identity or response evidence.
+- Comparison result (`current`, `behind`, `ahead`, or `unknown`) and the resulting
+  publication/promotion decision.
+
+If the candidate is behind, require an explicit owner-approved exception before
+publishing or promoting it. Record who approved it, when, the approval reference,
+both Chromium versions, the reason for shipping behind, and the acknowledged
+security-freshness gap. Scope approval to the exact release commit, version and
+channel; a new upstream stable version or a different promotion needs a fresh
+decision. Automation must not infer approval from a clean build, prior exception,
+or generic permission to release. Disclose the shipped Chromium version and known
+lag in public release notes; do not describe an exception release as current.
+
+A failed, missing, malformed or unavailable lookup yields `unknown`, never a
+cached success. Keep the last good downloads/feeds unchanged and retry the check;
+this is not the known-version exception path. Freshness exceptions do not waive
+failed builds, patch conflicts, signatures, installed-update tests, or other
+release gates. Attach promotion evidence as a separate record; do not rewrite
+published artifacts or their original evidence.
+
+The existing discovery command checks stable and rejects lag, but it is not a
+publication gate. The release/promotion tooling still needs this final check,
+evidence schema, explicit exception input, and stale-decision protection. Until
+implemented, perform and record these steps manually for each release.
+
 ## Security freshness reporting
 
 Record last poll, latest Chromium stable, latest ungoogled stable, selected Helium
-base, currently shipped Chromium, and the reason for any lag. Notify on meaningful
+base, currently shipped Chromium, the freshness check result and any approved
+exception, and the reason for any lag. Notify on meaningful
 lag, integration failure, missed scheduling, and promotion failure. A daily rebuild
 of old inputs does not improve the browser's security profile.

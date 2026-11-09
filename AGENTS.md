@@ -7,7 +7,76 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-The local issue #16 candidate on `topic/header-scroll-through` forwards native
+The Helium November 9 development input imports main through `0a5feb31`,
+adding independent history/bookmark autocomplete settings while retaining
+Chromium 158.0.8127.18 and the accepted onboarding/UI stack. The four upstream
+Git-conflicted patches preserve Lune's Chromium 158 bodies; strict archive-backed
+replay also repairs pre-substitution context and XML newline assumptions in
+platform patches. All 524 patches replay without fuzz; both architecture builds,
+autocomplete/settings/persistence smoke checks, and packaged onboarding flows
+pass (Intel under Rosetta). Build/runtime adoption evidence is recorded in
+[the integration review](agent-docs/project/builds/2026-11-09-helium-update.md).
+This does not publish a browser release or change the Chromium/ungoogled pins.
+
+Main now pins the complete reviewed UI stack plus the accepted onboarding and
+native toolbar refinements, plus Command-T corner/tint fixes through
+`464c5298` under `inputs/command-style-2026-11-09/macos`.
+Toolbar inset and cover modes require no launch flag. “Always cover (experimental)”
+retains its explicit label. All toolbar modes preserve native sidebar glass and
+4 px side padding. Sidebar hover/accessibility labels say Pin sidebar or Unpin sidebar.
+Setup uses locally packaged artwork/fonts, separate update consent, Startpage first
+and selected by default, native System/Lune themes, and the final Customize Lune
+controls. Its tab reads Welcome to Lune and uses the envelope.open SF Symbol.
+See [onboarding and toolbar integration](agent-docs/project/features/onboarding.md)
+for the thirteen signed implementation commits, validation, and remaining limits.
+This is a source/development-lock update, not a binary release.
+
+Command-T now uses an 18 pt panel radius around the unchanged 10 pt result corners,
+with equal 8 pt visible side/bottom gaps. Its native glass uses the same 5% theme
+midpoint tint as the address bar; System theme remains untinted. The owner accepted
+the preview and authorized publication on November 9. Two signed source commits,
+strict six-file replay, both architecture builds, and native checks pass (Intel
+runtime fixtures under Rosetta). See [Command-T corners](agent-docs/project/features/command-bar-corners.md).
+
+The following feature summaries retain their original validation history. Their
+statements that reviewed candidates are absent from the development lock are
+superseded by the integration record above; published-binary limitations remain.
+
+The issue #12 candidate on `topic/address-suggestion-selection` adds rounded
+selection fills and shares native result rendering with Command-T. Both menus use
+`HeliumNativeResultRow` for 52 pt rows, 16 pt icons, primary/secondary typography,
+semantic colors, and the 25% selection fill. Address suggestions retain their
+providers, ranking, activation, and keyboard-only selection; Command-T keeps its
+hover selection, optional action labels, and scrolling. Signed platform commits
+`3379baa0` and `f0e2df52` follow the accepted header-scroll stack. Both architecture
+builds, native rendering checks, UI/settings/persistence smoke checks, and strict
+source replay pass (Intel under Rosetta). Live arm64 checks cover selection/wrapping, result replacement/empty
+results, navigation, dismissal, profile appearances, narrow/wide layout, and
+Command-T scrolling. The corrected Lune Suggestions Test preview uses the normal
+unpinned header setting. The owner accepted the shared row and selection styling
+on November 8, 2026, requesting a smaller address-to-results gap and Command-T
+layout refinements. Native Intel acceptance remains unverified. The candidate is not in the development lock or published builds.
+See [address suggestion selection](agent-docs/project/features/address-suggestion-selection.md).
+
+The accepted issue #13 refinement on `topic/command-bar-corners-reviewed` gives
+Command-T a 48 pt shadow margin, margin-click dismissal, a centered 52 pt empty
+input, a 600 pt maximum width with 36 pt side insets, and top placement centered
+against the five-row maximum. Shared result rows use native 16 pt medium SF
+Symbols without stretching, proportional favicons, tertiary action labels, and
+“Switch to Tab”. A faint 5% black supplemental shadow retains the native glass.
+Address results have a 4 pt top gap and expand the glass 10 pt per side while
+header controls stay fixed. Shared icon padding aligns the result columns.
+The owner accepted final alignment in Lune Corners Test 7 on November 8, 2026,
+and authorized single-thesis commits, pushing, and resolving the issue. Twelve
+signed platform commits end at `7b9dda91`; the original draft is preserved.
+Strict replay matches the accepted source, both builds and native checks pass,
+and smoke checks pass on both architectures before the final padding refinement
+(Intel under Rosetta). Evidence and portable fixtures are on
+`command-bar-corners-evidence`. Native Intel hardware and the older macOS fallback
+remain unverified. The source is not in the development lock or published builds.
+See [Command-T glass bounds and layout](agent-docs/project/features/command-bar-corners.md).
+
+The accepted issue #16 implementation on `topic/header-scroll-through` forwards native
 wheel events over floating header controls and gaps to content under the pointer,
 including nested scrollers and either split pane. It preserves the original event
 and corrects coordinates from the trailing controls' child window. Momentum keeps
@@ -17,10 +86,13 @@ builds, native routing/appearance checks, and browser UI/settings/persistence sm
 checks pass (Intel under Rosetta). Arm64 browser interaction checks cover address
 editing, controls, gaps, nested scrolling, split panes, popup exclusion, and
 fullscreen. The owner confirmed scrolling across all header areas on November 8,
-2026 in the distinctly named Lune Scroll Test preview. A simplicity review retained
+2026 in the distinctly named Lune Scroll Test preview and authorized publishing
+the commits and resolving the issue. A simplicity review retained
 the shared router, original events, weak momentum target, and existing Chromium
 cleanup without additional implementation changes. Native Intel acceptance remains
-unverified. The signed platform commit is `d0c49b0a`; this candidate is not
+unverified. The signed platform commit `d0c49b0a` is published on
+`topic/header-scroll-through`; the regression fixture and evidence are published
+on `header-scroll-evidence`. This implementation is not
 in the development lock or published builds. See
 [header scroll-through](agent-docs/project/features/header-scroll-through.md).
 
@@ -241,34 +313,6 @@ Input 19 derives traffic-light spacing from AppKit and compacts its container.
 Input 20 uses normal omnibox editing text, preserving an empty new-tab field.
 This is not in published builds 1 or 2 and is not release-accepted.
 
-The development input `inputs/edge-frame-17/macos` supersedes the earlier macOS
-frame: a 16 pt native perimeter, edge-to-edge content without gutters or shadow,
-a flush square glass sidebar, and a pinned-only semantic separator. Reveal uses
-8 pt windowed edge bands, four physical top pixels and one side pixel fullscreen.
-The header is 52 pt tall with 36 pt controls and 8 pt outer insets. Both sidebar
-modes follow the fullscreen menu-bar offset and share their header geometry.
-Native blank-space dragging/context menus, the full popover width, standard
-traffic-light spacing, and autocomplete teardown protection remain in place.
-
-The owner accepted header/popover geometry, blank-area dragging and menus, and
-input-13 header/sidebar retention during native resizing. Cursor acceptance was
-subsequently withdrawn: inputs 14–15 did not reliably fix resize cursors or tab
-content drift. Input 16 removes 183 lines of accumulated cursor overrides,
-tracking areas and the unsuccessful local-coordinate workaround. It retains
-native resize hit routing and resize retention, and selects Chromium's existing
-synchronous resize path. The owner initially accepted the synchronous A/B, then
-reported intermittent cursor flicker and invisible toolbar icons; do not treat
-that experiment as cursor acceptance. Input 17 fades toolbar content rather than
-NSWindow opacity, which Chromium also controls while waiting for compositor frames.
-Live inspection confirmed the invisible toolbar window had alpha 0 while still
-visible and clickable. Both architecture builds and smoke checks pass (Intel via
-Rosetta), along with native arm64 fullscreen/menu checks. The owner confirmed
-input-17 icons remain visible but cursors still flicker while Lune is active.
-Further cursor work is deferred at the owner's request and tracked in
-[GitHub issue #5](https://github.com/leebyron/lune-browser/issues/5). These are
-development inputs, not published builds 1 or 2. See
-[edge-to-edge frame evidence](agent-docs/project/features/edge-to-edge-frame.md).
-
 The current development macOS input adds a text-only frame-thickness label
 restoration under `inputs/frame-label-1/macos`. Patch replay and XML checks pass;
 it is included in the day/night development rebuild. Source-string coverage remains
@@ -292,27 +336,6 @@ placeholder or instructional helper text. The panel shows five results with
 native scrolling; keyboard selection keeps its result in view.
 See [command palette evidence](agent-docs/project/features/command-bar.md).
 This prototype is not in a published browser build or release-accepted.
-
-The development macOS input under `inputs/sidebar-new-tab-2/macos` places New Tab
-below pinned tiles and above regular tabs. Default new tabs prepend; links open
-immediately after the active tab. New Tab uses regular tab hover colors and the
-same 2 pt row spacing; pinned tiles use fills and 6 pt spacing shared with the
-New Tab section gap. See [sidebar evidence](agent-docs/project/features/sidebar-new-tab.md)
-for build and runtime validation. This is not in published builds 1 or 2.
-
-The development input `inputs/sidebar-footer-5/macos` adds a compact sidebar
-footer for the default-browser prompt and downloaded Sparkle updates. The default
-row reads “Make default browser”; its close control and sidebar tab close controls
-appear on hover, with native SF Symbols and targets 6 pt larger than the original
-tab control. Row side margins are 1 pt narrower and icon left insets 2 pt larger.
-The footer bottom inset is 5 pt. New Tab has no hover tooltip. Navigation beside
-the traffic lights gains 4 pt of clearance; the right sidebar toggle is inset 9 pt.
-Close symbols are horizontally centered. The default row keeps its height on hover
-and relayouts its faded label when the close control appears. Labeled footer
-actions have no hover tooltip; close symbols use 11 pt SF Symbols.
-Other infobars retain their existing placement. See
-[sidebar footer evidence](agent-docs/project/features/sidebar-footer.md)
-for implementation and validation limits. This is not in published builds 1 or 2.
 
 The Xelium UI candidate is described in [UI integration](agent-docs/project/xelium-ui.md).
 Target the latest stable Chromium independently of upstream browser release cadence;
