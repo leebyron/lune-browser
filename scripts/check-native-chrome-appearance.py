@@ -18,15 +18,18 @@ frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm'
 start = frame.index('@interface HeliumChromeHitRegion')
 end = frame.index('// An overlay hairline', start)
 surface = frame[start:end]
-tint = frame[frame.index('SkColor GlassTintMidpoint('):frame.index('NSAppearance* FloatingChromeAppearance(')]
+colors = (args.source / 'chrome/browser/ui/views/helium/native_frame_materials_mac.mm').read_text()
+tint = colors[colors.index('SkColor GlassTintMidpoint('):colors.index('// Per-native-host state')]
+tint += colors[colors.index('NSColor* NativeGlassThemeTintColor('):colors.index('}  // namespace helium')]
 command = (args.source / 'chrome/browser/ui/helium/helium_command_bar_view_mac.mm').read_text()
 start = command.index('  NSAppearance* appearance =')
 end = command.index('\n}', start)
-command_material = command[start:end]
+command_material = command[start:end].replace('helium::NativeGlassThemeTintColor(browser_view)', 'NativeGlassThemeTintColor(browser_view)')
+command_class = command[command.index('@interface HeliumCommandMaterial'):command.index('@interface HeliumCommandResults')]
+constants = command[command.index('constexpr int kWidth'):command.index('int CommandBarHeight')]
 policy = command_material.index("  const bool content_aware =")
 material = command_material.index("  if (@available(macOS 26, *))", policy)
 command_material = command_material[:policy] + command_material[material:]
-colors = (args.source / 'chrome/browser/ui/views/helium/native_frame_materials_mac.mm').read_text()
 start = colors.index('void SetNativeGlassControlAppearance(')
 bridge = colors[start:colors.index('std::optional<SkColor> NativeGlassControlColor(', start)]
 prefix = r'''
@@ -36,7 +39,7 @@ prefix = r'''
 #include <cassert>
 #include <cstdio>
 struct CommandNative { NSView* material = nil; };
-NSView* MakeCommandMaterial(NSView* pane, bool dark, bool content_aware) {
+NSView* MakeCommandMaterial(NSView* pane, bool dark, bool content_aware, BrowserView* browser_view) {
   CommandNative native;
   CommandNative* native_ = &native;
 '''
@@ -79,7 +82,15 @@ struct TestWidget {
   ui::ColorProviderKey key;
   ui::ColorProviderKey GetColorProviderKey() const { return key; }
 };
+struct TestThemeService {
+ bool device = false;
+ bool UsingDeviceTheme() { return device; }
+};
+struct ThemeServiceFactory {
+ static TestThemeService* GetForProfile(void*) { static TestThemeService service; return &service; }
+};
 struct BrowserView {
+ void* GetProfile() { return nullptr; }
   ui::TestColorProvider* colors = nullptr;
   TestWidget widget;
   const ui::TestColorProvider* GetColorProvider() const { return colors; }
@@ -136,21 +147,21 @@ int main() {
   // Startup theme notification before attachment must not dereference a
   // missing provider. Later calls use the owning browser's resolved palette.
   BrowserView browser;
-  assert(FloatingChromeTintColor(&browser) == nil);
+  assert(NativeGlassThemeTintColor(&browser) == nil);
   ui::TestColorProvider colors{0xff276c69};
   browser.colors = &colors;
-  NSColor* light_tint = FloatingChromeTintColor(&browser);
+  NSColor* light_tint = NativeGlassThemeTintColor(&browser);
   assert(fabs(light_tint.alphaComponent - .05) < .0001);
   browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
-  assert([FloatingChromeTintColor(&browser) isEqual:light_tint]);
+  assert([NativeGlassThemeTintColor(&browser) isEqual:light_tint]);
   browser.widget.key.custom_theme = true;
-  NSColor* custom_tint = FloatingChromeTintColor(&browser);
+  NSColor* custom_tint = NativeGlassThemeTintColor(&browser);
   assert(![custom_tint isEqual:light_tint]);
   assert(fabs(custom_tint.redComponent - 18.0/255) < .0001);
   assert(fabs(custom_tint.greenComponent - 52.0/255) < .0001);
   assert(fabs(custom_tint.blueComponent - 86.0/255) < .0001);
   browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kLight;
-  assert([FloatingChromeTintColor(&browser) isEqual:custom_tint]);
+  assert([NativeGlassThemeTintColor(&browser) isEqual:custom_tint]);
   // Equal endpoints stay unchanged; grays remain neutral; a hue crossing zero
   // stays red instead of taking the long arc through cyan.
   assert(GlassTintMidpoint(0xff123456, 0xff123456) == 0xff123456);
@@ -160,8 +171,10 @@ int main() {
   color_utils::SkColorToHSL(GlassTintMidpoint(0xff808080, 0xff0000ff), &midpoint);
   assert(fabs(midpoint.h - 2.0/3) < .01);
   assert(fabs(midpoint.s - .5) < .01);
-  browser.colors = nullptr;
-  assert(FloatingChromeTintColor(&browser) == nil);
+  ThemeServiceFactory::GetForProfile(nullptr)->device = true;
+  assert(NativeGlassThemeTintColor(&browser) == nil);
+  ThemeServiceFactory::GetForProfile(nullptr)->device = false;
+  assert(NativeGlassThemeTintColor(nullptr) == nil);
   NSWindow* window = [[NSWindow alloc]
       initWithContentRect:NSMakeRect(0, 0, 600, 400)
       styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
@@ -270,13 +283,14 @@ int main() {
   for (int dark = 0; dark <= 1; ++dark) {
     for (int aware = 0; aware <= 1; ++aware) {
       NSView* pane = [[NSView alloc] initWithFrame:NSMakeRect(0,0,560,68)];
-      NSView* popup = MakeCommandMaterial(pane, dark, aware);
+      NSView* popup = MakeCommandMaterial(pane, dark, aware, &browser);
       assert(popup.subviews.count == 2);
       NSView* backdrop = popup.subviews.firstObject;
       NSGlassEffectView* glass = (NSGlassEffectView*)popup.subviews.lastObject;
       assert([glass isKindOfClass:NSGlassEffectView.class]);
       assert(glass.contentView == pane && pane.appearance == nil);
-      assert(glass.cornerRadius == 20 && backdrop.layer.cornerRadius == 20);
+      assert([glass.tintColor isEqual:NativeGlassThemeTintColor(&browser)]);
+      assert(glass.cornerRadius == 18 && backdrop.layer.cornerRadius == 18);
       assert(backdrop.hidden == bool(aware) && Dark(popup) == bool(dark));
     }
   }
@@ -309,10 +323,11 @@ int main() {
 '''
 with tempfile.TemporaryDirectory(prefix='lune-chrome-appearance-') as tmp:
     path = Path(tmp)
-    (path / 'check.mm').write_text(prefix + command_material +
-        '\nreturn native_->material;\n}\n' + tint_prefix + tint + surface + bridge_prefix + bridge + fixture)
+    imports, make = prefix.split('struct CommandNative', 1)
+    (path / 'check.mm').write_text(imports + '#include "chrome/browser/ui/helium/native_result_row_mac.h"\n' + constants + tint_prefix + tint + command_class + 'struct CommandNative' + make + command_material +
+        '\nreturn native_->material;\n}\n' + surface + bridge_prefix + bridge + fixture)
     subprocess.run(['xcrun', 'clang++', '-std=c++20', '-fobjc-arc',
-                    '-arch', args.arch, '-framework', 'AppKit',
+                    '-I', str(args.source), '-arch', args.arch, '-framework', 'AppKit',
                     '-framework', 'QuartzCore', str(path / 'check.mm'),
                     '-o', str(path / 'check')], check=True)
     subprocess.run(['/usr/bin/arch', '-' + args.arch, str(path / 'check')], check=True)
