@@ -13,13 +13,14 @@
   font-display: swap;
   src: url('/assets/fonts/syne-latin.woff2') format('woff2');
 }
+:root { --wallpaper-background:light-dark(#F1F6F2,#012034); }
 html { color-scheme:light dark; -webkit-user-select:none; user-select:none; }
-html, body { margin: 0; height: 100%; overflow: hidden; touch-action:pan-y; background: light-dark(#E7EDE3,#10354F); }
+html, body { margin: 0; height: 100%; overflow: hidden; touch-action:pan-y; background:var(--wallpaper-background); }
 button, a { -webkit-tap-highlight-color: transparent; }
 button:not(:disabled), a { cursor: pointer; }
 button:disabled { cursor: default; }
 svg { display: block; }
-#lune { --night:light-dark(#E7EDE3,#10354F); --chrome:light-dark(#D6E1D2,color-mix(in srgb,#2A4C62 85%,#5386BF)); --feature-ground:light-dark(#F1F4EC,#163B52); --text:light-dark(#234550,#C9D9E3); --muted:light-dark(#526B65,#96AFBE); --signal:light-dark(#276C69,#00D5C6); --stage:100svh; --icon-max:48px; --icon:max(36px,min(var(--icon-max),calc(var(--stage) * .08))); --dock-pad:9px; --type:40px; --dock-height:calc(var(--icon) + 2 * var(--dock-pad) + 2px); --window-bottom:calc(var(--dock-height) + 34px); --browser-scale:1; --window-height:min(720px,calc((var(--stage) - var(--window-bottom) - 12px) / var(--browser-scale))); --rail:0px; --edge-band:8px; --popover-inset:8px; --page:calc(var(--window-height) - 2 * var(--rail)); --sidebar-width:200px; --window-radius:16px; --story-width:840px; --demo-start:600px; --demo-end:920px; --launch-at:96px; --opening:180px; --reading-start:182px; --reading:0px; --thumb-size:20%; --thumb-travel:400%; --wallpaper-strength:.45; font:400 14px/1.5 Inter,sans-serif; background:var(--night); color:var(--text); color-scheme:light dark; }
+#lune { --night:light-dark(#E7EDE3,#10354F); --chrome:light-dark(#D6E1D2,color-mix(in srgb,#2A4C62 85%,#5386BF)); --feature-ground:light-dark(#F1F4EC,#163B52); --text:light-dark(#234550,#C9D9E3); --muted:light-dark(#526B65,#96AFBE); --signal:light-dark(#276C69,#00D5C6); --stage:100svh; --icon-max:48px; --icon:max(36px,min(var(--icon-max),calc(var(--stage) * .08))); --dock-pad:9px; --type:40px; --dock-height:calc(var(--icon) + 2 * var(--dock-pad) + 2px); --window-bottom:calc(var(--dock-height) + 34px); --browser-scale:1; --window-height:min(720px,calc((var(--stage) - var(--window-bottom) - 12px) / var(--browser-scale))); --rail:0px; --edge-band:8px; --popover-inset:8px; --page:calc(var(--window-height) - 2 * var(--rail)); --sidebar-width:200px; --window-radius:16px; --story-width:840px; --demo-start:600px; --demo-end:920px; --launch-at:96px; --opening:180px; --reading-start:182px; --reading:0px; --thumb-size:20%; --thumb-travel:400%; font:400 14px/1.5 Inter,sans-serif; background:var(--wallpaper-background); color:var(--text); color-scheme:light dark; }
   html:has(#lune),body:has(#lune) { overscroll-behavior:none; }
   #lune * { box-sizing:border-box; }
   #lune :is(h1,h2,h3,p,.eyebrow,.coda-wordmark,.address-display),#lune .feature-copy a,#lune .coda p a { -webkit-user-select:text; user-select:text; }
@@ -29,8 +30,8 @@ svg { display: block; }
   #lune .scroll { height:var(--stage); overflow:auto; overflow-x:hidden; overscroll-behavior:none; scrollbar-width:none; position:relative; scroll-timeline:--lune-scroll block; }
   #lune .scroll::-webkit-scrollbar { display:none; }
   #lune .track { height:calc(var(--stage) + var(--reading-start) + var(--reading)); }
-  #lune .stage { position:sticky; top:0; height:var(--stage); overflow:hidden; isolation:isolate; background:var(--night); }
-  #lune .wallpaper { position:absolute; inset:0; background-image:url('/assets/wallpaper.jpg'); background-position:center; background-size:cover; opacity:var(--wallpaper-strength); z-index:-2; }
+  #lune .stage { position:sticky; top:0; height:var(--stage); overflow:hidden; isolation:isolate; background:var(--wallpaper-background); }
+  #lune .wallpaper { position:absolute; inset:0; background-image:url('/assets/wallpaper-dark.jpg'); background-position:center; background-size:cover; z-index:-2; }
   #lune .layout { height:100%; display:grid; grid-template-rows:1fr auto 1fr var(--dock-height); padding-bottom:18px; }
   #lune .hero { grid-row:2; min-width:0; text-align:center; padding:0 18px; }
   #lune .hero-mark { display:block; width:96px; height:auto; margin:0 auto 24px; }
@@ -226,6 +227,5 @@ svg { display: block; }
 }
 
 @media (prefers-color-scheme: light) {
-  #lune { --wallpaper-strength:.10; }
-  #lune .wallpaper { mix-blend-mode:luminosity; }
+  #lune .wallpaper { background-image:url('/assets/wallpaper-light.jpg'); }
 }
