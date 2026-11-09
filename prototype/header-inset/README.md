@@ -82,6 +82,7 @@ accepted UI stack and adds separate cover/safe-area, menu, mode, and Settings pa
 - `patches/helium/ui/obscured-header-settings-prototype.patch`
 - `patches/helium/ui/opposite-side-panels-prototype.patch`
 - `patches/helium/ui/vertical-only-settings-prototype.patch`
+- `patches/helium/ui/customize-content-top-inset.patch`
 
 The tested prepared tree and outputs remain in `.work/header-inset/platform`.
 The reviewed patch repository is `.work/header-inset/reviewed`; the small
@@ -123,7 +124,7 @@ changes between all three modes with either sidebar orientation, retains page
 state across the changes, verifies protective mode ignores dynamic viewport-fit
 changes, tests each saved mode after relaunch, and checks fresh-profile defaults. `--observe` records
 renderer probes without assertions.
-The replay check applies and reverses all nine implementation patches with `gpatch --fuzz=0` and
+The replay check applies and reverses all ten implementation patches with `gpatch --fuzz=0` and
 compares every affected source file. It verifies this delta, not the full stack.
 
 The experimental flag remains process-wide, but the inset is now supplied per
@@ -142,7 +143,7 @@ renderer suite, real Settings control/persistence tests and native menu/Settings
 synchronization checks. See `settings-validation.json`; owner acceptance remains
 pending.
 
-The distinct preview is `.work/header-inset/Lune Inset Test 6.app`, with its own
+The distinct preview is `.work/header-inset/Lune Inset Test 7.app`, with its own
 profile. The older previews and original branch remain available for rollback.
 No release input, published app or update feed is changed.
 
@@ -155,3 +156,13 @@ controls. See `site-compatibility.json`. The user selected a browser-level polic
 choice: “Always” now protects all pages, while the explicitly experimental
 choice preserves the original cover behavior. No new website opt-in syntax or
 site-specific heuristics are introduced.
+
+
+## Customize content spacing
+
+On macOS, the Customize content container has 52px top padding (previously 8px).
+The shared container applies this spacing to the overview and subpages while
+keeping the native close control at the window edge. The arm64 build passes;
+the live overview reports content top 52px and computed padding 52px. The owner
+accepted Lune Inset Test 7 and authorized committing and pushing this change on
+November 8, 2026. See `customize-validation.json`.

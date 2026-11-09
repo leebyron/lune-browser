@@ -1,0 +1,74 @@
+{
+  "date": "2026-11-08",
+  "change": "Customize shared content top padding from 8px to 52px on macOS",
+  "build": {
+    "architecture": "arm64",
+    "exit_code": 0,
+    "duration": "13.22s",
+    "steps": 19
+  },
+  "overview": {
+    "page": "overview",
+    "paddingTop": "52px",
+    "containerTop": 0,
+    "contentTop": 52,
+    "scrollTop": 0,
+    "height": 900
+  },
+  "native_visual": "Appearance card begins below the native close control",
+  "owner_acceptance": "looks good! commit and push that",
+  "preview": "Lune Inset Test 7",
+  "preview_resources_sha256": "b4fae370f415deacf080d8393999e67827c2a1238236a4fcf51640d940650aa9",
+  "strict_replay": {
+    "forward_and_reverse_match": true,
+    "patches": {
+      "helium/ui/native-navigation-empty-tab-guard.patch": "f3955bcc3325a507f7d962b84de5e9725ffbd3c28aa3d57206330adf84e9b6ff",
+      "helium/ui/obscured-header-prototype.patch": "30262e76d243da0aa6a1e05437892ed5c8f54b138f9ea819e1ca6de65e682881",
+      "helium/ui/obscured-header-cover-prototype.patch": "84a501badc2e7a2e159f7b5f2176f894a64c6d16e3431e73e3cbeb4f9150cdf4",
+      "helium/ui/obscured-header-menu-prototype.patch": "eba23faed73441c7ff0a35c1a27781548ca22c2e0e7c886d5a9336114ca2738e",
+      "helium/ui/obscured-header-modes-prototype.patch": "84630858e0e966cc9a789ab194640132c3b2916cd1c1c15649ef82954f798341",
+      "helium/ui/toolbar-menu-labels-prototype.patch": "e4749194b290df47b64a08cc8a11045fbc278ef1ddb454926feddfb405429603",
+      "helium/ui/obscured-header-settings-prototype.patch": "d6421fae3522ad7dfa5c589e2051d681296703cbba3a0840febc7c55217d88b0",
+      "helium/ui/opposite-side-panels-prototype.patch": "1847bec53e5f9a0285cccea9c9e825e134f4b4538646038cf8e86cb04707312b",
+      "helium/ui/vertical-only-settings-prototype.patch": "c879794a522416eb3d068531975a47ec43d8ca3e694d839134fa5630fd7d7fb0",
+      "helium/ui/customize-content-top-inset.patch": "325c285c76d0c8f4095bede53ccc9a10edd816a99d8198ffc5c36e3ae87fff84"
+    },
+    "files": {
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "b75a34351ff5af678a23592f018e9e4674f5a273fd32fd5bd2da22cda678c5ec",
+      "chrome/browser/chrome_content_browser_client.cc": "4b379462ae89ba4c229199bb03b6e875b4342fc91289426e2d42584c49dc08aa",
+      "chrome/browser/ui/views/frame/browser_view.cc": "cd69e14ae7c3b1d21130e06281a2f97950f810a0aafcc9ce0aecf7fc1b05dfda",
+      "third_party/blink/renderer/core/events/web_input_event_conversion.cc": "271430ea1a47cced53031e3dc9d1730c34820c5ab0efeccf1bf243d846105f59",
+      "third_party/blink/renderer/core/exported/web_view_impl.cc": "56b4b34948357286cde7ab4d87b99e1abd4bb4782345d6a0f4c3463e0bd82a2f",
+      "third_party/blink/renderer/core/frame/visual_viewport.cc": "a232526372ec3d4213564d8bcd62268be291e4b1028924c88129cf08f540e3b4",
+      "third_party/blink/renderer/core/frame/visual_viewport.h": "3655fa231d5dc34a3080389dcdbd69c2feeb3e1b511bad35711567c3afd79e22",
+      "third_party/blink/renderer/core/layout/layout_view.cc": "4af376c1ceda4f29ab36b8c6b2e5de72f15ef091a5690582e0a9d0329951031c",
+      "third_party/blink/renderer/core/paint/paint_property_tree_builder.cc": "51d443d615bb7b7e7b82e3791398ee78e000fec85ddafa6e59c0a83ff1c7cbb4",
+      "third_party/blink/renderer/core/paint/view_painter.cc": "0ed297bfd5cd303167b67dc155b50408bcbd1b6d2debfa3e01c9f82030bf9f1c",
+      "third_party/blink/renderer/core/frame/viewport_data.cc": "4f36675cac486fe51916a05b05ed5538e856677ae80055185a6fd8bfa707122c",
+      "third_party/blink/renderer/core/html/html_meta_element.cc": "16da7b9aafbccc4943f4cf6ae4a578865eea9e3dfcc43f9088bbc6774bad67d6",
+      "third_party/blink/renderer/core/page/page.cc": "484b5140ad446eb5ca8edf00c4520890fbe4fc20497e3d9d66c7bf26b6e37497",
+      "chrome/app/generated_resources.grd": "f6799af4c522312b9ef5182179affd695446fee5ff83deebf6b19a7643c5dc12",
+      "chrome/browser/ui/views/frame/system_menu_model_builder.cc": "ef5ecc288e0e4aacbcdf8eb107a60c56daf1134b899f4f26fdd11c0d801c0392",
+      "chrome/browser/ui/views/frame/system_menu_model_delegate.cc": "fdda9f9666534f06817cd20ad32259d62e83eeb9bf1958a163585d6a1333b59b",
+      "third_party/blink/common/web_preferences/web_preferences_mojom_traits.cc": "240ed5ca7e20864c0c3c47038e86c39f6c3b2d19e7dfcfb8e277b8f27f42d8b9",
+      "third_party/blink/public/common/web_preferences/web_preferences.h": "ebaf0643627a8e5526540b8b1e4410af11629c258a4ea6affc1c03fc1506ff27",
+      "third_party/blink/public/common/web_preferences/web_preferences_mojom_traits.h": "22fb34be5e87e45a8c74670b6f741d3b661998eddda4588dc55af94d81e84243",
+      "third_party/blink/public/mojom/webpreferences/web_preferences.mojom": "6da6db5112f8d24edef8c9fef6ba85f808346dca5e2eb6bddc8f5f1419f2d4bb",
+      "chrome/app/chrome_command_ids.h": "65932fa6755064dda3fffb4469ef37a03b5b9efb45286e1313e22f8fba15c198",
+      "chrome/browser/extensions/api/settings_private/prefs_util.cc": "d1ce10d175cb6d0af057bd5d63f45e0781e852a9388467850a8886ed5ca042af",
+      "chrome/browser/ui/tabs/tab_strip_prefs.cc": "ef8599a58781339361b6cc9671404e4c08afb062efbaaacd48227801a0077e2b",
+      "chrome/browser/ui/views/frame/system_menu_model_builder.h": "3db9ae5de9244e8559859a9eac8471d837e92fd81a461313cf1f34799e8335ad",
+      "chrome/common/pref_names.h": "ae0e98b2d41a153e4e55629fc5d3036d32241af5f06414cbbfeba8b6c720983d",
+      "chrome/browser/resources/settings/appearance_page/appearance_page.html.ts": "d53b549adbe8d8e9b3c6f64aa2f9fb63413ed91dd2d65a0b28bcd171034cd5ee",
+      "chrome/browser/resources/settings/appearance_page/appearance_page.ts": "fcdadc43ca9380c2dea9b4748549161046b3200a0545bbb6bdde563df9296946",
+      "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "c5bdd5d778cb41cec944a6f978a2fb4a9e778e7d19242e10b938ee78ac6a8eef",
+      "chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc": "28b1b8ddfcc1c4f36fe4281e64335e5e9a1b93ed9277ed8eece30f7d8729a234",
+      "chrome/browser/resources/settings/appearance_page/appearance_layout_page.html.ts": "8b5e12a45614bb7f5722173566f0320bbc172458c8e0cdfa469fb1e6772e174c",
+      "chrome/browser/resources/side_panel/customize_chrome/app.css": "c6936004caaf4d02a5c53b3cec588097243f62066a60df343fb154ac0e8ff2d0"
+    }
+  },
+  "limits": [
+    "Intel not rebuilt",
+    "Subpages share the container; separate native subpage inspection was not completed after owner interaction"
+  ]
+}
