@@ -87,7 +87,15 @@ def validate_acceptance(data, acceptance, channel):
             raise ValueError(f'Incomplete architecture acceptance: {arch}')
     if channel=='stable':
         intel=acceptance['architectures']['x86_64']
-        if intel.get('native_hardware') is not True or not intel.get('devices') or not intel.get('owner_confirmation'):
-            raise ValueError('Native Intel acceptance and owner confirmation are required before stable promotion')
+        native_verified = (intel.get('native_hardware') is True and
+                           intel.get('devices') and intel.get('owner_confirmation'))
+        decision = acceptance.get('native_intel_deferral', {})
+        deferred_by_owner = (intel.get('native_hardware') is False and
+                             decision.get('owner_approved') is True and
+                             decision.get('testing_pending') is True and
+                             isinstance(decision.get('owner_instruction'), str) and
+                             bool(decision['owner_instruction'].strip()))
+        if not native_verified and not deferred_by_owner:
+            raise ValueError('Native Intel acceptance or an explicit owner-approved deferral is required before stable promotion')
 
 

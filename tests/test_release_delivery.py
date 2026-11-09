@@ -90,6 +90,32 @@ class PromotionTests(unittest.TestCase):
                 model.validate_acceptance(data, changed, 'stable')
 
 
+    def test_owner_can_defer_native_intel_without_waiving_local_checks(self):
+        data = dict(version='26.1109.1', source_commit='a' * 40,
+                    downloads={arch: {'sha256': arch} for arch in model.ARCHES})
+        acceptance = dict(version=data['version'], source_commit=data['source_commit'],
+            architectures={arch: dict(sha256=arch, install=True, browse=True,
+                profile_persistence=True, signed_app=True, installed_update=True,
+                native_hardware=False) for arch in model.ARCHES},
+            native_intel_deferral=dict(owner_approved=True, testing_pending=True,
+                owner_instruction='Publish now; fix any problems in a new version.'))
+        model.validate_acceptance(data, acceptance, 'stable')
+        for field, value in [('owner_approved', False), ('testing_pending', False),
+                             ('owner_instruction', ''), ('owner_instruction', True)]:
+            changed = copy.deepcopy(acceptance)
+            changed['native_intel_deferral'][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                model.validate_acceptance(data, changed, 'stable')
+        for arch in model.ARCHES:
+            for field, value in [('sha256', 'wrong'), ('signed_app', False),
+                                 ('installed_update', False), ('browse', False),
+                                 ('install', False), ('profile_persistence', False)]:
+                changed = copy.deepcopy(acceptance)
+                changed['architectures'][arch][field] = value
+                with self.subTest(arch=arch, field=field), self.assertRaises(ValueError):
+                    model.validate_acceptance(data, changed, 'stable')
+
+
 class ManualFixtureTests(unittest.TestCase):
     def prepare(self, root):
         import base64
