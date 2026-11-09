@@ -1,0 +1,58 @@
+--- a/components/helium_onboarding/src/lib/browser/search-engines.ts
++++ b/components/helium_onboarding/src/lib/browser/search-engines.ts
+@@ -30,14 +30,14 @@
+ 
+ export const setup = () => {
+     browser.getSearchEnginesList().then(
+-        engines => _searchEngines.set(sortEngines(engines.defaults))
++        engines => updateEngines(engines.defaults)
+     );
+ }
+ 
+ cr.addWebUiListener(
+     'search-engines-changed',
+     (state: cr.SearchEnginesInfo) =>
+-        _searchEngines.set(sortEngines(state.defaults))
++        updateEngines(state.defaults)
+ );
+ 
+ export const searchEngines = readonly(_searchEngines);
+@@ -49,3 +49,14 @@
+         null
+     );
+ }
++
++function updateEngines(engines: cr.SearchEngine[]) {
++    if (!engines.some(engine => engine.default)) {
++        const startpage = engines.find(engine => getKeyword(engine) === 'startpage' && engine.canBeDefault);
++        if (startpage) {
++            setDefaultEngine(startpage.id);
++            startpage.default = true;
++        }
++    }
++    _searchEngines.set(sortEngines(engines));
++}
+--- a/components/search_engines/template_url_prepopulate_data.cc
++++ b/components/search_engines/template_url_prepopulate_data.cc
+@@ -359,7 +359,7 @@
+     const std::vector<raw_ptr<const PrepopulatedEngine>>&
+         regional_prepopulated_engines) {
+   return FindPrepopulatedEngineInternal(prefs, regional_prepopulated_engines,
+-                                        duckduckgo.id,
++                                        startpage.id,
+                                         /*use_first_as_fallback=*/true);
+ }
+ 
+--- a/components/helium_onboarding/src/lib/search-engine-config.ts
++++ b/components/helium_onboarding/src/lib/search-engine-config.ts
+@@ -1,9 +1,9 @@
+ type SearchCategory = "private" | "small" | "mainstream" | "custom";
+ 
+ export const searchEngineConfig: Record<string, SearchCategory> = {
++    startpage: "private",
+     kagi: "private",
+     duckduckgo: "private",
+-    startpage: "private",
+     brave: "private",
+     ecosia: "small",
+     qwant: "small",
