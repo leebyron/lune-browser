@@ -7,6 +7,66 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The local `onboarding-refresh` candidate adds the website-styled setup flow,
+independent automatic-update consent, selected Startpage fallback, the Helium services
+logo, and a Customize Lune step with left/right tab placement that opens and
+closes the native Appearance panel. Tab placement uses a dropdown; auxiliary
+panels stay on the opposite side, and their separate position setting is removed.
+Custom setup defaults optional services off. The intro opens the logo circles
+before revealing the center-matched wallpaper and a single content group.
+It removes the default-browser step in favor of the existing sidebar prompt.
+Internal URLs display and accept `lune://`, with corrected display offsets.
+The final page exposes Appearance, Theme, Tab sidebar, and Show toolbar dropdowns.
+The toolbar dropdown now matches Settings and the native menu: On hover, Always,
+and Always cover. The candidate removes the old launch-flag requirement for
+the 52 pt inset and cover/safe-area behavior. Both architecture builds and arm64
+normal-launch renderer/settings checks pass; final Intel runtime checks are in progress.
+System uses native AppKit semantic colors; Lune uses the light/dark brand palettes.
+The candidate is rebased on main's reviewed platform input 01905fc4. The latest
+arm64 build, frontend checks, packaged flow, native palette comparisons, migration,
+restart persistence, and smoke checks pass on both architectures (Intel under
+Rosetta). Strict replay matches all 55 changed files. Live arm64 checks verify
+System/Lune colors, dark appearance, opposite panel placement, Back/Done cleanup,
+and typed lune://setup navigation.
+The source is uncommitted in `.work/menu-retention/platform`; owner visual
+acceptance is pending in **Lune Setup Test 3**. The development lock and published
+builds are unchanged. See [onboarding](agent-docs/project/features/onboarding.md)
+for validation and scope.
+
+The issue #12 candidate on `topic/address-suggestion-selection` adds rounded
+selection fills and shares native result rendering with Command-T. Both menus use
+`HeliumNativeResultRow` for 52 pt rows, 16 pt icons, primary/secondary typography,
+semantic colors, and the 25% selection fill. Address suggestions retain their
+providers, ranking, activation, and keyboard-only selection; Command-T keeps its
+hover selection, optional action labels, and scrolling. Signed platform commits
+`3379baa0` and `f0e2df52` follow the accepted header-scroll stack. Both architecture
+builds, native rendering checks, UI/settings/persistence smoke checks, and strict
+source replay pass (Intel under Rosetta). Live arm64 checks cover selection/wrapping, result replacement/empty
+results, navigation, dismissal, profile appearances, narrow/wide layout, and
+Command-T scrolling. The corrected Lune Suggestions Test preview uses the normal
+unpinned header setting. The owner accepted the shared row and selection styling
+on November 8, 2026, requesting a smaller address-to-results gap and Command-T
+layout refinements. Native Intel acceptance remains unverified. The candidate is not in the development lock or published builds.
+See [address suggestion selection](agent-docs/project/features/address-suggestion-selection.md).
+
+The accepted issue #13 refinement on `topic/command-bar-corners-reviewed` gives
+Command-T a 48 pt shadow margin, margin-click dismissal, a centered 52 pt empty
+input, a 600 pt maximum width with 36 pt side insets, and top placement centered
+against the five-row maximum. Shared result rows use native 16 pt medium SF
+Symbols without stretching, proportional favicons, tertiary action labels, and
+“Switch to Tab”. A faint 5% black supplemental shadow retains the native glass.
+Address results have a 4 pt top gap and expand the glass 10 pt per side while
+header controls stay fixed. Shared icon padding aligns the result columns.
+The owner accepted final alignment in Lune Corners Test 7 on November 8, 2026,
+and authorized single-thesis commits, pushing, and resolving the issue. Twelve
+signed platform commits end at `7b9dda91`; the original draft is preserved.
+Strict replay matches the accepted source, both builds and native checks pass,
+and smoke checks pass on both architectures before the final padding refinement
+(Intel under Rosetta). Evidence and portable fixtures are on
+`command-bar-corners-evidence`. Native Intel hardware and the older macOS fallback
+remain unverified. The source is not in the development lock or published builds.
+See [Command-T glass bounds and layout](agent-docs/project/features/command-bar-corners.md).
+
 The local issue #16 candidate on `topic/header-scroll-through` forwards native
 wheel events over floating header controls and gaps to content under the pointer,
 including nested scrollers and either split pane. It preserves the original event
