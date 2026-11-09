@@ -7,9 +7,10 @@ stack at `7b9dda9113b0e13a8317da9c5452cb5770824130`
 no development lock or published build is changed.
 
 Current preview: **Lune Inset Test 6**, with the final “Show toolbar” labels,
-Settings integration and no non-vertical layout selector. Signed local platform
-commit `4c296dcb26161be0651c98d536a45708c2008a9e`
-is retained in both repositories on `prototype/pinned-header-inset-current`.
+Settings integration and no non-vertical layout selector. The reviewed platform
+stack is `topic/header-inset-reviewed` at `cab5ea9edada5d7e005fe21bd74fd3ddfc7c2d25`.
+The original local development history remains on
+`prototype/pinned-header-inset-current` for rollback.
 “On hover” is the fresh-profile default; “Always” protects every page with the
 52 pt inset; “Always cover (experimental)” retains viewport-fit/env support.
 The latest section records Settings and native synchronization validation.
@@ -223,3 +224,36 @@ with sidebar controls. Six patches strictly replay forward and reverse across
 its resources match the build. Evidence is in `vertical-only-validation.json`
 and `.work/header-inset/vertical-only-validation/`. Intel and owner acceptance
 remain unverified.
+
+
+## Single-thesis history review
+
+At the owner's request, the implementation was split into nine signed commits,
+followed by one signed commit containing fixtures and validation evidence:
+
+- `88f3fb66`: Prevent navigation state reads without active WebContents.
+- `0462546f`: Reserve 52 pt of page layout while native controls float above compositor-scrolled content.
+- `8f1e6ab3`: Honor viewport-fit=cover and expose the header safe-area inset.
+- `f4f59633`: Replace the macOS layout menu with sidebar placement and a live header-pinning control.
+- `6f7956ad`: Separate the always-inset policy from viewport-fit cover behavior, with hover as the default.
+- `78c2d9ed`: Rename the native menu controls and their three toolbar choices.
+- `ea472c58`: Mirror the window-menu preferences with Settings dropdowns.
+- `dd56e3fc`: Derive panel alignment from sidebar position and make the Settings panel value read-only.
+- `0e57181d`: Remove the Settings layout selector to match the native window menu.
+- `cab5ea9e`: Record fixtures and the reviewed-stack validation audit.
+
+The navigation guard is independent of the renderer inset. Menu wording,
+Settings access, and automatic opposite-side panels are separate changes.
+Every implementation commit passes strict forward/reverse source replay with
+zero fuzz. All 30 final source files match the already built and tested Test 6
+candidate byte for byte. This review changes history and patch boundaries, not
+browser behavior; it does not claim new per-commit Chromium builds.
+
+The source publication branch is `topic/header-inset-reviewed`; this evidence
+is on `prototype/header-inset-integration`. The original draft branches and
+prepared build tree stay local and unchanged. The reviewed patch worktree is
+`.work/header-inset/reviewed`; `.work/header-inset/review-source` is a small
+quilt replay fixture containing affected files, not a complete Chromium tree.
+Detailed audit and replay hashes are in the platform branch at
+`prototype/header-inset/reviewed-history.json`. No development lock, release,
+or update feed is changed by publishing these branches.
