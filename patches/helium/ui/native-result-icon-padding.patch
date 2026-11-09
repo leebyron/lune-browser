@@ -1,0 +1,40 @@
+--- a/chrome/browser/ui/helium/native_result_row_mac.mm
++++ b/chrome/browser/ui/helium/native_result_row_mac.mm
+@@ -93,7 +93,7 @@ void DrawText(NSString* text,
+                                          16 / imageSize.height);
+     const NSSize drawSize =
+         NSMakeSize(imageSize.width * scale, imageSize.height * scale);
+-    [image drawInRect:NSMakeRect(12 + (16 - drawSize.width) / 2,
++    [image drawInRect:NSMakeRect(14 + (16 - drawSize.width) / 2,
+                                 18 + (16 - drawSize.height) / 2,
+                                 drawSize.width, drawSize.height)
+               fromRect:NSZeroRect
+@@ -104,12 +104,12 @@ void DrawText(NSString* text,
+   }
+   CGFloat width = NSWidth(self.bounds);
+   const BOOL showTag = self.tagText.length > 0 && width >= 240;
+-  const CGFloat textWidth = std::max<CGFloat>(0, width - (showTag ? 142 : 52));
++  const CGFloat textWidth = std::max<CGFloat>(0, width - (showTag ? 146 : 56));
+   BOOL subtitle = self.secondaryText.length > 0;
+-  DrawText(self.primaryText, NSMakeRect(40, subtitle ? 7 : 17, textWidth, 20),
++  DrawText(self.primaryText, NSMakeRect(44, subtitle ? 7 : 17, textWidth, 20),
+            13, NSColor.labelColor);
+   if (subtitle) {
+-    DrawText(self.secondaryText, NSMakeRect(40, 28, textWidth, 17), 11,
++    DrawText(self.secondaryText, NSMakeRect(44, 28, textWidth, 17), 11,
+              NSColor.secondaryLabelColor);
+   }
+   if (showTag) {
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1777,8 +1777,8 @@ class HeliumSiteInfoObserver : public vi
+ }
+ 
+ - (CGFloat)horizontalOutset {
+-  // The shared result icon/text columns are 8 pt farther in than the header.
+-  return _matches.empty() ? 0 : kHeliumNativeResultInset;
++  // Expand around the fixed header controls to align the padded result rows.
++  return _matches.empty() ? 0 : kHeliumNativeResultInset + 2;
+ }
+ 
+ - (CGFloat)preferredHeight {
