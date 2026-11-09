@@ -85,6 +85,8 @@ No public browser release, deployed browser services, or recurring browser sched
 
 - [Architecture](architecture.md): repository histories, patch selection, Git flow.
 - [Releases](releases.md): daily integration, signing, publication, update gates.
+- [Release commits](release-commits.md): version rules, frozen inputs, provenance,
+  preparation procedure and tooling migration.
 - [Services](services.md): self-hosting and website boundaries.
 - [Roadmap](roadmap.md): implementation sequence and acceptance checks.
 - [Research](research.md): current upstream evidence and limitations.

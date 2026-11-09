@@ -118,14 +118,26 @@ the appcast commit/push block; a Lune draft must never advance a public feed.
 
 ## Versioning and publication
 
-Use a monotonically increasing numeric Lune build number for `CFBundleVersion`
-and Sparkle's `version`. Allocate it centrally with a serialized writer; timestamps
-alone can collide or go backwards. Use the same candidate build number for both
-architectures and include it in release tags and filenames. Record Chromium,
-ungoogled, and Helium versions separately in the manifest and About/release notes.
-An upstream version string alone cannot distinguish two Lune patch builds.
+The owner selected `YY.MMDD.N` for Lune's release version on November 8, 2026:
+for example, `26.1108.1`, then `26.1108.2` for the next release that day.
+The daily release counter starts at 1. Use the same string for the outer app's
+`CFBundleVersion` and `CFBundleShortVersionString`, Sparkle's `version` and
+`shortVersionString`, and human-facing release names. Record the assigned release
+date and counter in Git before packaging; rebuilding a commit must not derive a
+new version from the host clock.
+This is an accepted scheme, not yet implemented: packaging and appcast generation
+still use integer build numbers and the locked Chromium version as the display
+version. Published builds 1 and 2 retain their original metadata.
 
-Proposed artifact naming: `Lune-<version>-<build>-macos-<arch>.dmg`.
+The date version supplies Sparkle's increasing update order; no separate lifetime
+build counter is needed. Serialize allocation, share the version across both
+architectures, and retain the full source SHA separately. Record Chromium,
+ungoogled, and Helium identities in the locked inputs and release provenance.
+Show Lune and Chromium versions separately in About. See
+[release commits and version information](release-commits.md) for the required
+input record, calendar rules, preparation procedure, evidence, and migration gaps.
+
+Target artifact naming: `Lune-<version>-macos-<arch>.dmg`, tagged `v<version>`.
 Publish DMGs, SHA-256 sums, source locks, patch provenance, corresponding source
 availability, and validation results under an immutable release tag on `main`.
 Keep permanent component tags reachable as described in [architecture](architecture.md).
