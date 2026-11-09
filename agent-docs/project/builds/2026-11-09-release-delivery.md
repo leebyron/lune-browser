@@ -113,6 +113,14 @@ manual instructions. Every included file checksum and ZIP CRC passes; Python
 `ce6c0f049f2438346d2108b1d2f622322eda9468de28f4a0f02ea91393b8c49d`.
 The owner has been asked to test both Macs and report their models and results.
 
+The complete kit is available under Assets in the
+[private test-kit draft](https://github.com/leebyron/lune-browser/releases/tag/untagged-93bc6c7c5fe5bda46aaf).
+Sign in with repository access, download `Lune-26.1109.1-Intel-test-kit.zip`,
+extract it and follow `TESTING.md`; no repository checkout is needed. GitHub
+reports the asset uploaded with the exact local size and SHA-256 above. This
+unpublished private draft distributes acceptance materials only; it does not
+create a public staging channel or enable website production downloads.
+
 ## Remaining gates
 
 Local signed checks pass for both architectures. Rosetta results cannot replace
