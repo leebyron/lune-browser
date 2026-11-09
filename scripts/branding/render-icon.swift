@@ -20,7 +20,7 @@ func color(_ hex: UInt32) -> NSColor {
             green: CGFloat((hex >> 8) & 255) / 255,
             blue: CGFloat(hex & 255) / 255, alpha: 1)
 }
-func render(_ size: Int, _ file: String, mono: Bool = false, wordmark: Bool = false, white: Bool = false, mode: String = "dark", opaque: Bool = false) throws {
+func render(_ size: Int, _ file: String, mono: Bool = false, wordmark: Bool = false, white: Bool = false, mode: String = "dark", opaque: Bool = false, favicon: Bool = false) throws {
     let width = wordmark ? size * 140 / 32 : size
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: size,
         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -35,11 +35,17 @@ func render(_ size: Int, _ file: String, mono: Bool = false, wordmark: Bool = fa
         color(ink(mode, "ground")).setFill()
         NSRect(x: 0, y: 0, width: 1024, height: 1024).fill()
     }
-    if !mono {
+    if !mono && !favicon {
         color(ink(mode, "ground")).setFill()
         NSBezierPath(roundedRect: NSRect(x: 64, y: 64, width: 896, height: 896), xRadius: 200, yRadius: 200).fill()
     }
-    cg.translateBy(x: 152, y: 152); cg.scaleBy(x: 2.4, y: 2.4)
+    if favicon {
+        let scale = 1024 / (2 * (radius + offset))
+        cg.translateBy(x: 512 - 150 * scale, y: 512 - 150 * scale)
+        cg.scaleBy(x: scale, y: scale)
+    } else {
+        cg.translateBy(x: 152, y: 152); cg.scaleBy(x: 2.4, y: 2.4)
+    }
     for (center, cutout, ink) in [(150-offset, 150+innerOffset, ink(mode, "left")), (150+offset, 150-innerOffset, ink(mode, "right"))] {
         cg.saveGState()
         cg.addRect(CGRect(x: 0, y: 0, width: 300, height: 300))
@@ -60,15 +66,7 @@ func render(_ size: Int, _ file: String, mono: Bool = false, wordmark: Bool = fa
     NSGraphicsContext.restoreGraphicsState()
     try rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: file))
 }
-for mode in ["light", "dark"] {
-    let iconset = output + "/Lune-" + mode + ".iconset"
-    try fm.createDirectory(atPath: iconset, withIntermediateDirectories: true)
-    for size in [16, 32, 128, 256, 512] {
-        try render(size, iconset + "/icon_\(size)x\(size).png", mode: mode)
-        try render(size * 2, iconset + "/icon_\(size)x\(size)@2x.png", mode: mode)
-    }
-    try render(1024, output + "/lune-" + mode + ".png", mode: mode)
-}
+// macOS app icons use render-app-icons.py and Apple's icon compiler.
 try fm.createDirectory(atPath: output + "/internal", withIntermediateDirectories: true)
 for size in [16, 24, 32, 48, 64, 128, 256] {
     try render(size, output + "/internal/product_logo_\(size).png")
@@ -79,3 +77,7 @@ for (size, suffix) in [(32, ""), (64, "_200")] {
     try render(size, output + "/internal/product_logo_white\(suffix).png", wordmark: true, mode: "dark")
 }
 try render(180, output + "/apple-touch-icon.png", opaque: true)
+try fm.createDirectory(atPath: output + "/favicons", withIntermediateDirectories: true)
+for size in [16, 32, 48, 64, 128, 256] {
+    try render(size, output + "/favicons/favicon_\(size).png", favicon: true)
+}

@@ -25,7 +25,7 @@ def paths(config):
             for sweep in (0, 1)]
 
 
-def svg(data, tile=True, mode=None):
+def svg(data, tile=True, mode=None, favicon=False):
     def colors(p):
         return f'.ground{{fill:{p["ground"]}}}.left{{fill:{p["left"]}}}.right{{fill:{p["right"]}}}'
     style = colors(data[mode or 'light'])
@@ -34,13 +34,21 @@ def svg(data, tile=True, mode=None):
     viewbox = '0 0 1024 1024' if tile else '212 245.6 600 532.8'
     size = 'width="1024" height="1024"' if tile else 'width="600" height="533"'
     tile_rect = '<rect class="ground" x="64" y="64" width="896" height="896" rx="200"/>' if tile else ''
+    transform = 'translate(152 152) scale(2.4)'
+    if favicon:
+        # Square canvas tightly fitted to the wider dimension of the mark.
+        extent = data['geometry']['outer_radius'] + data['geometry']['center_offset']
+        viewbox = f'{150-extent:g} {150-extent:g} {2*extent:g} {2*extent:g}'
+        size = 'width="256" height="256"'
+        tile_rect = ''
+        transform = ''
     left, right = paths(data['geometry'])
     result = f'''<svg xmlns="http://www.w3.org/2000/svg" {size} viewBox="{viewbox}">
   <title>Lune</title>
   <desc>Paired lunes, 30% thicker. Chlorophyll Daylight and Pelagic Signal.</desc>
   <style>{style}</style>
   {tile_rect}
-  <g transform="translate(152 152) scale(2.4)">
+  <g transform="{transform}">
     <path class="left" d="{left}"/>
     <path class="right" d="{right}"/>
   </g>
@@ -77,7 +85,7 @@ def outputs(data):
         'branding/lune-dark.svg': svg(data, mode='dark'),
         'website/public/assets/lune-icon.svg': svg(data),
         'website/public/assets/lune-mark.svg': svg(data, tile=False),
-        'website/public/favicon.svg': svg(data),
+        'website/public/favicon.svg': svg(data, tile=False, favicon=True),
         'out/branding/internal/product_logo.svg': svg(data),
         'out/branding/internal/product_logo_mono.svg': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><path fill="currentColor" d="{mono}"/></svg>\n',
         'out/branding/internal/product_logo.icon': vector(data),
