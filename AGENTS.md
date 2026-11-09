@@ -7,6 +7,17 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+Main now pins the complete reviewed UI stack through `01905fc4` under
+`inputs/reviewed-ui-2026-11-08/macos`. This includes the sidebar/footer, retention,
+activation, toolbar/media, appearance, scrolling, shared results, menu layout,
+and newer header/Settings work. See [integration status](agent-docs/project/features/reviewed-ui-integration.md)
+for exact scope and validation limits. Onboarding remains in progress separately.
+The header prototype keeps its existing opt-in flag. This is not a binary release.
+
+The following feature summaries retain their original validation history. Their
+statements that reviewed candidates are absent from the development lock are
+superseded by the integration record above; published-binary limitations remain.
+
 The issue #12 candidate on `topic/address-suggestion-selection` adds rounded
 selection fills and shares native result rendering with Command-T. Both menus use
 `HeliumNativeResultRow` for 52 pt rows, 16 pt icons, primary/secondary typography,
