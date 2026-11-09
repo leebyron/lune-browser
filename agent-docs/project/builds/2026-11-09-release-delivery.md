@@ -82,13 +82,32 @@ The frozen official Intel build passes all 17,171 compilation/linking steps and
 the complete post-build source inventory comparison. Its build report records
 5,002.67 seconds for compilation plus the final inventory. Inputs and the
 release source commit match Apple silicon. This proves the source/build gate,
-not signed runtime or native Intel hardware acceptance.
+not native Intel hardware acceptance.
+
+The final Intel app and DMG pass Developer ID, Apple notarization, stapling,
+Gatekeeper and Sparkle signature checks. Smoke/default/settings/artwork/services
+and complete packaged onboarding pass under Rosetta. A real About-page update
+from build 2 installs 26.1109.1, relaunches, preserves the profile and verifies
+signatures. Invalid-signature and unsupported-OS fixtures both reject the offer
+and retain build 2. The updater-installed app displays the signed Lune/Chromium
+versions, loads public HTTPS sites, initializes uBlock filters and preserves
+profile data across restart. These are local Rosetta checks, not native Intel.
+
+All 19 embedded Intel Mach-O slices declare macOS 13.0. Three Sparkle binaries
+are universal and also contain arm64; the Intel slice is explicitly selected
+for this audit. No app bytes were changed by the check.
+
+The 524,312,277-byte portable Intel test ZIP contains the two final DMGs, paired
+feeds/metadata, unchanged build-2 Intel baseline, Python helper, checksums and
+manual instructions. Every included file checksum and ZIP CRC passes; Python
+3.9 validates both the normal and wrong-architecture fixtures. Its SHA-256 is
+`ce6c0f049f2438346d2108b1d2f622322eda9468de28f4a0f02ea91393b8c49d`.
+The owner has been asked to test both Macs and report their models and results.
 
 ## Remaining gates
 
-Intel requires matching signing,
-packaging, smoke/onboarding, signed runtime and positive/negative installed-update
-checks. Rosetta results cannot replace the owner's native Intel acceptance on
+Local signed checks pass for both architectures. Rosetta results cannot replace
+the owner's native Intel acceptance on
 macOS 13.7.8 and 26.6.2. The owner confirmed the second version on November 9;
 device models and actual native acceptance results remain pending.
 
@@ -96,5 +115,6 @@ Intel headed/native interaction, extension installation/update on Intel, wrong-a
 offer rejection on native Intel, public HTTPS installed updates, fresh Chromium
 comparison, public source/artifact verification, stable-feed readback, latest-link
 readback and production website deployment remain to be completed. Historical
-build-1/build-2 staging files are unchanged. No new release, feed, source package,
-or website deployment has been published by this work yet.
+build-1/build-2 staging files are unchanged. Upload of the unpublished GitHub
+draft has started; digest verification is pending. No public release, feed,
+source package, or website deployment has been published by this work yet.

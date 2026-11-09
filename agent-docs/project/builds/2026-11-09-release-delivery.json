@@ -57,14 +57,37 @@
     }
   },
   "x86_64": {
-    "status": "build and source inventory passed; smoke/onboarding and signed acceptance in progress",
+    "status": "signed local acceptance passed; native Intel owner checks pending",
     "native_hardware_acceptance": false,
     "planned_native_macos_versions": [
       "13.7.8",
       "26.6.2"
     ],
     "build": true,
-    "source_inventory_after_build": true
+    "source_inventory_after_build": true,
+    "filename": "Lune-26.1109.1-macos-x86_64.dmg",
+    "sha256": "7f7264da96527e95324a660cdf889244d798c691de47865efcdd59ab009bc226",
+    "size": 180722069,
+    "signed": true,
+    "notarized": true,
+    "stapled": true,
+    "gatekeeper": true,
+    "sparkle_signature": true,
+    "onboarding": true,
+    "installed_update_from_build_2": true,
+    "invalid_signature_rejected": true,
+    "unsupported_os_rejected": true,
+    "public_browsing": true,
+    "profile_persistence": true,
+    "version_display": true,
+    "minimum_macos": "13.0",
+    "runtime": "Intel under Rosetta on Apple silicon",
+    "embedded_macho_minimum_audit": {
+      "count": 19,
+      "minimum_system_version": "13.0",
+      "older_os_runtime_verified": false,
+      "scope": "x86_64 slice of each embedded Mach-O file; three Sparkle binaries are universal"
+    }
   },
   "reports_relative_to": ".work/release-26.1109",
   "report_sha256": {
@@ -88,6 +111,35 @@
     "extension-update-result.txt": "f3c5db754c8e02dfec879940ec5cc2e449c3bcc0119354fea5f638436a9f02c2",
     "extension-removed.txt": "c8c8e537ad78be58c580bcd8e14d170e73d369948c1a2b958521799c1274879c",
     "extension-removed.png": "70591c517ec840a1ae362bb5549808e18e3836a43186ac2a7a8684c72292603c",
-    "frozen-x86_64.json": "53774fc091c9d20b788ee43556427f8c764a7cc61fdc8eaa52dbfc785973832e"
+    "frozen-x86_64.json": "53774fc091c9d20b788ee43556427f8c764a7cc61fdc8eaa52dbfc785973832e",
+    "smoke-x86_64.json": "6ae165c303348fb6992801701075aa47d5e085299b65a5184e62fb635584fc5f",
+    "onboarding-x86_64/report.json": "6877a81d71e5bf1464e1313d04948d7d8572393ad5110149db44a10866815049",
+    "candidates/x86_64/candidate.json": "5327067e90acda414179bfd37762e36a7e454237a57f9a101ed5acc8a837da53",
+    "candidates/x86_64/dmg-notarization.json": "eb1e5083f0b782a47c16b9e8aa9a350ff390bb643b676b2c5de1c094916c9b62",
+    "macho-minimum-x86_64.json": "87ea5c8738934b2c5fe7eb9e59536588efc8d8a1a2a7534c3aaec0f0eb02b7d0",
+    "runtime-x86_64/result.json": "951f180ac1ff6a9ec2161fe212e017ecfc949b4528befa2221fbb7ec04c3ba2a",
+    "intel-test-kit.json": "1a93c1a42a04aaea42b9817bd81d98a1ac7db86780aef8f124612d180ee21fae",
+    "acceptance-local.json": "dcd4b755718d97e7156ec2cd7aaf92665bf815333856b1e98944928fe200a570",
+    "update-x86_64-positive/result.json": "a485338e32f4828799f57ed2b0cfec6e2d43479ddcb28a6d41f6fc63c49faeff",
+    "update-x86_64-signature/result.json": "ad2819ad9bbb5cfae853f43dc861f9b3fb9ca3b80a08501dc0949910da241151",
+    "update-x86_64-unsupported-os/result.json": "fa083cd44a6895812f05a4db428ef7d790699254d261c36034f4a2c2bf0aaff6"
+  },
+  "intel_test_kit": {
+    "file": "Lune-26.1109.1-Intel-test-kit.zip",
+    "size": 524312277,
+    "sha256": "ce6c0f049f2438346d2108b1d2f622322eda9468de28f4a0f02ea91393b8c49d",
+    "zip_crc_verified": true,
+    "members": [
+      "intel-test-kit/Lune-158.0.8127.18-2-macos-x86_64.dmg",
+      "intel-test-kit/SHA256SUMS",
+      "intel-test-kit/TESTING.md",
+      "intel-test-kit/manual_update_fixture.py",
+      "intel-test-kit/publication/Lune-26.1109.1-macos-arm64.dmg",
+      "intel-test-kit/publication/Lune-26.1109.1-macos-x86_64.dmg",
+      "intel-test-kit/publication/appcast-arm64.xml",
+      "intel-test-kit/publication/appcast-x86_64.xml",
+      "intel-test-kit/publication/release.json"
+    ],
+    "native_hardware_tested": false
   }
 }
