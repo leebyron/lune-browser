@@ -59,7 +59,11 @@ def svg(data, tile=True, mode=None, favicon=False):
 
 def vector(data, colored=False):
     radius, height, inner = geometry(data['geometry'])
-    scale, offset = (0.6, 38) if colored else (1, 0)
+    # Monochrome UI symbols fill their square slot horizontally, like the
+    # favicon. Keep the mark proportional and centered; app tiles retain inset.
+    extent = data['geometry']['outer_radius'] + data['geometry']['center_offset']
+    scale = 0.6 if colored else 300 / (2 * extent)
+    offset = 38 if colored else 150 - 150 * scale
     x, top, bottom = offset + 150 * scale, offset + (150-height)*scale, offset + (150+height)*scale
     def color(value):
         return ', '.join('0x' + value[i:i+2] for i in (1, 3, 5))
