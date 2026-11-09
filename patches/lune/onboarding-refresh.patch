@@ -1,0 +1,1581 @@
+--- a/components/helium_onboarding/BUILD.gn
++++ b/components/helium_onboarding/BUILD.gn
+@@ -39,10 +39,27 @@
+     "public",
+     "public/favicon.png",
+     "public/lune.svg",
++    "public/lune-app.svg",
++    "public/inter-latin.woff2",
++    "public/syne-latin.woff2",
++    "public/wallpaper.jpg",
++    "public/Inter-OFL.txt",
++    "public/Syne-OFL.txt",
+     "src/app.css",
++    "src/lib/browser/prefs.ts",
++    "src/lib/browser/appearance.ts",
++    "src/lib/browser/setup.ts",
++    "src/lib/browser/index.ts",
++    "src/icons/tabler/IconAdjustments.svelte",
++    "src/components/ImportPrompt.svelte",
++    "src/App.svelte",
++    "src/lib/onboarding-flow.ts",
++    "src/lib/browser/search-engines.ts",
++    "src/components/PageNavigation.svelte",
+     "src/components/LuneLogo.svelte",
+     "src/components/HeliumPartner.svelte",
+     "src/components/BrowserImportGraphic.svelte",
++    "src/pages/index.ts",
+     "src/pages/Welcome.svelte",
+     "src/pages/Finish.svelte",
+     "src/pages/HeliumServices.svelte",
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -9,7 +9,7 @@
+   Use defaults
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_BUTTON_CONFIGURE" desc="Button label that starts the detailed onboarding setup flow.">
+-  Configure
++  Setup
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_BUTTON_NEXT" desc="Button label to continue to the next onboarding step.">
+   Next
+@@ -18,7 +18,7 @@
+   Back
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_BUTTON_LETS_GO" desc="Button label that finishes onboarding and opens the browser.">
+-  Let's go!
++  Done
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_PARTNER_TITLE" desc="Badge title shown for partner services in onboarding.">
+@@ -29,10 +29,10 @@
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_GREETING" desc="Main greeting on the first onboarding screen.">
+-  Meet Lune
++  setup lune
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_BODY" desc="Introductory body text on the first onboarding screen.">
+-  Configure Lune to match your taste and import data from other browsers. Make it feel like home or jump straight to browsing.
++  Make Lune your own, import from another browser, or start with the defaults.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_TERMS" desc="Legal note shown during onboarding. Keep each BEGIN/END placeholder pair around its corresponding link text, but move the pairs as needed for a natural translation.">
+   By continuing, you agree to the <ph name="BEGIN_LINK_PRIVACY">$1</ph>privacy policy<ph name="END_LINK_PRIVACY">$2</ph> and <ph name="BEGIN_LINK_TERMS">$3</ph>terms of use<ph name="END_LINK_TERMS">$4</ph>.
+@@ -42,10 +42,10 @@
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_TITLE" desc="Title on the final onboarding screen.">
+-  Ready to browse?
++  Customize Lune
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_BODY" desc="Body text on the final onboarding screen.">
+-  The setup is complete, thank you for choosing Lune. Time to enjoy the internet again.
++  Choose your appearance, theme, and browser layout.
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_TITLE" desc="Title of the onboarding screen for Helium services consent.">
+@@ -58,7 +58,7 @@
+   Allow connecting to Helium services
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_CONNECTION_DESC" desc="Description of the global Helium services toggle.">
+-  Helium services provide additional functionality, such as: extension downloads, native !bangs, filter list updates, and browser updates. When disabled, none of these features will work, but Helium will not make any web requests.
++  Helium services provide additional functionality, such as: extension downloads, native !bangs, filter list updates. When disabled, none of these features will work, but Helium will not make any web requests.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_BANGS_TITLE" desc="Title of the toggle for downloading the Helium bangs list.">
+   Allow downloading the !bangs list
+@@ -125,7 +125,7 @@
+   Privacy-focused. Relies on Bing for results. Promises not to track or profile you.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_ENGINES_KAGI" desc="Onboarding description of Kagi as a search engine option.">
+-  Suggested for Lune. Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine.
++  Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_ENGINES_QWANT" desc="Onboarding description of Qwant as a search engine option.">
+   Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft.
+@@ -250,18 +250,37 @@
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
+-  Built on Helium, with thanks to its authors and contributors.
++  Built on Helium browser, with thanks to its authors and contributors.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_PROVIDER" desc="Lune service provider and update disclosure.">
+-  Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates. Browser updates are provided by Lune at lune.computer.
++  Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_CONSENT" desc="Lune service provider and update disclosure.">
+-  Allow Lune to connect to Helium-hosted services and to Lune for browser updates. These requests stay disabled until you consent. Turning this off also disables automatic browser updates.
++  Allow Lune to connect to Helium-hosted services. These requests stay disabled until you consent.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_PROVIDER" desc="Lune service provider and update disclosure.">
+-  You can host your own Helium services instance and select it in Lune settings. Browser updates will still come from Lune.
++  You can host your own Helium services instance and select it in Lune settings.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_LUNE_UPDATES" desc="Lune service provider and update disclosure.">
+   Lune checks lune.computer for browser updates and Helium services for component updates. Keep this enabled to receive security fixes.
+ </message>
++<message name="IDS_HELIUM_ONBOARDING_WELCOME_UPDATES_TITLE" desc="Automatic browser update switch.">Allow automatic browser updates</message>
++
++<message name="IDS_HELIUM_ONBOARDING_BUTTON_IMPORT" desc="Button to import from other browsers.">Import</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_TABS_POSITION" desc="Label for the tab sidebar position choice.">Tab sidebar</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_TABS_LEFT" desc="Place the tab sidebar on the left.">Left</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_TABS_RIGHT" desc="Place the tab sidebar on the right.">Right</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_APPEARANCE" desc="Onboarding appearance choice.">Appearance</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_APPEARANCE_AUTO" desc="Onboarding appearance choice.">Auto</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_APPEARANCE_LIGHT" desc="Onboarding appearance choice.">Light</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_APPEARANCE_DARK" desc="Onboarding appearance choice.">Dark</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_THEME" desc="Onboarding appearance choice.">Theme</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_LUNE" desc="Onboarding appearance choice.">Lune</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_SYSTEM" desc="Onboarding appearance choice.">System</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_GRAYSCALE" desc="Onboarding appearance choice.">Grayscale</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_CUSTOM" desc="Onboarding appearance choice.">Custom</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER" desc="Onboarding appearance choice.">Show toolbar</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_HOVER" desc="Onboarding appearance choice.">On hover</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_COVER" desc="Keep the toolbar visible and allow pages to opt into drawing beneath it.">Always cover (experimental)</message>
++<message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_ALWAYS" desc="Onboarding appearance choice.">Always</message>
+ </grit-part>
+\ No newline at end of file
+--- a/components/helium_onboarding/src/App.svelte
++++ b/components/helium_onboarding/src/App.svelte
+@@ -1,85 +1,25 @@
+ <script lang="ts">
+-    import { onMount } from "svelte";
+     import { SvelteSet } from "svelte/reactivity";
+-    import { GradientShimmer } from "@imput/helium-prism";
+     import * as pages from "./pages";
+     import * as Browser from "./lib/browser";
+-    import {
+-        currentPage,
+-        flow,
+-        hasSeenIntro,
+-        ONBOARDING_INTRO_DELAY_MS,
+-    } from "./lib/onboarding-flow";
+-
++    import { currentPage, flow } from "./lib/onboarding-flow";
+     import PageNavigation from "./components/PageNavigation.svelte";
+-
+-    const OUT_ANIMATION_DURATION = 200;
+-
+-    type Page = typeof flow[number];
+-
+     Browser.setup();
+-
+-    let gradientShimmer = $state<{ emphasize: () => void }>();
+-    let introStarted = $state($hasSeenIntro);
+-    const mountedPages = new SvelteSet<Page>([$currentPage]);
++    const mountedPages = new SvelteSet<typeof flow[number]>([$currentPage]);
+     let previousPage = $currentPage;
+-
+-    const shimmerDimmed = $derived(
+-        $currentPage !== "Welcome" && $currentPage !== "Finish"
+-    );
+-
+     $effect(() => {
+         const page = $currentPage;
+-
+-        if (page === previousPage) {
+-            return;
+-        }
+-
++        if (page === previousPage) return;
+         const leavingPage = previousPage;
+         mountedPages.add(page);
+         previousPage = page;
+-
+-        if (flow.indexOf(page) > flow.indexOf(leavingPage)) {
+-            gradientShimmer?.emphasize();
+-        }
+-
+         window.setTimeout(() => {
+-            if ($currentPage !== leavingPage) {
+-                mountedPages.delete(leavingPage);
+-            }
+-        }, OUT_ANIMATION_DURATION);
+-    });
+-
+-    onMount(() => {
+-        if (introStarted) {
+-            return;
+-        }
+-
+-        const timer = window.setTimeout(() => {
+-            introStarted = true;
+-        }, ONBOARDING_INTRO_DELAY_MS);
+-
+-        return () => {
+-            window.clearTimeout(timer);
+-        };
++            if ($currentPage !== leavingPage) mountedPages.delete(leavingPage);
++        }, 200);
+     });
+ </script>
+-
+-<main
+-    class:dimmed={shimmerDimmed}
+-    style:--onboarding-intro-delay={`${ONBOARDING_INTRO_DELAY_MS}ms`}
+->
+-    {#if introStarted}
+-        <div class="shimmer-layer" class:dimmed={shimmerDimmed}>
+-            <GradientShimmer bind:this={gradientShimmer} />
+-        </div>
+-    {/if}
+-
+-    <!-- Keep navigation mounted on Finish so it can animate out. -->
+-    {#if $currentPage !== "Welcome"}
+-        <PageNavigation />
+-    {/if}
+-
++<main>
++    {#if $currentPage !== "Welcome"}<PageNavigation />{/if}
+     {#each flow as page (page)}
+         {#if mountedPages.has(page)}
+             {@const Component = pages[page]}
+@@ -87,52 +27,6 @@
+         {/if}
+     {/each}
+ </main>
+-
+ <style>
+-    main {
+-        position: relative;
+-        display: flex;
+-        justify-content: center;
+-        width: 100vw;
+-        min-height: 100dvh;
+-        background: var(--bg-gradient-start);
+-
+-        &::before {
+-            content: "";
+-            position: fixed;
+-            inset: 0;
+-            z-index: 0;
+-            background: var(--intro-gradient);
+-            opacity: 0;
+-            pointer-events: none;
+-            transition: opacity 1s;
+-        }
+-
+-        & :global(.onboarding-page) {
+-            z-index: 1;
+-        }
+-    }
+-
+-    .shimmer-layer {
+-        position: fixed;
+-        inset: 0;
+-        z-index: 0;
+-        opacity: 1;
+-        pointer-events: none;
+-        transition: opacity 1s;
+-
+-        &.dimmed {
+-            opacity: 0.5;
+-        }
+-    }
+-
+-    @media (prefers-color-scheme: dark) {
+-        main.dimmed::before {
+-            opacity: 1;
+-        }
+-
+-        .shimmer-layer.dimmed {
+-            opacity: 0.3;
+-        }
+-    }
++    main { overflow: hidden; position: relative; display: flex; justify-content: center; width: 100vw; min-height: 100dvh; background: var(--setup-background); }
+ </style>
+--- a/components/helium_onboarding/src/app.css
++++ b/components/helium_onboarding/src/app.css
+@@ -197,3 +197,35 @@
+     --tooltip-shadow: color-mix(in srgb, #DDE7EA 16%, transparent);
+ }
+ }
++
++/* Locally bundled website typography. */
++@font-face { font-family: Inter; font-style: normal; font-weight: 400 500; font-display: swap; src: url(/inter-latin.woff2) format("woff2"); }
++@font-face { font-family: Syne; font-style: normal; font-weight: 800; font-display: swap; src: url(/syne-latin.woff2) format("woff2"); }
++body, button { font-family: Inter, sans-serif; }
++
++:root { --font: Inter, sans-serif; }
++/* Served from the browser resource pack, including when offline.
++   Precompose each theme's wallpaper tint, then fade the complete layer over
++   its sampled 64x64 center average. The center stays steady during the fade. */
++:root {
++    --setup-background: light-dark(#E7EDE4, #0A2B44);
++    --wallpaper-wash: light-dark(rgb(231 237 227 / .9), rgb(16 53 79 / .55));
++    --wallpaper-shade: light-dark(transparent, rgb(0 0 0 / .3));
++}
++body { background: var(--setup-background); }
++main::before {
++    content: ''; position: absolute; inset: -16px;
++    background-image: linear-gradient(var(--wallpaper-wash), var(--wallpaper-wash)),
++        linear-gradient(var(--wallpaper-shade), var(--wallpaper-shade)), url('/wallpaper.jpg');
++    background-color: light-dark(#E7EDE3, #10354F);
++    background-position: center; background-size: cover;
++    opacity: 1; transform: scale(1.05); pointer-events: none;
++    animation: wallpaper-in 1600ms cubic-bezier(.25,.1,.25,1) 1300ms both,
++        wallpaper-rise 3500ms cubic-bezier(.45,0,.55,1) both;
++}
++@media (prefers-color-scheme: light) {
++    main::before { background-blend-mode: normal, normal, screen; }
++}
++@keyframes wallpaper-rise { from { translate: 0 12px; } to { translate: 0 -4px; } }
++@keyframes wallpaper-in { from { opacity: 0; transform: scale(1); } to { opacity: 1; transform: scale(1.05); } }
++@media (prefers-reduced-motion: reduce) { main::before { animation: none; } }
+--- a/components/helium_onboarding/src/components/LuneLogo.svelte
++++ b/components/helium_onboarding/src/components/LuneLogo.svelte
+@@ -1,5 +1,33 @@
+ <script lang="ts">
+     const { height = "32px" }: { height?: string } = $props();
++    const id = $props.id();
+ </script>
+ 
+-<img src="/lune.svg" alt="Lune" style:height style:width={height} />
++<!-- The approved mark is the difference between pairs of circles. Starting
++     each pair coincident lets the lunes open naturally as their centers part. -->
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="25 39 250 222"
++    role="img" aria-label="Lune" style:height style:width="auto">
++    <defs>
++        <mask id={`${id}-left`} maskUnits="userSpaceOnUse" x="0" y="0" width="300" height="300">
++            <rect width="300" height="300" fill="white" />
++            <circle class="cutout" cx="150" cy="150" r="112.725508" fill="black" style:--shift="24.125508px" />
++        </mask>
++        <mask id={`${id}-right`} maskUnits="userSpaceOnUse" x="0" y="0" width="300" height="300">
++            <rect width="300" height="300" fill="white" />
++            <circle class="cutout" cx="150" cy="150" r="112.725508" fill="black" style:--shift="-24.125508px" />
++        </mask>
++    </defs>
++    <g mask={`url(#${id}-left)`}><circle class="outer left" cx="150" cy="150" r="111" style:--shift="-14px" /></g>
++    <g mask={`url(#${id}-right)`}><circle class="outer right" cx="150" cy="150" r="111" style:--shift="14px" /></g>
++</svg>
++
++<style>
++    svg { display: inline-block; overflow: visible; }
++    .left { fill: light-dark(#258D91, #00A7BE); }
++    .right { fill: light-dark(#789751, #5386BF); }
++    circle { transform: translateX(var(--shift)); animation: circle-open 1400ms cubic-bezier(.2,.8,.2,1) both; }
++    .cutout { animation-name: cutout-open; }
++    @keyframes circle-open { from { transform: translateX(0); } to { transform: translateX(var(--shift)); } }
++    @keyframes cutout-open { from { transform: translateX(0); r: 111px; } to { transform: translateX(var(--shift)); r: 112.725508px; } }
++    @media (prefers-reduced-motion: reduce) { circle { animation: none; } }
++</style>
+--- a/components/helium_onboarding/src/components/PageNavigation.svelte
++++ b/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -3,13 +3,14 @@
+         Button,
+         IconArrowLeft,
+         IconArrowRight,
++        IconCheck,
+         Spinner,
+     } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { SvelteSet } from "svelte/reactivity";
+     import {
+         acceptLatestSchema,
+-        askToBeDefault,
++        openNewTab,
+         importableProfiles,
+         importDiscovery,
+         importProfile,
+@@ -19,14 +20,11 @@
+         nextPage,
+         previousPage,
+         currentPage,
+-        userChoseHeliumAsDefault,
+         selectedProfiles,
+         previouslyImportedProfiles,
+     } from "../lib/onboarding-flow";
+ 
+-    const visible = $derived(
+-        $currentPage !== "Welcome" && $currentPage !== "Finish"
+-    );
++    const visible = $derived($currentPage !== "Welcome");
+ 
+     let working = $state(false);
+ 
+@@ -47,10 +45,10 @@
+             acceptLatestSchema();
+             break;
+ 
+-        case "DefaultBrowser":
+-            if ($userChoseHeliumAsDefault) {
+-                askToBeDefault();
+-            }
++        case "Finish":
++            chrome.send('setOnboardingAppearance', [false]);
++            await setPref('completed_onboarding', true);
++            openNewTab();
+             break;
+ 
+         case "DataImport":
+@@ -94,10 +92,12 @@
+         <Button disabled={nextDisabled} primary onclick={next}>
+             {#if working}
+                 <Spinner size={18} />
++            {:else if $currentPage === "Finish"}
++                <IconCheck />
+             {:else}
+                 <IconArrowRight />
+             {/if}
+-            {s.button.next}
++            {$currentPage === "Finish" ? s.button.letsGo : s.button.next}
+         </Button>
+     </div>
+ </div>
+--- a/components/helium_onboarding/src/lib/onboarding-flow.ts
++++ b/components/helium_onboarding/src/lib/onboarding-flow.ts
+@@ -3,8 +3,6 @@
+ import { derived, get, writable } from "svelte/store";
+ 
+ import {
+-    canBeDefaultBrowser,
+-    isDefaultBrowser,
+     preferences,
+ } from "./browser";
+ 
+@@ -14,7 +12,6 @@
+     "SearchEngine",
+     "DataImport",
+     "PasswordManager",
+-    "DefaultBrowser",
+     "Finish"
+ ] as const;
+ 
+@@ -35,9 +32,6 @@
+             return platform.is.android
+                 || !pref['services.ext_proxy']
+                 || !pref['services.enabled'];
+-        case 'DefaultBrowser':
+-            // skip if we're already default (we can't undefault ourselves)
+-            return platform.is.android || !canBeDefaultBrowser || get(isDefaultBrowser);
+         default:
+             return false;
+     }
+--- a/components/helium_onboarding/src/pages/Finish.svelte
++++ b/components/helium_onboarding/src/pages/Finish.svelte
+@@ -1,87 +1,61 @@
+ <script lang="ts">
+-    import LuneLogo from "../components/LuneLogo.svelte";
+-    import {
+-        Button,
+-        IconArrowLeft,
+-        IconCheck,
+-    } from "@imput/helium-prism";
++    import { Dropdown } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+-    import { setPref, openNewTab } from "../lib/browser";
+-    import { currentPage, previousPage } from "../lib/onboarding-flow";
+-
+-    const done = async () => {
+-        await setPref('completed_onboarding', true);
+-        openNewTab();
+-    }
+-
++    import { currentPage } from "../lib/onboarding-flow";
++    import { preferences, setPref, appearance, setColorScheme, setTheme } from "../lib/browser";
++    import PageHeader from "../components/PageHeader.svelte";
++    import IconAdjustments from "../icons/tabler/IconAdjustments.svelte";
+     const visible = $derived($currentPage === "Finish");
++    const themes = $derived([
++        {value: 'system', label: s.finish.themeSystem},
++        {value: 'lune', label: s.finish.themeLune},
++        {value: 'grayscale', label: s.finish.themeGrayscale},
++        ...$appearance.colors,
++        ...($appearance.theme === 'custom' ? [{value: 'custom', label: s.finish.themeCustom}] : []),
++    ]);
++    async function setHeader(value: string) {
++        await setPref('browser.top_controls_overlay', value === 'cover');
++        await setPref('browser.zen_mode_top_chrome_pinned', value !== 'hover');
++    }
++    $effect(() => {
++        if (!visible) return;
++        chrome.send('setOnboardingAppearance', [true]);
++        return () => chrome.send('setOnboardingAppearance', [false]);
++    });
+ </script>
+-
+-<div
+-    id="finish-page"
+-    class="onboarding-page"
+-    class:visible
+->
+-    <div id="finish-page-container">
+-        <div id="finish-top">
+-            <div id="finish-logo-text">
+-                <div id="finish-logo">
+-                    <LuneLogo height="64px" />
++<div id="finish-page" class="onboarding-page" class:visible inert={!visible}>
++    <div class="scrollable-page">
++        <PageHeader title={s.finish.title} subtitle={s.finish.body} Icon={IconAdjustments} />
++        <div class="page-content">
++            <div class="appearance-options">
++                <div class="option"><span>{s.finish.appearance}</span>
++                    <Dropdown aria-label={s.finish.appearance} value={String($appearance.scheme)}
++                        options={[{value: '0', label: s.finish.appearanceAuto}, {value: '1', label: s.finish.appearanceLight}, {value: '2', label: s.finish.appearanceDark}]}
++                        onchange={(event) => setColorScheme(event.currentTarget.value)} />
+                 </div>
+-                <div id="finish-text">
+-                    <h1>{s.finish.title}</h1>
+-                    <p>{s.finish.body}</p>
++                <div class="option"><span>{s.finish.theme}</span>
++                    <Dropdown aria-label={s.finish.theme} value={$appearance.theme} options={themes}
++                        onchange={(event) => setTheme(event.currentTarget.value)} />
++                </div>
++                <div class="option"><span>{s.finish.tabsPosition}</span>
++                    <Dropdown aria-label={s.finish.tabsPosition}
++                        value={$preferences['browser.vertical_right_aligned'] ? 'right' : 'left'}
++                        options={[{value: 'left', label: s.finish.tabsLeft}, {value: 'right', label: s.finish.tabsRight}]}
++                        onchange={(event) => setPref('browser.vertical_right_aligned', event.currentTarget.value === 'right')} />
++                </div>
++                <div class="option"><span>{s.finish.header}</span>
++                    <Dropdown aria-label={s.finish.header}
++                        value={$preferences['browser.zen_mode_top_chrome_pinned'] ? ($preferences['browser.top_controls_overlay'] ? 'cover' : 'always') : 'hover'}
++                        options={[{value: 'hover', label: s.finish.headerHover}, {value: 'always', label: s.finish.headerAlways}, {value: 'cover', label: s.finish.headerCover}]}
++                        onchange={(event) => setHeader(event.currentTarget.value)} />
+                 </div>
+-            </div>
+-            <div class="action-buttons">
+-                <Button onclick={previousPage}>
+-                    <IconArrowLeft />
+-                    {s.button.back}
+-                </Button>
+-                <Button primary onclick={done}>
+-                    <IconCheck />
+-                    {s.button.letsGo}
+-                </Button>
+             </div>
+         </div>
+     </div>
+ </div>
+-
+ <style>
+-    #finish-page {
+-        --page-in-delay: 0.15s;
+-    }
+-
+-    #finish-top,
+-    #finish-text,
+-    #finish-logo-text {
+-        display: flex;
+-        flex-direction: column;
+-    }
+-
+-    #finish-page-container {
+-        max-width: 500px;
+-    }
+-
+-    #finish-top,
+-    #finish-logo-text {
+-        height: 100%;
+-        gap: 32px;
+-        justify-content: center;
+-        align-items: center;
+-    }
+-
+-    #finish-logo-text,
+-    #finish-text {
+-        gap: 16px
+-    }
+-
+-    #finish-logo {
+-        display: flex;
+-        align-items: center;
+-    }
+-
+-    #finish-text p {
+-        font-size: 20px;
+-    }
++    .appearance-options { width: min(100%, 360px); display: flex; flex-direction: column; gap: 16px; }
++    .option { display: flex; align-items: center; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; }
++    .option > span { font-size: 15px; color: var(--secondary); }
++    .option :global(select) { min-width: 160px; }
+ </style>
+--- a/components/helium_onboarding/src/pages/HeliumServices.svelte
++++ b/components/helium_onboarding/src/pages/HeliumServices.svelte
+@@ -1,6 +1,6 @@
+ <script lang="ts">
+-    import LuneLogo from "../components/LuneLogo.svelte";
+-    import { CardLink } from "@imput/helium-prism";
++
++    import { CardLink, HeliumLogo } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { platform } from "../lib/platform";
+     import { currentPage } from "../lib/onboarding-flow";
+@@ -31,16 +31,6 @@
+             available: !platform.is.android,
+         },
+         {
+-            title: platform.is.linux
+-                ? s.services.autoupdatesTitleLinux
+-                : s.services.autoupdatesTitle,
+-            desc: platform.is.linux
+-                ? s.services.autoupdatesDescLinux
+-                : s.services.luneUpdates,
+-            prefName: "services.browser_updates",
+-            available: !platform.is.android,
+-        },
+-        {
+             title: s.services.spellcheckTitle,
+             desc: s.services.spellcheckDesc,
+             prefName: "services.spellcheck_files",
+@@ -54,7 +44,7 @@
+         <PageHeader
+             title={s.services.title}
+             subtitle={s.services.provider}
+-            Icon={LuneLogo}
++            Icon={HeliumLogo}
+             iconHeight="32px"
+         />
+         <div class="page-content">
+--- a/components/helium_onboarding/src/pages/Welcome.svelte
++++ b/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -1,339 +1,107 @@
+ <script lang="ts">
+     import LuneLogo from "../components/LuneLogo.svelte";
+-    import { flushSync, onMount } from "svelte";
+-    import {
+-        Button,
+-        IconArrowRight,
+-        IconCheck,
+-        Link,
+-    } from "@imput/helium-prism";
++    import { IconArrowRight, Link } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { parseLocalizedString } from "../lib/i18n";
+-    import { setPref, acceptLatestSchema, openNewTab } from "../lib/browser";
+-    import {
+-        currentPage,
+-        hasSeenIntro,
+-        markIntroSeen,
+-        nextPage,
+-        ONBOARDING_INTRO_DELAY_MS,
+-    } from "../lib/onboarding-flow";
+-
+-    const useDefaults = async () => {
+-        acceptLatestSchema();
+-        await setPref('services.user_consented', true);
+-        await setPref('completed_onboarding', true);
+-        openNewTab();
+-    }
+-
++    import { preferences, setPref, acceptLatestSchema, openNewTab } from "../lib/browser";
++    import { currentPage, markIntroSeen, nextPage } from "../lib/onboarding-flow";
+     const visible = $derived($currentPage === "Welcome");
+-
+-    const privacyUrl = "https://helium.computer/privacy";
+-    const termsUrl = "https://helium.computer/terms";
+-    const LOGO_TRANSITION_DELAY_MS = ONBOARDING_INTRO_DELAY_MS + 1600;
+     const termsParts = parseLocalizedString(s.welcome.terms);
+-
+-    let introLogoVisible = $state(!$hasSeenIntro);
+-    let introAnimating = $state(!$hasSeenIntro);
+-    const finalLogoVisible = $derived(!introLogoVisible);
+-
+-    const next = () => {
++    let working = $state(false);
++    let updateWrite: Promise<void> = Promise.resolve();
++    const useDefaults = async () => {
++        working = true;
++        try {
++            await updateWrite;
++            acceptLatestSchema();
++            await setPref('services.enabled', true);
++            await setPref('services.user_consented', true);
++            await setPref('completed_onboarding', true);
++            openNewTab();
++        } finally { working = false; }
++    };
++    const next = async () => {
++        await updateWrite;
++        await setPref('services.enabled', false);
+         markIntroSeen();
+         nextPage();
+-    }
+-
+-    const transitionIntroLogo = async () => {
+-        const transition = document.startViewTransition(() => {
+-            flushSync(() => {
+-                introLogoVisible = false;
+-            });
+-        });
+-
+-        await transition.finished;
+-        introAnimating = false;
+-    }
+-
+-    onMount(() => {
+-        if ($hasSeenIntro) {
+-            return;
+-        }
+-
+-        const timer = window.setTimeout(
+-            transitionIntroLogo,
+-            LOGO_TRANSITION_DELAY_MS
+-        );
+-
+-        return () => {
+-            window.clearTimeout(timer);
+-        }
+-    });
++    };
+ </script>
+ 
+-{#if introLogoVisible}
+-    <div id="welcome-logo-intro">
+-        <LuneLogo height="84px" />
+-    </div>
+-{/if}
+-
+-<div
+-    id="welcome-page"
+-    class="onboarding-page"
+-    class:visible
+-    class:intro={!$hasSeenIntro}
+-    inert={introAnimating}
+->
++<div id="welcome-page" class="onboarding-page" class:visible inert={!visible}>
+     <div id="welcome-page-container">
+-        <div id="welcome-top">
+-            <div id="welcome-logo-text">
+-                <div id="welcome-logo" class:visible={finalLogoVisible}>
+-                    <LuneLogo height="48px" />
+-                </div>
+-                <div id="welcome-text">
+-                    <h1>
+-                        {s.welcome.greeting}
+-                    </h1>
+-                    <p>
+-                        {s.welcome.body}
+-                    </p>
+-                    <p id="upstream-credit">
+-                        {s.welcome.upstreamCredit}
+-                        <a href="https://helium.computer/" target="_blank" rel="noopener noreferrer">helium.computer</a>
+-                    </p>
+-                </div>
+-            </div>
+-            <div id="welcome-buttons" class="action-buttons">
+-                <Button onclick={useDefaults}>
+-                    <IconCheck />
+-                    {s.button.useDefaults}
+-                </Button>
+-                <Button primary onclick={next}>
+-                    <IconArrowRight />
+-                    {s.button.configure}
+-                </Button>
+-            </div>
+-
+-            <div id="welcome-footer">
+-                <p>
+-                    {#each termsParts as part}
+-                        {#if part.kind === "linkPrivacy"}
+-                            <Link href={privacyUrl}>{part.text}</Link>
+-                        {:else if part.kind === "linkTerms"}
+-                            <Link href={termsUrl}>{part.text}</Link>
+-                        {:else}
+-                            {part.text}
+-                        {/if}
+-                    {/each}
+-                </p>
+-
+-                <p>{s.welcome.footer}</p>
+-            </div>
++        <LuneLogo height="112px" />
++        <div class="welcome-content">
++        <h1>{s.welcome.greeting}</h1>
++        <p class="description">{s.welcome.body}</p>
++        <div class="welcome-actions">
++            <button class="primary" onclick={next} disabled={working}>{s.button.configure}<IconArrowRight /></button>
++            <button class="ghost" onclick={useDefaults} disabled={working}>{s.button.useDefaults}</button>
++        </div>
++        <div class="updates">
++            <label>
++                <input type="checkbox" role="switch"
++                    checked={$preferences['services.browser_updates'] ?? true}
++                    onchange={(event) => { updateWrite = setPref('services.browser_updates', event.currentTarget.checked); }} />
++                {s.welcome.updatesTitle}
++            </label>
++        </div>
++        <footer>
++            <p class="upstream-credit">{s.welcome.upstreamCredit}</p>
++            <p class="policy">{#each termsParts as part}{#if part.kind === "linkPrivacy"}<Link href="https://helium.computer/privacy">{part.text}</Link>{:else if part.kind === "linkTerms"}<Link href="https://helium.computer/terms">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
++            <p>{s.welcome.footer}</p>
++        </footer>
+         </div>
+     </div>
+ </div>
+ 
+ <style>
+-    #welcome-page {
+-        --page-in-delay: 0.1s;
+-    }
+-
+-    #welcome-top,
+-    #welcome-text,
+-    #welcome-logo-text {
+-        display: flex;
+-        flex-direction: column;
+-        align-items: flex-start;
+-        text-align: left;
+-    }
+-
+-    #welcome-page-container {
+-        width: 100%;
+-        max-width: 548px;
+-        padding-inline: 24px;
+-    }
+-
+-    #welcome-top,
+-    #welcome-logo-text {
+-        height: 100%;
+-        gap: 32px;
+-        justify-content: center;
+-    }
+-
+-    #welcome-logo-text,
+-    #welcome-text {
+-        gap: 14px;
+-    }
+-
+-    #welcome-logo {
+-        display: flex;
+-        opacity: 0;
+-
+-        &.visible {
+-            opacity: 1;
+-            view-transition-name: welcome-logo;
+-        }
+-    }
+-
+-    #welcome-text p {
+-        font-size: 21px;
+-        max-width: 500px;
+-    }
+-
+-    #welcome-footer {
+-        display: flex;
+-        flex-direction: column;
+-        width: 100%;
+-
+-        p {
+-            font-size: 13px;
+-        }
+-
+-        :global(a) {
+-            font-size: inherit;
+-            line-height: inherit;
+-        }
+-    }
+-
+-    #welcome-logo-intro {
+-        display: flex;
+-        position: absolute;
+-        z-index: 1;
+-        top: 50%;
+-        translate: 0 -50%;
+-
+-        animation:
+-            intro-logo-center
+-            1.7s
+-            cubic-bezier(0.16, 1, 0.3, 1)
+-            calc(var(--onboarding-intro-delay) + 0.85s)
+-            both;
+-        view-transition-name: welcome-logo;
+-        will-change: transform, opacity;
+-    }
+-
+-    #welcome-page.visible.intro {
+-        animation: none;
+-
+-        #welcome-text,
+-        #welcome-buttons,
+-        #welcome-footer {
+-            opacity: 0;
+-            animation:
+-                page-in
+-                0.35s
+-                forwards
+-                calc(var(--onboarding-intro-delay) + 1.8s);
+-        }
+-    }
+-
+-    :global(::view-transition-group(welcome-logo)) {
+-        animation-duration: 0.72s;
+-        animation-timing-function: cubic-bezier(0.32, 1, 0.4, 1);
+-    }
+-
+-    :global(::view-transition-image-pair(welcome-logo)) {
+-        animation: intro-logo-arc 0.72s;
+-    }
+-
+-    :global(::view-transition-old(welcome-logo)),
+-    :global(::view-transition-new(welcome-logo)) {
+-        animation: none;
+-        height: 100%;
+-        object-fit: contain;
+-        width: 100%;
+-    }
+-
+-    @keyframes intro-logo-center {
+-        from {
+-            opacity: 0;
+-            transform: translateY(360px);
+-        }
+-
+-        to {
+-            opacity: 1;
+-            transform: none;
+-        }
+-    }
+-
+-    @keyframes intro-logo-arc {
+-        from,
+-        to {
+-            translate: 0 0;
+-        }
+-
+-        20% {
+-            translate: 0 -40px;
+-        }
+-    }
+-
+-    @media (prefers-reduced-motion: reduce) {
+-        #welcome-page.visible.intro {
+-            opacity: 0;
+-            animation:
+-                intro-state-fade-in
+-                0.5s
+-                calc(var(--onboarding-intro-delay) + 1.6s)
+-                both;
+-
+-            #welcome-text,
+-            #welcome-buttons,
+-            #welcome-footer {
+-                opacity: 1;
+-                animation: none;
+-            }
+-        }
+-
+-        #welcome-logo-intro {
+-            animation:
+-                intro-logo-center
+-                0.5s
+-                calc(var(--onboarding-intro-delay) + 0.2s)
+-                both;
+-        }
+-
+-        #welcome-logo.visible {
+-            view-transition-name: none;
+-        }
+-
+-        :global(::view-transition-group(welcome-logo)),
+-        :global(::view-transition-image-pair(welcome-logo)) {
+-            animation: none;
+-        }
+-
+-        :global(::view-transition-old(welcome-logo)) {
+-            animation: intro-logo-fade-out 0.5s both;
+-        }
+-
+-        :global(::view-transition-new(welcome-logo)) {
+-            display: none;
+-        }
+-
+-        @keyframes intro-logo-center {
+-            from {
+-                opacity: 0;
+-            }
+-
+-            to {
+-                opacity: 1;
+-            }
+-        }
+-
+-        @keyframes intro-logo-fade-out {
+-            from {
+-                opacity: 1;
+-            }
+-
+-            to {
+-                opacity: 0;
+-            }
+-        }
+-
+-        @keyframes intro-state-fade-in {
+-            from {
+-                opacity: 0;
+-            }
+-
+-            to {
+-                opacity: 1;
+-            }
+-        }
++    #welcome-page { overflow-y: auto; justify-content: safe center; padding: 32px 20px; box-sizing: border-box; }
++    #welcome-page.visible { animation: none; }
++    #welcome-page.visible #welcome-page-container {
++        animation: welcome-rise 3300ms cubic-bezier(.45,0,.55,1) 200ms both;
++    }
++    #welcome-page.visible :global(svg[aria-label="Lune"]) {
++        animation: logo-settle 3300ms cubic-bezier(.45,0,.55,1) 200ms both;
++        transform-origin: center;
++    }
++    #welcome-page.visible .welcome-content {
++        animation: welcome-in 1500ms cubic-bezier(.25,.1,.25,1) 2000ms both;
++        transform-origin: center top;
++    }
++    #welcome-page-container { width: 100%; max-width: 640px; margin: auto; text-align: center; }
++    #welcome-page-container :global(svg[aria-label="Lune"]) { display: block; margin-inline: auto; }
++    h1 { font: 800 40px/1 Syne, sans-serif; letter-spacing: -.05em; margin: 24px 0 20px; }
++    .description { font: 400 15px/24px Inter, sans-serif; color: light-dark(#526B65,#B5CBD7); max-width: 440px; margin: 0 auto 28px; text-wrap: balance; }
++    .welcome-actions { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
++    button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 11px 20px; border: 0; border-radius: 24px; font: 400 16px/20px Inter,sans-serif; cursor: pointer; }
++    button :global(svg) { width: 16px; height: 16px; stroke-width: 1.75; }
++    #welcome-page button.primary { padding-inline: 20px 16px; }
++    .primary { background: var(--helium-blue); color: var(--white); padding-right: 16px; }
++    .primary:hover { background: var(--helium-blue-hover); }
++    .ghost { background: transparent; color: light-dark(#234550,#C9D9E3); box-shadow: inset 0 0 0 1px light-dark(#23455059,#C9D9E359); }
++    button:focus-visible, input:focus-visible { outline: 2px solid var(--helium-blue); outline-offset: 4px; }
++    .updates { margin-top: 28px; }
++    label { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; cursor: pointer; }
++    input { appearance: none; width: 30px; height: 18px; border-radius: 12px; background: color-mix(in srgb,var(--secondary) 30%,transparent); margin: 0; padding: 3px; cursor: pointer; }
++    input::before { content: ''; display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--bg-gradient-start); transition: transform 150ms; }
++    input:checked { background: var(--helium-blue); }
++    input:checked::before { transform: translateX(12px); }
++    footer p { font: 400 11px/1.2 Inter,sans-serif; color: var(--secondary); margin: 0; }
++    footer { margin-top: 48px; }
++    footer .upstream-credit { font-size: 13px; line-height: 20px; margin-bottom: 8px; }
++    footer :global(a) { font: inherit; color: inherit; }
++    /* Start the logo just above center, including when the content needs to scroll. */
++    @keyframes welcome-rise {
++        from { transform: translateY(min(calc(50% - 106px), calc(50svh - 138px))); }
++        to { transform: translateY(0); }
++    }
++    @keyframes logo-settle { from { transform: scale(1.2); } to { transform: scale(1); } }
++    @keyframes welcome-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
++    @media(prefers-reduced-motion: reduce) {
++        #welcome-page.visible :global(svg[aria-label="Lune"]),
++        #welcome-page.visible #welcome-page-container,
++        #welcome-page.visible .welcome-content { animation: none; }
++        input::before { transition: none; }
+     }
+ </style>
+--- a/chrome/browser/ui/webui/BUILD.gn
++++ b/chrome/browser/ui/webui/BUILD.gn
+@@ -717,6 +717,7 @@
+     "onboarding/onboarding_page_ui.h",
+   ]
+   public_deps = [
++    "//chrome/browser/themes",
+     "//chrome/browser/profiles:profile",
+     "//chrome/common",
+     "//components/prefs",
+@@ -724,11 +725,16 @@
+     "//extensions/browser",
+   ]
+   deps = [
++    "//chrome/browser/ui/webui/cr_components/theme_color_picker",
++    "//ui/base",
+     "//base",
+     "//chrome/browser:browser_process",
+     "//chrome/browser/extensions",
+     "//chrome/browser/profiles",
+     "//chrome/browser/ui/webui/settings",
++    "//chrome/browser/ui/customize_chrome",
++    "//chrome/browser/ui/webui/side_panel/customize_chrome:customize_chrome_ui",
++    "//components/tabs:public",
+     "//components/helium_onboarding:generated_resources",
+     "//components/helium_onboarding:localized_strings",
+     "//components/helium_services",
+--- a/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
++++ b/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
+@@ -6,12 +6,20 @@
+ 
+ #include "base/functional/bind.h"
+ #include "base/strings/string_util.h"
++#include "base/strings/string_number_conversions.h"
++#include "chrome/browser/themes/theme_service_factory.h"
++#include "chrome/browser/ui/webui/cr_components/theme_color_picker/customize_chrome_colors.h"
++#include "ui/base/l10n/l10n_util.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/values.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/extensions/webstore_install_with_prompt.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/customize_chrome/side_panel_controller.h"
++#include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
++#include "components/tabs/public/tab_interface.h"
++#include "content/public/browser/navigation_handle.h"
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_manager.h"
+ #include "chrome/browser/profiles/profiles_state.h"
+@@ -94,6 +102,23 @@
+ }
+ 
+ void OnboardingMessageHandler::RegisterMessages() {
++  Observe(web_ui()->GetWebContents());
++  web_ui()->RegisterMessageCallback(
++      "setOnboardingTheme",
++      base::BindRepeating(&OnboardingMessageHandler::HandleSetTheme,
++                         base::Unretained(this)));
++  web_ui()->RegisterMessageCallback(
++      "setOnboardingColorScheme",
++      base::BindRepeating(&OnboardingMessageHandler::HandleSetColorScheme,
++                         base::Unretained(this)));
++  web_ui()->RegisterMessageCallback(
++      "getOnboardingAppearance",
++      base::BindRepeating(&OnboardingMessageHandler::HandleGetAppearance,
++                         base::Unretained(this)));
++  web_ui()->RegisterMessageCallback(
++      "setOnboardingAppearance",
++      base::BindRepeating(&OnboardingMessageHandler::HandleSetAppearance,
++                         base::Unretained(this)));
+   web_ui()->RegisterMessageCallback(
+       "getPrefs",
+       base::BindRepeating(&OnboardingMessageHandler::HandleGetPreferences,
+@@ -299,3 +324,132 @@
+       base::mac::SystemSettingsPane::kPrivacySecurity_FilesAndFolders);
+ }
+ #endif
++
++void OnboardingMessageHandler::HandleSetAppearance(const base::ListValue& args) {
++  if (args.size() != 1 || !args[0].is_bool()) {
++    return;
++  }
++  if (!args[0].GetBool()) {
++    CloseAppearance();
++    return;
++  }
++  auto* tab = tabs::TabInterface::MaybeGetFromContents(web_contents());
++  if (!tab) {
++    return;
++  }
++  auto* controller = customize_chrome::SidePanelController::Get(
++      tab->GetUnownedUserDataHost());
++  if (controller) {
++    AllowJavascript();
++    controller->OpenSidePanel(SidePanelOpenTrigger::kUnknown,
++                              CustomizeChromeSection::kAppearance);
++    appearance_opened_ = true;
++  }
++}
++
++void OnboardingMessageHandler::CloseAppearance() {
++  if (!appearance_opened_ || !web_contents()) {
++    return;
++  }
++  appearance_opened_ = false;
++  auto* tab = tabs::TabInterface::MaybeGetFromContents(web_contents());
++  if (tab) {
++    auto* controller = customize_chrome::SidePanelController::Get(
++        tab->GetUnownedUserDataHost());
++    if (controller) {
++      controller->CloseSidePanel();
++    }
++  }
++}
++
++void OnboardingMessageHandler::DidStartNavigation(
++    content::NavigationHandle* handle) {
++  if (handle->IsInPrimaryMainFrame() && !handle->IsSameDocument()) {
++    CloseAppearance();
++  }
++}
++
++void OnboardingMessageHandler::OnJavascriptDisallowed() {
++  theme_observation_.Reset();
++  CloseAppearance();
++}
++
++base::DictValue OnboardingMessageHandler::GetAppearanceDict() {
++  auto* service = ThemeServiceFactory::GetForProfile(profile_);
++  std::string selected = "lune";
++  if (service->UsingDeviceTheme()) {
++    selected = "system";
++  } else if (service->GetIsGrayscale()) {
++    selected = "grayscale";
++  } else if (service->GetUserColor().has_value() ||
++             service->UsingExtensionTheme()) {
++    selected = "custom";
++  }
++  base::ListValue colors;
++  for (const auto& color : kDynamicCustomizeChromeColors) {
++    colors.Append(base::DictValue()
++                      .Set("value", base::NumberToString(color.id))
++                      .Set("label", l10n_util::GetStringUTF8(color.label_id)));
++    if (selected == "custom" &&
++        service->GetUserColor() == color.color &&
++        service->GetBrowserColorVariant() == color.variant) {
++      selected = base::NumberToString(color.id);
++    }
++  }
++  return base::DictValue()
++      .Set("scheme", static_cast<int>(service->GetBrowserColorScheme()))
++      .Set("theme", selected)
++      .Set("colors", std::move(colors));
++}
++
++void OnboardingMessageHandler::HandleGetAppearance(const base::ListValue& args) {
++  CHECK_EQ(1U, args.size());
++  AllowJavascript();
++  if (!theme_observation_.IsObserving()) {
++    theme_observation_.Observe(ThemeServiceFactory::GetForProfile(profile_));
++  }
++  ResolveJavascriptCallback(args[0], GetAppearanceDict());
++}
++
++void OnboardingMessageHandler::OnThemeChanged() {
++  if (IsJavascriptAllowed()) {
++    FireWebUIListener("onboarding-appearance-changed", GetAppearanceDict());
++  }
++}
++
++void OnboardingMessageHandler::HandleSetColorScheme(const base::ListValue& args) {
++  if (args.size() != 1 || !args[0].is_int()) {
++    return;
++  }
++  const int scheme = args[0].GetInt();
++  if (scheme < 0 || scheme > 2) {
++    return;
++  }
++  ThemeServiceFactory::GetForProfile(profile_)->SetBrowserColorScheme(
++      static_cast<ThemeService::BrowserColorScheme>(scheme));
++}
++
++void OnboardingMessageHandler::HandleSetTheme(const base::ListValue& args) {
++  if (args.size() != 1 || !args[0].is_string()) {
++    return;
++  }
++  auto* service = ThemeServiceFactory::GetForProfile(profile_);
++  const auto& selected = args[0].GetString();
++  if (selected == "system") {
++    service->UseDeviceTheme(true);
++  } else if (selected == "lune") {
++    service->SetUserColor(std::nullopt);
++    service->UseDeviceTheme(false);
++  } else if (selected == "grayscale") {
++    service->SetIsGrayscale(true);
++    service->UseDeviceTheme(false);
++  } else {
++    for (const auto& color : kDynamicCustomizeChromeColors) {
++      if (selected == base::NumberToString(color.id)) {
++        service->SetUserColorAndBrowserColorVariant(color.color, color.variant);
++        service->UseDeviceTheme(false);
++        break;
++      }
++    }
++  }
++}
+--- a/chrome/browser/ui/webui/onboarding/onboarding_handler.h
++++ b/chrome/browser/ui/webui/onboarding/onboarding_handler.h
+@@ -14,10 +14,13 @@
+ #include "base/values.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/themes/theme_service.h"
++#include "chrome/browser/themes/theme_service_observer.h"
+ #include "extensions/browser/webstore_install_result.h"
+ #include "components/prefs/pref_change_registrar.h"
+ #include "components/prefs/pref_service.h"
+ #include "content/public/browser/web_ui_message_handler.h"
++#include "content/public/browser/web_contents_observer.h"
+ #include "extensions/browser/extension_registry_observer.h"
+ 
+ namespace content {
+@@ -25,7 +28,9 @@
+ }
+ 
+ class OnboardingMessageHandler : public content::WebUIMessageHandler,
+-                                 public extensions::ExtensionRegistryObserver {
++                                 public extensions::ExtensionRegistryObserver,
++                                 public content::WebContentsObserver,
++                                 public ThemeServiceObserver {
+  public:
+   explicit OnboardingMessageHandler(content::BrowserContext* browser_context);
+   OnboardingMessageHandler(const OnboardingMessageHandler&) = delete;
+@@ -36,6 +41,11 @@
+ 
+  private:
+   base::DictValue GetPreferencesDict();
++  base::DictValue GetAppearanceDict();
++  void HandleGetAppearance(const base::ListValue& args);
++  void HandleSetColorScheme(const base::ListValue& args);
++  void HandleSetTheme(const base::ListValue& args);
++  void OnThemeChanged() override;
+   void HandleGetPreferences(const base::ListValue& args);
+   void HandleAcceptSchema(const base::ListValue& args);
+   void HandleSetPreference(const base::ListValue& args);
+@@ -47,6 +57,11 @@
+   void HandleOpenFilesAndFoldersSettings(const base::ListValue& args);
+ #endif
+   void OnPreferencesChanged();
++  void HandleSetAppearance(const base::ListValue& args);
++  void CloseAppearance();
++  void DidStartNavigation(content::NavigationHandle* handle) override;
++  void OnJavascriptDisallowed() override;
++  bool appearance_opened_ = false;
+ 
+   void DoInstallExtension(const std::string& callback_id,
+                           const std::string& extension_id);
+@@ -69,6 +84,9 @@
+   raw_ptr<PrefService> pref_service_ = nullptr;
+   PrefChangeRegistrar pref_change_registrar_;
+ 
++  base::ScopedObservation<ThemeService, ThemeServiceObserver>
++      theme_observation_{this};
++
+   base::WeakPtrFactory<OnboardingMessageHandler> weak_ptr_factory_{this};
+ 
+   // extensions:ExtensionRegistryObserver:
+--- a/components/helium_onboarding/src/pages/DefaultBrowser.svelte
++++ /dev/null
+@@ -1,46 +0,0 @@
+-<script lang="ts">
+-    import { IconCheck, IconX } from "@imput/helium-prism";
+-    import { s } from "../lib/strings";
+-    import { currentPage, userChoseHeliumAsDefault } from "../lib/onboarding-flow";
+-
+-    import PageHeader from "../components/PageHeader.svelte";
+-    import DefaultBrowserOption from "../components/DefaultBrowserOption.svelte";
+-
+-    import IconWorldHeart from "../icons/tabler/IconWorldHeart.svelte";
+-
+-    const visible = $derived($currentPage === "DefaultBrowser");
+-</script>
+-
+-<div id="default-browser-page" class="onboarding-page" class:visible>
+-    <div id="default-browser-container">
+-        <PageHeader
+-            title={s.defaultBrowser.title}
+-            subtitle={s.defaultBrowser.subtitle}
+-            noTopMargin
+-            verticalTitle
+-            Icon={IconWorldHeart}
+-        />
+-        <div class="page-content">
+-            <DefaultBrowserOption
+-                title={s.defaultBrowser.yes}
+-                desc={s.defaultBrowser.yesDesc}
+-                state={userChoseHeliumAsDefault}
+-                stateOption={true}
+-                Icon={IconCheck}
+-            />
+-            <DefaultBrowserOption
+-                title={s.defaultBrowser.no}
+-                desc={s.defaultBrowser.noDesc}
+-                state={userChoseHeliumAsDefault}
+-                stateOption={false}
+-                Icon={IconX}
+-            />
+-        </div>
+-    </div>
+-</div>
+-
+-<style>
+-    #default-browser-container {
+-        max-width: 600px;
+-    }
+-</style>
+--- a/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
++++ b/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
+@@ -23,6 +23,9 @@
+     'completed_onboarding': false,
+     'services.bangs': true,
+     'services.enabled': true,
++    'browser.vertical_right_aligned': false,
++    'browser.zen_mode_top_chrome_pinned': false,
++    'browser.top_controls_overlay': false,
+     'services.ext_proxy': true,
+     'services.origin_override': '',
+     'services.user_consented': false,
+@@ -64,13 +67,13 @@
+ let currentDefault = 0;
+ 
+ const actualDefaults: [string, number, string, boolean, boolean][] = [
+-    ["DuckDuckGo", 6, "duckduckgo.com", true, true],
++    ["DuckDuckGo", 6, "duckduckgo.com", false, true],
+     ["Kagi", 7, "kagi.com", false, true],
+     ["Ecosia", 3, "ecosia.org", false, true],
+     ["Qwant", 4, "qwant.com", false, true],
+     ["Microsoft Bing", 2, "bing.com", false, true],
+     ["Google", 5, "google.com", false, true],
+-    ["Startpage", 8, "startpage.com", false, true],
++    ["Startpage", 8, "startpage.com", true, true],
+     ["Brave Search", 9, "search.brave.com", false, true],
+ ];
+ 
+@@ -155,10 +158,20 @@
+     mhjfbmdgcfjbbpaeojofohoefgiehjai: true,
+ };
+ 
++const appearance = {scheme: 0, theme: 'lune', colors: [{value: '2', label: 'Blue'}, {value: '6', label: 'Green'}]};
++
+ const _send_polyfill = (msg: string, params?: any[]) => {
++    // The development preview has no native appearance panel.
++    if (msg === "setOnboardingAppearance") return;
+     console.log(msg, params);
+ 
+-    if (msg === 'getPrefs') {
++    if (msg === 'getOnboardingAppearance') {
++        cr.webUIResponse(params![0], true, {...appearance});
++    } else if (msg === 'setOnboardingColorScheme' || msg === 'setOnboardingTheme') {
++        if (msg === 'setOnboardingColorScheme') appearance.scheme = params![0];
++        else appearance.theme = params![0];
++        cr.webUIListenerCallback('onboarding-appearance-changed', {...appearance});
++    } else if (msg === 'getPrefs') {
+         cr.webUIResponse(params![0], true, { ...prefs });
+     } else if (msg === 'setPref') {
+         const [id, name, new_val] = params! as [string, string, any];
+--- a/components/helium_onboarding/src/pages/index.ts
++++ b/components/helium_onboarding/src/pages/index.ts
+@@ -3,7 +3,6 @@
+ export { default as SearchEngine } from "./SearchEngine.svelte";
+ export { default as DataImport } from "./DataImport.svelte";
+ export { default as PasswordManager } from "./PasswordManager.svelte";
+-export { default as DefaultBrowser } from "./DefaultBrowser.svelte";
+ export { default as Finish } from "./Finish.svelte";
+ 
+ // Add new pages above this line and update the flow in lib/onboarding-flow.ts
+--- a/components/helium_onboarding/vite.config.ts
++++ b/components/helium_onboarding/vite.config.ts
+@@ -51,6 +51,8 @@
+     },
+     build: {
+         target: 'chrome140',
++        // This directory is generated; discard stale hashed chunks on rebuild.
++        emptyOutDir: true,
+         assetsInlineLimit: (filename) => filename.endsWith('.svg')
+     }
+ });
+--- a/components/helium_onboarding/src/components/BrowserImportGraphic.svelte
++++ b/components/helium_onboarding/src/components/BrowserImportGraphic.svelte
+@@ -35,12 +35,9 @@
+ 
+ <div class={["browser-reveal", { collapsed: !visible }]} aria-hidden="true">
+     <div class="icon-stage">
+-        <img
+-            class="browser-icon helium-icon"
+-            src="/lune.svg"
+-            alt=""
+-            draggable="false"
+-        />
++        <div class="browser-icon helium-icon">
++            <img src="/lune-app.svg" alt="" draggable="false" />
++        </div>
+         <div class="background-icons">
+             {#each icons as icon}
+                 <img
+@@ -114,10 +111,30 @@
+     .helium-icon {
+         --offset: 0;
+         --y: 0;
+-        --size: 1.6;
++        --size: 1.316;
+         --icon-opacity: 1;
+         --reveal-delay: 0ms;
+         z-index: 200;
++        border-radius: 22.321429%;
++        overflow: hidden;
++    }
++
++    .helium-icon img {
++        /* Crop the app artwork's 64px transparent inset on its 1024px canvas. */
++        position: absolute;
++        width: 114.285714%;
++        height: 114.285714%;
++        max-width: none;
++        top: -7.142857%;
++        left: -7.142857%;
++    }
++
++    .helium-icon::after {
++        content: "";
++        position: absolute;
++        inset: 0;
++        border-radius: inherit;
++        box-shadow: inset 0 1px 0 #ffffff80, inset 0 -1px 0 #00000040;
+     }
+ 
+     @keyframes browser-reveal {
+--- a/components/helium_onboarding/src/components/ImportPrompt.svelte
++++ b/components/helium_onboarding/src/components/ImportPrompt.svelte
+@@ -1,5 +1,5 @@
+ <script lang="ts">
+-    import { Button, IconCheck, Spinner } from "@imput/helium-prism";
++    import { Button, Spinner } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { importDiscovery, loadImportableProfiles } from "../lib/browser";
+ 
+@@ -20,10 +20,8 @@
+         <Button primary disabled={busy} onclick={loadImportableProfiles}>
+             {#if busy}
+                 <Spinner size={18} />
+-            {:else}
+-                <IconCheck />
+             {/if}
+-            {s.dataImport.allow}
++            {s.button.import}
+         </Button>
+     {/snippet}
+ </ImportNotice>
+--- a/components/helium_onboarding/src/lib/browser/prefs.ts
++++ b/components/helium_onboarding/src/lib/browser/prefs.ts
+@@ -3,6 +3,9 @@
+ 
+ export type Preferences = {
+     'completed_onboarding': boolean,
++    'browser.vertical_right_aligned': boolean,
++    'browser.zen_mode_top_chrome_pinned': boolean,
++    'browser.top_controls_overlay': boolean,
+     'services.bangs': boolean,
+     'services.enabled': boolean,
+     'services.ext_proxy': boolean,
+--- /dev/null
++++ b/components/helium_onboarding/src/icons/tabler/IconAdjustments.svelte
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-3m0-4V3M1 14h6m2-6h6m2 10h6" /></svg>
+--- /dev/null
++++ b/components/helium_onboarding/src/lib/browser/appearance.ts
+@@ -0,0 +1,16 @@
++import { readonly, writable } from "svelte/store";
++import * as cr from "../cr";
++
++export type Appearance = {
++    scheme: number;
++    theme: string;
++    colors: {value: string; label: string}[];
++};
++const state = writable<Appearance>({scheme: 0, theme: 'lune', colors: []});
++export const appearance = readonly(state);
++export const setup = () => {
++    cr.addWebUiListener('onboarding-appearance-changed', (value: Appearance) => state.set(value));
++    cr.sendWithPromise<Appearance>('getOnboardingAppearance').then(value => state.set(value));
++};
++export const setColorScheme = (value: string) => chrome.send('setOnboardingColorScheme', [Number(value)]);
++export const setTheme = (value: string) => chrome.send('setOnboardingTheme', [value]);
+--- a/components/helium_onboarding/src/lib/browser/index.ts
++++ b/components/helium_onboarding/src/lib/browser/index.ts
+@@ -1,6 +1,7 @@
+ import { platform } from "../platform";
+ 
+ export * from "./prefs";
++export { appearance, setColorScheme, setTheme } from "./appearance";
+ export * from "./profile";
+ export * from "./importer";
+ export * from "./extensions";
+--- a/components/helium_onboarding/src/lib/browser/setup.ts
++++ b/components/helium_onboarding/src/lib/browser/setup.ts
+@@ -1,5 +1,6 @@
+ import { platform } from "../platform";
+ 
++import * as Appearance from "./appearance";
+ import * as Prefs from "./prefs";
+ import * as Profile from "./profile";
+ import * as Extensions from "./extensions";
+@@ -17,6 +18,7 @@
+     g_did_setup = true;
+ 
+     Prefs.setup();
++    Appearance.setup();
+     SearchEngines.setup();
+     if (!platform.is.android) {
+         Profile.setup();
