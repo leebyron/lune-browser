@@ -1,5 +1,16 @@
 # Lune 26.1109.1 production acceptance in progress
 
+Post-publication owner feedback from Intel macOS 13.7.8 reports a successful
+download and generally good fallback UI, with window-corner gaps and insufficient
+fallback surface contrast. See [older macOS appearance](../features/older-macos-appearance.md)
+for source findings and the proposed correction. This report does not establish
+the remaining native Intel update/persistence acceptance checks.
+The owner also reports an absent default-browser sidebar action while Lune is
+not the default. [The separate prompt investigation](../features/default-browser-first-launch.md)
+identifies a first-launch gate that the owner wants removed, but the owner
+confirms the row also remains absent after quit/reopen. The persistent cause is
+still unresolved; no macOS 13 rendering cause is established.
+
 This is acceptance evidence, not a publication announcement. The exact browser
 source is `24f6531ae722dfa61e214e04a5efde83bf068f4f`; the production-only delivery
 correction and newer acceptance tools are separate commits on

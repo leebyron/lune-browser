@@ -18,8 +18,11 @@ relaunch and profile persistence. The publication freshness check observed
 Chromium macOS Stable 157.0.8103.51; the shipped 158.0.8127.18 engine is ahead.
 
 The owner explicitly deferred physical Intel testing for this release and chose
-to publish now, with any fixes in later versions. Native Intel/older-macOS results
-remain unverified, not passing. The private optional Intel test kit remains
+to publish now, with any fixes in later versions. The owner subsequently reported
+a successful download and generally good fallback UI on Intel macOS 13.7.8,
+with corner gaps and low-contrast fallback surfaces. Full native Intel acceptance
+remains incomplete; see [older macOS appearance](agent-docs/project/features/older-macos-appearance.md)
+for source findings and the native-radius/fallback-edge plan. The private optional Intel test kit remains
 available. This production policy supersedes older hardware-blocking summaries
 below. No new public staging release or prerelease is authorized; historical
 build-1/build-2 artifacts remain unchanged. Website download links and old-feed
