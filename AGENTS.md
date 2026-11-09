@@ -18,9 +18,28 @@ builds, native rendering checks, UI/settings/persistence smoke checks, and stric
 source replay pass (Intel under Rosetta). Live arm64 checks cover selection/wrapping, result replacement/empty
 results, navigation, dismissal, profile appearances, narrow/wide layout, and
 Command-T scrolling. The corrected Lune Suggestions Test preview uses the normal
-unpinned header setting. Owner visual and native Intel acceptance remain
-unverified. The candidate is not in the development lock or published builds.
+unpinned header setting. The owner accepted the shared row and selection styling
+on November 8, 2026, requesting a smaller address-to-results gap and Command-T
+layout refinements. Native Intel acceptance remains unverified. The candidate is not in the development lock or published builds.
 See [address suggestion selection](agent-docs/project/features/address-suggestion-selection.md).
+
+The accepted issue #13 refinement on `topic/command-bar-corners-reviewed` gives
+Command-T a 48 pt shadow margin, margin-click dismissal, a centered 52 pt empty
+input, a 600 pt maximum width with 36 pt side insets, and top placement centered
+against the five-row maximum. Shared result rows use native 16 pt medium SF
+Symbols without stretching, proportional favicons, tertiary action labels, and
+“Switch to Tab”. A faint 5% black supplemental shadow retains the native glass.
+Address results have a 4 pt top gap and expand the glass 10 pt per side while
+header controls stay fixed. Shared icon padding aligns the result columns.
+The owner accepted final alignment in Lune Corners Test 7 on November 8, 2026,
+and authorized single-thesis commits, pushing, and resolving the issue. Twelve
+signed platform commits end at `7b9dda91`; the original draft is preserved.
+Strict replay matches the accepted source, both builds and native checks pass,
+and smoke checks pass on both architectures before the final padding refinement
+(Intel under Rosetta). Evidence and portable fixtures are on
+`command-bar-corners-evidence`. Native Intel hardware and the older macOS fallback
+remain unverified. The source is not in the development lock or published builds.
+See [Command-T glass bounds and layout](agent-docs/project/features/command-bar-corners.md).
 
 The accepted issue #16 implementation on `topic/header-scroll-through` forwards native
 wheel events over floating header controls and gaps to content under the pointer,

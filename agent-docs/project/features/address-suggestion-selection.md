@@ -17,12 +17,28 @@ secondary text. URL titles appear above their address; searches retain their
 query as primary text. Command-T retains its optional action label and favicon
 updates. Untagged rows use the available text width; narrow rows prioritize text.
 
+A later owner-requested refinement reduces the editor-to-results gap to 4 pt.
+When results are present, the glass expands 10 pt on each side while header
+controls retain their screen coordinates. Result icon centers and primary-text
+columns move toward the site-information control and address field. The owner
+then requested two successive 1 pt additions to padding on each side of row
+icons in both menus, moving the icon right 2 pt and text right 4 pt relative to
+Test 5. The final iteration widens the glass by another 2 pt per side, bringing
+its total expansion to 10 pt per side. The expansion
+disappears with the final result. Shared SF Symbols use native 16 pt
+medium optical sizing without resizing; downloaded favicons are fitted
+proportionally. See the linked refinement evidence for these later checks.
+
 The shared button draws selection, icons, and text and invalidates when selection
 or effective appearance changes. Colors resolve at draw time; no layer color is
 cached. Callers retain result sources, ranking, count limits, activation, index
 tags, and keyboard handling. Hover selection remains enabled only for Command-T;
 address rows do not install tracking areas. Both keep focus in their editor.
-The separate popover material/corner investigation remains in issue #13.
+The subsequent [Command-T corner/layout refinement](command-bar-corners.md)
+records the accepted issue #13 fixes and spacing, native symbol sizing, and
+action-label adjustments. Its signed source stack ends at `7b9dda91` on
+`topic/command-bar-corners-reviewed`; the owner accepted final alignment in
+Lune Corners Test 7 on November 8, 2026 and authorized pushing and resolution.
 
 ## Provenance
 
@@ -70,7 +86,9 @@ restarted before these checks. The identified preview is **Lune Suggestions Test
 (`computer.lune.browser.suggestionstest`), with test pages served only on loopback.
 
 Browser UI/settings/persistence smoke checks pass on arm64 and Intel under
-Rosetta. Native Intel hardware and owner visual acceptance remain unverified. The fixture does not change the
+Rosetta. Native Intel hardware remains unverified. The owner accepted the shared address
+and Command-T selection styling on November 8, 2026, requesting a smaller
+address-to-results gap and the Command-T refinements tracked in issue #13. The fixture does not change the
 user's macOS accent setting or establish live accent-change acceptance.
 
 Local build, replay, native-check, and preview evidence is under
