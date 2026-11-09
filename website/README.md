@@ -84,10 +84,11 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   `x86`. Unsupported, denied, or unknown hints (and other platforms) retain a
   native popover with explicit Apple silicon and Intel choices. Legacy
   `MacIntel`/user-agent strings are not used to infer chip architecture.
-  Downloads remain disabled and labeled Coming soon until validated public
-  releases are available. When publishing, link both the detected build button
-  (`data-architecture="arm64"` or `"x86_64"`) and the explicit choice buttons to
-  the corresponding release; never link to an unvalidated development build.
+  The prepared download buttons and explicit choices use permanent GitHub
+  `releases/latest/download/Lune-macos-ARCH.dmg` URLs. This revision must not be
+  deployed until both aliases resolve to the accepted production release. The
+  stable feed redirects likewise require verified GitHub targets; historical
+  staging XML remains unchanged.
 
 ## Assets and attribution
 

@@ -116,3 +116,12 @@ release pipeline runs separately and does not run from this workflow.
 - [Worker Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
 - [GitHub Actions deployment](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)
 - [DNSimple delegation](https://support.dnsimple.com/articles/setting-name-servers/)
+
+## Production-only delivery correction (November 9, 2026)
+
+The owner requires production/stable only. New releases stay as unpublished
+GitHub drafts until acceptance, then publish final releases and paired stable
+feeds. The website's stable-feed redirects ship only after those targets and
+latest DMG aliases pass anonymous readback. Existing historical staging XML files
+remain served unchanged; do not replace them with redirects to absent GitHub
+staging files. See [the current delivery procedure](release-delivery.md).
