@@ -257,3 +257,8 @@ python3 scripts/check-native-chrome-appearance.py .work/chromium-158/macos/build
 Local evidence and native comparison images are under `.work/glass-appearance/`.
 The new label is an English source string; translations remain subject to the
 existing [string review](string-review.md).
+
+The November 9 [Command-T refinement](command-bar-corners.md#coradial-corners-and-shared-tint-candidate--november-9-2026)
+adds the same tint to Command-T by moving the existing calculation into the shared
+native material utility. System theme remains untinted. This supersedes the earlier
+statement that Command-T tint is unchanged, which describes the original issue #7 stack.

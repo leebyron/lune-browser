@@ -102,3 +102,39 @@ Native Intel hardware and the older macOS material fallback remain unverified.
 The source candidate does not update the development lock or published binaries.
 Local build, replay, native-check, and isolated preview artifacts remain in
 `.work/command-corners/`; Test 7 remains available for owner testing.
+
+## Coradial corners and shared tint candidate — November 9, 2026
+
+Source inspection found a 20 pt Command-T panel radius around 10 pt selected-row
+corners. Rows have an 8 pt horizontal inset and a 1 pt vertical paint inset,
+so the previous 8 pt bottom layout inset produced a 9 pt visible bottom gap.
+These corner centers did not align. The local `command-bar-coradial-tint`
+candidate uses an 18 pt panel radius and a 7 pt bottom layout inset, producing
+an equal 8 pt visible gap on the sides and bottom. The backing, glass, fallback,
+and supplemental shadow share the panel radius. Shared row painting is unchanged;
+its existing radius and vertical inset are now named constants.
+
+Command-T also uses the address bar's shared `NativeGlassThemeTintColor` helper:
+the theme's light/dark HSL midpoint at 5% alpha, or no tint for System theme.
+The calculation moved to the existing native material utility, and frame surfaces
+call the same implementation. Command-T obtains the owning browser tint when opened,
+consistent with its existing appearance/content-awareness setup.
+
+The owner accepted the preview and authorized committing and pushing to main on
+November 9, 2026. Two signed platform commits follow the accepted onboarding input:
+
+- `13c6e6177b0be80e6bccc1ee0b22c047ed8ab2be` — Align Command-T glass corners with result selection curves.
+- `464c529859cd2b723320d3d43b1ddbd7fada1bc4` — Share the native browser glass tint with Command-T.
+
+The development lock pins `464c529859cd2b723320d3d43b1ddbd7fada1bc4` under `inputs/command-style-2026-11-09/macos`.
+Strict zero-fuzz replay from recorded prepared-source baselines matches all six
+affected files. Platform patch lint and both full browser builds pass. Native
+shadow/geometry, shared-row rendering, and appearance/tint checks pass on arm64
+and x86_64 under Rosetta. Live arm64 inspection confirms the selected last row
+and keyboard scrolling in **Lune Command Style Test**. Local evidence, build logs,
+and the preview screenshot are under `.work/command-style/`.
+
+Native Intel hardware and older macOS fallback visual acceptance remain unverified.
+The broader browser/settings smoke matrix was not repeated for this focused
+geometry/tint refinement. This updates source and development inputs only; no
+published binary or release feed changes.

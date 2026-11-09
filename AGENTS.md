@@ -8,7 +8,8 @@ Read [the project definition](agent-docs/project/README.md) and
 ## Current state
 
 Main now pins the complete reviewed UI stack plus the accepted onboarding and
-native toolbar refinements through `d499c418` under `inputs/onboarding-2026-11-09-2/macos`.
+native toolbar refinements, plus Command-T corner/tint fixes through
+`464c5298` under `inputs/command-style-2026-11-09/macos`.
 Toolbar inset and cover modes require no launch flag. “Always cover (experimental)”
 retains its explicit label. All toolbar modes preserve native sidebar glass and
 4 px side padding. Sidebar hover/accessibility labels say Pin sidebar or Unpin sidebar.
@@ -18,6 +19,13 @@ controls. Its tab reads Welcome to Lune and uses the envelope.open SF Symbol.
 See [onboarding and toolbar integration](agent-docs/project/features/onboarding.md)
 for the thirteen signed implementation commits, validation, and remaining limits.
 This is a source/development-lock update, not a binary release.
+
+Command-T now uses an 18 pt panel radius around the unchanged 10 pt result corners,
+with equal 8 pt visible side/bottom gaps. Its native glass uses the same 5% theme
+midpoint tint as the address bar; System theme remains untinted. The owner accepted
+the preview and authorized publication on November 9. Two signed source commits,
+strict six-file replay, both architecture builds, and native checks pass (Intel
+runtime fixtures under Rosetta). See [Command-T corners](agent-docs/project/features/command-bar-corners.md).
 
 The following feature summaries retain their original validation history. Their
 statements that reviewed candidates are absent from the development lock are

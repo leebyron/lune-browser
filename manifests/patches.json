@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "d499c418e7d1e85c8447830401a4926d97882e2d",
+    "commit": "464c529859cd2b723320d3d43b1ddbd7fada1bc4",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -633,6 +633,14 @@
       {
         "path": "patches/helium/ui/tab-symbol-foreground.patch",
         "sha256": "f1c7c22dbcb9e097b77318d1500648a3b7cef5c66bf6fd02afa4a100f8f5593b"
+      },
+      {
+        "path": "patches/helium/ui/command-bar-coradial-corners.patch",
+        "sha256": "a04427f7f7d12491555904d2b8a9e83a87ce34faf40cdaa3131092b4dd04af3b"
+      },
+      {
+        "path": "patches/helium/ui/command-bar-shared-theme-tint.patch",
+        "sha256": "9560c14416201b36732e602edaf2a1fd2c0bde60ae7d04d2f2ee81ecb76348de"
       }
     ]
   },
@@ -1363,6 +1371,36 @@
       "adaptation": "Pass the row title color to native replacement symbols without tinting website favicons; see agent-docs/project/features/onboarding.md.",
       "commits": [
         "d499c418e7d1e85c8447830401a4926d97882e2d"
+      ]
+    },
+    {
+      "id": "command-bar-coradial-corners",
+      "depends_on": [
+        "onboarding-reviewed-13"
+      ],
+      "patches": [
+        "patches/helium/ui/command-bar-coradial-corners.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Align Command-T glass corners with result selection curves.",
+      "adaptation": "Developed against the accepted onboarding input; exact zero-fuzz replay of all six affected source files and both architecture builds pass. See agent-docs/project/features/command-bar-corners.md.",
+      "commits": [
+        "13c6e6177b0be80e6bccc1ee0b22c047ed8ab2be"
+      ]
+    },
+    {
+      "id": "command-bar-shared-theme-tint",
+      "depends_on": [
+        "onboarding-reviewed-13"
+      ],
+      "patches": [
+        "patches/helium/ui/command-bar-shared-theme-tint.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Share the native browser glass tint with Command-T.",
+      "adaptation": "Developed against the accepted onboarding input; exact zero-fuzz replay of all six affected source files and both architecture builds pass. See agent-docs/project/features/command-bar-corners.md.",
+      "commits": [
+        "464c529859cd2b723320d3d43b1ddbd7fada1bc4"
       ]
     }
   ],
