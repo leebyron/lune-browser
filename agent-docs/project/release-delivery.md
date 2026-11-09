@@ -16,6 +16,9 @@ and source-export commands from that clean commit. The newer publication tool
 accepts `--source-checkout` pointing to it, records its own separate commit in
 the upload receipt, and validates the original frozen input hashes.
 
+See [current architecture acceptance](builds/2026-11-09-release-delivery.md) for
+build, signing, installed-update evidence and remaining gates.
+
 ## Public URL contract
 
 All browser downloads, source kits, and appcasts live in the public
