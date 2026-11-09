@@ -1,0 +1,121 @@
+--- a/third_party/blink/renderer/core/exported/web_view_impl.cc
++++ b/third_party/blink/renderer/core/exported/web_view_impl.cc
+@@ -3230,6 +3230,17 @@ void WebViewImpl::UpdateMainFrameLayoutS
+   }
+ 
+   view->SetLayoutSize(layout_size);
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
++          "lune-obscured-header-prototype") &&
++      MainFrameImpl()->IsOutermostMainFrame()) {
++    // Meta viewport changes do not necessarily resize the native widget.
++    // Update the layout frame and paint transform while keeping its surface.
++    auto& viewport = GetPage()->GetVisualViewport();
++    view->Resize(MainFrameSize());
++    viewport.SetNeedsPaintPropertyUpdate();
++    view->SetNeedsPaintPropertyUpdate();
++    GetPage()->SetMaxSafeAreaInsets(MainFrameImpl()->GetFrame(), gfx::Insets());
++  }
+ }
+ 
+ gfx::Size WebViewImpl::ContentsSize() const {
+--- a/third_party/blink/renderer/core/frame/viewport_data.cc
++++ b/third_party/blink/renderer/core/frame/viewport_data.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "third_party/blink/renderer/core/frame/viewport_data.h"
+ 
++#include "base/command_line.h"
++
+ #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
+ 
+ #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+@@ -81,6 +83,12 @@ ViewportDescription ViewportData::GetVie
+         ui::mojom::blink::VirtualKeyboardMode::kOverlaysContent;
+   }
+ 
++  // Opt-in is independent of mobile viewport width/zoom handling.
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
++          "lune-obscured-header-prototype")) {
++    applied_viewport_description.SetViewportFit(
++        legacy_viewport_description_.GetViewportFit());
++  }
+   return applied_viewport_description;
+ }
+ 
+--- a/third_party/blink/renderer/core/frame/visual_viewport.cc
++++ b/third_party/blink/renderer/core/frame/visual_viewport.cc
+@@ -30,6 +30,8 @@
+ 
+ #include "third_party/blink/renderer/core/frame/visual_viewport.h"
+ 
++#include "third_party/blink/renderer/core/frame/viewport_data.h"
++
+ #include <memory>
+ 
+ #include "base/command_line.h"
+@@ -520,6 +522,18 @@ PaintPropertyChangeType VisualViewport::
+ VisualViewport::~VisualViewport() = default;
+ 
+ float VisualViewport::ObscuredTopInset() const {
++  const float inset = HeaderTopInset();
++  if (!inset) {
++    return 0;
++  }
++  const auto fit = LocalMainFrame().GetDocument()->GetViewportData()
++                       .GetViewportDescription().GetViewportFit();
++  return fit == mojom::ViewportFit::kCover ||
++                 fit == mojom::ViewportFit::kCoverForcedByUserAgent
++             ? 0 : inset;
++}
++
++float VisualViewport::HeaderTopInset() const {
+   // Keep this first experiment off unless explicitly requested. A production
+   // version must receive window-local geometry with visual properties.
+   static const bool enabled = base::CommandLine::ForCurrentProcess()->HasSwitch(
+--- a/third_party/blink/renderer/core/frame/visual_viewport.h
++++ b/third_party/blink/renderer/core/frame/visual_viewport.h
+@@ -115,6 +115,7 @@ class CORE_EXPORT VisualViewport : publi
+ 
+   // Launch-gated prototype: physical rendering pixels obscured by native UI.
+   float ObscuredTopInset() const;
++  float HeaderTopInset() const;
+ 
+   void InitializeScrollbars();
+ 
+--- a/third_party/blink/renderer/core/page/page.cc
++++ b/third_party/blink/renderer/core/page/page.cc
+@@ -975,6 +975,13 @@ void Page::SetMaxSafeAreaInsets(LocalFra
+   float dsf = chrome_client_->GetScreenInfo(*setter).device_scale_factor;
+   gfx::InsetsF scaled_max_safe_area_insets =
+       ScaleInsets(gfx::InsetsF(max_safe_area), dsf);
++  if (setter->IsOutermostMainFrame()) {
++    const auto& viewport = GetVisualViewport();
++    if (viewport.HeaderTopInset() && !viewport.ObscuredTopInset()) {
++      scaled_max_safe_area_insets.set_top(std::max(
++          scaled_max_safe_area_insets.top(), viewport.HeaderTopInset()));
++    }
++  }
+ 
+   if (scaled_max_safe_area_insets_ != scaled_max_safe_area_insets) {
+     scaled_max_safe_area_insets_ = scaled_max_safe_area_insets;
+--- a/third_party/blink/renderer/core/html/html_meta_element.cc
++++ b/third_party/blink/renderer/core/html/html_meta_element.cc
+@@ -22,6 +22,7 @@
+ 
+ #include "third_party/blink/renderer/core/html/html_meta_element.h"
+ 
++#include "base/command_line.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/trace_event/typed_macros.h"
+ #include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink.h"
+@@ -408,7 +409,9 @@ void HTMLMetaElement::ProcessViewportKey
+   } else if (key_string == "minimal-ui") {
+     // Ignore vendor-specific argument.
+   } else if (key_string == "viewport-fit") {
+-    if (RuntimeEnabledFeatures::DisplayCutoutAPIEnabled()) {
++    if (RuntimeEnabledFeatures::DisplayCutoutAPIEnabled() ||
++        base::CommandLine::ForCurrentProcess()->HasSwitch(
++            "lune-obscured-header-prototype")) {
+       bool unknown_value = false;
+       description.SetViewportFit(
+           ParseViewportFitValueAsEnum(unknown_value, value_string));
