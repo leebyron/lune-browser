@@ -97,5 +97,3 @@ def validate_acceptance(data, acceptance, channel):
                              bool(decision['owner_instruction'].strip()))
         if not native_verified and not deferred_by_owner:
             raise ValueError('Native Intel acceptance or an explicit owner-approved deferral is required before stable promotion')
-
-
