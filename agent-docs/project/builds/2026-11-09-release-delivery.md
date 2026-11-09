@@ -47,10 +47,15 @@ for update checks; its embedded feed remains the production GitHub URL.
 
 Saved native accessibility snapshots and screenshots are indexed below by hash.
 These checks do not establish edge-pointer behavior, older-macOS compatibility
-or native Intel acceptance. The Chrome Web Store opens, but extension installation
-and update remain untested pending approval of its displayed terms; no extension
-has been installed in this profile. The store's install button still says
-"Add to Helium"; this inherited label is recorded, not treated as fixed.
+or native Intel acceptance. With the owner's explicit approval for Google and
+Helium terms, normal UI installation of official Google Translate 2.0.18 passes.
+The initial attempt correctly refused extension downloads before setup consent;
+Use defaults completed setup and enabled Helium services before the successful
+retry. The Extensions page's manual Update action reports "Extensions updated"
+and retains version 2.0.18. This verifies the update-check path, not an upgrade
+to a newer extension version. Google Translate is subsequently removed and
+Developer mode restored off; bundled uBlock remains enabled. The store's install
+button still says "Add to Helium"; this inherited label is recorded, not fixed.
 
 The portable manual-update fixture passes a real loopback transfer of the final
 Apple silicon DMG under macOS's Python 3.9.6, with all 167,305,692 bytes matching
@@ -79,7 +84,7 @@ checks. Rosetta results cannot replace the owner's native Intel acceptance on
 macOS 13.7.8 and 26.6.2. The owner confirmed the second version on November 9;
 device models and actual native acceptance results remain pending.
 
-Intel headed/native interaction, extension installation/update, wrong-architecture
+Intel headed/native interaction, extension installation/update on Intel, wrong-architecture
 offer rejection on native Intel, public HTTPS installed updates, fresh Chromium
 comparison, public source/artifact verification, stable-feed readback, latest-link
 readback and production website deployment remain to be completed. Historical
