@@ -43,6 +43,13 @@ and update remain untested pending approval of its displayed terms; no extension
 has been installed in this profile. The store's install button still says
 "Add to Helium"; this inherited label is recorded, not treated as fixed.
 
+The portable manual-update fixture passes a real loopback transfer of the final
+Apple silicon DMG under macOS's Python 3.9.6, with all 167,305,692 bytes matching
+the signed artifact's SHA-256. Its 16 release regression tests also pass,
+including draft discovery and local update/wrong-architecture feed routing.
+This establishes helper compatibility and byte delivery, not native Intel
+browser acceptance; that check still requires the owner's hardware.
+
 Two acceptance-test corrections were required; neither changes browser inputs:
 
 - The accepted artwork uses wallpaper-light.jpg and wallpaper-dark.jpg. The old
