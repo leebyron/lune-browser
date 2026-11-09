@@ -38,12 +38,12 @@ svg { display: block; }
   #lune h1 { font:800 var(--type)/1 Syne,sans-serif; letter-spacing:-.05em; margin:0 0 20px; color:light-dark(#234550,#DDE7EA); }
   #lune .tagline { font:400 15px/24px Inter,sans-serif; color:light-dark(#526B65,#B5CBD7); max-width:420px; margin:0 auto 28px; text-wrap:balance; }
   #lune .actions { display:flex; align-items:center; justify-content:center; gap:16px; }
-  #lune .actions .action { display:inline-flex; justify-content:center; align-items:center; gap:8px; flex:none; min-height:44px; padding:11px 20px; border:0; border-radius:24px; text-decoration:none; font:500 13px/20px Inter,sans-serif; white-space:nowrap; }
-  #lune .actions .download { background:light-dark(#234550,#DDE7EA); color:light-dark(#E7EDE3,#10354F); opacity:1; }
+  #lune .actions .action { display:inline-flex; justify-content:center; align-items:center; gap:8px; flex:none; min-height:44px; padding:11px 20px; border:0; border-radius:24px; text-decoration:none; font:400 16px/20px Inter,sans-serif; white-space:nowrap; }
+  #lune .actions .download { background:var(--signal); color:light-dark(#FFFFFF,#10354F); padding-inline:16px 20px; opacity:1; }
   #lune .actions .source { background:transparent; color:light-dark(#234550,#C9D9E3); box-shadow:inset 0 0 0 1px light-dark(#23455059,#C9D9E359); }
-  #lune .actions .source:hover { color:light-dark(#183A43,#F0F6F9); }
+  #lune .actions .source { padding-inline:20px 16px; }
   #lune .actions .action svg { width:16px!important; height:16px!important; stroke-width:1.75; flex:none; }
-  #lune .actions .download:hover { background:light-dark(#183A43,#EDF3F5); }
+  #lune .actions .download:hover { background:var(--signal); }
   #lune .download-choices { position:fixed; inset:auto; margin:0; width:260px; max-width:calc(100vw - 24px); padding:6px; border:1px solid light-dark(#2345503C,#C9D9E33C); border-radius:16px; background:light-dark(#F1F4EC,#163B52); color:var(--text); box-shadow:0 12px 32px light-dark(#23455055,#04152155),inset 0 .5px light-dark(#23455022,#DDE7EA22); }
   #lune .download-choice { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; min-height:44px; padding:10px 12px; border:0; background:none; text-align:left; font-size:13px; opacity:1; }
   #lune .download-status { color:var(--muted); font-size:11px; white-space:nowrap; }
@@ -139,20 +139,19 @@ svg { display: block; }
   #lune .pages { position:relative; display:flex; flex-direction:column; gap:clamp(88px,12vw,144px); padding:72px 0 0; will-change:transform; background:linear-gradient(light-dark(#F1F4EC,#163B52) 0%,light-dark(#EBF0E7,#143950) 48%,light-dark(#E7EDE3,#10354F) 100%); }
   #lune .story-section { width:var(--story-width); max-width:100%; margin-inline:auto; padding-inline:clamp(24px,5vw,56px); }
   #lune .story-section h2 { font:500 clamp(26px,3vw,36px)/1.18 Inter,sans-serif; letter-spacing:-.04em; margin:14px 0 16px; color:light-dark(#234550,#DDE7EA); text-wrap:balance; }
-  #lune .story-section p { margin:0; font-size:13px; line-height:1.8; color:light-dark(#526B65,#A7C0CF); }
+  #lune .story-section p { margin:0; font:400 15px/24px Inter,sans-serif; color:light-dark(#526B65,#B5CBD7); }
   #lune .eyebrow { font-size:10px; text-transform:uppercase; letter-spacing:.15em; color:light-dark(#526B65,#96AFBE); }
   #lune .story-intro { display:flex; flex-direction:column; align-items:center; text-align:center; }
   #lune .capture { display:grid; place-content:center; width:100%; height:clamp(180px,32vh,300px); border:1px solid light-dark(#526B6527,#96AFBE27); border-radius:8px; margin:20px 0 0; background:light-dark(#E7EDE355,#10354F55); color:light-dark(#526B65,#96AFBE); font-size:12px; }
   #lune .minimal-story { min-height:calc(var(--page) * .82); display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
   #lune .minimal-story h2 { font-size:clamp(34px,4vw,54px); }
-  #lune .minimal-story p { font-size:15px; line-height:1.8; }
   #lune .feature-story { position:relative; }
   #lune .story-lead { margin-left:5%; max-width:430px; }
   #lune .story-lead h2 { font-size:clamp(36px,4.5vw,50px); line-height:1.12; }
   #lune .feature-note { display:flow-root; width:92%; margin:60px 0 0; }
   #lune .feature-copy { max-width:340px; }
   #lune .feature-copy h3 { font:500 24px/1.2 Inter,sans-serif; letter-spacing:-.035em; margin:0 0 12px; color:var(--text); text-wrap:balance; }
-  #lune .feature-copy p { font-size:14px; line-height:1.7; text-wrap:pretty; }
+  #lune .feature-copy p { text-wrap:pretty; }
   #lune .feature-copy a { text-decoration-color:light-dark(#526B654D,#96AFBE4D); }
   #lune .feature-copy h3 a { text-decoration:none; }
   #lune .feature-copy a:hover { text-decoration:underline; }
@@ -178,12 +177,12 @@ svg { display: block; }
   }
   #lune .coda { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:var(--page); text-align:center; }
   #lune .story-section.coda h2 { font-family:Syne,sans-serif; font-weight:800; font-size:22px; line-height:1.3; max-width:none; }
-  #lune .coda p { line-height:1.9; max-width:none; text-wrap:balance; }
+  #lune .coda p { max-width:none; text-wrap:balance; }
   #lune .coda a:not(.source) { color:light-dark(#234550,#DDE7EA); display:inline-block; padding:5px 0; }
-  #lune .coda .byline { margin-top:20px; }
+  #lune .coda .byline { margin-top:20px; font-size:13px; line-height:20px; color:var(--muted); }
   #lune .reading-track { position:absolute; top:7px; bottom:7px; right:4px; width:3px; border-radius:2px; background:light-dark(#526B650D,#96AFBE0D); pointer-events:none; }
   #lune .reading-thumb { height:var(--thumb-size); width:3px; background:light-dark(#526B6570,#96AFBE70); border-radius:2px; }
-  #lune button:focus-visible,#lune a:focus-visible { outline:2px solid light-dark(#234550,#DDE7EA); outline-offset:4px; }
+  #lune button:focus-visible,#lune a:focus-visible { outline:2px solid var(--signal); outline-offset:4px; }
   #lune .icon-art { position:absolute; bottom:0; left:0; width:100%; aspect-ratio:1; pointer-events:none; }
   #lune .icon-art::after { content:''; position:absolute; inset:6.25%; border-radius:23%; background:linear-gradient(165deg,light-dark(#FFFFFF1F,#F0FAFF1F),transparent 36%,transparent 76%,light-dark(#FFFFFF0D,#D5EFFF0D)); box-shadow:inset 0 .75px .6px light-dark(#FFFFFF90,#F2FAFF90),inset .75px 0 1px light-dark(#FFFFFF32,#C9E2F932),inset -.75px 0 1px light-dark(#23455050,#04152150),inset 0 -.75px 1px light-dark(#23455066,#04152166),0 0 .5px light-dark(#FFFFFF40,#E8F5FF40); }
   #lune .finder .icon-art::after,#lune .trash .icon-art::after { display:none; }

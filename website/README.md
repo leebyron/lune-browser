@@ -161,3 +161,8 @@ increase from the palest draft (requested +20%). The final sampled center is
 all match their respective asset center. Built-in image generation prompt: keep
 the near-white background unchanged and gently deepen only the pale blue
 cyanotype specimens by approximately 20%, preserving all composition and detail.
+
+Website prose and calls to action match the setup welcome page: regular Inter
+15px/24px body copy, regular 16px/20px pill buttons, teal/cyan primary fill,
+and the outlined ghost secondary action. Headings and native browser-demo
+controls retain their existing typography.
