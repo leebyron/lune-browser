@@ -3,7 +3,18 @@
 Implemented on the release-download-flow branch, November 9, 2026. Publication
 and stable promotion remain gated on the candidate's actual acceptance results.
 The requested first date-versioned release is 26.1109.1; do not infer that a tag,
-public candidate, or stable offer exists from this document alone.
+public release, or stable offer exists from this document alone.
+
+The owner requires production/stable delivery only. Preparation and hardware
+acceptance use an unpublished GitHub draft and local test fixtures, not a public
+staging channel or prerelease. The November 9 correction is tracked in
+[the delivery decision](../../manifests/release-delivery/26.1109.1.json).
+The frozen browser source remains `24f6531ae722dfa61e214e04a5efde83bf068f4f`;
+its original `initial_channel: staging` intention is superseded without changing
+binary inputs or reusing the version for different source. Run build, package,
+and source-export commands from that clean commit. The newer publication tool
+accepts `--source-checkout` pointing to it, records its own separate commit in
+the upload receipt, and validates the original frozen input hashes.
 
 ## Public URL contract
 
@@ -18,7 +29,6 @@ The Cloudflare website links to GitHub; it does not store browser binaries.
 | Latest stable DMG | `https://github.com/leebyron/lune-downloads/releases/latest/download/Lune-macos-<ARCH>.dmg` |
 | Release's appcast | `https://github.com/leebyron/lune-downloads/releases/download/v<VERSION>/appcast-<ARCH>.xml` |
 | Stable feed | `https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-<ARCH>.xml` |
-| Staging feed | `https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/staging/mac/appcast-<ARCH>.xml` |
 
 ARCH is arm64 or x86_64. Each release uploads a versioned DMG and an identically
 hashed alias named Lune-macos-ARCH.dmg. GitHub's latest-release pointer makes the
@@ -34,8 +44,10 @@ rejects regressions and permits resuming the same release only with identical
 metadata. GitHub's raw CDN can cache feed responses; verify readback before
 announcing completion. Previous release assets remain available.
 
-The existing lune.computer/updates/{stable,staging}/mac URLs redirect to the
-GitHub files for compatibility. Keep their redirects when changing the website.
+The existing lune.computer/updates/stable/mac URLs redirect to the
+GitHub files for compatibility. Keep those redirects when changing the website.
+Historical staging files for builds 1 and 2 remain unchanged; do not redirect them
+to nonexistent GitHub staging files or publish new staging updates.
 Do not deploy redirects before the corresponding GitHub files are accessible.
 Do not deploy enabled download buttons before both stable latest aliases work.
 
@@ -87,19 +99,26 @@ additional CI cost; this work does not activate scheduled release jobs.
    PUBLICATION --evidence ACCEPTANCE_JSON` to create matching feeds, immutable DMGs, latest-name aliases,
    release metadata, reviewed validation evidence and checksums. `scripts/release/source.py` exports the union
    of both architectures' pinned archives and exact component histories.
-7. From the frozen source commit, `scripts/release/publish.py upload` uploads a
-   draft first, verifies GitHub's asset digests, rechecks freshness and publishes
-   a prerelease for hardware acceptance. It refuses to replace an existing
-   release. A failed draft stays unpromoted for inspection; no --clobber is used.
-8. Promote staging with `scripts/release/publish.py promote --channel staging`
-   using actual signed install/update evidence for both architectures. Repeat
-   the update test using GitHub's public HTTPS staging feeds. The owner tests
-   installation, browsing, profile persistence and updates on native Intel.
-9. After native Intel acceptance, tag the exact private source commit and use
-   `promote --channel stable`. Record the owner's confirmation and tested Intel
-   devices in acceptance.json, with the exact DMG hashes. Promotion requires a
-   fresh Chromium check and verifies anonymous DMG bytes. Verify both raw feeds,
-   both latest aliases and the release page, then deploy the website.
+7. Use the reviewed production publisher with `upload --source-checkout FROZEN
+   --directory PUBLICATION --source-directory SOURCE --archives ARCHIVES
+   --notes-file NOTES`. It creates an unpublished, non-prerelease draft, uploads
+   the exact artifacts and sources, and verifies GitHub's asset digests. It
+   leaves the draft unpublished. Keep upload-receipt.json: promotion rechecks
+   every uploaded asset, including source archives. No assets are overwritten.
+8. Download the draft's signed DMG using the owner's authenticated GitHub access
+   for native Intel acceptance. Use a loopback HTTP test fixture to exercise
+   build 2's real updater with these exact final DMG bytes; this is a local test,
+   not a staging delivery channel. Record hardware results and owner confirmation
+   against the DMG hashes. Never label Rosetta checks as native Intel acceptance.
+9. After native Intel acceptance, tag the exact private source commit and run
+   the reviewed publisher's `promote --channel stable --source-checkout FROZEN`
+   with the publication directory, acceptance JSON, and public checkout. All
+   hardware gates and a fresh Chromium lookup pass before it undrafts the final
+   release. It verifies anonymous immutable downloads, rechecks freshness, commits
+   both stable feeds, then marks the release latest. Verify both raw feeds,
+   both latest aliases, the release page and public HTTPS installed updates,
+   then deploy the website. If a step fails, preserve existing feeds and resume
+   the same verified bytes; do not create a prerelease as a workaround.
 
 The public repository's release tag identifies its own distribution history.
 The source kit and release.json identify the private source commit explicitly.
@@ -117,8 +136,10 @@ Chromium version, then visit public HTTPS sites, use tabs/sidebar/settings, quit
 and reopen, and confirm saved preferences and a test bookmark survive.
 
 For the update check, start from the published build-2 Intel baseline in a
-separate install location/profile, select the staging update server, enable
-browser updates, and use About → Check for Updates. Confirm the offered version,
+separate install location/profile, select the provided loopback test server, enable
+browser updates, and use About → Check for Updates. The local fixture serves the
+exact final signed DMG, with only its test enclosure URL changed; the production
+app and signed archive retain the stable feed configuration. Confirm the offered version,
 install/relaunch, and preserved test data. Do not run baseline and candidate
 updater sessions concurrently. Report any crash, blank window, signing warning,
 or failed update before stable promotion.
@@ -157,10 +178,10 @@ JSON shape. Populate it from completed checks, never from planned work:
 }
 ```
 
-Rosetta may establish the Intel row's local software checks for staging; record
+Rosetta may establish the Intel row's pre-publication software checks; record
 that execution mode explicitly and leave native_hardware false. Stable requires
 native Intel results, model/OS entries in devices, and the owner's actual
 confirmation. Include report hashes and concise test results as additional fields
-so the booleans can be audited. The validation.json uploaded with the candidate
+so the booleans can be audited. The validation.json uploaded with the draft
 is immutable; later hardware acceptance is recorded separately in the promoted
 feed commit. Do not overwrite the original candidate evidence.

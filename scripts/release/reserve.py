@@ -38,7 +38,7 @@ def main():
         git(ROOT, 'ls-files', '--error-unmatch', name)
     record = dict(schema_version=1, version=a.version, date=day.isoformat(), sequence=sequence,
                   timezone='America/Los_Angeles', architectures=list(ARCHES), tag='v' + a.version,
-                  initial_channel='staging', filenames={arch: filename(a.version, arch) for arch in ARCHES},
+                  initial_channel='stable', filenames={arch: filename(a.version, arch) for arch in ARCHES},
                   files={name: sha(ROOT / name) for name in sorted(names)})
     path = ROOT / f'manifests/releases/{a.version}.json'
     path.parent.mkdir(parents=True, exist_ok=True)

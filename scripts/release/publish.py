@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish immutable GitHub candidates and atomically commit paired feed updates."""
+"""Prepare unpublished GitHub releases and publish accepted production feeds."""
 import argparse
 from datetime import datetime, timezone
 import json
@@ -15,9 +15,9 @@ def gh(*args):
     return subprocess.check_output(['gh', *map(str,args)], text=True).strip()
 
 
-def manifest(directory):
+def manifest(directory, source_checkout=ROOT):
     data=json.loads((directory/'release.json').read_text())
-    load_record(data['version'])
+    load_record(data['version'], root=source_checkout)
     if data.get('tag') != 'v' + data['version'] or set(data['downloads']) != set(ARCHES):
         raise ValueError('Invalid release tag or architecture set')
     for arch, row in data['downloads'].items():
@@ -27,7 +27,7 @@ def manifest(directory):
         for asset in (name, row['alias']):
             if data['assets'][asset] != {'sha256': row['sha256'], 'size': row['size']}:
                 raise ValueError('Download metadata differs from asset bytes')
-    if data['source_commit'] != git(ROOT,'rev-parse','HEAD'):
+    if data['source_commit'] != git(source_checkout,'rev-parse','HEAD'):
         raise ValueError('Publication must run from the frozen source commit')
     for name,record in data['assets'].items():
         p=(directory/name).resolve()
@@ -60,7 +60,7 @@ def check_assets(data,remote):
 
 
 def upload(a):
-    data=manifest(a.directory)
+    data=manifest(a.directory, a.source_checkout)
     # Sources are explicitly enumerated: no arbitrary workspace glob or credential files.
     source=json.loads((a.source_directory/'source-assets.json').read_text())
     if source['orchestrator_commit']!=data['source_commit']:
@@ -78,8 +78,8 @@ def upload(a):
     existing=[r for page in json.loads(gh('api',f'repos/{REPOSITORY}/releases','--paginate','--slurp')) for r in page]
     if any(r['tag_name']==data['tag'] for r in existing):
         raise ValueError('Release already exists; inspect it rather than replacing assets')
-    notes=ROOT/f"agent-docs/project/releases/{data['version']}.md"
-    gh('release','create',data['tag'],'--repo',REPOSITORY,'--draft','--prerelease',
+    notes=a.notes_file or a.source_checkout/f"agent-docs/project/releases/{data['version']}.md"
+    gh('release','create',data['tag'],'--repo',REPOSITORY,'--draft',
        '--title',f"Lune {data['version']}",'--notes-file',notes)
     for path in paths:
         gh('release','upload',data['tag'],path,'--repo',REPOSITORY)
@@ -89,14 +89,20 @@ def upload(a):
     for path in paths:
         if uploaded[path.name].get('digest')!='sha256:'+sha(path):
             raise ValueError(f'Uploaded bytes differ: {path.name}')
-    fresh(data,a.directory,'public-candidate')
-    gh('release','edit',data['tag'],'--repo',REPOSITORY,'--draft=false','--prerelease','--latest=false')
+    receipt = dict(version=data['version'], source_commit=data['source_commit'],
+                   assets={p.name: dict(sha256=sha(p), size=p.stat().st_size) for p in paths},
+                   publisher_commit=git(ROOT, 'rev-parse', 'HEAD'))
+    (a.directory/'upload-receipt.json').write_text(json.dumps(receipt, indent=2)+'\n')
+    print('Verified draft uploaded. It remains unpublished until production acceptance passes.')
 
 
 def promote(a):
-    data=manifest(a.directory);remote=release(data['tag'])
-    if remote['draft']:raise ValueError('Publish and verify the candidate first')
+    data=manifest(a.directory, a.source_checkout);remote=release(data['tag'])
     check_assets(data,remote)
+    receipt=json.loads((a.directory/'upload-receipt.json').read_text())
+    if receipt['version'] != data['version'] or receipt['source_commit'] != data['source_commit']:
+        raise ValueError('Upload receipt identifies a different release')
+    check_assets(receipt,remote)
     validate_acceptance(data, json.loads(a.acceptance.read_text()), a.channel)
     acceptance=json.loads(a.acceptance.read_text())
     if a.channel=='stable':
@@ -120,6 +126,13 @@ def promote(a):
             raise ValueError('Refuse stale feed promotion')
         if old['version']==data['version'] and old!=data:
             raise ValueError('Same version has different publication data')
+    # All hardware gates pass before any public release, feed, or latest link changes.
+    if remote['prerelease']:
+        raise ValueError('Production delivery does not promote prereleases')
+    fresh(data,a.directory,'production-publication')
+    if remote['draft']:
+        gh('release','edit',data['tag'],'--repo',REPOSITORY,
+           '--draft=false','--prerelease=false','--latest=false')
     # Anonymous byte verification precedes any moving link change.
     for arch,row in data['downloads'].items():
         with tempfile.TemporaryDirectory(prefix='lune-readback-') as tmp:
@@ -146,12 +159,17 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);sub=p.add_subparsers(dest='command',required=True)
     for name in ('upload','promote'):
         q=sub.add_parser(name);q.add_argument('--directory',type=Path,required=True)
+        q.add_argument('--source-checkout',type=Path,default=ROOT,
+                       help='Clean checkout of the exact frozen browser source commit')
         if name=='upload':
-            q.add_argument('--source-directory',type=Path,required=True);q.add_argument('--archives',type=Path,required=True)
+            q.add_argument('--notes-file',type=Path);q.add_argument('--source-directory',type=Path,required=True);q.add_argument('--archives',type=Path,required=True)
         else:
-            q.add_argument('--channel',choices=['staging','stable'],required=True)
+            q.add_argument('--channel',choices=['stable'],default='stable')
             q.add_argument('--acceptance',type=Path,required=True);q.add_argument('--checkout',type=Path,required=True)
-    a=p.parse_args();globals()[a.command](a)
+    a=p.parse_args()
+    if git(ROOT, 'status', '--porcelain'):
+        raise ValueError('Commit publication-tool changes before use')
+    globals()[a.command](a)
 
 
 if __name__=='__main__':main()

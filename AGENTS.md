@@ -7,7 +7,13 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-Release delivery preparation is on `release-download-flow`. The requested
+Release delivery preparation is on `release-download-flow`. Production-only
+publication corrections are on `production-release-policy`; use its publisher
+with `--source-checkout` pointing to frozen commit `24f6531a`. New releases use
+only stable: drafts stay unpublished until native Intel acceptance, then the
+final release, paired stable feeds, and latest links are published. No new public
+staging release or prerelease is authorized. Historical build-1/build-2 staging
+artifacts remain unchanged. The requested
 `26.1109.1` is reserved by its frozen release record; it is not published yet. The candidate platform input
 `inputs/release-delivery-1/macos` combines the reviewed Helium update and accepted
 onboarding artwork with GitHub Sparkle endpoints and signed Lune version display.

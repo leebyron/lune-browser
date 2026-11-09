@@ -181,10 +181,10 @@ binary needs a new release allocation even if browser source is unchanged.
    kit/provenance must explicitly identify it. Upload both architecture artifacts,
    source, checksums and evidence before updating any feed, then verify readback.
 7. **Promote the validated artifacts.** Generate matching architecture appcasts
-   and run staging installed updates before stable promotion. Immediately before
+   and run installed updates with a local test feed before production publication. Immediately before
    promotion, recheck macOS stable Chromium and version ordering, and record the
-   freshness decision or explicit exception for this promotion. A staging check
-   or exception does not automatically authorize stable promotion. Promotion
+   freshness decision or explicit exception for this promotion. Earlier checks
+   do not automatically authorize public production delivery. Promotion
    reuses the same bytes/version.
    Update both stable feeds and website metadata only after all gates pass;
    preserve the last good feeds on failure and detect partial promotion. Record

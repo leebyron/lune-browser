@@ -87,7 +87,8 @@ and provenance of the validated candidate; credentials are scoped to that step.
 5. Sign nested components using Chromium's signing machinery; notarize/staple
    the app and DMG, then validate signatures and Gatekeeper acceptance.
 6. Test an installed previous Lune release updating to the candidate through a
-   staging feed on both architectures, followed by relaunch and profile checks.
+   local test feed serving the exact final signed DMG on both architectures,
+   followed by relaunch and profile checks. This is not a public delivery channel.
    Also test a bad signature, incompatible OS, and wrong-architecture offer.
 7. Apply the [Chromium freshness gate](#chromium-freshness-gate) before public
    release publication and again immediately before feed/website promotion.
@@ -151,10 +152,10 @@ promotion using the same validated bytes.
 ## Sparkle delivery
 
 Use Sparkle 2 as Xelium does, with one Lune-owned HTTPS feed per architecture and
-channel. The selected feeds are
+stable channel. The selected feeds are
 `https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-arm64.xml`
-and `appcast-x86_64.xml`, with staging under `updates/staging/mac/`. The former
-`lune.computer/updates/` URLs redirect to these GitHub feeds once deployed. Separate
+and `appcast-x86_64.xml`. The former
+`lune.computer/updates/stable/` URLs redirect to these GitHub feeds once deployed. Separate
 feeds prevent an Intel client receiving an arm64-only enclosure. Test any future
 shared-feed filtering before adopting it.
 
@@ -168,8 +169,9 @@ management, appcast fields, and supported OS constraints.
 
 Start with full downloads. Delta updates can follow after the full-update path
 works. Retain compatible historical feed entries for older supported OS versions.
-Keep staging and public feeds separate and avoid silently changing a user's
-chosen channel.
+New releases use production/stable only. Unpublished drafts and loopback test
+fixtures provide acceptance without a public prerelease. Preserve historical
+build-1/build-2 staging artifacts unchanged.
 
 If a release is defective, remove its offer for clients that have not updated.
 For already-updated clients, publish a corrective build with a higher version;
@@ -178,8 +180,8 @@ read a newer profile. Website/download metadata follows successful feed promotio
 
 ## Chromium freshness gate
 
-This applies to every release, including public prereleases, manual releases,
-and staging-to-stable promotion. Use the official
+This applies to every public release, including manual releases, and every
+stable feed or website promotion. Use the official
 [Chromium Dash macOS stable endpoint](https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1)
 with `channel=Stable` and `platform=Mac`. Do not substitute the latest Helium or
 ungoogled release, another operating system's channel, or a previous discovery
@@ -189,7 +191,7 @@ identified as ahead of the observed stable version, not mislabeled as matching i
 
 Check when selecting inputs and immediately before making a release publicly
 available. Recheck immediately before promoting its feeds and website links,
-even when the same bytes already passed staging. A stable update arriving during
+even when the same bytes already passed local update acceptance. A stable update arriving during
 compilation or acceptance invalidates an earlier claim that the candidate is
 current; normally prepare a new candidate on the newer Chromium.
 
@@ -234,5 +236,7 @@ lag, integration failure, missed scheduling, and promotion failure. A daily rebu
 of old inputs does not improve the browser's security profile.
 
 The executable publication and hardware-acceptance procedure is documented in
-[GitHub delivery](release-delivery.md). Candidate publication, stable promotion
-and website deployment are separate steps; a prerelease is not stable acceptance.
+[GitHub delivery](release-delivery.md). Draft upload, production publication,
+stable feed promotion and website deployment are distinct verified steps. Native
+Intel acceptance precedes public release publication; no public staging or
+prerelease step is used.
