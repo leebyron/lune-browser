@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "01905fc411a170d7498ea04b3e315111bb806925",
+    "commit": "d499c418e7d1e85c8447830401a4926d97882e2d",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -573,6 +573,66 @@
       {
         "path": "patches/helium/ui/customize-content-top-inset.patch",
         "sha256": "325c285c76d0c8f4095bede53ccc9a10edd816a99d8198ffc5c36e3ae87fff84"
+      },
+      {
+        "path": "patches/helium/ui/pinned-floating-toolbar.patch",
+        "sha256": "112d3de6a11860683ce70539c9e839e7171da02709363f158a79bac02097ba32"
+      },
+      {
+        "path": "patches/helium/ui/toolbar-inset.patch",
+        "sha256": "ef5b242de18e8524395fbb55706340be13230781ba50acfa108ce31dacc9ec5b"
+      },
+      {
+        "path": "patches/helium/ui/toolbar-independent-sidebar.patch",
+        "sha256": "fd51fdc3350441914c0bf1b204372480fbaf40c91fe89a591cb4e3b5cffcbf16"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-pin-tooltip.patch",
+        "sha256": "29318e5a95bbae37381e1df81a3807cfc66491838a0c36fe4c29eaaedea5b0ee"
+      },
+      {
+        "path": "patches/helium/services/independent-browser-updates.patch",
+        "sha256": "613454efde86a1cb8767b81b7052ecd9dc86785bcf22a2cf912b90b524735f16"
+      },
+      {
+        "path": "patches/lune/internal-url-scheme.patch",
+        "sha256": "45163466c55b4246bf44846cd0e5af3f61a2e1008ca293f782e3d222b311e854"
+      },
+      {
+        "path": "patches/lune/opposite-side-panels.patch",
+        "sha256": "2f20ff3ffba23a888ca7bf44b606ae46127b234b35fed981b772e42aec7fc18a"
+      },
+      {
+        "path": "patches/lune/theme-choices.patch",
+        "sha256": "0052f090bc52da7f3a4549ad0f3e7f0bbb6a7be728f3e2dba1660958f5f7e615"
+      },
+      {
+        "path": "patches/lune/system-tab-selection.patch",
+        "sha256": "87181488bb8b99aadd501195aaa622cef08c1d7f2594ffbc639f618d76d0354a"
+      },
+      {
+        "path": "patches/lune/sidebar-theme-choices.patch",
+        "sha256": "6d792086f56e12b22cb028d7ea7cb1b0568086ae3a48f81a1b95663008ba9ac3"
+      },
+      {
+        "path": "patches/lune/search-engine-default.patch",
+        "sha256": "3a5fb3a688a08f61fd8e1e80a5169252b89bb7f21679521255c63239d48a2f86"
+      },
+      {
+        "path": "patches/lune/onboarding-refresh.patch",
+        "sha256": "69d9fba8d3bb09c9047f849296f99b17ccef011ed0ef8e85846c9fb920195c98"
+      },
+      {
+        "path": "patches/lune/setup-tab-identity.patch",
+        "sha256": "376851cc284bfcc1e24c2564a2d55b3a41e317d333dab639c269a86108f76c66"
+      },
+      {
+        "path": "patches/lune/setup-root-background.patch",
+        "sha256": "2f6db98f94151d60341bb36a5086aec066673fa6dd4fa3c83c08bdf8d42e2ab7"
+      },
+      {
+        "path": "patches/helium/ui/tab-symbol-foreground.patch",
+        "sha256": "f1c7c22dbcb9e097b77318d1500648a3b7cef5c66bf6fd02afa4a100f8f5593b"
       }
     ]
   },
@@ -1106,6 +1166,203 @@
         "dd56e3fc85097a13d0e3ede9c2d0b8af01a5408c",
         "0e57181df9f352f77d0fb31517568d8401f9f542",
         "01905fc411a170d7498ea04b3e315111bb806925"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-1",
+      "depends_on": [
+        "native-header-settings"
+      ],
+      "patches": [
+        "patches/helium/ui/pinned-floating-toolbar.patch",
+        "patches/helium/ui/toolbar-inset.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Enable native toolbar inset and cover modes without launch flags.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "2eb08f119e7cd0ee8f228e979266804dc8241b1e"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-2",
+      "depends_on": [
+        "onboarding-reviewed-1"
+      ],
+      "patches": [
+        "patches/helium/ui/toolbar-independent-sidebar.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep native sidebar spacing independent of toolbar visibility.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "0713fe5415bcfe598f5b046e6bd09aec18947abe"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-3",
+      "depends_on": [
+        "onboarding-reviewed-2"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-pin-tooltip.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Describe sidebar pin actions in native tooltips.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "fb2282d88f248855bc6b83f8001146b6d93a0e1d"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-4",
+      "depends_on": [
+        "onboarding-reviewed-3"
+      ],
+      "patches": [
+        "patches/helium/services/independent-browser-updates.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep automatic browser updates independent of optional services.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "33f5bf39fa2f39ea276496b4d94acdd1df7a3c0e"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-5",
+      "depends_on": [
+        "onboarding-reviewed-4"
+      ],
+      "patches": [
+        "patches/lune/internal-url-scheme.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Display and accept the Lune internal URL scheme.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "b342169144239a38254dbaf45d1098321f866fa1"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-6",
+      "depends_on": [
+        "onboarding-reviewed-5"
+      ],
+      "patches": [
+        "patches/lune/opposite-side-panels.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep auxiliary panels opposite the tab sidebar.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "08b7200492b6fe6181b41df0fc09fba92fc02461"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-7",
+      "depends_on": [
+        "onboarding-reviewed-6"
+      ],
+      "patches": [
+        "patches/lune/theme-choices.patch",
+        "patches/lune/system-tab-selection.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Define distinct native System and branded Lune theme palettes.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "57112ce66726a0f866aa7ea5bb8d065412367a50"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-8",
+      "depends_on": [
+        "onboarding-reviewed-7"
+      ],
+      "patches": [
+        "patches/lune/sidebar-theme-choices.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Expose System and Lune presets with native swatch colors.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "fa34d0de9c671fb659b7d71c5a2aef3d17da830e"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-9",
+      "depends_on": [
+        "onboarding-reviewed-8"
+      ],
+      "patches": [
+        "patches/lune/search-engine-default.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Default new search choices to Startpage before Kagi and DuckDuckGo.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "df94e1cb45d156fd3371c11d678e06345dc36ac0"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-10",
+      "depends_on": [
+        "onboarding-reviewed-9"
+      ],
+      "patches": [
+        "patches/lune/onboarding-refresh.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Refresh Lune setup with local artwork and native appearance controls.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "6f78e8d99df6bbf5def6a7835d689d7148d76677"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-11",
+      "depends_on": [
+        "onboarding-reviewed-10"
+      ],
+      "patches": [
+        "patches/lune/setup-tab-identity.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Identify the setup tab with a welcome title and envelope symbol.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "12fc4916cf26469dea5f6a5620bd4b821512f4a2"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-12",
+      "depends_on": [
+        "onboarding-reviewed-11"
+      ],
+      "patches": [
+        "patches/lune/setup-root-background.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match the setup root background to the painted page.",
+      "adaptation": "Locally developed in the prepared Chromium 158 source and replayed with zero fuzz; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "190cc7625393f6d883ffad39bea676fbec0ec182"
+      ]
+    },
+    {
+      "id": "onboarding-reviewed-13",
+      "depends_on": [
+        "onboarding-reviewed-12"
+      ],
+      "patches": [
+        "patches/helium/ui/tab-symbol-foreground.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match native tab symbols to the tab title foreground.",
+      "adaptation": "Pass the row title color to native replacement symbols without tinting website favicons; see agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "d499c418e7d1e85c8447830401a4926d97882e2d"
       ]
     }
   ],

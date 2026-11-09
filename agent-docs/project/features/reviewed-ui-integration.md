@@ -1,5 +1,8 @@
 # Reviewed UI development integration
 
+Historical November 8 baseline. The [November 9 onboarding integration](onboarding.md)
+supersedes its input tip and removes the header launch-flag requirement.
+
 On November 8, 2026, the owner requested that main include all recent work.
 The development lock now selects platform commit
 `01905fc411a170d7498ea04b3e315111bb806925`, retained by

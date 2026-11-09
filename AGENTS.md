@@ -7,12 +7,17 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-Main now pins the complete reviewed UI stack through `01905fc4` under
-`inputs/reviewed-ui-2026-11-08/macos`. This includes the sidebar/footer, retention,
-activation, toolbar/media, appearance, scrolling, shared results, menu layout,
-and newer header/Settings work. See [integration status](agent-docs/project/features/reviewed-ui-integration.md)
-for exact scope and validation limits. Onboarding remains in progress separately.
-The header prototype keeps its existing opt-in flag. This is not a binary release.
+Main now pins the complete reviewed UI stack plus the accepted onboarding and
+native toolbar refinements through `d499c418` under `inputs/onboarding-2026-11-09-2/macos`.
+Toolbar inset and cover modes require no launch flag. “Always cover (experimental)”
+retains its explicit label. All toolbar modes preserve native sidebar glass and
+4 px side padding. Sidebar hover/accessibility labels say Pin sidebar or Unpin sidebar.
+Setup uses locally packaged artwork/fonts, separate update consent, Startpage first
+and selected by default, native System/Lune themes, and the final Customize Lune
+controls. Its tab reads Welcome to Lune and uses the envelope.open SF Symbol.
+See [onboarding and toolbar integration](agent-docs/project/features/onboarding.md)
+for the thirteen signed implementation commits, validation, and remaining limits.
+This is a source/development-lock update, not a binary release.
 
 The following feature summaries retain their original validation history. Their
 statements that reviewed candidates are absent from the development lock are
