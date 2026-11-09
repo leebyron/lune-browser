@@ -47,7 +47,8 @@ try:
  report['welcome']=js("return {title:document.querySelector('h1').innerText,body:document.querySelector('.description').innerText,buttons:[...document.querySelectorAll('.welcome-actions button')].map(b=>b.innerText),updates:document.querySelector('input').checked,font:getComputedStyle(document.querySelector('h1')).fontFamily};")
  assert report['welcome']['title']=='setup lune'; assert report['welcome']['buttons']==['Setup','Use defaults']
  report['welcomeStyle']=js("return {background:getComputedStyle(document.querySelector('main'),'::before').backgroundImage,animation:getComputedStyle(document.querySelector('main'),'::before').animationName,policyLineHeight:getComputedStyle(document.querySelector('.policy')).lineHeight,weight:getComputedStyle(document.querySelector('.primary')).fontWeight,padding:[getComputedStyle(document.querySelector('.primary')).paddingLeft,getComputedStyle(document.querySelector('.primary')).paddingRight],synthesis:getComputedStyle(document.querySelector('.primary')).fontSynthesis,color:getComputedStyle(document.querySelector('.primary')).backgroundColor,credit:getComputedStyle(document.querySelector('.upstream-credit')).fontSize,security:document.querySelector('.updates p')!==null,remoteAssets:performance.getEntriesByType('resource').filter(r=>/^https?:/.test(r.name)).map(r=>r.name)}")
- assert 'chrome://setup/wallpaper.jpg' in report['welcomeStyle']['background']
+ report['wallpaperScheme']=js("return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'")
+ assert f"chrome://setup/wallpaper-{report['wallpaperScheme']}.jpg" in report['welcomeStyle']['background']
  assert report['welcomeStyle']['animation']=='wallpaper-in, wallpaper-rise'
  assert report['welcomeStyle']['policyLineHeight']=='13.2px'
  assert report['welcomeStyle']['weight']=='400'
