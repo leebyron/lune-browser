@@ -6,7 +6,14 @@ stack at `7b9dda9113b0e13a8317da9c5452cb5770824130`
 (`topic/command-bar-corners-reviewed`). Main still pins an older browser input;
 no development lock or published build is changed.
 
-## Implementation
+Current preview: **Lune Inset Test 4**, with the three-choice “Show top controls”
+submenu. Hover is the fresh-profile default; normal Always show protects every
+page with the 52 pt inset; experimental overlay retains viewport-fit/env support.
+The signed local mode commit is `cdec625c16d7fb851ee5740dbfb9064434b88d63`, atop
+the earlier prototype stack, imported on `prototype/pinned-header-inset-current`.
+See the three-choice section below for current validation and acceptance limits.
+
+## Initial implementation and earlier candidates
 
 A launch-gated, browser-owned 52 pt inset keeps the renderer surface full height,
 reduces and translates ordinary page layout, and extends root painting and
@@ -122,3 +129,44 @@ The preview is left with controls enabled. Automated click alignment is verified
 on local fixtures; the native website test covers menu interaction and geometry.
 Evidence is in `.work/header-inset/menu-validation/` and the tracked platform
 validation record. Intel and owner acceptance of the menu candidate remain pending.
+
+## Three-choice controls mode
+
+The owner requested a “Show top controls” submenu after “Tabs on Right Side”,
+with mutually exclusive “Show on hover”, “Always show”, and “Always show with
+overlay (experimental)” options. A fresh profile defaults to hover. The middle
+choice always uses the browser-owned 52 pt translation regardless of viewport-fit
+and adds no header inset to CSS environment values. It retains scrolling behind
+the header. The experimental choice preserves the preceding cover/env behavior.
+
+The existing pin boolean remains the native chrome source of truth; an additional
+saved overlay-policy boolean defaults false. The menu derives exactly one radio
+selection from them. Each preference change propagates through WebPreferences,
+including transitions between the two pinned modes. There are no site-specific
+rules, injected styles, or new scroll callbacks. The fourth isolated quilt patch,
+`obscured-header-modes-prototype.patch`, adds this policy and submenu. All four
+patches strictly replay forward/reverse across 25 source files.
+
+The distinct preview for this revision is `.work/header-inset/Lune Inset Test 4.app`.
+The older previews remain available. Three-mode build/runtime results are recorded
+in the platform validation record after testing; prior sections describe prior
+candidates, not acceptance of this revision.
+
+
+Three-mode validation passes on arm64: the 23m02s browser/ChromeDriver build,
+headless scale 1 and headed Retina scale 2 pixel/input checks, live transitions
+on both sidebar orientations, all three saved modes after relaunch, and a fresh
+profile selecting hover. Protective cover pages paint the root background into
+the empty band and scroll content beneath it, with zero measured layout/style
+recalculations during the test wheel scroll. Dynamic cover/contain changes leave
+the protective inset and zero header safe-area value unchanged.
+
+Native inspection confirms the exact submenu labels and one checkmark per mode.
+On the loaded cover fixture, always gives height 848 / safe area 0, experimental
+gives 900 / 52, and hover gives 900 / 0. Apple and Substack both display their
+headers below the native controls in normal Always show despite declaring cover;
+both report height 848 and safe area 0. The preview remains on Substack in Always
+show for owner review. Source replay covers 25 files across all four patches;
+the preview framework hash matches the tested build. Evidence is in
+`.work/header-inset/modes-validation/` and the tracked platform validation record.
+No Intel build or owner acceptance of this revision is claimed.
