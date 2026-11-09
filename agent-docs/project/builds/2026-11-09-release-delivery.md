@@ -15,6 +15,9 @@ Apple notarization, stapling and Gatekeeper. Sparkle verifies the signature of
 the final immutable DMG bytes. Its signed outer version is 26.1109.1; Chromium
 and the framework retain 158.0.8127.18. The app and framework Mach-O deployment
 minimums are 13.0, matching the signed plist.
+An additional static audit checks all 19 embedded Mach-O files, including browser
+helpers, libraries and Sparkle's updater executables. Every Apple silicon slice
+declares macOS 13.0. This does not replace an older-system runtime check.
 
 Runtime checks pass on native Apple silicon in isolated headless profiles:
 UI/defaults/settings persistence, light/dark artwork, attribution, Helium bangs,
