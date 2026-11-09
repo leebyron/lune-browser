@@ -17,7 +17,8 @@ platform = Path(__file__).resolve().parents[2]
 names = ['helium/ui/obscured-header-prototype.patch',
          'helium/ui/obscured-header-cover-prototype.patch',
          'helium/ui/obscured-header-menu-prototype.patch',
-         'helium/ui/obscured-header-modes-prototype.patch']
+         'helium/ui/obscured-header-modes-prototype.patch',
+         'helium/ui/obscured-header-settings-prototype.patch']
 args.evidence.mkdir(parents=True, exist_ok=True)
 patches = [platform/'patches'/name for name in names]
 baseline = {}

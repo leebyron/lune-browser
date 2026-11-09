@@ -2,14 +2,14 @@
 
 Issue #11. This is a launch-gated renderer experiment, not a release input.
 Use `--lune-obscured-header-prototype` with a disposable profile in Lune's
-native vertical-tab layout. The macOS window context menu has “Tabs on Right
-Side” followed by the “Show top controls” submenu, with one selected choice:
+native vertical-tab layout. The macOS window context menu has “Sidebar on right”
+followed by the “Show toolbar” submenu, with one selected choice:
 
 | Choice | Header | Page layout | Header safe-area value |
 | --- | --- | --- | --- |
-| Show on hover (default) | Existing hover behavior | Full height | None |
-| Always show | Pinned | Always inset 52 pt, including viewport-fit=cover | None |
-| Always show with overlay (experimental) | Pinned | Inset ordinary pages; full height for cover pages | 52px for cover pages at normal zoom |
+| On hover (default) | Existing hover behavior | Full height | None |
+| Always | Pinned | Always inset 52 pt, including viewport-fit=cover | None |
+| Always cover (experimental) | Pinned | Inset ordinary pages; full height for cover pages | 52px for cover pages at normal zoom |
 
 The existing saved `helium.browser.zen_mode_top_chrome_pinned` preference remains
 responsible for pinning. `helium.browser.top_controls_overlay` enables the
@@ -18,6 +18,15 @@ these preferences: unpinned means hover; pinned selects either normal or overlay
 A fresh profile defaults to hover. Existing saved pin choices remain pinned and
 use the protective mode unless overlay was explicitly enabled. Changes apply
 live to the profile's tabs, including background tabs, and survive relaunch.
+
+Settings → Appearance and behavior includes the same “Show toolbar” dropdown
+and a “Sidebar position” dropdown with Left/Right choices. Both use the existing
+saved preferences and update live when changed from the context menu.
+On macOS, Lune Panels automatically use the side opposite the tab sidebar.
+Their existing position dropdown displays the derived position and is disabled;
+per-panel overrides for separately configurable entries remain independent.
+The native sidebar controller enforces this relationship on startup and pref
+changes, including writes outside Settings. No polling is added.
 
 ## Behavior and cost
 
@@ -58,12 +67,13 @@ the accepted platform stack above without changing the development lock.
 Platform branch: `prototype/pinned-header-inset-current`. The original parked
 candidate remains at `e8b314ceb0129f67a65ec5cad88e6867d79af613` on
 `prototype/pinned-header-inset`. This work rebases its renderer delta onto the
-accepted UI stack and adds separate cover/safe-area, menu, and mode patches:
+accepted UI stack and adds separate cover/safe-area, menu, mode, and Settings patches:
 
 - `patches/helium/ui/obscured-header-prototype.patch`
 - `patches/helium/ui/obscured-header-cover-prototype.patch`
 - `patches/helium/ui/obscured-header-menu-prototype.patch`
 - `patches/helium/ui/obscured-header-modes-prototype.patch`
+- `patches/helium/ui/obscured-header-settings-prototype.patch`
 
 The isolated prepared tree and outputs are in `.work/header-inset/platform`.
 Its historical applied prefix is retained; this is not a fresh release source
@@ -75,13 +85,15 @@ Base and previous-prototype evidence is in
 
 ## Validation and limits
 
-See `validation.json` for final build, renderer and strict replay evidence.
+See `settings-validation.json` for the current build, Settings, renderer and
+strict replay evidence. `validation.json` retains the preceding mode candidate.
 The runnable check requires Pillow and uses local fixtures and disposable
 profiles. Use a fresh evidence directory for each run:
 
 ```sh
 python3 prototype/header-inset/check.py build/src/out/Default /tmp/lune-inset-check
 python3 prototype/header-inset/check.py build/src/out/Default /tmp/lune-inset-retina --headed --toggle
+python3 prototype/header-inset/check-settings.py build/src/out/Default /tmp/lune-settings-check
 python3 prototype/header-inset/replay.py build/src /tmp/lune-inset-replay
 ```
 
@@ -93,7 +105,7 @@ changes between all three modes with either sidebar orientation, retains page
 state across the changes, verifies protective mode ignores dynamic viewport-fit
 changes, tests each saved mode after relaunch, and checks fresh-profile defaults. `--observe` records
 renderer probes without assertions.
-The replay check applies and reverses all four patches with `gpatch --fuzz=0` and
+The replay check applies and reverses all five patches with `gpatch --fuzz=0` and
 compares every affected source file. It verifies this delta, not the full stack.
 
 The experimental flag remains process-wide, but the inset is now supplied per
@@ -106,10 +118,13 @@ preview on November 8, 2026. The earlier binary's native inspection confirmed
 on/off toggling over Wikipedia at the top and at scrollY 900. Validation of the
 new three-choice candidate passes arm64 build, headless and Retina renderer
 checks, fresh defaults, all-mode persistence, and native menu inspection. Apple
-and Substack clear the pinned header in Always show. See `validation.json` for
-exact evidence; owner acceptance of this revision remains pending.
+and Substack clear the pinned header in Always. See `validation.json` for
+the earlier evidence. The Settings revision passes a fresh arm64 build, headless
+renderer suite, real Settings control/persistence tests and native menu/Settings
+synchronization checks. See `settings-validation.json`; owner acceptance remains
+pending.
 
-The distinct preview is `.work/header-inset/Lune Inset Test 4.app`, with its own
+The distinct preview is `.work/header-inset/Lune Inset Test 5.app`, with its own
 profile. The older previews and original branch remain available for rollback.
 No release input, published app or update feed is changed.
 
@@ -119,6 +134,6 @@ Apple and Substack both declare `viewport-fit=cover` and correctly receive a
 52px top safe-area value, but their desktop headers do not apply it. Cover alone
 is therefore insufficient evidence that a page accommodates overlaid desktop
 controls. See `site-compatibility.json`. The user selected a browser-level policy
-choice: “Always show” now protects all pages, while the explicitly experimental
+choice: “Always” now protects all pages, while the explicitly experimental
 choice preserves the original cover behavior. No new website opt-in syntax or
 site-specific heuristics are introduced.

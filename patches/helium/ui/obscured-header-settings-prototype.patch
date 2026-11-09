@@ -1,0 +1,203 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -10388,16 +10388,20 @@ Keep your key file in a safe place. You
+       </message>
+ 
+       <message name="IDS_TOP_CONTROLS_MENU" desc="Submenu selecting when the top browser controls are visible.">
+-        Show top controls
++        Show toolbar
+       </message>
+       <message name="IDS_TOP_CONTROLS_HOVER" desc="Show browser controls only when the pointer approaches them.">
+-        Show on hover
++        On hover
+       </message>
+       <message name="IDS_TOP_CONTROLS_ALWAYS" desc="Keep browser controls visible with a protective page inset.">
+-        Always show
++        Always
+       </message>
+       <message name="IDS_TOP_CONTROLS_OVERLAY" desc="Experimental mode allowing opted-in pages beneath browser controls.">
+-        Always show with overlay (experimental)
++        Always cover (experimental)
++      </message>
++
++      <message name="IDS_TOOLBAR_SIDEBAR_POSITION" desc="Setting to choose the side of the tab sidebar.">
++        Sidebar position
+       </message>
+ 
+       <!-- Helium Browser Layout Strings -->
+@@ -10419,7 +10423,7 @@ Keep your key file in a safe place. You
+             Vertical
+           </message>
+           <message name="IDS_BROWSER_LAYOUT_VERTICAL_RIGHT" desc="In Title Case: Option to move vertical tabs to the right side.">
+-            Tabs on Right Side
++            Sidebar on right
+           </message>
+         </then>
+         <else>
+@@ -10439,7 +10443,7 @@ Keep your key file in a safe place. You
+             Vertical
+           </message>
+           <message name="IDS_BROWSER_LAYOUT_VERTICAL_RIGHT" desc="Option to move vertical tabs to the right side.">
+-            Tabs on right side
++            Sidebar on right
+           </message>
+         </else>
+       </if>
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -66,6 +66,26 @@ export function getHtml(this: SettingsAp
+           .menuOptions="${this.uiDensityOptions_}">
+       </settings-dropdown-menu>
+     </div>
++<if expr="is_macosx">
++    <div class="cr-row">
++      <div class="flex cr-padded-text" aria-hidden="true">
++        $i18n{showToolbar}
++      </div>
++      <settings-dropdown-menu id="showToolbar" label="$i18n{showToolbar}"
++          .menuOptions="${this.toolbarOptions_}" value="${this.getToolbarMode_()}"
++          @settings-control-change="${this.onToolbarModeSettingsControlChange_}">
++      </settings-dropdown-menu>
++    </div>
++    <div class="cr-row">
++      <div class="flex cr-padded-text" aria-hidden="true">
++        $i18n{sidebarPosition}
++      </div>
++      <settings-dropdown-menu id="sidebarPosition" label="$i18n{sidebarPosition}"
++          pref-key="helium.browser.vertical_right_aligned"
++          .menuOptions="${this.sidePanelAlignmentOptions_}">
++      </settings-dropdown-menu>
++    </div>
++</if>
+     <div id="toolbarRow" class="settings-row">
+       <cr-link-row id="customizeToolbar" label="$i18n{customizeToolbar}"
+           @click="${this.onCustomizeToolbarClick_}" external>
+@@ -221,6 +241,9 @@ export function getHtml(this: SettingsAp
+           $i18n{sidePanelAlignmentChromePanels}
+         </div>
+         <settings-dropdown-menu id="sidePanelPosition"
++<if expr="is_macosx">
++            disabled
++</if>
+             label="${this.i18n(
+                 'sidePanelAlignmentA11yLabel',
+                 '$i18n{sidePanelAlignmentChromePanels}',
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
+@@ -135,6 +135,10 @@ export class SettingsAppearancePageEleme
+ 
+   static override get properties() {
+     return {
++      // <if expr="is_macosx">
++      toolbarPinnedPref_: {type: Object},
++      toolbarOverlayPref_: {type: Object},
++      // </if>
+       pageVisibility_: {type: Object},
+       defaultZoom_: {type: Number},
+ 
+@@ -198,6 +202,30 @@ export class SettingsAppearancePageEleme
+       normalizePageVisibility(pageVisibility?.appearance);
+   protected accessor defaultZoom_: number = 1.0;
+ 
++  // <if expr="is_macosx">
++  protected accessor toolbarPinnedPref_: PrefObject<boolean>|undefined =
++      undefined;
++  protected accessor toolbarOverlayPref_: PrefObject<boolean>|undefined =
++      undefined;
++  protected readonly toolbarOptions_: DropdownMenuOptionList = [
++    {value: 'hover', name: loadTimeData.getString('showToolbarHover')},
++    {value: 'always', name: loadTimeData.getString('showToolbarAlways')},
++    {value: 'cover', name: loadTimeData.getString('showToolbarCover')},
++  ];
++
++  protected getToolbarMode_(): string {
++    return !this.toolbarPinnedPref_?.value ? 'hover' :
++        this.toolbarOverlayPref_?.value ? 'cover' : 'always';
++  }
++
++  protected onToolbarModeSettingsControlChange_(event: Event) {
++    const mode = (event.target as SettingsDropdownMenuElement).getSelectedValue();
++    const prefs = PrefService.getInstance();
++    prefs.setPrefValue('helium.browser.top_controls_overlay', mode === 'cover');
++    prefs.setPrefValue('helium.browser.zen_mode_top_chrome_pinned', mode !== 'hover');
++  }
++  // </if>
++
+   // Mirrored prefs.
+   protected accessor defaultFontSizePref_: PrefObject<number>|undefined =
+       undefined;
+@@ -367,6 +395,10 @@ export class SettingsAppearancePageEleme
+     super.connectedCallback();
+ 
+     this.mirrorPrefs({
++      // <if expr="is_macosx">
++      'helium.browser.zen_mode_top_chrome_pinned': 'toolbarPinnedPref_',
++      'helium.browser.top_controls_overlay': 'toolbarOverlayPref_',
++      // </if>
+       'autogenerated.theme.policy.color': 'themePolicyColorPref_',
+       'browser.pin_contextual_task_button': 'pinContextualTaskButtonPref_',
+       'browser.pin_split_tab_button': 'pinSplitTabButtonPref_',
+--- a/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
++++ b/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
+@@ -42,6 +42,23 @@
+ 
+ namespace tabs {
+ 
++#if BUILDFLAG(IS_MAC)
++namespace {
++
++void AlignPanelsWithSidebar(PrefService* pref_service) {
++  // Keep browser panels opposite the tab sidebar, including restored profiles
++  // and writes from Settings or another browser window.
++  const bool panel_on_right =
++      !pref_service->GetBoolean(prefs::kHeliumVerticalRightAligned);
++  if (pref_service->GetBoolean(prefs::kSidePanelHorizontalAlignment) !=
++      panel_on_right) {
++    pref_service->SetBoolean(prefs::kSidePanelHorizontalAlignment, panel_on_right);
++  }
++}
++
++}  // namespace
++#endif
++
+ VerticalTabStripStateControllerImpl::VerticalTabStripStateControllerImpl(
+     BrowserWindowInterface& browser_window,
+     PrefService* pref_service,
+@@ -58,6 +75,13 @@ VerticalTabStripStateControllerImpl::Ver
+       browser_window_(browser_window) {
+   pref_change_registrar_.Init(pref_service_);
+ 
++#if BUILDFLAG(IS_MAC)
++  pref_change_registrar_.Add(
++      prefs::kSidePanelHorizontalAlignment,
++      base::BindRepeating(&AlignPanelsWithSidebar, pref_service_));
++  AlignPanelsWithSidebar(pref_service_);
++#endif
++
+   is_vertical_tabs_enabled_ =
+       pref_service_->GetInteger(prefs::kHeliumLayout) ==
+       std::to_underlying(HeliumLayoutType::kVertical);
+@@ -276,6 +300,9 @@ void VerticalTabStripStateControllerImpl
+ }
+ 
+ void VerticalTabStripStateControllerImpl::OnModeChanged() {
++#if BUILDFLAG(IS_MAC)
++  AlignPanelsWithSidebar(pref_service_);
++#endif
+   const bool new_enabled =
+       pref_service_->GetInteger(prefs::kHeliumLayout) ==
+       std::to_underlying(HeliumLayoutType::kVertical);
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -606,6 +606,11 @@ void AddAppearanceStrings(content::WebUI
+                           Profile* profile) {
+   static constexpr webui::LocalizedString kLocalizedStrings[] = {
+       {"appearancePageTitle", IDS_SETTINGS_APPEARANCE},
++      {"showToolbar", IDS_TOP_CONTROLS_MENU},
++      {"showToolbarHover", IDS_TOP_CONTROLS_HOVER},
++      {"showToolbarAlways", IDS_TOP_CONTROLS_ALWAYS},
++      {"showToolbarCover", IDS_TOP_CONTROLS_OVERLAY},
++      {"sidebarPosition", IDS_TOOLBAR_SIDEBAR_POSITION},
+       {"appearanceBehaviorPageTitle", IDS_SETTINGS_APPEARANCE_AND_BEHAVIOR},
+       {"behaviorPageTitle", IDS_SETTINGS_BEHAVIOR},
+       {"ctrlTabMru", IDS_SETTINGS_CTRL_TAB_MRU},
