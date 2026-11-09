@@ -1,0 +1,12 @@
+--- a/components/helium_services/helium_services_helpers.cc
++++ b/components/helium_services/helium_services_helpers.cc
+@@ -28,7 +28,8 @@
+ #endif
+ 
+ #if defined(UPDATES_SUPPORTED)
+-constexpr std::string_view kUpdateBaseUrl = "https://lune.computer/updates/stable/";
++constexpr std::string_view kUpdateBaseUrl =
++    "https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/";
+ constexpr const char kUpdatePath[] =
+ #if BUILDFLAG(IS_MAC)
+     "mac/appcast-" CPU_ARCH_STR ".xml";
