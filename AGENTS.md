@@ -7,6 +7,17 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The Helium November 9 development input imports main through `0a5feb31`,
+adding independent history/bookmark autocomplete settings while retaining
+Chromium 158.0.8127.18 and the accepted onboarding/UI stack. The four upstream
+Git-conflicted patches preserve Lune's Chromium 158 bodies; strict archive-backed
+replay also repairs pre-substitution context and XML newline assumptions in
+platform patches. All 524 patches replay without fuzz; both architecture builds,
+autocomplete/settings/persistence smoke checks, and packaged onboarding flows
+pass (Intel under Rosetta). Build/runtime adoption evidence is recorded in
+[the integration review](agent-docs/project/builds/2026-11-09-helium-update.md).
+This does not publish a browser release or change the Chromium/ungoogled pins.
+
 Main now pins the complete reviewed UI stack plus the accepted onboarding and
 native toolbar refinements, plus Command-T corner/tint fixes through
 `464c5298` under `inputs/command-style-2026-11-09/macos`.
