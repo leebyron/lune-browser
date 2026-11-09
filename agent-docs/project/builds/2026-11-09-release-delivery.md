@@ -10,6 +10,9 @@ not the default. [The separate prompt investigation](../features/default-browser
 identifies a first-launch gate that the owner wants removed, but the owner
 confirms the row also remains absent after quit/reopen. The persistent cause is
 still unresolved; no macOS 13 rendering cause is established.
+Settings on that same Mac correctly reports Lune is not default and offers
+Make default, narrowing the sidebar investigation to prompt eligibility/delivery
+or visibility. The owner has not reported executing that Settings action.
 
 This is acceptance evidence, not a publication announcement. The exact browser
 source is `24f6531ae722dfa61e214e04a5efde83bf068f4f`; the production-only delivery

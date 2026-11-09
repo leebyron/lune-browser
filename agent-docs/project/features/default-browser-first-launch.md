@@ -9,6 +9,13 @@ confirmed that a full quit and restart does not restore it. First-launch
 suppression therefore cannot explain the whole report. This is separate from
 the older-system corner and material issues.
 
+The owner then checked `lune://settings/defaultBrowser`: it correctly reports
+that Lune is not the default and offers Make default. This verifies the Settings
+state and action availability on the affected installation, not successful
+execution of the system-default change. It narrows the persistent missing row
+to startup eligibility, sidebar prompt delivery or rendering; there is no
+evidence of a general macOS 13 default-detection or API-availability failure.
+
 The owner also explicitly requires the action on the first launch: do not
 retain first-launch suppression as intended Lune behavior. Preserve explicit
 dismissals and system policy, but do not require a restart after installation.
@@ -41,11 +48,14 @@ prepared Chromium source:
 
 ## Next verification
 
-The quit/reopen check failed to restore the row. A follow-up asks what
-`lune://settings/defaultBrowser` reports. Compare that reported default state
-and then inspect only relevant prompt eligibility/preferences and
-footer visibility. An absent callback and a present-but-clipped row need different
-fixes. Do not infer that default detection is wrong solely from the missing row.
+The quit/reopen check failed to restore the row, while Settings correctly shows
+the non-default state and offers the action. Inspect relevant startup prompt
+eligibility/preferences and footer visibility next. An absent callback and a
+present-but-clipped row need different fixes. The current source has no OS-version
+gate in the footer. Its normal macOS prompt policy retains the legacy decline
+count/cooldown; the centralized infobar migration that bypasses sidebar routing
+is disabled by default. Neither saved suppression nor enabled migration was
+observed on the affected Mac, so both remain checks rather than claimed causes.
 
 Remove the first-run gap as requested, potentially by refreshing existing prompt
 eligibility when setup completes, while retaining explicit dismissals, normal
