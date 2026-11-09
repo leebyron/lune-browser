@@ -122,7 +122,7 @@ reports the asset uploaded with the exact local size and SHA-256 above. This
 unpublished private draft distributes acceptance materials only; it does not
 create a public staging channel or enable website production downloads.
 
-## Remaining gates
+## Production publication and remaining work
 
 The owner subsequently requested publishing this normal production build and
 fixing any discovered issues in a new version. Physical Intel acceptance is
@@ -136,10 +136,22 @@ not establish native Intel acceptance on
 macOS 13.7.8 and 26.6.2. The owner confirmed the second version on November 9;
 device models and actual native acceptance results remain pending.
 
-Intel headed/native interaction, extension installation/update on Intel, wrong-architecture
-offer rejection on native Intel, public HTTPS installed updates, fresh Chromium
-comparison, public source/artifact verification, stable-feed readback, latest-link
-readback and production website deployment remain to be completed. Historical
-build-1/build-2 staging files are unchanged. Upload of the unpublished GitHub
-draft has started; digest verification is pending. No public release, feed,
-source package, or website deployment has been published by this work yet.
+[Lune 26.1109.1](https://github.com/leebyron/lune-downloads/releases/tag/v26.1109.1)
+is now public, stable and latest. All 18 upload digests pass. Anonymous GitHub
+metadata verifies every asset; all eight source download endpoints are accessible,
+and the complete source kit download matches its hash. Both raw feeds, both
+versioned DMGs and both latest aliases pass anonymous byte comparison. The paired
+feeds and acceptance/freshness records were published together in
+`bf70942306f4a4e3a33760cbdd3dcdce1a3b55d1` in `lune-downloads`.
+
+Public HTTPS installed updates from build 2 pass sequentially on Apple silicon
+and Intel under Rosetta. Both reach 26.1109.1, relaunch, preserve profile data and
+pass signing/Gatekeeper checks. The fresh publication observation at
+2026-11-09T23:05:36Z records Chromium macOS Stable 157.0.8103.51; the shipped
+158.0.8127.18 engine is ahead, as disclosed in the release notes.
+
+Production website deployment and live redirect/UI verification remain.
+Physical Intel interaction, extension installation/update, wrong-architecture
+rejection and macOS 13 runtime checks remain deferred follow-up, not claimed
+passing and not blocking this owner-approved release. Historical build-1/build-2
+staging files remain unchanged.

@@ -7,29 +7,25 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-Release delivery preparation is on `release-download-flow`. Production-only
-publication corrections are on `production-release-policy`; use its publisher
-with `--source-checkout` pointing to frozen commit `24f6531a`. New releases use
-only stable: drafts stay unpublished until native Intel acceptance, then the
-final release, paired stable feeds, and latest links are published. No new public
-staging release or prerelease is authorized. Historical build-1/build-2 staging
-artifacts remain unchanged. The requested
-`26.1109.1` is reserved by its frozen release record; it is not published yet. The candidate platform input
-`inputs/release-delivery-1/macos` combines the reviewed Helium update and accepted
-onboarding artwork with GitHub Sparkle endpoints and signed Lune version display.
-The tooling now prepares frozen date-versioned builds, paired GitHub feeds,
-immutable/version-independent downloads, and fail-closed freshness checks.
-Website links and old-feed redirects are prepared but must not reach production
-before stable promotion and public readback. The owner subsequently deferred
-physical Intel testing for 26.1109.1 and requested production publication with
-fixes in subsequent versions. Keep native hardware results marked unverified;
-use the separate production acceptance record, not fabricated passing results. Complete clean source comparison and both version-display unit compiles pass.
-Both frozen architecture builds and their post-build source inventories pass.
-Local signed acceptance passes on Apple silicon and Intel under Rosetta, including
-positive/negative Sparkle tests and runtime persistence. The paired publication
-files and portable Intel test kit are prepared; an unpublished draft is uploading. The owner has two Intel Macs (macOS 13.7.8 and 26.6.2) available
-for final hardware checks. See [release delivery](agent-docs/project/release-delivery.md).
+Lune `26.1109.1` is published as the production release in `leebyron/lune-downloads`.
+The signed private source tag identifies frozen commit `24f6531a`; publication
+policy is tracked separately on `production-release-policy`. Both frozen builds,
+source inventories, signing/notarization, and local acceptance pass. All 18
+public assets have verified digests. Anonymous versioned/latest downloads and
+paired GitHub Sparkle feeds match the signed bytes, and public HTTPS installed
+updates from build 2 pass on Apple silicon and Intel under Rosetta, including
+relaunch and profile persistence. The publication freshness check observed
+Chromium macOS Stable 157.0.8103.51; the shipped 158.0.8127.18 engine is ahead.
 
+The owner explicitly deferred physical Intel testing for this release and chose
+to publish now, with any fixes in later versions. Native Intel/older-macOS results
+remain unverified, not passing. The private optional Intel test kit remains
+available. This production policy supersedes older hardware-blocking summaries
+below. No new public staging release or prerelease is authorized; historical
+build-1/build-2 artifacts remain unchanged. Website download links and old-feed
+redirects are ready for deployment now that public readback passes. See
+[release delivery](agent-docs/project/release-delivery.md) and
+[release evidence](agent-docs/project/builds/2026-11-09-release-delivery.md).
 
 The Helium November 9 development input imports main through `0a5feb31`,
 adding independent history/bookmark autocomplete settings while retaining

@@ -1,11 +1,11 @@
 # GitHub download and update delivery
 
-Implemented on the release-download-flow branch, November 9, 2026. Publication
-and stable promotion use the candidate's actual acceptance results and recorded
-owner decisions. For 26.1109.1, the owner explicitly deferred physical Intel
-testing and requested production publication; those results remain unverified.
-The requested first date-versioned release is 26.1109.1; do not infer that a tag,
-public release, or stable offer exists from this document alone.
+Lune 26.1109.1 was published November 9, 2026 with paired stable feeds,
+immutable/version-independent downloads and corresponding source. Anonymous
+readback and installed public HTTPS updates pass on both architectures (Intel
+under Rosetta). The owner explicitly deferred physical Intel testing; these
+results remain unverified. Website deployment is the remaining delivery step.
+See the current acceptance evidence below for authoritative status.
 
 The owner requires production/stable delivery only. Preparation and hardware
 acceptance use an unpublished GitHub draft and local test fixtures, not a public
