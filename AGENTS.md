@@ -8,14 +8,14 @@ Read [the project definition](agent-docs/project/README.md) and
 ## Current state
 
 Release delivery preparation is on `release-download-flow`. The requested
-`26.1109.1` is not reserved or published yet. The candidate platform input
+`26.1109.1` is reserved by its frozen release record; it is not published yet. The candidate platform input
 `inputs/release-delivery-1/macos` combines the reviewed Helium update and accepted
 onboarding artwork with GitHub Sparkle endpoints and signed Lune version display.
 The tooling now prepares frozen date-versioned builds, paired GitHub feeds,
 immutable/version-independent downloads, and fail-closed freshness checks.
 Website links and old-feed redirects are prepared but must not reach production
-before stable promotion and public readback. Both architecture compilation and
-signed acceptance are still in progress; the owner has two Intel Macs available
+before stable promotion and public readback. Complete clean source comparison and both version-display unit compiles pass.
+The frozen architecture builds and signed acceptance are in progress; the owner has two Intel Macs available
 for final hardware checks. See [release delivery](agent-docs/project/release-delivery.md).
 
 
