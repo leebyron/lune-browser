@@ -257,7 +257,8 @@ svg { display: block; }
 
 @media(max-width:700px) {
   #lune { --browser-scale:.5; }
-  #lune .demo-cursor,#lune .demo-click { display:none; }
+  #lune .demo-cursor,#lune .demo-click { animation:none; }
+  #lune .demo-cursor { width:12px; height:15px; offset-path:none; transform-origin:1px .75px; }
   #lune .viewport { transition:left 260ms cubic-bezier(.2,.8,.2,1); }
 }
 @media(prefers-reduced-motion:reduce) {

@@ -56,8 +56,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   fills the window, while the glass sidebar remains until the cursor is more than
   48px away. The sidebar then slides left over 260ms. Scrolling back reverses it.
   CSS scroll timelines own the cursor and layout state, with a JavaScript fallback.
-  On mobile the pointer and click ring are omitted, and the sidebar and content
-  boundary move together over 260ms; Reduced Motion removes that transition.
+  On mobile the pointer and click ring are visible at the browser’s half scale.
+  Scroll-positioned transforms move the pointer continuously, pause on the
+  toggle and show the click. The floating sidebar stays until the pointer leaves
+  its 48px boundary. Reduced Motion hides the demonstration.
 - Windowed reveal bands are 8px at the top and left edges and consume no layout
   space. The sidebar’s full 52px header also reveals the toolbar. Revealed glass
   stays until the pointer is 48px away; the header retains the full window-width
@@ -411,3 +413,9 @@ The first point now leads with current Chromium, followed by uBlock Origin.
 The extension point explains the privacy benefit of proxying downloads and
 updates, following [Helium’s published explanation](https://helium.computer/).
 There are ten points in the same flowing sequence and type style.
+
+The restored phone cursor uses numeric translate3d positions from the measured
+path in the existing scroll animation frame, instead of native motion-path
+interpolation. Its tip stays anchored at the half-scale sidebar toggle during
+the click pause. Opacity, press scale and click ring share the desktop progress
+windows. Resizing back to desktop clears the phone’s inline animation state.

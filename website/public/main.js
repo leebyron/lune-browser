@@ -387,7 +387,7 @@
     const floating = sidebarOverride !== null ? Boolean(sidebarOverride) : progress >= .5;
     const cursorDistance = progress <= .44 ? clamp(progress / .44) * cursorStop : cursorStop + clamp((progress - .64) / .36) * (100 - cursorStop);
     const cursorPoint = cursorPath.getPointAtLength(cursorDistance / 100 * cursorPathLength);
-    const demoHolding = sidebarOverride === null && browserScale === 1 && (progress < .5 || distanceFromPanel({x:cursorPoint.x / browserScale,y:cursorPoint.y / browserScale},
+    const demoHolding = sidebarOverride === null && (progress < .5 || distanceFromPanel({x:cursorPoint.x / browserScale,y:cursorPoint.y / browserScale},
       {left:0,right:sidebar.offsetWidth,top:0,bottom:win.clientHeight}) <= panelDismissDistance);
     const keyboardFocus = Boolean(sidebarRegion.querySelector(':focus-visible'));
     const visible = !floating || demoHolding || sidebarHovered || keyboardFocus;
@@ -398,14 +398,23 @@
     sidebarToggle.setAttribute('aria-label', floating ? 'Pin sidebar' : 'Unpin sidebar');
     win.dataset.sidebar = !floating ? 'pinned' : visible ? 'floating' : 'hidden';
     updateWindowControls('sidebar');
-    if (!nativeTimeline) {
-      demoCursor.style.offsetDistance = `${cursorDistance}%`;
+    if (!nativeTimeline || browserScale !== 1) {
       demoCursor.style.opacity = Math.min(clamp(progress / .06), 1 - clamp((progress - .94) / .06));
       const press = progress <= .5 ? clamp((progress - .46) / .04) : 1 - clamp((progress - .5) / .06);
-      demoCursor.style.transform = `scale(${1 - .16 * press})`;
+      if(browserScale !== 1) {
+        // Drive phone motion with ordinary transforms, independently of native
+        // scroll-timeline interpolation of motion-path offset-distance.
+        demoCursor.style.transform = `translate3d(${cursorPoint.x-2*browserScale}px,${cursorPoint.y-1.5*browserScale}px,0) scale(${1-.16*press})`;
+      } else {
+        demoCursor.style.offsetDistance = `${cursorDistance}%`;
+        demoCursor.style.transform = `scale(${1 - .16 * press})`;
+      }
       const click = clamp((progress - .46) / .18);
       demoClick.style.opacity = progress <= .5 ? .7 * clamp((progress - .46) / .04) : .7 * (1 - clamp((progress - .5) / .14));
       demoClick.style.transform = `scale(${.5 + click * 1.2})`;
+    } else if(demoCursor.style.transform) {
+      ['transform','opacity','offset-distance'].forEach(property=>demoCursor.style.removeProperty(property));
+      ['transform','opacity'].forEach(property=>demoClick.style.removeProperty(property));
     }
   }
   sidebarToggle.addEventListener('click', () => {
