@@ -11,8 +11,9 @@ Lune `26.1109.2` is reserved for the next production release on
 `release-26-1109-2`, with notes and the frozen record committed together.
 It selects `inputs/native-window-close-1/macos`, preserving the complete accepted
 appearance/downloads/footer/startup/sidebar stack. Input validation and all 65
-orchestrator tests pass. Initial storage is about 50 GiB, below the preparation
-and compilation thresholds; release builds and signing have not started.
+orchestrator tests pass. Storage was freed to 260.6 GiB; clean archive-backed preparation and eight native
+regression checks pass. Frozen release builds are in progress; signing has not
+started.
 Do not publish or reuse this version with different inputs. See
 [next-release preparation](agent-docs/project/builds/2026-11-09-release-26.1109.2.md).
 
