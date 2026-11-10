@@ -18,8 +18,7 @@ See [release evidence](agent-docs/project/builds/2026-11-09-release-26.1109.2.md
 The separate distribution repository is being deleted after migration under the
 owner's explicit instruction; do not retain compatibility URLs. Existing .1/.2
 DMGs embed its old Sparkle URL, so only a new build can restore stock updating.
-The active next task is issue #24 (application-menu Check for Updates…), the
-canonical feed patch, and a new frozen release. `leebyron/lune-browser` is public. Link exact signed source tags and permanent
+Issue #24 and the canonical feed patch are accepted and adopted on main under `inputs/app-menu-update-1/macos`; both builds, native fixtures and smoke checks pass (Intel under Rosetta). See [update-menu validation](agent-docs/project/features/app-menu-update-check.md). The next release is being frozen. `leebyron/lune-browser` is public. Link exact signed source tags and permanent
 component refs. Release uploads contain one `Lune-macos-ARCH.dmg` per architecture, appcasts, checksums and compact release/validation metadata. Release-tag and latest URLs reference the same asset; do not upload duplicate version-named DMGs. Do not upload duplicate
 source kits, Git bundles or unchanged dependency archives. Keep previously
 published assets immutable. The current publisher verifies anonymous source access;

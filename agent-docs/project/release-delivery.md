@@ -249,15 +249,12 @@ feed commit. Do not overwrite the original candidate evidence.
 
 ## Focused release uploads
 
-The source repository is public. Publish browser DMGs (versioned and permanent
-latest links), architecture appcasts, checksums and compact release/validation
-metadata. Link the exact signed public source tag and permanent component refs.
+The source repository is public. Publish one DMG per architecture, architecture appcasts, checksums and compact release/validation metadata. Release-tag and latest download URLs reference the same asset. Link the exact signed public source tag and permanent component refs.
 Do not re-upload Git history bundles, source kits, or unchanged source/dependency
 archives merely to duplicate what the public repository and recorded immutable
 URLs already provide. Verify source reachability and hashes; preserve existing
 published assets and licenses. The owner explicitly selected this approach while
-publishing 26.1109.2. That release removed redundant source assets only from its
-unpublished draft; the prior production release remains intact.
+publishing 26.1109.2. Redundant source assets were removed from the unpublished draft. On November 10, the owner also requested removal of duplicate version-named DMGs from both published releases, retaining identical signed bytes under stable filenames and updating appcasts/checksums first. The frozen source tags and browser bytes remain unchanged.
 
 The active upload command enforces this focused asset set. `scripts/release/source.py`
 remains an optional local export utility for an explicit request, not a routine
