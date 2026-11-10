@@ -142,7 +142,9 @@ third-party cookie defaults, removed Google integrations, consent, extensions,
 keyboard navigation, sidebar control, setup choices and shared source, with no headings, fragments, eyebrows or screenshot placeholder.
 The opening reuses setup’s paired-circle logo reveal, driven by scroll
 rather than a timer. The mark starts at the content viewport’s vertical center
-and moves upward with the page. A short personal note sits directly below it;
+and moves upward with the page. A short personal note sits directly below it
+in the same Inter 20px/32px as the marketing points, with a 96px section gap
+before the first point;
 the flower is already visible when the browser opens. The opening point
 has only a flower, enlarged 50%; eight uniquely generated leaves mark later points. A branching cyanotype vine joins them with small shoots and curled
 tendrils, rather than a line connecting separate icons. Marketing prose uses
@@ -361,3 +363,6 @@ has no stroke, the final mark/button gap is 28px (14px at mobile scale), and the
 credit stays at the actions/byline midpoint. These are desktop/phone-size browser
 preview checks; the owner’s physical iPhone rendering was not independently
 retested.
+
+The growing vine stroke uses the full 3.2px stem width at 95% opacity, over a
+30% guide, so its progress reads clearly without breaking future leaf joins.
