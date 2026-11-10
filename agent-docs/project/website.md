@@ -25,7 +25,11 @@ provenance.
 
 ## Current status
 
-[Deployment 42784298591](https://github.com/leebyron/lune-browser/actions/runs/42784298591) successfully deployed commit `67914416` using the existing local Mac runner and token. The live site links to `leebyron/lune-browser` for source and fixed latest-download URLs. Legacy feed redirects and staging files are removed. The apex domain is active; public HTTPS and download-link verification pass. See [current status](status.md) and [consolidation evidence](builds/2026-11-10-release-consolidation.md).
+[Deployment 42872557616](https://github.com/leebyron/lune-browser/actions/runs/42872557616) successfully deployed website commit `48b622380094282489181e1c507ec3a1addf9111` using the existing local Mac runner and token. The respect-focused story and current browser-polish illustration are live. The closing attribution has no heading and starts its “Thank you” sentence on a new line; the Lode author line remains at the bottom edge.
+
+Public HTTPS readback on November 10 at 18:11 UTC matches the committed HTML, CSS, JavaScript, uBlock icon and license byte for byte. Live browser inspection confirms the tagline and final attribution. JavaScript syntax, Wrangler dry run and whitespace checks pass. The 18:10 UTC [official Mac Stable check](https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1) returned `157.0.8103.51`; the published browser retains Chromium `158.0.8127.18`, so it is not behind that observed Stable version. No browser assets, feeds or download targets changed in this deployment.
+
+The live site links to `leebyron/lune-browser` for source and fixed latest-download URLs. Legacy feed redirects and staging files remain removed. See [current status](status.md) and [consolidation evidence](builds/2026-11-10-release-consolidation.md).
 
 Subsequent browser releases update GitHub's latest pointer and paired stable feeds without a website deployment. Each release stores one DMG per architecture; the version-specific URL and fixed latest URL select the same asset. Follow [release delivery](release-delivery.md) for publication ordering and public readback.
 
