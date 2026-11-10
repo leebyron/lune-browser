@@ -20,8 +20,7 @@ owner's explicit instruction; do not retain compatibility URLs. Existing .1/.2
 DMGs embed its old Sparkle URL, so only a new build can restore stock updating.
 The active next task is issue #24 (application-menu Check for Updates…), the
 canonical feed patch, and a new frozen release. `leebyron/lune-browser` is public. Link exact signed source tags and permanent
-component refs. Release uploads contain versioned/latest-name browser DMGs,
-appcasts, checksums and compact release/validation metadata. Do not upload duplicate
+component refs. Release uploads contain one `Lune-macos-ARCH.dmg` per architecture, appcasts, checksums and compact release/validation metadata. Release-tag and latest URLs reference the same asset; do not upload duplicate version-named DMGs. Do not upload duplicate
 source kits, Git bundles or unchanged dependency archives. Keep previously
 published assets immutable. The current publisher verifies anonymous source access;
 read [release delivery](agent-docs/project/release-delivery.md) before publishing.

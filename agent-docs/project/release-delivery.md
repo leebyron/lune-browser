@@ -23,15 +23,12 @@ The Cloudflare website links to GitHub; it does not store browser binaries.
 | Purpose | URL pattern |
 | --- | --- |
 | Release page | `https://github.com/leebyron/lune-browser/releases/tag/v<VERSION>` |
-| Versioned DMG | `https://github.com/leebyron/lune-browser/releases/download/v<VERSION>/Lune-<VERSION>-macos-<ARCH>.dmg` |
+| Versioned DMG | `https://github.com/leebyron/lune-browser/releases/download/v<VERSION>/Lune-macos-<ARCH>.dmg` |
 | Latest stable DMG | `https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-<ARCH>.dmg` |
 | Release's appcast | `https://github.com/leebyron/lune-browser/releases/download/v<VERSION>/appcast-<ARCH>.xml` |
 | Stable feed | `https://raw.githubusercontent.com/leebyron/lune-browser/main/updates/stable/mac/appcast-<ARCH>.xml` |
 
-ARCH is arm64 or x86_64. Each release uploads a versioned DMG and an identically
-hashed alias named Lune-macos-ARCH.dmg. GitHub's latest-release pointer makes the
-website links permanent without a redeploy for subsequent releases. Sparkle
-entries always reference the versioned DMG, never the latest alias.
+ARCH is arm64 or x86_64. Upload exactly one DMG per architecture, named `Lune-macos-ARCH.dmg`. The release-tag URL identifies immutable bytes; GitHub's latest-release URL resolves to that same asset in the latest production release. Sparkle enclosures use the release-tag URL, never the moving latest URL. No duplicate version-named DMG or alias upload is needed.
 
 Both feeds and their release metadata are promoted in one Git commit in the
 public repository. Stable promotion also marks that GitHub release as latest.
@@ -45,8 +42,8 @@ announcing completion. Previous release assets remain available.
 The owner retired the separate distribution repository and requested no legacy
 URL compatibility. Do not create redirects or maintain its old feeds. Remove
 legacy website feed redirects and historical staging assets from the current
-website. Do not deploy enabled download links until the canonical versioned DMGs,
-latest aliases and stable feeds pass anonymous readback.
+website. Do not deploy enabled download links until the canonical release-tag downloads,
+latest download links and stable feeds pass anonymous readback.
 
 The moved 26.1109.1/26.1109.2 DMGs retain their signed bytes and embedded old
 updater URL. Their stock updater stops when the former repository is deleted;
@@ -108,7 +105,7 @@ additional CI cost; this work does not activate scheduled release jobs.
    architectures sequentially, including invalid-signature and unsupported-OS
    rejection cases. Retain before/after profile and signature evidence.
 6. Use `scripts/release/delivery.py --arm64 CANDIDATE --x86-64 CANDIDATE --output
-   PUBLICATION --evidence ACCEPTANCE_JSON` to create matching feeds, immutable DMGs, latest-name aliases,
+   PUBLICATION --evidence ACCEPTANCE_JSON` to create matching feeds, one immutable DMG per architecture,
    release metadata, reviewed validation evidence and checksums. Source is retained
    in the public Git repository; source-kit export is not a release prerequisite.
 7. Retain a signed annotated `v<VERSION>` source tag at the exact frozen source
@@ -132,7 +129,7 @@ additional CI cost; this work does not activate scheduled release jobs.
    Chromium lookup pass before it undrafts the final
    release. It verifies anonymous immutable downloads, rechecks freshness, commits
    both stable feeds, then marks the release latest. Verify both raw feeds,
-   both latest aliases, the release page and public HTTPS installed updates,
+   both latest download links, the release page and public HTTPS installed updates,
    then deploy the website. If a step fails, preserve existing feeds and resume
    the same verified bytes; do not create a prerelease as a workaround.
 
@@ -253,7 +250,7 @@ feed commit. Do not overwrite the original candidate evidence.
 ## Focused release uploads
 
 The source repository is public. Publish browser DMGs (versioned and permanent
-latest aliases), architecture appcasts, checksums and compact release/validation
+latest links), architecture appcasts, checksums and compact release/validation
 metadata. Link the exact signed public source tag and permanent component refs.
 Do not re-upload Git history bundles, source kits, or unchanged source/dependency
 archives merely to duplicate what the public repository and recorded immutable

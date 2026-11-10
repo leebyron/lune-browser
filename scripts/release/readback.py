@@ -31,7 +31,7 @@ def main():
                 report['checks'].append({'url':url,'sha256':sha(path)})
                 row=data['downloads'][arch]
                 urls=[row['url']]
-                if a.channel=='stable':urls.append(f"{LATEST}/{row['alias']}")
+                if a.channel=='stable':urls.append(f"{LATEST}/{row['filename']}")
                 for url in urls:
                     path=tmp/row['filename'];fetch(url,path)
                     if sha(path)!=row['sha256']:raise ValueError('Public download differs')

@@ -151,12 +151,10 @@ Show Lune and Chromium versions separately in About. See
 [release commits and version information](release-commits.md) for the required
 input record, calendar rules, preparation procedure, evidence, and migration gaps.
 
-Target artifact naming: `Lune-<version>-macos-<arch>.dmg`, tagged `v<version>`.
-Publish versioned/latest-name DMGs, appcasts, SHA-256 sums and compact release/
-validation metadata. Link the public source repository at its exact signed release
+Name each architecture asset `Lune-macos-<arch>.dmg` under tag `v<version>`. Upload one DMG per architecture: release-tag URLs provide immutable version-specific downloads, and GitHub latest URLs resolve to those same assets. Publish appcasts, SHA-256 sums and compact release/validation metadata. Link the public source repository at its exact signed release
 tag and retained component refs; verify pinned dependency URLs and hashes. Do not
 upload duplicate source kits, Git history bundles or unchanged dependency archives.
-The downloads repository and source repository retain separate immutable tags.
+Source tags and browser releases belong to this same public repository.
 Keep permanent component tags reachable as described in [architecture](architecture.md).
 
 Publish and verify both architecture assets before changing either stable feed.

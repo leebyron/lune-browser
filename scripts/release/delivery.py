@@ -29,15 +29,14 @@ def prepare(directories, destination, evidence):
     destination.mkdir(parents=True)
     assets = {}; downloads = {}
     for d,c in zip(directories,candidates):
-        name=c['filename']; alias=f"Lune-macos-{c['arch']}.dmg"
-        for target in (name,alias):
-            shutil.copyfile(d/name,destination/target)
-            assets[target] = {'sha256':sha(destination/target),'size':(destination/target).stat().st_size}
+        name=c['filename']
+        shutil.copyfile(d/name,destination/name)
+        assets[name] = {'sha256':sha(destination/name),'size':(destination/name).stat().st_size}
         url=f'{DOWNLOADS}/v{version}/{name}'
         feed=f"appcast-{c['arch']}.xml"
         (destination/feed).write_bytes(make_feed(c,url))
         assets[feed]={'sha256':sha(destination/feed),'size':(destination/feed).stat().st_size}
-        downloads[c['arch']]={'url':url,'filename':name,'alias':alias,'sha256':c['sha256'],'size':c['size']}
+        downloads[c['arch']]={'url':url,'filename':name,'sha256':c['sha256'],'size':c['size']}
     manifest=dict(schema_version=1,version=version,tag='v'+version,
                   source_commit=candidates[0]['orchestrator_commit'],chromium_version=candidates[0]['chromium_version'],
                   minimum_system_version=candidates[0]['minimum_system_version'],downloads=downloads,assets=assets)

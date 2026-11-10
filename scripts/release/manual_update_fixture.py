@@ -32,7 +32,9 @@ def fixture(directory, arch, case):
         raise ValueError('Wrong-architecture fixture requires a native Intel test Mac')
     row = data['downloads'][offered_arch]
     name = row['filename']
-    if name != f"Lune-{data['version']}-macos-{offered_arch}.dmg":
+    if name not in (f"Lune-macos-{offered_arch}.dmg",
+                    f"Lune-{data['version']}-macos-{offered_arch}.dmg"):
+        # Keep prior release fixtures usable without changing their binaries.
         raise ValueError('Unexpected release artifact name')
     dmg = directory / name
     if dmg.stat().st_size != row['size'] or digest(dmg) != row['sha256']:

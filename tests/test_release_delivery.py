@@ -24,7 +24,7 @@ class FreshnessTests(unittest.TestCase):
 
 
 class DeliveryTests(unittest.TestCase):
-    def test_both_architectures_and_identical_alias_bytes(self):
+    def test_one_asset_per_architecture_with_version_specific_urls(self):
         import base64
         import delivery
         with tempfile.TemporaryDirectory() as tmp:
@@ -47,7 +47,19 @@ class DeliveryTests(unittest.TestCase):
                 data=delivery.prepare(dirs,root/'public',evidence)
             for arch in model.ARCHES:
                 row=data['downloads'][arch]
-                self.assertEqual((root/'public'/row['filename']).read_bytes(),(root/'public'/row['alias']).read_bytes())
+                self.assertEqual(row['filename'], f'Lune-macos-{arch}.dmg')
+                self.assertEqual((root/'public'/row['filename']).read_bytes(), arch.encode())
+                self.assertEqual(row['url'], f"{model.DOWNLOADS}/v26.1109.1/{row['filename']}")
+                self.assertNotIn('alias', row)
+            self.assertEqual(len(list((root/'public').glob('*.dmg'))), 2)
+            import publish
+            with patch('publish.load_record', return_value={}), patch('publish.git', return_value='a'*40):
+                self.assertEqual(publish.manifest(root/'public'), data)
+                changed = copy.deepcopy(data)
+                changed['assets']['duplicate.dmg'] = changed['assets']['Lune-macos-arm64.dmg']
+                (root/'public/release.json').write_text(json.dumps(changed))
+                with self.assertRaisesRegex(ValueError, 'Exactly one DMG'):
+                    publish.manifest(root/'public')
             with self.assertRaises(ValueError):delivery.prepare([dirs[0],dirs[0]],root/'bad',evidence)
             with self.assertRaises(ValueError):delivery.prepare(dirs,root/'public',evidence)
 
@@ -179,7 +191,7 @@ class ManualFixtureTests(unittest.TestCase):
         import manual_update_fixture as fixture
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            for changed in ('Lune-26.1109.1-macos-x86_64.dmg', 'appcast-x86_64.xml'):
+            for changed in ('Lune-macos-x86_64.dmg', 'appcast-x86_64.xml'):
                 self.prepare(root)
                 (root / changed).write_bytes(b'changed')
                 with self.assertRaises(ValueError):

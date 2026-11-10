@@ -179,7 +179,7 @@ binary needs a new release allocation even if browser source is unchanged.
    stay within the authorized payload and destination. Source and browser releases now share the public `leebyron/lune-browser`
    repository. Its signed release tag identifies the source commit directly;
    record the full SHA in release metadata.
-   Upload both architecture DMGs, aliases, appcasts, checksums and compact evidence
+   Upload one DMG per architecture, appcasts, checksums and compact evidence
    before changing a feed. Do not copy source/dependency archives into each release.
    Verify anonymous artifact and public Git-ref readback.
 7. **Promote the validated artifacts.** Generate matching architecture appcasts
@@ -197,7 +197,7 @@ binary needs a new release allocation even if browser source is unchanged.
 
 The release-delivery tools now implement frozen records, numeric date versions,
 explicit GN/tool identities, both-target source export, GitHub asset publication,
-paired feed commits, latest aliases, freshness checks, and native Intel promotion
+paired feed commits, latest download links, freshness checks, and native Intel promotion
 requirements. `reserve.py` checks retained allocations before creating a record;
 fetch all remote branches first and serialize the reservation commit. This is a
 manual release flow, not a concurrent release scheduler.

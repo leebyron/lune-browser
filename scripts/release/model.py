@@ -34,7 +34,8 @@ def filename(version, arch):
     version_parts(version)
     if arch not in ARCHES:
         raise ValueError('Unsupported architecture')
-    return f'Lune-{version}-macos-{arch}.dmg'
+    # The release tag versions the URL; latest resolves to the same asset.
+    return f'Lune-macos-{arch}.dmg'
 
 
 def feed_url(arch, channel='stable'):

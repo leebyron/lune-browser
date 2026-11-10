@@ -22,11 +22,12 @@ def manifest(directory, source_checkout=ROOT):
         raise ValueError('Invalid release tag or architecture set')
     for arch, row in data['downloads'].items():
         name = filename(data['version'], arch)
-        if row['filename'] != name or row['alias'] != f'Lune-macos-{arch}.dmg' or row['url'] != f"{DOWNLOADS}/{data['tag']}/{name}":
+        if row['filename'] != name or row['url'] != f"{DOWNLOADS}/{data['tag']}/{name}":
             raise ValueError('Invalid immutable download identity')
-        for asset in (name, row['alias']):
-            if data['assets'][asset] != {'sha256': row['sha256'], 'size': row['size']}:
-                raise ValueError('Download metadata differs from asset bytes')
+        if data['assets'][name] != {'sha256': row['sha256'], 'size': row['size']}:
+            raise ValueError('Download metadata differs from asset bytes')
+    if {name for name in data['assets'] if name.endswith('.dmg')} != {filename(data['version'], arch) for arch in ARCHES}:
+        raise ValueError('Exactly one DMG per architecture is required')
     if data['source_commit'] != git(source_checkout,'rev-parse','HEAD'):
         raise ValueError('Publication must run from the frozen source commit')
     for name,record in data['assets'].items():
