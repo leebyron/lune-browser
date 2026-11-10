@@ -1,7 +1,6 @@
 # Missing default-browser sidebar action after installation
 
-Status: source investigation, 2026-11-09. No implementation change or runtime
-reproduction on macOS 13 yet.
+Status: unresolved on the reported macOS 13 installation; investigation updated November 10, 2026. Local first-launch and acceptance/cooldown candidates exist but are not included in the published 26.1110.1 platform input. The older-macOS appearance fixes are separate and already adopted.
 
 The owner reports that installed Lune 26.1109.1 is not the system default on
 Intel macOS 13, but the sidebar has no “Make default browser” button. The owner
@@ -46,21 +45,27 @@ prepared Chromium source:
   queries state separately for Settings. `lune://settings/defaultBrowser`
   provides a useful diagnostic/action path without the sidebar startup gate.
 
-## Next verification
+## Saved preferences and attempted repair
 
-The quit/reopen check failed to restore the row, while Settings correctly shows
-the non-default state and offers the action. Inspect relevant startup prompt
-eligibility/preferences and footer visibility next. An absent callback and a
-present-but-clipped row need different fixes. The current source has no OS-version
-gate in the footer. Its normal macOS prompt policy retains the legacy decline
-count/cooldown; the centralized infobar migration that bypasses sidebar routing
-is disabled by default. Neither saved suppression nor enabled migration was
-observed on the affected Mac, so both remain checks rather than claimed causes.
+The owner reports never dismissing this row. It remains absent after restart and New Tab. Settings correctly reports that Lune is not default and offers Make default. Local State is at `~/Library/Application Support/computer.lune.browser/Local State`, rather than `~/Library/Application Support/Lune/Local State`.
 
-Remove the first-run gap as requested, potentially by refreshing existing prompt
-eligibility when setup completes, while retaining explicit dismissals, normal
-policy checks and the system confirmation flow. Diagnose the persistent missing
-row separately; removing the startup gate alone is not a demonstrated fix for
-the owner report. This is a proposed direction, not implemented behavior.
-Verify first launch, subsequent launch, default and
-non-default states, dismissal and pinned/popover sidebars before acceptance.
+The owner's read-only check found both decline counters at 1, matching decline timestamps, and no permanent rejection. A later check found both counters at 2. This establishes saved cooldown state but cannot identify which action wrote it. The owner accepted the existing 21-day dismissal cooldown. A backed-up repair removed only the four cooldown fields while Lune was quit; reopening still did not show the row. Cooldown therefore does not fully explain the reported installation. Do not keep resetting preferences or treat this issue as fixed.
+
+## Acceptance and setup source findings
+
+The shared Settings handler calls `UpdatePrefsForDismissedPrompt` on Make default before macOS confirms success. Menu, infobar and sidebar acceptance paths also call that helper. An accepted-but-unsuccessful request can therefore increment counters whose names suggest dismissal. The original reported timestamp corresponds to November 9 at 15:46:47 Pacific; the saved data does not identify its entrypoint.
+
+The inspected setup's Use defaults and Finish paths save preferences and open a new tab; they do not invoke the default-browser setter or record a decline. Setup retains an unused `askToBeDefault` wrapper. Merely reading default-browser status does not write decline counters. Do not describe ordinary setup completion as an implicit decline.
+
+## Unpublished candidates and historical checks
+
+The older compatibility worktree retains two default-browser candidates alongside the adopted appearance fixes:
+
+- `b090690a`, `sidebar-default-browser-availability.patch`: run existing eligibility checks on first launch with vertical tabs. Preserve horizontal first-run policy, managed policy, exclusions, rejection and the 21-day cooldown.
+- `00ae8d22`, `default-browser-acceptance-cooldown.patch`: route accepted attempts through a distinct helper. Leave macOS prompt preferences unchanged while native confirmation is asynchronous; retain explicit Close cooldowns, permanent rejection, successful-default reset and existing non-macOS policy. Do not erase saved declines that might be intentional.
+
+These candidate changes are not in the published `9ceaaad8a2f71ece40aab464c6504ee1f356312f` platform's patch series. Do not mark them shipped or silently add them while cleaning documentation or release branches.
+
+Recovered November 9 candidate notes report both architecture builds and smoke checks for the initial three-patch compatibility stack (two appearance patches plus first-launch eligibility), focused fallback/appearance fixtures and an in-memory preference-function fixture on both architectures. The final fourth-patch full rebuild was not recorded as complete. On the local macOS 26 Apple silicon host, historical disposable-profile checks reproduced released first-launch suppression, showed the candidate row, preserved explicit dismissal across restart and restored eligibility after a 22-day-old test timestamp. Intel execution used Rosetta. These checks did not change the system default or establish behavior on the affected macOS 13 installation.
+
+The unfinished work and local helper remain under `.work/release-26.1109/delivery-policy`; preserve them until the investigation is completed. Integrating these notes does not adopt the candidate browser patches or claim a fix. Further diagnosis should trace live eligibility and sidebar delivery on the affected profile, then validate a bounded fix. Additional Intel hardware checks are optional compatibility follow-up under the current [single-device release policy](../releases.md#release-gates), not a publication gate.
