@@ -37,15 +37,14 @@ The source now contains the
 adaptive Chlorophyll Daylight / Pelagic Signal desktop and a continuous
 scroll-driven browser story about respect for privacy, trust and attention,
 credited to both upstream projects.
-The source now uses eight complete sentences in one Inter style and color,
-with a restrained, centered sine wave and no screenshot placeholder. A full-height setup-style logo reveal precedes the first point. Its
-flower is 50% larger, with 19 luminous stamens; seven generated leaves join a vine with
+The source now uses nine short sentences in one Inter style and color,
+with a restrained, centered sine wave and no screenshot placeholder. A compact logo-only setup reveal moves upward with the content, with the first flower already visible as the browser opens. Its
+flower is 50% larger, with 19 luminous stamens; eight generated leaves join a vine with
 varied shoots, curled tendrils and subtle scroll motion that respects Reduced Motion.
 Leaves alternate around their exact petiole attachments. The stem roots in a
-Perlin-noise horizon 15% down the final viewport, with recursively generated
-roots growing along their branches, and the upward-facing flower
+Perlin-noise horizon 15% down the final viewport, with tapered roots already 80% grown and only their tips continuing, and the upward-facing flower
 opens its petals to reveal subtly luminous stamens.
-Specimens and copy align vertically with a 36px gap. Mobile content shares the
+Specimens and copy align vertically with a 36px gap. Leaves are narrow and pointed, with continuous petioles and tangent-aligned offshoots. The terrain starts a slightly darker fill through the footer. Mobile omits the faux cursor and eases the sidebar boundary over 260ms. Mobile content shares the
 browser’s 50% scale without typography or coda enlargement. Two pinned links open
 Fastmail and Calendar; regular links open Lune, Helium, the Lune GitHub project
 and Lee Byron, with the author’s site last. The top-right

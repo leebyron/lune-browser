@@ -19,7 +19,7 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   The tooltip shares the icon's bounce. Returning to the top resets the launch.
 - CSS scroll timelines handle one continuous story, with a JavaScript fallback
   when those timelines are unavailable. Sections have natural heights and share
-  one background; there are no fixed-height slides or alternating panels. A
+  a continuous background, darkening below the soil contour; there are no fixed-height slides or alternating panels. A
   ResizeObserver measures the content to set the scroll distance and reading
   indicator, including after fonts load or the viewport changes. Reduced motion
   removes the launch bounce and zoom.
@@ -56,6 +56,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   fills the window, while the glass sidebar remains until the cursor is more than
   48px away. The sidebar then slides left over 260ms. Scrolling back reverses it.
   CSS scroll timelines own the cursor and layout state, with a JavaScript fallback.
+  On mobile the pointer and click ring are omitted, and the sidebar and content
+  boundary move together over 260ms; Reduced Motion removes that transition.
 - Windowed reveal bands are 8px at the top and left edges and consume no layout
   space. The sidebar’s full 52px header also reveals the toolbar. Revealed glass
   stays until the pointer is 48px away; the header retains the full window-width
@@ -135,12 +137,13 @@ changing the story length.
 
 ## Respect story
 
-The tagline is “A respectful browser for Mac.” Eight complete sentences explain
+The tagline is “A respectful browser for Mac.” Nine short sentences explain
 respect through privacy defaults, consent, extension compatibility, Mac
 craftsmanship, attention, setup choices and shared source, with no headings, fragments, eyebrows or screenshot placeholder.
-A full-height opening beat reuses setup’s paired-circle logo reveal, driven by
-scroll rather than a timer, before the first point can enter. The opening point
-has only a flower, enlarged 50%; seven uniquely generated leaves mark later points. A branching cyanotype vine joins them with small shoots and curled
+A compact opening reuses setup’s paired-circle logo reveal, driven by scroll
+rather than a timer. It contains only the mark and moves upward with the page;
+the flower is already visible when the browser opens. The opening point
+has only a flower, enlarged 50%; eight uniquely generated leaves mark later points. A branching cyanotype vine joins them with small shoots and curled
 tendrils, rather than a line connecting separate icons. Marketing prose uses
 regular Inter 20px/32px and one foreground color. At 700px or less, the complete
 browser and its content share the same 50% transform: prose renders at 10px/16px.
@@ -273,23 +276,27 @@ mask for appearance contrast. No iframe or private Fastmail content is loaded.
 
 Original vector artwork is generated from fixed seeds. Every main leaf and
 small offshoot has its own length, width, lean, edge variation and vein pattern.
+Leaves have narrow, pointed silhouettes with restrained edge variation. Each
+petiole is part of its leaf’s fill, avoiding a separate stem seam; small shoots
+use measured branch tangents to align their leaves at the junction.
 The petiole starts at the same exact stem junction regardless of shape; mirrored
 leaves keep mirrored pivots. A fixed small-area grain filter and shared cyanotype
 ink colors keep the family coherent. Resize does not regenerate random designs.
 
-The ground uses four octaves of one-dimensional Perlin gradient noise with
+The ground begins a slightly darker underground fill that continues through
+the footer in both appearances. Its contour uses four octaves of one-dimensional Perlin gradient noise with
 quintic interpolation, independently implemented after consulting [Ken Perlin’s
 reference](https://cs.nyu.edu/~perlin/noise/). Broad rises, smaller bumps and fine
 grading replace the repeating sine contour. The root junction remains 15% down
-the final viewport. Five main roots recursively branch into 75 tapered paths,
-with noise-guided bends, measured attachment points and a maximum depth of 23%
-of the viewport (capped at 170px). The spread is capped at 360px and stays clear
-of the centered download group. Growth timing follows travel distance from the
-root crown: child roots start after the parent reaches their attachment.
+the final viewport. A taproot carries two uneven laterals below the crown,
+with varying side branches and fine rootlets. Noise steers their headings;
+filled silhouettes taper all the way to a point. The spread is capped at 420px
+and depth at 25% of the viewport (at most 180px). Centerline masks keep every
+root 80% visible from the outset; only the last fifth grows as the ground enters.
 
 The flower is 50% larger, faces upwards, and has 19 seeded, curved filaments
-with varied anther positions and brightness. Petals open with scroll progress to
-reveal their cyan/mint tips; only those tips use a small-area light blur. There
+with varied anther positions and brightness. Stamens spread from a narrow bundle to a wide fan as the petals open. The
+opaque front petal is painted after the stamens and covers their bases; only those tips use a small-area light blur. There
 is no idle pulse or time-driven growth. Artwork is hidden from accessibility
 APIs, takes no input, and adds no raster/network assets or dependencies.
 
@@ -329,3 +336,10 @@ petal and root values unchanged. The 19 anthers render in both schemes. The
 final gap measures 24px, and the upstream credit center matches the midpoint
 between the action bottom and byline top within 0.1px before/after mobile scaling.
 Syntax, deployment dry run, asset/cache keys, local links and whitespace pass.
+
+The subtle-growth revision keeps roots at 80% before their range and finishes
+only the tips. Native and forced-fallback checks cover narrow-to-wide stamens,
+the moving logo-only opening, and completed roots; a forced Reduced Motion
+fixture leaves the completed artwork unchanged. Dark, preview-only Light and
+390×844 layouts include the continuous darker underground fill. Mobile uses a
+pointer-free sidebar collapse with a 260ms content-boundary transition.

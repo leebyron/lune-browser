@@ -41,32 +41,38 @@
     return d+(closed?' Z':'');
   }
   function leaf(seed,main=false) {
-    const rng=random(seed),length=main?58+rng()*17:23+rng()*20;
-    const width=main?14+rng()*9:6+rng()*7,lean=main?-23-rng()*15:(rng()-.5)*13;
-    const stem=main?10+rng()*5:4+rng()*4,bend=(rng()-.5)*(main?11:7),lobes=2+rng()*3;
-    const spine=t=>({x:-stem*.35+lean*t+bend*Math.sin(Math.PI*t),y:-stem-length*t});
+    const rng=random(seed),length=main?64+rng()*16:32+rng()*14;
+    const width=main?10+rng()*5:5+rng()*3,lean=main?-16-rng()*12:(rng()-.5)*5;
+    const stem=main?11+rng()*4:7+rng()*3,stemX=main?-3-rng()*2:0,bend=(rng()-.5)*(main?5:3);
+    const spine=t=>({x:stemX+lean*t+bend*Math.sin(Math.PI*t),y:-stem-length*t});
+    const bias=.88+rng()*.18;
     const edge=(t,side)=>{
-      const center=spine(t),profile=Math.pow(Math.sin(Math.PI*t),.8)*(1-t*.18);
-      const wave=1+.07*Math.sin(t*Math.PI*lobes*2+seed)+noise(t*4+seed*.01,seed)*.07;
-      return {x:center.x+side*width*profile*wave*(side<0?1:.8+rngBias),y:center.y};
+      const center=spine(t),profile=Math.pow(Math.sin(Math.PI*t),1.2)*(.8+.2*t);
+      const wave=1+noise(t*3+seed*.01,seed)*.035;
+      return {x:center.x+side*width*profile*wave*(side<0?1:bias),y:center.y};
     };
-    const rngBias=rng()*.3,outline=[];
-    for(let i=0;i<=12;i++)outline.push(edge(i/12,-1));
-    for(let i=11;i>=0;i--)outline.push(edge(i/12,1));
+    const outline=[];
+    for(let i=1;i<=16;i++)outline.push(edge(i/16,-1));
+    for(let i=15;i>=1;i--)outline.push(edge(i/16,1));
+    // The petiole is part of the filled silhouette, so there is no separate seam.
+    const stemHalf=main?.8:.9,first=outline[0];
+    let body=`M ${-stemHalf} 0 Q ${stemX-stemHalf} ${-stem*.6}, ${stemX-stemHalf} ${-stem} L ${first.x} ${first.y}`;
+    body+=smoothPath(outline).replace(/^M [^C]+/, '');
+    body+=` L ${stemX+stemHalf} ${-stem} Q ${stemX+stemHalf} ${-stem*.6}, ${stemHalf} 0 Z`;
     const specimen=svg('g',{'data-specimen-seed':seed}),ink=svg('g',{filter:'url(#cyanotype-grain)'});
-    ink.append(svg('path',{d:smoothPath(outline,true),fill:'url(#leaf-ink)',opacity:.82+rng()*.18}));
+    ink.append(svg('path',{d:body,fill:'url(#leaf-ink)',opacity:.9+rng()*.1}));
     const mid=[];for(let i=0;i<=8;i++)mid.push(spine(i/8));
     let veins=smoothPath(mid);
-    const count=main?5+Math.floor(rng()*3):3+Math.floor(rng()*3);
+    const count=main?5+Math.floor(rng()*3):3+Math.floor(rng()*2);
     for(let i=1;i<count;i++) {
       const t=i/(count+1),from=spine(t);
       for(const side of [-1,1]) {
-        const to=edge(Math.min(.94,t+.10+rng()*.06),side);
+        const to=edge(Math.min(.96,t+.12+rng()*.05),side);
         veins+=` M ${from.x} ${from.y} Q ${from.x+(to.x-from.x)*.65} ${from.y-2}, ${to.x} ${to.y}`;
       }
     }
-    ink.append(svg('path',{d:veins,fill:'none',stroke:'var(--botanical-vein)','stroke-width':main?.7:.55,opacity:.55+rng()*.18}));
-    specimen.append(ink,svg('path',{d:`M 0 0 Q ${-stem*.5} ${-stem*.35}, ${-stem*.35} ${-stem}`,fill:'none',stroke:'var(--botanical-ink)','stroke-width':main?1.4:1,'stroke-linecap':'round'}));
+    ink.append(svg('path',{d:veins,fill:'none',stroke:'var(--botanical-vein)','stroke-width':main?.65:.6,opacity:.62}));
+    specimen.append(ink);
     return specimen;
   }
   function introEase(x) {
@@ -76,10 +82,10 @@
     return 3*(1-t)*(1-t)*t*.8+3*(1-t)*t*t+t*t*t;
   }
   const points = [...pages.querySelectorAll('.flow-point')];
-  const introLogo=pages.querySelector('.setup-logo'),introCircles=[...introLogo.querySelectorAll('circle')],introCopy=pages.querySelector('.prelude-copy');
+  const introLogo=pages.querySelector('.setup-logo'),introCircles=[...introLogo.querySelectorAll('circle')];
   const vine = pages.querySelector('.story-vine'), vineGrowth = vine.querySelector('.vine-growth');
   const sprigs = vine.querySelector('.vine-sprigs'), flowerBloom = pages.querySelector('.flower-bloom');
-  const ground=vine.querySelector('.vine-ground'), roots=vine.querySelector('.vine-roots');
+  const ground=vine.querySelector('.vine-ground'),soil=vine.querySelector('.vine-soil'),roots=vine.querySelector('.vine-roots');
   const petals=[...flowerBloom.querySelectorAll('.petal')], stamens=flowerBloom.querySelector('.flower-stamens');
   // A seeded fan of fine filaments gives the upward-facing flower depth.
   const stamenRng=random(887),filaments=svg('path',{fill:'none',stroke:'var(--biolume-stalk)','stroke-width':.55,'stroke-linecap':'round'});
@@ -118,8 +124,8 @@
     browserScale = parseFloat(style.getPropertyValue('--browser-scale'));
     root.style.setProperty('--hairline', `${1 / (devicePixelRatio * browserScale)}px`);
     root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 2 * parseFloat(style.getPropertyValue('--rail')) - sidebarWidth)}px`);
-    introStart=Math.max(launchAt,readingStart-pageHeight*.1);
-    introEnd=readingStart+pageHeight*.42;
+    introStart=readingStart;
+    introEnd=readingStart+pageHeight*.22;
     root.style.setProperty('--intro-start',`${introStart}px`);
     root.style.setProperty('--intro-end',`${introEnd}px`);
     const coda=pages.querySelector('.coda'),codaContent=coda.querySelector('.coda-content'),thanks=coda.querySelector('.upstream-thanks'),byline=coda.querySelector('.byline');
@@ -162,12 +168,13 @@
     // Resting layout coordinates share the exact pivot of each mirrored petiole.
     const nodes=points.map((point,index)=>({x:point.offsetLeft+(index===0?40:index%2?64:16),y:point.offsetTop+(point.clientHeight-100)/2+86}));
     const first=nodes[0],last=nodes[nodes.length-1],coda=pages.querySelector('.coda');
-    const groundY=coda.offsetTop+pageHeight*.15, rootX=last.x-8,rootDepth=Math.min(170,pageHeight*.23);
-    vine.setAttribute('viewBox',`0 0 ${pages.clientWidth} ${groundY+rootDepth+10}`);
-    vine.style.height=`${groundY+rootDepth+10}px`;
+    const groundY=coda.offsetTop+pageHeight*.15, rootX=last.x-8,rootDepth=Math.min(180,pageHeight*.25);
+    const botanicalHeight=coda.offsetTop+pageHeight;
+    vine.setAttribute('viewBox',`0 0 ${pages.clientWidth} ${botanicalHeight}`);
+    vine.style.height=`${botanicalHeight}px`;
     let d=`M ${first.x} ${first.y}`;
     const growth=document.createDocumentFragment();
-    function specimen(at,kind,angle,scale,opacity,seed) {
+    function specimen(at,angle,scale,opacity,seed) {
       const generated=leaf(seed);
       generated.setAttribute('transform',`translate(${at.x} ${at.y}) rotate(${angle}) scale(${scale})`);
       generated.setAttribute('opacity',opacity);growth.append(generated);
@@ -177,11 +184,15 @@
       const tip={x:at.x+side*reach,y:at.y-rise};
       const branch=svg('path',{class:'vine-tendril',d:`M ${at.x} ${at.y} Q ${at.x+side*reach*.7} ${at.y-3}, ${tip.x} ${tip.y}`});
       growth.append(branch);
-      specimen(tip,variant%3===0?'round':'lance',side*(30+variant%4*11),.52+variant%5*.08,.65+variant%3*.1,173+variant*79);
+      const length=branch.getTotalLength(),beforeTip=branch.getPointAtLength(Math.max(0,length-1));
+      const angle=Math.atan2(tip.x-beforeTip.x,-(tip.y-beforeTip.y))*180/Math.PI;
+      specimen(tip,angle,.6+variant%5*.06,.8+variant%3*.06,173+variant*79);
       // Secondary leaves attach to a measured point on the branch, never a guessed offset.
       if(variant%3!==1) {
-        const middle=branch.getPointAtLength(branch.getTotalLength()*.52);
-        specimen(middle,variant%2?'round':'lance',-side*(24+variant%3*13),.32+variant%3*.05,.6,983+variant*43);
+        const distance=length*.52,middle=branch.getPointAtLength(distance);
+        const before=branch.getPointAtLength(distance-1),after=branch.getPointAtLength(distance+1);
+        const tangent=Math.atan2(after.x-before.x,-(after.y-before.y))*180/Math.PI;
+        specimen(middle,tangent-side*(38+variant%3*9),.48+variant%3*.04,.82,983+variant*43);
       }
     }
     nodes.slice(1).forEach((node,index)=>{
@@ -204,40 +215,66 @@
     const floorPoints=[];
     for(let x=0;x<pages.clientWidth;x+=8)floorPoints.push({x,y:groundY+terrain(x)-terrain(rootX)});
     floorPoints.push({x:rootX,y:groundY},{x:pages.clientWidth,y:groundY+terrain(pages.clientWidth)-terrain(rootX)});
-    floorPoints.sort((a,b)=>a.x-b.x);ground.setAttribute('d',smoothPath(floorPoints));
-    const rootGrowth=document.createDocumentFragment(),branches=[],rng=random(2207);
-    const rootWidth=Math.min(360,pages.clientWidth*.44);
-    function rootBranch(start,angle,requestedLength,width,depth,travel,seed) {
-      angle=Math.max(-1.3,Math.min(1.3,angle));
-      const length=Math.min(requestedLength,(groundY+rootDepth-start.y)/Math.max(.2,Math.cos(angle))*.98);
-      if(length<5)return;
-      const curve=[];
-      for(let i=0;i<=7;i++) {
-        const t=i/7,wander=noise(t*2.6+seed*.13,seed)*length*.07*Math.sin(Math.PI*t);
-        curve.push({x:Math.max(8,Math.min(pages.clientWidth-8,Math.max(rootX-rootWidth/2,Math.min(rootX+rootWidth/2,start.x+Math.sin(angle)*length*t+wander)))),y:start.y+Math.cos(angle)*length*t+noise(t*3+seed*.1,seed+7)*length*.012*Math.sin(Math.PI*t)});
+    floorPoints.sort((a,b)=>a.x-b.x);
+    const contour=smoothPath(floorPoints);ground.setAttribute('d',contour);
+    soil.setAttribute('d',`${contour} L ${pages.clientWidth} ${botanicalHeight} L 0 ${botanicalHeight} Z`);
+    // A few wandering structural roots carry uneven lateral roots and fine rootlets.
+    // Each filled outline tapers to a point; a centerline mask extends only its last fifth.
+    const rootGrowth=document.createDocumentFragment(),rootMasks=svg('defs'),branches=[],rng=random(2207);
+    rootGrowth.append(rootMasks);
+    const rootWidth=Math.min(420,pages.clientWidth*.54);
+    function rootBranch(start,angle,length,width,order,seed) {
+      const local=random(seed),curve=[start],steps=Math.max(8,Math.ceil(length/6));
+      let x=start.x,y=start.y,heading=angle;
+      for(let i=1;i<=steps;i++) {
+        const t=i/steps,down=order===0?.28:.12;
+        const target=angle*(1-down*t)+noise(t*2.3+seed*.13,seed)*.7+noise(t*7.1+seed,seed+31)*.22;
+        heading+=(target-heading)*.48;
+        x+=Math.sin(heading)*length/steps;
+        y+=Math.max(.16,Math.cos(heading))*length/steps;
+        if(x<8||x>pages.clientWidth-8||Math.abs(x-rootX)>rootWidth/2||y>groundY+rootDepth)break;
+        curve.push({x,y});
       }
-      const path=svg('path',{d:smoothPath(curve),'stroke-width':width,pathLength:1,'data-root-depth':3-depth});
-      rootGrowth.append(path);const distance=path.getTotalLength();
-      branches.push({path,travel,end:travel+distance});
-      if(depth>0)for(let j=0;j<2;j++) {
-        const fraction=.38+j*.33+(rng()-.5)*.1,at=path.getPointAtLength(distance*fraction);
-        const side=j===0?-1:1;
-        rootBranch(at,angle+side*(.45+rng()*.65),length*(.34+rng()*.17),width*.56,depth-1,travel+distance*fraction,seed*3+j+1);
+      if(curve.length<4)return;
+      const center=svg('path',{d:smoothPath(curve),class:'root-growth',fill:'none',stroke:'white','stroke-width':width+2,'stroke-linecap':'round',pathLength:1});
+      const distance=center.getTotalLength(),left=[],right=[];
+      curve.forEach((at,i)=>{
+        const before=curve[Math.max(0,i-1)],after=curve[Math.min(curve.length-1,i+1)],dx=after.x-before.x,dy=after.y-before.y,norm=Math.hypot(dx,dy)||1;
+        const taper=Math.pow(1-i/(curve.length-1),.85),radius=width/2*taper*(1+noise(i*.42+seed,seed)*.12);
+        left.push({x:at.x-dy/norm*radius,y:at.y+dx/norm*radius});
+        right.push({x:at.x+dy/norm*radius,y:at.y-dx/norm*radius});
+      });
+      const id=`story-root-${branches.length}`,mask=svg('mask',{id,maskUnits:'userSpaceOnUse',x:0,y:groundY-8,width:pages.clientWidth,height:rootDepth+16});
+      mask.append(center);rootMasks.append(mask);
+      rootGrowth.append(svg('path',{d:smoothPath([...left,...right.reverse()],true),class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',mask:`url(#${id})`,opacity:order===0?.95:.72+local()*.25,'data-root-order':order}));
+      branches.push({path:center,order});
+      if(order>=2)return center;
+      const count=order===0?5+Math.floor(local()*3):1+Math.floor(local()*3);
+      let side=local()<.5?-1:1;
+      for(let i=0;i<count;i++) {
+        const fraction=.14+(i+.15+local()*.65)/count*.66,at=center.getPointAtLength(distance*fraction);
+        const before=center.getPointAtLength(Math.max(0,distance*fraction-1)),after=center.getPointAtLength(Math.min(distance,distance*fraction+1));
+        const tangent=Math.atan2(after.x-before.x,after.y-before.y);
+        if(local()<.72)side*=-1;
+        const childLength=distance*(order===0?.26+local()*.3:.23+local()*.27)*(1-fraction*.35);
+        rootBranch(at,tangent+side*(.5+local()*.65),childLength,width*(order===0?.34+local()*.14:.4),order+1,seed*7+i+1);
       }
+      return center;
     }
-    [-1.08,-.5,.08,.58,1.12].forEach((angle,i)=>rootBranch({x:rootX,y:groundY},angle,rootDepth*(i===2?.98:.72+rng()*.25),1.6+rng()*.6,3,0,67+i*41));
+    const taproot=rootBranch({x:rootX,y:groundY},-.1,rootDepth*.99,3.3,0,113);
+    rootBranch(taproot.getPointAtLength(9),-1.2,rootDepth*1.5,2.7,0,239);
+    rootBranch(taproot.getPointAtLength(23),1.04,rootDepth*1.28,2.45,0,419);
     roots.replaceChildren(rootGrowth);
-    const longest=Math.max(...branches.map(branch=>branch.end));
     const rootsStart=readingStart+groundY-pageHeight*.92,rootsEnd=readingStart+coda.offsetTop;
-    rootRanges=branches.map(branch=>{
-      const start=rootsStart+(rootsEnd-rootsStart)*branch.travel/longest,end=rootsStart+(rootsEnd-rootsStart)*branch.end/longest;
-      branch.path.style.setProperty('--root-start',`${start}px`);branch.path.style.setProperty('--root-end',`${end}px`);
-      return {path:branch.path,start,end};
+    rootRanges=branches.map(({path,order})=>{
+      const start=rootsStart+(rootsEnd-rootsStart)*(order*.06+rng()*.12),end=rootsEnd;
+      path.style.setProperty('--root-start',`${start}px`);path.style.setProperty('--root-end',`${end}px`);
+      return {path,start,end};
     });
     vineStart=Math.max(0,readingStart+first.y-pageHeight*.8);
     vineEnd=readingStart+groundY-pageHeight*.15;
-    flowerStart=readingStart+first.y-pageHeight*.85;
-    flowerEnd=readingStart+first.y-pageHeight*.2;
+    flowerStart=Math.max(readingStart,readingStart+first.y-pageHeight*.85);
+    flowerEnd=flowerStart+pageHeight*.45;
     root.style.setProperty('--vine-start',`${vineStart}px`);
     root.style.setProperty('--vine-end',`${vineEnd}px`);
     root.style.setProperty('--flower-start',`${flowerStart}px`);
@@ -258,9 +295,8 @@
       if(circle.classList.contains('setup-cutout'))circle.style.r=`${111+1.725508*intro}px`;
     });
     introLogo.style.transform=`scale(${1.2-.2*intro})`;
-    introCopy.style.opacity=clamp((intro-.15)/.7);introCopy.style.transform=`translateY(${8-8*intro}px) scale(${.96+.04*intro})`;
     rootRanges.forEach(({path,start,end})=>{
-      const progress=clamp((y-start)/(end-start));path.style.strokeDasharray='1';path.style.strokeDashoffset=1-progress;path.style.opacity=progress>0?1:0;
+      const progress=clamp((y-start)/(end-start));path.style.strokeDasharray='1';path.style.strokeDashoffset=.2*(1-progress);
     });
     vineGrowth.style.strokeDasharray='1';
     vineGrowth.style.strokeDashoffset=1-clamp((y-vineStart)/(vineEnd-vineStart));
@@ -275,8 +311,8 @@
     petals[1].style.transform=`rotate(${18-40*bloom}deg)`;
     petals[2].style.transform=`rotate(${-18+42*bloom}deg)`;
     petals[3].style.transform=`scale(${.62+.46*bloom},${1.14-.42*bloom})`;
-    stamens.style.transform=`translateY(${5-5*bloom}px) scaleY(${.6+.4*bloom})`;
-    stamens.style.opacity=.08+.92*bloom;
+    stamens.style.transform=`translateY(${5-5*bloom}px) scale(${.16+.84*bloom},${.72+.28*bloom})`;
+    stamens.style.opacity=.6+.4*bloom;
   }
   function update(){
     queued=false;const y=scroll.scrollTop;if(y>launchAt&&pointer!==null){pointer=null;startMagnify();}if(y<=launchAt)close();else {launch();if(y>=readingStart)reveal(true);}const p=clamp(y/opening),r=reading ? clamp((y-readingStart)/reading) : 0;
@@ -301,7 +337,7 @@
     const floating = sidebarOverride !== null ? Boolean(sidebarOverride) : progress >= .5;
     const cursorDistance = progress <= .44 ? clamp(progress / .44) * cursorStop : cursorStop + clamp((progress - .64) / .36) * (100 - cursorStop);
     const cursorPoint = cursorPath.getPointAtLength(cursorDistance / 100 * cursorPathLength);
-    const demoHolding = sidebarOverride === null && (progress < .5 || distanceFromPanel({x:cursorPoint.x / browserScale,y:cursorPoint.y / browserScale},
+    const demoHolding = sidebarOverride === null && browserScale === 1 && (progress < .5 || distanceFromPanel({x:cursorPoint.x / browserScale,y:cursorPoint.y / browserScale},
       {left:0,right:sidebar.offsetWidth,top:0,bottom:win.clientHeight}) <= panelDismissDistance);
     const keyboardFocus = Boolean(sidebarRegion.querySelector(':focus-visible'));
     const visible = !floating || demoHolding || sidebarHovered || keyboardFocus;
@@ -565,7 +601,7 @@
   dock.addEventListener('pointermove',e=>{if(!fine.matches||reduce.matches)return;pointer=e.clientX;startMagnify();});
   dock.addEventListener('pointerleave',()=>{pointer=null;startMagnify();});
   new ResizeObserver(()=>{if(pointer===null){items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);}}).observe(stage);
-  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');introCopy.style.removeProperty('opacity');introCopy.style.removeProperty('transform');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');points.forEach(point=>point.querySelector('.botanical-bullet').style.removeProperty('transform'));if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
+  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');points.forEach(point=>point.querySelector('.botanical-bullet').style.removeProperty('transform'));if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
   let measuredContentHeight = 0, measuredContentWidth = 0;
   new ResizeObserver(entries => {
     const {height,width} = entries[0].contentRect;
