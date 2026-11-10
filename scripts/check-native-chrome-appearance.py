@@ -19,6 +19,8 @@ start = frame.index('@interface HeliumChromeHitRegion')
 end = frame.index('// An overlay hairline', start)
 surface = frame[start:end]
 colors = (args.source / 'chrome/browser/ui/views/helium/native_frame_materials_mac.mm').read_text()
+edge = colors[colors.index('@interface HeliumFallbackSurfaceEdge'):colors.index('namespace helium {')]
+edge_helper = colors[colors.index('void AddNativeFallbackSurfaceEdge'):colors.index('namespace {', colors.index('void AddNativeFallbackSurfaceEdge'))]
 tint = colors[colors.index('SkColor GlassTintMidpoint('):colors.index('// Per-native-host state')]
 tint += colors[colors.index('NSColor* NativeGlassThemeTintColor('):colors.index('}  // namespace helium')]
 command = (args.source / 'chrome/browser/ui/helium/helium_command_bar_view_mac.mm').read_text()
@@ -324,7 +326,7 @@ int main() {
 with tempfile.TemporaryDirectory(prefix='lune-chrome-appearance-') as tmp:
     path = Path(tmp)
     imports, make = prefix.split('struct CommandNative', 1)
-    (path / 'check.mm').write_text(imports + '#include "chrome/browser/ui/helium/native_result_row_mac.h"\n' + constants + tint_prefix + tint + command_class + 'struct CommandNative' + make + command_material +
+    (path / 'check.mm').write_text(imports + '#include "chrome/browser/ui/helium/native_result_row_mac.h"\n' + constants + tint_prefix + edge + 'namespace helium {\n' + edge_helper + '}\n' + tint + command_class + 'struct CommandNative' + make + command_material +
         '\nreturn native_->material;\n}\n' + surface + bridge_prefix + bridge + fixture)
     subprocess.run(['xcrun', 'clang++', '-std=c++20', '-fobjc-arc',
                     '-I', str(args.source), '-arch', args.arch, '-framework', 'AppKit',
