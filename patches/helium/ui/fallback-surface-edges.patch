@@ -1,0 +1,134 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -388,17 +388,22 @@
+     native_->material = material;
+   }
+   if (!native_->material) {
++    NSView* material = [[HeliumCommandMaterial alloc] initWithFrame:pane.frame];
++    material.appearance = appearance;
+     NSVisualEffectView* effect =
+-        [[NSVisualEffectView alloc] initWithFrame:pane.frame];
+-    effect.appearance = appearance;
++        [[NSVisualEffectView alloc] initWithFrame:material.bounds];
+     effect.material = NSVisualEffectMaterialPopover;
+     effect.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+     effect.state = NSVisualEffectStateActive;
+     effect.wantsLayer = YES;
+     effect.layer.cornerRadius = kGlassCornerRadius;
+     effect.layer.masksToBounds = YES;
++    effect.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++    pane.frame = effect.bounds;
+     [effect addSubview:pane];
+-    native_->material = effect;
++    helium::AddNativeFallbackSurfaceEdge(effect, kGlassCornerRadius);
++    [material addSubview:effect];
++    native_->material = material;
+   }
+   native_->material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+ }
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -372,18 +372,16 @@
+   _material = [[NSView alloc] initWithFrame:self.bounds];
+   _material.wantsLayer = YES;
+   _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-  if (@available(macOS 26, *)) {
+-    if ([self usesHeaderShadow]) {
+-      // Keep depth with the fading material, without expanding its hit region.
+-      self.clipsToBounds = NO;
+-      _material.clipsToBounds = NO;
+-      NSShadow* shadow = [[NSShadow alloc] init];
+-      shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.05];
+-      shadow.shadowBlurRadius = 10;
+-      shadow.shadowOffset = NSMakeSize(0, -3);
+-      _material.shadow = shadow;
+-      [self updateShadowPath];
+-    }
++  if ([self usesHeaderShadow]) {
++    // Keep depth with the fading material, without expanding its hit region.
++    self.clipsToBounds = NO;
++    _material.clipsToBounds = NO;
++    NSShadow* shadow = [[NSShadow alloc] init];
++    shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.05];
++    shadow.shadowBlurRadius = 10;
++    shadow.shadowOffset = NSMakeSize(0, -3);
++    _material.shadow = shadow;
++    [self updateShadowPath];
+   }
+   _backdrop = [[NSView alloc] initWithFrame:self.bounds];
+   _backdrop.wantsLayer = YES;
+@@ -418,6 +416,9 @@
+     effect.layer.cornerRadius = [self materialCornerRadius];
+     effect.layer.masksToBounds = YES;
+     [effect addSubview:_controls];
++    if ([self usesHeaderShadow]) {
++      helium::AddNativeFallbackSurfaceEdge(effect, [self materialCornerRadius]);
++    }
+     _effect = effect;
+   }
+   _effect.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.h
+@@ -18,6 +18,9 @@
+ 
+ namespace helium {
+ 
++// Non-interactive, appearance-aware one-physical-pixel edge for pre-glass controls.
++void AddNativeFallbackSurfaceEdge(NSView* surface, CGFloat radius);
++
+ // Shared scheme-independent theme tint; System theme intentionally has no tint.
+ NSColor* NativeGlassThemeTintColor(BrowserView* view);
+ 
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -26,7 +26,50 @@
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/widget/widget.h"
+ 
++// Draw above fallback content without adding an input region or layout inset.
++@interface HeliumFallbackSurfaceEdge : NSView
++@property(nonatomic) CGFloat cornerRadius;
++@end
++
++@implementation HeliumFallbackSurfaceEdge
++- (NSView*)hitTest:(NSPoint)point {
++  return nil;
++}
++- (void)viewDidChangeEffectiveAppearance {
++  [super viewDidChangeEffectiveAppearance];
++  self.needsDisplay = YES;
++}
++- (void)viewDidChangeBackingProperties {
++  [super viewDidChangeBackingProperties];
++  self.needsDisplay = YES;
++}
++- (void)drawRect:(NSRect)dirtyRect {
++  const CGFloat scale = self.window ? self.window.backingScaleFactor : 1;
++  const CGFloat pixel = 1 / scale;
++  if (NSWidth(self.bounds) < pixel || NSHeight(self.bounds) < pixel) {
++    return;
++  }
++  const CGFloat radius = std::max(CGFloat(0), self.cornerRadius - pixel / 2);
++  NSBezierPath* edge = [NSBezierPath
++      bezierPathWithRoundedRect:NSInsetRect(self.bounds, pixel / 2, pixel / 2)
++                        xRadius:radius
++                        yRadius:radius];
++  edge.lineWidth = pixel;
++  [NSColor.separatorColor setStroke];
++  [edge stroke];
++}
++@end
++
+ namespace helium {
++
++void AddNativeFallbackSurfaceEdge(NSView* surface, CGFloat radius) {
++  HeliumFallbackSurfaceEdge* edge =
++      [[HeliumFallbackSurfaceEdge alloc] initWithFrame:surface.bounds];
++  edge.cornerRadius = radius;
++  edge.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  [surface addSubview:edge];
++}
++
+ namespace {
+ 
+ // Glass supplies its own light/dark tone. Average the theme's two accents in
