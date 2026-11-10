@@ -273,18 +273,18 @@
     rootBranch(taproot.getPointAtLength(9),-1.2,rootDepth*1.5,2.7,0,239,9);
     rootBranch(taproot.getPointAtLength(23),1.04,rootDepth*1.28,2.45,0,419,23);
     roots.replaceChildren(rootGrowth);
-    vineStart=Math.max(0,readingStart+first.y-pageHeight*.8);
+    flowerStart=Math.max(readingStart,readingStart+first.y-pageHeight*.85);
+    flowerEnd=flowerStart+pageHeight*.45;
+    vineStart=Math.max(0,readingStart+first.y-pageHeight*.8,flowerStart+(flowerEnd-flowerStart)*.35);
     // Travel distance makes each offshoot light up only when the wave reaches
     // its exact attachment, with the whole burst complete before the last viewport.
     vineEnd=readingStart+groundY-pageHeight*.6;
-    const longest=Math.max(...branches.map(branch=>branch.end)),waveDistance=pageHeight*.37;
+    const longest=Math.max(...branches.map(branch=>branch.end)),waveDistance=pageHeight*.27;
     rootRanges=branches.map(({path,travel,end:distance})=>{
       const start=vineEnd+waveDistance*travel/longest,end=vineEnd+waveDistance*distance/longest;
       path.style.setProperty('--root-start',`${start}px`);path.style.setProperty('--root-end',`${end}px`);
       return {path,start,end};
     });
-    flowerStart=Math.max(readingStart,readingStart+first.y-pageHeight*.85);
-    flowerEnd=flowerStart+pageHeight*.45;
     root.style.setProperty('--vine-start',`${vineStart}px`);
     root.style.setProperty('--vine-end',`${vineEnd}px`);
     root.style.setProperty('--flower-start',`${flowerStart}px`);

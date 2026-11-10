@@ -364,11 +364,12 @@ credit stays at the actions/byline midpoint. These are desktop/phone-size browse
 preview checks; the owner’s physical iPhone rendering was not independently
 retested.
 
-The growing vine stroke is 2.6px at 68% opacity over a 30% guide. It reaches
+The growing vine stroke is 2.6px at 68% opacity over a 30% guide. It starts
+once the flower is at least 35% open, then reaches
 the root crown when that junction is 60% down the viewport. The established
 base roots remain completely still. A lighter copy of every tapered outline
-is drawn from 0% to 100% over them, with the full branching burst spanning 37%
-of the viewport’s scroll distance and finishing before the final view settles.
+is drawn from 0% to 100% over them, with the full branching burst spanning 27%
+of the viewport’s scroll distance, finishing with 18% of a viewport left to scroll.
 Measured travel distance from the crown sets each branch’s range, so a child’s
 light starts exactly when its parent reaches the attachment. The overlay uses
 a restrained cyan/mint mix at 65% of the root’s existing opacity. Native and
