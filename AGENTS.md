@@ -7,16 +7,23 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
-Lune `26.1109.2` is reserved for the next production release on
-`release-26-1109-2`, with notes and the frozen record committed together.
-It selects `inputs/native-window-close-1/macos`, preserving the complete accepted
-appearance/downloads/footer/startup/sidebar stack. Input validation and all 65
-orchestrator tests pass. Both frozen builds, clean source inventories, signing/notarization, and signed
-local acceptance pass (Intel runtime under Rosetta). Paired DMGs/appcasts and
-corresponding source are prepared for an unpublished production draft. Physical
-Intel acceptance or a new version-bound owner deferral is still pending.
-Do not publish or reuse this version with different inputs. See
-[next-release preparation](agent-docs/project/builds/2026-11-09-release-26.1109.2.md).
+Lune `26.1109.2` is published as the latest production release; `26.1109.1`
+remains published. Both frozen builds, signing/notarization, anonymous download
+hashes and paired stable feed readback pass. Public HTTPS updates pass on Apple
+silicon and Intel under Rosetta. Physical Intel testing
+remains pending under the owner's version/hash-bound publication deferral.
+See [release evidence](agent-docs/project/builds/2026-11-09-release-26.1109.2.md).
+
+`leebyron/lune-browser` is public. Link exact signed source tags and permanent
+component refs. Release uploads contain versioned/latest-name browser DMGs,
+appcasts, checksums and compact release/validation metadata. Do not upload duplicate
+source kits, Git bundles or unchanged dependency archives. Keep previously
+published assets immutable. The current publisher verifies anonymous source access;
+read [release delivery](agent-docs/project/release-delivery.md) before publishing.
+Release notes should be informative and fun, with new features first, followed by
+bug and security fixes. Put testing, compatibility and known issues afterward.
+Owner/main/canonical-repository guards protect the local Mac workflows in this
+public repository; no PR or fork code runs on the signing host.
 
 The development input `inputs/native-window-close-1/macos` includes the accepted
 red-window-button fix and safe fullscreen-control teardown. Replacement native
@@ -67,7 +74,7 @@ full browser/runtime checks were not run for this removal. Existing frozen relea
 inputs are unchanged. See [Dock message bar](agent-docs/project/features/dock-infobar.md).
 
 Lune `26.1109.1` is published as the production release in `leebyron/lune-downloads`.
-The signed private source tag identifies frozen commit `24f6531a`; publication
+The signed public source tag identifies frozen commit `24f6531a`; publication
 policy is tracked separately on `production-release-policy`. Both frozen builds,
 source inventories, signing/notarization, and local acceptance pass. All 18
 public assets have verified digests. Anonymous versioned/latest downloads and

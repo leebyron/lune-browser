@@ -182,5 +182,8 @@ The legacy update URLs redirect to GitHub-hosted architecture-specific appcasts.
 Deploy these enabled links only after both latest assets and stable feeds pass
 public readback. See [release delivery](../agent-docs/project/release-delivery.md).
 
-The public GitHub link points to `leebyron/lune-downloads`, where downloads and
-corresponding source kits are accessible without private repository access.
+The website GitHub link points to `leebyron/lune-downloads` for browser releases.
+Source is public in `leebyron/lune-browser` at exact release and component tags.
+Browser releases upload DMGs, appcasts, checksums and compact metadata; do not
+re-upload Git bundles or unchanged source/dependency archives. See the delivery
+runbook for source reachability and paired-feed promotion checks.

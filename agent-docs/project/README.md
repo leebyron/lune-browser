@@ -79,7 +79,9 @@ Component histories, exact inputs, local build tooling, and configuration CI are
 bootstrapped; see [building](building.md). Current build/runtime evidence is recorded
 in [the Chromium 158 port](builds/2026-11-05-chromium-158-port.md); the
 [first arm64 build](builds/2026-11-05-arm64.md) remains historical evidence.
-No public browser release, deployed browser services, or recurring browser schedule exists yet.
+Production releases and stable feeds are now live; services hosting and recurring
+browser schedules remain separate work. Source is public in `leebyron/lune-browser`;
+see [current release delivery](release-delivery.md).
 
 ## Read next
 

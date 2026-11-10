@@ -99,7 +99,7 @@ changes. Keep OAuth and API tokens outside the repository.
 
 Owner pushes to `main` affecting the website or its workflow run validation and
 production deployment on the existing Mac runner. Owner manual dispatch is also
-available while the repository remains private. PR jobs are disabled on this
+available on the canonical public repository, restricted to the owner and `main`. PR jobs are disabled on this
 persistent signing host; validate proposed website changes locally. Website,
 setup checks, and browser builds share one concurrency group. Actions
 are pinned by commit and GitHub permissions are limited to repository read access.

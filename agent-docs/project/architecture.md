@@ -8,7 +8,7 @@ in a development candidate; generic replay and release orchestration remain plan
 
 ## Recommendation: one remote, preserved component histories
 
-Use this GitHub repository as the project home. Keep orchestration, manifests,
+Use this public GitHub repository as the project home. Keep orchestration, manifests,
 documentation, the website, and deployment configuration on `main`. Store browser
 core, platform packaging, and services on component branches descended from their
 respective upstreams. Assemble a working directory from exact component commits.
@@ -194,3 +194,13 @@ it does not establish successful compilation or runtime validation by itself.
 Validate the component-branch/submodule bootstrap before investing in build CI.
 If it adds more machinery than it saves, adopt conventional separate component
 forks with pinned submodules without changing the release and patch policies.
+
+## Public source and delivery boundary
+
+`leebyron/lune-browser` is public. Signed source-release tags and permanent core/
+platform input refs identify the exact build source. `leebyron/lune-downloads`
+contains browser DMGs, latest aliases, appcasts, checksums and compact metadata.
+Its release tag identifies distribution history, not the source commit. Link the
+matching source tag and full SHA explicitly. Do not duplicate Git histories, source
+kits or unchanged dependency archives in every browser release. Existing published
+artifacts stay immutable; local source/build/compiler caches stay outside Git.

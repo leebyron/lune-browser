@@ -100,8 +100,9 @@ goal; bit-for-bit reproducibility remains unproven.
 
 ## What is produced after the commit
 
-Keep build products and reports under ignored work/output directories and attach
-the reviewed source kit and evidence to the immutable release. Do not amend the
+Keep build products and reports under ignored work/output directories and publish
+reviewed compact validation metadata with the immutable release. Source is public
+at the exact source tag; do not upload duplicate Git bundles or dependency archives. Do not amend the
 release commit to insert results or hashes of its own artifacts.
 
 Record at least:
@@ -118,7 +119,7 @@ Record at least:
 - Signing certificate identity/fingerprint, notarization submission/result,
   stapling and Gatekeeper results, and Sparkle signature verification. Credentials
   and private keys stay outside Git and published evidence.
-- Final app/DMG and source-kit filenames, sizes, cryptographic hashes, signatures,
+- Final app/DMG and delivery-metadata filenames, sizes, cryptographic hashes, signatures,
   immutable download URLs, source availability, and feed/readback evidence.
 - Chromium macOS stable freshness checks at integration, public release publication
   and immediately before promotion: candidate/latest versions, check time, source,
@@ -173,13 +174,15 @@ binary needs a new release allocation even if browser source is unchanged.
    explicitly approves a release-specific exception. An unavailable check blocks
    publication. After acceptance, create an immutable
    annotated `v<version>` source tag pointing to the exact release commit, even
-   if main has moved. Assemble corresponding source from that commit and all
-   pinned dependencies, preserving licenses and provenance. Publication must
+   if main has moved. Verify the public source tag and permanent component refs,
+   plus pinned dependency URLs/hashes, preserving licenses and provenance. Publication must
    stay within the authorized payload and destination. The public
    `leebyron/lune-downloads` repository has its own history: its matching release
-   tag does not itself identify the private source commit; the published source
-   kit/provenance must explicitly identify it. Upload both architecture artifacts,
-   source, checksums and evidence before updating any feed, then verify readback.
+   tag does not itself identify the source commit; link the matching source tag
+   in public `leebyron/lune-browser` and record its full SHA in release metadata.
+   Upload both architecture DMGs, aliases, appcasts, checksums and compact evidence
+   before changing a feed. Do not copy source/dependency archives into each release.
+   Verify anonymous artifact and public Git-ref readback.
 7. **Promote the validated artifacts.** Generate matching architecture appcasts
    and run installed updates with a local test feed before production publication. Immediately before
    promotion, recheck macOS stable Chromium and version ordering, and record the

@@ -2,8 +2,9 @@
 
 Status: local signing, notarization, DMG packaging, Sparkle appcast generation,
 and installed-update validation are implemented for the first release candidate.
-Public delivery and native Intel acceptance are in progress; stable promotion and
-recurring browser publishing are not enabled. See [release bootstrap](builds/2026-11-06-release-bootstrap.md)
+Production releases and paired stable feeds are live; 26.1109.2 is latest.
+Native Intel checks remain pending under version-bound owner deferrals. Recurring
+browser publishing is not enabled. See [release bootstrap](builds/2026-11-06-release-bootstrap.md)
 and [current build readiness](building.md).
 Initial targets: macOS arm64 and x86_64, with separate DMGs and update feeds.
 
@@ -39,7 +40,7 @@ flowchart LR
   D --> E[Sign, notarize, package, verify]
   E --> F[Publish immutable release assets]
   F --> G[Verify downloads and promote feeds]
-  G --> H[Update website manifest]
+  G --> H[Verify permanent website download links]
 ```
 
 Any failed gate blocks promotion. Record the exact component, patch/commit,
@@ -92,7 +93,7 @@ and provenance of the validated candidate; credentials are scoped to that step.
    Also test a bad signature, incompatible OS, and wrong-architecture offer.
 7. Apply the [Chromium freshness gate](#chromium-freshness-gate) before public
    release publication and again immediately before feed/website promotion.
-   Verify published downloads, hashes, source/provenance attachments, and feed
+   Verify published downloads, hashes, public source refs and provenance, and feed
    consistency before promotion. Verify feed readback afterward.
 
 At bootstrap, keep public auto-promotion disabled until the two-release update
@@ -156,8 +157,11 @@ Show Lune and Chromium versions separately in About. See
 input record, calendar rules, preparation procedure, evidence, and migration gaps.
 
 Target artifact naming: `Lune-<version>-macos-<arch>.dmg`, tagged `v<version>`.
-Publish DMGs, SHA-256 sums, source locks, patch provenance, corresponding source
-availability, and validation results under an immutable release tag on `main`.
+Publish versioned/latest-name DMGs, appcasts, SHA-256 sums and compact release/
+validation metadata. Link the public source repository at its exact signed release
+tag and retained component refs; verify pinned dependency URLs and hashes. Do not
+upload duplicate source kits, Git history bundles or unchanged dependency archives.
+The downloads repository and source repository retain separate immutable tags.
 Keep permanent component tags reachable as described in [architecture](architecture.md).
 
 Publish and verify both architecture assets before changing either stable feed.

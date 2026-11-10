@@ -75,7 +75,7 @@ identify the exact upstream change or patch without silently dropping features.
 - Supply Lune's Developer ID/notarization credentials and create a distinct
   Sparkle key pair. Choose stable bundle ID and feed/domain paths.
 - Parameterize packaging for both architectures; isolate signing from builds.
-- Produce two successive staging releases and test N to N+1 installation,
+- Use successive signed candidates with loopback fixtures to test N to N+1 installation,
   relaunch, profile persistence, wrong architecture, and invalid signatures.
 - Verify asset-first publication, unique build numbering, and partial-feed
   promotion recovery.
@@ -117,7 +117,7 @@ every gate passes, and a failed candidate leaves the installed update path intac
 | Signing | Developer ID and Sparkle keys in local Keychain; notarization setup pending |
 | Domain and hosting | `lune.computer`; Cloudflare website, services host undecided |
 | Minimum macOS version | Derive from selected source/toolchain and test matrix |
-| Stable/preview policy | Stable first; staging required; preview optional |
+| Stable/preview policy | Production/stable only; unpublished drafts and loopback acceptance |
 | Scheduler | GitHub Actions initially; external dispatch if reliability requires it |
 
 The website has its own deployment workflow. No recurring browser job, service

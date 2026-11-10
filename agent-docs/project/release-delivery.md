@@ -1,31 +1,23 @@
 # GitHub download and update delivery
 
-Lune 26.1109.1 was published November 9, 2026 with paired stable feeds,
-immutable/version-independent downloads and corresponding source. Anonymous
-readback and installed public HTTPS updates pass on both architectures (Intel
-under Rosetta). The owner explicitly deferred physical Intel testing; these
-results remain unverified. The website is deployed with permanent latest-download
-links and verified compatibility feed redirects.
-See the current acceptance evidence below for authoritative status.
+Lune 26.1109.2 is the latest production release, with paired stable feeds,
+immutable/version-independent downloads, and public source at its signed Git tag.
+26.1109.1 remains published and downloadable. See
+[26.1109.2 evidence](builds/2026-11-09-release-26.1109.2.md) for exact hashes,
+verification and the version-bound owner deferral of physical Intel acceptance.
+Rosetta checks never establish native Intel results.
 
-The owner requires production/stable delivery only. Preparation and hardware
-acceptance use an unpublished GitHub draft and local test fixtures, not a public
-staging channel or prerelease. The November 9 correction is tracked in
-[the delivery decision](../../manifests/release-delivery/26.1109.1.json).
-The frozen browser source remains `24f6531ae722dfa61e214e04a5efde83bf068f4f`;
-its original `initial_channel: staging` intention is superseded without changing
-binary inputs or reusing the version for different source. Run build, package,
-and source-export commands from that clean commit. The newer publication tool
-accepts `--source-checkout` pointing to it, records its own separate commit in
-the upload receipt, and validates the original frozen input hashes.
-
-See [current architecture acceptance](builds/2026-11-09-release-delivery.md) for
-build, signing, installed-update evidence and remaining gates.
+Use production/stable delivery only. Preparation uses an unpublished GitHub draft
+and loopback fixtures, not a public staging channel or prerelease. Frozen source
+commits and existing release records remain immutable. Run build/package commands
+from the frozen checkout. The current publication tool accepts `--source-checkout`
+pointing to that checkout and records its own distinct publisher commit.
 
 ## Public URL contract
 
-All browser downloads, source kits, and appcasts live in the public
-`leebyron/lune-downloads` repository. Browser source development remains private.
+Browser downloads, appcasts and small release metadata live in the public
+`leebyron/lune-downloads` repository. Source lives in the public
+`leebyron/lune-browser` repository at exact release/component tags.
 The Cloudflare website links to GitHub; it does not store browser binaries.
 
 | Purpose | URL pattern |
@@ -111,21 +103,23 @@ additional CI cost; this work does not activate scheduled release jobs.
    rejection cases. Retain before/after profile and signature evidence.
 6. Use `scripts/release/delivery.py --arm64 CANDIDATE --x86-64 CANDIDATE --output
    PUBLICATION --evidence ACCEPTANCE_JSON` to create matching feeds, immutable DMGs, latest-name aliases,
-   release metadata, reviewed validation evidence and checksums. `scripts/release/source.py` exports the union
-   of both architectures' pinned archives and exact component histories.
-7. Use the reviewed production publisher with `upload --source-checkout FROZEN
-   --directory PUBLICATION --source-directory SOURCE --archives ARCHIVES
-   --notes-file NOTES`. It creates an unpublished, non-prerelease draft, uploads
-   the exact artifacts and sources, and verifies GitHub's asset digests. It
-   leaves the draft unpublished. Keep upload-receipt.json: promotion rechecks
-   every uploaded asset, including source archives. No assets are overwritten.
+   release metadata, reviewed validation evidence and checksums. Source is retained
+   in the public Git repository; source-kit export is not a release prerequisite.
+7. Retain a signed annotated `v<VERSION>` source tag at the exact frozen source
+   commit and push it and all permanent component input refs to the public source
+   repository. Use the current publisher with `upload --source-checkout FROZEN
+   --directory PUBLICATION --notes-file NOTES`. It checks anonymous source access
+   and exact ref targets, then creates an unpublished, non-prerelease draft and
+   uploads only browser delivery files and compact metadata. GitHub asset digests
+   must match. Keep upload-receipt.json; promotion rechecks every uploaded asset
+   and the public source refs. No asset is overwritten or dependency archive copied.
 8. Download the draft's signed DMG using the owner's authenticated GitHub access
    for native Intel acceptance. Use a loopback HTTP test fixture to exercise
    build 2's real updater with these exact final DMG bytes; this is a local test,
    not a staging delivery channel. Record hardware results and owner confirmation
    against the DMG hashes. Never label Rosetta checks as native Intel acceptance.
 9. After native Intel acceptance or an explicit owner-approved deferral recorded
-   in the version/hash-bound acceptance JSON, tag the exact private source commit and run
+   in the version/hash-bound acceptance JSON, run
    the reviewed publisher's `promote --channel stable --source-checkout FROZEN`
    with the publication directory, acceptance JSON, and public checkout. All
    acceptance checks (including any recorded native Intel deferral) and a fresh
@@ -136,8 +130,9 @@ additional CI cost; this work does not activate scheduled release jobs.
    then deploy the website. If a step fails, preserve existing feeds and resume
    the same verified bytes; do not create a prerelease as a workaround.
 
-The public repository's release tag identifies its own distribution history.
-The source kit and release.json identify the private source commit explicitly.
+The downloads repository's release tag identifies its own distribution history.
+The source repository's matching tag and release.json identify the frozen source
+commit explicitly.
 Never confuse those two histories. Keep builds 1 and 2 and their source unchanged.
 
 ## Manual Intel checklist
@@ -263,6 +258,6 @@ published assets and licenses. The owner explicitly selected this approach while
 publishing 26.1109.2. That release removed redundant source assets only from its
 unpublished draft; the prior production release remains intact.
 
-The historical source-kit upload command below predates this decision and must
-not be used as a mandatory production gate. Source availability is required;
-duplicate archive uploads are not.
+The active upload command enforces this focused asset set. `scripts/release/source.py`
+remains an optional local export utility for an explicit request, not a routine
+production gate. Source availability is required; duplicate archive uploads are not.

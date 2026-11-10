@@ -1,7 +1,7 @@
 {
   "version": "26.1109.2",
   "source_commit": "c423b6919ed0983b2b6b8c64389d401af1d69b04",
-  "state": "signed-local-acceptance-passed; unpublished-draft-prepared",
+  "state": "published-production; public HTTPS acceptance passed",
   "source_preparation": {
     "platform_commit": "72cd119be74fd692ccea125c7e436f8fca608fdf",
     "core_commit": "49bdc572bee38436250f9058351c8a328cd8c8ad",
@@ -63,7 +63,7 @@
   ],
   "freshness": {
     "candidate": "158.0.8127.18",
-    "checked_at": "2026-11-10T06:16:26.419437+00:00",
+    "checked_at": "2026-11-10T08:05:13.021123+00:00",
     "source": "https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1",
     "channel": "Stable",
     "platform": "Mac",
@@ -90,11 +90,15 @@
         "time": 1794257244900,
         "version": "157.0.8103.51"
       }
-    ]
+    ],
+    "version": "26.1109.2",
+    "source_commit": "c423b6919ed0983b2b6b8c64389d401af1d69b04",
+    "phase": "stable"
   },
   "source_kit": {
     "sha256": "3a3efa9ae0a378755207ad8fd80c06f09023a8d3e4c4d2ff0db9008905bf2da6",
-    "published": false
+    "published": false,
+    "status": "local optional export only; removed from unpublished draft under owner focused-upload instruction"
   },
   "builds": {
     "arm64": {
@@ -131,7 +135,7 @@
     }
   },
   "signed_release": true,
-  "published": false,
+  "published": true,
   "acceptance_sha256": "073af4b606936ac404309a5f9d82d63297771cf1202fad312a30e5125ef3847a",
   "architectures": {
     "arm64": {
@@ -176,10 +180,223 @@
     }
   },
   "native_intel_acceptance": "pending; owner approved version-bound publication deferral",
-  "public_updates": "not promoted",
+  "public_updates": "passed on arm64 and Intel under Rosetta",
   "native_intel_deferral": {
     "owner_approved": true,
     "testing_pending": true,
     "owner_instruction": "Publish it. Also ensure the prior version was published too"
+  },
+  "source_delivery": {
+    "repository": "https://github.com/leebyron/lune-browser",
+    "source_commit": "c423b6919ed0983b2b6b8c64389d401af1d69b04",
+    "tag": "v26.1109.2",
+    "component_refs": {
+      "helium": {
+        "commit": "49bdc572bee38436250f9058351c8a328cd8c8ad",
+        "upstream_commit": "0a5feb312977be6feefca0766fcdd3c6a10ac9dd",
+        "tree": "602888b007cf6cc302ce5e95aa64d233e50ff6be",
+        "ref": "refs/tags/inputs/helium-2026-11-09/helium"
+      },
+      "macos": {
+        "commit": "72cd119be74fd692ccea125c7e436f8fca608fdf",
+        "upstream_commit": "37efe2c65dccc21aaf1d8ea66fd35d1348c386a8",
+        "tree": "36b90a57ce2e09e75b74244b7e52ae869e02c268",
+        "ref": "refs/tags/inputs/native-window-close-1/macos"
+      },
+      "services": {
+        "commit": "dc1a6e9038df1898598ea09fbd77e0710486dfc6",
+        "upstream_commit": "dc1a6e9038df1898598ea09fbd77e0710486dfc6",
+        "tree": "665c9dff2027b89a31ddafdc4aceaa0d8c7648e1",
+        "ref": "refs/tags/inputs/bootstrap-1/services"
+      }
+    },
+    "unchanged_archives_release": "https://github.com/leebyron/lune-downloads/releases/tag/v26.1109.1",
+    "archives_verified": true,
+    "owner_instruction": "We have the git repo itself for open source? Why upload all of these artifacts? Let\u2019s keep uploads focused"
+  },
+  "public_readback": {
+    "version": "26.1109.2",
+    "channel": "stable",
+    "passed": true,
+    "checks": [
+      {
+        "url": "https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-arm64.xml",
+        "sha256": "b921209c4bddc174cc3a1a28f32111079714f07877dd02301031dc2f1ef13e35"
+      },
+      {
+        "url": "https://github.com/leebyron/lune-downloads/releases/download/v26.1109.2/Lune-26.1109.2-macos-arm64.dmg",
+        "sha256": "3be1d6fe37c4e15a3388266969bc9e79db375274d0ffcf0719e4e4c1f4076ba3"
+      },
+      {
+        "url": "https://github.com/leebyron/lune-downloads/releases/latest/download/Lune-macos-arm64.dmg",
+        "sha256": "3be1d6fe37c4e15a3388266969bc9e79db375274d0ffcf0719e4e4c1f4076ba3"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-x86_64.xml",
+        "sha256": "bce2a01cd1a2dc1e340623244944eb9b62acca497431fb97344ecd22685bddf5"
+      },
+      {
+        "url": "https://github.com/leebyron/lune-downloads/releases/download/v26.1109.2/Lune-26.1109.2-macos-x86_64.dmg",
+        "sha256": "25f96bc698fb3a4e58bd40259b2da14f92f629d3d9310ff09bdd2811bdbf9861"
+      },
+      {
+        "url": "https://github.com/leebyron/lune-downloads/releases/latest/download/Lune-macos-x86_64.dmg",
+        "sha256": "25f96bc698fb3a4e58bd40259b2da14f92f629d3d9310ff09bdd2811bdbf9861"
+      }
+    ]
+  },
+  "public_update_verification": {
+    "version": "26.1109.2",
+    "passed": true,
+    "checks": [
+      {
+        "name": "readback",
+        "exit_code": 0
+      },
+      {
+        "name": "arm64",
+        "exit_code": 0
+      },
+      {
+        "name": "x86_64",
+        "exit_code": 0
+      }
+    ]
+  },
+  "publication": {
+    "url": "https://github.com/leebyron/lune-downloads/releases/tag/v26.1109.2",
+    "published_at": "2026-11-10T08:04:43Z",
+    "feed_commit": "da85ef8",
+    "upload_receipt_sha256": "4730d8bfb2bb21cfbc2d70f9234b3d22feef198abb01744f9cf53c5b611f9854"
+  },
+  "guidance_tests": {
+    "passed": true,
+    "count": 67
+  },
+  "public_update_reports": {
+    "arm64": {
+      "architecture": "arm64",
+      "feed": "https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-arm64.xml",
+      "passed": true,
+      "updater": "Lune About-page Sparkle integration",
+      "before_build": "26.1109.1",
+      "ublock_ready": {
+        "before": 676593,
+        "after": 676593
+      },
+      "update_events": [
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 7,
+          "rollback": false,
+          "size": "0",
+          "status": "updating",
+          "version": ""
+        },
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 15,
+          "rollback": false,
+          "size": "0",
+          "status": "updating",
+          "version": ""
+        },
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 22,
+          "rollback": false,
+          "size": "0",
+          "status": "updating",
+          "version": ""
+        },
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 28,
+          "rollback": false,
+          "size": "0",
+          "status": "updating",
+          "version": ""
+        },
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 36,
+          "rollback": false,
+          "size": "0",
+          "status": "updating",
+          "version": ""
+        },
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 42,
+          "rollback": false,
+          "size": "0",
+          "status": "updating",
+          "version": ""
+        },
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 47,
+          "rollback": false,
+          "size": "0",
+          "status": "updating",
+          "version": ""
+        },
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 50,
+          "rollback": false,
+          "size": "0",
+          "status": "updating",
+          "version": ""
+        },
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 0,
+          "rollback": false,
+          "size": "0",
+          "status": "nearly_updated",
+          "version": ""
+        }
+      ],
+      "after_build": "26.1109.2",
+      "profile_persisted": true,
+      "relaunch_passed": true,
+      "signatures_and_gatekeeper_passed": true
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "feed": "https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-x86_64.xml",
+      "passed": true,
+      "updater": "Lune About-page Sparkle integration",
+      "before_build": "26.1109.1",
+      "ublock_ready": {
+        "before": 676593,
+        "after": 676593
+      },
+      "update_events": [
+        {
+          "message": "",
+          "powerwash": false,
+          "progress": 0,
+          "rollback": false,
+          "size": "0",
+          "status": "nearly_updated",
+          "version": ""
+        }
+      ],
+      "after_build": "26.1109.2",
+      "profile_persisted": true,
+      "relaunch_passed": true,
+      "signatures_and_gatekeeper_passed": true
+    }
   }
 }

@@ -140,8 +140,7 @@ Build requires its successful preparation record and unchanged lock, GN argument
 and Xcode version. These checks do not attest to arbitrary manual changes inside
 the generated source tree: use a fresh preparation for release validation.
 
-This GitHub repository currently requires authentication. Local HTTPS clones use
-the owner's existing Git credential helper. CI supplies the job's read-only
+This GitHub repository is public. Public source refs can be cloned anonymously. CI supplies the job's read-only
 `GITHUB_TOKEN` through `gh` only for fetching/checkout; credentials are not stored
 in the source tree, and browser signing credentials are never supplied to checks.
 
@@ -228,20 +227,20 @@ The app's identity, arm64 architecture, headless page loading, JavaScript, and
 local-storage persistence across relaunch passed; see [evidence](builds/2026-11-05-arm64.md).
 
 [GitHub documents self-hosted runner compute as free](https://docs.github.com/en/actions/concepts/billing-and-usage).
-The private repository's hosted compute and artifact/cache storage still have
-allowances and possible overage charges. Keep large source trees, compiler caches,
+GitHub-hosted compute and storage policies depend on repository/account settings;
+the owner still requires this Mac and no additional CI spend. Keep large source trees, compiler caches,
 and initial browser outputs on local disk; do not upload multi-gigabyte checkpoints
 to Actions artifacts by default. Do not provision paid runners, purchase storage,
 or assume an unverified account billing cap. Setup checks and website deployments now use this same Mac, without hosted
 compute or Actions cache uploads. They run only for owner-triggered main-branch
-pushes or manual dispatch while the repository remains private. PR events do not
+pushes or manual dispatch in the canonical `leebyron/lune-browser` repository. PR events do not
 run on the persistent signing host. All three workflows share the
 `lune-browser-local` concurrency group. Setup/website checkout subdirectories are
 cleaned independently; browser build caches are preserved. The runner must be
 started for each job with `run.sh --once` or kept running for a reviewed batch.
 
-The workflow is manual-only, restricted to the owner on `main` while the repo
-remains private. Runner `lune-mac-mini` is scoped to this repository. The official
+The browser workflow is manual-only, restricted to the owner on `main` in the
+canonical public repository. No fork or PR code runs on this signing host. Runner `lune-mac-mini` is scoped to this repository. The official
 GitHub runner v2.338.2 archive was verified with SHA-256
 `25a065af409ffa317ab4d5a3b614dd15fc9c40f2172bc1b35a1b1258e919a388`.
 Runner credentials stay under ignored `.work/ci-runner/`; no service is installed
@@ -349,8 +348,7 @@ needed if hosted checks are to resume.
 Stock GitHub-hosted macOS builds remain a possible future experiment. The pinned
 [Helium workflow](https://github.com/imputnet/helium-macos/blob/37efe2c65dccc21aaf1d8ea66fd35d1348c386a8/.github/workflows/building.yml)
 chains up to ten build phases with source/build artifacts to cross job time limits.
-That is source evidence of its strategy, not proof that Lune will fit the private
-repository's free compute/storage allowances. Do not copy its artifact-heavy
+That is source evidence of its strategy, not proof that Lune will fit the repository's free compute/storage allowances. Do not copy its artifact-heavy
 approach without measuring storage and runtime first.
 
 ## Signing readiness
@@ -409,4 +407,5 @@ and the inherited command-bar limitation.
 Next: broaden native browser UI, coexistence, branding/link and service acceptance;
 test on native Intel hardware; then implement and validate signing/packaging. Before public updates:
 provision services, finish versioning/branding, and test two signed/notarized
-releases through architecture-specific staging feeds. See [roadmap](roadmap.md).
+releases through architecture-specific production feeds; use loopback fixtures
+for unpublished update checks. See [roadmap](roadmap.md).
