@@ -303,7 +303,7 @@
         button.querySelector('.download-chevron').remove();
         button.setAttribute('aria-label', `Download for ${label}`);
         button.title = `Download for ${label}`;
-        const url = `https://github.com/leebyron/lune-downloads/releases/latest/download/Lune-macos-${build}.dmg`;
+        const url = `https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-${build}.dmg`;
         button.addEventListener('click', () => { window.location.assign(url); });
       });
     } catch {

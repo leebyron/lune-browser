@@ -7,6 +7,17 @@ LUNE BROWSER
 
 A browser built from spare parts. Used by [@leebyron](https://leebyron.com) you can use it too.
 
+## DOWNLOADS AND RELEASES
+
+Get Lune from [Releases](https://github.com/leebyron/lune-browser/releases).
+The [latest release](https://github.com/leebyron/lune-browser/releases/latest)
+has separate Apple silicon and Intel downloads for macOS 13+.
+Source and browser releases live in this repository.
+
+The existing 26.1109.1 and 26.1109.2 files were moved unchanged. Their embedded
+updater points to the retired distribution repository; use manual downloads for
+those versions. Future builds will use this repository's Sparkle feeds.
+
 Based on and inspired by:
 
  - [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium/)
@@ -27,11 +38,9 @@ Start with [the project definition](agent-docs/project/README.md).
 
 Agent instructions are in [AGENTS.md](AGENTS.md).
 
-Current status: website deployed; component histories, locked development inputs,
-and local build tooling bootstrapped. Chromium 158 development builds and smoke
-tests pass on Apple silicon and on Intel binaries under Rosetta; no public browser
-release pipeline is enabled.
-The initial target is macOS on Apple silicon and Intel.
+Current status: signed/notarized production releases and architecture-specific
+Sparkle feeds are published. Native Intel acceptance remains pending under the
+owner's release-specific deferrals; Intel automated checks use Rosetta.
 
 ## WEBSITE
 
@@ -45,4 +54,4 @@ The first locked inputs and local build commands are tracked on main, with
 upstream histories on component/helium, component/macos, and component/services.
 See agent-docs/project/building.md for current validation and remaining blockers.
 Both Lune architectures are built and smoke-tested locally; native Intel hardware
-and release validation remain outstanding. Nothing is released.
+acceptance remains pending. See the release notes and current delivery runbook.

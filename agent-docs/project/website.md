@@ -61,7 +61,8 @@ standard-density dimensions and combined region/row insets, with hover-only clos
 marks. The illustration omits default-browser and update prompts. Browser
 screenshots remain placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
 architecture hints, otherwise offering both choices. Production download buttons are enabled and point to permanent GitHub
-latest-asset links. Compatibility redirects for the old Sparkle paths are live.
+latest-asset links. The canonical Sparkle feeds live in the same GitHub repository; legacy feed
+redirects are retired during the November 10 consolidation.
 For future releases, preserve [the promotion ordering](release-delivery.md)
 and public byte readback before moving feeds or latest links.
 
@@ -132,7 +133,6 @@ release pipeline runs separately and does not run from this workflow.
 
 The owner requires production/stable only. New releases stay as unpublished
 GitHub drafts until acceptance, then publish final releases and paired stable
-feeds. The website's stable-feed redirects ship only after those targets and
-latest DMG aliases pass anonymous readback. Existing historical staging XML files
-remain served unchanged; do not replace them with redirects to absent GitHub
-staging files. See [the current delivery procedure](release-delivery.md).
+feeds. Canonical feed and latest-DMG readback precedes website deployment. The November
+10 consolidation retires legacy redirects and historical staging XML; do not
+restore old repository URLs. See [the current delivery procedure](release-delivery.md).

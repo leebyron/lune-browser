@@ -14,7 +14,12 @@ silicon and Intel under Rosetta. Physical Intel testing
 remains pending under the owner's version/hash-bound publication deferral.
 See [release evidence](agent-docs/project/builds/2026-11-09-release-26.1109.2.md).
 
-`leebyron/lune-browser` is public. Link exact signed source tags and permanent
+`leebyron/lune-browser` is public and hosts both source and browser releases.
+The separate distribution repository is being deleted after migration under the
+owner's explicit instruction; do not retain compatibility URLs. Existing .1/.2
+DMGs embed its old Sparkle URL, so only a new build can restore stock updating.
+The active next task is issue #24 (application-menu Check for Updates…), the
+canonical feed patch, and a new frozen release. `leebyron/lune-browser` is public. Link exact signed source tags and permanent
 component refs. Release uploads contain versioned/latest-name browser DMGs,
 appcasts, checksums and compact release/validation metadata. Do not upload duplicate
 source kits, Git bundles or unchanged dependency archives. Keep previously
@@ -73,7 +78,7 @@ Strict replay, patch lint, and changed-unit compilation pass on both architectur
 full browser/runtime checks were not run for this removal. Existing frozen release
 inputs are unchanged. See [Dock message bar](agent-docs/project/features/dock-infobar.md).
 
-Lune `26.1109.1` is published as the production release in `leebyron/lune-downloads`.
+Lune `26.1109.1` is published as the production release in `leebyron/lune-browser`.
 The signed public source tag identifies frozen commit `24f6531a`; publication
 policy is tracked separately on `production-release-policy`. Both frozen builds,
 source inventories, signing/notarization, and local acceptance pass. All 18
@@ -353,7 +358,7 @@ The first signed release candidates (builds 1 and 2) now pass Developer ID,
 Apple notarization, stapling, Gatekeeper, and Sparkle signature checks on both
 architectures. Installed updates and profile persistence pass on arm64 and Intel
 under Rosetta. Public test releases and corresponding source are published in
-`leebyron/lune-downloads`; staging feeds are live on `lune.computer`. Stable
+`leebyron/lune-browser`; staging feeds are live on `lune.computer`. Stable
 promotion still requires native Intel acceptance. Public HTTPS installed updates
 pass on arm64 and Intel under Rosetta. See
 [release bootstrap](agent-docs/project/builds/2026-11-06-release-bootstrap.md).

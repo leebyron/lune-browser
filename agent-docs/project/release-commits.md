@@ -176,10 +176,9 @@ binary needs a new release allocation even if browser source is unchanged.
    annotated `v<version>` source tag pointing to the exact release commit, even
    if main has moved. Verify the public source tag and permanent component refs,
    plus pinned dependency URLs/hashes, preserving licenses and provenance. Publication must
-   stay within the authorized payload and destination. The public
-   `leebyron/lune-downloads` repository has its own history: its matching release
-   tag does not itself identify the source commit; link the matching source tag
-   in public `leebyron/lune-browser` and record its full SHA in release metadata.
+   stay within the authorized payload and destination. Source and browser releases now share the public `leebyron/lune-browser`
+   repository. Its signed release tag identifies the source commit directly;
+   record the full SHA in release metadata.
    Upload both architecture DMGs, aliases, appcasts, checksums and compact evidence
    before changing a feed. Do not copy source/dependency archives into each release.
    Verify anonymous artifact and public Git-ref readback.

@@ -178,11 +178,12 @@ The download chooser uses GitHub latest-release aliases Lune-macos-arm64.dmg
 and Lune-macos-x86_64.dmg. Explicit architecture hints select the matching link;
 otherwise both remain available. Keep these names identical across stable
 releases so website redeployment is unnecessary for each new browser version.
-The legacy update URLs redirect to GitHub-hosted architecture-specific appcasts.
+Canonical feeds live under `lune-browser/main/updates/stable/mac/`; legacy
+website redirects and historical staging feed files are removed.
 Deploy these enabled links only after both latest assets and stable feeds pass
 public readback. See [release delivery](../agent-docs/project/release-delivery.md).
 
-The website GitHub link points to `leebyron/lune-downloads` for browser releases.
+The website GitHub link points to `leebyron/lune-browser` for browser releases.
 Source is public in `leebyron/lune-browser` at exact release and component tags.
 Browser releases upload DMGs, appcasts, checksums and compact metadata; do not
 re-upload Git bundles or unchanged source/dependency archives. See the delivery

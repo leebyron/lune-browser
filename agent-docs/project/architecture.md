@@ -197,10 +197,11 @@ forks with pinned submodules without changing the release and patch policies.
 
 ## Public source and delivery boundary
 
-`leebyron/lune-browser` is public. Signed source-release tags and permanent core/
-platform input refs identify the exact build source. `leebyron/lune-downloads`
-contains browser DMGs, latest aliases, appcasts, checksums and compact metadata.
-Its release tag identifies distribution history, not the source commit. Link the
-matching source tag and full SHA explicitly. Do not duplicate Git histories, source
-kits or unchanged dependency archives in every browser release. Existing published
-artifacts stay immutable; local source/build/compiler caches stay outside Git.
+`leebyron/lune-browser` holds source, browser releases, feeds and compact release
+metadata. Signed `v<VERSION>` release tags identify the exact source commit;
+permanent component refs retain upstream ancestry. Link that tag and full SHA
+in release metadata. Do not duplicate Git histories, source kits or unchanged
+source/dependency archives in release assets. Local build/compiler caches remain
+outside Git. The separate distribution repository is retired without compatibility
+URLs under the owner's explicit November 10 instruction. Existing signed DMGs
+keep their bytes; only a new build can change their embedded Sparkle URL.

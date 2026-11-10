@@ -174,7 +174,7 @@ promotion using the same validated bytes.
 
 Use Sparkle 2 as Xelium does, with one Lune-owned HTTPS feed per architecture and
 stable channel. The selected feeds are
-`https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-arm64.xml`
+`https://raw.githubusercontent.com/leebyron/lune-browser/main/updates/stable/mac/appcast-arm64.xml`
 and `appcast-x86_64.xml`. The former
 `lune.computer/updates/stable/` URLs redirect to these GitHub feeds once deployed. Separate
 feeds prevent an Intel client receiving an arm64-only enclosure. Test any future

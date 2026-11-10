@@ -15,18 +15,18 @@ pointing to that checkout and records its own distinct publisher commit.
 
 ## Public URL contract
 
-Browser downloads, appcasts and small release metadata live in the public
-`leebyron/lune-downloads` repository. Source lives in the public
-`leebyron/lune-browser` repository at exact release/component tags.
+Source, browser releases, appcasts and compact release metadata all live in
+`leebyron/lune-browser`. Its signed release tag identifies the exact frozen source;
+permanent component input tags retain the imported histories.
 The Cloudflare website links to GitHub; it does not store browser binaries.
 
 | Purpose | URL pattern |
 | --- | --- |
-| Release page | `https://github.com/leebyron/lune-downloads/releases/tag/v<VERSION>` |
-| Versioned DMG | `https://github.com/leebyron/lune-downloads/releases/download/v<VERSION>/Lune-<VERSION>-macos-<ARCH>.dmg` |
-| Latest stable DMG | `https://github.com/leebyron/lune-downloads/releases/latest/download/Lune-macos-<ARCH>.dmg` |
-| Release's appcast | `https://github.com/leebyron/lune-downloads/releases/download/v<VERSION>/appcast-<ARCH>.xml` |
-| Stable feed | `https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/mac/appcast-<ARCH>.xml` |
+| Release page | `https://github.com/leebyron/lune-browser/releases/tag/v<VERSION>` |
+| Versioned DMG | `https://github.com/leebyron/lune-browser/releases/download/v<VERSION>/Lune-<VERSION>-macos-<ARCH>.dmg` |
+| Latest stable DMG | `https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-<ARCH>.dmg` |
+| Release's appcast | `https://github.com/leebyron/lune-browser/releases/download/v<VERSION>/appcast-<ARCH>.xml` |
+| Stable feed | `https://raw.githubusercontent.com/leebyron/lune-browser/main/updates/stable/mac/appcast-<ARCH>.xml` |
 
 ARCH is arm64 or x86_64. Each release uploads a versioned DMG and an identically
 hashed alias named Lune-macos-ARCH.dmg. GitHub's latest-release pointer makes the
@@ -42,12 +42,17 @@ rejects regressions and permits resuming the same release only with identical
 metadata. GitHub's raw CDN can cache feed responses; verify readback before
 announcing completion. Previous release assets remain available.
 
-The existing lune.computer/updates/stable/mac URLs redirect to the
-GitHub files for compatibility. Keep those redirects when changing the website.
-Historical staging files for builds 1 and 2 remain unchanged; do not redirect them
-to nonexistent GitHub staging files or publish new staging updates.
-Do not deploy redirects before the corresponding GitHub files are accessible.
-Do not deploy enabled download buttons before both stable latest aliases work.
+The owner retired the separate distribution repository and requested no legacy
+URL compatibility. Do not create redirects or maintain its old feeds. Remove
+legacy website feed redirects and historical staging assets from the current
+website. Do not deploy enabled download links until the canonical versioned DMGs,
+latest aliases and stable feeds pass anonymous readback.
+
+The moved 26.1109.1/26.1109.2 DMGs retain their signed bytes and embedded old
+updater URL. Their stock updater stops when the former repository is deleted;
+manual downloads are required until a new browser build embeds the canonical
+feed. The owner subsequently requested issue #24 plus a new release to do this.
+Do not claim a repository move rewrites an already signed app's updater URL.
 
 ## Version and source identity
 
@@ -130,10 +135,8 @@ additional CI cost; this work does not activate scheduled release jobs.
    then deploy the website. If a step fails, preserve existing feeds and resume
    the same verified bytes; do not create a prerelease as a workaround.
 
-The downloads repository's release tag identifies its own distribution history.
-The source repository's matching tag and release.json identify the frozen source
-commit explicitly.
-Never confuse those two histories. Keep builds 1 and 2 and their source unchanged.
+Release tags now belong to the source repository and identify the frozen source
+commit directly; release.json records its full SHA. Keep builds 1 and 2 and their source unchanged.
 
 ## Manual Intel checklist
 
