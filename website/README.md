@@ -177,11 +177,11 @@ Its sources:
 - [Chromium Site Isolation](https://www.chromium.org/Home/chromium-security/site-isolation/):
   sandbox and process isolation, described as defenses rather than guarantees.
 
-The November 10 copy preserves the existing source-grounded claims about
-ungoogled-chromium, uBlock Origin, HTTPS, sandboxing and site isolation. The
-current frozen release and development lock establish inclusion; this is not a
-new runtime security audit. No anonymity or infallible-protection claim is made.
-Optional Helium services retain their independent consent in the real browser.
+The current story’s claim-by-claim evidence and limits are documented in the
+[respect-story notes](../agent-docs/project/website-respect-story.md). The frozen
+release and development lock establish inclusion; this is not a new runtime
+security audit. No anonymity or infallible-protection claim is made. Optional
+Helium services retain their independent consent in the real browser.
 
 The sidebar revision was checked against the current Figma desktop canvas and
 its existing source assets on 2026-11-06. The Figma MCP connector was unavailable
