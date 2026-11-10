@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "eaad00f9148bbe151ae9a85370041d738d6adc70",
+    "commit": "bc7e8558d217c37ee41168ff2c0744a0a2e7183b",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -681,6 +681,10 @@
       {
         "path": "patches/helium/ui/floating-infobars.patch",
         "sha256": "43abbadf54848c524898a8ffe72ccf2ac1bd1917b7aeebac93ebeb38b3b9b129"
+      },
+      {
+        "path": "patches/lune/continue-session-default.patch",
+        "sha256": "fad81b7cf863864218703c69c0c9a3e451f3d1594f00c645fa0ea9af481b52fd"
       }
     ]
   },
@@ -1592,6 +1596,19 @@
       "adaptation": "Owner accepted the native preview on November 9, 2026. Developed with quilt and replayed from exact locked Chromium source through the current published core/platform stack with zero fuzz and zero offsets for this patch. Both architecture browser builds pass; native arm64 geometry, stacking, dismissal, and split-view checks pass. Priority regression tests compile for both architectures but were not executed. See agent-docs/project/features/floating-infobars.md.",
       "commits": [
         "eaad00f9148bbe151ae9a85370041d738d6adc70"
+      ]
+    },
+    {
+      "id": "continue-session-default",
+      "depends_on": [],
+      "patches": [
+        "patches/lune/continue-session-default.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Default macOS startup to Continue where you left off while preserving saved and managed choices.",
+      "adaptation": "Quilt-developed preference-default change with matching existing unit-test expectation. Replayed onto the current main input without changing existing patches. Zero-fuzz, zero-offset replay and both architecture translation-unit compiles pass; no full browser rebuild or runtime acceptance. See agent-docs/project/features/startup-default.md.",
+      "commits": [
+        "bc7e8558d217c37ee41168ff2c0744a0a2e7183b"
       ]
     }
   ],

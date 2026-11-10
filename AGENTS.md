@@ -7,6 +7,14 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The development input `inputs/continue-session-default-2/macos` defaults macOS
+startup to **Continue where you left off**, preserving saved and managed choices.
+It retains the accepted footer prompts, downloads, Dock-prompt removal, and
+older-macOS fixes. Both architectures and new release preparation inherit it
+from the main lock. Patch replay, lint, and both changed-unit compiles pass;
+no browser rebuild or runtime acceptance was performed for this default change.
+See [startup default](agent-docs/project/features/startup-default.md).
+
 The development input `inputs/floating-infobars-1/macos` includes the owner-approved
 floating footer prompts from the Dock-message conversation. Prompts span the combined
 content area with 8 px edge insets and stack gaps, native corner geometry and hairline,
