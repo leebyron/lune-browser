@@ -16,8 +16,13 @@
   const clamp=x=>Math.max(0,Math.min(1,x));
   let opening=0,readingStart=182,launchAt=96,pageHeight=0,reading=0,queued=false,base=48,launched=false,appVisible=false,showTimer=0;
   const points = [...pages.querySelectorAll('.flow-point')];
+  const vine = pages.querySelector('.story-vine'), vineGrowth = vine.querySelector('.vine-growth');
+  const flower = vine.querySelector('.vine-flower'), flowerBloom = vine.querySelector('.flower-bloom');
+  let vineStart=0, vineEnd=1, flowerEnd=1;
+  const leafRanges=[];
   points.forEach((point, index) => {
     point.style.setProperty('--flow-offset', Math.sin(index / (points.length - 1) * 2 * Math.PI).toFixed(5));
+    point.style.setProperty('--leaf-angle', `${index % 2 ? 7 : -5}deg`);
   });
   function measure() {
     const style = getComputedStyle(root);
@@ -29,6 +34,7 @@
     browserScale = parseFloat(style.getPropertyValue('--browser-scale'));
     root.style.setProperty('--hairline', `${1 / (devicePixelRatio * browserScale)}px`);
     root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 2 * parseFloat(style.getPropertyValue('--rail')) - sidebarWidth)}px`);
+    measureBotany();
     const minimal = root.querySelector('.minimal-story');
     demoStart = readingStart + minimal.offsetTop - pageHeight * .7;
     demoDistance = Math.min(460, pageHeight * .65);
@@ -61,12 +67,54 @@
     base = parseFloat(getComputedStyle(items[0]).width);
     update();
   }
+  function measureBotany() {
+    // Match the leaf's petiole and rotation pivot, using layout coordinates so
+    // scroll transforms never feed back into the drawing or reading distance.
+    const nodes = points.map(point => ({x:point.offsetLeft - 28.8,y:point.offsetTop + 16.8}));
+    const first=nodes[0],last=nodes[nodes.length-1],height=last.y+92;
+    const flowerY=first.y-88;
+    vine.setAttribute('viewBox', `0 0 ${pages.clientWidth} ${height}`);
+    vine.style.height=`${height}px`;
+    flower.setAttribute('transform', `translate(${first.x} ${flowerY})`);
+    let d=`M ${first.x} ${flowerY} C ${first.x-18} ${flowerY+30}, ${first.x+14} ${first.y-32}, ${first.x} ${first.y}`;
+    nodes.slice(1).forEach((node,index) => {
+      const previous=nodes[index],dy=node.y-previous.y;
+      d+=` C ${previous.x+22} ${previous.y+dy*.34}, ${node.x-22} ${node.y-dy*.34}, ${node.x} ${node.y}`;
+    });
+    d+=` C ${last.x+8} ${last.y+32}, ${last.x-14} ${last.y+64}, ${last.x-6} ${last.y+80}`;
+    vine.querySelectorAll('path').forEach(path=>path.setAttribute('d',d));
+    vineStart=Math.max(0,readingStart+flowerY-pageHeight*.8);
+    vineEnd=readingStart+last.y-pageHeight*.15;
+    flowerEnd=readingStart+first.y+pageHeight*.2;
+    root.style.setProperty('--vine-start',`${vineStart}px`);
+    root.style.setProperty('--vine-end',`${vineEnd}px`);
+    root.style.setProperty('--flower-end',`${flowerEnd}px`);
+    points.forEach((point,index)=>{
+      const start=Math.max(0,readingStart+nodes[index].y-pageHeight),end=readingStart+nodes[index].y+pageHeight*.25;
+      leafRanges[index]={start,end};
+      point.style.setProperty('--leaf-start',`${start}px`);
+      point.style.setProperty('--leaf-end',`${end}px`);
+    });
+  }
+  function updateBotany(y) {
+    if (nativeTimeline || reduce.matches) return;
+    vineGrowth.style.strokeDasharray='1';
+    vineGrowth.style.strokeDashoffset=1-clamp((y-vineStart)/(vineEnd-vineStart));
+    points.forEach((point,index)=>{
+      const {start,end}=leafRanges[index],t=clamp((y-start)/(end-start));
+      const angle=(index%2?7:-5)+Math.sin(t*Math.PI*2-Math.PI/2)*3;
+      point.querySelector('.botanical-bullet').style.transform=`rotate(${angle}deg)`;
+    });
+    const bloom=clamp((y-vineStart)/(flowerEnd-vineStart));
+    flowerBloom.style.transform=`rotate(${-3+6*bloom}deg) scale(${.96+.04*bloom})`;
+  }
   function update(){
     queued=false;const y=scroll.scrollTop;if(y>launchAt&&pointer!==null){pointer=null;startMagnify();}if(y<=launchAt)close();else {launch();if(y>=readingStart)reveal(true);}const p=clamp(y/opening),r=reading ? clamp((y-readingStart)/reading) : 0;
     hero.inert=appVisible||y>=opening;learn.inert=appVisible||y>=opening;
     win.inert=!appVisible;win.setAttribute('aria-hidden',String(!appVisible));win.style.pointerEvents=appVisible?'auto':'none';
     root.dataset.phase=appVisible?'reading':launched?'launching':'closed';root.dataset.progress=p.toFixed(3);
     updateSidebar(y);
+    updateBotany(y);
     pages.querySelectorAll('.story-section').forEach(section=>{const top=section.offsetTop-r*reading;const offscreen=!appVisible||top>=pageHeight-.5||top+section.offsetHeight<=.5;section.inert=offscreen;section.setAttribute('aria-hidden',String(offscreen));});
     if(!nativeTimeline){
       const fade=1-clamp((p-.18)/.82);hero.style.translate=learn.style.translate=`0 ${-Math.min(y,opening)}px`;hero.style.opacity=learn.style.opacity=fade;
@@ -347,14 +395,16 @@
   dock.addEventListener('pointermove',e=>{if(!fine.matches||reduce.matches)return;pointer=e.clientX;startMagnify();});
   dock.addEventListener('pointerleave',()=>{pointer=null;startMagnify();});
   new ResizeObserver(()=>{if(pointer===null){items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);}}).observe(stage);
-  reduce.addEventListener('change',()=>{if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
-  let measuredContentHeight = 0;
+  reduce.addEventListener('change',()=>{vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');points.forEach(point=>point.querySelector('.botanical-bullet').style.removeProperty('transform'));if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
+  let measuredContentHeight = 0, measuredContentWidth = 0;
   new ResizeObserver(entries => {
-    const height = entries[0].contentRect.height;
-    if (Math.abs(height - measuredContentHeight) > .5) {
+    const {height,width} = entries[0].contentRect;
+    if (Math.abs(height - measuredContentHeight) > .5 || Math.abs(width - measuredContentWidth) > .5) {
       measuredContentHeight = height;
+      measuredContentWidth = width;
       measure();
     }
   }).observe(pages);
   measure();widths.fill(base);
+  document.fonts.ready.then(measure);
 })();

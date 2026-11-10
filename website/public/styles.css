@@ -20,7 +20,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 button:not(:disabled), a { cursor: pointer; }
 button:disabled { cursor: default; }
 svg { display: block; }
-#lune { --night:light-dark(#E7EDE3,#10354F); --chrome:light-dark(#E7EDE3,#10354F); --tab-selected:light-dark(#D6E1D2,#2A4C62); --tab-hover:light-dark(#23455012,#DDE7EA12); --feature-ground:light-dark(#F1F4EC,#163B52); --text:light-dark(#234550,#C9D9E3); --muted:light-dark(#526B65,#96AFBE); --signal:light-dark(#276C69,#00D5C6); --stage:100svh; --icon-max:48px; --icon:max(36px,min(var(--icon-max),calc(var(--stage) * .08))); --dock-pad:9px; --type:40px; --dock-height:calc(var(--icon) + 2 * var(--dock-pad) + 2px); --window-bottom:calc(var(--dock-height) + 34px); --browser-scale:1; --window-height:min(720px,calc((var(--stage) - var(--window-bottom) - 12px) / var(--browser-scale))); --rail:0px; --edge-band:8px; --popover-inset:8px; --page:calc(var(--window-height) - 2 * var(--rail)); --sidebar-width:216px; --window-radius:16px; --story-width:840px; --demo-start:600px; --demo-end:920px; --launch-at:96px; --opening:180px; --reading-start:182px; --reading:0px; --thumb-size:20%; --thumb-travel:400%; font:400 14px/1.5 Inter,sans-serif; background:var(--wallpaper-background); color:var(--text); color-scheme:light dark; }
+#lune { --night:light-dark(#E7EDE3,#10354F); --chrome:light-dark(#E7EDE3,#10354F); --tab-selected:light-dark(#D6E1D2,#2A4C62); --tab-hover:light-dark(#23455012,#DDE7EA12); --feature-ground:light-dark(#F1F4EC,#163B52); --botanical-ink:light-dark(#367C9C,#8CBBD2); --botanical-light:light-dark(#8FBBCF,#C1DEEA); --botanical-vein:light-dark(#E9F3F5,#315E77); --text:light-dark(#234550,#C9D9E3); --muted:light-dark(#526B65,#96AFBE); --signal:light-dark(#276C69,#00D5C6); --stage:100svh; --icon-max:48px; --icon:max(36px,min(var(--icon-max),calc(var(--stage) * .08))); --dock-pad:9px; --type:40px; --dock-height:calc(var(--icon) + 2 * var(--dock-pad) + 2px); --window-bottom:calc(var(--dock-height) + 34px); --browser-scale:1; --window-height:min(720px,calc((var(--stage) - var(--window-bottom) - 12px) / var(--browser-scale))); --rail:0px; --edge-band:8px; --popover-inset:8px; --page:calc(var(--window-height) - 2 * var(--rail)); --sidebar-width:216px; --window-radius:16px; --story-width:840px; --demo-start:600px; --demo-end:920px; --launch-at:96px; --opening:180px; --reading-start:182px; --reading:0px; --thumb-size:20%; --thumb-travel:400%; font:400 14px/1.5 Inter,sans-serif; background:var(--wallpaper-background); color:var(--text); color-scheme:light dark; }
   html:has(#lune),body:has(#lune) { overscroll-behavior:none; }
   #lune * { box-sizing:border-box; }
   #lune :is(h1,p,.coda-wordmark,.address-display),#lune .story-section a { -webkit-user-select:text; user-select:text; }
@@ -125,7 +125,10 @@ svg { display: block; }
   #lune .browser-tools { gap:2px; }
   #lune .browser-tools :is(svg,img,.extension-icon) { flex:none; width:32px; height:32px; padding:8px; }
   #lune .onepassword-icon::before { content:""; display:block; width:16px; height:16px; background:currentColor; mask:url(/assets/onepassword.svg) center / contain no-repeat; }
-  #lune .browser-tools svg + .extension-art { margin-left:-2px; }
+  #lune .browser-tools .extension-link { display:grid; place-items:center; line-height:0; flex:none; width:32px; height:32px; color:inherit; border-radius:8px; text-decoration:none; }
+  #lune .browser-tools > svg + .extension-link { margin-left:-2px; }
+  #lune .browser-tools .extension-icon { display:block; }
+  #lune .browser-tools .extension-link:hover { color:var(--text); }
   #lune .browser-tools svg:not(.extension-art),#lune .browser-address svg,#lune .browser-navigation svg,#lune .sidebar-toggle { transition:color 100ms; }
   #lune .browser-tools svg:not(.extension-art):hover,#lune .browser-address svg:hover { color:var(--text); }
   #lune .browser-tools img { object-fit:contain; }
@@ -154,8 +157,23 @@ svg { display: block; }
   #lune .story-section { width:var(--story-width); max-width:100%; margin-inline:auto; padding-inline:clamp(24px,5vw,56px); }
   #lune .story-section p { margin:0; font:400 20px/32px Inter,sans-serif; letter-spacing:0; color:var(--text); text-wrap:pretty; }
   /* Equal reading measures follow a restrained wave around the column center. */
-  #lune .story-section .flow-point { --point-width:min(100%,34ch); --flow-amplitude:min(48px,calc((100% - var(--point-width)) / 2)); width:var(--point-width); margin-inline-start:calc((100% - var(--point-width)) / 2 + var(--flow-offset,0) * var(--flow-amplitude)); }
+  #lune .story-section .flow-point { position:relative; --plant-gutter:80px; --point-width:min(calc(100% - var(--plant-gutter)),34ch); --flow-amplitude:min(48px,calc((100% - var(--plant-gutter) - var(--point-width)) / 2)); width:var(--point-width); margin-inline-start:calc(var(--plant-gutter) + (100% - var(--plant-gutter) - var(--point-width)) / 2 + var(--flow-offset,0) * var(--flow-amplitude)); }
   #lune .flow-point a { text-decoration-color:currentColor; text-decoration-thickness:1px; }
+  #lune .botanical-defs { position:absolute; width:0; height:0; overflow:hidden; pointer-events:none; }
+  #lune .story-vine { position:absolute; inset:0 auto auto 0; width:100%; overflow:visible; pointer-events:none; color:var(--botanical-ink); }
+  #lune .vine-base,#lune .vine-growth { fill:none; stroke:currentColor; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; }
+  #lune .vine-base { opacity:.24; }
+  #lune .vine-growth { opacity:.68; }
+  #lune .botanical-bullet { position:absolute; left:-80px; top:-52px; width:64px; height:80px; overflow:visible; pointer-events:none; color:var(--botanical-ink); transform-origin:80% 86%; transform:rotate(var(--leaf-angle,0deg)); }
+  #lune .flower-bloom { transform-box:fill-box; transform-origin:center; }
+  @keyframes vine-grow { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
+  @keyframes leaf-stir { 0% { transform:rotate(calc(var(--leaf-angle) - 3deg)); } 35% { transform:rotate(calc(var(--leaf-angle) + 2deg)); } 72% { transform:rotate(calc(var(--leaf-angle) - 1deg)); } 100% { transform:rotate(calc(var(--leaf-angle) + 3deg)); } }
+  @keyframes flower-unfold { from { transform:rotate(-3deg) scale(.96); } 60% { transform:rotate(1deg) scale(1.015); } to { transform:rotate(3deg) scale(1); } }
+  @supports(animation-timeline:scroll()) {
+    #lune .vine-growth { stroke-dasharray:1; animation:vine-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--vine-start) var(--vine-end); }
+    #lune .botanical-bullet { animation:leaf-stir linear both; animation-timeline:--lune-scroll; animation-range:var(--leaf-start) var(--leaf-end); }
+    #lune .flower-bloom { animation:flower-unfold linear both; animation-timeline:--lune-scroll; animation-range:var(--vine-start) var(--flower-end); }
+  }
   #lune .coda { display:flex; flex-direction:column; align-items:center; min-height:var(--page); padding-top:48px; padding-bottom:18px; text-align:center; }
   #lune .coda-content { width:100%; margin-block:auto; }
   #lune .upstream-thanks { max-width:34ch; margin:80px auto 0; font:400 20px/32px Inter,sans-serif; }
@@ -197,6 +215,8 @@ svg { display: block; }
 @media(max-width:700px) { #lune { --browser-scale:.5; } #lune .story-section p,#lune .upstream-thanks { font-size:36px; line-height:52px; } #lune .coda .byline { font-size:26px; line-height:40px; } #lune .byline svg { width:44px; height:34px; } #lune .coda .actions { gap:32px; } #lune .coda .actions .action { min-height:88px; padding:22px 32px; gap:16px; border-radius:48px; font-size:32px; line-height:40px; } #lune .coda .actions .action svg { width:32px!important; height:32px!important; } #lune .coda-wordmark { font-size:72px; } #lune .coda-mark { width:96px; } }
 @media(prefers-reduced-motion:reduce) {
   #lune .window { animation:none; }
+  #lune .botanical-bullet,#lune .flower-bloom,#lune .vine-growth { animation:none; }
+  #lune .vine-growth { stroke-dasharray:none; stroke-dashoffset:0; }
   #lune .demo-cursor,#lune .demo-click { display:none; animation:none; }
   #lune .browser-sidebar { transition:none; }
   #lune .toolbar-region { transition:none; }

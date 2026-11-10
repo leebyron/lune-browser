@@ -134,7 +134,8 @@ changing the story length.
 
 The tagline is “A respectful browser for Mac.” Four complete sentences explain
 respect for privacy, attention and using a Mac, with no headings, fragments,
-eyebrows, diagrams or screenshot placeholder. Marketing prose uses regular Inter
+eyebrows or screenshot placeholder. Original cyanotype SVG leaf bullets connect
+to a continuous vine, with one flower above the first point. Marketing prose uses regular Inter
 20px/32px and one foreground color. At the half-scale mobile breakpoint, 36px/52px
 inside the illustration renders as 18px/26px for readable prose. The author line
 and browser UI keep their distinct roles; Syne is confined to the Lune wordmarks.
@@ -142,16 +143,18 @@ and browser UI keep their distinct roles; Syne is confined to the Lune wordmarks
 Each point has the same 34ch maximum measure. Its center follows one sine cycle
 across the four points: x = column center + A sin(2πi / (n − 1)), where A is at most
 48px and shrinks to the available horizontal room. The layout stays centered and
-within its padded reading column. The browser cursor unpins the sidebar while
+within its padded reading column, reserving an 80px botanical margin. The browser cursor unpins the sidebar while
 the attention sentence is in view. The coda uses one sentence thanking Helium and
 ungoogled-chromium for the work that makes Lune possible.
 
-The sidebar pins Fastmail and its Calendar. The other tabs link to Lune, Lee Byron,
-Helium, Lode and the Lune GitHub project. Every tab, including New tab, is a real
+The sidebar pins Fastmail and its Calendar. The other tabs link to Lune, Helium, the Lune GitHub project and Lee Byron,
+in that order; the author’s website is last and the Lode row is removed. Every tab, including New tab, is a real
 anchor opening its destination in a new tab with `noopener noreferrer`, as the
 owner requested after considering iframe navigation. No iframe, proxy, external
 page fetch or private-mail content is loaded in the illustration. The top-right
-trailing group shows only Extensions, uBlock Origin and 1Password.
+trailing group shows only Extensions, uBlock Origin and 1Password. The uBlock
+Origin and 1Password icons are accessible links to their project/site, opening
+separate tabs with the same safe anchor attributes.
 
 Its sources:
 
@@ -249,6 +252,33 @@ checks, plus desktop Dark and preview-only Light inspection and a 390×844 layou
 check. All four story points share one computed font and color. The footer fits
 without overflow, its mobile buttons render at their normal readable size, and
 the author credit remains at the lower edge. Clicking Lee Byron opens the real
-site in a separate browser tab; all eight sidebar links use the same native
-anchor behavior. 1Password and GitHub artwork is used as a foreground-colored
+site in a separate browser tab; all seven sidebar links use the same native
+anchor behavior. The two extension links use matching new-tab anchors. 1Password and GitHub artwork is used as a foreground-colored
 mask for appearance contrast. No iframe or private Fastmail content is loaded.
+
+## Cyanotype botanical illustration
+
+Original vector artwork lives in the page’s SVG definitions: a veined leaf,
+a six-petal flower, a blue ink gradient and a fixed, small-area grain filter.
+There are four decorative leaf bullets, one per sentence; their petioles join a
+single measured cubic vine, with the flower above the first leaf. Artwork is
+hidden from accessibility APIs, takes no input, and introduces no new copy or
+raster/network assets. The drawing uses only blue cyanotype tones in both schemes.
+
+Layout measurements set the vine once on resize/content changes, using the same
+leaf rotation pivot as each petiole. Scroll transforms do not feed back into its
+geometry. A faint complete stem stays visible while a stronger ink stroke traces
+down the vine. Native scroll timelines gently turn each leaf by a few degrees
+and open the flower by about four percent; there is no time-driven idle loop.
+The existing scroll update supplies equivalent progress when timelines are
+unsupported. Reduced Motion leaves the complete artwork still; changing the
+preference also clears inline fallback transforms. Text, links and the existing
+sidebar cursor choreography keep their prior behavior.
+
+Botanical validation on November 10 covers native scroll timelines, a local
+preview fixture forcing the JavaScript fallback, and a fixture forcing Reduced
+Motion. The first two change leaf, flower and vine progress while scrolling;
+the reduced-motion artwork stays still. Desktop Dark, preview-only Light and
+390×844 layouts pass, including font-ready and sidebar-width remeasurement.
+Both extension controls were clicked and opened their intended sites in new
+tabs. These fixtures are local validation only and are not deployed.

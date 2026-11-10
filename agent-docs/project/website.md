@@ -38,10 +38,13 @@ adaptive Chlorophyll Daylight / Pelagic Signal desktop and a continuous
 scroll-driven browser story about respect for privacy, trust and attention,
 credited to both upstream projects.
 The source now uses four complete sentences in one Inter style and color,
-with a restrained, centered sine wave and no screenshot placeholder or feature
-diagrams. Two pinned links open Fastmail and Calendar; regular links open Lune,
-Lee Byron, Helium, Lode and the Lune GitHub project in new tabs. The top-right
-group is limited to Extensions, uBlock Origin and 1Password.
+with a restrained, centered sine wave and no screenshot placeholder. Cyanotype
+leaf bullets connect all four points along a vine, with a flower at the top and
+subtle scroll-driven motion that respects Reduced Motion. Two pinned links open
+Fastmail and Calendar; regular links open Lune, Helium, the Lune GitHub project
+and Lee Byron, with the author’s site last. The top-right
+group is limited to Extensions, uBlock Origin and 1Password; the latter two
+open their sites in new tabs.
 The points retain their reading order; the closing thanks use regular Inter with
 80px after the download actions, and the Lode author line sits at the bottom edge. Section heights and
 the reading distance follow the content rather than a fixed page count. The
