@@ -7,6 +7,13 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+Future development builds include the owner-accepted downloads fix through
+`inputs/downloads-1/macos`, preserving the Dock-prompt and older-macOS fixes.
+Toolbar-anchored menus reveal and retain the header. Downloads use native SF status
+badges and the original SF ring for progress, with no clock or completion underline.
+Both architecture builds and focused checks pass; Intel runtime fixtures use Rosetta.
+See [downloads](agent-docs/project/features/downloads.md) for acceptance and validation.
+
 Future development builds disable the macOS Dock-pinning message bar through
 `inputs/remove-dock-infobar-1/macos`, retaining the older-macOS appearance fixes.
 Strict replay, patch lint, and changed-unit compilation pass on both architectures;

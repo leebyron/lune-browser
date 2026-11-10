@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "c4f0680e7b37bc5585624b357eba827da88d8647",
+    "commit": "e631e3559ca1aba129c0446c06460da4e0493bbb",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -665,6 +665,18 @@
       {
         "path": "patches/lune/remove-dock-infobar.patch",
         "sha256": "ec8f7fbe38bb28842f1f6b0bffb9549cc4a121fe21a3b443e999db67758f9008"
+      },
+      {
+        "path": "patches/helium/ui/toolbar-bubble-reveal.patch",
+        "sha256": "d3a8def40038a95a4992b46a76bb53f3523ef5de278f3cdc2846399d9c7ee007"
+      },
+      {
+        "path": "patches/helium/ui/download-status-symbols.patch",
+        "sha256": "0d9d57f00d180aa69da9663bfb94fc15fe8d17ef823485fb3451303109c4fb7e"
+      },
+      {
+        "path": "patches/helium/ui/native-download-progress.patch",
+        "sha256": "b5946a3954935a8a06b941bbeaed1cf2c046e95f998c81fdfef70bcdede9d2f7"
       }
     ]
   },
@@ -1515,6 +1527,51 @@
       "adaptation": "Developed with quilt against prepared Chromium 158 source, then placed after the current older-macOS appearance input. Zero-fuzz replay, patch lint, and changed-unit arm64/x86_64 compilation pass. See agent-docs/project/features/dock-infobar.md.",
       "commits": [
         "c4f0680e7b37bc5585624b357eba827da88d8647"
+      ]
+    },
+    {
+      "id": "toolbar-bubble-reveal",
+      "depends_on": [
+        "native-legacy-frame-radius"
+      ],
+      "patches": [
+        "patches/helium/ui/toolbar-bubble-reveal.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Reveal and retain the header for menus anchored to its toolbar, including automatic download completion.",
+      "adaptation": "Developed with quilt against prepared Chromium 158 source. Strict zero-fuzz/zero-offset replay reproduces all accepted compiled bytes; both architecture builds, focused fixtures, and arm64 owner visual acceptance pass. Intel runtime fixtures use Rosetta. See agent-docs/project/features/downloads.md.",
+      "commits": [
+        "8ee649b31ad027d895a084d4c735d5af5d2fd010"
+      ]
+    },
+    {
+      "id": "download-status-symbols",
+      "depends_on": [
+        "toolbar-bubble-reveal"
+      ],
+      "patches": [
+        "patches/helium/ui/download-status-symbols.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use native SF download status badges for successful completion, pause, and error without the legacy underline.",
+      "adaptation": "Developed with quilt against prepared Chromium 158 source. Strict zero-fuzz/zero-offset replay reproduces all accepted compiled bytes; both architecture builds, focused fixtures, and arm64 owner visual acceptance pass. Intel runtime fixtures use Rosetta. See agent-docs/project/features/downloads.md.",
+      "commits": [
+        "f21733751f219d5406a1b7f1ad8ee5e30be0f0cd"
+      ]
+    },
+    {
+      "id": "native-download-progress",
+      "depends_on": [
+        "download-status-symbols"
+      ],
+      "patches": [
+        "patches/helium/ui/native-download-progress.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the original SF arrow.down.circle artwork for a 25 percent ring track and rounded clockwise progress without a clock badge.",
+      "adaptation": "Developed with quilt against prepared Chromium 158 source. Strict zero-fuzz/zero-offset replay reproduces all accepted compiled bytes; both architecture builds, focused fixtures, and arm64 owner visual acceptance pass. Intel runtime fixtures use Rosetta. See agent-docs/project/features/downloads.md.",
+      "commits": [
+        "e631e3559ca1aba129c0446c06460da4e0493bbb"
       ]
     }
   ],
