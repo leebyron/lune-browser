@@ -1,0 +1,134 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2928,7 +2928,8 @@
+   // Preserve presentation while AppKit tracks a resize or the green-button
+   // menu (or another chrome menu). Geometry still updates, and hidden
+   // surfaces are not forced open.
+-  const bool present = browser_view->IsZenModeTopChromePinned() || customize_open ||
++  const bool present = browser_view->IsTopChromeRevealHeldForMenu() ||
++      browser_view->IsZenModeTopChromePinned() || customize_open ||
+       ((resizing || window_menu_open)
+           ? [floating_address_bar_ isPresented]
+           : dragging || in_rail || in_sidebar_header || within_retention ||
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2172,7 +2172,7 @@
+ 
+ // static
+ base::ScopedClosureRunner BrowserView::HoldChromeRevealForMenu(
+-    views::Widget* widget) {
++    views::Widget* widget, bool reveal_top) {
+   auto* view = widget ? GetBrowserViewForNativeWindow(widget->GetNativeWindow())
+                       : nullptr;
+   if (!view || !view->IsZenModeEnabledForLayout()) {
+@@ -2180,11 +2180,22 @@
+   }
+   ++view->chrome_menu_hold_count_;
+   view->zen_cursor_exit_timer_.Stop();
++  // Establish native header geometry before the bubble is positioned. The
++  // hold also protects it from activation changes and queued collapse timers.
++  reveal_top = reveal_top && view->IsZenModeEnabled();
++  if (reveal_top) {
++    ++view->chrome_top_menu_hold_count_;
++    view->RevealZenModeTopChromeImmediately();
++  }
+   return base::ScopedClosureRunner(base::BindOnce(
+-      &BrowserView::ReleaseChromeMenuHold, view->GetAsWeakPtr()));
++      &BrowserView::ReleaseChromeMenuHold, view->GetAsWeakPtr(), reveal_top));
+ }
+ 
+-void BrowserView::ReleaseChromeMenuHold() {
++void BrowserView::ReleaseChromeMenuHold(bool reveal_top) {
++  if (reveal_top) {
++    CHECK_GT(chrome_top_menu_hold_count_, 0);
++    --chrome_top_menu_hold_count_;
++  }
+   CHECK_GT(chrome_menu_hold_count_, 0);
+   if (--chrome_menu_hold_count_ == 0) {
+     // Menu commands can destroy their presenter or browser. Reevaluate only
+--- a/chrome/browser/ui/views/frame/browser_view.h
++++ b/chrome/browser/ui/views/frame/browser_view.h
+@@ -452,9 +452,14 @@
+   void UpdateZenModeRevealFromCursor();
+   // Keeps currently revealed chrome stable until a menu closes or its owner
+   // is destroyed. Nested menus share a window-local hold; hidden chrome stays
+-  // hidden. Only chrome menu presenters should acquire this handle.
+-  static base::ScopedClosureRunner HoldChromeRevealForMenu(views::Widget* widget);
++  // hidden unless reveal_top is requested for a header-anchored menu/bubble.
++  // Only chrome menu presenters should acquire this handle.
++  static base::ScopedClosureRunner HoldChromeRevealForMenu(
++      views::Widget* widget, bool reveal_top = false);
+   bool IsChromeRevealHeldForMenu() const { return chrome_menu_hold_count_ > 0; }
++  bool IsTopChromeRevealHeldForMenu() const {
++    return chrome_top_menu_hold_count_ > 0;
++  }
+   bool IsCustomizeChromeShowing() const;
+   float GetTopChromeRevealRatio() const;
+   float GetSideChromeRevealRatio() const;
+@@ -993,7 +998,7 @@
+   bool IsLeavingZenSideGap(const gfx::Point& previous_point,
+                            const gfx::Point& point) const;
+   void UpdateZenModeReveal(bool reveal_top, bool reveal_side);
+-  void ReleaseChromeMenuHold();
++  void ReleaseChromeMenuHold(bool reveal_top);
+   void RevealZenModeTopChromeImmediately();
+   void RevealZenModeSideChromeImmediately();
+   bool IsZenModeEnabled() const;
+@@ -1533,6 +1538,7 @@
+ 
+   // Zen mode state.
+   int chrome_menu_hold_count_ = 0;
++  int chrome_top_menu_hold_count_ = 0;
+   std::unique_ptr<views::EventMonitor> zen_mode_event_monitor_;
+   std::unique_ptr<ExpandOnHoverLock> zen_expand_on_hover_lock_;
+   gfx::SlideAnimation zen_top_chrome_animation_;
+--- a/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
+@@ -322,7 +322,18 @@
+   // small enough that icons must overflow. Update the
+   // kToolbarButtonFlexPriorityKey to make sure icons are forced visible or able
+   // to overflow.
++  const bool had_anchor = has_anchor_;
+   has_anchor_ = anchor_count > 0;
++  if (has_anchor_ && !had_anchor) {
++    if (auto* view = BrowserView::GetBrowserViewForBrowser(browser_)) {
++      bubble_chrome_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(
++          view->GetWidget(),
++          GetWidget()->GetName() == "Floating browser actions" ||
++              !view->IsVerticalAddressBarInSidebar());
++    }
++  } else if (!has_anchor_) {
++    bubble_chrome_reveal_hold_.RunAndReset();
++  }
+   UpdateFlexPriority();
+   if (!has_anchor_) {
+     container_->MaybeRemovePoppedOutButtonFor(GetActionId());
+--- a/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h
++++ b/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h
+@@ -120,6 +120,8 @@
+   // Set when something is currently anchored to the button (bubble dialog,
+   // context menu, etc.)
+   bool has_anchor_ = false;
++  // A bubble can open without a click or pointer movement (e.g. downloads).
++  base::ScopedClosureRunner bubble_chrome_reveal_hold_;
+ 
+   // Set when a button should be shown in the toolbar regardless of whether it
+   // is pinned or active. This is used in cases like when the recent download
+--- a/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.cc
+@@ -917,7 +917,14 @@
+     std::move(callback).Run(
+         base::unexpected(GetAnchorFailureReason::kAnchorNotFound));
+   } else {
+-    std::move(callback).Run(anchor);
++    // Bridge anchor assembly to the visible bubble's anchor-highlight hold.
++    // Use the owning browser widget: floating actions live in a child window.
++    auto reveal_hold = BrowserView::HoldChromeRevealForMenu(
++        browser_view_->GetWidget(),
++        GetWidget()->GetName() == "Floating browser actions" ||
++            !browser_view_->IsVerticalAddressBarInSidebar());
++    // Revealing can change overflow/layout and therefore the correct anchor.
++    std::move(callback).Run(GetBubbleAnchor(action_id));
+   }
+ }
+ 
