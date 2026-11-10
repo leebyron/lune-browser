@@ -300,8 +300,8 @@ with varying side branches and fine rootlets. A further order of short, tapered
 rootlets fans from the fine branches: 135 total paths, including 89 terminal
 rootlets, in the checked desktop and phone layouts. Noise steers their headings;
 filled silhouettes taper all the way to a point. The spread is capped at 420px
-and depth at 25% of the viewport (at most 180px). Centerline masks keep every
-root 80% visible from the outset; only the last fifth grows as the ground enters.
+and depth at 25% of the viewport (at most 180px). The base silhouettes are always fully drawn and never animate. Identical
+lighter copies use centerline masks for the light’s travel from crown to tips.
 
 The flower is 50% larger, faces upwards, and has 19 seeded, curved filaments
 with varied anther positions and brightness. Stamens spread from a narrow bundle to a wide fan as the petals open. The
@@ -364,5 +364,19 @@ credit stays at the actions/byline midpoint. These are desktop/phone-size browse
 preview checks; the owner’s physical iPhone rendering was not independently
 retested.
 
-The growing vine stroke uses the full 3.2px stem width at 95% opacity, over a
-30% guide, so its progress reads clearly without breaking future leaf joins.
+The growing vine stroke is 2.6px at 68% opacity over a 30% guide. It reaches
+the root crown when that junction is 60% down the viewport. The established
+base roots remain completely still. A lighter copy of every tapered outline
+is drawn from 0% to 100% over them, with the full branching burst spanning 37%
+of the viewport’s scroll distance and finishing before the final view settles.
+Measured travel distance from the crown sets each branch’s range, so a child’s
+light starts exactly when its parent reaches the attachment. The overlay uses
+a restrained cyan/mint mix at 65% of the root’s existing opacity. Native and
+fallback progress are linear along the paths; Reduced Motion shows the complete
+light trace without motion. No timer, idle pulse or dependency is added.
+
+The root-light revision verifies 135 static base silhouettes and 135 matching
+light silhouettes. Before arrival all light masks are empty; during the burst
+parents advance before their children, and all complete by the last scroll
+position. Base path data, fills, opacity and lack of masks stay unchanged through
+scrolling. The forced Reduced Motion fixture keeps every light mask complete.

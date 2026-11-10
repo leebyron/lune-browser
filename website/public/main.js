@@ -224,12 +224,12 @@
     floorPoints.sort((a,b)=>a.x-b.x);
     const contour=smoothPath(floorPoints);
     soil.setAttribute('d',`${contour} L ${pages.clientWidth} ${botanicalHeight} L 0 ${botanicalHeight} Z`);
-    // A few wandering structural roots carry uneven lateral roots and fine rootlets.
-    // Each filled outline tapers to a point; a centerline mask extends only its last fifth.
-    const rootGrowth=document.createDocumentFragment(),rootMasks=svg('defs'),branches=[],rng=random(2207);
+    // Established roots remain still; centerline masks draw a lighter copy over
+    // their tapered silhouettes as the stem light reaches the crown.
+    const rootGrowth=document.createDocumentFragment(),rootMasks=svg('defs'),branches=[];
     rootGrowth.append(rootMasks);
     const rootWidth=Math.min(420,pages.clientWidth*.54);
-    function rootBranch(start,angle,length,width,order,seed) {
+    function rootBranch(start,angle,length,width,order,seed,travel=0) {
       const local=random(seed),curve=[start],steps=Math.max(8,Math.ceil(length/6));
       let x=start.x,y=start.y,heading=angle;
       for(let i=1;i<=steps;i++) {
@@ -252,8 +252,10 @@
       });
       const id=`story-root-${branches.length}`,mask=svg('mask',{id,maskUnits:'userSpaceOnUse',x:0,y:groundY-8,width:pages.clientWidth,height:rootDepth+16});
       mask.append(center);rootMasks.append(mask);
-      rootGrowth.append(svg('path',{d:smoothPath([...left,...right.reverse()],true),class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',mask:`url(#${id})`,opacity:order===0?.95:.72+local()*.25,'data-root-order':order}));
-      branches.push({path:center,order});
+      const outline=smoothPath([...left,...right.reverse()],true),opacity=order===0?.95:.72+local()*.25;
+      const ink=svg('path',{d:outline,class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',opacity,'data-root-order':order});
+      const light=svg('path',{d:outline,class:'root-light',stroke:'none',mask:`url(#${id})`,opacity:opacity*.65});
+      rootGrowth.append(ink,light);branches.push({path:center,travel,end:travel+distance});
       if(order>=3)return center;
       const count=order===0?5+Math.floor(local()*3):order===1?1+Math.floor(local()*3):2+Math.floor(local()*3);
       let side=local()<.5?-1:1;
@@ -263,22 +265,24 @@
         const tangent=Math.atan2(after.x-before.x,after.y-before.y);
         if(local()<.72)side*=-1;
         const childLength=order===2?7+local()*13:distance*(order===0?.26+local()*.3:.23+local()*.27)*(1-fraction*.35);
-        rootBranch(at,tangent+side*(.5+local()*.65),childLength,Math.max(.38,width*(order===0?.34+local()*.14:order===1?.4:.65)),order+1,seed*7+i+1);
+        rootBranch(at,tangent+side*(.5+local()*.65),childLength,Math.max(.38,width*(order===0?.34+local()*.14:order===1?.4:.65)),order+1,seed*7+i+1,travel+distance*fraction);
       }
       return center;
     }
     const taproot=rootBranch({x:rootX,y:groundY},-.1,rootDepth*.99,3.3,0,113);
-    rootBranch(taproot.getPointAtLength(9),-1.2,rootDepth*1.5,2.7,0,239);
-    rootBranch(taproot.getPointAtLength(23),1.04,rootDepth*1.28,2.45,0,419);
+    rootBranch(taproot.getPointAtLength(9),-1.2,rootDepth*1.5,2.7,0,239,9);
+    rootBranch(taproot.getPointAtLength(23),1.04,rootDepth*1.28,2.45,0,419,23);
     roots.replaceChildren(rootGrowth);
-    const rootsStart=readingStart+groundY-pageHeight*.92,rootsEnd=readingStart+coda.offsetTop;
-    rootRanges=branches.map(({path,order})=>{
-      const start=rootsStart+(rootsEnd-rootsStart)*(order*.06+rng()*.12),end=rootsEnd;
+    vineStart=Math.max(0,readingStart+first.y-pageHeight*.8);
+    // Travel distance makes each offshoot light up only when the wave reaches
+    // its exact attachment, with the whole burst complete before the last viewport.
+    vineEnd=readingStart+groundY-pageHeight*.6;
+    const longest=Math.max(...branches.map(branch=>branch.end)),waveDistance=pageHeight*.37;
+    rootRanges=branches.map(({path,travel,end:distance})=>{
+      const start=vineEnd+waveDistance*travel/longest,end=vineEnd+waveDistance*distance/longest;
       path.style.setProperty('--root-start',`${start}px`);path.style.setProperty('--root-end',`${end}px`);
       return {path,start,end};
     });
-    vineStart=Math.max(0,readingStart+first.y-pageHeight*.8);
-    vineEnd=readingStart+groundY-pageHeight*.15;
     flowerStart=Math.max(readingStart,readingStart+first.y-pageHeight*.85);
     flowerEnd=flowerStart+pageHeight*.45;
     root.style.setProperty('--vine-start',`${vineStart}px`);
@@ -307,7 +311,8 @@
     });
     introLogo.style.transform=`scale(${1.2-.2*intro})`;
     rootRanges.forEach(({path,start,end})=>{
-      const progress=clamp((y-start)/(end-start));path.style.strokeDasharray='1';path.style.strokeDashoffset=.2*(1-progress);
+      const progress=clamp((y-start)/(end-start));
+      path.style.strokeDasharray='1';path.style.strokeDashoffset=1-progress;
     });
     vineGrowth.style.strokeDasharray='1';
     vineGrowth.style.strokeDashoffset=1-clamp((y-vineStart)/(vineEnd-vineStart));

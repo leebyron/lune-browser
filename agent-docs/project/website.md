@@ -38,11 +38,11 @@ adaptive Chlorophyll Daylight / Pelagic Signal desktop and a continuous
 scroll-driven browser story about respect for privacy, trust and attention,
 credited to both upstream projects.
 The source now uses nine short sentences in one Inter style and color,
-with a restrained, centered sine wave and no screenshot placeholder. The setup mark begins vertically centered and moves upward with the content, above a short personal note in the same Inter 20px/32px as the points; a 96px gap lets the flower scroll into view. The full-width growing stroke is brighter than its quiet guide. Its
+with a restrained, centered sine wave and no screenshot placeholder. The setup mark begins vertically centered and moves upward with the content, above a short personal note in the same Inter 20px/32px as the points; a 96px gap lets the flower scroll into view. The softer 2.6px growing stroke reaches the root crown before the final viewport, triggering a short branching burst of light through the roots. The complete base roots stay fixed; centerline masks draw lighter copies from 0% to 100%, timed by travel distance through each junction. Its
 flower is 50% larger, with 19 luminous stamens; eight generated leaves join a vine with
 varied shoots, curled tendrils and subtle scroll motion that respects Reduced Motion.
 Leaves alternate around their exact petiole attachments. The vine measures rendered SVG boxes; inner numeric SVG rotations keep the attachments fixed across engines. The stem roots in a
-Perlin-noise horizon 15% down the final viewport, with tapered roots already 80% grown and only their tips continuing, and the upward-facing flower
+Perlin-noise horizon 15% down the final viewport, with fixed tapered roots and a lighter trace growing over them, and the upward-facing flower
 opens its petals to reveal subtly luminous stamens.
 Specimens and copy align vertically with a 36px gap. Leaves are narrow and pointed, with continuous petioles and tangent-aligned offshoots. The terrain starts a slightly darker fill through the footer, without a contour stroke. Fine terminal rootlets add detail, and the final mark/button gap is 28px. Mobile omits the faux cursor and eases the sidebar boundary over 260ms. Mobile content shares the
 browser’s 50% scale without typography or coda enlargement. Two pinned links open
