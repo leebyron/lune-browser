@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   validate:
-    if: github.ref == 'refs/heads/main' && github.actor == 'leebyron' && github.event.repository.private
+    if: github.ref == 'refs/heads/main' && github.actor == 'leebyron' && github.repository == 'leebyron/lune-browser'
     runs-on: [self-hosted, macOS, ARM64, lune-build]
     defaults:
       run:
