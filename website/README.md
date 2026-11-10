@@ -124,8 +124,9 @@ All runtime assets are served locally; no font or icon CDN requests are needed.
 - Window glyph proportions were checked against [Apple's macOS reference](https://support.apple.com/guide/macbook-pro/are-you-new-to-mac-apd7ae4404d0/mac).
   They are CSS approximations, not native AppKit controls.
 
-The final page thanks and links Helium and ungoogled-chromium in regular Inter,
-80px below the download actions. The Lode author credit, “Made with [coffee] in SF
+The final page thanks and links Helium and ungoogled-chromium in regular Inter
+14px/22px. The Lune mark and download actions form a group centered in the
+final viewport; the shorter thanks starts 28px below that group. The Lode author credit, “Made with [coffee] in SF
 by Lee Byron,” uses the original inline cup paths from
 <https://leebyron.com/lode/> and sits 18px above the final browser-content edge,
 with at least 72px separating it from the coda. Preserve this credit when
@@ -134,8 +135,8 @@ changing the story length.
 ## Respect story
 
 The tagline is “A respectful browser for Mac.” Eight complete sentences explain
-respect for privacy, filtering, protection, Mac familiarity, attention, consent
-and open source, with no headings, fragments, eyebrows or screenshot placeholder.
+respect through privacy defaults, consent, extension compatibility, Mac
+craftsmanship, attention, setup choices and shared source, with no headings, fragments, eyebrows or screenshot placeholder.
 The opening point has only a flower; seven veined leaves mark the following
 points. A branching cyanotype vine joins them with small shoots and curled
 tendrils, rather than a line connecting separate icons. Marketing prose uses
@@ -152,8 +153,8 @@ flower body, 10px above the row center. The complete row starts horizontally
 centered, then follows x = column center + A sin(2πi / (n − 1)). A is at most
 48px and shrinks to the available room; 32px is reserved so even narrow layouts
 retain a small wave. The browser cursor unpins the sidebar while the attention
-sentence is in view. The coda uses one sentence thanking Helium and
-ungoogled-chromium for the work that makes Lune possible.
+sentence is in view. The coda uses one short sentence thanking Helium and
+ungoogled-chromium for making Lune possible. See the [copy rationale and evidence](../agent-docs/project/website-respect-story.md).
 
 The sidebar pins Fastmail and its Calendar. The other tabs link to Lune, Helium, the Lune GitHub project and Lee Byron,
 in that order; the author’s website is last and the Lode row is removed. Every tab, including New tab, is a real
@@ -266,22 +267,28 @@ mask for appearance contrast. No iframe or private Fastmail content is loaded.
 
 ## Cyanotype botanical illustration
 
-Original vector artwork lives in the page’s SVG definitions: irregular veined
-leaves, a six-petal flower, a blue ink gradient and a fixed, small-area grain
-filter. The first point uses only the flower. Seven main leaf specimens and
-smaller alternating shoots join a continuous curved stem with curled tendrils.
-Artwork is hidden from accessibility APIs, takes no input, and introduces no
-raster/network assets. The drawing uses only blue cyanotype tones in both schemes.
+Original vector artwork uses irregular veined leaves, an upward-facing cup
+flower, blue ink gradients and a fixed, small-area grain filter. The first
+point uses only the flower. Seven main leaves alternate left and right around
+the vine: mirrored leaves rotate about their mirrored petiole. Each smaller
+shoot and leaf also attaches to a measured point on a stem or branch. Offshoots
+vary in count, length, angle, leaf shape and size, with occasional curled tendrils.
+The stem ends at a gently uneven ground line, exactly 15% down the final viewport
+at its root junction, with fine spreading roots below. It no longer ends in air.
 
-Layout measurements set the vine and branching shoots on resize/content changes,
-using the same rotation pivot as each petiole. Scroll transforms do not feed back
-into its geometry. The complete stem stays visible while a fine vein traces down
-it. Native scroll timelines gently turn the specimens by a few degrees and open
-the flower by about four percent; there is no time-driven idle loop. The existing
-scroll update supplies equivalent progress when timelines are unsupported.
-Reduced Motion leaves the complete artwork still; changing the preference also
-clears inline fallback transforms. Text, links and the existing sidebar cursor
-choreography keep their prior behavior.
+The flower is drawn in profile, with separate back, side and front petals
+pivoting from the calyx. Scroll progress opens the cup and reveals three fine
+stamens. Only the small anther tips carry a restrained cyan/mint light and a
+small-area blur; the rest stays in the cyanotype palette. It has no idle pulse.
+Artwork is hidden from accessibility APIs, takes no input, and introduces no
+raster/network assets.
+
+Layout measurements set the plant, horizon and roots on resize/content changes.
+Scroll transforms do not feed back into its geometry. Native scroll timelines
+open the flower, reveal its stamens, gently turn the specimens and trace a fine
+stem vein. The existing scroll update supplies equivalent progress when timelines
+are unsupported. Reduced Motion leaves the complete plant and open flower still;
+changing the preference clears all fallback transforms and stamen opacity.
 
 The November 10 refinement passes desktop Dark, preview-only Light and a
 390×844 mobile layout check. Computed mobile prose remains 20px/32px inside the
@@ -292,3 +299,12 @@ a forced Reduced Motion fixture keeps leaf, flower and stem values unchanged
 across scrolling. Font loading and sidebar width changes still remeasure the
 plant. Syntax, Wrangler dry run, assets/cache keys, local documentation links
 and whitespace checks pass. Preview fixtures are not deployed.
+
+The rooted-flower revision also passes desktop Dark, preview-only Light,
+390×844 bounds and footer inspection. Each main stem junction exactly matches
+its leaf’s resting pivot, including mirrored right leaves. Native and forced
+fallback scroll paths open the petals and reveal stamens; the forced Reduced
+Motion fixture retains identical fully open petal transforms and stamen opacity
+across scrolling. The final download group center is at 50% of the viewport;
+the root meets the bumpy horizon at 15%, and the author credit remains 18px from
+the lower edge. These are browser-preview checks, not physical Safari tests.

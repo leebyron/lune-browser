@@ -20,7 +20,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 button:not(:disabled), a { cursor: pointer; }
 button:disabled { cursor: default; }
 svg { display: block; }
-#lune { --night:light-dark(#E7EDE3,#10354F); --chrome:light-dark(#E7EDE3,#10354F); --tab-selected:light-dark(#D6E1D2,#2A4C62); --tab-hover:light-dark(#23455012,#DDE7EA12); --feature-ground:light-dark(#F1F4EC,#163B52); --botanical-ink:light-dark(#367C9C,#8CBBD2); --botanical-light:light-dark(#8FBBCF,#C1DEEA); --botanical-vein:light-dark(#E9F3F5,#315E77); --text:light-dark(#234550,#C9D9E3); --muted:light-dark(#526B65,#96AFBE); --signal:light-dark(#276C69,#00D5C6); --stage:100svh; --icon-max:48px; --icon:max(36px,min(var(--icon-max),calc(var(--stage) * .08))); --dock-pad:9px; --type:40px; --dock-height:calc(var(--icon) + 2 * var(--dock-pad) + 2px); --window-bottom:calc(var(--dock-height) + 34px); --browser-scale:1; --window-height:min(720px,calc((var(--stage) - var(--window-bottom) - 12px) / var(--browser-scale))); --rail:0px; --edge-band:8px; --popover-inset:8px; --page:calc(var(--window-height) - 2 * var(--rail)); --sidebar-width:216px; --window-radius:16px; --story-width:840px; --demo-start:600px; --demo-end:920px; --launch-at:96px; --opening:180px; --reading-start:182px; --reading:0px; --thumb-size:20%; --thumb-travel:400%; font:400 14px/1.5 Inter,sans-serif; background:var(--wallpaper-background); color:var(--text); color-scheme:light dark; }
+#lune { --night:light-dark(#E7EDE3,#10354F); --chrome:light-dark(#E7EDE3,#10354F); --tab-selected:light-dark(#D6E1D2,#2A4C62); --tab-hover:light-dark(#23455012,#DDE7EA12); --feature-ground:light-dark(#F1F4EC,#163B52); --biolume:light-dark(#59A7A0,#B3FFF0); --biolume-stalk:light-dark(#59979E,#74C8C7); --botanical-ink:light-dark(#367C9C,#8CBBD2); --botanical-light:light-dark(#8FBBCF,#C1DEEA); --botanical-vein:light-dark(#E9F3F5,#315E77); --text:light-dark(#234550,#C9D9E3); --muted:light-dark(#526B65,#96AFBE); --signal:light-dark(#276C69,#00D5C6); --stage:100svh; --icon-max:48px; --icon:max(36px,min(var(--icon-max),calc(var(--stage) * .08))); --dock-pad:9px; --type:40px; --dock-height:calc(var(--icon) + 2 * var(--dock-pad) + 2px); --window-bottom:calc(var(--dock-height) + 34px); --browser-scale:1; --window-height:min(720px,calc((var(--stage) - var(--window-bottom) - 12px) / var(--browser-scale))); --rail:0px; --edge-band:8px; --popover-inset:8px; --page:calc(var(--window-height) - 2 * var(--rail)); --sidebar-width:216px; --window-radius:16px; --story-width:840px; --demo-start:600px; --demo-end:920px; --launch-at:96px; --opening:180px; --reading-start:182px; --reading:0px; --thumb-size:20%; --thumb-travel:400%; font:400 14px/1.5 Inter,sans-serif; background:var(--wallpaper-background); color:var(--text); color-scheme:light dark; }
   html:has(#lune),body:has(#lune) { overscroll-behavior:none; }
   #lune * { box-sizing:border-box; }
   #lune :is(h1,p,.coda-wordmark,.address-display),#lune .story-section a { -webkit-user-select:text; user-select:text; }
@@ -166,23 +166,41 @@ svg { display: block; }
   #lune .vine-base { stroke-width:3.2; stroke:url(#leaf-ink); opacity:.72; }
   #lune .vine-growth { stroke-width:.7; stroke:var(--botanical-vein); opacity:.5; }
   #lune .vine-tendril { fill:none; stroke:var(--botanical-ink); stroke-width:1.25; stroke-linecap:round; opacity:.7; }
-  #lune .botanical-bullet { display:block; flex:none; width:80px; height:100px; overflow:visible; pointer-events:none; color:var(--botanical-ink); transform-origin:80% 86%; transform:rotate(var(--leaf-angle,0deg)); }
+  #lune .botanical-bullet { display:block; flex:none; width:80px; height:100px; overflow:visible; pointer-events:none; color:var(--botanical-ink); transform-origin:var(--petiole-x,80%) 86%; transform:rotate(var(--leaf-angle,0deg)); }
   #lune .flower-bullet { transform-origin:50% 86%; }
-  #lune .flower-bloom { transform-box:fill-box; transform-origin:center; }
+  #lune .flower-bloom { transform-origin:0 0; }
+  #lune .petal,#lune .flower-stamens { transform-origin:0 0; }
+  #lune .petal-left { transform:rotate(-22deg); }
+  #lune .petal-right { transform:rotate(24deg); }
+  #lune .petal-front { transform:scale(1.08,.72); }
+  #lune .vine-ground { fill:none; stroke:var(--botanical-ink); stroke-width:.8; opacity:.42; }
+  #lune .vine-roots { fill:none; stroke:var(--botanical-ink); stroke-width:1; stroke-linecap:round; opacity:.55; }
   @keyframes vine-grow { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
   @keyframes leaf-stir { 0% { transform:rotate(calc(var(--leaf-angle) - 3deg)); } 35% { transform:rotate(calc(var(--leaf-angle) + 2deg)); } 72% { transform:rotate(calc(var(--leaf-angle) - 1deg)); } 100% { transform:rotate(calc(var(--leaf-angle) + 3deg)); } }
-  @keyframes flower-unfold { from { transform:rotate(-3deg) scale(.96); } 60% { transform:rotate(1deg) scale(1.015); } to { transform:rotate(3deg) scale(1); } }
+  @keyframes flower-unfold { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
+  @keyframes petal-back-open { from { transform:scaleX(.6); } to { transform:scaleX(1); } }
+  @keyframes petal-left-open { from { transform:rotate(18deg); } to { transform:rotate(-22deg); } }
+  @keyframes petal-right-open { from { transform:rotate(-18deg); } to { transform:rotate(24deg); } }
+  @keyframes petal-front-open { from { transform:scale(.62,1.14); } to { transform:scale(1.08,.72); } }
+  @keyframes stamen-reveal { from { transform:translateY(5px) scaleY(.6); opacity:.08; } to { transform:translateY(0) scaleY(1); opacity:1; } }
   @supports(animation-timeline:scroll()) {
     #lune .vine-growth { stroke-dasharray:1; animation:vine-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--vine-start) var(--vine-end); }
     #lune .botanical-bullet { animation:leaf-stir linear both; animation-timeline:--lune-scroll; animation-range:var(--leaf-start) var(--leaf-end); }
-    #lune .flower-bloom { animation:flower-unfold linear both; animation-timeline:--lune-scroll; animation-range:var(--vine-start) var(--flower-end); }
+    #lune .flower-bloom { animation:flower-unfold linear both; }
+    #lune .petal-back { animation:petal-back-open linear both; }
+    #lune .petal-left { animation:petal-left-open linear both; }
+    #lune .petal-right { animation:petal-right-open linear both; }
+    #lune .petal-front { animation:petal-front-open linear both; }
+    #lune .flower-stamens { animation:stamen-reveal linear both; }
+    #lune .flower-bloom,#lune .petal,#lune .flower-stamens { animation-timeline:--lune-scroll; animation-range:var(--flower-start) var(--flower-end); }
   }
-  #lune .coda { display:flex; flex-direction:column; align-items:center; min-height:var(--page); padding-top:48px; padding-bottom:18px; text-align:center; }
-  #lune .coda-content { width:100%; margin-block:auto; }
-  #lune .upstream-thanks { max-width:34ch; margin:80px auto 0; font:400 20px/32px Inter,sans-serif; }
+  #lune .coda { position:relative; display:flex; flex-direction:column; align-items:center; min-height:var(--page); padding-top:0; padding-bottom:18px; text-align:center; }
+  #lune .coda-content { position:absolute; top:50%; left:0; width:100%; translate:0 -50%; }
+  #lune .upstream-thanks { position:absolute; top:calc(50% + 80px); left:50%; translate:-50% 0; width:calc(100% - 48px); max-width:44ch; margin:0; font:400 14px/22px Inter,sans-serif; }
+  #lune .upstream-thanks p { font:inherit; color:var(--muted); }
   #lune .coda p { text-wrap:pretty; }
   #lune .coda a:not(.source) { color:inherit; }
-  #lune .coda .byline { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:0 .3em; margin-top:72px; flex:none; font:400 13px/20px Inter,sans-serif; color:var(--muted); }
+  #lune .coda .byline { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:0 .3em; margin-top:auto; flex:none; font:400 13px/20px Inter,sans-serif; color:var(--muted); }
   #lune .byline svg { width:22px; height:17px; overflow:visible; stroke:currentColor; stroke-width:1.8; }
   #lune .reading-track { position:absolute; top:7px; bottom:7px; right:4px; width:3px; border-radius:2px; background:light-dark(#526B650D,#96AFBE0D); pointer-events:none; }
   #lune .reading-thumb { height:var(--thumb-size); width:3px; background:light-dark(#526B6570,#96AFBE70); border-radius:2px; }
@@ -191,7 +209,7 @@ svg { display: block; }
   #lune .finder .icon-art,#lune .trash .icon-art { filter:drop-shadow(0 -1px .4px light-dark(#FFFFFF99,#EAF7FF99)) drop-shadow(1px 0 .4px light-dark(#23455080,#03162280)); }
   #lune .launching .icon-art,#lune .launching .label { animation:launch-bounce 660ms both; }
   #lune .coda .actions { margin:0; flex-shrink:0; }
-  #lune .coda-brand { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:24px; flex-shrink:0; }
+  #lune .coda-brand { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:16px; flex-shrink:0; }
   #lune .coda-mark { display:block; width:48px; height:auto; }
   #lune .coda-wordmark { font:800 36px/1 Syne,sans-serif; letter-spacing:-.05em; color:light-dark(#234550,#DDE7EA); }
   @keyframes launch-bounce { 0% { translate:0 0; animation-timing-function:cubic-bezier(.18,.65,.35,1); } 45% { translate:0 calc(var(--icon) * -.48); animation-timing-function:cubic-bezier(.55,0,.8,.4); } 100% { translate:0 0; } }
@@ -218,7 +236,7 @@ svg { display: block; }
 @media(max-width:700px) { #lune { --browser-scale:.5; } }
 @media(prefers-reduced-motion:reduce) {
   #lune .window { animation:none; }
-  #lune .botanical-bullet,#lune .flower-bloom,#lune .vine-growth { animation:none; }
+  #lune .botanical-bullet,#lune .flower-bloom,#lune .petal,#lune .flower-stamens,#lune .vine-growth { animation:none; }
   #lune .vine-growth { stroke-dasharray:none; stroke-dashoffset:0; }
   #lune .demo-cursor,#lune .demo-click { display:none; animation:none; }
   #lune .browser-sidebar { transition:none; }

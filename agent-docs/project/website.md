@@ -40,15 +40,18 @@ credited to both upstream projects.
 The source now uses eight complete sentences in one Inter style and color,
 with a restrained, centered sine wave and no screenshot placeholder. The first
 point has only a flower; seven leaves join a branching cyanotype vine with
-shoots, curled tendrils and subtle scroll motion that respects Reduced Motion.
+varied shoots, curled tendrils and subtle scroll motion that respects Reduced Motion.
+Leaves alternate around their exact petiole attachments. The stem roots in a
+thin uneven horizon 15% down the final viewport, and the upward-facing flower
+opens its petals to reveal subtly luminous stamens.
 Specimens and copy align vertically with a 36px gap. Mobile content shares the
 browser’s 50% scale without typography or coda enlargement. Two pinned links open
 Fastmail and Calendar; regular links open Lune, Helium, the Lune GitHub project
 and Lee Byron, with the author’s site last. The top-right
 group is limited to Extensions, uBlock Origin and 1Password; the latter two
 open their sites in new tabs.
-The points retain their reading order; the closing thanks use regular Inter with
-80px after the download actions, and the Lode author line sits at the bottom edge. Section heights and
+The points retain their reading order; the closing thanks use smaller 14px/22px Inter,
+28px after the centered Lune/download group, and the Lode author line sits at the bottom edge. Section heights and
 the reading distance follow the content rather than a fixed page count. The
 browser uses the mounted-left layout with the reviewed 216px sidebar and a reversible scroll-driven cursor
 that unpins its sidebar during the minimal-UI section. The floating panel then
