@@ -38,11 +38,12 @@ adaptive Chlorophyll Daylight / Pelagic Signal desktop and a continuous
 scroll-driven browser story about respect for privacy, trust and attention,
 credited to both upstream projects.
 The source now uses eight complete sentences in one Inter style and color,
-with a restrained, centered sine wave and no screenshot placeholder. The first
-point has only a flower; seven leaves join a branching cyanotype vine with
+with a restrained, centered sine wave and no screenshot placeholder. A full-height setup-style logo reveal precedes the first point. Its
+flower is 50% larger, with 19 luminous stamens; seven generated leaves join a vine with
 varied shoots, curled tendrils and subtle scroll motion that respects Reduced Motion.
 Leaves alternate around their exact petiole attachments. The stem roots in a
-thin uneven horizon 15% down the final viewport, and the upward-facing flower
+Perlin-noise horizon 15% down the final viewport, with recursively generated
+roots growing along their branches, and the upward-facing flower
 opens its petals to reveal subtly luminous stamens.
 Specimens and copy align vertically with a 36px gap. Mobile content shares the
 browser’s 50% scale without typography or coda enlargement. Two pinned links open
@@ -50,8 +51,8 @@ Fastmail and Calendar; regular links open Lune, Helium, the Lune GitHub project
 and Lee Byron, with the author’s site last. The top-right
 group is limited to Extensions, uBlock Origin and 1Password; the latter two
 open their sites in new tabs.
-The points retain their reading order; the closing thanks use smaller 14px/22px Inter,
-28px after the centered Lune/download group, and the Lode author line sits at the bottom edge. Section heights and
+The final point has only 24px before the coda. The points retain their reading order; the closing thanks use smaller 14px/22px Inter,
+centered between the download actions and the bottom author byline, and the Lode author line sits at the bottom edge. Section heights and
 the reading distance follow the content rather than a fixed page count. The
 browser uses the mounted-left layout with the reviewed 216px sidebar and a reversible scroll-driven cursor
 that unpins its sidebar during the minimal-UI section. The floating panel then

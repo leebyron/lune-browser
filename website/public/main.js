@@ -15,12 +15,86 @@
   const nativeTimeline=CSS.supports('animation-timeline:scroll()');
   const clamp=x=>Math.max(0,Math.min(1,x));
   let opening=0,readingStart=182,launchAt=96,pageHeight=0,reading=0,queued=false,base=48,launched=false,appVisible=false,showTimer=0;
+  function svg(tag,attrs={}) {
+    const element=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    Object.entries(attrs).forEach(([key,value])=>element.setAttribute(key,value));
+    return element;
+  }
+  function random(seed) {
+    let state=seed>>>0;
+    return ()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296;};
+  }
+  // One-dimensional gradient noise with Perlin's quintic interpolation.
+  // Four spatial octaves provide terrain detail without a repeating wave.
+  function noise(x,seed=71) {
+    const lattice=Math.floor(x),t=x-lattice,fade=t*t*t*(t*(t*6-15)+10);
+    const gradient=i=>{let h=Math.imul(i^seed,0x45d9f3b);h=Math.imul(h^(h>>>16),0x45d9f3b);h^=h>>>16;return (h&1?1:-1)*(.5+((h>>>1)&1023)/1023);};
+    const a=gradient(lattice)*t,b=gradient(lattice+1)*(t-1);
+    return (a+(b-a)*fade)*2;
+  }
+  function smoothPath(points,closed=false) {
+    let d=`M ${points[0].x} ${points[0].y}`;
+    for(let i=0;i<points.length-1;i++) {
+      const a=points[Math.max(0,i-1)],b=points[i],c=points[i+1],e=points[Math.min(points.length-1,i+2)];
+      d+=` C ${b.x+(c.x-a.x)/6} ${b.y+(c.y-a.y)/6}, ${c.x-(e.x-b.x)/6} ${c.y-(e.y-b.y)/6}, ${c.x} ${c.y}`;
+    }
+    return d+(closed?' Z':'');
+  }
+  function leaf(seed,main=false) {
+    const rng=random(seed),length=main?58+rng()*17:23+rng()*20;
+    const width=main?14+rng()*9:6+rng()*7,lean=main?-23-rng()*15:(rng()-.5)*13;
+    const stem=main?10+rng()*5:4+rng()*4,bend=(rng()-.5)*(main?11:7),lobes=2+rng()*3;
+    const spine=t=>({x:-stem*.35+lean*t+bend*Math.sin(Math.PI*t),y:-stem-length*t});
+    const edge=(t,side)=>{
+      const center=spine(t),profile=Math.pow(Math.sin(Math.PI*t),.8)*(1-t*.18);
+      const wave=1+.07*Math.sin(t*Math.PI*lobes*2+seed)+noise(t*4+seed*.01,seed)*.07;
+      return {x:center.x+side*width*profile*wave*(side<0?1:.8+rngBias),y:center.y};
+    };
+    const rngBias=rng()*.3,outline=[];
+    for(let i=0;i<=12;i++)outline.push(edge(i/12,-1));
+    for(let i=11;i>=0;i--)outline.push(edge(i/12,1));
+    const specimen=svg('g',{'data-specimen-seed':seed}),ink=svg('g',{filter:'url(#cyanotype-grain)'});
+    ink.append(svg('path',{d:smoothPath(outline,true),fill:'url(#leaf-ink)',opacity:.82+rng()*.18}));
+    const mid=[];for(let i=0;i<=8;i++)mid.push(spine(i/8));
+    let veins=smoothPath(mid);
+    const count=main?5+Math.floor(rng()*3):3+Math.floor(rng()*3);
+    for(let i=1;i<count;i++) {
+      const t=i/(count+1),from=spine(t);
+      for(const side of [-1,1]) {
+        const to=edge(Math.min(.94,t+.10+rng()*.06),side);
+        veins+=` M ${from.x} ${from.y} Q ${from.x+(to.x-from.x)*.65} ${from.y-2}, ${to.x} ${to.y}`;
+      }
+    }
+    ink.append(svg('path',{d:veins,fill:'none',stroke:'var(--botanical-vein)','stroke-width':main?.7:.55,opacity:.55+rng()*.18}));
+    specimen.append(ink,svg('path',{d:`M 0 0 Q ${-stem*.5} ${-stem*.35}, ${-stem*.35} ${-stem}`,fill:'none',stroke:'var(--botanical-ink)','stroke-width':main?1.4:1,'stroke-linecap':'round'}));
+    return specimen;
+  }
+  function introEase(x) {
+    // Match setup's cubic-bezier(.2,.8,.2,1) in the no-timeline fallback.
+    let low=0,high=1,t=x;
+    for(let i=0;i<12;i++){t=(low+high)/2;const bx=3*(1-t)*(1-t)*t*.2+3*(1-t)*t*t*.2+t*t*t;if(bx<x)low=t;else high=t;}
+    return 3*(1-t)*(1-t)*t*.8+3*(1-t)*t*t+t*t*t;
+  }
   const points = [...pages.querySelectorAll('.flow-point')];
+  const introLogo=pages.querySelector('.setup-logo'),introCircles=[...introLogo.querySelectorAll('circle')],introCopy=pages.querySelector('.prelude-copy');
   const vine = pages.querySelector('.story-vine'), vineGrowth = vine.querySelector('.vine-growth');
   const sprigs = vine.querySelector('.vine-sprigs'), flowerBloom = pages.querySelector('.flower-bloom');
   const ground=vine.querySelector('.vine-ground'), roots=vine.querySelector('.vine-roots');
   const petals=[...flowerBloom.querySelectorAll('.petal')], stamens=flowerBloom.querySelector('.flower-stamens');
-  let vineStart=0, vineEnd=1, flowerStart=0, flowerEnd=1;
+  // A seeded fan of fine filaments gives the upward-facing flower depth.
+  const stamenRng=random(887),filaments=svg('path',{fill:'none',stroke:'var(--biolume-stalk)','stroke-width':.55,'stroke-linecap':'round'});
+  const halos=svg('g',{fill:'var(--biolume)',filter:'url(#stamen-light)',opacity:.55}),anthers=svg('g',{fill:'var(--biolume)'});
+  let filamentPath='';
+  for(let i=0;i<19;i++) {
+    const fan=(i/18-.5)*2,x=fan*21+(stamenRng()-.5)*4,y=-27-stamenRng()*15-Math.cos(fan*Math.PI/2)*3;
+    const baseX=(stamenRng()-.5)*7,rx=1+stamenRng()*.65,ry=.55+stamenRng()*.4;
+    filamentPath+=`M ${baseX} -2 Q ${x*.45+(stamenRng()-.5)*5} ${y*.52}, ${x} ${y}`;
+    halos.append(svg('ellipse',{cx:x,cy:y,rx:rx*1.8,ry:ry*1.9}));
+    anthers.append(svg('ellipse',{cx:x,cy:y,rx,ry,opacity:.65+stamenRng()*.35,transform:`rotate(${fan*25} ${x} ${y})`}));
+  }
+  filaments.setAttribute('d',filamentPath);stamens.replaceChildren(filaments,halos,anthers);
+  let vineStart=0, vineEnd=1, flowerStart=0, flowerEnd=1,introStart=0,introEnd=1;
+  let rootRanges=[];
   const leafRanges=[];
   points.forEach((point, index) => {
     point.style.setProperty('--flow-offset', Math.sin(index / (points.length - 1) * 2 * Math.PI).toFixed(5));
@@ -28,7 +102,11 @@
     const right=index>0 && index%2===0;
     point.dataset.leafSide=index===0?'flower':right?'right':'left';
     point.style.setProperty('--petiole-x',`${index===0?50:right?20:80}%`);
-    if(right) point.querySelector('.botanical-bullet > use').setAttribute('transform','translate(80 0) scale(-1 1)');
+    if(index>0) {
+      const specimen=point.querySelector('.generated-specimen');
+      if(right)specimen.setAttribute('transform','translate(80 0) scale(-1 1)');
+      const generated=leaf(419+index*103,true);generated.setAttribute('transform','translate(64 86)');specimen.append(generated);
+    }
   });
   function measure() {
     const style = getComputedStyle(root);
@@ -40,6 +118,13 @@
     browserScale = parseFloat(style.getPropertyValue('--browser-scale'));
     root.style.setProperty('--hairline', `${1 / (devicePixelRatio * browserScale)}px`);
     root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 2 * parseFloat(style.getPropertyValue('--rail')) - sidebarWidth)}px`);
+    introStart=Math.max(launchAt,readingStart-pageHeight*.1);
+    introEnd=readingStart+pageHeight*.42;
+    root.style.setProperty('--intro-start',`${introStart}px`);
+    root.style.setProperty('--intro-end',`${introEnd}px`);
+    const coda=pages.querySelector('.coda'),codaContent=coda.querySelector('.coda-content'),thanks=coda.querySelector('.upstream-thanks'),byline=coda.querySelector('.byline');
+    const actionsBottom=pageHeight/2+codaContent.offsetHeight/2;
+    coda.style.setProperty('--thanks-top',`${(actionsBottom+byline.offsetTop)/2-thanks.offsetHeight/2}px`);
     measureBotany();
     const minimal = root.querySelector('.minimal-story');
     demoStart = readingStart + minimal.offsetTop - pageHeight * .7;
@@ -77,30 +162,26 @@
     // Resting layout coordinates share the exact pivot of each mirrored petiole.
     const nodes=points.map((point,index)=>({x:point.offsetLeft+(index===0?40:index%2?64:16),y:point.offsetTop+(point.clientHeight-100)/2+86}));
     const first=nodes[0],last=nodes[nodes.length-1],coda=pages.querySelector('.coda');
-    const groundY=coda.offsetTop+pageHeight*.15, rootX=last.x-8;
-    vine.setAttribute('viewBox',`0 0 ${pages.clientWidth} ${groundY+56}`);
-    vine.style.height=`${groundY+56}px`;
+    const groundY=coda.offsetTop+pageHeight*.15, rootX=last.x-8,rootDepth=Math.min(170,pageHeight*.23);
+    vine.setAttribute('viewBox',`0 0 ${pages.clientWidth} ${groundY+rootDepth+10}`);
+    vine.style.height=`${groundY+rootDepth+10}px`;
     let d=`M ${first.x} ${first.y}`;
     const growth=document.createDocumentFragment();
-    function svg(tag,attrs) {
-      const element=document.createElementNS('http://www.w3.org/2000/svg',tag);
-      Object.entries(attrs).forEach(([key,value])=>element.setAttribute(key,value));
-      return element;
-    }
-    function specimen(at,kind,angle,scale,opacity) {
-      const round=kind==='round',width=round?36:28,height=round?42:48;
-      growth.append(svg('use',{href:round?'#cyanotype-round-leaf':'#cyanotype-lance',x:-width/2,y:-height,width,height,transform:`translate(${at.x} ${at.y}) rotate(${angle}) scale(${scale})`,opacity}));
+    function specimen(at,kind,angle,scale,opacity,seed) {
+      const generated=leaf(seed);
+      generated.setAttribute('transform',`translate(${at.x} ${at.y}) rotate(${angle}) scale(${scale})`);
+      generated.setAttribute('opacity',opacity);growth.append(generated);
     }
     function shoot(at,side,variant) {
       const reach=20+(variant%4)*5,rise=17+(variant%3)*7;
       const tip={x:at.x+side*reach,y:at.y-rise};
       const branch=svg('path',{class:'vine-tendril',d:`M ${at.x} ${at.y} Q ${at.x+side*reach*.7} ${at.y-3}, ${tip.x} ${tip.y}`});
       growth.append(branch);
-      specimen(tip,variant%3===0?'round':'lance',side*(30+variant%4*11),.52+variant%5*.08,.65+variant%3*.1);
+      specimen(tip,variant%3===0?'round':'lance',side*(30+variant%4*11),.52+variant%5*.08,.65+variant%3*.1,173+variant*79);
       // Secondary leaves attach to a measured point on the branch, never a guessed offset.
       if(variant%3!==1) {
         const middle=branch.getPointAtLength(branch.getTotalLength()*.52);
-        specimen(middle,variant%2?'round':'lance',-side*(24+variant%3*13),.32+variant%3*.05,.6);
+        specimen(middle,variant%2?'round':'lance',-side*(24+variant%3*13),.32+variant%3*.05,.6,983+variant*43);
       }
     }
     nodes.slice(1).forEach((node,index)=>{
@@ -115,28 +196,48 @@
         growth.append(svg('path',{class:'vine-tendril',d:`M ${at.x} ${at.y} C ${at.x+side*16} ${at.y-14}, ${at.x+side*(reach+14)} ${at.y+4}, ${at.x+side*reach} ${at.y+17} C ${at.x+side*(reach-11)} ${at.y+25}, ${at.x+side*(reach-17)} ${at.y+6}, ${at.x+side*(reach-7)} ${at.y+9}`}));
       }
     });
-    d+=` C ${last.x-24} ${last.y+52}, ${rootX+18} ${groundY-64}, ${rootX} ${groundY}`;
+    d+=` C ${last.x-24} ${last.y+(groundY-last.y)*.3}, ${rootX+18} ${groundY-(groundY-last.y)*.3}, ${rootX} ${groundY}`;
     vine.querySelectorAll('.vine-base,.vine-growth').forEach(path=>path.setAttribute('d',d));
     sprigs.replaceChildren(growth);
-    // The final viewport places this delicate horizon at exactly 15% of its height.
-    const bump=x=>Math.sin(x*.071)*1.6+Math.sin(x*.193)*.7;
-    const xs=[0];for(let x=32;x<pages.clientWidth;x+=32)xs.push(x);
-    xs.push(rootX,pages.clientWidth);xs.sort((a,b)=>a-b);
-    let floor=`M 0 ${groundY+bump(0)-bump(rootX)}`;
-    xs.slice(1).forEach((x,i)=>{const previous=xs[i],y=groundY+bump(x)-bump(rootX),py=groundY+bump(previous)-bump(rootX);floor+=` C ${previous+(x-previous)/3} ${py}, ${x-(x-previous)/3} ${y}, ${x} ${y}`;});
-    ground.setAttribute('d',floor);
-    const rootGrowth=document.createDocumentFragment();
-    [-1,1].forEach((side,index)=>{
-      const end={x:rootX+side*(30+index*7),y:groundY+32+index*9};
-      rootGrowth.append(svg('path',{d:`M ${rootX} ${groundY} C ${rootX+side*3} ${groundY+14}, ${rootX+side*21} ${groundY+15}, ${end.x} ${end.y}`}));
-      rootGrowth.append(svg('path',{d:`M ${rootX+side*13} ${groundY+17} Q ${rootX+side*24} ${groundY+17}, ${rootX+side*34} ${groundY+21} M ${end.x-side*8} ${end.y-10} Q ${end.x-side*7} ${end.y+1}, ${end.x-side*5} ${end.y+7}`}));
-    });
-    rootGrowth.append(svg('path',{d:`M ${rootX} ${groundY} C ${rootX+8} ${groundY+16}, ${rootX-6} ${groundY+27}, ${rootX+2} ${groundY+47} M ${rootX+1} ${groundY+29} Q ${rootX+15} ${groundY+33}, ${rootX+18} ${groundY+41}`}));
+    // Layered Perlin gradient noise: rolling contour, smaller bumps, fine grain.
+    const terrain=x=>noise(x/260+4.3,19)*18+noise(x/88+13.1,37)*6+noise(x/31+9.7,73)*2.2+noise(x/10+2.5,113)*.6;
+    const floorPoints=[];
+    for(let x=0;x<pages.clientWidth;x+=8)floorPoints.push({x,y:groundY+terrain(x)-terrain(rootX)});
+    floorPoints.push({x:rootX,y:groundY},{x:pages.clientWidth,y:groundY+terrain(pages.clientWidth)-terrain(rootX)});
+    floorPoints.sort((a,b)=>a.x-b.x);ground.setAttribute('d',smoothPath(floorPoints));
+    const rootGrowth=document.createDocumentFragment(),branches=[],rng=random(2207);
+    const rootWidth=Math.min(360,pages.clientWidth*.44);
+    function rootBranch(start,angle,requestedLength,width,depth,travel,seed) {
+      angle=Math.max(-1.3,Math.min(1.3,angle));
+      const length=Math.min(requestedLength,(groundY+rootDepth-start.y)/Math.max(.2,Math.cos(angle))*.98);
+      if(length<5)return;
+      const curve=[];
+      for(let i=0;i<=7;i++) {
+        const t=i/7,wander=noise(t*2.6+seed*.13,seed)*length*.07*Math.sin(Math.PI*t);
+        curve.push({x:Math.max(8,Math.min(pages.clientWidth-8,Math.max(rootX-rootWidth/2,Math.min(rootX+rootWidth/2,start.x+Math.sin(angle)*length*t+wander)))),y:start.y+Math.cos(angle)*length*t+noise(t*3+seed*.1,seed+7)*length*.012*Math.sin(Math.PI*t)});
+      }
+      const path=svg('path',{d:smoothPath(curve),'stroke-width':width,pathLength:1,'data-root-depth':3-depth});
+      rootGrowth.append(path);const distance=path.getTotalLength();
+      branches.push({path,travel,end:travel+distance});
+      if(depth>0)for(let j=0;j<2;j++) {
+        const fraction=.38+j*.33+(rng()-.5)*.1,at=path.getPointAtLength(distance*fraction);
+        const side=j===0?-1:1;
+        rootBranch(at,angle+side*(.45+rng()*.65),length*(.34+rng()*.17),width*.56,depth-1,travel+distance*fraction,seed*3+j+1);
+      }
+    }
+    [-1.08,-.5,.08,.58,1.12].forEach((angle,i)=>rootBranch({x:rootX,y:groundY},angle,rootDepth*(i===2?.98:.72+rng()*.25),1.6+rng()*.6,3,0,67+i*41));
     roots.replaceChildren(rootGrowth);
+    const longest=Math.max(...branches.map(branch=>branch.end));
+    const rootsStart=readingStart+groundY-pageHeight*.92,rootsEnd=readingStart+coda.offsetTop;
+    rootRanges=branches.map(branch=>{
+      const start=rootsStart+(rootsEnd-rootsStart)*branch.travel/longest,end=rootsStart+(rootsEnd-rootsStart)*branch.end/longest;
+      branch.path.style.setProperty('--root-start',`${start}px`);branch.path.style.setProperty('--root-end',`${end}px`);
+      return {path:branch.path,start,end};
+    });
     vineStart=Math.max(0,readingStart+first.y-pageHeight*.8);
     vineEnd=readingStart+groundY-pageHeight*.15;
-    flowerStart=Math.max(0,readingStart-pageHeight*.08);
-    flowerEnd=readingStart+first.y*.85;
+    flowerStart=readingStart+first.y-pageHeight*.85;
+    flowerEnd=readingStart+first.y-pageHeight*.2;
     root.style.setProperty('--vine-start',`${vineStart}px`);
     root.style.setProperty('--vine-end',`${vineEnd}px`);
     root.style.setProperty('--flower-start',`${flowerStart}px`);
@@ -150,6 +251,17 @@
   }
   function updateBotany(y) {
     if(nativeTimeline||reduce.matches)return;
+    const intro=introEase(clamp((y-introStart)/(introEnd-introStart)));
+    introCircles.forEach(circle=>{
+      const shift=parseFloat(circle.style.getPropertyValue('--shift'));
+      circle.style.transform=`translateX(${shift*intro}px)`;
+      if(circle.classList.contains('setup-cutout'))circle.style.r=`${111+1.725508*intro}px`;
+    });
+    introLogo.style.transform=`scale(${1.2-.2*intro})`;
+    introCopy.style.opacity=clamp((intro-.15)/.7);introCopy.style.transform=`translateY(${8-8*intro}px) scale(${.96+.04*intro})`;
+    rootRanges.forEach(({path,start,end})=>{
+      const progress=clamp((y-start)/(end-start));path.style.strokeDasharray='1';path.style.strokeDashoffset=1-progress;path.style.opacity=progress>0?1:0;
+    });
     vineGrowth.style.strokeDasharray='1';
     vineGrowth.style.strokeDashoffset=1-clamp((y-vineStart)/(vineEnd-vineStart));
     points.forEach((point,index)=>{
@@ -453,7 +565,7 @@
   dock.addEventListener('pointermove',e=>{if(!fine.matches||reduce.matches)return;pointer=e.clientX;startMagnify();});
   dock.addEventListener('pointerleave',()=>{pointer=null;startMagnify();});
   new ResizeObserver(()=>{if(pointer===null){items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);}}).observe(stage);
-  reduce.addEventListener('change',()=>{vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');points.forEach(point=>point.querySelector('.botanical-bullet').style.removeProperty('transform'));if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
+  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');introCopy.style.removeProperty('opacity');introCopy.style.removeProperty('transform');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');points.forEach(point=>point.querySelector('.botanical-bullet').style.removeProperty('transform'));if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
   let measuredContentHeight = 0, measuredContentWidth = 0;
   new ResizeObserver(entries => {
     const {height,width} = entries[0].contentRect;

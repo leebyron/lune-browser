@@ -8,8 +8,9 @@ choices, without a manifesto or a feature checklist.
 
 ## Argument
 
-The opening is “Your browser should serve your curiosity, not someone else’s
-business.” The sequence then establishes boundaries, consent, useful compatibility,
+After the setup-inspired logo reveal, the first sentence introduces Lune as a
+private Mac browser with Chromium compatibility and room for the web. The
+shorter sequence then establishes boundaries, consent, useful compatibility,
 Mac craftsmanship, room for the page, agency during setup and inspectable shared
 work. Each point is one complete sentence in the same visual style.
 

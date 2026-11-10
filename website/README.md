@@ -126,7 +126,8 @@ All runtime assets are served locally; no font or icon CDN requests are needed.
 
 The final page thanks and links Helium and ungoogled-chromium in regular Inter
 14px/22px. The Lune mark and download actions form a group centered in the
-final viewport; the shorter thanks starts 28px below that group. The Lode author credit, “Made with [coffee] in SF
+final viewport; the credit to both projects’ authors and contributors is centered
+in the gap between the actions and the author byline. The Lode author credit, “Made with [coffee] in SF
 by Lee Byron,” uses the original inline cup paths from
 <https://leebyron.com/lode/> and sits 18px above the final browser-content edge,
 with at least 72px separating it from the coda. Preserve this credit when
@@ -137,8 +138,9 @@ changing the story length.
 The tagline is “A respectful browser for Mac.” Eight complete sentences explain
 respect through privacy defaults, consent, extension compatibility, Mac
 craftsmanship, attention, setup choices and shared source, with no headings, fragments, eyebrows or screenshot placeholder.
-The opening point has only a flower; seven veined leaves mark the following
-points. A branching cyanotype vine joins them with small shoots and curled
+A full-height opening beat reuses setup’s paired-circle logo reveal, driven by
+scroll rather than a timer, before the first point can enter. The opening point
+has only a flower, enlarged 50%; seven uniquely generated leaves mark later points. A branching cyanotype vine joins them with small shoots and curled
 tendrils, rather than a line connecting separate icons. Marketing prose uses
 regular Inter 20px/32px and one foreground color. At 700px or less, the complete
 browser and its content share the same 50% transform: prose renders at 10px/16px.
@@ -148,13 +150,15 @@ diverge from the chrome. This does not assert physical Safari-device validation.
 Syne remains confined to the Lune wordmarks.
 
 Each row has the same maximum text measure of 34ch and reserves an 80px
-specimen plus a 36px gap. The copy is vertically centered beside the leaf or
-flower body, 10px above the row center. The complete row starts horizontally
+specimen plus a 36px gap (48px beside the larger flower). The copy is vertically centered beside the leaf or
+leaf body, 10px above the row center; the first sentence rises 22px to align
+with its larger flower. The complete row starts horizontally
 centered, then follows x = column center + A sin(2πi / (n − 1)). A is at most
 48px and shrinks to the available room; 32px is reserved so even narrow layouts
 retain a small wave. The browser cursor unpins the sidebar while the attention
-sentence is in view. The coda uses one short sentence thanking Helium and
-ungoogled-chromium for making Lune possible. See the [copy rationale and evidence](../agent-docs/project/website-respect-story.md).
+sentence is in view. The coda thanks the authors and contributors behind Helium and
+ungoogled-chromium. Its preceding gap is 24px, keeping the ground close to the
+last point. See the [copy rationale and evidence](../agent-docs/project/website-respect-story.md).
 
 The sidebar pins Fastmail and its Calendar. The other tabs link to Lune, Helium, the Lune GitHub project and Lee Byron,
 in that order; the author’s website is last and the Lode row is removed. Every tab, including New tab, is a real
@@ -267,28 +271,34 @@ mask for appearance contrast. No iframe or private Fastmail content is loaded.
 
 ## Cyanotype botanical illustration
 
-Original vector artwork uses irregular veined leaves, an upward-facing cup
-flower, blue ink gradients and a fixed, small-area grain filter. The first
-point uses only the flower. Seven main leaves alternate left and right around
-the vine: mirrored leaves rotate about their mirrored petiole. Each smaller
-shoot and leaf also attaches to a measured point on a stem or branch. Offshoots
-vary in count, length, angle, leaf shape and size, with occasional curled tendrils.
-The stem ends at a gently uneven ground line, exactly 15% down the final viewport
-at its root junction, with fine spreading roots below. It no longer ends in air.
+Original vector artwork is generated from fixed seeds. Every main leaf and
+small offshoot has its own length, width, lean, edge variation and vein pattern.
+The petiole starts at the same exact stem junction regardless of shape; mirrored
+leaves keep mirrored pivots. A fixed small-area grain filter and shared cyanotype
+ink colors keep the family coherent. Resize does not regenerate random designs.
 
-The flower is drawn in profile, with separate back, side and front petals
-pivoting from the calyx. Scroll progress opens the cup and reveals three fine
-stamens. Only the small anther tips carry a restrained cyan/mint light and a
-small-area blur; the rest stays in the cyanotype palette. It has no idle pulse.
-Artwork is hidden from accessibility APIs, takes no input, and introduces no
-raster/network assets.
+The ground uses four octaves of one-dimensional Perlin gradient noise with
+quintic interpolation, independently implemented after consulting [Ken Perlin’s
+reference](https://cs.nyu.edu/~perlin/noise/). Broad rises, smaller bumps and fine
+grading replace the repeating sine contour. The root junction remains 15% down
+the final viewport. Five main roots recursively branch into 75 tapered paths,
+with noise-guided bends, measured attachment points and a maximum depth of 23%
+of the viewport (capped at 170px). The spread is capped at 360px and stays clear
+of the centered download group. Growth timing follows travel distance from the
+root crown: child roots start after the parent reaches their attachment.
 
-Layout measurements set the plant, horizon and roots on resize/content changes.
-Scroll transforms do not feed back into its geometry. Native scroll timelines
-open the flower, reveal its stamens, gently turn the specimens and trace a fine
-stem vein. The existing scroll update supplies equivalent progress when timelines
-are unsupported. Reduced Motion leaves the complete plant and open flower still;
-changing the preference clears all fallback transforms and stamen opacity.
+The flower is 50% larger, faces upwards, and has 19 seeded, curved filaments
+with varied anther positions and brightness. Petals open with scroll progress to
+reveal their cyan/mint tips; only those tips use a small-area light blur. There
+is no idle pulse or time-driven growth. Artwork is hidden from accessibility
+APIs, takes no input, and adds no raster/network assets or dependencies.
+
+Native scroll timelines own the logo, petal, leaf and root animations. The
+existing scroll update provides equivalent progress in the JavaScript fallback.
+Reduced Motion shows the completed logo, open flower and grown roots without
+motion. Layout measurements update the plant, terrain and footer credit on font
+loading and resize. The credit’s center is halfway between the action group’s
+bottom and the byline’s top, accounting for its own wrapped height.
 
 The November 10 refinement passes desktop Dark, preview-only Light and a
 390×844 mobile layout check. Computed mobile prose remains 20px/32px inside the
@@ -308,3 +318,14 @@ Motion fixture retains identical fully open petal transforms and stamen opacity
 across scrolling. The final download group center is at 50% of the viewport;
 the root meets the bumpy horizon at 15%, and the author credit remains 18px from
 the lower edge. These are browser-preview checks, not physical Safari tests.
+
+The generated-plant revision passes desktop Dark, preview-only Light and a
+390×844 mobile viewport. The logo circles advance through intermediate scroll
+positions before the first point enters. Seven distinct main silhouettes remain
+byte-identical across desktop and mobile; all generated path coordinates are
+finite. Native and forced-fallback roots grow through intermediate parent/child
+stages and finish all 75 paths. The forced Reduced Motion fixture leaves logo,
+petal and root values unchanged. The 19 anthers render in both schemes. The
+final gap measures 24px, and the upstream credit center matches the midpoint
+between the action bottom and byline top within 0.1px before/after mobile scaling.
+Syntax, deployment dry run, asset/cache keys, local links and whitespace pass.
