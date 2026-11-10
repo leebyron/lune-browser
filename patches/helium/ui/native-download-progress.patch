@@ -1,0 +1,216 @@
+--- a/chrome/browser/ui/views/helium/BUILD.gn
++++ b/chrome/browser/ui/views/helium/BUILD.gn
+@@ -56,6 +56,7 @@
+ 
+   if (is_mac) {
+     sources += [
++      "native_download_progress.h",
+       "native_frame_materials_mac.h",
+       "native_frame_materials_mac.mm",
+     ]
+--- /dev/null
++++ b/chrome/browser/ui/views/helium/native_download_progress.h
+@@ -0,0 +1,22 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_DOWNLOAD_PROGRESS_H_
++#define CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_DOWNLOAD_PROGRESS_H_
++
++#include "third_party/skia/include/core/SkColor.h"
++#include "ui/base/class_property.h"
++
++namespace gfx {
++class ImageSkia;
++}
++
++namespace helium {
++extern const ui::ClassProperty<int>* const kNativeDownloadProgressKey;
++// The SF Symbol supplies the arrow and exact ring dimensions. Progress starts
++// at twelve o'clock and runs clockwise over a 25 percent opacity track.
++gfx::ImageSkia NativeDownloadProgressSymbol(int size, SkColor color, int percent);
++}  // namespace helium
++
++#endif  // CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_DOWNLOAD_PROGRESS_H_
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -19,6 +19,7 @@
+ #include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "chrome/browser/ui/views/helium/native_download_progress.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
+ #include "ui/gfx/image/image_skia_operations.h"
+@@ -362,12 +363,140 @@
+ 
+ namespace helium {
+ 
++
++DEFINE_UI_CLASS_PROPERTY_KEY(int, kNativeDownloadProgressKey, 0)
++
++gfx::ImageSkia NativeDownloadProgressSymbol(int size, SkColor color,
++                                           int percent) {
++  // Measure the native medium-weight symbol once at 16x resolution. The ring
++  // radius and width come from its actual silhouette, not a second icon design.
++  struct Geometry {
++    NSImage* arrow;
++    NSRect bounds;
++    NSPoint center;
++    CGFloat radius;
++    CGFloat stroke;
++  };
++  static const Geometry geometry = [] {
++    NSImage* arrow = [NSImage imageWithSystemSymbolName:@"arrow.down.circle"
++                              accessibilityDescription:nil];
++    arrow = [arrow imageWithSymbolConfiguration:
++        [NSImageSymbolConfiguration configurationWithPointSize:16
++                                                       weight:NSFontWeightMedium]];
++    const NSSize natural = arrow.size;
++    const CGFloat fit = std::min<CGFloat>(1, std::min(20 / natural.width,
++                                                    20 / natural.height));
++    const NSRect glyph = NSMakeRect((20 - natural.width * fit) / 2,
++                                    (20 - natural.height * fit) / 2,
++                                    natural.width * fit, natural.height * fit);
++    constexpr int scale = 16;
++    constexpr int pixels = 20 * scale;
++    NSBitmapImageRep* bitmap = [[NSBitmapImageRep alloc]
++        initWithBitmapDataPlanes:nil pixelsWide:pixels pixelsHigh:pixels
++        bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
++        colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
++    [NSGraphicsContext saveGraphicsState];
++    NSGraphicsContext.currentContext =
++        [NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap];
++    [arrow drawInRect:NSMakeRect(glyph.origin.x * scale, glyph.origin.y * scale,
++                                 glyph.size.width * scale, glyph.size.height * scale)];
++    [NSGraphicsContext restoreGraphicsState];
++    int left = pixels, right = 0, bottom = pixels, top = 0;
++    for (int y = 0; y < pixels; ++y) {
++      for (int x = 0; x < pixels; ++x) {
++        if ([bitmap colorAtX:x y:y].alphaComponent > .001) {
++          left = std::min(left, x);
++          right = std::max(right, x);
++          bottom = std::min(bottom, y);
++          top = std::max(top, y);
++        }
++      }
++    }
++    const int column = (left + right) / 2;
++    int inner = bottom;
++    while (inner <= top &&
++           [bitmap colorAtX:column y:inner].alphaComponent > .001) {
++      ++inner;
++    }
++    // Bitmap rows run from the top, AppKit drawing coordinates from the bottom.
++    return Geometry{arrow, glyph,
++        NSMakePoint((left + right + 1) / (2.0 * scale),
++                    20 - (bottom + top + 1) / (2.0 * scale)),
++        (right - left + 1) / (2.0 * scale) - (inner - bottom) / (2.0 * scale),
++        (inner - bottom) / static_cast<CGFloat>(scale)};
++  }();
++  const CGFloat progress = std::clamp(percent, 0, 100) / 100.0;
++  NSImage* image = [NSImage imageWithSize:NSMakeSize(size, size) flipped:NO
++      drawingHandler:^BOOL(NSRect bounds) {
++    [NSGraphicsContext saveGraphicsState];
++    const CGFloat scale = std::min<CGFloat>(1, size / 20.0);
++    NSAffineTransform* transform = [NSAffineTransform transform];
++    [transform translateXBy:(size - 20 * scale) / 2
++                       yBy:(size - 20 * scale) / 2];
++    [transform scaleBy:scale];
++    [transform concat];
++    const CGFloat inner = geometry.radius - geometry.stroke;
++    NSRect inside = NSMakeRect(geometry.center.x - inner,
++                               geometry.center.y - inner, 2 * inner, 2 * inner);
++    // Draw the SF Symbol exactly once. Dim only the unfinished portion of
++    // its original outer ring, so progress and track cannot disagree in radius
++    // or antialiasing. The arrow remains fully opaque throughout.
++    [geometry.arrow drawInRect:geometry.bounds];
++    if (progress < 1) {
++      [NSGraphicsContext saveGraphicsState];
++      NSBezierPath* outside = [NSBezierPath bezierPathWithRect:NSMakeRect(0, 0, 20, 20)];
++      [outside appendBezierPathWithOvalInRect:inside];
++      outside.windingRule = NSWindingRuleEvenOdd;
++      [outside addClip];
++      NSImage* opacity = [NSImage imageWithSize:NSMakeSize(20, 20) flipped:NO
++          drawingHandler:^BOOL(NSRect mask_bounds) {
++        [[NSColor colorWithWhite:0 alpha:.25] setFill];
++        NSRectFillUsingOperation(mask_bounds, NSCompositingOperationCopy);
++        if (progress > 0) {
++          [NSColor.blackColor setFill];
++          // A filled angular sector covers the whole SF stroke, at any radius.
++          // Only the two endpoint disks use the measured ring centerline.
++          NSBezierPath* sector = [NSBezierPath bezierPath];
++          [sector moveToPoint:geometry.center];
++          [sector lineToPoint:NSMakePoint(geometry.center.x,
++                                          geometry.center.y + 30)];
++          [sector appendBezierPathWithArcWithCenter:geometry.center radius:30
++              startAngle:90 endAngle:90 - 360 * progress clockwise:YES];
++          [sector closePath];
++          [sector fill];
++          const CGFloat angle = M_PI_2 - 2 * M_PI * progress;
++          for (NSPoint cap : {NSMakePoint(geometry.center.x,
++                                          geometry.center.y + geometry.radius),
++                              NSMakePoint(geometry.center.x + geometry.radius * cos(angle),
++                                          geometry.center.y + geometry.radius * sin(angle))}) {
++            [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(
++                cap.x - geometry.stroke / 2, cap.y - geometry.stroke / 2,
++                geometry.stroke, geometry.stroke)] fill];
++          }
++        }
++        return YES;
++      }];
++      [opacity drawInRect:NSMakeRect(0, 0, 20, 20) fromRect:NSZeroRect
++                operation:NSCompositingOperationDestinationIn fraction:1];
++      [NSGraphicsContext restoreGraphicsState];
++    }
++    [NSGraphicsContext restoreGraphicsState];
++    return YES;
++  }];
++  return gfx::ImageSkiaOperations::CreateColorMask(
++      gfx::ImageSkiaFromNSImage(image), color);
++}
++
+ gfx::ImageSkia NativeToolbarSymbol(const views::View* view,
+                                  const char* icon_name, int size,
+                                  SkColor color) {
+   if (!IsFloatingToolbarControl(view)) {
+     return {};
+   }
++  if (icon_name && std::string_view(icon_name) == "kDownloadProgressStatusIcon") {
++    return NativeDownloadProgressSymbol(
++        size, color, view->GetProperty(kNativeDownloadProgressKey));
++  }
+   return NativeToolbarSymbolForIcon(icon_name, size, color);
+ }
+ 
+--- a/chrome/browser/ui/views/toolbar/download_button_views.cc
++++ b/chrome/browser/ui/views/toolbar/download_button_views.cc
+@@ -21,6 +21,8 @@
+ #include "cc/paint/paint_flags.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/views/helium/native_download_progress.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+@@ -357,6 +359,18 @@
+     int progress_percentage) {
+   DownloadProgressRing& progress_ring =
+       DownloadProgressRing::GetOrInstall(GetButton());
++#if BUILDFLAG(IS_MAC)
++  if (helium::IsFloatingToolbarControl(&GetButton()) &&
++      status != ActionItemProgressRingStatus::kScanning) {
++    GetButton().SetProperty(helium::kNativeDownloadProgressKey,
++                            std::clamp(progress_percentage, 0, 100));
++    // Progress can change while the action's vector-icon identity stays the
++    // same. Refresh the state images explicitly using their semantic colors.
++    GetButton().UpdateIcon();
++    progress_ring.SetIdle();
++    return;
++  }
++#endif
+   if (status == ActionItemProgressRingStatus::kIdle) {
+     progress_ring.SetIdle();
+     return;
