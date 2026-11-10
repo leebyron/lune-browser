@@ -25,8 +25,7 @@ appcasts, checksums and compact release/validation metadata. Do not upload dupli
 source kits, Git bundles or unchanged dependency archives. Keep previously
 published assets immutable. The current publisher verifies anonymous source access;
 read [release delivery](agent-docs/project/release-delivery.md) before publishing.
-Release notes should be informative and fun, with new features first, followed by
-bug and security fixes. Put testing, compatibility and known issues afterward.
+Release notes should be terse and factual, with new features first, followed by bug and security fixes. Put testing, compatibility and known issues afterward. Do not add humor or lighthearted framing. Keep each paragraph and list item on one source line and allow natural line wrapping.
 Owner/main/canonical-repository guards protect the local Mac workflows in this
 public repository; no PR or fork code runs on the signing host.
 

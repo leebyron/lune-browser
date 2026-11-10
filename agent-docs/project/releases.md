@@ -120,16 +120,11 @@ the appcast commit/push block; a Lune draft must never advance a public feed.
 
 ## Release-note style
 
-The owner wants release notes to be informative and fun to read. Lead with new
-features, then bug fixes and security changes. Put compatibility, testing,
-known issues and provenance afterward so build machinery does not bury what changed.
+Keep release notes terse and factual. Lead with new features, then bug fixes and security changes. Put compatibility, testing, known issues and provenance afterward.
 
-Use concrete descriptions of what people can now do, with a little warmth and
-personality. Keep it readable and avoid marketing claims or an internal work log.
-Tie each change to the frozen inputs and the previous published version. Never
-invent a security fix or imply an engine upgrade when Chromium is unchanged;
-state its exact version and freshness status. Keep unverified testing and known
-limitations explicit, without allowing them to take over the feature introduction.
+Describe concrete changes without humor, lighthearted framing, marketing language or an internal work log. Tie each change to the frozen inputs and the previous published version. Never invent a security fix or imply an engine upgrade when Chromium is unchanged; state its exact version and freshness status. Keep unverified testing and known limitations explicit.
+
+Keep each paragraph and list item on one source line. Allow the renderer to wrap text naturally; do not insert manual line breaks or hard-wrap prose.
 
 Publication notes may be clarified after release while binaries, tags, frozen
 records and source archives remain immutable. Keep revised publication notes in

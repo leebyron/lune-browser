@@ -80,8 +80,9 @@ additional CI cost; this work does not activate scheduled release jobs.
    and Vite's node_modules/.vite development cache. Keep its archive verification and
    patch log. Existing output caches may be reused only after source comparison.
 2. Finish tools and source validation and commit release notes following the
-   [release-note style](releases.md#release-note-style): informative and fun, with
-   new features first, then bug fixes and security changes. Fetch remote
+   [release-note style](releases.md#release-note-style): terse and factual, with
+   new features first, then bug fixes and security changes. Keep each paragraph
+   and list item on one source line; allow natural line wrapping. Fetch remote
    branches and tags, then run `scripts/release/reserve.py --version VERSION`.
    Review and commit the resulting record, serializing against other allocations.
    Check Chromium freshness with `scripts/release/freshness.py`. Its failure or
