@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "d503fa7151b4c8fbead63f0c252677de524be96b",
+    "commit": "72cd119be74fd692ccea125c7e436f8fca608fdf",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -697,6 +697,10 @@
       {
         "path": "patches/lune/sidebar-selection-contrast.patch",
         "sha256": "89cdc3f38880b1f285bc89588551e45cc5e2f46a4424652317ef75729bbbbc6e"
+      },
+      {
+        "path": "patches/helium/ui/native-window-close.patch",
+        "sha256": "534c5b8e212c1f130ba6204303b78efe28a0fa88f30ff49d9a5e3b7d9ee736b8"
       }
     ]
   },
@@ -1664,6 +1668,21 @@
       "adaptation": "Quilt-developed and owner-accepted on November 9, 2026. Zero-fuzz archive-backed replay preserves accepted native color helpers; composed translation units compile on both architectures. Both accepted-preview browser builds, native fixtures and fresh/saved-width browser checks pass (Intel under Rosetta). See agent-docs/project/features/themed-unpinned-sidebar.md.",
       "commits": [
         "d503fa7151b4c8fbead63f0c252677de524be96b"
+      ]
+    },
+    {
+      "id": "native-window-close",
+      "depends_on": [
+        "native-toolbar-controls"
+      ],
+      "patches": [
+        "patches/helium/ui/native-window-close.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Close the owning browser window from native replacement traffic lights while preserving Chromium close protections.",
+      "adaptation": "Owner accepted Lune Close Test 2 on November 9, 2026. Both architecture builds, native close/menu regressions, updater-isolated UI/settings/persistence smoke checks, and live arm64 unload/multi-window/fullscreen checks pass for the accepted candidate; Intel runtime uses Rosetta. Rebased onto the latest main input with existing patches unchanged and only hunk line positions refreshed. Exact replay and changed-unit validation of the current composition are recorded in agent-docs/project/features/native-window-close.md.",
+      "commits": [
+        "72cd119be74fd692ccea125c7e436f8fca608fdf"
       ]
     }
   ],

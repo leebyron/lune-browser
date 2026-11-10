@@ -1,7 +1,12 @@
 # Development browser builds
 
-Current development input: `inputs/themed-sidebar-1/macos`. Future main builds
-include the accepted themed unpinned sidebar, 216 px default/snap width, and
+Current development input: `inputs/native-window-close-1/macos`. Future main
+builds include the accepted native red-window-button fix and fullscreen teardown
+correction. Both architectures and newly prepared releases inherit the fix from
+the development lock. See [close validation](features/native-window-close.md).
+
+The retained `inputs/themed-sidebar-1/macos` baseline includes
+the accepted themed unpinned sidebar, 216 px default/snap width, and
 Lune selected-row contrast, preserving all earlier development features. See
 [sidebar validation](features/themed-unpinned-sidebar.md). Frozen release records
 retain their original inputs.

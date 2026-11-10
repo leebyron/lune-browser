@@ -7,6 +7,16 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The development input `inputs/native-window-close-1/macos` includes the accepted
+red-window-button fix and safe fullscreen-control teardown. Replacement native
+controls close their owning Chromium widget, retaining unload confirmation and
+ordinary Command-W behavior. It preserves the entire themed-sidebar/startup/
+footer/downloads stack. Both candidate builds and smoke checks pass; exact replay,
+native close regressions, and changed-unit compiles pass on the current main
+composition for both architectures (Intel runtime under Rosetta). The owner
+accepted Lune Close Test 2 and requested adoption for future builds. See
+[native window close](agent-docs/project/features/native-window-close.md).
+
 The development input `inputs/themed-sidebar-1/macos` adds the owner-accepted
 palette-aware unpinned sidebar, a shared 216 px default/snap width, and Lune
 selection colors that are lighter in Dark and darker in Light. Three signed,

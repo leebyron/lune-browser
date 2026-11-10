@@ -1,0 +1,46 @@
+{
+  "status": "local candidate; owner acceptance and publication pending",
+  "platform_base": "1cabd52145c9dc2ef1b3459c71b0133a81b6c4b4",
+  "patch_sha256": "13c9ec38267e6362568bf20c7331e4ed10ccf278ac0bd13c1c2fd44752be7f31",
+  "architectures": {
+    "arm64": {
+      "build": {
+        "exit_code": 0,
+        "duration_seconds": 175.36241817474365,
+        "release_validated": false
+      },
+      "smoke_passed": true,
+      "framework_unchanged": true,
+      "runtime": "native arm64"
+    },
+    "x86_64": {
+      "build": {
+        "exit_code": 0,
+        "duration_seconds": 18.398297786712646,
+        "release_validated": false
+      },
+      "smoke_passed": true,
+      "framework_unchanged": true,
+      "runtime": "Rosetta on arm64"
+    }
+  },
+  "live_arm64_final_preview": "Lune Close Test 2",
+  "live_arm64_final_checks": {
+    "physical_red_button_closes_owning_window": true,
+    "two_tabs_closed_together_other_window_survives": true,
+    "background_tab_beforeunload_prompt": true,
+    "beforeunload_cancel_keeps_window_open": true,
+    "beforeunload_leave_closes_window": true,
+    "classic_fullscreen_close_without_process_crash": true,
+    "command_w_closes_only_active_tab": true
+  },
+  "earlier_candidate_check": "Right-side unpinned header reveal and red-button close passed before the fullscreen-destructor refinement; its callback wiring is unchanged.",
+  "test_harness_correction": "The original smoke harness allowed Sparkle to replace the disposable Intel app with stable. Those results were invalidated. Final smoke runs use an empty local feed and verify framework hashes remain unchanged.",
+  "publication": "No installed app, development lock, frozen release record, feed, or website was changed. No commits or pushes were made.",
+  "remaining_limits": [
+    "owner interaction acceptance",
+    "native Intel hardware",
+    "macOS before 26",
+    "explicit inactive-window click matrix"
+  ]
+}
