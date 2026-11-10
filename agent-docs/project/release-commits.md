@@ -137,8 +137,7 @@ Signed source tags and releases live in `leebyron/lune-browser`. Keep the source
 
 The release-delivery tools now implement frozen records, numeric date versions,
 explicit GN/tool identities, both-target build attestation, GitHub asset publication,
-paired feed commits, latest download links, freshness checks, and native Intel promotion
-requirements. `reserve.py` checks retained allocations before creating a record;
+paired feed commits, latest download links, freshness checks and single-device acceptance. `reserve.py` checks retained allocations before creating a record;
 fetch all remote branches first and serialize the reservation commit. This is a
 manual release flow, not a concurrent release scheduler.
 
@@ -150,7 +149,7 @@ candidate publication and each channel promotion.
 The actual Sparkle 2.10.1 comparator accepts the date format and orders it after
 build 2, including same-day and year transitions. Every candidate still needs
 installed-update tests from build 2, matching signed artifacts, both architecture
-runtime checks, and native Intel owner acceptance or an explicit version/hash-bound owner deferral before stable. Unit tests are
+runtime checks and acceptance on one physical device before stable. Intel checks may run under Rosetta; manual Intel acceptance and per-release deferrals are not required. Publish the authorized release once the technical gates pass. Unit tests are
 not substitutes for those gates.
 
 `prepare.py` inventories every prepared source file and symlink except output

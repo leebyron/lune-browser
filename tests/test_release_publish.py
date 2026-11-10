@@ -24,8 +24,7 @@ class PublicationBoundaryTests(unittest.TestCase):
         acceptance = dict(version=data['version'], source_commit=data['source_commit'],
             architectures={arch: dict(sha256=arch, install=True, browse=True,
                 profile_persistence=True, signed_app=True, installed_update=True,
-                native_hardware=True, devices=['synthetic test Mac'],
-                owner_confirmation='synthetic test fixture') for arch in model.ARCHES})
+                native_hardware=(arch == 'arm64')) for arch in model.ARCHES})
         acceptance_file = root / 'acceptance.json'
         acceptance_file.write_text(json.dumps(acceptance))
         remote = dict(draft=True, prerelease=False, assets=[dict(name=name,
@@ -34,14 +33,15 @@ class PublicationBoundaryTests(unittest.TestCase):
                                acceptance=acceptance_file, checkout=root / 'public', channel='stable')
         return args, data, remote, acceptance
 
-    def test_unaccepted_native_intel_never_reaches_public_mutations(self):
+    def test_no_accepted_device_never_reaches_public_mutations(self):
         with tempfile.TemporaryDirectory() as tmp:
             args, data, remote, acceptance = self.inputs(Path(tmp))
-            acceptance['architectures']['x86_64']['native_hardware'] = False
+            for row in acceptance['architectures'].values():
+                row['native_hardware'] = False
             args.acceptance.write_text(json.dumps(acceptance))
             with patch('publish.manifest', return_value=data), patch('publish.release', return_value=remote), \
                     patch('publish.gh') as github, patch('publish.subprocess.run') as command:
-                with self.assertRaisesRegex(ValueError, 'Native Intel'):
+                with self.assertRaisesRegex(ValueError, 'at least one physical device'):
                     publish.promote(args)
                 github.assert_not_called()
                 command.assert_not_called()

@@ -20,7 +20,7 @@ Lune is a macOS Chromium distribution assembled from ungoogled-chromium, Helium,
 
 ## Project constraints
 
-- Support macOS arm64 and x86_64, with macOS 13 as the current minimum. Record Intel-under-Rosetta results separately from physical Intel acceptance.
+- Support macOS arm64 and x86_64, with macOS 13 as the current minimum. Publish an authorized release after acceptance on one physical device and all technical gates pass; do not wait for manual Intel testing or another per-release approval/deferral. Keep both architecture builds and automated checks, recording Rosetta accurately. This policy supersedes native Intel gates in historical reports.
 - Target the latest macOS Chromium Stable independently of Helium/Xelium cadence. Check official freshness at input selection and immediately before publication and promotion; never downgrade Chromium to accommodate optional UI patches.
 - Keep CI free: use the existing local Mac runner. Owner/main/canonical-repository guards must protect this public repository; do not run untrusted PR or fork code on the signing host. Recurring builds and automatic publication require an explicit request.
 - Source and browser releases belong in public `leebyron/lune-browser`. Upload one `Lune-macos-ARCH.dmg` per architecture, appcasts, checksums and compact delivery metadata. Release-tag and latest URLs reference the same asset. Do not upload duplicate DMGs, source kits, Git bundles or unchanged dependency archives.

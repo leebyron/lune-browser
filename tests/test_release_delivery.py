@@ -82,49 +82,34 @@ class PromotionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'exactly one visible release'):
                     publish.release('v26.1109.1')
 
-    def test_native_acceptance_is_required_only_for_stable(self):
-        data = dict(version='26.1109.1', source_commit='a' * 40,
-                    downloads={arch: {'sha256': arch} for arch in model.ARCHES})
-        acceptance = dict(version=data['version'], source_commit=data['source_commit'],
-                          architectures={arch: dict(sha256=arch, install=True, browse=True,
-                          profile_persistence=True, signed_app=True, installed_update=True)
-                          for arch in model.ARCHES})
-        model.validate_acceptance(data, acceptance, 'staging')
-        with self.assertRaisesRegex(ValueError, 'Native Intel'):
-            model.validate_acceptance(data, acceptance, 'stable')
-        acceptance['architectures']['x86_64'].update(native_hardware=True,
-            devices=['Intel test Mac'], owner_confirmation='Accepted by owner')
-        model.validate_acceptance(data, acceptance, 'stable')
-        for field, value in [('sha256', 'different'), ('installed_update', False)]:
-            changed = copy.deepcopy(acceptance)
-            changed['architectures']['arm64'][field] = value
-            with self.assertRaises(ValueError):
-                model.validate_acceptance(data, changed, 'stable')
-
-
-    def test_owner_can_defer_native_intel_without_waiving_local_checks(self):
+    def test_single_device_acceptance_is_required_only_for_stable(self):
         data = dict(version='26.1109.1', source_commit='a' * 40,
                     downloads={arch: {'sha256': arch} for arch in model.ARCHES})
         acceptance = dict(version=data['version'], source_commit=data['source_commit'],
             architectures={arch: dict(sha256=arch, install=True, browse=True,
                 profile_persistence=True, signed_app=True, installed_update=True,
-                native_hardware=False) for arch in model.ARCHES},
-            native_intel_deferral=dict(owner_approved=True, testing_pending=True,
-                owner_instruction='Publish now; fix any problems in a new version.'))
-        model.validate_acceptance(data, acceptance, 'stable')
-        for field, value in [('owner_approved', False), ('testing_pending', False),
-                             ('owner_instruction', ''), ('owner_instruction', True)]:
-            changed = copy.deepcopy(acceptance)
-            changed['native_intel_deferral'][field] = value
-            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
-                model.validate_acceptance(data, changed, 'stable')
-        for arch in model.ARCHES:
-            for field, value in [('sha256', 'wrong'), ('signed_app', False),
-                                 ('installed_update', False), ('browse', False),
-                                 ('install', False), ('profile_persistence', False)]:
-                changed = copy.deepcopy(acceptance)
-                changed['architectures'][arch][field] = value
-                with self.subTest(arch=arch, field=field), self.assertRaises(ValueError):
+                native_hardware=False) for arch in model.ARCHES})
+        model.validate_acceptance(data, acceptance, 'staging')
+        with self.assertRaisesRegex(ValueError, 'at least one physical device'):
+            model.validate_acceptance(data, acceptance, 'stable')
+        # Either architecture can supply the accepted device. No manual Intel
+        # confirmation or per-release owner deferral is required.
+        for device_arch in model.ARCHES:
+            accepted = copy.deepcopy(acceptance)
+            accepted['architectures'][device_arch]['native_hardware'] = True
+            model.validate_acceptance(data, accepted, 'stable')
+            for arch in model.ARCHES:
+                for field, value in [('sha256', 'wrong'), ('signed_app', False),
+                                     ('installed_update', False), ('browse', False),
+                                     ('install', False), ('profile_persistence', False)]:
+                    changed = copy.deepcopy(accepted)
+                    changed['architectures'][arch][field] = value
+                    with self.subTest(device=device_arch, arch=arch, field=field), self.assertRaises(ValueError):
+                        model.validate_acceptance(data, changed, 'stable')
+            for field in ('version', 'source_commit'):
+                changed = copy.deepcopy(accepted)
+                changed[field] = 'different'
+                with self.subTest(field=field), self.assertRaisesRegex(ValueError, 'different release'):
                     model.validate_acceptance(data, changed, 'stable')
 
 

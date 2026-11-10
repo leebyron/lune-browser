@@ -154,7 +154,7 @@ def promote(a):
             raise ValueError('Refuse stale feed promotion')
         if old['version']==data['version'] and old!=data:
             raise ValueError('Same version has different publication data')
-    # Validate acceptance and any recorded owner deferral before public changes.
+    # Require single-device acceptance and both architecture checks before public changes.
     if remote['prerelease']:
         raise ValueError('Production delivery does not promote prereleases')
     fresh(data,a.directory,'production-publication')

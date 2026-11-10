@@ -12,7 +12,7 @@ Read [current status](status.md) for published releases, the active release and 
 
 ## Finish the active release
 
-Build 26.1110.1 from its frozen source tag, validate the signed apps and installed updates on both architectures, then prepare its unpublished GitHub draft. Publication must pass current freshness, artifact-bound acceptance and asset/readback gates. Physical Intel checks or an explicit version-bound owner deferral remain separate from Rosetta results. Existing .1/.2 users need a manual install after deletion of the old feed repository.
+Build 26.1110.1 from its frozen source tag, validate the signed apps and installed updates on both architectures, then prepare its unpublished GitHub draft. Publication must pass current freshness, artifact-bound acceptance and asset/readback gates. Publish after acceptance on one physical device and all technical gates pass; do not wait for manual Intel testing or a per-release approval/deferral. Record Rosetta accurately. Existing .1/.2 users need a manual install after deletion of the old feed repository.
 
 ## Improve upstream integration
 
@@ -25,7 +25,7 @@ Target the latest official macOS Chromium Stable independently of Helium, ungoog
 
 ## Strengthen platform acceptance
 
-- Complete artifact-specific native Intel installation, browsing, persistence and update checks on the owner's macOS 13.7.8 and 26.6.2 Macs.
+- Optionally extend compatibility coverage with artifact-specific native Intel checks on the owner's macOS 13.7.8 and 26.6.2 Macs, without blocking publication.
 - Verify older-macOS fallback appearance and the reported default-browser prompt behavior without claiming Rosetta covers them.
 - Keep focused native UI regression tests and explicit owner acceptance for visual changes.
 - Resolve open UI issues in individual scopes and single-thesis commits.

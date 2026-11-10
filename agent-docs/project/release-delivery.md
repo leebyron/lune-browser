@@ -111,18 +111,8 @@ additional CI cost; this work does not activate scheduled release jobs.
    uploads only browser delivery files and compact metadata. GitHub asset digests
    must match. Keep upload-receipt.json; promotion rechecks every uploaded asset
    and the public source refs. No asset is overwritten or dependency archive copied.
-8. Download the draft's signed DMG using the owner's authenticated GitHub access
-   for native Intel acceptance. Use a loopback HTTP test fixture to exercise
-   build 2's real updater with these exact final DMG bytes; this is a local test,
-   not a staging delivery channel. Record hardware results and owner confirmation
-   against the DMG hashes. Never label Rosetta checks as native Intel acceptance.
-9. After native Intel acceptance or an explicit owner-approved deferral recorded
-   in the version/hash-bound acceptance JSON, run
-   the reviewed publisher's `promote --channel stable --source-checkout FROZEN`
-   with the publication directory, acceptance JSON, and public checkout. All
-   acceptance checks (including any recorded native Intel deferral) and a fresh
-   Chromium lookup pass before it undrafts the final
-   release. It verifies anonymous immutable downloads, rechecks freshness, commits
+8. Record acceptance on one physical device against the version, source commit and exact DMG hashes. Both architectures must pass the software checks; Intel may run under Rosetta on the accepted Apple silicon Mac. Do not wait for manual Intel testing, another owner confirmation or a deferral. Additional hardware/OS checks are optional follow-up.
+9. After single-device acceptance and all technical gates pass, publish the authorized release using the reviewed publisher's `promote --channel stable --source-checkout FROZEN` with the publication directory, acceptance JSON and public checkout. Acceptance and a fresh Chromium lookup pass before it undrafts the final release. It verifies anonymous immutable downloads, rechecks freshness, commits
    both stable feeds, then marks the release latest. Verify both raw feeds,
    both latest download links, the release page and public HTTPS installed updates,
    then verify the website resolves through those latest links. Deploy the website only when its source changes. If a step fails, preserve existing feeds and resume
@@ -131,13 +121,11 @@ additional CI cost; this work does not activate scheduled release jobs.
 Release tags now belong to the source repository and identify the frozen source
 commit directly; release.json records its full SHA. Keep builds 1 and 2 and their source unchanged.
 
-## Manual Intel checklist
+## Optional manual Intel compatibility checklist
 
 The owner has two native Intel Macs running macOS 13.7.8 and 26.6.2, confirmed
 on November 9. The 13.7.8 machine exercises the older-system glass fallback;
-26.6.2 exercises the native glass path. These are planned test environments,
-not completed acceptance results. The owner deferred these checks for 26.1109.1;
-keep them as post-release follow-up rather than asserting they passed. Use the
+26.6.2 exercises the native glass path. These are optional follow-up test environments, not publication gates or completed acceptance results. Single-device acceptance is sufficient; do not delay publication for these checks or request a deferral. Use the
 candidate's Intel DMG on each test Mac. Record model,
 macOS version, downloaded filename/hash and whether Rosetta is involved (native
 Intel is required here). Drag Lune to Applications and launch normally through
@@ -225,16 +213,14 @@ JSON shape. Populate it from completed checks, never from planned work:
       "profile_persistence": false,
       "signed_app": false,
       "installed_update": false,
-      "native_hardware": false,
-      "devices": [],
-      "owner_confirmation": ""
+      "native_hardware": false
     }
   }
 }
 ```
 
 Rosetta may establish the Intel row's pre-publication software checks; record
-that execution mode explicitly and leave native_hardware false. Stable requires native Intel results, model/OS entries and owner confirmation, or the explicit version/hash-bound deferral described above. Include report hashes and concise test results as additional fields
+that execution mode explicitly and leave native_hardware false. Stable requires at least one architecture row with native_hardware true and both rows passing all software checks. No manual Intel result, owner_confirmation field or deferral is required. Include report hashes and concise test results as additional fields
 so the booleans can be audited. The validation.json uploaded with the draft
 is immutable; later hardware acceptance is recorded separately in the promoted
 feed commit. Do not overwrite the original candidate evidence.

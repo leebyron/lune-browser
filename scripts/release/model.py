@@ -86,15 +86,7 @@ def validate_acceptance(data, acceptance, channel):
             raise ValueError(f'Acceptance identifies different bytes: {arch}')
         if not all(row.get(k) is True for k in ('install','browse','profile_persistence','signed_app','installed_update')):
             raise ValueError(f'Incomplete architecture acceptance: {arch}')
-    if channel=='stable':
-        intel=acceptance['architectures']['x86_64']
-        native_verified = (intel.get('native_hardware') is True and
-                           intel.get('devices') and intel.get('owner_confirmation'))
-        decision = acceptance.get('native_intel_deferral', {})
-        deferred_by_owner = (intel.get('native_hardware') is False and
-                             decision.get('owner_approved') is True and
-                             decision.get('testing_pending') is True and
-                             isinstance(decision.get('owner_instruction'), str) and
-                             bool(decision['owner_instruction'].strip()))
-        if not native_verified and not deferred_by_owner:
-            raise ValueError('Native Intel acceptance or an explicit owner-approved deferral is required before stable promotion')
+    if channel=='stable' and not any(
+            acceptance['architectures'][arch].get('native_hardware') is True
+            for arch in ARCHES):
+        raise ValueError('Acceptance on at least one physical device is required before stable promotion')
