@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "bc7e8558d217c37ee41168ff2c0744a0a2e7183b",
+    "commit": "d503fa7151b4c8fbead63f0c252677de524be96b",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -685,6 +685,18 @@
       {
         "path": "patches/lune/continue-session-default.patch",
         "sha256": "fad81b7cf863864218703c69c0c9a3e451f3d1594f00c645fa0ea9af481b52fd"
+      },
+      {
+        "path": "patches/helium/ui/themed-unpinned-sidebar.patch",
+        "sha256": "bb35fc1edc5dcc153be4bf2f89cec0e6418600edb56b943752e30728022da85c"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-default-width-216.patch",
+        "sha256": "fc8fad4e6ca612fb251a50831b8ab5fc88ed5b2e375766bba7fdaafe7f02ebb1"
+      },
+      {
+        "path": "patches/lune/sidebar-selection-contrast.patch",
+        "sha256": "89cdc3f38880b1f285bc89588551e45cc5e2f46a4424652317ef75729bbbbc6e"
       }
     ]
   },
@@ -1609,6 +1621,49 @@
       "adaptation": "Quilt-developed preference-default change with matching existing unit-test expectation. Replayed onto the current main input without changing existing patches. Zero-fuzz, zero-offset replay and both architecture translation-unit compiles pass; no full browser rebuild or runtime acceptance. See agent-docs/project/features/startup-default.md.",
       "commits": [
         "bc7e8558d217c37ee41168ff2c0744a0a2e7183b"
+      ]
+    },
+    {
+      "id": "themed-unpinned-sidebar",
+      "depends_on": [
+        "command-bar-shared-theme-tint"
+      ],
+      "patches": [
+        "patches/helium/ui/themed-unpinned-sidebar.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Theme detached sidebar glass, selection and hover from the owning mounted-sidebar palette while retaining native System/accessibility fallback.",
+      "adaptation": "Quilt-developed and owner-accepted on November 9, 2026. Zero-fuzz archive-backed replay preserves accepted native color helpers; composed translation units compile on both architectures. Both accepted-preview browser builds, native fixtures and fresh/saved-width browser checks pass (Intel under Rosetta). See agent-docs/project/features/themed-unpinned-sidebar.md.",
+      "commits": [
+        "46d24c60910c644423e68957840c54dd410d41cc"
+      ]
+    },
+    {
+      "id": "sidebar-default-width-216",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/sidebar-default-width-216.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Share a 216 px expanded-sidebar default and resize snap target while preserving saved widths.",
+      "adaptation": "Quilt-developed and owner-accepted on November 9, 2026. Zero-fuzz archive-backed replay preserves accepted native color helpers; composed translation units compile on both architectures. Both accepted-preview browser builds, native fixtures and fresh/saved-width browser checks pass (Intel under Rosetta). See agent-docs/project/features/themed-unpinned-sidebar.md.",
+      "commits": [
+        "a8e0b32c327f5ffb583ca1afb1609c505672f661"
+      ]
+    },
+    {
+      "id": "lune-sidebar-selection-contrast",
+      "depends_on": [
+        "themed-unpinned-sidebar"
+      ],
+      "patches": [
+        "patches/lune/sidebar-selection-contrast.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Make built-in Lune selected rows lighter than the Dark sidebar and darker than the Light sidebar.",
+      "adaptation": "Quilt-developed and owner-accepted on November 9, 2026. Zero-fuzz archive-backed replay preserves accepted native color helpers; composed translation units compile on both architectures. Both accepted-preview browser builds, native fixtures and fresh/saved-width browser checks pass (Intel under Rosetta). See agent-docs/project/features/themed-unpinned-sidebar.md.",
+      "commits": [
+        "d503fa7151b4c8fbead63f0c252677de524be96b"
       ]
     }
   ],

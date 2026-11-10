@@ -1,10 +1,16 @@
 # Development browser builds
 
+Current development input: `inputs/themed-sidebar-1/macos`. Future main builds
+include the accepted themed unpinned sidebar, 216 px default/snap width, and
+Lune selected-row contrast, preserving all earlier development features. See
+[sidebar validation](features/themed-unpinned-sidebar.md). Frozen release records
+retain their original inputs.
+
 The current development input also defaults macOS startup to
 **Continue where you left off** on both architectures; see
 [startup default](features/startup-default.md) for scope and validation.
 
-Current development input (2026-11-09): `inputs/older-macos-appearance-1/macos`
+Earlier development input (2026-11-09): `inputs/older-macos-appearance-1/macos`
 pins the reviewed UI and release-delivery stack plus older-macOS fallback
 edges/shadows and native corner matching. Both supported architectures and new
 release preparation inherit these patches from `manifests/browser.lock.json`.

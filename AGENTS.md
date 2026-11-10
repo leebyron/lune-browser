@@ -7,6 +7,15 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The development input `inputs/themed-sidebar-1/macos` adds the owner-accepted
+palette-aware unpinned sidebar, a shared 216 px default/snap width, and Lune
+selection colors that are lighter in Dark and darker in Light. Three signed,
+single-thesis platform commits follow the session-restore default input. Both
+accepted-preview browser builds, exact composed-unit compiles, native fixtures,
+and fresh/saved-width browser checks pass (Intel under Rosetta). Main adopts the
+input for future builds; frozen release inputs are unchanged. See
+[themed sidebar](agent-docs/project/features/themed-unpinned-sidebar.md).
+
 The development input `inputs/continue-session-default-2/macos` defaults macOS
 startup to **Continue where you left off**, preserving saved and managed choices.
 It retains the accepted footer prompts, downloads, Dock-prompt removal, and
