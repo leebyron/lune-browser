@@ -10,9 +10,9 @@ Read [current status](status.md) for published releases, the active release and 
 - Paired GitHub stable feeds, one DMG per architecture, version-specific downloads and fixed latest links on the Cloudflare website.
 - Owner/main/repository guards on the free self-hosted Mac workflows.
 
-## Finish the active release
+## Maintain release delivery
 
-Build 26.1110.1 from its frozen source tag, validate the signed apps and installed updates on both architectures, then prepare its unpublished GitHub draft. Publication must pass current freshness, artifact-bound acceptance and asset/readback gates. Publish after acceptance on one physical device and all technical gates pass; do not wait for manual Intel testing or a per-release approval/deferral. Record Rosetta accurately. Existing .1/.2 users need a manual install after deletion of the old feed repository.
+26.1110.1 is published with canonical feeds and fixed latest-download links. For each authorized release, publish after acceptance on one physical device and all technical gates pass; do not wait for manual Intel testing or a per-release approval/deferral. Keep both architecture builds and automated checks, recording Rosetta accurately. Existing .1/.2 users need a manual install after deletion of the old feed repository.
 
 ## Improve upstream integration
 
