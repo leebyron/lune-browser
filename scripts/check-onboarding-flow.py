@@ -7,6 +7,7 @@ import argparse
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path, help='Build directory containing Lune.app and chromedriver')
 parser.add_argument('evidence', type=Path, help='Directory for reports and the disposable profile')
+parser.add_argument('--skip-use-defaults', action='store_true', help='Skip the final shortcut that enables optional Helium services.')
 args = parser.parse_args()
 build = args.output.resolve()
 out = args.evidence.resolve()
@@ -145,14 +146,17 @@ try:
  wait("return document.querySelector('#services-page.visible')");next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['retainedSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['retainedSearch'].startswith('DuckDuckGo')
- nav('chrome://setup/');wait("return document.querySelector('#welcome-page input') && !document.querySelector('#welcome-page input').checked")
- js("document.querySelector('input').click(); document.querySelector('.welcome-actions .ghost').click()")
- wait("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
- nav('chrome://settings/');wait('return !!chrome.settingsPrivate')
- report['defaultsUpdates']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.browser_updates',p=>done(p.value));",True)
- assert report['defaultsUpdates'] is True
- report['defaultsServices']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.enabled',p=>done(p.value));",True)
- assert report['defaultsServices'] is True
+ if not args.skip_use_defaults:
+  nav('chrome://setup/');wait("return document.querySelector('#welcome-page input') && !document.querySelector('#welcome-page input').checked")
+  js("document.querySelector('input').click(); document.querySelector('.welcome-actions .ghost').click()")
+  wait("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
+  nav('chrome://settings/');wait('return !!chrome.settingsPrivate')
+  report['defaultsUpdates']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.browser_updates',p=>done(p.value));",True)
+  assert report['defaultsUpdates'] is True
+  report['defaultsServices']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.enabled',p=>done(p.value));",True)
+  assert report['defaultsServices'] is True
+ else:
+  report['useDefaultsConsentBranch']='skipped; services remain disabled'
  report['pass']=True
 finally:
  (out/'report.json').write_text(json.dumps(report,indent=2))
