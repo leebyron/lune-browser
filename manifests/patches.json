@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "bd3ea4cf1b20539c1c862af1845efa073d545a30",
+    "commit": "c4f0680e7b37bc5585624b357eba827da88d8647",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -661,6 +661,10 @@
       {
         "path": "patches/helium/ui/native-legacy-frame-radius.patch",
         "sha256": "2e339c4b510179cb99279d84512ff0bfc29bc387d9e1912fd446dd7a600eab61"
+      },
+      {
+        "path": "patches/lune/remove-dock-infobar.patch",
+        "sha256": "ec8f7fbe38bb28842f1f6b0bffb9549cc4a121fe21a3b443e999db67758f9008"
       }
     ]
   },
@@ -1496,6 +1500,21 @@
       "adaptation": "Owner requested future-build adoption. Strict replay and both architecture checks pass; native macOS 13 visual acceptance remains pending. See agent-docs/project/builds/2026-11-09-older-macos-appearance.md.",
       "commits": [
         "bd3ea4cf1b20539c1c862af1845efa073d545a30"
+      ]
+    },
+    {
+      "id": "remove-dock-infobar",
+      "depends_on": [
+        "native-legacy-frame-radius"
+      ],
+      "patches": [
+        "patches/lune/remove-dock-infobar.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Remove the macOS Dock-pinning promotion from the browser message-bar area.",
+      "adaptation": "Developed with quilt against prepared Chromium 158 source, then placed after the current older-macOS appearance input. Zero-fuzz replay, patch lint, and changed-unit arm64/x86_64 compilation pass. See agent-docs/project/features/dock-infobar.md.",
+      "commits": [
+        "c4f0680e7b37bc5585624b357eba827da88d8647"
       ]
     }
   ],

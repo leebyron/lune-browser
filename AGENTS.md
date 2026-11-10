@@ -7,6 +7,12 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+Future development builds disable the macOS Dock-pinning message bar through
+`inputs/remove-dock-infobar-1/macos`, retaining the older-macOS appearance fixes.
+Strict replay, patch lint, and changed-unit compilation pass on both architectures;
+full browser/runtime checks were not run for this removal. Existing frozen release
+inputs are unchanged. See [Dock message bar](agent-docs/project/features/dock-infobar.md).
+
 Lune `26.1109.1` is published as the production release in `leebyron/lune-downloads`.
 The signed private source tag identifies frozen commit `24f6531a`; publication
 policy is tracked separately on `production-release-policy`. Both frozen builds,
