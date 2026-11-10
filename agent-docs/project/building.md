@@ -299,7 +299,7 @@ The downloaded Sparkle 2.10.1 tools archive has SHA-256
 `1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27`, verified
 against its GitHub release asset digest. Tools/cache are ignored by Git.
 
-Notarization uses Keychain profile `lune-notary`; verify access with `xcrun notarytool history --keychain-profile lune-notary` before signing. Provision or restore the profile when it is missing by creating an app-specific password at
+Notarization uses Keychain profile `lune-notary` for team `RBC9EP7948`. The owner restored it on November 10, 2026, and an authenticated history request succeeded. The password stays in macOS Keychain; never copy it into Git, chat, logs or documentation. Verify access with `xcrun notarytool history --keychain-profile lune-notary` before signing. Provision or restore the profile when it is missing by creating an app-specific password at
 [Apple Account](https://account.apple.com/), then run this in an interactive terminal:
 
 ```sh
