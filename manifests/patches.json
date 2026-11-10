@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "72cd119be74fd692ccea125c7e436f8fca608fdf",
+    "commit": "9ceaaad8a2f71ece40aab464c6504ee1f356312f",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -701,6 +701,14 @@
       {
         "path": "patches/helium/ui/native-window-close.patch",
         "sha256": "534c5b8e212c1f130ba6204303b78efe28a0fa88f30ff49d9a5e3b7d9ee736b8"
+      },
+      {
+        "path": "patches/helium/ui/app-menu-update-check.patch",
+        "sha256": "03f8811ed888d35438f75eaddbf9aa12a0adf6b031b40bc29e8190fb95d41973"
+      },
+      {
+        "path": "patches/lune/canonical-update-repository.patch",
+        "sha256": "b9141d4bc20e39935d8b46f49ad589bdb6eb3b4c2dc1c25af23c738e478869f9"
       }
     ]
   },
@@ -1683,6 +1691,32 @@
       "adaptation": "Owner accepted Lune Close Test 2 on November 9, 2026. Both architecture builds, native close/menu regressions, updater-isolated UI/settings/persistence smoke checks, and live arm64 unload/multi-window/fullscreen checks pass for the accepted candidate; Intel runtime uses Rosetta. Rebased onto the latest main input with existing patches unchanged and only hunk line positions refreshed. Exact replay and changed-unit validation of the current composition are recorded in agent-docs/project/features/native-window-close.md.",
       "commits": [
         "72cd119be74fd692ccea125c7e436f8fca608fdf"
+      ]
+    },
+    {
+      "id": "app-menu-update-check",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/app-menu-update-check.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Add the localized macOS Check for Updates menu action through About and the existing shared updater; preserve consent and active update state.",
+      "adaptation": "Developed with quilt and refreshed/unmerged into the macOS platform. Owner accepted Lune Update Test on November 10, 2026. Both browser builds, native menu/state fixtures and UI/settings/persistence smoke checks pass (Intel under Rosetta); strict replay matches all twelve changed source files. See agent-docs/project/features/app-menu-update-check.md.",
+      "commits": [
+        "e02bcdba6eecaa8fa953551fec10c2e6388c98a4"
+      ]
+    },
+    {
+      "id": "canonical-update-repository",
+      "depends_on": [],
+      "patches": [
+        "patches/lune/canonical-update-repository.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use canonical lune-browser GitHub Sparkle feeds and disclose GitHub browser-update delivery separately from optional Helium services.",
+      "adaptation": "Developed with quilt and refreshed/unmerged into the macOS platform. Owner accepted Lune Update Test on November 10, 2026. Both browser builds, native menu/state fixtures and UI/settings/persistence smoke checks pass (Intel under Rosetta); strict replay matches all twelve changed source files. See agent-docs/project/features/app-menu-update-check.md.",
+      "commits": [
+        "9ceaaad8a2f71ece40aab464c6504ee1f356312f"
       ]
     }
   ],
