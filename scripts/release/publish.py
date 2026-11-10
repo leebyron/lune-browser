@@ -70,21 +70,35 @@ def check_assets(data,remote):
             raise ValueError(f'Published asset mismatch: {name}')
 
 
+def public_source(data, checkout):
+    """Verify anonymous source access at the exact release and component refs."""
+    lock = json.loads((checkout/'manifests/browser.lock.json').read_text())
+    repository = lock['repository']
+    if repository != 'https://github.com/leebyron/lune-browser.git':
+        raise ValueError('Unexpected source repository')
+    visibility = json.loads(subprocess.check_output([
+        'curl', '--fail', '--silent', '--show-error',
+        'https://api.github.com/repos/leebyron/lune-browser'], text=True))
+    if visibility.get('private') is not False:
+        raise ValueError('Source repository is not publicly accessible')
+    expected = {f"refs/tags/{data['tag']}": data['source_commit']}
+    expected.update({row['ref']: row['commit'] for row in lock['components'].values()})
+    refs = [name for ref in expected for name in (ref, ref+'^{}')]
+    output = subprocess.check_output([
+        'git', '-c', 'credential.helper=', 'ls-remote', '--exit-code',
+        repository, *refs], text=True)
+    actual = {ref: commit for commit, ref in (line.split() for line in output.splitlines())}
+    for ref, commit in expected.items():
+        if actual.get(ref+'^{}', actual.get(ref)) != commit:
+            raise ValueError(f'Public source ref missing or changed: {ref}')
+    return dict(repository=repository, tag=data['tag'], commit=data['source_commit'], refs=expected)
+
+
 def upload(a):
     data=manifest(a.directory, a.source_checkout)
-    # Sources are explicitly enumerated: no arbitrary workspace glob or credential files.
-    source=json.loads((a.source_directory/'source-assets.json').read_text())
-    if source['orchestrator_commit']!=data['source_commit']:
-        raise ValueError('Source kit is from a different source commit')
-    paths=[a.directory/name for name in data['assets']]+[a.directory/'release.json',a.directory/'SHA256SUMS',
-        a.source_directory/source['source_kit'],a.source_directory/'source-assets.json']
-    for row in source['archives']:
-        p=a.archives/row['filename']
-        import hashlib
-        algorithm='sha256' if 'sha256' in row else 'sha512'
-        with p.open('rb') as stream: digest=hashlib.file_digest(stream,algorithm).hexdigest()
-        if digest!=row[algorithm]:raise ValueError('Source archive changed')
-        paths.append(p)
+    source=public_source(data, a.source_checkout)
+    # Public Git refs provide source; release uploads contain browser delivery only.
+    paths=[a.directory/name for name in data['assets']]+[a.directory/'release.json',a.directory/'SHA256SUMS']
     fresh(data,a.directory,'candidate')
     existing=releases()
     if any(r['tag_name']==data['tag'] for r in existing):
@@ -95,14 +109,14 @@ def upload(a):
     for path in paths:
         gh('release','upload',data['tag'],path,'--repo',REPOSITORY)
     remote=release(data['tag']);check_assets(data,remote)
-    # Verify source uploads too, using GitHub's server-computed digest.
+    # Verify every uploaded file using GitHub's server-computed digest.
     uploaded={x['name']:x for x in remote['assets']}
     for path in paths:
         if uploaded[path.name].get('digest')!='sha256:'+sha(path):
             raise ValueError(f'Uploaded bytes differ: {path.name}')
     receipt = dict(version=data['version'], source_commit=data['source_commit'],
                    assets={p.name: dict(sha256=sha(p), size=p.stat().st_size) for p in paths},
-                   publisher_commit=git(ROOT, 'rev-parse', 'HEAD'))
+                   publisher_commit=git(ROOT, 'rev-parse', 'HEAD'), public_source=source)
     (a.directory/'upload-receipt.json').write_text(json.dumps(receipt, indent=2)+'\n')
     print('Verified draft uploaded. It remains unpublished until production acceptance passes.')
 
@@ -114,6 +128,8 @@ def promote(a):
     if receipt['version'] != data['version'] or receipt['source_commit'] != data['source_commit']:
         raise ValueError('Upload receipt identifies a different release')
     check_assets(receipt,remote)
+    if 'public_source' in receipt and public_source(data, a.source_checkout) != receipt['public_source']:
+        raise ValueError('Public source identity changed since upload')
     validate_acceptance(data, json.loads(a.acceptance.read_text()), a.channel)
     acceptance=json.loads(a.acceptance.read_text())
     if a.channel=='stable':
@@ -173,7 +189,7 @@ def main():
         q.add_argument('--source-checkout',type=Path,default=ROOT,
                        help='Clean checkout of the exact frozen browser source commit')
         if name=='upload':
-            q.add_argument('--notes-file',type=Path);q.add_argument('--source-directory',type=Path,required=True);q.add_argument('--archives',type=Path,required=True)
+            q.add_argument('--notes-file',type=Path)
         else:
             q.add_argument('--channel',choices=['stable'],default='stable')
             q.add_argument('--acceptance',type=Path,required=True);q.add_argument('--checkout',type=Path,required=True)
