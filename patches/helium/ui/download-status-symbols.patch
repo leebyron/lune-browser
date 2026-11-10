@@ -1,0 +1,274 @@
+--- a/chrome/browser/download/bubble/download_bubble_display_info.h
++++ b/chrome/browser/download/bubble/download_bubble_display_info.h
+@@ -29,6 +29,10 @@
+   int in_progress_count = 0;
+   // Count of in-progress downloads (by the above definition) that are paused.
+   int paused_count = 0;
++  // Successful, safe completions have their own attention clock. Interrupted,
++  // canceled, dangerous and insecure items must never produce a checkmark.
++  base::Time last_unactioned_success_time;
++  bool has_unactioned_error = false;
+ 
+   // Returns a reference to a singleton empty struct. This is for callers who
+   // return references but don't have anything to return in some cases.
+--- a/chrome/browser/download/bubble/download_bubble_update_service.cc
++++ b/chrome/browser/download/bubble/download_bubble_update_service.cc
+@@ -169,6 +169,16 @@
+     return;
+   }
+   ++info.all_models_size;
++  if (!model.WasActionedOn()) {
++    if (model.GetState() == download::DownloadItem::COMPLETE &&
++        !model.IsDangerous() && !model.IsInsecure()) {
++      info.last_unactioned_success_time = std::max(
++          info.last_unactioned_success_time, model.GetEndTime());
++    } else if (model.GetState() == download::DownloadItem::INTERRUPTED) {
++      // Interrupted DownloadItems need not have an end timestamp.
++      info.has_unactioned_error = true;
++    }
++  }
+   if (model.GetDangerType() == download::DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING &&
+       model.GetState() != download::DownloadItem::CANCELLED) {
+     info.has_deep_scanning = true;
+--- a/chrome/browser/download/bubble/download_display_controller.cc
++++ b/chrome/browser/download/bubble/download_display_controller.cc
+@@ -284,7 +284,9 @@
+   DownloadDisplay::IconUpdateInfo updates;
+ 
+   if (info.in_progress_count > 0) {
+-    updates.new_state = DownloadIconState::kProgress;
++    updates.new_state = info.paused_count == info.in_progress_count
++                            ? DownloadIconState::kPaused
++                            : DownloadIconState::kProgress;
+     updates.new_active = info.paused_count < info.in_progress_count
+                              ? DownloadIconActive::kActive
+                              : DownloadIconActive::kInactive;
+@@ -292,12 +294,14 @@
+     updates.new_state = DownloadIconState::kComplete;
+     bool complete_unactioned =
+         HasRecentCompleteDownload(kToolbarIconActiveTimeInterval,
+-                                  info.last_completed_time) &&
+-        info.has_unactioned;
++                                  info.last_unactioned_success_time);
+     bool exited_fullscreen_owed_details =
+         !display_->IsFullscreenWithParentViewHidden() &&
+         should_show_details_on_exit_fullscreen_;
+-    if (complete_unactioned || exited_fullscreen_owed_details) {
++    if (complete_unactioned ||
++        (exited_fullscreen_owed_details &&
++         HasRecentCompleteDownload(kToolbarIconVisibilityTimeInterval,
++                                   info.last_unactioned_success_time))) {
+       updates.new_active = DownloadIconActive::kActive;
+       ScheduleToolbarInactive(kToolbarIconActiveTimeInterval);
+     } else {
+@@ -305,6 +309,12 @@
+     }
+   }
+ 
++  // Active transfers and pauses take precedence over failures. A recent
++  // unactioned failure takes precedence over a successful completion badge.
++  if (info.in_progress_count == 0 && info.has_unactioned_error) {
++    updates.new_state = DownloadIconState::kInterrupted;
++  }
++
+   if (info.has_deep_scanning) {
+     updates.new_state = DownloadIconState::kDeepScanning;
+   }
+@@ -315,7 +325,8 @@
+     updates.new_state = DownloadIconState::kContentCheckPending;
+   }
+ 
+-  if (updates.new_state != DownloadIconState::kComplete ||
++  if ((updates.new_state != DownloadIconState::kComplete &&
++       updates.new_state != DownloadIconState::kInterrupted) ||
+       HasRecentCompleteDownload(kToolbarIconVisibilityTimeInterval,
+                                 info.last_completed_time)) {
+     ShowToolbarButton();
+--- a/chrome/browser/ui/download/download_display.h
++++ b/chrome/browser/ui/download/download_display.h
+@@ -20,6 +20,8 @@
+   enum class IconState {
+     kProgress,
+     kComplete,
++    kPaused,
++    kInterrupted,
+     kDeepScanning,
+     kContentCheckPending,
+   };
+--- a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
++++ b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
+@@ -36,6 +36,7 @@
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_contents_view.h"
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_started_animation_views.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/download_button.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+@@ -69,6 +70,24 @@
+ 
+ namespace {
+ 
++#if BUILDFLAG(IS_MAC)
++// Stable icon identities for the native renderer. Share Chromium's download
++// paths as the fallback when native symbols/materials are unavailable.
++const gfx::VectorIcon kDownloadProgressStatusIcon(
++    kDownloadIcon.reps.data(), kDownloadIcon.reps.size(),
++    "kDownloadProgressStatusIcon");
++const gfx::VectorIcon kDownloadCompleteStatusIcon(
++    kDownloadIcon.reps.data(), kDownloadIcon.reps.size(),
++    "kDownloadCompleteStatusIcon");
++const gfx::VectorIcon kDownloadPausedStatusIcon(
++    kDownloadIcon.reps.data(), kDownloadIcon.reps.size(),
++    "kDownloadPausedStatusIcon");
++const gfx::VectorIcon kDownloadErrorStatusIcon(
++    kDownloadIcon.reps.data(), kDownloadIcon.reps.size(),
++    "kDownloadErrorStatusIcon");
++#endif
++
++
+ // Close the partial bubble after 5 seconds if the user doesn't interact with
+ // it.
+ constexpr base::TimeDelta kAutoClosePartialViewDelay = base::Seconds(5);
+@@ -332,7 +351,7 @@
+   if (state_ == IconState::kComplete || progress_info_.download_count == 0) {
+     // Do not show the progress ring when there is no in progress download.
+     ring_status = ActionItemProgressRingStatus::kIdle;
+-  } else if (is_dormant_) {
++  } else if (is_dormant_ || state_ == IconState::kPaused) {
+     ring_status = ActionItemProgressRingStatus::kDormant;
+   } else if (ShouldShowScanningAnimation()) {
+     ring_status = ActionItemProgressRingStatus::kScanning;
+@@ -375,6 +394,35 @@
+                            ? kDownloadIcon
+                            : kDownloadToolbarButtonChromeRefreshOldIcon);
+   }
++#if BUILDFLAG(IS_MAC)
++  // Native status badges replace the underline and the overlaid ring/count.
++  // Scanning retains its existing dedicated progress treatment.
++  auto* anchor_view = GetPinnedToolbarActions(browser_view_)
++                          ->GetBubbleAnchor(kActionShowDownloads).GetIfView();
++  const bool native_status = helium::IsFloatingToolbarControl(anchor_view) &&
++      state_ != IconState::kDeepScanning &&
++      state_ != IconState::kContentCheckPending;
++  if (native_status) {
++    switch (state_) {
++      case IconState::kProgress:
++        new_icon = &kDownloadProgressStatusIcon;
++        break;
++      case IconState::kPaused:
++        new_icon = &kDownloadPausedStatusIcon;
++        break;
++      case IconState::kInterrupted:
++        new_icon = &kDownloadErrorStatusIcon;
++        break;
++      case IconState::kComplete:
++        new_icon = is_active ? &kDownloadCompleteStatusIcon : &kDownloadIcon;
++        break;
++      default:
++        break;
++    }
++    ring_status = ActionItemProgressRingStatus::kIdle;
++    is_icon_active = false;
++  }
++#endif
+   action_item_->SetProperty(kActionItemUnderlineIndicatorKey, is_icon_active);
+ 
+   action_item_->SetImage(ui::ImageModel::FromVectorIcon(*new_icon, icon_color));
+@@ -389,7 +437,13 @@
+     tooltip_for_progress_count = l10n_util::GetPluralStringFUTF16(
+         IDS_DOWNLOAD_BUBBLE_TOOLTIP_IN_PROGRESS_COUNT, progress_download_count);
+   }
+-  if (progress_download_count == 0 && is_icon_active) {
++  if (state_ == IconState::kPaused) {
++    action_item_->SetTooltipText(
++        l10n_util::GetStringUTF16(IDS_DOWNLOAD_PROGRESS_PAUSED));
++  } else if (state_ == IconState::kInterrupted) {
++    action_item_->SetTooltipText(
++        l10n_util::GetStringUTF16(IDS_DOWNLOAD_INTERRUPTED_STATUS));
++  } else if (progress_download_count == 0 && is_active) {
+     // If there are 0 in-progress downloads but the icon is still active, use
+     // the tooltip text to indicate to a11y users (along with the visual
+     // indications of the icon color and underline) that there is a new
+@@ -405,8 +459,16 @@
+   // Update the ring before the badge so that, when first installed, the badge
+   // is stacked above the ring.
+   button->UpdateProgressRing(ring_status, progress_info_.progress_percentage);
+-  button->UpdateBadge(is_active, progress_download_count, badge_text_color,
+-                      badge_background_color);
++#if BUILDFLAG(IS_MAC)
++  if (native_status) {
++    // Clearing a previously installed count badge is necessary on transitions.
++    button->UpdateBadge(false, 0, badge_text_color, badge_background_color);
++  } else
++#endif
++  {
++    button->UpdateBadge(is_active, progress_download_count, badge_text_color,
++                        badge_background_color);
++  }
+ }
+ 
+ void DownloadToolbarUIController::OpenPrimaryDialog() {
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -392,6 +392,14 @@
+              icon_name == "kExtensionChromeRefreshOldIcon" ||
+              icon_name == "kExtensionOldIcon") {
+     name = @"puzzlepiece.extension";
++  } else if (icon_name == "kDownloadProgressStatusIcon") {
++    name = @"arrow.down.circle.badge.clock";
++  } else if (icon_name == "kDownloadCompleteStatusIcon") {
++    name = @"arrow.down.circle.badge.checkmark";
++  } else if (icon_name == "kDownloadPausedStatusIcon") {
++    name = @"arrow.down.circle.badge.pause";
++  } else if (icon_name == "kDownloadErrorStatusIcon") {
++    name = @"arrow.down.circle.badge.xmark";
+   } else if (icon_name == "kDownloadIcon" ||
+              icon_name == "kDownloadToolbarButtonChromeRefreshOldIcon") {
+     name = @"arrow.down.circle";
+@@ -476,12 +484,42 @@
+   }
+   NSImage* symbol = [NSImage imageWithSystemSymbolName:name
+                               accessibilityDescription:nil];
++  if (!symbol && ([name isEqualToString:@"arrow.down.circle.badge.clock"] ||
++                  [name isEqualToString:@"arrow.down.circle.badge.checkmark"])) {
++    // These compound names are absent from some supported symbol catalogues.
++    // Compose only native SF artwork, with a transparent knockout separating
++    // the badge from the arrow. Newer systems can use the compound directly.
++    NSImage* arrow = [NSImage imageWithSystemSymbolName:@"arrow.down.circle"
++                              accessibilityDescription:nil];
++    NSString* badge_name = [name hasSuffix:@"clock"]
++                               ? @"clock.fill" : @"checkmark.circle.fill";
++    NSImage* badge = [NSImage imageWithSystemSymbolName:badge_name
++                              accessibilityDescription:nil];
++    if (arrow && badge) {
++      symbol = [NSImage imageWithSize:NSMakeSize(20, 20) flipped:NO
++          drawingHandler:^BOOL(NSRect bounds) {
++        [arrow drawInRect:NSMakeRect(0, 3, 17, 17)];
++        [[NSColor blackColor] setFill];
++        NSBezierPath* knockout = [NSBezierPath bezierPathWithOvalInRect:
++            NSMakeRect(10, 0, 10, 10)];
++        [NSGraphicsContext saveGraphicsState];
++        NSGraphicsContext.currentContext.compositingOperation =
++            NSCompositingOperationDestinationOut;
++        [knockout fill];
++        [NSGraphicsContext restoreGraphicsState];
++        [badge drawInRect:NSMakeRect(11, 1, 8, 8)];
++        return YES;
++      }];
++    }
++  }
+   if (!symbol) {
+     return {};
+   }
+-  symbol = [symbol imageWithSymbolConfiguration:
+-      [NSImageSymbolConfiguration configurationWithPointSize:16
+-                                                     weight:NSFontWeightMedium]];
++  if (NSImage* configured = [symbol imageWithSymbolConfiguration:
++          [NSImageSymbolConfiguration configurationWithPointSize:16
++                                                         weight:NSFontWeightMedium]]) {
++    symbol = configured;
++  }
+   NSImage* image = [NSImage imageWithSize:NSMakeSize(size, size) flipped:NO
+       drawingHandler:^BOOL(NSRect bounds) {
+     NSSize symbol_size = symbol.size;
