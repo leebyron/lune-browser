@@ -1,0 +1,22 @@
+--- a/chrome/browser/ui/tabs/vertical_tab_strip_state.h
++++ b/chrome/browser/ui/tabs/vertical_tab_strip_state.h
+@@ -7,7 +7,7 @@
+ 
+ namespace tabs {
+ 
+-inline constexpr int kVerticalTabStripDefaultUncollapsedWidth = 200;
++inline constexpr int kVerticalTabStripDefaultUncollapsedWidth = 216;
+ // TODO(crbug.com/465833741): Replace constant with derived value based on
+ // caption buttons.
+ inline constexpr int kVerticalTabStripUncollapsedMinWidth = 160;
+--- a/chrome/browser/ui/tabs/tab_strip_prefs.cc
++++ b/chrome/browser/ui/tabs/tab_strip_prefs.cc
+@@ -30,7 +30,7 @@
+                                 true);
+   registry->RegisterBooleanPref(prefs::kVerticalTabsCollapsedState, false);
+   registry->RegisterIntegerPref(prefs::kVerticalTabsUncollapsedWidth,
+-                                200);
++                                kVerticalTabStripDefaultUncollapsedWidth);
+   registry->RegisterTimePref(prefs::kVerticalTabsEverythingMenuLastPressed,
+                              base::Time());
+ 
