@@ -118,6 +118,19 @@ def main():
         for phase in ['before', 'after']:
             with session(app, a.driver.resolve(), profile, a.directory / f'{phase}.log',
                          [f'--custom-update-server-url={feed_base}']) as request:
+                # uBlock can reload tabs while releasing requests held at startup.
+                # Wait for bundled filters before navigating the persistence fixture.
+                request('POST', '/url', {'url': 'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/3p-filters.html'})
+                for _ in range(120):
+                    lists = request('POST', '/execute/async', {'script': """const done=arguments[arguments.length-1];
+                        if(typeof vAPI==='undefined'){done(null);return;}
+                        vAPI.messaging.send('dashboard',{what:'getLists'}).then(done);""", 'args': []})
+                    if lists and lists.get('netFilterCount', 0) >= 1000:
+                        break
+                    time.sleep(.5)
+                else:
+                    raise RuntimeError('Bundled uBlock filters did not initialize')
+                report.setdefault('ublock_ready', {})[phase] = lists['netFilterCount']
                 route = 'write' if phase == 'before' else 'read'
                 request('POST', '/url', {'url': f'http://127.0.0.1:{fixture.server_port}/{route}'})
                 stored = request('POST', '/execute/sync', {'script': "return localStorage.getItem('lune-smoke');", 'args': []})
