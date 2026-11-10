@@ -24,6 +24,14 @@ from urllib.request import Request, build_opener, ProxyHandler
 
 class Page(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == '/no-update.xml':
+            data = b'<?xml version="1.0"?><rss version="2.0"><channel><title>Lune smoke updates</title></channel></rss>'
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/rss+xml')
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
         write = "localStorage.setItem('lune-smoke', 'persisted');" if self.path == '/write' else ''
         data = ("<!doctype html><title>Lune build smoke</title><body><h1>Lune</h1><script>"
                 + write + "document.body.dataset.runtime = 'ok';</script></body>").encode()
@@ -482,6 +490,9 @@ def main():
                         'goog:chromeOptions': {'binary': str(binary), 'args': [
                             *([] if args.headed else ['--headless=new']),
                             '--no-first-run', '--no-default-browser-check',
+                            # Sparkle uses native networking outside Chromium's
+                            # host-resolver rules. Never update a smoke-test app.
+                            f'--custom-update-server-url=http://127.0.0.1:{server.server_port}/no-update.xml',
                             *(['--host-resolver-rules=MAP pagead2.googlesyndication.com 127.0.0.1'] if args.services else [
                               '--disable-background-networking',
                               '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1']),
@@ -517,6 +528,10 @@ def main():
                             report['services'] = check_services(request, path, f'http://127.0.0.1:{server.server_port}/write')
                     request('DELETE', path)
                     session = None
+                if hashlib.sha256((app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework').read_bytes()).hexdigest() != report['framework_sha256']:
+                    raise RuntimeError('App framework changed during smoke testing.')
+                report['update_feed_isolated'] = True
+                report['framework_unchanged'] = True
                 report['passed'] = True
             finally:
                 if session:
