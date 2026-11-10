@@ -25,6 +25,12 @@
     browserScale = parseFloat(style.getPropertyValue('--browser-scale'));
     root.style.setProperty('--hairline', `${1 / (devicePixelRatio * browserScale)}px`);
     root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 2 * parseFloat(style.getPropertyValue('--rail')) - sidebarWidth)}px`);
+    // Sample one continuous sine wave at each point's actual reading position.
+    // Margins affect only x, so font/viewport changes can safely remeasure y.
+    pages.querySelectorAll('.flow-point').forEach(point => {
+      const y = point.offsetTop + point.closest('.story-section').offsetTop;
+      point.style.setProperty('--flow-offset', ((1 + Math.sin(y / 1500 * 2 * Math.PI - Math.PI / 2)) / 2).toFixed(5));
+    });
     const minimal = root.querySelector('.minimal-story');
     demoStart = readingStart + minimal.offsetTop - pageHeight * .4;
     demoDistance = Math.min(460, pageHeight * .65);
@@ -223,10 +229,6 @@
   toolbarRail.addEventListener('click', showToolbar);
   const headerShield = root.querySelector('.header-shield');
   headerShield.addEventListener('pointerenter', showToolbar);
-  win.addEventListener('wheel', event => {
-    const top = win.getBoundingClientRect().top;
-    if (win.hasAttribute('data-toolbar-open') && event.clientY >= top && event.clientY < top + 52 * browserScale) event.preventDefault();
-  }, {passive:false});
   toolbarRegion.addEventListener('focusin', showToolbar);
   toolbarRegion.addEventListener('focusout', () => queueMicrotask(dismissDistantPanels));
   toolbarRegion.addEventListener('keydown', event => {

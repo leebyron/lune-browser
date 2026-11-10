@@ -25,15 +25,15 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   removes the launch bounce and zoom.
 - Interface surfaces are not text-selectable; headings, prose, attribution links,
   and the address field remain selectable. The sidebar has three pinned tabs and
-  no divider above New tab. Light chrome uses the palette’s sage frame; dark chrome
-  mixes the frame with 15% of its blue accent for a cooler contrast to the desktop.
+  no divider above New tab. Chrome uses the accepted #E7EDE3 Light / #10354F Dark mounted palette.
+  Selected tabs use #D6E1D2 / #2A4C62 for directional contrast.
 - The illustrative shell mirrors the native edge-to-edge frame and sidebar-footer
   revisions reviewed on 2026-11-07: 16px outer corners, no content gutter, inner
   radius, outline or shadow. Only the outer window clips the page. A physical-pixel
   semantic hairline separates the pinned sidebar from content.
-- Pinned and floating sidebars have identical 200px widths, flush top/bottom/left
+- Pinned and floating sidebars have identical 216px widths, flush top/bottom/left
   edges and square inner corners. Pinned mode shares the window material;
-  floating mode uses a CSS approximation of native glass with semantic tab colors.
+  floating mode approximates the accepted themed glass: a lighter Light tone and darker Dark tone, with theme selection and hover colors.
   Pinning changes the content width instantly without moving any sidebar/header
   controls. It does not tween page layout.
 - The header is 52px tall: 36px controls and 8px vertical insets. The toggle has
@@ -51,7 +51,7 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   32px close region holds an 11px glyph centered 15px from the trailing row edge.
   Labels yield space and fade before the close mark without changing row height.
   The illustration omits default-browser and update prompts.
-- During “Just the page,” a scroll-driven cursor enters from the left of the
+- During “Your attention belongs to you,” a scroll-driven cursor enters from the left of the
   screen, clicks the sidebar toggle and exits through the top. The page immediately
   fills the window, while the glass sidebar remains until the cursor is more than
   48px away. The sidebar then slides left over 260ms. Scrolling back reverses it.
@@ -59,13 +59,13 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - Windowed reveal bands are 8px at the top and left edges and consume no layout
   space. The sidebar’s full 52px header also reveals the toolbar. Revealed glass
   stays until the pointer is 48px away; the header retains the full window-width
-  top strip. An input shield prevents clicks and wheel events reaching the page
-  through visible header gaps. Keyboard focus retains controls; Escape dismisses.
+  top strip. An input shield prevents clicks through visible header gaps. Wheel input over
+  the header scrolls the story, matching the accepted native forwarding behavior. Keyboard focus retains controls; Escape dismisses.
 - All header groups fade over 180ms without vertical movement. The fixed window
   controls remain while either sidebar or toolbar is visible, following the last
   surface to leave. Hovering their group reveals the sidebar and header. The
   address remains read-only and navigation/extension glyphs remain illustrative.
-  The glass colors follow system appearance, not underlying page content.
+  CSS glass follows system appearance; it does not reproduce AppKit’s content-aware compositor.
 - The site keeps Chlorophyll Daylight / Pelagic Signal colors and monochrome
   window controls. At 700px or less, the complete browser renders at half scale.
   It requests a fixed viewport scale and vertical touch panning; browsers may
@@ -84,11 +84,9 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   `x86`. Unsupported, denied, or unknown hints (and other platforms) retain a
   native popover with explicit Apple silicon and Intel choices. Legacy
   `MacIntel`/user-agent strings are not used to infer chip architecture.
-  The prepared download buttons and explicit choices use permanent GitHub
-  `releases/latest/download/Lune-macos-ARCH.dmg` URLs. This revision must not be
-  deployed until both aliases resolve to the accepted production release. The
-  stable feed redirects likewise require verified GitHub targets; historical
-  staging XML remains unchanged.
+  The download buttons and explicit choices use permanent GitHub
+  `releases/latest/download/Lune-macos-ARCH.dmg` URLs. Both aliases resolve to the
+  accepted production release; feeds are served from the canonical repository.
 
 ## Assets and attribution
 
@@ -112,20 +110,32 @@ All runtime assets are served locally; no font or icon CDN requests are needed.
   Apple retains ownership; these are not Lune artwork or relicensed by this repo.
 - Syne 800 and Inter 400/500: Latin WOFF2 subsets from Google Fonts, Syne v24 and
   Inter v20. SIL Open Font License notices are in `public/licenses/`.
+- `public/assets/ublock-origin.png`: unchanged 32px uBlock Origin toolbar artwork
+  from the prepared browser’s `third_party/ublock/img/icon_32.png`. Copyright
+  Raymond Hill and contributors; GPLv3 notice in `public/licenses/ublock-origin.txt`.
 - Inline interface icons: Lucide (download, arrow-up-right, chevron-down,
   panel-left, maximize, shield). Its ISC/MIT notices are in
   `public/licenses/lucide.txt`.
 - Window glyph proportions were checked against [Apple's macOS reference](https://support.apple.com/guide/macbook-pro/are-you-new-to-mac-apd7ae4404d0/mac).
   They are CSS approximations, not native AppKit controls.
 
-The final page credits and links Helium and ungoogled-chromium, followed by the
-Lune author credit. Preserve that attribution when replacing the placeholder
+The final page thanks and links Helium and ungoogled-chromium in regular Inter,
+80px below the download actions. The Lode author credit, “Made with [coffee] in SF
+by Lee Byron,” uses the original inline cup paths from
+<https://leebyron.com/lode/> and sits 18px above the final browser-content edge,
+with at least 72px separating it from the coda. Preserve that attribution when replacing the placeholder
 feature content or changing the story length.
 
-## Privacy and security draft
+## Respect story
 
-The story runs Private, Secure, then Minimal. Short, staggered notes and original
-SVG diagrams replace the two-column lists. Privacy highlights ungoogled-chromium
+The tagline is “A respectful browser for Mac.” The story runs Private, Secure,
+then Minimal, framed as respect for privacy, trust and attention. Short notes and
+original SVG diagrams flow without cards or a grid. Each heading and feature
+point follows the same sine wave: x = available horizontal travel ×
+(1 + sin(2πy / 1500 − π/2)) / 2. JavaScript measures the point’s position in
+the story after layout and font/viewport changes; horizontal margins preserve
+reading order, hit bounds and the continuous scroll story. Narrow panes reduce
+the horizontal travel while retaining the wave. Privacy highlights ungoogled-chromium
 and uBlock Origin, with Helium credited for its integration. Security focuses on
 HTTPS and site isolation. The closing attribution retains both upstream projects.
 Its sources:
@@ -140,13 +150,11 @@ Its sources:
 - [Chromium Site Isolation](https://www.chromium.org/Home/chromium-security/site-isolation/):
   sandbox and process isolation, described as defenses rather than guarantees.
 
-Reviewed 2026-11-06. Lune's pinned `inputs/chromium-158-1/helium` includes the
-uBlock integration, default-enabled Helium Noise, and third-party-cookie blocking
-in `patches/inox-patchset/modify-default-prefs.patch`. This is source review and
-upstream documentation, not a new runtime security audit. The draft makes no
-claim of complete anonymity, Google Safe Browsing (removed upstream), automatic
-Lune updates, or a validated public release. Review shipped defaults and service
-behavior again before publishing browser downloads.
+The November 10 copy preserves the existing source-grounded claims about
+ungoogled-chromium, uBlock Origin, HTTPS, sandboxing and site isolation. The
+current frozen release and development lock establish inclusion; this is not a
+new runtime security audit. No anonymity or infallible-protection claim is made.
+Optional Helium services retain their independent consent in the real browser.
 
 The sidebar revision was checked against the current Figma desktop canvas and
 its existing source assets on 2026-11-06. The Figma MCP connector was unavailable
@@ -188,3 +196,34 @@ Source is public in `leebyron/lune-browser` at exact release and component tags.
 Browser releases upload DMGs, appcasts, checksums and compact metadata; do not
 re-upload Git bundles or unchanged source/dependency archives. See the delivery
 runbook for source reachability and paired-feed promotion checks.
+
+## November 10 browser-polish audit
+
+Compared the existing illustration with the current development lock and frozen
+26.1110.1 source, using the feature records below. These are website changes;
+they do not change browser patches or constitute native runtime validation.
+
+| Recent browser work | Website treatment |
+| --- | --- |
+| [Themed sidebar](../agent-docs/project/features/themed-unpinned-sidebar.md) | 216px width; mounted palette; lighter Light / darker Dark detached tint; strong #D6E1D2 / #2A4C62 selection and themed hover fills. CSS blur remains an approximation. |
+| [Toolbar polish](../agent-docs/project/features/trailing-toolbar-controls.md) | 72px navigation pill with separator; medium-weight 16px symbol approximations; 14px site-info/reload art in 32px slots; 2px reload inset; address cap at half the available header; 4px trailing padding and 2px gaps; 30px ellipsis slot; no gap between Extensions and first extension; real uBlock artwork; profile/download glyphs. |
+| [Glass appearance](../agent-docs/project/features/chrome-appearance.md) | Diffuse 5% black / 10px / 3px header shadows, no extra sidebar shadow. CSS tint and foregrounds follow appearance; AppKit content adaptation is not emulated. |
+| [Header scrolling](../agent-docs/project/features/header-scroll-through.md) | Removed the previous wheel-event blocker; native click shielding remains represented. |
+| [Sidebar pin](../agent-docs/project/features/sidebar-pin-activation.md), [edge frame](../agent-docs/project/features/edge-to-edge-frame.md), [New Tab](../agent-docs/project/features/sidebar-new-tab.md), [footer](../agent-docs/project/features/sidebar-footer.md) | Retain accepted flush geometry, pin/reveal choreography, fixed New Tab and hover-only tab closes. The illustration continues to omit installation/update prompts. Native activation colors and OS window menus are not simulated. |
+| [Menu retention](../agent-docs/project/features/menu-reveal-retention.md), [downloads](../agent-docs/project/features/downloads.md), [media](../agent-docs/project/features/media-toolbar-controls.md) | The trailing group shows idle artwork. Native menus, download progress/status and media sessions remain outside this illustration. The website’s real download chooser retains its own popover behavior. |
+| [Command-T/results](../agent-docs/project/features/command-bar-corners.md), [suggestion selection](../agent-docs/project/features/address-suggestion-selection.md), [toolbar modes](../agent-docs/project/features/header-inset-prototype.md), [older macOS](../agent-docs/project/features/older-macos-appearance.md), [window close](../agent-docs/project/features/native-window-close.md) | Keep the default hover-toolbar story and modern window shape; no fake search results, Settings, OS fallback or native multi-window behavior. Website close/minimize return to its desktop; fullscreen uses the web API. |
+| [Setup, fonts and icons](../agent-docs/project/features/onboarding-visual-refinements.md) | Existing accepted wallpaper JPEGs, Inter prose/buttons and compiled Dock artwork already match and are retained. |
+
+Browser screenshots remain intentional placeholders. Open default-browser and
+resize-cursor issues are not represented as fixed. This audit tracks the scope of
+the marketing illustration rather than adding every native feature to it.
+
+Local validation on November 10: JavaScript syntax, Wrangler deployment dry run,
+asset/cache-key checks, upstream-icon byte parity, documentation links and
+whitespace checks pass. Browser inspection covers desktop Dark, a preview-only
+Light appearance override, and a 390×844 narrow viewport. Header wheel scrolling,
+sidebar pin/unpin, point bounds, plain Inter thanks, the 80px CTA gap and final
+bottom-edge credit were checked. No browser console warnings or errors were
+observed. The appearance override is a local preview-server fixture, not shipped
+code. The closing attribution has no heading; the sentence beginning “Thank you”
+starts on a new line. Deployment and public readback follow the website runbook.

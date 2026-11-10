@@ -30,10 +30,13 @@ provenance.
 Subsequent browser releases update GitHub's latest pointer and paired stable feeds without a website deployment. Each release stores one DMG per architecture; the version-specific URL and fixed latest URL select the same asset. Follow [release delivery](release-delivery.md) for publication ordering and public readback.
 
 The source now contains the
-adaptive Chlorophyll Daylight / Pelagic Signal desktop and continuous scroll-driven browser story, with draft security
-and privacy sections credited to both upstream projects. Section heights and
+adaptive Chlorophyll Daylight / Pelagic Signal desktop and a continuous
+scroll-driven browser story about respect for privacy, trust and attention,
+credited to both upstream projects.
+The points follow a measured sine wave; the closing thanks use regular Inter with
+80px after the download actions, and the Lode author line sits at the bottom edge. Section heights and
 the reading distance follow the content rather than a fixed page count. The
-browser uses the mounted-left Figma layout and a reversible scroll-driven cursor
+browser uses the mounted-left layout with the reviewed 216px sidebar and a reversible scroll-driven cursor
 that unpins its sidebar during the minimal-UI section. The floating panel then
 slides away as the cursor leaves; hovering the left rail slides it back over the
 content. The pane snaps to width when pinning changes. Both floating panels
