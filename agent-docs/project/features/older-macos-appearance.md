@@ -1,8 +1,9 @@
 # Older macOS window corners and fallback surface edges
 
-Status: owner report and source investigation, 2026-11-09. No browser patch or
-replacement binary has been produced from this investigation. Published
-26.1109.1 artifacts remain immutable; fixes belong in a subsequent release.
+Status: implemented and pinned for future builds, 2026-11-09. Platform branch
+`topic/older-macos-appearance` adds the fallback edges/shadows and restores the
+older-system content radius. Native macOS 13 visual acceptance is pending.
+Published 26.1109.1 artifacts remain immutable; these are subsequent-release fixes.
 
 ## Owner report
 
@@ -55,7 +56,7 @@ Inspected the prepared release source and platform input
   macOS 26+ branch creates that wrapper. The fallback directly hosts the pane in
   a masked effect view, so it also misses the explicit supplemental shadow.
 
-## API availability and proposed correction
+## API availability and implemented candidate
 
 Apple's SDK declares `NSGlassEffectView`, including its `cornerRadius`, available
 from macOS 26. This controls a **glass view**, not the outer `NSWindow` frame.
@@ -104,6 +105,29 @@ stored CGColor is not dynamically adaptive), and update its physical-pixel width
 when the window moves between display scales. Verify Light/Dark/System,
 Increase Contrast, inactive windows, pale/dark page backgrounds, focus and
 result expansion. Visual acceptance on the actual older OS is still necessary.
+
+## Candidate validation
+
+`fallback-surface-edges.patch` shares a non-interactive AppKit drawing overlay
+between fallback header surfaces and Command-T. It draws a physical-pixel
+`separatorColor` edge above content and redraws for appearance/backing changes.
+Command-T now uses its existing unclipped shadow host around the fallback effect;
+its pane is positioned in local bounds, retaining the existing shadow clearance.
+The header's existing shadow host is no longer gated to macOS 26.
+`native-legacy-frame-radius.patch` restores the 12 pt pre-26 branch, retaining
+16 pt on macOS 26+ and leaving the older native window frame untouched.
+
+The new `scripts/check-native-fallback-surfaces.py` compiles the actual production
+classes with the pre-26 path selected in an isolated test. On arm64 and Intel
+under Rosetta, it verifies rasterized hairlines in four appearances, input
+pass-through, unchanged content bounds, resizing, 5%/10 pt/3 pt shadows, and
+both radius branches. The existing native chrome appearance fixture also passes
+on both architectures, including modern glass and Command-T. These checks run
+on macOS 26.6.2 and do not claim to reproduce the older OS compositor or mask.
+The two appearance patches passed zero-fuzz/offset replay against the released
+source baselines as part of the compatibility candidate validation.
+Build and runtime evidence is recorded in
+[appearance validation](../builds/2026-11-09-older-macos-appearance.md).
 
 ## Safari download selection
 

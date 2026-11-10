@@ -31,6 +31,15 @@ CI pass on the local Mac runner; a real website download matches the release. Se
 [release delivery](agent-docs/project/release-delivery.md) and
 [release evidence](agent-docs/project/builds/2026-11-09-release-delivery.md).
 
+The default development input `inputs/older-macos-appearance-1/macos` includes
+adaptive physical-pixel edges and 5% shadows for pre-glass header controls and
+Command-T, plus the inherited 12 pt pre-26 content radius. Both architectures
+are pinned to these fixes; new release preparation inherits the same lock.
+Preserve both patches during future upstream integration. Native macOS 13 visual
+acceptance remains pending. The separate default-browser prompt investigation
+is not included in this input. Published 26.1109.1 and frozen release records
+remain unchanged. See [appearance validation](agent-docs/project/builds/2026-11-09-older-macos-appearance.md).
+
 The Helium November 9 development input imports main through `0a5feb31`,
 adding independent history/bookmark autocomplete settings while retaining
 Chromium 158.0.8127.18 and the accepted onboarding/UI stack. The four upstream

@@ -1,7 +1,11 @@
 # Development browser builds
 
-Current development input (2026-11-08): the complete reviewed UI stack is pinned
-through `01905fc4`. See [integration scope and validation](features/reviewed-ui-integration.md).
+Current development input (2026-11-09): `inputs/older-macos-appearance-1/macos`
+pins the reviewed UI and release-delivery stack plus older-macOS fallback
+edges/shadows and native corner matching. Both supported architectures and new
+release preparation inherit these patches from `manifests/browser.lock.json`.
+Preserve them when composing subsequent upstream updates. Historical frozen
+releases retain their original inputs. See [appearance validation](builds/2026-11-09-older-macos-appearance.md).
 The dated status and bootstrap instructions below retain historical context.
 
 Status (2026-11-06): Chromium 158.0.8127.18 builds pass for arm64 and x86_64.

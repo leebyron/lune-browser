@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "1cabd52145c9dc2ef1b3459c71b0133a81b6c4b4",
+    "commit": "bd3ea4cf1b20539c1c862af1845efa073d545a30",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -653,6 +653,14 @@
       {
         "path": "patches/lune/release-version-ui.patch",
         "sha256": "6becd6756f44ceea084fd147101d593b307844328e7227dae49bd27f4a46d771"
+      },
+      {
+        "path": "patches/helium/ui/fallback-surface-edges.patch",
+        "sha256": "64a695f5029ced92430cd42f4d6154fd54a93502526274c9986b8b34861ccfdc"
+      },
+      {
+        "path": "patches/helium/ui/native-legacy-frame-radius.patch",
+        "sha256": "2e339c4b510179cb99279d84512ff0bfc29bc387d9e1912fd446dd7a600eab61"
       }
     ]
   },
@@ -1458,6 +1466,36 @@
       "adaptation": "Strict zero-fuzz replay passes; release build/runtime acceptance is tracked separately.",
       "commits": [
         "1cabd52145c9dc2ef1b3459c71b0133a81b6c4b4"
+      ]
+    },
+    {
+      "id": "fallback-surface-edges",
+      "depends_on": [
+        "onboarding-reviewed-13"
+      ],
+      "patches": [
+        "patches/helium/ui/fallback-surface-edges.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Give pre-glass header controls and Command-T adaptive edges and the existing soft shadow.",
+      "adaptation": "Owner requested future-build adoption. Strict replay and both architecture checks pass; native macOS 13 visual acceptance remains pending. See agent-docs/project/builds/2026-11-09-older-macos-appearance.md.",
+      "commits": [
+        "e5178412667a6f78c8f30d962673765063a47bbb"
+      ]
+    },
+    {
+      "id": "native-legacy-frame-radius",
+      "depends_on": [
+        "onboarding-reviewed-13"
+      ],
+      "patches": [
+        "patches/helium/ui/native-legacy-frame-radius.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match older native window corners while retaining the modern frame radius.",
+      "adaptation": "Owner requested future-build adoption. Strict replay and both architecture checks pass; native macOS 13 visual acceptance remains pending. See agent-docs/project/builds/2026-11-09-older-macos-appearance.md.",
+      "commits": [
+        "bd3ea4cf1b20539c1c862af1845efa073d545a30"
       ]
     }
   ],
