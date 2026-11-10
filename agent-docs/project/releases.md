@@ -8,9 +8,9 @@ browser publishing is not enabled. See [release bootstrap](builds/2026-11-06-rel
 and [current build readiness](building.md).
 Initial targets: macOS arm64 and x86_64, with separate DMGs and update feeds.
 
-## Daily integration
+## Daily integration (planned)
 
-A scheduled job discovers upstream changes and produces an immutable candidate
+No recurring browser job is enabled. The intended scheduled job discovers upstream changes and produces an immutable candidate
 lock. Skip rebuilding when all effective inputs are unchanged. Allow manual
 dispatch for urgent fixes. Deduplicate candidates by input hash and serialize
 promotion per release channel.

@@ -9,7 +9,7 @@ Cloudflare Workers Static Assets; `lune.computer` is registered at DNSimple.
 See the [website runbook](website.md) for activation and CI status.
 Source findings are recorded in [research](research.md).
 
-## Start with Helium's own stack
+## Future self-hosting design
 
 Track `imputnet/helium-services` on its upstream-derived component branch. Use a
 small Linux VM/container host with Docker Compose initially, because that matches

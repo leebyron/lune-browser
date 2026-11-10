@@ -25,25 +25,11 @@ provenance.
 
 ## Current status
 
-On November 9, 2026, [GitHub deployment 42718472336](https://github.com/leebyron/lune-browser/actions/runs/42718472336)
-published commit `fda9741a` as Cloudflare version
-`a5bd0b02-5374-40e5-bd9e-361733c46460`. Lune 26.1109.1 is the public production
-release. Both architecture downloads use fixed GitHub latest-asset links;
-Sparkle uses paired raw GitHub stable feeds. Live HTML, full download hashes,
-old-feed redirects and an actual website download in Lune pass verification.
-The source, signatures, installed updates and owner's deferred native Intel
-checks are recorded in [release evidence](builds/2026-11-09-release-delivery.md).
-Subsequent releases update GitHub's latest pointer and feeds, without redeploying
-these website links. The deployment used the existing local Mac runner and token.
+[Deployment 42784298591](https://github.com/leebyron/lune-browser/actions/runs/42784298591) successfully deployed commit `67914416` using the existing local Mac runner and token. The live site links to `leebyron/lune-browser` for source and fixed latest-download URLs. Legacy feed redirects and staging files are removed. The apex domain is active; public HTTPS and download-link verification pass. See [current status](status.md) and [consolidation evidence](builds/2026-11-10-release-consolidation.md).
 
+Subsequent browser releases update GitHub's latest pointer and paired stable feeds without a website deployment. Each release stores one DMG per architecture; the version-specific URL and fixed latest URL select the same asset. Follow [release delivery](release-delivery.md) for publication ordering and public readback.
 
-As of 2026-11-06, public HTTPS at `lune.computer` is verified to return HTTP 200.
-The apex custom domain is attached and recorded in Wrangler configuration.
-The `CLOUDFLARE_API_TOKEN` repository secret is configured, and a local deployment
-using that token succeeded. The
-[first GitHub run](https://github.com/leebyron/lune-browser/actions/runs/42129183746)
-passed installation, validation, and production deployment for commit `eef768a`.
-Automatic website deployments are operational. The source now contains the
+The source now contains the
 adaptive Chlorophyll Daylight / Pelagic Signal desktop and continuous scroll-driven browser story, with draft security
 and privacy sections credited to both upstream projects. Section heights and
 the reading distance follow the content rather than a fixed page count. The

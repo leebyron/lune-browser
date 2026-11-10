@@ -1,34 +1,10 @@
 # Development browser builds
 
-Current development input: `inputs/native-window-close-1/macos`. Future main
-builds include the accepted native red-window-button fix and fullscreen teardown
-correction. Both architectures and newly prepared releases inherit the fix from
-the development lock. See [close validation](features/native-window-close.md).
+Read [current status](status.md) for active inputs and release progress. The [development lock](../../manifests/browser.lock.json) defines current core/platform commits; a frozen release record and its source tag define release builds. Do not infer inclusion from an older feature report.
 
-The retained `inputs/themed-sidebar-1/macos` baseline includes
-the accepted themed unpinned sidebar, 216 px default/snap width, and
-Lune selected-row contrast, preserving all earlier development features. See
-[sidebar validation](features/themed-unpinned-sidebar.md). Frozen release records
-retain their original inputs.
+Main includes the accepted update menu and canonical Sparkle endpoint, preserving the native close controls, themed sidebar, startup default and older-macOS fallback fixes. Both development builds and smoke checks pass; Intel runtime uses Rosetta. Production signing and update tooling is operational. Physical Intel acceptance remains artifact-specific.
 
-The current development input also defaults macOS startup to
-**Continue where you left off** on both architectures; see
-[startup default](features/startup-default.md) for scope and validation.
-
-Earlier development input (2026-11-09): `inputs/older-macos-appearance-1/macos`
-pins the reviewed UI and release-delivery stack plus older-macOS fallback
-edges/shadows and native corner matching. Both supported architectures and new
-release preparation inherit these patches from `manifests/browser.lock.json`.
-Preserve them when composing subsequent upstream updates. Historical frozen
-releases retain their original inputs. See [appearance validation](builds/2026-11-09-older-macos-appearance.md).
-The dated status and bootstrap instructions below retain historical context.
-
-Status (2026-11-06): Chromium 158.0.8127.18 builds pass for arm64 and x86_64.
-Arm64 headless/headed and Intel-under-Rosetta smoke checks pass, including artwork,
-defaults, settings, and French/German upstream credits. See
-[current evidence](builds/2026-11-05-chromium-158-port.md) and the historical
-[first arm64 build](builds/2026-11-05-arm64.md). Native Intel hardware, Developer ID
-signing, notarization, public release, and update validation remain outstanding.
+Use this runbook for development builds. For a production release, follow [release delivery](release-delivery.md), run commands from its frozen checkout and retain its preparation/build reports. Never edit an existing frozen source workspace to pick up a main-branch change.
 
 ## Tracked inputs
 

@@ -37,7 +37,7 @@ These are ordinary branches with upstream parents, not orphan branches.
 durable storage. Every released component commit must remain reachable through
 a permanent namespaced tag/ref, not only a SHA written into JSON.
 
-## Planned main-branch layout
+## Main-branch layout
 
 ```text
 AGENTS.md
@@ -54,11 +54,7 @@ deploy/                 service overlays, host config, deployment automation
 out/                    ignored artifacts and reports
 ```
 
-Documentation, website, config/manifests, local build tooling, and validation CI
-exist. Deployment overlays and browser release jobs remain planned. Commands
-that prepare and compile Chromium pass for both targets; see
-[current build evidence](builds/2026-11-05-chromium-158-port.md). Native Intel
-hardware and release validation remain outstanding.
+Documentation, website, configuration/manifests, local build/release tooling and guarded workflows exist. Signed production releases and stable feeds are live. Services deployment and unattended browser publication remain future work. See [current status](status.md) and the [build runbook](building.md) for active inputs and validation limits.
 
 Use worktrees for core/services topic development when suitable. For macOS
 packaging, prefer an ordinary isolated clone with its `helium-chromium` submodule:
