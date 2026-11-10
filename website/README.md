@@ -280,7 +280,7 @@ mask for appearance contrast. No iframe or private Fastmail content is loaded.
 Original vector artwork is generated from fixed seeds. Every main leaf and
 small offshoot has its own length, width, lean, edge variation and vein pattern.
 Leaves have narrow, pointed silhouettes with restrained edge variation. Each
-petiole is part of its leaf’s fill, avoiding a separate stem seam; small shoots
+petiole shares its leaf’s silhouette but uses the same flat ink as the main vine; the brighter gradient is confined to the blade. Small shoots
 use measured branch tangents to align their leaves at the junction.
 The petiole starts at the same exact stem junction regardless of shape; mirrored
 leaves keep mirrored pivots. The vine reads each outer SVG’s rendered box relative
@@ -300,8 +300,8 @@ with varying side branches and fine rootlets. A further order of short, tapered
 rootlets fans from the fine branches: 135 total paths, including 89 terminal
 rootlets, in the checked desktop and phone layouts. Noise steers their headings;
 filled silhouettes taper all the way to a point. The spread is capped at 420px
-and depth at 25% of the viewport (at most 180px). The base silhouettes are always fully drawn and never animate. Identical
-lighter copies use centerline masks for the light’s travel from crown to tips.
+and depth at 25% of the viewport (at most 180px). The base silhouettes begin at 70% of their total reach and grow the remaining 30%. Identical
+lighter copies use separate centerline masks for the light’s travel from crown to tips.
 
 The flower is 50% larger, faces upwards, and has 19 seeded, curved filaments
 with varied anther positions and brightness. Stamens spread from a narrow bundle to a wide fan as the petals open. The
@@ -389,3 +389,13 @@ still reveals from 0% to 100%. Shared travel distances keep child attachments
 behind the parent’s growth front. Main leaves rotate 6 degrees outward and 21
 small shoots/tendrils rotate 7 degrees around fixed junctions as the stem light
 passes. Reduced Motion retains the complete, open plant.
+
+The stem-polish revision removes the flower’s bent connector, keeps its neck
+steady above a vertically tangent first vine segment, and uses one flat stem
+ink across the vine, petioles and offshoots. The root base uses 32% of its former
+opacity while the independent light overlay retains its full reveal. The
+prelude spans 1.08 viewports; the logo stays centered at half a viewport, the
+personal note starts 128px below that center, and 128px separates the prelude
+from the flower section. The flower starts below the initial viewport on
+desktop and at phone size. Nine shorter sentences cover blocking, consent,
+extensions, navigation, page focus, search choice and open-source foundations.

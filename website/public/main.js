@@ -60,7 +60,8 @@
     body+=smoothPath(outline).replace(/^M [^C]+/, '');
     body+=` L ${stemX+stemHalf} ${-stem} Q ${stemX+stemHalf} ${-stem*.6}, ${stemHalf} 0 Z`;
     const specimen=svg('g',{'data-specimen-seed':seed}),ink=svg('g',{filter:'url(#cyanotype-grain)'});
-    ink.append(svg('path',{d:body,fill:'url(#leaf-ink)',opacity:.9+rng()*.1}));
+    ink.append(svg('path',{d:body,fill:'var(--botanical-ink)',opacity:.75}));
+    ink.append(svg('path',{d:smoothPath(outline,true),fill:'url(#leaf-ink)',opacity:.9+rng()*.1}));
     const mid=[];for(let i=0;i<=8;i++)mid.push(spine(i/8));
     let veins=smoothPath(mid);
     const count=main?5+Math.floor(rng()*3):3+Math.floor(rng()*2);
@@ -206,7 +207,7 @@
     }
     nodes.slice(1).forEach((node,index)=>{
       const previous=nodes[index],dy=node.y-previous.y;
-      const curve=`C ${previous.x-28-index%3*6} ${previous.y+dy*.32}, ${node.x+24} ${node.y-dy*.38}, ${node.x} ${node.y}`;
+      const curve=`C ${index===0?previous.x:previous.x-28-index%3*6} ${previous.y+dy*.32}, ${node.x+24} ${node.y-dy*.38}, ${node.x} ${node.y}`;
       d+=` ${curve}`;
       const segment=svg('path',{d:`M ${previous.x} ${previous.y} ${curve}`}),length=segment.getTotalLength();
       const positions=[[.32,.7],[.26,.58,.83],[.44],[.29,.68]][index%4];
@@ -263,7 +264,7 @@
       const baseMask=svg('mask',{id:`${id}-base`,maskUnits:'userSpaceOnUse',x:0,y:groundY-8,width:pages.clientWidth,height:rootDepth+16});
       baseMask.append(baseCenter);rootMasks.append(baseMask);
       const outline=smoothPath([...left,...right.reverse()],true),opacity=order===0?.95:.72+local()*.25;
-      const ink=svg('path',{d:outline,class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',opacity,mask:`url(#${id}-base)`,'data-root-order':order});
+      const ink=svg('path',{d:outline,class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',opacity:opacity*.32,mask:`url(#${id}-base)`,'data-root-order':order});
       const light=svg('path',{d:outline,class:'root-light',stroke:'none',mask:`url(#${id})`,opacity:opacity*.65});
       rootGrowth.append(ink,light);branches.push({path:center,basePath:baseCenter,travel,end:travel+distance});
       if(order>=3)return center;
@@ -320,7 +321,7 @@
     points.forEach((point,index)=>{
       const {start,end,lightStart,lightEnd}=leafRanges[index],t=clamp((y-start)/(end-start));
       const opening=reduce.matches?1:introEase(clamp((y-lightStart)/(lightEnd-lightStart)));
-      const angle=(index===0?0:index%2?7:-5)+(reduce.matches?0:Math.sin(t*Math.PI*2-Math.PI/2)*3)+(index===0?0:index%2?-6:6)*opening;
+      const angle=index===0?0:(index%2?7:-5)+(reduce.matches?0:Math.sin(t*Math.PI*2-Math.PI/2)*3)+(index%2?-6:6)*opening;
       point.querySelector('.botanical-sway').setAttribute('transform',`rotate(${angle} ${point.pivotX} 86)`);
     });
     sprigRanges.forEach(({group,at,side,lightStart,lightEnd})=>{

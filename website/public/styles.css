@@ -156,13 +156,13 @@ svg { display: block; }
   #lune .pages { position:relative; display:flex; flex-direction:column; gap:clamp(120px,24vh,180px); padding:0; will-change:transform; }
   #lune .story-section { width:var(--story-width); max-width:100%; margin-inline:auto; padding-inline:clamp(24px,5vw,56px); }
   #lune .story-section p { margin:0; font:400 20px/32px Inter,sans-serif; letter-spacing:0; color:var(--text); text-wrap:pretty; }
-  #lune .story-prelude { position:relative; height:calc(var(--page) * .74); padding-top:calc(var(--page) * .26); flex:none; display:flex; align-items:center; justify-content:center; }
-  #lune .story-prelude .prelude-note { position:absolute; top:calc(var(--page) * .5 + 100px); left:50%; translate:-50% 0; width:calc(100% - 64px); max-width:34ch; text-align:center; }
-  #lune .setup-logo { display:block; width:160px; height:auto; flex:none; overflow:visible; }
+  #lune .story-prelude { position:relative; height:calc(var(--page) * 1.08); flex:none; display:flex; align-items:center; justify-content:center; }
+  #lune .story-prelude .prelude-note { position:absolute; top:calc(var(--page) * .5 + 128px); left:50%; translate:-50% 0; width:calc(100% - 64px); max-width:34ch; text-align:center; }
+  #lune .setup-logo { position:absolute; top:calc(var(--page) * .5); translate:0 -50%; display:block; width:160px; height:auto; flex:none; overflow:visible; }
   #lune .setup-logo circle { transform:translateX(var(--shift)); }
   #lune .setup-left { fill:light-dark(#258D91,#00A7BE); }
   #lune .setup-right { fill:light-dark(#789751,#5386BF); }
-  #lune .story-intro { margin-top:calc(96px - clamp(120px,24vh,180px)); }
+  #lune .story-intro { margin-top:calc(128px - clamp(120px,24vh,180px)); }
   #lune .story-intro .flow-point { gap:48px; }
   #lune .story-intro .flow-point p { translate:0 -22px; }
   @keyframes setup-circle-open { from { transform:translateX(0); } to { transform:translateX(var(--shift)); } }
@@ -181,9 +181,9 @@ svg { display: block; }
   #lune .botanical-defs { position:absolute; width:0; height:0; overflow:hidden; pointer-events:none; }
   #lune .story-vine { position:absolute; inset:0 auto auto 0; width:100%; overflow:visible; pointer-events:none; color:var(--botanical-ink); }
   #lune .vine-base,#lune .vine-growth { fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; }
-  #lune .vine-base { stroke-width:3.2; stroke:url(#leaf-ink); opacity:.3; }
-  #lune .vine-growth { stroke-width:2.6; stroke:url(#leaf-ink); opacity:.68; }
-  #lune .vine-tendril { fill:none; stroke:var(--botanical-ink); stroke-width:1.25; stroke-linecap:round; opacity:.7; }
+  #lune .vine-base { stroke-width:3.2; stroke:var(--botanical-ink); opacity:.3; }
+  #lune .vine-growth { stroke-width:2.6; stroke:var(--botanical-ink); opacity:.68; }
+  #lune .vine-tendril { fill:none; stroke:var(--botanical-ink); stroke-width:1.25; stroke-linecap:round; opacity:.75; }
   #lune .botanical-bullet { display:block; flex:none; width:80px; height:100px; overflow:visible; pointer-events:none; color:var(--botanical-ink); }
   #lune .flower-bloom { transform-origin:0 0; }
   #lune .petal,#lune .flower-stamens { transform-origin:0 0; }
