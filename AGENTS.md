@@ -7,6 +7,15 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+Lune `26.1109.2` is reserved for the next production release on
+`release-26-1109-2`, with notes and the frozen record committed together.
+It selects `inputs/native-window-close-1/macos`, preserving the complete accepted
+appearance/downloads/footer/startup/sidebar stack. Input validation and all 65
+orchestrator tests pass. Initial storage is about 50 GiB, below the preparation
+and compilation thresholds; release builds and signing have not started.
+Do not publish or reuse this version with different inputs. See
+[next-release preparation](agent-docs/project/builds/2026-11-09-release-26.1109.2.md).
+
 The development input `inputs/native-window-close-1/macos` includes the accepted
 red-window-button fix and safe fullscreen-control teardown. Replacement native
 controls close their owning Chromium widget, retaining unload confirmation and
