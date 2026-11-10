@@ -1,0 +1,73 @@
+{
+  "version": "26.1110.1",
+  "source_commit": "db6982004a67e3c73dc9649db29e3de87717095e",
+  "scope": "Signed local software acceptance; Intel executes under Rosetta. Native Intel hardware acceptance remains pending. No publication or production feed promotion is asserted.",
+  "architectures": {
+    "arm64": {
+      "sha256": "9c3b7ab8d4fd04505ee7b18dd1e9b41a316500bedd17a2413f3ce0d96c5b3d0c",
+      "install": true,
+      "browse": true,
+      "profile_persistence": true,
+      "signed_app": true,
+      "installed_update": true,
+      "native_hardware": true,
+      "execution_mode": "native Apple silicon",
+      "update_baselines": [
+        "26.1109.2",
+        "2"
+      ],
+      "invalid_signature_rejected": true,
+      "unsupported_os_rejected": true,
+      "canonical_stock_feed_verified": true,
+      "updates_independent_of_optional_services": true
+    },
+    "x86_64": {
+      "sha256": "80b4ab6b42a3d6e4c8e025cbde1a7f00582918002bb6c801080b0b0f1f7506fd",
+      "install": true,
+      "browse": true,
+      "profile_persistence": true,
+      "signed_app": true,
+      "installed_update": true,
+      "native_hardware": false,
+      "execution_mode": "Rosetta on Apple silicon",
+      "update_baselines": [
+        "26.1109.2",
+        "2"
+      ],
+      "invalid_signature_rejected": true,
+      "unsupported_os_rejected": true,
+      "canonical_stock_feed_verified": true,
+      "updates_independent_of_optional_services": true,
+      "devices": [],
+      "owner_confirmation": ""
+    }
+  },
+  "report_sha256": {
+    "prepared.json": "b3095fdee38ac8609ffb59283157e1dc96a0a08184121d4ae0c0ef69838cde93",
+    "cache-reuse.json": "f34f4a98b569aea7517276ad953f40fc387de521260b85d319305c9e407e045c",
+    "pre-sign-validation.json": "f53a3d0171fcbb7d0c1cd3fe017269a9c6b7c89aafbead18aeb157c9568f8d70",
+    "update-arm64-positive/result.json": "271c4db79f24242d5056357bd961361c12472dcf2d8f4228b7395f952aeb4d48",
+    "update-arm64-build-2/result.json": "3c6448c5825f3ccbe05289d6ece609a2e0b7f80554dbda09d8b12d372bf76452",
+    "update-arm64-signature/result.json": "6b27ca2dfc3fe052eaa7868e6c3a4ccbf5eb54e47e899c67c15b4987925c91c6",
+    "update-arm64-unsupported-os/result.json": "f9dba00a16be738829a0959b7c9c64b72e54f2a26624464b57a3e3df47c626ad",
+    "candidates/arm64/candidate.json": "2089b91cbe3a060ffc50e4d4fff3a6fbed7de82868e37ffc41ac37b8a682dcc3",
+    "build-arm64.json": "f219a14b51bbd5d851e3ef88e1731ab6aca160445c410984b78aa55ab67f36d6",
+    "smoke-arm64.json": "f66902ce94f2270c6b6ffdf63287d8ab4f3a72e0587bcd7a9829d9f318d1500d",
+    "runtime-arm64/result.json": "5ad50b4e9dd7d121cc6404e9620f31e82e6aff4bac322bce3c26b502e2080b25",
+    "canonical-feed-arm64/result.json": "5e3de89d65382af932e80ab21c5cf2a59368653800ce6a2116f5564289808794",
+    "candidates/arm64/dmg-notarization.json": "f54ef6a6ca343c0e92bb653735fbe55cf78ef2ded8aead106079ec56aee57fbc",
+    "update-x86_64-positive/result.json": "daa5c06f0df345675a17c39da20201807ccec93bb2af5076207a6d7fe5920909",
+    "update-x86_64-build-2/result.json": "b59ab49dbb6da872f4d1ce19b9d86cfb08b6f9f73a11b0e03ef24601de8041f4",
+    "update-x86_64-signature/result.json": "b1d0573803cd1901b8e42fb462fe067dc8450f9fe947233262567f379d51cc0e",
+    "update-x86_64-unsupported-os/result.json": "5fb51c50d015e4a994b3503577ccec34bee37b22f40441217436d18b6049357a",
+    "candidates/x86_64/candidate.json": "67fad4e2f97b22b12b62f88f17759ec8b8438f81a80589f777f8b303ed02b3c1",
+    "build-x86_64.json": "52177a25eae7b7cae1183bc6bcae7360f3c62b20d7741392ce1a72a58d7e51af",
+    "smoke-x86_64.json": "619239f405fceaa8cce03bd4ecbf7f8a1d6293233ee86c4f848335246ea71659",
+    "runtime-x86_64/result.json": "3ea350f4445c0904a4b9b342909645aee37edb56d03f990441c06afb7920bc86",
+    "canonical-feed-x86_64/result.json": "3f76d47d2c4e500c49d2eb6a4ec0dac851d4ca39172715d6b1fe24b10dd4352e",
+    "candidates/x86_64/dmg-notarization.json": "d9de7d909a42f22049a1408af668cc15510155ab37b7dd1bcb52ce91de4aad76"
+  },
+  "test_harness_notes": [
+    "The first arm64 unsupported-OS run could not start ChromeDriver because its chosen local port was already in use. The failed fixture was preserved and that case passed in a new isolated run."
+  ]
+}
