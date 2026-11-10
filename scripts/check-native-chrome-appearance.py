@@ -22,6 +22,8 @@ colors = (args.source / 'chrome/browser/ui/views/helium/native_frame_materials_m
 edge = colors[colors.index('@interface HeliumFallbackSurfaceEdge'):colors.index('namespace helium {')]
 edge_helper = colors[colors.index('void AddNativeFallbackSurfaceEdge'):colors.index('namespace {', colors.index('void AddNativeFallbackSurfaceEdge'))]
 tint = colors[colors.index('SkColor GlassTintMidpoint('):colors.index('// Per-native-host state')]
+tint += colors[colors.index('CGFloat GetFrameMaterialThemeTintOverlayAlpha('):colors.index('NSColor* GetFrameMaterialNeutralOverlayColor(')]
+tint += colors[colors.index('NSColor* GetFrameMaterialThemeTintOverlayColor('):colors.index('NSView* CreateFrameMaterialTintView(')]
 tint += colors[colors.index('NSColor* NativeGlassThemeTintColor('):colors.index('}  // namespace helium')]
 command = (args.source / 'chrome/browser/ui/helium/helium_command_bar_view_mac.mm').read_text()
 start = command.index('  NSAppearance* appearance =')
@@ -51,6 +53,7 @@ tint_prefix = r'''
 #include <numeric>
 using SkColor = uint32_t;
 using SkAlpha = uint8_t;
+int SkColorGetA(SkColor c) { return c >> 24; }
 int SkColorGetR(SkColor c) { return (c >> 16) & 255; }
 int SkColorGetG(SkColor c) { return (c >> 8) & 255; }
 int SkColorGetB(SkColor c) { return c & 255; }
@@ -60,16 +63,23 @@ SkColor SkColorSetARGB(unsigned a, unsigned r, unsigned g, unsigned b) {
 namespace base {
 template<class T = int> T ClampRound(float v) { return static_cast<T>(std::round(v)); }
 }
+constexpr int kColorToolbar = 2;
 namespace ui {
 constexpr int kColorSysPrimary = 1;
 struct ColorProviderKey {
   enum class ColorMode { kLight, kDark };
   ColorMode color_mode = ColorMode::kLight;
   bool custom_theme = false;
+  enum class ContrastMode { kNormal, kHigh };
+  ContrastMode contrast_mode = ContrastMode::kNormal;
 };
 struct TestColorProvider {
   SkColor accent;
-  SkColor GetColor(int id) const { assert(id == kColorSysPrimary); return accent; }
+  SkColor background = 0xffe7ede3;
+  SkColor GetColor(int id) const {
+    assert(id == kColorSysPrimary || id == kColorToolbar);
+    return id == kColorToolbar ? background : accent;
+  }
 };
 struct ColorProviderManager {
   TestColorProvider light{0xff276c69}, dark{0xff00d5c6}, custom{0xff123456};
@@ -152,7 +162,46 @@ int main() {
   assert(NativeGlassThemeTintColor(&browser) == nil);
   ui::TestColorProvider colors{0xff276c69};
   browser.colors = &colors;
+  assert(NativeSidebarGlassTintColor(nullptr) == nil);
+  // Mounted overlay policy stays fixed while glass strength is calibrated.
+  assert(fabs(GetFrameMaterialThemeTintOverlayColor(0xffe7ede3, false).alphaComponent - .8) < .0001);
+  assert(fabs(GetFrameMaterialThemeTintOverlayColor(0xff10354f, true).alphaComponent - .55) < .0001);
+  NSColor* sidebar_tint = NativeSidebarGlassTintColor(&browser);
+  assert(fabs(sidebar_tint.alphaComponent - .3) < .0001);
+  auto check_tone = [](NSColor* tint, SkColor original, bool dark) {
+    color_utils::HSL before, after;
+    color_utils::SkColorToHSL(original, &before);
+    const SkColor actual = SkColorSetARGB(255,
+        lround(tint.redComponent * 255), lround(tint.greenComponent * 255),
+        lround(tint.blueComponent * 255));
+    color_utils::SkColorToHSL(actual, &after);
+    assert(fabs(std::remainder(after.h - before.h, 1.0)) < .015);
+    assert(fabs(after.s - before.s) < .025);
+    if (dark) {
+      assert(after.l < before.l * .8 && after.l > before.l * .6);
+    } else {
+      assert(after.l > before.l && after.l < before.l * 1.08);
+    }
+  };
+  check_tone(sidebar_tint, 0xffe7ede3, false);
+  // The mounted background follows the owning provider's current scheme.
+  colors.background = 0xff10354f;
+  browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
+  NSColor* dark_sidebar_tint = NativeSidebarGlassTintColor(&browser);
+  assert(fabs(dark_sidebar_tint.alphaComponent - .4) < .0001);
+  check_tone(dark_sidebar_tint, 0xff10354f, true);
+  // Custom palettes retain hue/saturation through the tone adjustment.
+  colors.background = 0x80123456;
+  NSColor* custom_sidebar_tint = NativeSidebarGlassTintColor(&browser);
+  assert(fabs(custom_sidebar_tint.alphaComponent - .4) < .0001);
+  check_tone(custom_sidebar_tint, 0x80123456, true);
+  colors.background = 0xffe7ede3;
+  browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kLight;
+  browser.widget.key.contrast_mode = ui::ColorProviderKey::ContrastMode::kHigh;
+  assert(NativeSidebarGlassTintColor(&browser) == nil);
+  browser.widget.key.contrast_mode = ui::ColorProviderKey::ContrastMode::kNormal;
   NSColor* light_tint = NativeGlassThemeTintColor(&browser);
+  assert(![sidebar_tint isEqual:light_tint]);
   assert(fabs(light_tint.alphaComponent - .05) < .0001);
   browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
   assert([NativeGlassThemeTintColor(&browser) isEqual:light_tint]);
@@ -175,6 +224,7 @@ int main() {
   assert(fabs(midpoint.s - .5) < .01);
   ThemeServiceFactory::GetForProfile(nullptr)->device = true;
   assert(NativeGlassThemeTintColor(&browser) == nil);
+  assert(fabs(NativeSidebarGlassTintColor(&browser).alphaComponent - .3) < .0001);
   ThemeServiceFactory::GetForProfile(nullptr)->device = false;
   assert(NativeGlassThemeTintColor(nullptr) == nil);
   NSWindow* window = [[NSWindow alloc]

@@ -1,0 +1,160 @@
+{
+  "date": "2026-11-09",
+  "source_commits": [
+    "46d24c60910c644423e68957840c54dd410d41cc",
+    "a8e0b32c327f5ffb583ca1afb1609c505672f661",
+    "d503fa7151b4c8fbead63f0c252677de524be96b"
+  ],
+  "platform_base": "bc7e8558d217c37ee41168ff2c0744a0a2e7183b",
+  "core": "49bdc572bee38436250f9058351c8a328cd8c8ad",
+  "owner_visual_acceptance": true,
+  "accepted_preview": "Lune Sidebar Background Test 7",
+  "arm64_browser_build": {
+    "exit_code": 0,
+    "release_validated": false
+  },
+  "x86_64_browser_build": {
+    "exit_code": 0,
+    "release_validated": false
+  },
+  "composed_unit_compiles": [
+    {
+      "arch": "arm64",
+      "source": "chrome/browser/ui/views/helium/native_frame_materials_mac.mm",
+      "exit_code": 0
+    },
+    {
+      "arch": "arm64",
+      "source": "chrome/browser/ui/views/frame/browser_frame_view_mac.mm",
+      "exit_code": 0
+    },
+    {
+      "arch": "arm64",
+      "source": "chrome/browser/ui/color/chrome_color_mixers.cc",
+      "exit_code": 0
+    },
+    {
+      "arch": "arm64",
+      "source": "chrome/browser/ui/tabs/tab_strip_prefs.cc",
+      "exit_code": 0
+    },
+    {
+      "arch": "x86_64",
+      "source": "chrome/browser/ui/views/helium/native_frame_materials_mac.mm",
+      "exit_code": 0
+    },
+    {
+      "arch": "x86_64",
+      "source": "chrome/browser/ui/views/frame/browser_frame_view_mac.mm",
+      "exit_code": 0
+    },
+    {
+      "arch": "x86_64",
+      "source": "chrome/browser/ui/color/chrome_color_mixers.cc",
+      "exit_code": 0
+    },
+    {
+      "arch": "x86_64",
+      "source": "chrome/browser/ui/tabs/tab_strip_prefs.cc",
+      "exit_code": 0
+    }
+  ],
+  "archive_backed_replay": {
+    "passed": true,
+    "source": "Verified archive-backed pristine seeds, current locked core and platform patch series",
+    "core": "49bdc572bee38436250f9058351c8a328cd8c8ad",
+    "platform": "d503fa7151b4c8fbead63f0c252677de524be96b",
+    "relevant_patch_count": 94,
+    "our_patch_results": [
+      {
+        "patch": "helium/ui/themed-unpinned-sidebar.patch",
+        "component": "published-platform",
+        "exit_code": 0,
+        "output": "patching file chrome/browser/ui/views/frame/browser_frame_view_mac.mm\nHunk #1 succeeded at 2343 (offset 1 line).\nHunk #2 succeeded at 3588 (offset 2 lines).\npatching file chrome/browser/ui/views/helium/native_frame_materials_mac.h\nHunk #1 succeeded at 25 (offset 3 lines).\npatching file chrome/browser/ui/views/helium/native_frame_materials_mac.mm\nHunk #2 succeeded at 190 (offset 58 lines).\nHunk #3 succeeded at 311 (offset 58 lines).\n"
+      },
+      {
+        "patch": "helium/ui/sidebar-default-width-216.patch",
+        "component": "published-platform",
+        "exit_code": 0,
+        "output": "patching file chrome/browser/ui/tabs/vertical_tab_strip_state.h\npatching file chrome/browser/ui/tabs/tab_strip_prefs.cc\n"
+      },
+      {
+        "patch": "lune/sidebar-selection-contrast.patch",
+        "component": "published-platform",
+        "exit_code": 0,
+        "output": "patching file chrome/browser/ui/color/chrome_color_mixers.cc\n"
+      }
+    ],
+    "source_sha256": {
+      "chrome/browser/ui/color/chrome_color_mixers.cc": "e8f1e3e0c5bdbf74319c01b56bd74b9566c282ed5e1e398d49afd212e893cb66",
+      "chrome/browser/ui/helium/helium_command_bar_view_mac.mm": "3b0319e7ceb82c60232088bcca2fa4c1d7cf3ac18b1aff17e9b3f46646272c5b",
+      "chrome/browser/ui/helium/native_result_row_mac.h": "b1fb2e82f404c2207d2cad9ec5f2db6c511d2ab60bb32532485dafe29405d9be",
+      "chrome/browser/ui/tabs/tab_strip_prefs.cc": "20d07b3665a6511158d7739f9a3169dbc52cd5a82a3f22eb801f1beaee3f0e08",
+      "chrome/browser/ui/tabs/vertical_tab_strip_state.h": "f492f5451b63edb419cb405d9aab23b4cf74739e4e5277e98375d28f765031ca",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "37a0ae1fed62ab83770e1be42d52b20ce2e1b3196abd95e45834d78c384097a2",
+      "chrome/browser/ui/views/helium/native_frame_materials.h": "f08997bcf56dc75f555b861518c47f52b5c79853eddbbb4cd1cc479b04a803f8",
+      "chrome/browser/ui/views/helium/native_frame_materials_mac.h": "a4eb130ab247366d785309dadfd6059f569b7a628fd246cf38e3b9e10e568f6b",
+      "chrome/browser/ui/views/helium/native_frame_materials_mac.mm": "7df0addc6f7d16e6f38f3d30a3125c52e730b36356da8d55954584fe8a2571b2",
+      "chrome/browser/ui/views/helium/native_frame_separator.h": "da17ada893c4b6488b328309ead129b0670af2deacf7773d3fe8faf1cba4d137"
+    }
+  },
+  "palette": {
+    "passed": true,
+    "dark": {
+      "sidebar": "#10354F",
+      "selection": "#2A4C62",
+      "selection_lighter": true,
+      "text_contrast": 7.230767062138752
+    },
+    "light": {
+      "sidebar": "#E7EDE3",
+      "selection": "#D6E1D2",
+      "selection_darker": true,
+      "text_contrast": 7.632843827977474
+    },
+    "scope": "Production source palette relationships; both frame activation states; not rendered-pixel acceptance"
+  },
+  "native_fixtures": {
+    "arm64": "passed",
+    "x86_64_under_rosetta": "passed"
+  },
+  "limits": [
+    "Full browser builds use the accepted preview baseline; current composed input checked by strict replay, unit compilation and native fixtures.",
+    "No native Intel or older macOS visual acceptance.",
+    "No frozen release record or published binary changes."
+  ],
+  "browser_width_checks": {
+    "default_arm64": {
+      "unpin": 1200,
+      "pin": 984,
+      "reservedWidth": 216,
+      "pinRight": 984,
+      "unpinRight": 1200,
+      "passed": true
+    },
+    "saved_arm64": {
+      "unpin": 1200,
+      "pin": 940,
+      "reservedWidth": 260,
+      "pinRight": 940,
+      "unpinRight": 1200,
+      "passed": true
+    },
+    "default_x86_64": {
+      "unpin": 1200,
+      "pin": 984,
+      "reservedWidth": 216,
+      "pinRight": 984,
+      "unpinRight": 1200,
+      "passed": true
+    },
+    "saved_x86_64": {
+      "unpin": 1200,
+      "pin": 940,
+      "reservedWidth": 260,
+      "pinRight": 940,
+      "unpinRight": 1200,
+      "passed": true
+    }
+  }
+}

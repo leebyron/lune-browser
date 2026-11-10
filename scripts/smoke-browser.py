@@ -144,7 +144,7 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
     if prefs != expected:
         raise RuntimeError(f'Fresh-profile defaults differ: expected {expected}, got {prefs}')
     # Width and collapsed state are not exposed through settingsPrivate.
-    for key, value in {'vertical_tabs.uncollapsed_width': 200,
+    for key, value in {'vertical_tabs.uncollapsed_width': 216,
                        'vertical_tabs.collapsed_state': False}.items():
         request('POST', path + '/url', {'url': 'chrome://prefs-internals/' + key})
         actual = json.loads(js('return document.body.innerText;'))

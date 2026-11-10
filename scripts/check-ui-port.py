@@ -22,10 +22,12 @@ def check(tree):
     for name, value in {
         'kHeliumVerticalRightAligned': 'true', 'kHeliumZenMode': 'true',
         'kHeliumZenModeSidebarPinned': 'true', 'kHeliumZenModeTopChromePinned': 'false',
-        'kHeliumVerticalAddressBarInSidebar': 'true', 'kVerticalTabsUncollapsedWidth': '200',
+        'kHeliumVerticalAddressBarInSidebar': 'true', 'kVerticalTabsUncollapsedWidth': 'kVerticalTabStripDefaultUncollapsedWidth',
         'kVerticalTabsCollapsedState': 'false', 'kVerticalTabsExpandOnHoverEnabled': 'true',
     }.items():
         assert re.search(r'prefs::' + name + r',\s*' + value + r'\)', tabs), name
+    state = read('chrome/browser/ui/tabs/vertical_tab_strip_state.h')
+    assert re.search(r'kVerticalTabStripDefaultUncollapsedWidth\s*=\s*216\s*;', state)
     assert 'HeliumLayoutType::kVertical' in tabs
     assert 'static_cast<int>(HeliumUiDensity::kStandard)' in prefs
     for file, name in [
