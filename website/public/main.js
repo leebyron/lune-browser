@@ -85,7 +85,7 @@
   const introLogo=pages.querySelector('.setup-logo'),introCircles=[...introLogo.querySelectorAll('circle')];
   const vine = pages.querySelector('.story-vine'), vineGrowth = vine.querySelector('.vine-growth');
   const sprigs = vine.querySelector('.vine-sprigs'), flowerBloom = pages.querySelector('.flower-bloom');
-  const ground=vine.querySelector('.vine-ground'),soil=vine.querySelector('.vine-soil'),roots=vine.querySelector('.vine-roots');
+  const soil=vine.querySelector('.vine-soil'),roots=vine.querySelector('.vine-roots');
   const petals=[...flowerBloom.querySelectorAll('.petal')], stamens=flowerBloom.querySelector('.flower-stamens');
   // A seeded fan of fine filaments gives the upward-facing flower depth.
   const stamenRng=random(887),filaments=svg('path',{fill:'none',stroke:'var(--biolume-stalk)','stroke-width':.55,'stroke-linecap':'round'});
@@ -104,15 +104,16 @@
   const leafRanges=[];
   points.forEach((point, index) => {
     point.style.setProperty('--flow-offset', Math.sin(index / (points.length - 1) * 2 * Math.PI).toFixed(5));
-    point.style.setProperty('--leaf-angle', `${index === 0 ? 0 : index % 2 ? 7 : -5}deg`);
     const right=index>0 && index%2===0;
     point.dataset.leafSide=index===0?'flower':right?'right':'left';
-    point.style.setProperty('--petiole-x',`${index===0?50:right?20:80}%`);
     if(index>0) {
       const specimen=point.querySelector('.generated-specimen');
       if(right)specimen.setAttribute('transform','translate(80 0) scale(-1 1)');
       const generated=leaf(419+index*103,true);generated.setAttribute('transform','translate(64 86)');specimen.append(generated);
     }
+    const bullet=point.querySelector('.botanical-bullet'),sway=svg('g',{class:'botanical-sway'});
+    sway.append(...bullet.childNodes);bullet.append(sway);
+    point.pivotX=index===0?40:right?16:64;
   });
   function measure() {
     const style = getComputedStyle(root);
@@ -165,8 +166,13 @@
     update();
   }
   function measureBotany() {
-    // Resting layout coordinates share the exact pivot of each mirrored petiole.
-    const nodes=points.map((point,index)=>({x:point.offsetLeft+(index===0?40:index%2?64:16),y:point.offsetTop+(point.clientHeight-100)/2+86}));
+    // Read the SVG boxes directly: offsetParent chains differ across layout engines.
+    // The outer SVG never rotates; explicit user-space pivots keep every join fixed.
+    const pageBox=pages.getBoundingClientRect(),scale=pageBox.width/pages.clientWidth;
+    const nodes=points.map(point=>{
+      const box=point.querySelector('.botanical-bullet').getBoundingClientRect();
+      return {x:(box.left-pageBox.left)/scale+point.pivotX,y:(box.top-pageBox.top)/scale+86};
+    });
     const first=nodes[0],last=nodes[nodes.length-1],coda=pages.querySelector('.coda');
     const groundY=coda.offsetTop+pageHeight*.15, rootX=last.x-8,rootDepth=Math.min(180,pageHeight*.25);
     const botanicalHeight=coda.offsetTop+pageHeight;
@@ -216,7 +222,7 @@
     for(let x=0;x<pages.clientWidth;x+=8)floorPoints.push({x,y:groundY+terrain(x)-terrain(rootX)});
     floorPoints.push({x:rootX,y:groundY},{x:pages.clientWidth,y:groundY+terrain(pages.clientWidth)-terrain(rootX)});
     floorPoints.sort((a,b)=>a.x-b.x);
-    const contour=smoothPath(floorPoints);ground.setAttribute('d',contour);
+    const contour=smoothPath(floorPoints);
     soil.setAttribute('d',`${contour} L ${pages.clientWidth} ${botanicalHeight} L 0 ${botanicalHeight} Z`);
     // A few wandering structural roots carry uneven lateral roots and fine rootlets.
     // Each filled outline tapers to a point; a centerline mask extends only its last fifth.
@@ -248,16 +254,16 @@
       mask.append(center);rootMasks.append(mask);
       rootGrowth.append(svg('path',{d:smoothPath([...left,...right.reverse()],true),class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',mask:`url(#${id})`,opacity:order===0?.95:.72+local()*.25,'data-root-order':order}));
       branches.push({path:center,order});
-      if(order>=2)return center;
-      const count=order===0?5+Math.floor(local()*3):1+Math.floor(local()*3);
+      if(order>=3)return center;
+      const count=order===0?5+Math.floor(local()*3):order===1?1+Math.floor(local()*3):2+Math.floor(local()*3);
       let side=local()<.5?-1:1;
       for(let i=0;i<count;i++) {
-        const fraction=.14+(i+.15+local()*.65)/count*.66,at=center.getPointAtLength(distance*fraction);
+        const fraction=(order===2?.25:.14)+(i+.15+local()*.65)/count*(order===2?.52:.66),at=center.getPointAtLength(distance*fraction);
         const before=center.getPointAtLength(Math.max(0,distance*fraction-1)),after=center.getPointAtLength(Math.min(distance,distance*fraction+1));
         const tangent=Math.atan2(after.x-before.x,after.y-before.y);
         if(local()<.72)side*=-1;
-        const childLength=distance*(order===0?.26+local()*.3:.23+local()*.27)*(1-fraction*.35);
-        rootBranch(at,tangent+side*(.5+local()*.65),childLength,width*(order===0?.34+local()*.14:.4),order+1,seed*7+i+1);
+        const childLength=order===2?7+local()*13:distance*(order===0?.26+local()*.3:.23+local()*.27)*(1-fraction*.35);
+        rootBranch(at,tangent+side*(.5+local()*.65),childLength,Math.max(.38,width*(order===0?.34+local()*.14:order===1?.4:.65)),order+1,seed*7+i+1);
       }
       return center;
     }
@@ -287,6 +293,11 @@
     });
   }
   function updateBotany(y) {
+    points.forEach((point,index)=>{
+      const {start,end}=leafRanges[index],t=clamp((y-start)/(end-start));
+      const angle=(index===0?0:index%2?7:-5)+Math.sin(t*Math.PI*2-Math.PI/2)*3;
+      point.querySelector('.botanical-sway').setAttribute('transform',`rotate(${reduce.matches?(index===0?0:index%2?7:-5):angle} ${point.pivotX} 86)`);
+    });
     if(nativeTimeline||reduce.matches)return;
     const intro=introEase(clamp((y-introStart)/(introEnd-introStart)));
     introCircles.forEach(circle=>{
@@ -300,11 +311,6 @@
     });
     vineGrowth.style.strokeDasharray='1';
     vineGrowth.style.strokeDashoffset=1-clamp((y-vineStart)/(vineEnd-vineStart));
-    points.forEach((point,index)=>{
-      const {start,end}=leafRanges[index],t=clamp((y-start)/(end-start));
-      const angle=(index===0?0:index%2?7:-5)+Math.sin(t*Math.PI*2-Math.PI/2)*3;
-      point.querySelector('.botanical-bullet').style.transform=`rotate(${angle}deg)`;
-    });
     const bloom=clamp((y-flowerStart)/(flowerEnd-flowerStart));
     flowerBloom.style.transform=`rotate(${-2+4*bloom}deg)`;
     petals[0].style.transform=`scaleX(${.6+.4*bloom})`;
@@ -601,7 +607,7 @@
   dock.addEventListener('pointermove',e=>{if(!fine.matches||reduce.matches)return;pointer=e.clientX;startMagnify();});
   dock.addEventListener('pointerleave',()=>{pointer=null;startMagnify();});
   new ResizeObserver(()=>{if(pointer===null){items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);}}).observe(stage);
-  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');points.forEach(point=>point.querySelector('.botanical-bullet').style.removeProperty('transform'));if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
+  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
   let measuredContentHeight = 0, measuredContentWidth = 0;
   new ResizeObserver(entries => {
     const {height,width} = entries[0].contentRect;

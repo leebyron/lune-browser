@@ -137,11 +137,12 @@ changing the story length.
 
 ## Respect story
 
-The tagline is “A respectful browser for Mac.” Nine short sentences explain
-respect through privacy defaults, consent, extension compatibility, Mac
-craftsmanship, attention, setup choices and shared source, with no headings, fragments, eyebrows or screenshot placeholder.
-A compact opening reuses setup’s paired-circle logo reveal, driven by scroll
-rather than a timer. It contains only the mark and moves upward with the page;
+The tagline is “A respectful browser for Mac.” Nine short sentences make the factual case through enabled ad/tracker blocking,
+third-party cookie defaults, removed Google integrations, consent, extensions,
+keyboard navigation, sidebar control, setup choices and shared source, with no headings, fragments, eyebrows or screenshot placeholder.
+The opening reuses setup’s paired-circle logo reveal, driven by scroll
+rather than a timer. The mark starts at the content viewport’s vertical center
+and moves upward with the page. A short personal note sits directly below it;
 the flower is already visible when the browser opens. The opening point
 has only a flower, enlarged 50%; eight uniquely generated leaves mark later points. A branching cyanotype vine joins them with small shoots and curled
 tendrils, rather than a line connecting separate icons. Marketing prose uses
@@ -280,16 +281,22 @@ Leaves have narrow, pointed silhouettes with restrained edge variation. Each
 petiole is part of its leaf’s fill, avoiding a separate stem seam; small shoots
 use measured branch tangents to align their leaves at the junction.
 The petiole starts at the same exact stem junction regardless of shape; mirrored
-leaves keep mirrored pivots. A fixed small-area grain filter and shared cyanotype
+leaves keep mirrored pivots. The vine reads each outer SVG’s rendered box relative
+to the page, normalized by the actual scale, rather than assuming an offsetParent
+chain. The outer SVG never transforms. An inner SVG group uses explicit numeric
+rotation pivots, updated on scroll in both timeline modes, avoiding percentage
+CSS transform origins on mobile SVG roots. A fixed small-area grain filter and shared cyanotype
 ink colors keep the family coherent. Resize does not regenerate random designs.
 
 The ground begins a slightly darker underground fill that continues through
-the footer in both appearances. Its contour uses four octaves of one-dimensional Perlin gradient noise with
+the footer in both appearances, with no separate contour stroke. Its shape uses four octaves of one-dimensional Perlin gradient noise with
 quintic interpolation, independently implemented after consulting [Ken Perlin’s
 reference](https://cs.nyu.edu/~perlin/noise/). Broad rises, smaller bumps and fine
 grading replace the repeating sine contour. The root junction remains 15% down
 the final viewport. A taproot carries two uneven laterals below the crown,
-with varying side branches and fine rootlets. Noise steers their headings;
+with varying side branches and fine rootlets. A further order of short, tapered
+rootlets fans from the fine branches: 135 total paths, including 89 terminal
+rootlets, in the checked desktop and phone layouts. Noise steers their headings;
 filled silhouettes taper all the way to a point. The spread is capped at 420px
 and depth at 25% of the viewport (at most 180px). Centerline masks keep every
 root 80% visible from the outset; only the last fifth grows as the ground enters.
@@ -300,8 +307,10 @@ opaque front petal is painted after the stamens and covers their bases; only tho
 is no idle pulse or time-driven growth. Artwork is hidden from accessibility
 APIs, takes no input, and adds no raster/network assets or dependencies.
 
-Native scroll timelines own the logo, petal, leaf and root animations. The
-existing scroll update provides equivalent progress in the JavaScript fallback.
+Native scroll timelines own the logo, petal and root animations. Inner SVG
+groups use numeric rotation attributes for leaf motion in both modes; the
+existing scroll update also provides equivalent logo, flower and root progress
+in the JavaScript fallback.
 Reduced Motion shows the completed logo, open flower and grown roots without
 motion. Layout measurements update the plant, terrain and footer credit on font
 loading and resize. The credit’s center is halfway between the action group’s
@@ -343,3 +352,12 @@ the moving logo-only opening, and completed roots; a forced Reduced Motion
 fixture leaves the completed artwork unchanged. Dark, preview-only Light and
 390×844 layouts include the continuous darker underground fill. Mobile uses a
 pointer-free sidebar collapse with a 260ms content-boundary transition.
+
+The mobile-attachment revision replaces offset-based joins and outer-SVG CSS
+rotation with measured SVG boxes and inner numeric pivots. All nine phone-preview
+junctions match their vine nodes within 0.001px, including while swaying. The
+opening mark starts at the viewport center, above the personal note. The ground
+has no stroke, the final mark/button gap is 28px (14px at mobile scale), and the
+credit stays at the actions/byline midpoint. These are desktop/phone-size browser
+preview checks; the owner’s physical iPhone rendering was not independently
+retested.
