@@ -37,7 +37,12 @@ The source now contains the
 adaptive Chlorophyll Daylight / Pelagic Signal desktop and a continuous
 scroll-driven browser story about respect for privacy, trust and attention,
 credited to both upstream projects.
-The points follow a measured sine wave; the closing thanks use regular Inter with
+The source now uses four complete sentences in one Inter style and color,
+with a restrained, centered sine wave and no screenshot placeholder or feature
+diagrams. Two pinned links open Fastmail and Calendar; regular links open Lune,
+Lee Byron, Helium, Lode and the Lune GitHub project in new tabs. The top-right
+group is limited to Extensions, uBlock Origin and 1Password.
+The points retain their reading order; the closing thanks use regular Inter with
 80px after the download actions, and the Lode author line sits at the bottom edge. Section heights and
 the reading distance follow the content rather than a fixed page count. The
 browser uses the mounted-left layout with the reviewed 216px sidebar and a reversible scroll-driven cursor
@@ -51,8 +56,7 @@ popover is a flush square CSS glass sheet. The window has 16px outer corners and
 edge-to-edge content without gutters or an inner shadow. Both sidebar modes share
 header/row geometry; the pinned edge has a semantic hairline. Tab rows use native
 standard-density dimensions and combined region/row insets, with hover-only close
-marks. The illustration omits default-browser and update prompts. Browser
-screenshots remain placeholders. Download detects Apple silicon or Intel when the browser exposes macOS
+marks. The illustration omits default-browser and update prompts. The emulated browser provides the visual demonstration. Download detects Apple silicon or Intel when the browser exposes macOS
 architecture hints, otherwise offering both choices. Production download buttons are enabled and point to permanent GitHub
 latest-asset links. The canonical Sparkle feeds live in the same GitHub repository; legacy feed
 redirects are retired during the November 10 consolidation.

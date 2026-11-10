@@ -15,6 +15,10 @@
   const nativeTimeline=CSS.supports('animation-timeline:scroll()');
   const clamp=x=>Math.max(0,Math.min(1,x));
   let opening=0,readingStart=182,launchAt=96,pageHeight=0,reading=0,queued=false,base=48,launched=false,appVisible=false,showTimer=0;
+  const points = [...pages.querySelectorAll('.flow-point')];
+  points.forEach((point, index) => {
+    point.style.setProperty('--flow-offset', Math.sin(index / (points.length - 1) * 2 * Math.PI).toFixed(5));
+  });
   function measure() {
     const style = getComputedStyle(root);
     opening = parseFloat(style.getPropertyValue('--opening'));
@@ -25,14 +29,8 @@
     browserScale = parseFloat(style.getPropertyValue('--browser-scale'));
     root.style.setProperty('--hairline', `${1 / (devicePixelRatio * browserScale)}px`);
     root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 2 * parseFloat(style.getPropertyValue('--rail')) - sidebarWidth)}px`);
-    // Sample one continuous sine wave at each point's actual reading position.
-    // Margins affect only x, so font/viewport changes can safely remeasure y.
-    pages.querySelectorAll('.flow-point').forEach(point => {
-      const y = point.offsetTop + point.closest('.story-section').offsetTop;
-      point.style.setProperty('--flow-offset', ((1 + Math.sin(y / 1500 * 2 * Math.PI - Math.PI / 2)) / 2).toFixed(5));
-    });
     const minimal = root.querySelector('.minimal-story');
-    demoStart = readingStart + minimal.offsetTop - pageHeight * .4;
+    demoStart = readingStart + minimal.offsetTop - pageHeight * .7;
     demoDistance = Math.min(460, pageHeight * .65);
     root.style.setProperty('--demo-start', `${demoStart}px`);
     root.style.setProperty('--demo-end', `${demoStart + demoDistance}px`);
