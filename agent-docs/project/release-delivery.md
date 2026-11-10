@@ -250,3 +250,19 @@ confirmation. Include report hashes and concise test results as additional field
 so the booleans can be audited. The validation.json uploaded with the draft
 is immutable; later hardware acceptance is recorded separately in the promoted
 feed commit. Do not overwrite the original candidate evidence.
+
+## Focused release uploads
+
+The source repository is public. Publish browser DMGs (versioned and permanent
+latest aliases), architecture appcasts, checksums and compact release/validation
+metadata. Link the exact signed public source tag and permanent component refs.
+Do not re-upload Git history bundles, source kits, or unchanged source/dependency
+archives merely to duplicate what the public repository and recorded immutable
+URLs already provide. Verify source reachability and hashes; preserve existing
+published assets and licenses. The owner explicitly selected this approach while
+publishing 26.1109.2. That release removed redundant source assets only from its
+unpublished draft; the prior production release remains intact.
+
+The historical source-kit upload command below predates this decision and must
+not be used as a mandatory production gate. Source availability is required;
+duplicate archive uploads are not.
