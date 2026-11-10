@@ -7,6 +7,14 @@ Read [the project definition](agent-docs/project/README.md) and
 
 ## Current state
 
+The development input `inputs/floating-infobars-1/macos` includes the owner-approved
+floating footer prompts from the Dock-message conversation. Prompts span the combined
+content area with 8 px edge insets and stack gaps, native corner geometry and hairline,
+subtle shadows, and equally inset dismiss buttons. Multiple ordinary prompts display
+together. Both architecture builds pass; native arm64 acceptance and exact published-stack
+replay pass. Existing downloads changes remain in the baseline; sidebar tint and width
+edits from the wrong chat were discarded. See [footer prompts](agent-docs/project/features/floating-infobars.md).
+
 Future development builds include the owner-accepted downloads fix through
 `inputs/downloads-1/macos`, preserving the Dock-prompt and older-macOS fixes.
 Toolbar-anchored menus reveal and retain the header. Downloads use native SF status

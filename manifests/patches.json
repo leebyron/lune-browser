@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "e631e3559ca1aba129c0446c06460da4e0493bbb",
+    "commit": "eaad00f9148bbe151ae9a85370041d738d6adc70",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -677,6 +677,10 @@
       {
         "path": "patches/helium/ui/native-download-progress.patch",
         "sha256": "b5946a3954935a8a06b941bbeaed1cf2c046e95f998c81fdfef70bcdede9d2f7"
+      },
+      {
+        "path": "patches/helium/ui/floating-infobars.patch",
+        "sha256": "43abbadf54848c524898a8ffe72ccf2ac1bd1917b7aeebac93ebeb38b3b9b129"
       }
     ]
   },
@@ -1572,6 +1576,22 @@
       "adaptation": "Developed with quilt against prepared Chromium 158 source. Strict zero-fuzz/zero-offset replay reproduces all accepted compiled bytes; both architecture builds, focused fixtures, and arm64 owner visual acceptance pass. Intel runtime fixtures use Rosetta. See agent-docs/project/features/downloads.md.",
       "commits": [
         "e631e3559ca1aba129c0446c06460da4e0493bbb"
+      ]
+    },
+    {
+      "id": "floating-infobars",
+      "depends_on": [
+        "remove-dock-infobar",
+        "native-download-progress"
+      ],
+      "patches": [
+        "patches/helium/ui/floating-infobars.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Float page prompts at the content footer with 8 px insets and stack spacing, concentric corners, the native sidebar hairline, subtle shadows, and evenly inset dismiss controls.",
+      "adaptation": "Owner accepted the native preview on November 9, 2026. Developed with quilt and replayed from exact locked Chromium source through the current published core/platform stack with zero fuzz and zero offsets for this patch. Both architecture browser builds pass; native arm64 geometry, stacking, dismissal, and split-view checks pass. Priority regression tests compile for both architectures but were not executed. See agent-docs/project/features/floating-infobars.md.",
+      "commits": [
+        "eaad00f9148bbe151ae9a85370041d738d6adc70"
       ]
     }
   ],
