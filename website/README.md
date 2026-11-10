@@ -399,3 +399,15 @@ personal note starts 128px below that center, and 128px separates the prelude
 from the flower section. The flower starts below the initial viewport on
 desktop and at phone size. Nine shorter sentences cover blocking, consent,
 extensions, navigation, page focus, search choice and open-source foundations.
+
+The personal note fades from 18px below its resting position after the logo’s
+scroll range ends, over the next 18% of a viewport. Each point fades up by the
+same amount as its resting text center moves from 75% to 55% down the browser
+viewport. These ranges reverse with scrolling and retain the settled text
+above that band. Native scroll timelines and the JavaScript fallback share
+setup’s cubic-bezier(.2,.8,.2,1) easing. Reduced Motion shows all text in place.
+
+The first point now leads with current Chromium, followed by uBlock Origin.
+The extension point explains the privacy benefit of proxying downloads and
+updates, following [Helium’s published explanation](https://helium.computer/).
+There are ten points in the same flowing sequence and type style.

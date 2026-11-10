@@ -168,7 +168,9 @@ svg { display: block; }
   @keyframes setup-circle-open { from { transform:translateX(0); } to { transform:translateX(var(--shift)); } }
   @keyframes setup-cutout-open { from { transform:translateX(0); r:111px; } to { transform:translateX(var(--shift)); r:112.725508px; } }
   @keyframes setup-logo-settle { from { transform:scale(1.2); } to { transform:scale(1); } }
+  @keyframes story-text-enter { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
   @supports(animation-timeline:scroll()) {
+    #lune .prelude-note,#lune .flow-point p { animation:story-text-enter cubic-bezier(.2,.8,.2,1) both; animation-timeline:--lune-scroll; animation-range:var(--text-start) var(--text-end); }
     #lune .setup-logo { animation:setup-logo-settle cubic-bezier(.2,.8,.2,1) both; }
     #lune .setup-logo .setup-outer { animation:setup-circle-open cubic-bezier(.2,.8,.2,1) both; }
     #lune .setup-logo .setup-cutout { animation:setup-cutout-open cubic-bezier(.2,.8,.2,1) both; }
@@ -259,6 +261,7 @@ svg { display: block; }
   #lune .viewport { transition:left 260ms cubic-bezier(.2,.8,.2,1); }
 }
 @media(prefers-reduced-motion:reduce) {
+  #lune .prelude-note,#lune .flow-point p { animation:none; opacity:1; transform:none; }
   #lune .window { animation:none; }
   #lune .botanical-bullet,#lune .flower-bloom,#lune .petal,#lune .flower-stamens,#lune .vine-growth,#lune .root-growth,#lune .setup-logo,#lune .setup-logo .setup-outer,#lune .setup-logo .setup-cutout { animation:none; }
   #lune .root-growth,#lune .root-base-growth { animation:none; stroke-dasharray:none; stroke-dashoffset:0; opacity:1; }

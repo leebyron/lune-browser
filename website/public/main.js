@@ -101,7 +101,7 @@
   }
   filaments.setAttribute('d',filamentPath);stamens.replaceChildren(filaments,halos,anthers);
   let vineStart=0, vineEnd=1, flowerStart=0, flowerEnd=1,introStart=0,introEnd=1;
-  let rootRanges=[],sprigRanges=[];
+  let rootRanges=[],sprigRanges=[],textRanges=[];
   const leafRanges=[];
   points.forEach((point, index) => {
     point.style.setProperty('--flow-offset', Math.sin(index / (points.length - 1) * 2 * Math.PI).toFixed(5));
@@ -130,6 +130,9 @@
     introEnd=readingStart+pageHeight*.22;
     root.style.setProperty('--intro-start',`${introStart}px`);
     root.style.setProperty('--intro-end',`${introEnd}px`);
+    const note=pages.querySelector('.prelude-note'),noteEnd=introEnd+pageHeight*.18;
+    note.style.setProperty('--text-start',`${introEnd}px`);note.style.setProperty('--text-end',`${noteEnd}px`);
+    textRanges=[{text:note,start:introEnd,end:noteEnd}];
     const coda=pages.querySelector('.coda'),codaContent=coda.querySelector('.coda-content'),thanks=coda.querySelector('.upstream-thanks'),byline=coda.querySelector('.byline');
     const actionsBottom=pageHeight/2+codaContent.offsetHeight/2;
     coda.style.setProperty('--thanks-top',`${(actionsBottom+byline.offsetTop)/2-thanks.offsetHeight/2}px`);
@@ -315,6 +318,11 @@
       leafRanges[index]={start,end,...lightRange(attachments[index])};
       point.style.setProperty('--leaf-start',`${start}px`);
       point.style.setProperty('--leaf-end',`${end}px`);
+      const text=point.querySelector('p'),box=point.getBoundingClientRect();
+      const center=(box.top-pageBox.top)/scale+point.offsetHeight/2-(index===0?22:10);
+      const textStart=readingStart+center-pageHeight*.75,textEnd=readingStart+center-pageHeight*.55;
+      text.style.setProperty('--text-start',`${textStart}px`);text.style.setProperty('--text-end',`${textEnd}px`);
+      textRanges.push({text,start:textStart,end:textEnd});
     });
   }
   function updateBotany(y) {
@@ -329,6 +337,10 @@
       group.setAttribute('transform',`rotate(${side*7*opening} ${at.x} ${at.y})`);
     });
     if(nativeTimeline||reduce.matches)return;
+    textRanges.forEach(({text,start,end})=>{
+      const progress=clamp((y-start)/(end-start)),fade=progress===0||progress===1?progress:introEase(progress);
+      text.style.opacity=fade;text.style.transform=`translateY(${18*(1-fade)}px)`;
+    });
     const intro=introEase(clamp((y-introStart)/(introEnd-introStart)));
     introCircles.forEach(circle=>{
       const shift=parseFloat(circle.style.getPropertyValue('--shift'));
@@ -639,7 +651,7 @@
   dock.addEventListener('pointermove',e=>{if(!fine.matches||reduce.matches)return;pointer=e.clientX;startMagnify();});
   dock.addEventListener('pointerleave',()=>{pointer=null;startMagnify();});
   new ResizeObserver(()=>{if(pointer===null){items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);}}).observe(stage);
-  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
+  reduce.addEventListener('change',()=>{textRanges.forEach(({text})=>{text.style.removeProperty('opacity');text.style.removeProperty('transform');});introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
   let measuredContentHeight = 0, measuredContentWidth = 0;
   new ResizeObserver(entries => {
     const {height,width} = entries[0].contentRect;
