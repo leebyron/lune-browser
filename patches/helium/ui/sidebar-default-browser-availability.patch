@@ -1,0 +1,24 @@
+--- a/chrome/browser/ui/startup/infobar_utils.cc
++++ b/chrome/browser/ui/startup/infobar_utils.cc
+@@ -32,6 +32,7 @@
+ #include "chrome/browser/ui/startup/startup_browser_creator.h"
+ #include "chrome/browser/ui/startup/startup_types.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
+@@ -316,8 +317,11 @@
+   }
+ #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+ 
+-  // The default browser prompt should only be shown after the first run.
+-  if (is_first_run == chrome::startup::IsFirstRun::kNo) {
++  // A sidebar action belongs in the first window too; it is not an interrupting
++  // first-run infobar. Keep the original policy for horizontal tabs.
++  const auto* sidebar = tabs::VerticalTabStripStateController::From(browser);
++  if (is_first_run == chrome::startup::IsFirstRun::kNo ||
++      (sidebar && sidebar->ShouldDisplayVerticalTabs())) {
+ #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+     if (base::FeatureList::IsEnabled(features::kSeparateDefaultAndPinPrompt)) {
+       const int seed = features::kSeparateDefaultAndPinPromptRandSeed.Get();
