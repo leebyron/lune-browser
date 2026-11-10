@@ -82,7 +82,9 @@ additional CI cost; this work does not activate scheduled release jobs.
    are the root out/ and siso_result.json, Git/quilt metadata, Python bytecode,
    and Vite's node_modules/.vite development cache. Keep its archive verification and
    patch log. Existing output caches may be reused only after source comparison.
-2. Finish tools and source validation and commit release notes. Fetch remote
+2. Finish tools and source validation and commit release notes following the
+   [release-note style](releases.md#release-note-style): informative and fun, with
+   new features first, then bug fixes and security changes. Fetch remote
    branches and tags, then run `scripts/release/reserve.py --version VERSION`.
    Review and commit the resulting record, serializing against other allocations.
    Check Chromium freshness with `scripts/release/freshness.py`. Its failure or

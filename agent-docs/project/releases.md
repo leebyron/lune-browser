@@ -117,6 +117,23 @@ Xelium can replace release assets with `--clobber` and commits its appcast to
 keep release outputs outside the source branch. Its draft mode still reaches
 the appcast commit/push block; a Lune draft must never advance a public feed.
 
+## Release-note style
+
+The owner wants release notes to be informative and fun to read. Lead with new
+features, then bug fixes and security changes. Put compatibility, testing,
+known issues and provenance afterward so build machinery does not bury what changed.
+
+Use concrete descriptions of what people can now do, with a little warmth and
+personality. Keep it readable and avoid marketing claims or an internal work log.
+Tie each change to the frozen inputs and the previous published version. Never
+invent a security fix or imply an engine upgrade when Chromium is unchanged;
+state its exact version and freshness status. Keep unverified testing and known
+limitations explicit, without allowing them to take over the feature introduction.
+
+Publication notes may be clarified after release while binaries, tags, frozen
+records and source archives remain immutable. Keep revised publication notes in
+Git separately from any hash-locked historical notes, and verify GitHub readback.
+
 ## Versioning and publication
 
 The owner selected `YY.MMDD.N` for Lune's release version on November 8, 2026:
