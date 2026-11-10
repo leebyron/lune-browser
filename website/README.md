@@ -367,17 +367,25 @@ retested.
 The growing vine stroke is 2.6px at 68% opacity over a 30% guide. It starts
 once the flower is at least 35% open, then reaches
 the root crown when that junction is 60% down the viewport. The established
-base roots remain completely still. A lighter copy of every tapered outline
+base roots begin at 70% of their total reach, with a shared growth front keeping every branch connected. The remaining 30% grows as the light fans through them. A lighter copy of every tapered outline
 is drawn from 0% to 100% over them, with the full branching burst spanning 27%
 of the viewport’s scroll distance, finishing with 18% of a viewport left to scroll.
 Measured travel distance from the crown sets each branch’s range, so a child’s
 light starts exactly when its parent reaches the attachment. The overlay uses
 a restrained cyan/mint mix at 65% of the root’s existing opacity. Native and
 fallback progress are linear along the paths; Reduced Motion shows the complete
-light trace without motion. No timer, idle pulse or dependency is added.
+light trace without motion. Each leaf opens outward by 6 degrees as the stem light reaches its attachment; small shoots and tendrils open by 7 degrees around their own stem junctions. Numeric SVG pivots keep all joins attached. No timer, idle pulse or dependency is added.
 
-The root-light revision verifies 135 static base silhouettes and 135 matching
+The earlier root-light revision verified 135 static base silhouettes and 135 matching
 light silhouettes. Before arrival all light masks are empty; during the burst
 parents advance before their children, and all complete by the last scroll
 position. Base path data, fills, opacity and lack of masks stay unchanged through
 scrolling. The forced Reduced Motion fixture keeps every light mask complete.
+
+The leaf-opening revision keeps 135 matching base/light silhouettes, with base
+centerline masks starting at 70% of the network’s maximum travel distance. The
+base growth front advances to 100% during the existing light burst; the light
+still reveals from 0% to 100%. Shared travel distances keep child attachments
+behind the parent’s growth front. Main leaves rotate 6 degrees outward and 21
+small shoots/tendrils rotate 7 degrees around fixed junctions as the stem light
+passes. Reduced Motion retains the complete, open plant.

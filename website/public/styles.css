@@ -194,6 +194,7 @@ svg { display: block; }
   #lune .vine-roots { fill:none; stroke:var(--botanical-ink); stroke-width:1; stroke-linecap:round; opacity:.68; }
   #lune .root-light { fill:color-mix(in oklab,var(--botanical-ink) 55%,var(--biolume)); }
   @keyframes root-grow { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
+  @keyframes root-base-grow { from { stroke-dashoffset:var(--root-base-from); } to { stroke-dashoffset:0; } }
   @keyframes vine-grow { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
   @keyframes flower-unfold { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
   @keyframes petal-back-open { from { transform:scaleX(.6); } to { transform:scaleX(1); } }
@@ -203,6 +204,7 @@ svg { display: block; }
   @keyframes stamen-reveal { from { transform:translateY(5px) scale(.16,.72); opacity:.6; } to { transform:translateY(0) scale(1); opacity:1; } }
   @supports(animation-timeline:scroll()) {
     #lune .root-growth { stroke-dasharray:1; animation:root-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--root-start) var(--root-end); }
+    #lune .root-base-growth { stroke-dasharray:1; animation:root-base-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--root-start) var(--root-end); }
     #lune .vine-growth { stroke-dasharray:1; animation:vine-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--vine-start) var(--vine-end); }
     #lune .flower-bloom { animation:flower-unfold linear both; }
     #lune .petal-back { animation:petal-back-open linear both; }
@@ -259,7 +261,7 @@ svg { display: block; }
 @media(prefers-reduced-motion:reduce) {
   #lune .window { animation:none; }
   #lune .botanical-bullet,#lune .flower-bloom,#lune .petal,#lune .flower-stamens,#lune .vine-growth,#lune .root-growth,#lune .setup-logo,#lune .setup-logo .setup-outer,#lune .setup-logo .setup-cutout { animation:none; }
-  #lune .root-growth { stroke-dasharray:none; stroke-dashoffset:0; opacity:1; }
+  #lune .root-growth,#lune .root-base-growth { animation:none; stroke-dasharray:none; stroke-dashoffset:0; opacity:1; }
   #lune .vine-growth { stroke-dasharray:none; stroke-dashoffset:0; }
   #lune .demo-cursor,#lune .demo-click { display:none; animation:none; }
   #lune .browser-sidebar,#lune .viewport { transition:none; }

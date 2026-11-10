@@ -100,7 +100,7 @@
   }
   filaments.setAttribute('d',filamentPath);stamens.replaceChildren(filaments,halos,anthers);
   let vineStart=0, vineEnd=1, flowerStart=0, flowerEnd=1,introStart=0,introEnd=1;
-  let rootRanges=[];
+  let rootRanges=[],sprigRanges=[];
   const leafRanges=[];
   points.forEach((point, index) => {
     point.style.setProperty('--flow-offset', Math.sin(index / (points.length - 1) * 2 * Math.PI).toFixed(5));
@@ -178,27 +178,30 @@
     const botanicalHeight=coda.offsetTop+pageHeight;
     vine.setAttribute('viewBox',`0 0 ${pages.clientWidth} ${botanicalHeight}`);
     vine.style.height=`${botanicalHeight}px`;
-    let d=`M ${first.x} ${first.y}`;
+    let d=`M ${first.x} ${first.y}`,stemLength=0;
+    const attachments=[0],sprigAttachments=[];
     const growth=document.createDocumentFragment();
-    function specimen(at,angle,scale,opacity,seed) {
+    function specimen(at,angle,scale,opacity,seed,parent=growth) {
       const generated=leaf(seed);
       generated.setAttribute('transform',`translate(${at.x} ${at.y}) rotate(${angle}) scale(${scale})`);
-      generated.setAttribute('opacity',opacity);growth.append(generated);
+      generated.setAttribute('opacity',opacity);parent.append(generated);
     }
-    function shoot(at,side,variant) {
+    function shoot(at,side,variant,distance) {
+      const group=svg('g',{class:'sprig-opening'});
+      growth.append(group);sprigAttachments.push({group,at,side,distance});
       const reach=20+(variant%4)*5,rise=17+(variant%3)*7;
       const tip={x:at.x+side*reach,y:at.y-rise};
       const branch=svg('path',{class:'vine-tendril',d:`M ${at.x} ${at.y} Q ${at.x+side*reach*.7} ${at.y-3}, ${tip.x} ${tip.y}`});
-      growth.append(branch);
+      group.append(branch);
       const length=branch.getTotalLength(),beforeTip=branch.getPointAtLength(Math.max(0,length-1));
       const angle=Math.atan2(tip.x-beforeTip.x,-(tip.y-beforeTip.y))*180/Math.PI;
-      specimen(tip,angle,.6+variant%5*.06,.8+variant%3*.06,173+variant*79);
+      specimen(tip,angle,.6+variant%5*.06,.8+variant%3*.06,173+variant*79,group);
       // Secondary leaves attach to a measured point on the branch, never a guessed offset.
       if(variant%3!==1) {
         const distance=length*.52,middle=branch.getPointAtLength(distance);
         const before=branch.getPointAtLength(distance-1),after=branch.getPointAtLength(distance+1);
         const tangent=Math.atan2(after.x-before.x,-(after.y-before.y))*180/Math.PI;
-        specimen(middle,tangent-side*(38+variant%3*9),.48+variant%3*.04,.82,983+variant*43);
+        specimen(middle,tangent-side*(38+variant%3*9),.48+variant%3*.04,.82,983+variant*43,group);
       }
     }
     nodes.slice(1).forEach((node,index)=>{
@@ -207,14 +210,18 @@
       d+=` ${curve}`;
       const segment=svg('path',{d:`M ${previous.x} ${previous.y} ${curve}`}),length=segment.getTotalLength();
       const positions=[[.32,.7],[.26,.58,.83],[.44],[.29,.68]][index%4];
-      positions.forEach((progress,j)=>shoot(segment.getPointAtLength(length*progress),(index+j)%2?1:-1,index*3+j));
+      positions.forEach((progress,j)=>shoot(segment.getPointAtLength(length*progress),(index+j)%2?1:-1,index*3+j,stemLength+length*progress));
       if(index%3!==1) {
         const at=segment.getPointAtLength(length*(index%2?.78:.86)),side=index%2?1:-1,reach=22+index%3*5;
-        growth.append(svg('path',{class:'vine-tendril',d:`M ${at.x} ${at.y} C ${at.x+side*16} ${at.y-14}, ${at.x+side*(reach+14)} ${at.y+4}, ${at.x+side*reach} ${at.y+17} C ${at.x+side*(reach-11)} ${at.y+25}, ${at.x+side*(reach-17)} ${at.y+6}, ${at.x+side*(reach-7)} ${at.y+9}`}));
+        const group=svg('g',{class:'sprig-opening'});
+        group.append(svg('path',{class:'vine-tendril',d:`M ${at.x} ${at.y} C ${at.x+side*16} ${at.y-14}, ${at.x+side*(reach+14)} ${at.y+4}, ${at.x+side*reach} ${at.y+17} C ${at.x+side*(reach-11)} ${at.y+25}, ${at.x+side*(reach-17)} ${at.y+6}, ${at.x+side*(reach-7)} ${at.y+9}`}));
+        growth.append(group);sprigAttachments.push({group,at,side,distance:stemLength+length*(index%2?.78:.86)});
       }
+      stemLength+=length;attachments.push(stemLength);
     });
     d+=` C ${last.x-24} ${last.y+(groundY-last.y)*.3}, ${rootX+18} ${groundY-(groundY-last.y)*.3}, ${rootX} ${groundY}`;
     vine.querySelectorAll('.vine-base,.vine-growth').forEach(path=>path.setAttribute('d',d));
+    stemLength=vineGrowth.getTotalLength();
     sprigs.replaceChildren(growth);
     // Layered Perlin gradient noise: rolling contour, smaller bumps, fine grain.
     const terrain=x=>noise(x/260+4.3,19)*18+noise(x/88+13.1,37)*6+noise(x/31+9.7,73)*2.2+noise(x/10+2.5,113)*.6;
@@ -224,8 +231,8 @@
     floorPoints.sort((a,b)=>a.x-b.x);
     const contour=smoothPath(floorPoints);
     soil.setAttribute('d',`${contour} L ${pages.clientWidth} ${botanicalHeight} L 0 ${botanicalHeight} Z`);
-    // Established roots remain still; centerline masks draw a lighter copy over
-    // their tapered silhouettes as the stem light reaches the crown.
+    // A shared growth front keeps the established roots connected at 70% of
+    // their full reach. A separate mask carries the light from the crown.
     const rootGrowth=document.createDocumentFragment(),rootMasks=svg('defs'),branches=[];
     rootGrowth.append(rootMasks);
     const rootWidth=Math.min(420,pages.clientWidth*.54);
@@ -252,10 +259,13 @@
       });
       const id=`story-root-${branches.length}`,mask=svg('mask',{id,maskUnits:'userSpaceOnUse',x:0,y:groundY-8,width:pages.clientWidth,height:rootDepth+16});
       mask.append(center);rootMasks.append(mask);
+      const baseCenter=center.cloneNode();baseCenter.setAttribute('class','root-base-growth');
+      const baseMask=svg('mask',{id:`${id}-base`,maskUnits:'userSpaceOnUse',x:0,y:groundY-8,width:pages.clientWidth,height:rootDepth+16});
+      baseMask.append(baseCenter);rootMasks.append(baseMask);
       const outline=smoothPath([...left,...right.reverse()],true),opacity=order===0?.95:.72+local()*.25;
-      const ink=svg('path',{d:outline,class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',opacity,'data-root-order':order});
+      const ink=svg('path',{d:outline,class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',opacity,mask:`url(#${id}-base)`,'data-root-order':order});
       const light=svg('path',{d:outline,class:'root-light',stroke:'none',mask:`url(#${id})`,opacity:opacity*.65});
-      rootGrowth.append(ink,light);branches.push({path:center,travel,end:travel+distance});
+      rootGrowth.append(ink,light);branches.push({path:center,basePath:baseCenter,travel,end:travel+distance});
       if(order>=3)return center;
       const count=order===0?5+Math.floor(local()*3):order===1?1+Math.floor(local()*3):2+Math.floor(local()*3);
       let side=local()<.5?-1:1;
@@ -280,27 +290,42 @@
     // its exact attachment, with the whole burst complete before the last viewport.
     vineEnd=readingStart+groundY-pageHeight*.6;
     const longest=Math.max(...branches.map(branch=>branch.end)),waveDistance=pageHeight*.27;
-    rootRanges=branches.map(({path,travel,end:distance})=>{
+    rootRanges=branches.map(({path,basePath,travel,end:distance})=>{
       const start=vineEnd+waveDistance*travel/longest,end=vineEnd+waveDistance*distance/longest;
       path.style.setProperty('--root-start',`${start}px`);path.style.setProperty('--root-end',`${end}px`);
-      return {path,start,end};
+      const baseFrom=clamp((distance-longest*.7)/(distance-travel));
+      const baseStart=Math.max(vineEnd,vineEnd+waveDistance*(travel/longest-.7)/.3);
+      const baseEnd=Math.max(baseStart+1,vineEnd+waveDistance*(distance/longest-.7)/.3);
+      basePath.style.setProperty('--root-base-from',baseFrom);
+      basePath.style.setProperty('--root-start',`${baseStart}px`);basePath.style.setProperty('--root-end',`${baseEnd}px`);
+      return {path,basePath,start,end,baseFrom,baseStart,baseEnd};
     });
     root.style.setProperty('--vine-start',`${vineStart}px`);
     root.style.setProperty('--vine-end',`${vineEnd}px`);
     root.style.setProperty('--flower-start',`${flowerStart}px`);
     root.style.setProperty('--flower-end',`${flowerEnd}px`);
+    const lightRange=distance=>{
+      const start=vineStart+(vineEnd-vineStart)*distance/stemLength;
+      return {lightStart:start,lightEnd:start+pageHeight*.12};
+    };
+    sprigRanges=sprigAttachments.map(attachment=>({...attachment,...lightRange(attachment.distance)}));
     points.forEach((point,index)=>{
       const start=Math.max(0,readingStart+nodes[index].y-pageHeight),end=readingStart+nodes[index].y+pageHeight*.25;
-      leafRanges[index]={start,end};
+      leafRanges[index]={start,end,...lightRange(attachments[index])};
       point.style.setProperty('--leaf-start',`${start}px`);
       point.style.setProperty('--leaf-end',`${end}px`);
     });
   }
   function updateBotany(y) {
     points.forEach((point,index)=>{
-      const {start,end}=leafRanges[index],t=clamp((y-start)/(end-start));
-      const angle=(index===0?0:index%2?7:-5)+Math.sin(t*Math.PI*2-Math.PI/2)*3;
-      point.querySelector('.botanical-sway').setAttribute('transform',`rotate(${reduce.matches?(index===0?0:index%2?7:-5):angle} ${point.pivotX} 86)`);
+      const {start,end,lightStart,lightEnd}=leafRanges[index],t=clamp((y-start)/(end-start));
+      const opening=reduce.matches?1:introEase(clamp((y-lightStart)/(lightEnd-lightStart)));
+      const angle=(index===0?0:index%2?7:-5)+(reduce.matches?0:Math.sin(t*Math.PI*2-Math.PI/2)*3)+(index===0?0:index%2?-6:6)*opening;
+      point.querySelector('.botanical-sway').setAttribute('transform',`rotate(${angle} ${point.pivotX} 86)`);
+    });
+    sprigRanges.forEach(({group,at,side,lightStart,lightEnd})=>{
+      const opening=reduce.matches?1:introEase(clamp((y-lightStart)/(lightEnd-lightStart)));
+      group.setAttribute('transform',`rotate(${side*7*opening} ${at.x} ${at.y})`);
     });
     if(nativeTimeline||reduce.matches)return;
     const intro=introEase(clamp((y-introStart)/(introEnd-introStart)));
@@ -310,9 +335,10 @@
       if(circle.classList.contains('setup-cutout'))circle.style.r=`${111+1.725508*intro}px`;
     });
     introLogo.style.transform=`scale(${1.2-.2*intro})`;
-    rootRanges.forEach(({path,start,end})=>{
+    rootRanges.forEach(({path,basePath,start,end,baseFrom,baseStart,baseEnd})=>{
       const progress=clamp((y-start)/(end-start));
       path.style.strokeDasharray='1';path.style.strokeDashoffset=1-progress;
+      basePath.style.strokeDasharray='1';basePath.style.strokeDashoffset=baseFrom*(1-clamp((y-baseStart)/(baseEnd-baseStart)));
     });
     vineGrowth.style.strokeDasharray='1';
     vineGrowth.style.strokeDashoffset=1-clamp((y-vineStart)/(vineEnd-vineStart));
