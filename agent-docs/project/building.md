@@ -8,47 +8,11 @@ Use this runbook for development builds. For a production release, follow [relea
 
 ## Tracked inputs
 
-`manifests/browser.lock.json` pins Chromium 158.0.8127.18 and a reviewed forward
-port of the combined Helium/ungoogled stack. The ungoogled provenance remains
-release 157.0.8103.38-1; `chromium_forward_port` records the newer Chromium target
-and its review. The lock also pins macOS packaging and the services snapshot. It hashes
-product configuration, patch selections, Homebrew/Python requirements, and both
-host download manifests. Every source download has a fixed SHA-256 or SHA-512;
-we resolved upstream's mutable hash-file URLs when creating this lock.
+`manifests/browser.lock.json` pins component commits/trees/refs, the Chromium target and ungoogled provenance, product/build requirements, patch selections and host download manifests. Every source download has a fixed hash. `manifests/patches.json` records the reviewed full Helium stack, selected contributions and local adaptations; do not apply ungoogled twice.
 
-The complete Helium stack plus reviewed Xelium UI ports are selected; see
-[the composition and validation status](xelium-ui.md). The ungoogled commit is already an ancestor of the selected core, and
-the macOS gitlink matches that core. No duplicate ungoogled series is applied.
+The repository retains upstream-derived `component/helium`, `component/macos` and `component/services` histories plus permanent `inputs/*` tags. Bootstrap tags and dated feature tags are historical checkpoints, not aliases for current inputs. The platform gitlink must match the locked core. See [architecture](architecture.md) for the Git/patch boundary and [feature records](features/README.md) for scoped validation.
 
-Published histories are `component/helium`, `component/macos`, and
-`component/services`. Permanent `inputs/bootstrap-1/{helium,macos,services,ungoogled}`
-tags retain the original inputs. The first-build macOS fix remains pinned at `inputs/bootstrap-2/macos`; original
-tags are never rewritten. The UI candidate is pinned at `inputs/xelium-ui-1/macos`,
-with Xelium and PR provenance under corresponding `inputs/xelium-*` tags.
-The current core/platform inputs are retained by `inputs/chromium-158-1/{helium,macos}`;
-the services input is unchanged. The reviewed 158 compatibility work preserves
-upstream ancestry. Lune identity changes remain separate commits descended from upstream:
-
-- Same-repository core submodule URL, preserving its exact gitlink.
-- `Lune` product name, `computer.lune.browser` bundle/profile identity,
-  `Lune Storage Key`, and team `RBC9EP7948`.
-- GRIT-aware display-name substitution after upstream localization, keeping
-  `helium://` and internal identifiers compatible.
-- Lune service origin `https://services.lune.computer`, currently **not deployed**.
-- Hash-locked source download override and strict patch application without fuzz.
-- Removal of the upstream asset-catalog icon name so the bundle uses its `.icns`.
-  Pelagic Signal artwork is included in the UI candidate; a complete branding/link
-  audit remains outstanding. The Chromium 158 integration now replaces internal
-  PNG, SVG, and native vector logos as well; its arm64 build and runtime icon
-  checks pass on both targets (Intel under Rosetta). See
-  [the forward-port evidence](builds/2026-11-05-chromium-158-port.md).
-
-The first development build explicitly disables Sparkle and special branded
-entitlements. Product metadata records a dedicated Sparkle public key, but the
-updater is not yet configured or enabled in a browser. Do not publish this input
-set as a finished distribution. The browser still inherits upstream versioning;
-Lune build numbering, the full branding/link audit, service behavior, packaging,
-and native Intel hardware checks remain release blockers.
+Lune identity uses bundle/profile `computer.lune.browser`, keychain service `Lune Storage Key` and team `RBC9EP7948`. Browser updates use the canonical GitHub feeds. Optional browser services deliberately use Helium's production endpoint; Lune service hosting is not deployed. Keep these identities and consent paths separate from reusable browser features.
 
 ## Prepare this Mac
 
@@ -150,14 +114,7 @@ then runs `scripts/branding/check-runtime-credits.py` for French and German afte
 the smoke test. See [the branding checks](../../branding/README.md) for commands.
 These use disposable profiles and process-local language overrides.
 
-The reviewed 158 integration outputs on this Mac are under
-`.work/chromium-158/macos/build/src/out/Default/Lune.app` (arm64) and
-`out/Intel/Lune.app` under the same source root (x86_64). This integration workspace
-predates the final main lock; its build evidence is in the port document. The
-ordinary CLI/CI uses `.work/<arch>/` as described above. Do not silently reuse an
-older 157 prepared workspace with the new lock: preserve it by moving the entire
-architecture workspace to a distinct archival path before requesting a fresh
-checkout/preparation. The guards intentionally reject mismatched inputs.
+Ordinary CLI/CI workspaces use `.work/<arch>/`; frozen release workspaces use their own ignored directories and reports. Older integration workspaces belong to their dated evidence and must not be substituted for current inputs. The guards reject mismatched locks, sources and toolchains. Preserve existing source trees/caches when preparing a new composition.
 
 ## Discover upstream changes
 
@@ -342,7 +299,7 @@ The downloaded Sparkle 2.10.1 tools archive has SHA-256
 `1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27`, verified
 against its GitHub release asset digest. Tools/cache are ignored by Git.
 
-Notarization credentials are still needed. Create an app-specific password at
+The existing host has validated notarization credentials in Keychain profile `lune-notary`. On a new host or when replacing credentials, create an app-specific password at
 [Apple Account](https://account.apple.com/), then run this in an interactive terminal:
 
 ```sh
@@ -361,27 +318,8 @@ This bootstrap is for reviewed, trusted sources on the owner's Mac. A future CI
 signing pipeline needs separate credentials/access controls and untrusted-PR
 isolation, as described in [releases](releases.md).
 
-## Validation and remaining work
+## Validation scope
 
-Validated locally: guardrail tests, locked file/archive hash structure,
-component ancestry and tree IDs, core gitlink, numeric upstream discovery, and
-a fresh recursive clone from GitHub without local object reuse. Upstream
-download parsing accepts both flattened manifests; text-level name substitution
-checks preserve the Web Store, Root Program, and internal URL scheme.
-The Lune identity patch applied without fuzz to targeted files reconstructed from
-Chromium plus their preceding upstream patches. Full-stack source preparation and GN generation subsequently passed in the first
-CI run; the parser fix then passed a fresh preparation, full compilation, and
-headless app smoke test in the successful retry. Python requirements match the
-installed environment. A GitHub Actions check validates the lock, ancestry, and
-fresh recursive checkout without signing credentials or Chromium downloads.
+Use [current status](status.md), the relevant [feature record](features/README.md), and the frozen release's validation reports for results. Historical bootstrap/port evidence does not establish acceptance of newer combined inputs. Both-target development builds and production signing/update tooling are operational; physical Intel and older-macOS checks remain artifact-specific.
 
-The 158 candidate additionally passes both builds, arm64 headless/headed and Intel
-under Rosetta, focused native arm64 UI inspection, source/artwork checks, and
-French/German packaged attribution checks. See the port document for exact inputs
-and the inherited command-bar limitation.
-
-Next: broaden native browser UI, coexistence, branding/link and service acceptance;
-test on native Intel hardware; then implement and validate signing/packaging. Before public updates:
-provision services, finish versioning/branding, and test two signed/notarized
-releases through architecture-specific production feeds; use loopback fixtures
-for unpublished update checks. See [roadmap](roadmap.md).
+Setup validation checks file/archive hashes, component ancestry/trees, core gitlink, selected patch hashes/order, tool identities and a recursive checkout. Fresh source preparation additionally validates the complete patch/substitution/resource pipeline. Browser tests establish their explicitly reported runtime scope. Release packaging and installed-update tests are separate gates; follow [release delivery](release-delivery.md).

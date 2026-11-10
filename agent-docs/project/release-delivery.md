@@ -1,11 +1,6 @@
 # GitHub download and update delivery
 
-Lune 26.1109.2 is the latest production release, with paired stable feeds,
-immutable/version-independent downloads, and public source at its signed Git tag.
-26.1109.1 remains published and downloadable. See
-[26.1109.2 evidence](builds/2026-11-09-release-26.1109.2.md) for exact hashes,
-verification and the version-bound owner deferral of physical Intel acceptance.
-Rosetta checks never establish native Intel results.
+Read [current status](status.md) for published releases, active preparation and validation limits. This is the executable manual-release runbook; [release policy](releases.md) and [release commits](release-commits.md) define its gates and frozen-input contract. Rosetta checks never establish native Intel results.
 
 Use production/stable delivery only. Preparation uses an unpublished GitHub draft
 and loopback fixtures, not a public staging channel or prerelease. Frozen source
@@ -130,7 +125,7 @@ additional CI cost; this work does not activate scheduled release jobs.
    release. It verifies anonymous immutable downloads, rechecks freshness, commits
    both stable feeds, then marks the release latest. Verify both raw feeds,
    both latest download links, the release page and public HTTPS installed updates,
-   then deploy the website. If a step fails, preserve existing feeds and resume
+   then verify the website resolves through those latest links. Deploy the website only when its source changes. If a step fails, preserve existing feeds and resume
    the same verified bytes; do not create a prerelease as a workaround.
 
 Release tags now belong to the source repository and identify the frozen source
@@ -161,8 +156,7 @@ or failed update before stable promotion.
 
 ### Portable loopback fixture
 
-The handoff includes `manual_update_fixture.py`, the publication manifest and
-both signed DMGs/appcasts, plus the unchanged build-2 Intel baseline. The helper
+For an explicit native-update test, prepare a local folder containing `manual_update_fixture.py`, the candidate publication manifest/DMGs/appcasts and an unchanged earlier Intel baseline. Use ordinary release downloads; no separate Intel test release or permanent test-kit upload is required. The helper
 uses Python 3.9 or newer without additional packages; check `python3 --version`
 on the test Mac first. It verifies the selected feed and DMG hashes, serves only
 those two paths on 127.0.0.1, and changes only the enclosure URL in memory. It
@@ -177,7 +171,7 @@ From the handoff folder, run:
 python3 manual_update_fixture.py --directory publication --arch x86_64
 ```
 
-Keep that terminal open. Copy build 2 from its DMG into a new `update-test`
+Keep that terminal open. Copy the earlier baseline from its DMG into a new `update-test`
 folder using Finder, keeping the app named Lune.app. Quit other Lune instances.
 In another terminal, launch that copy with a new disposable profile and the
 local base URL printed by the helper:
@@ -189,16 +183,16 @@ open -n -a "$PWD/update-test/Lune.app" --args \
 ```
 
 Enable browser updates in Settings, save a test bookmark and preference, then
-use About to install the update and relaunch. Confirm 26.1109.1, public browsing,
+use About to install the update and relaunch. Confirm the candidate version from `release.json`, public browsing,
 and the saved data after relaunch. Quit the test app before stopping the server.
-Use a second, fresh copy/profile of build 2 for the negative case:
+Use a second, fresh copy/profile of the baseline for the negative case:
 
 ```sh
 python3 manual_update_fixture.py --directory publication --arch x86_64 \
   --case wrong-architecture
 ```
 
-On native Intel, About must decline this Apple silicon offer and retain build 2.
+On native Intel, About must decline this Apple silicon offer and retain the baseline.
 The feed retains `hardwareRequirements=arm64`; only its test route is named for
 Intel so the Intel updater can inspect and reject it. Apple silicon/Rosetta
 cannot establish this hardware-rejection result. Record both outcomes and any
@@ -240,9 +234,7 @@ JSON shape. Populate it from completed checks, never from planned work:
 ```
 
 Rosetta may establish the Intel row's pre-publication software checks; record
-that execution mode explicitly and leave native_hardware false. Stable requires
-native Intel results, model/OS entries in devices, and the owner's actual
-confirmation. Include report hashes and concise test results as additional fields
+that execution mode explicitly and leave native_hardware false. Stable requires native Intel results, model/OS entries and owner confirmation, or the explicit version/hash-bound deferral described above. Include report hashes and concise test results as additional fields
 so the booleans can be audited. The validation.json uploaded with the draft
 is immutable; later hardware acceptance is recorded separately in the promoted
 feed commit. Do not overwrite the original candidate evidence.

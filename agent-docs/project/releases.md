@@ -1,256 +1,66 @@
-# Builds, releases, and automatic updates
+# Release policy
 
-Status: local signing, notarization, DMG packaging, Sparkle appcast generation,
-and installed-update validation are implemented for the first release candidate.
-Production releases and paired stable feeds are live; 26.1109.2 is latest.
-Native Intel checks remain pending under version-bound owner deferrals. Recurring
-browser publishing is not enabled. See [release bootstrap](builds/2026-11-06-release-bootstrap.md)
-and [current build readiness](building.md).
-Initial targets: macOS arm64 and x86_64, with separate DMGs and update feeds.
+Use [current status](status.md) for operational state and [release delivery](release-delivery.md) for executable commands, URLs and acceptance records. [Release commits](release-commits.md) defines frozen inputs and version identity. This document defines policy; it does not activate schedules or publish a release.
 
-## Daily integration (planned)
+## Platforms and build environment
 
-No recurring browser job is enabled. The intended scheduled job discovers upstream changes and produces an immutable candidate
-lock. Skip rebuilding when all effective inputs are unchanged. Allow manual
-dispatch for urgent fixes. Deduplicate candidates by input hash and serialize
-promotion per release channel.
+Support macOS arm64 and x86_64 with separate DMGs and Sparkle feeds. Use the local Mac runner without additional CI spend. Pin source archives, component commits, Xcode/SDK/Metal, compilers, Python, Sparkle and relevant build tools. Reuse caches only after comparison with a fresh preparation from locked inputs; retain the original caches and validation evidence. Bit-for-bit binary reproducibility remains unproven.
 
-Chromium's latest macOS stable release determines the target, independently of
-downstream release cadence. Check at input selection and again immediately before
-release publication or feed/website promotion. A candidate behind stable is
-blocked by default; the owner may explicitly approve a recorded exception for
-that release after acknowledging the gap. An unavailable check means freshness
-is unknown and blocks promotion. See the [freshness gate](#chromium-freshness-gate)
-for evidence and exception requirements. Automatic promotion and this final gate
-are not yet implemented.
-
-GitHub Actions can coordinate the jobs; a reliable external cron can dispatch the
-same workflow if needed. Use an off-hour-minute schedule and a missed-run monitor:
-[GitHub documents](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
-that scheduled jobs can be delayed/dropped and inactive public repositories can
-have schedules disabled. Do not equate a scheduled workflow with a daily guarantee.
-
-The state machine is:
-
-```mermaid
-flowchart LR
-  A[Discover and lock inputs] --> B[Compose Git histories]
-  B --> C[Prepare and validate Chromium sources]
-  C --> D[Build and test arm64 and x86_64]
-  D --> E[Sign, notarize, package, verify]
-  E --> F[Publish immutable release assets]
-  F --> G[Verify downloads and promote feeds]
-  G --> H[Verify permanent website download links]
-```
-
-Any failed gate blocks promotion. Record the exact component, patch/commit,
-Chromium version, logs, and last successful release. Distinguish Git conflicts,
-patch rejects, dependency failures, compiler failures, test failures, and Apple
-service failures. Keep the previous feed live. Retry transient failures against
-the same locked candidate, without reusing a published build number.
-
-## Build environment
-
-The owner requires no additional CI spend. Start with this Mac as a self-hosted
-GitHub Actions runner and keep download/compiler caches on local disk. The manual development browser workflow exists; storage/Xcode/Metal preflight
-passes. The first arm64 build and headless runtime smoke test passed, with
-compilation/linking taking 2h21m29s on this Mac; see [first-build evidence](builds/2026-11-05-arm64.md).
-The subsequent [Chromium 158 build](builds/2026-11-05-chromium-158-port.md) passes on
-both targets, with Intel compilation taking 3h15m26s and Intel runtime checked
-under Rosetta. Final translation-only refreshes took 13s on arm64 and 18s on Intel.
-Continue measuring storage, memory, build duration, and cost before promising a daily cadence;
-one successful development run does not establish unattended release reliability. Pin Xcode/SDK, compilers, Python,
-Sparkle, source archives, and relevant build tools. Namespace caches by toolchain,
-architecture, flags, and source inputs, and periodically verify clean builds.
-
-Helium's macOS tooling supports x86_64 builds on Apple silicon. That can simplify
-compilation capacity, but still validate the Intel app on Intel hardware. Use
-separate source/output directories for architecture-specific configuration and
-packaging. Never package whichever binary happens to be left in `out/Default`.
-
-Separate untrusted PR checks from release jobs. Pin third-party Actions and avoid
-running arbitrary PR code on a persistent signing host. Build jobs receive no
-signing secrets. The signing/publishing step accepts only the exact artifacts
-and provenance of the validated candidate; credentials are scoped to that step.
+Build only reviewed sources on the signing host. Keep untrusted PR/fork jobs off that host, and keep signing credentials out of compilation environments. Signing and publishing consume the exact validated artifacts and their provenance. Intel-under-Rosetta checks do not establish physical Intel acceptance.
 
 ## Release gates
 
-1. Validate the lock, source reachability, clean input trees, PR dependency order,
-   core/platform gitlink agreement, and toolchain availability.
-2. Run upstream series/config validation and a fresh full source preparation.
-   Require patch application without fuzz or rejects. Verify substitutions,
-   resources, and generated version metadata, not only patch files.
-3. Build both targets and run focused tests for changed features plus browser
-   smoke checks: startup, navigation, tabs/windows, profile persistence,
-   settings, extension installation/update, and uBlock operation.
-4. Check the packaged identity, profile/keychain paths, architecture, minimum OS,
-   service endpoints, updater feed, and embedded Sparkle key.
-5. Sign nested components using Chromium's signing machinery; notarize/staple
-   the app and DMG, then validate signatures and Gatekeeper acceptance.
-6. Test an installed previous Lune release updating to the candidate through a
-   local test feed serving the exact final signed DMG on both architectures,
-   followed by relaunch and profile checks. This is not a public delivery channel.
-   Also test a bad signature, incompatible OS, and wrong-architecture offer.
-7. Apply the [Chromium freshness gate](#chromium-freshness-gate) before public
-   release publication and again immediately before feed/website promotion.
-   Verify published downloads, hashes, public source refs and provenance, and feed
-   consistency before promotion. Verify feed readback afterward.
+1. Validate the lock, source reachability, clean input trees, PR dependency order, core/platform gitlink and pinned toolchain.
+2. Prepare fresh sources through the complete upstream pipeline, including substitutions, localization, resources and generated versions. Require patch replay without fuzz or rejects.
+3. Build both architectures. Run focused changed-feature tests and applicable browser checks for startup, navigation, tabs/windows, persistence, settings, extensions and uBlock.
+4. Check packaged identity, profile/keychain paths, architecture, minimum OS, service endpoints, both effective updater feed selection and bundle metadata, and the Sparkle public key.
+5. Sign nested components with Chromium's signing machinery. Notarize/staple the app and DMG; verify signatures and Gatekeeper acceptance.
+6. Exercise an installed previous release updating through a local feed serving the exact final signed DMG, then relaunch and check profile persistence on both architectures. Verify invalid-signature, incompatible-OS and wrong-architecture rejection. Local fixtures are not a public delivery channel.
+7. Bind acceptance to the version, source commit and exact DMG hashes. Native Intel acceptance or an explicit owner-approved version/hash-bound deferral is required for stable promotion; never reuse an earlier version's deferral.
+8. Apply the freshness gate before publication and again before promotion. Verify uploaded bytes, anonymous source refs and provenance before moving feeds. Verify both public feeds, latest links and the installed update path afterward.
 
-At bootstrap, keep public auto-promotion disabled until the two-release update
-exercise passes. After that, routine candidates may publish automatically under
-these gates without daily manual approval. New feature selection and conflict
-resolution remain deliberate changes to the reviewed input policy.
+Unpublished GitHub drafts are preparation tools. Use production/stable delivery, without a public staging channel or prerelease. Do not enable unattended publication merely because manual releases pass. New feature selection, conflict resolution and activation of automation require deliberate review and authorization.
 
-## Reuse Xelium's mechanisms, adapt the implementation
+## Versioning and publication
 
-[Xelium's release script](https://github.com/minervanet/xelium-macos/blob/c5a6bfbeb2ec1b8caa33fa987b0947d771f7ea42/release.sh)
-builds, packages, invokes Sparkle `sign_update`, creates an appcast, and publishes
-with `gh release`. Its [packager](https://github.com/minervanet/xelium-macos/blob/c5a6bfbeb2ec1b8caa33fa987b0947d771f7ea42/sign_and_package_app.sh)
-uses Chromium signing scripts, `notarytool`, `stapler`, and a DMG.
+Use `YY.MMDD.N` consistently for the outer app, release tag/name and Sparkle version fields, following [the identity contract](release-commits.md#identity-and-version-rules). Allocate versions serially in Git. Never derive a new version from the build clock, reuse a published version or amend frozen inputs to include later changes. Keep Chromium's engine/framework version separate.
 
-Use that sequence with Lune's Developer ID, bundle/profile/keychain identity,
-Sparkle key pair, repository, feeds, and artwork. Parameterize architecture and
-generate release notes from the lock. Do not copy Xelium's hard-coded arm64 paths,
-personal certificate, public key, sibling tool locations, or fixed feature list.
+Source and releases belong in public `leebyron/lune-browser`. Each release uploads one `Lune-macos-ARCH.dmg` per architecture, paired appcasts, SHA-256 sums and compact release/validation metadata. The release-tag URL versions the asset; the fixed latest URL selects the same asset through GitHub's latest pointer. Do not upload duplicate DMGs, source kits, Git bundles or unchanged dependency archives. Verify signed source tags, permanent component refs and recorded dependency hashes, preserving licenses and attribution.
 
-Xelium can replace release assets with `--clobber` and commits its appcast to
-`main`. Lune should instead assign a unique version to every public build and
-keep release outputs outside the source branch. Its draft mode still reaches
-the appcast commit/push block; a Lune draft must never advance a public feed.
+Publish and verify immutable browser assets before moving either feed. Commit both architecture feeds together using serialized fast-forward Git operations. GitHub's latest pointer is a separate operation: detect and repair partial promotion without replacing browser bytes or regressing to an older release. Preserve the last good delivery state on failure.
 
 ## Release-note style
 
 Keep release notes terse and factual. Lead with new features, then bug fixes and security changes. Put compatibility, testing, known issues and provenance afterward.
 
-Describe concrete changes without humor, lighthearted framing, marketing language or an internal work log. Tie each change to the frozen inputs and the previous published version. Never invent a security fix or imply an engine upgrade when Chromium is unchanged; state its exact version and freshness status. Keep unverified testing and known limitations explicit.
+Describe concrete changes without humor, lighthearted framing, marketing language or an internal work log. Tie each change to the frozen inputs and previous published version. Do not invent security fixes or imply an engine upgrade when Chromium is unchanged. State the exact engine and freshness status, plus unverified testing and known limitations.
 
-Keep each paragraph and list item on one source line. Allow the renderer to wrap text naturally; do not insert manual line breaks or hard-wrap prose.
+Keep each paragraph and list item on one source line. Allow natural wrapping; do not insert manual line breaks or hard-wrap prose.
 
-Publication notes may be clarified after release while binaries, tags, frozen
-records and source archives remain immutable. Keep revised publication notes in
-Git separately from any hash-locked historical notes, and verify GitHub readback.
-
-## Versioning and publication
-
-The owner selected `YY.MMDD.N` for Lune's release version on November 8, 2026:
-for example, `26.1108.1`, then `26.1108.2` for the next release that day.
-The daily release counter starts at 1. Use the same string for the outer app's
-`CFBundleVersion` and `CFBundleShortVersionString`, Sparkle's `version` and
-`shortVersionString`, and human-facing release names. Record the assigned release
-date and counter in Git before packaging; rebuilding a commit must not derive a
-new version from the host clock.
-The release-download-flow implementation uses this scheme in packaging,
-appcasts and frozen release records; installed migration acceptance is still
-required for the first date-versioned release. Published builds 1 and 2 retain their original metadata.
-
-The date version supplies Sparkle's increasing update order; no separate lifetime
-build counter is needed. Serialize allocation, share the version across both
-architectures, and retain the full source SHA separately. Record Chromium,
-ungoogled, and Helium identities in the locked inputs and release provenance.
-Show Lune and Chromium versions separately in About. See
-[release commits and version information](release-commits.md) for the required
-input record, calendar rules, preparation procedure, evidence, and migration gaps.
-
-Name each architecture asset `Lune-macos-<arch>.dmg` under tag `v<version>`. Upload one DMG per architecture: release-tag URLs provide immutable version-specific downloads, and GitHub latest URLs resolve to those same assets. Publish appcasts, SHA-256 sums and compact release/validation metadata. Link the public source repository at its exact signed release
-tag and retained component refs; verify pinned dependency URLs and hashes. Do not
-upload duplicate source kits, Git history bundles or unchanged dependency archives.
-Source tags and browser releases belong to this same public repository.
-Keep permanent component tags reachable as described in [architecture](architecture.md).
-
-Publish and verify both architecture assets before changing either stable feed.
-Use a serialized, fast-forward Git commit for both feed files so a slower old
-job cannot replace a newer release. The GitHub latest-release pointer is a
-separate operation; verify both feeds and the pointer and repair partial
-promotion using the same validated bytes.
+Publication notes may be clarified later while browser binaries, tags and frozen records remain unchanged. Store revised publication notes separately from hash-locked historical notes, and verify GitHub readback.
 
 ## Sparkle delivery
 
-Use Sparkle 2 as Xelium does, with one Lune-owned HTTPS feed per architecture and
-stable channel. The selected feeds are
-`https://raw.githubusercontent.com/leebyron/lune-browser/main/updates/stable/mac/appcast-arm64.xml`
-and `appcast-x86_64.xml`. The former
-`lune.computer/updates/stable/` URLs redirect to these GitHub feeds once deployed. Separate
-feeds prevent an Intel client receiving an arm64-only enclosure. Test any future
-shared-feed filtering before adopting it.
+Use one Lune-owned HTTPS stable feed per architecture, with the [canonical URL contract](release-delivery.md#public-url-contract). No former-repository feed or website redirect is retained. Both the plist and Sparkle delegate must select the canonical feed; changing only `SUFeedURL` is insufficient in this integration.
 
-Embed Lune's public key and matching feed URL at build time. Keep the Ed25519
-private key in signing storage; Apple code signing and Sparkle update signing
-are separate responsibilities. Sign the final notarized/stapled DMG bytes and
-do not modify them afterward. Configure automatic checks with a daily interval
-and preserve a manual Check for Updates action. Follow
-[Sparkle's documentation](https://sparkle-project.org/documentation/) for key
-management, appcast fields, and supported OS constraints.
+Apple code signing/notarization and Sparkle Ed25519 signing are separate. Keep both private credentials in Keychain. Sign the final notarized/stapled DMG bytes, then leave them unchanged. Embed the public key at build time, retain daily automatic checks and the manual Check for Updates action, and preserve independent update consent. Optional Helium service consent must not be required for Lune browser updates.
 
-Start with full downloads. Delta updates can follow after the full-update path
-works. Retain compatible historical feed entries for older supported OS versions.
-New releases use production/stable only. Unpublished drafts and loopback test
-fixtures provide acceptance without a public prerelease. Preserve historical
-build-1/build-2 staging artifacts unchanged.
+Use full downloads initially; delta updates are future work. Enclosures use immutable release-tag URLs, never moving latest URLs. If a defective release must stop being offered, withdraw its feed offer and publish a corrective higher version for installed clients. Do not assume Sparkle supports downgrades or that older code can safely open a newer profile.
 
-If a release is defective, remove its offer for clients that have not updated.
-For already-updated clients, publish a corrective build with a higher version;
-do not assume Sparkle can downgrade the app or that an older browser can safely
-read a newer profile. Website/download metadata follows successful feed promotion.
+The implementation follows Xelium's Chromium signing, notarization, DMG and Sparkle mechanisms under Lune's identity. Xelium's personal paths/keys and asset-clobber/draft-feed behavior are not Lune policy. See [the source research](research.md#4-xeliums-macos-release-path-is-concrete-and-reusable) for the original comparison.
 
 ## Chromium freshness gate
 
-This applies to every public release, including manual releases, and every
-stable feed or website promotion. Use the official
-[Chromium Dash macOS stable endpoint](https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1)
-with `channel=Stable` and `platform=Mac`. Do not substitute the latest Helium or
-ungoogled release, another operating system's channel, or a previous discovery
-result. Compare the full numeric Chromium version in the frozen release inputs
-and packaged app with the freshly returned version. A newer candidate must be
-identified as ahead of the observed stable version, not mislabeled as matching it.
+Use [Chromium Dash's official macOS Stable endpoint](https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1) at input selection, immediately before public release publication and again before feed/website promotion. Do not substitute downstream release versions, another platform/channel or a cached discovery result. Compare the complete numeric Chromium version in frozen inputs and packaged apps. Label a newer candidate as ahead of the observed Stable version, not as matching Stable.
 
-Check when selecting inputs and immediately before making a release publicly
-available. Recheck immediately before promoting its feeds and website links,
-even when the same bytes already passed local update acceptance. A stable update arriving during
-compilation or acceptance invalidates an earlier claim that the candidate is
-current; normally prepare a new candidate on the newer Chromium.
+Record Lune version/source commit, target architectures/channel, candidate and observed Chromium versions, UTC check time, source URL/channel/platform, response evidence, comparison (`current`, `ahead`, `behind`, `unknown`) and publication decision. Keep observations separate from frozen source records. A Stable update during building/acceptance can invalidate an earlier freshness claim.
 
-Record the following in release/promotion evidence, without amending the frozen
-release commit:
+Unknown, failed or malformed lookups block publication and promotion; preserve existing delivery and retry. A known lag requires explicit owner approval scoped to the exact version, commit and channel, with both engine versions, reason and acknowledged freshness gap disclosed. A new upstream Stable version or a different promotion needs a fresh decision. Approval never follows from a clean build, an old exception or generic permission to release, and does not waive any other gate.
 
-- Lune version, full release commit SHA, target architectures and delivery channel.
-- Candidate Chromium version and freshly observed latest macOS stable version.
-- Check timestamp in UTC, source URL/channel/platform, and the returned release
-  identity or response evidence.
-- Comparison result (`current`, `behind`, `ahead`, or `unknown`) and the resulting
-  publication/promotion decision.
+The current publisher fails closed for lag and lookup failure. It has no automated known-lag exception input; using an exception requires a separately reviewed implementation and scoped owner approval. Discovery alone never satisfies this gate.
 
-If the candidate is behind, require an explicit owner-approved exception before
-publishing or promoting it. Record who approved it, when, the approval reference,
-both Chromium versions, the reason for shipping behind, and the acknowledged
-security-freshness gap. Scope approval to the exact release commit, version and
-channel; a new upstream stable version or a different promotion needs a fresh
-decision. Automation must not infer approval from a clean build, prior exception,
-or generic permission to release. Disclose the shipped Chromium version and known
-lag in public release notes; do not describe an exception release as current.
+## Future automation
 
-A failed, missing, malformed or unavailable lookup yields `unknown`, never a
-cached success. Keep the last good downloads/feeds unchanged and retry the check;
-this is not the known-version exception path. Freshness exceptions do not waive
-failed builds, patch conflicts, signatures, installed-update tests, or other
-release gates. Attach promotion evidence as a separate record; do not rewrite
-published artifacts or their original evidence.
+Scheduled integration and unattended publication are not enabled. The intended flow discovers latest macOS Stable independently of downstream cadence, attempts reviewed compatible integration, deduplicates by effective input hash, builds both targets and serializes version allocation/promotion. It stops on conflicts or failed validation and preserves the last good release. Never downgrade Chromium to satisfy optional UI patches or silently discard them.
 
-`scripts/release/publish.py` performs fresh checks before public candidate
-publication and each promotion, preserving timestamped observations. It blocks
-lag and lookup failures; no automated exception input is implemented. A known-lag
-release requires a separately reviewed change and explicit scoped approval.
-Discovery observations alone never satisfy the publication gate.
-
-## Security freshness reporting
-
-Record last poll, latest Chromium stable, latest ungoogled stable, selected Helium
-base, currently shipped Chromium, the freshness check result and any approved
-exception, and the reason for any lag. Notify on meaningful
-lag, integration failure, missed scheduling, and promotion failure. A daily rebuild
-of old inputs does not improve the browser's security profile.
-
-The executable publication and hardware-acceptance procedure is documented in
-[GitHub delivery](release-delivery.md). Draft upload, production publication,
-stable feed promotion and website deployment are distinct verified steps. Native
-Intel acceptance precedes public release publication; no public staging or
-prerelease step is used.
+Track latest Stable/ungoogled releases, selected Helium base, currently shipped engine, freshness decisions, lag and failed runs. Notify on meaningful changes or required action when monitoring is explicitly enabled. Rebuilding unchanged old inputs does not improve security freshness. See [remaining roadmap](roadmap.md).

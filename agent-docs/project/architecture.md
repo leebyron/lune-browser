@@ -1,12 +1,8 @@
 # Repository and patch architecture
 
-Status: component histories and locked checkout/bootstrap tooling implemented.
-Chromium 158 builds and smoke checks pass on arm64 and on x86_64 under Rosetta.
-Reviewed Xelium UI composition is implemented
-in a development candidate; generic replay and release orchestration remain planned. Based on the
-[upstream source review](research.md) dated 2026-11-05.
+Use [current status](status.md) for active inputs and release progress. Component histories, locked checkout/build tooling and manual release delivery are implemented. Generic automated upstream/PR composition remains future work.
 
-## Recommendation: one remote, preserved component histories
+## Repository model: one remote, preserved component histories
 
 Use this public GitHub repository as the project home. Keep orchestration, manifests,
 documentation, the website, and deployment configuration on `main`. Store browser
@@ -158,7 +154,7 @@ For the release-commit contract, the build version is the same `YY.MMDD.N`
 string used for display and Sparkle ordering. The enclosing Git commit supplies
 the orchestrator SHA; do not embed a commit's own SHA in its lock. See
 [release commits](release-commits.md) for required records, hash boundaries,
-preparation steps and the remaining implementation work.
+preparation steps and acceptance boundaries.
 
 Service deployment locks are separate from browser release locks, linked by a
 service protocol/config version. A service outage or website edit should not
@@ -181,15 +177,13 @@ it does not establish successful compilation or runtime validation by itself.
 
 | Layout | Benefit | Cost / decision |
 | --- | --- | --- |
-| One remote, component branches | Native history and upstream paths; one project home | Requires checkout/lock tooling; recommended |
+| One remote, component branches | Native history and upstream paths; one project home | Requires checkout/lock tooling; adopted |
 | Main repo with submodules in separate forks | Conventional dependency pinning and easy upstream PRs | Multiple hosted repos; best fallback if branch tooling becomes awkward |
 | Git subtrees on main | Everything visible in one checkout | Path translation, split/export workflow, nested submodule adaptation; less direct upstream contribution |
 | Full Chromium Git fork | Source-level Git history | Large history/DEPS and maintenance burden; unnecessary for this patch-based upstream |
 | Orphan branches for imported components | Separate roots | Loses useful upstream ancestry; do not use for code imports |
 
-Validate the component-branch/submodule bootstrap before investing in build CI.
-If it adds more machinery than it saves, adopt conventional separate component
-forks with pinned submodules without changing the release and patch policies.
+The component-branch/submodule bootstrap and clean recursive checkout are validated. Reconsider separate pinned component forks only if the current model becomes a maintenance burden; preserve the release and patch contracts.
 
 ## Public source and delivery boundary
 

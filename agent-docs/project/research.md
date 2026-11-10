@@ -123,7 +123,9 @@ disabling for public repositories. Treat scheduling as a trigger with monitoring
 reference for updater integration, key generation, signing, and appcast setup.
 Verify the exact version pinned by Lune before implementing those steps.
 
-## Remaining research before implementation
+## Historical follow-up checklist
+
+The following list records the original research handoff. Several items have since been implemented and validated; use [current status](status.md), [architecture](architecture.md) and [release delivery](release-delivery.md) rather than treating this dated checklist as current unfinished work.
 
 - Validate shared ancestry and the precise metadata changes needed for the first
   ungoogled-to-Helium forward-port with real Git history.

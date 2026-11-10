@@ -1,12 +1,6 @@
 # Release commits and version information
 
-Status: release procedure agreed November 7, 2026; two-digit release year
-selected November 8, 2026.
-This document defines the release contract. The release-download-flow tooling
-implements date versions, frozen records and GitHub delivery; see
-[the executable runbook](release-delivery.md). The audit checklist below records
-the original migration requirements; actual runtime acceptance remains required. No release is allocated
-by the examples in this document.
+This document defines release identity and frozen-input boundaries. Use [release delivery](release-delivery.md) for commands, [release policy](releases.md) for gates and [current status](status.md) for active work. Examples do not reserve a version.
 
 ## Identity and version rules
 
@@ -42,10 +36,9 @@ version and full Chromium version separately; expose the source SHA as diagnosti
 information, not as a suffix in the sortable version.
 
 Use `v26.1108.1` as the source release tag and
-`Lune-26.1108.1-macos-arm64.dmg` / `Lune-26.1108.1-macos-x86_64.dmg`
+`Lune-macos-arm64.dmg` / `Lune-macos-x86_64.dmg`
 as artifact names. Both architectures share one release identity. Feed channel
-and architecture are separate metadata, not version suffixes. Staging-to-stable
-promotion of the exact same artifacts retains the version.
+and architecture are separate metadata, not version suffixes. Publishing and promoting the exact same prepared artifacts retains the version; there is no public staging channel.
 
 Serialize allocation against the latest release records on main. Once committed,
 a version is reserved even if validation fails; gaps are allowed. Retrying an
@@ -53,7 +46,7 @@ unchanged candidate retains its version. Changed release inputs require a new
 version and release commit. Never reuse an allocated version for different
 inputs, overwrite published bytes, or move a published release/input tag. A
 replacement offered to installed clients must compare greater than the latest
-version they could have installed, including staging versions. Reject backdated
+version they could have installed, including historical test builds that were installed. Reject backdated
 allocations and stale concurrent promotions. Rollbacks use a new higher version
 and the normal profile-compatibility and security-freshness gates.
 
@@ -136,67 +129,14 @@ binary needs a new release allocation even if browser source is unchanged.
 
 ## Procedure
 
-1. **Finish integration.** Commit the core/platform changes, update the macOS
-   gitlink, retain immutable component input refs, and update the browser lock,
-   download hashes and patch provenance. Publish required core refs before
-   platform refs, then the project lock, when publication is authorized. Verify
-   a fresh recursive checkout can reach every pinned input. Resolve conflicts
-   and failed checks explicitly; never discard patches to obtain a build.
-2. **Prepare the release record.** Inspect existing allocations and published
-   feeds, choose the next date/sequence, and record the version once. Freeze the
-   notes, recipe, toolchain and per-target settings. Refresh affected lock hashes.
-   Verify every external download is pinned and every required tool is identified.
-   Do not allocate separate versions for arm64 and Intel.
-3. **Review and commit.** Review only the intended release changes; leave unrelated
-   work in its existing checkout and build from a clean release checkout. Run
-   `git diff --check` and `python3 scripts/lune.py validate --git-objects`, plus
-   the relevant configuration tests. The record validator and reservation command check identity,
-   ordering and hashes; component validation checks reachability. Commit with a descriptive message such as
-   `Prepare Lune 26.1108.1 release`. Obtain its full SHA. Do not amend/rebase
-   this frozen release commit; corrections get a new allocation.
-4. **Build that exact commit.** Use a clean checkout of the recorded SHA, the
-   pinned toolchain and fresh source preparation following [building](building.md).
-   `python3 scripts/lune.py doctor` checks current host prerequisites, but does
-   not establish a complete immutable toolchain. Generate release metadata and
-   all four version fields from the committed record. Build each architecture
-   from its declared settings. Use `scripts/release/build.py` for the frozen recipe; the development
-   wrapper does not enforce this contract. Stop on input or environment drift.
-5. **Validate and package.** Apply every gate in [releases](releases.md), including
-   both architecture builds, native Intel acceptance and the installed-app update
-   path. Run acceptance browsers sequentially because Sparkle shares bundle
-   state. Verify the staged outer plist values and engine/framework versions
-   before signing; sign, notarize, staple, package and Sparkle-sign the final
-   bytes. Record evidence without altering the input commit. A failed gate leaves
-   the candidate unpromoted.
-6. **Retain and publish the release.** Apply the
-   [freshness gate](releases.md#chromium-freshness-gate): recheck the latest macOS
-   stable Chromium, record the comparison, and block known lag unless the owner
-   explicitly approves a release-specific exception. An unavailable check blocks
-   publication. After acceptance, create an immutable
-   annotated `v<version>` source tag pointing to the exact release commit, even
-   if main has moved. Verify the public source tag and permanent component refs,
-   plus pinned dependency URLs/hashes, preserving licenses and provenance. Publication must
-   stay within the authorized payload and destination. Source and browser releases now share the public `leebyron/lune-browser`
-   repository. Its signed release tag identifies the source commit directly;
-   record the full SHA in release metadata.
-   Upload one DMG per architecture, appcasts, checksums and compact evidence
-   before changing a feed. Do not copy source/dependency archives into each release.
-   Verify anonymous artifact and public Git-ref readback.
-7. **Promote the validated artifacts.** Generate matching architecture appcasts
-   and run installed updates with a local test feed before production publication. Immediately before
-   promotion, recheck macOS stable Chromium and version ordering, and record the
-   freshness decision or explicit exception for this promotion. Earlier checks
-   do not automatically authorize public production delivery. Promotion
-   reuses the same bytes/version.
-   Update both stable feeds and website metadata only after all gates pass;
-   preserve the last good feeds on failure and detect partial promotion. Record
-   results separately. This procedure does not enable recurring jobs or automatic
-   publication.
+Follow the [release-delivery commands and gates](release-delivery.md#commands-and-gates): integrate reviewed inputs, commit notes/tools/policy, reserve and commit the version, build from the frozen checkout, sign/package, validate installed updates, upload an unpublished draft, then promote only after acceptance and fresh Chromium checks. Both architectures share the frozen commit; a main-branch change afterward belongs to another version.
+
+Signed source tags and releases live in `leebyron/lune-browser`. Keep the source tag on the exact frozen commit even if main moves. Publish one browser DMG per architecture with appcasts, checksums and compact metadata; verify anonymous source and artifact readback. See the [URL contract](release-delivery.md#public-url-contract).
 
 ## Implementation and remaining acceptance
 
 The release-delivery tools now implement frozen records, numeric date versions,
-explicit GN/tool identities, both-target source export, GitHub asset publication,
+explicit GN/tool identities, both-target build attestation, GitHub asset publication,
 paired feed commits, latest download links, freshness checks, and native Intel promotion
 requirements. `reserve.py` checks retained allocations before creating a record;
 fetch all remote branches first and serialize the reservation commit. This is a
@@ -210,7 +150,7 @@ candidate publication and each channel promotion.
 The actual Sparkle 2.10.1 comparator accepts the date format and orders it after
 build 2, including same-day and year transitions. Every candidate still needs
 installed-update tests from build 2, matching signed artifacts, both architecture
-runtime checks, and native Intel owner acceptance before stable. Unit tests are
+runtime checks, and native Intel owner acceptance or an explicit version/hash-bound owner deferral before stable. Unit tests are
 not substitutes for those gates.
 
 `prepare.py` inventories every prepared source file and symlink except output
@@ -222,5 +162,4 @@ bit-for-bit reproducible environment remains unproven; tool checks cover the
 recorded compiler/build/PGO, Xcode/SDK/Metal, Python and sccache inputs. Signing
 and notarization credentials stay external.
 
-Do not rename or replace published build-1/build-2 artifacts, source kits or
-historical evidence. They remain valid migration baselines.
+Do not rewrite historical browser bytes, source tags or frozen evidence. Retained legacy artifacts can serve as migration baselines; do not recreate the retired distribution repository or compatibility URLs.

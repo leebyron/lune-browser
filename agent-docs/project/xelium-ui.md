@@ -1,5 +1,7 @@
 # Xelium UI integration — 2026-11-05
 
+Historical integration record. Read [current status](status.md) and the current lock/patch manifest to establish inclusion; the candidate labels and validation scopes below describe their original checkpoints.
+
 The original 157 integration is documented below. The subsequent
 [Chromium 158 candidate](builds/2026-11-05-chromium-158-port.md) has passed the
 arm64 and Intel builds, arm64 headless/headed and Intel-under-Rosetta smoke tests,
