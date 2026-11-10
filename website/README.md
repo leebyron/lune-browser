@@ -64,7 +64,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - All header groups fade over 180ms without vertical movement. The fixed window
   controls remain while either sidebar or toolbar is visible, following the last
   surface to leave. Hovering their group reveals the sidebar and header. The
-  address remains read-only and navigation/extension glyphs remain illustrative.
+  address remains read-only and navigation glyphs remain illustrative; the two
+  extension icons link to their sites.
   CSS glass follows system appearance; it does not reproduce AppKit’s content-aware compositor.
 - The site keeps Chlorophyll Daylight / Pelagic Signal colors and monochrome
   window controls. At 700px or less, the complete browser renders at half scale.
@@ -132,19 +133,26 @@ changing the story length.
 
 ## Respect story
 
-The tagline is “A respectful browser for Mac.” Four complete sentences explain
-respect for privacy, attention and using a Mac, with no headings, fragments,
-eyebrows or screenshot placeholder. Original cyanotype SVG leaf bullets connect
-to a continuous vine, with one flower above the first point. Marketing prose uses regular Inter
-20px/32px and one foreground color. At the half-scale mobile breakpoint, 36px/52px
-inside the illustration renders as 18px/26px for readable prose. The author line
-and browser UI keep their distinct roles; Syne is confined to the Lune wordmarks.
+The tagline is “A respectful browser for Mac.” Eight complete sentences explain
+respect for privacy, filtering, protection, Mac familiarity, attention, consent
+and open source, with no headings, fragments, eyebrows or screenshot placeholder.
+The opening point has only a flower; seven veined leaves mark the following
+points. A branching cyanotype vine joins them with small shoots and curled
+tendrils, rather than a line connecting separate icons. Marketing prose uses
+regular Inter 20px/32px and one foreground color. At 700px or less, the complete
+browser and its content share the same 50% transform: prose renders at 10px/16px.
+There is no mobile-only enlargement of the text, coda, buttons or author credit.
+The window fixes text-size adjustment at 100% so mobile text autosizing does not
+diverge from the chrome. This does not assert physical Safari-device validation.
+Syne remains confined to the Lune wordmarks.
 
-Each point has the same 34ch maximum measure. Its center follows one sine cycle
-across the four points: x = column center + A sin(2πi / (n − 1)), where A is at most
-48px and shrinks to the available horizontal room. The layout stays centered and
-within its padded reading column, reserving an 80px botanical margin. The browser cursor unpins the sidebar while
-the attention sentence is in view. The coda uses one sentence thanking Helium and
+Each row has the same maximum text measure of 34ch and reserves an 80px
+specimen plus a 36px gap. The copy is vertically centered beside the leaf or
+flower body, 10px above the row center. The complete row starts horizontally
+centered, then follows x = column center + A sin(2πi / (n − 1)). A is at most
+48px and shrinks to the available room; 32px is reserved so even narrow layouts
+retain a small wave. The browser cursor unpins the sidebar while the attention
+sentence is in view. The coda uses one sentence thanking Helium and
 ungoogled-chromium for the work that makes Lune possible.
 
 The sidebar pins Fastmail and its Calendar. The other tabs link to Lune, Helium, the Lune GitHub project and Lee Byron,
@@ -258,27 +266,29 @@ mask for appearance contrast. No iframe or private Fastmail content is loaded.
 
 ## Cyanotype botanical illustration
 
-Original vector artwork lives in the page’s SVG definitions: a veined leaf,
-a six-petal flower, a blue ink gradient and a fixed, small-area grain filter.
-There are four decorative leaf bullets, one per sentence; their petioles join a
-single measured cubic vine, with the flower above the first leaf. Artwork is
-hidden from accessibility APIs, takes no input, and introduces no new copy or
+Original vector artwork lives in the page’s SVG definitions: irregular veined
+leaves, a six-petal flower, a blue ink gradient and a fixed, small-area grain
+filter. The first point uses only the flower. Seven main leaf specimens and
+smaller alternating shoots join a continuous curved stem with curled tendrils.
+Artwork is hidden from accessibility APIs, takes no input, and introduces no
 raster/network assets. The drawing uses only blue cyanotype tones in both schemes.
 
-Layout measurements set the vine once on resize/content changes, using the same
-leaf rotation pivot as each petiole. Scroll transforms do not feed back into its
-geometry. A faint complete stem stays visible while a stronger ink stroke traces
-down the vine. Native scroll timelines gently turn each leaf by a few degrees
-and open the flower by about four percent; there is no time-driven idle loop.
-The existing scroll update supplies equivalent progress when timelines are
-unsupported. Reduced Motion leaves the complete artwork still; changing the
-preference also clears inline fallback transforms. Text, links and the existing
-sidebar cursor choreography keep their prior behavior.
+Layout measurements set the vine and branching shoots on resize/content changes,
+using the same rotation pivot as each petiole. Scroll transforms do not feed back
+into its geometry. The complete stem stays visible while a fine vein traces down
+it. Native scroll timelines gently turn the specimens by a few degrees and open
+the flower by about four percent; there is no time-driven idle loop. The existing
+scroll update supplies equivalent progress when timelines are unsupported.
+Reduced Motion leaves the complete artwork still; changing the preference also
+clears inline fallback transforms. Text, links and the existing sidebar cursor
+choreography keep their prior behavior.
 
-Botanical validation on November 10 covers native scroll timelines, a local
-preview fixture forcing the JavaScript fallback, and a fixture forcing Reduced
-Motion. The first two change leaf, flower and vine progress while scrolling;
-the reduced-motion artwork stays still. Desktop Dark, preview-only Light and
-390×844 layouts pass, including font-ready and sidebar-width remeasurement.
-Both extension controls were clicked and opened their intended sites in new
-tabs. These fixtures are local validation only and are not deployed.
+The November 10 refinement passes desktop Dark, preview-only Light and a
+390×844 mobile layout check. Computed mobile prose remains 20px/32px inside the
+shared 50% browser transform; all eight rows fit, the first row center equals
+the content center, and the mobile footer fits with its credit at the lower
+edge. Native timelines and a forced JavaScript fallback advance the artwork;
+a forced Reduced Motion fixture keeps leaf, flower and stem values unchanged
+across scrolling. Font loading and sidebar width changes still remeasure the
+plant. Syntax, Wrangler dry run, assets/cache keys, local documentation links
+and whitespace checks pass. Preview fixtures are not deployed.

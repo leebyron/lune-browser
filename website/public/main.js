@@ -17,12 +17,12 @@
   let opening=0,readingStart=182,launchAt=96,pageHeight=0,reading=0,queued=false,base=48,launched=false,appVisible=false,showTimer=0;
   const points = [...pages.querySelectorAll('.flow-point')];
   const vine = pages.querySelector('.story-vine'), vineGrowth = vine.querySelector('.vine-growth');
-  const flower = vine.querySelector('.vine-flower'), flowerBloom = vine.querySelector('.flower-bloom');
+  const sprigs = vine.querySelector('.vine-sprigs'), flowerBloom = pages.querySelector('.flower-bloom');
   let vineStart=0, vineEnd=1, flowerEnd=1;
   const leafRanges=[];
   points.forEach((point, index) => {
     point.style.setProperty('--flow-offset', Math.sin(index / (points.length - 1) * 2 * Math.PI).toFixed(5));
-    point.style.setProperty('--leaf-angle', `${index % 2 ? 7 : -5}deg`);
+    point.style.setProperty('--leaf-angle', `${index === 0 ? 0 : index % 2 ? 7 : -5}deg`);
   });
   function measure() {
     const style = getComputedStyle(root);
@@ -68,22 +68,42 @@
     update();
   }
   function measureBotany() {
-    // Match the leaf's petiole and rotation pivot, using layout coordinates so
-    // scroll transforms never feed back into the drawing or reading distance.
-    const nodes = points.map(point => ({x:point.offsetLeft - 28.8,y:point.offsetTop + 16.8}));
+    // Use resting layout coordinates: each petiole is the leaf's rotation pivot.
+    // Text is centered beside the body of the specimen, above its petiole.
+    const nodes = points.map((point,index) => ({x:point.offsetLeft + (index ? 64 : 40),y:point.offsetTop + (point.clientHeight - 100) / 2 + 86}));
     const first=nodes[0],last=nodes[nodes.length-1],height=last.y+92;
-    const flowerY=first.y-88;
     vine.setAttribute('viewBox', `0 0 ${pages.clientWidth} ${height}`);
     vine.style.height=`${height}px`;
-    flower.setAttribute('transform', `translate(${first.x} ${flowerY})`);
-    let d=`M ${first.x} ${flowerY} C ${first.x-18} ${flowerY+30}, ${first.x+14} ${first.y-32}, ${first.x} ${first.y}`;
+    let d=`M ${first.x} ${first.y}`;
+    const growth=document.createDocumentFragment();
+    function svg(tag,attrs) {
+      const element=document.createElementNS('http://www.w3.org/2000/svg',tag);
+      Object.entries(attrs).forEach(([key,value])=>element.setAttribute(key,value));
+      return element;
+    }
     nodes.slice(1).forEach((node,index) => {
       const previous=nodes[index],dy=node.y-previous.y;
-      d+=` C ${previous.x+22} ${previous.y+dy*.34}, ${node.x-22} ${node.y-dy*.34}, ${node.x} ${node.y}`;
+      const curve=`C ${previous.x-36-index%3*5} ${previous.y+dy*.32}, ${node.x+28} ${node.y-dy*.38}, ${node.x} ${node.y}`;
+      d+=` ${curve}`;
+      const segment=svg('path',{d:`M ${previous.x} ${previous.y} ${curve}`});
+      const length=segment.getTotalLength();
+      // Alternating shoots and curled tendrils give this a pressed-plant silhouette.
+      [.28,.64].forEach((progress,j)=>{
+        const at=segment.getPointAtLength(length*progress),side=(index+j)%2?1:-1;
+        const end={x:at.x+side*(26+j*6),y:at.y-20-j*5};
+        growth.append(svg('path',{class:'vine-tendril',d:`M ${at.x} ${at.y} Q ${at.x+side*14} ${at.y-4}, ${end.x} ${end.y}`}));
+        growth.append(svg('use',{href:'#cyanotype-lance',x:-14,y:-48,width:28,height:48,transform:`translate(${end.x} ${end.y}) rotate(${side*(38+index%3*8)}) scale(${.72+j*.13})`,opacity:.7+j*.12}));
+        growth.append(svg('use',{href:'#cyanotype-lance',x:-14,y:-48,width:28,height:48,transform:`translate(${at.x+side*12} ${at.y-7}) rotate(${-side*32}) scale(.48)`,opacity:.6}));
+      });
+      if(index%2===0) {
+        const at=segment.getPointAtLength(length*.83);
+        growth.append(svg('path',{class:'vine-tendril',d:`M ${at.x} ${at.y} C ${at.x-20} ${at.y-12}, ${at.x-46} ${at.y+14}, ${at.x-32} ${at.y+25} C ${at.x-19} ${at.y+34}, ${at.x-16} ${at.y+13}, ${at.x-28} ${at.y+17}`}));
+      }
     });
-    d+=` C ${last.x+8} ${last.y+32}, ${last.x-14} ${last.y+64}, ${last.x-6} ${last.y+80}`;
-    vine.querySelectorAll('path').forEach(path=>path.setAttribute('d',d));
-    vineStart=Math.max(0,readingStart+flowerY-pageHeight*.8);
+    d+=` C ${last.x-15} ${last.y+32}, ${last.x+12} ${last.y+64}, ${last.x-8} ${last.y+80}`;
+    vine.querySelectorAll(':scope > path').forEach(path=>path.setAttribute('d',d));
+    sprigs.replaceChildren(growth);
+    vineStart=Math.max(0,readingStart+first.y-pageHeight*.8);
     vineEnd=readingStart+last.y-pageHeight*.15;
     flowerEnd=readingStart+first.y+pageHeight*.2;
     root.style.setProperty('--vine-start',`${vineStart}px`);
@@ -102,7 +122,7 @@
     vineGrowth.style.strokeDashoffset=1-clamp((y-vineStart)/(vineEnd-vineStart));
     points.forEach((point,index)=>{
       const {start,end}=leafRanges[index],t=clamp((y-start)/(end-start));
-      const angle=(index%2?7:-5)+Math.sin(t*Math.PI*2-Math.PI/2)*3;
+      const angle=(index===0?0:index%2?7:-5)+Math.sin(t*Math.PI*2-Math.PI/2)*3;
       point.querySelector('.botanical-bullet').style.transform=`rotate(${angle}deg)`;
     });
     const bloom=clamp((y-vineStart)/(flowerEnd-vineStart));
