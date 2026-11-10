@@ -28,7 +28,7 @@ class ReleaseIdentityTests(unittest.TestCase):
         self.assertIn('<sparkle:version>26.1109.1</sparkle:version>', xml)
         self.assertIn('<sparkle:shortVersionString>26.1109.1</sparkle:shortVersionString>', xml)
         for bad in [f"{model.LATEST}/{c['filename']}", url.replace('/v26.1109.1/', '/v26.1108.1/'),
-                    url.replace('leebyron/lune-downloads', 'someone/else')]:
+                    url.replace('leebyron/lune-browser', 'someone/else')]:
             with self.assertRaises(ValueError): appcast.make_feed(c, bad)
 
     def test_frozen_release_input_mutation_is_rejected(self):

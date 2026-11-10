@@ -7,7 +7,7 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
-REPOSITORY = 'leebyron/lune-downloads'
+REPOSITORY = 'leebyron/lune-browser'
 DOWNLOADS = f'https://github.com/{REPOSITORY}/releases/download'
 LATEST = f'https://github.com/{REPOSITORY}/releases/latest/download'
 RAW = f'https://raw.githubusercontent.com/{REPOSITORY}/main/updates'
