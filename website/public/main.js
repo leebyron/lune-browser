@@ -89,8 +89,8 @@
   const soil=vine.querySelector('.vine-soil'),roots=vine.querySelector('.vine-roots');
   const petals=[...flowerBloom.querySelectorAll('.petal')], stamens=flowerBloom.querySelector('.flower-stamens');
   // A seeded fan of fine filaments gives the upward-facing flower depth.
-  const stamenRng=random(887),filaments=svg('path',{fill:'none',stroke:'var(--biolume-stalk)','stroke-width':.55,'stroke-linecap':'round'});
-  const halos=svg('g',{fill:'var(--biolume)',filter:'url(#stamen-light)',opacity:.55}),anthers=svg('g',{fill:'var(--biolume)'});
+  const stamenRng=random(887),filaments=svg('path',{fill:'none',stroke:'var(--pollen-stalk)','stroke-width':.55,'stroke-linecap':'round'});
+  const halos=svg('g',{fill:'var(--pollen)',filter:'url(#stamen-light)',opacity:.55}),anthers=svg('g',{fill:'var(--pollen)'});
   let filamentPath='';
   for(let i=0;i<19;i++) {
     const fan=(i/18-.5)*2,x=fan*21+(stamenRng()-.5)*4,y=-27-stamenRng()*15-Math.cos(fan*Math.PI/2)*3;
@@ -100,6 +100,17 @@
     anthers.append(svg('ellipse',{cx:x,cy:y,rx,ry,opacity:.65+stamenRng()*.35,transform:`rotate(${fan*25} ${x} ${y})`}));
   }
   filaments.setAttribute('d',filamentPath);stamens.replaceChildren(filaments,halos,anthers);
+  // Persistent seeded motes keep their idle phase when layout is measured again.
+  const moteRng=random(2147),moteLayer=vine.querySelector('.vine-motes');
+  const motes=Array.from({length:14},(_,index)=>{
+    const group=svg('g',{class:'mote-position',opacity:0}),floating=svg('g',{class:'mote-float'});
+    const duration=26+moteRng()*16,radius=.95+moteRng()*.65;
+    floating.style.setProperty('--mote-duration',`${duration}s`);
+    floating.style.setProperty('--mote-phase',`${-moteRng()*duration}s`);
+    floating.append(svg('circle',{r:radius*2.3,fill:'var(--pollen)',filter:'url(#stamen-light)',opacity:.55}),svg('circle',{r:radius,fill:'var(--pollen)',opacity:.7+moteRng()*.3}));
+    group.append(floating);moteLayer.append(group);
+    return {group,fraction:.025+(index+.2+moteRng()*.5)/14*.9,side:index%2?1:-1,gap:14+moteRng()*18,reach:65+moteRng()*55,x:0,y:0};
+  });
   let vineStart=0, vineEnd=1, flowerStart=0, flowerEnd=1,introStart=0,introEnd=1;
   let rootRanges=[],sprigRanges=[],textRanges=[];
   const leafRanges=[];
@@ -130,9 +141,8 @@
     introEnd=readingStart+pageHeight*.22;
     root.style.setProperty('--intro-start',`${introStart}px`);
     root.style.setProperty('--intro-end',`${introEnd}px`);
-    const note=pages.querySelector('.prelude-note'),noteEnd=introEnd+pageHeight*.18;
-    note.style.setProperty('--text-start',`${introEnd}px`);note.style.setProperty('--text-end',`${noteEnd}px`);
-    textRanges=[{text:note,start:introEnd,end:noteEnd}];
+    const note=pages.querySelector('.prelude-note');
+    textRanges=[{text:note,start:introStart+(introEnd-introStart)*.75}];
     const coda=pages.querySelector('.coda'),codaContent=coda.querySelector('.coda-content'),thanks=coda.querySelector('.upstream-thanks'),byline=coda.querySelector('.byline');
     const actionsBottom=pageHeight/2+codaContent.offsetHeight/2;
     coda.style.setProperty('--thanks-top',`${(actionsBottom+byline.offsetTop)/2-thanks.offsetHeight/2}px`);
@@ -229,6 +239,10 @@
     d+=` C ${last.x-24} ${last.y+(groundY-last.y)*.3}, ${rootX+18} ${groundY-(groundY-last.y)*.3}, ${rootX} ${groundY}`;
     vine.querySelectorAll('.vine-base,.vine-growth').forEach(path=>path.setAttribute('d',d));
     stemLength=vineGrowth.getTotalLength();
+    motes.forEach(mote=>{
+      const at=vineGrowth.getPointAtLength(stemLength*mote.fraction);
+      mote.x=at.x;mote.y=at.y;
+    });
     sprigs.replaceChildren(growth);
     // Layered Perlin gradient noise: rolling contour, smaller bumps, fine grain.
     const terrain=x=>noise(x/260+4.3,19)*18+noise(x/88+13.1,37)*6+noise(x/31+9.7,73)*2.2+noise(x/10+2.5,113)*.6;
@@ -323,12 +337,25 @@
       point.style.setProperty('--leaf-end',`${end}px`);
       const text=point.querySelector('p'),box=point.getBoundingClientRect();
       const center=(box.top-pageBox.top)/scale+point.offsetHeight/2-(index===0?22:10);
-      const textStart=readingStart+center-pageHeight*.75,textEnd=readingStart+center-pageHeight*.55;
-      text.style.setProperty('--text-start',`${textStart}px`);text.style.setProperty('--text-end',`${textEnd}px`);
-      textRanges.push({text,start:textStart,end:textEnd});
+      textRanges.push({text,start:readingStart+center-pageHeight*.75});
     });
   }
   function updateBotany(y) {
+    // Scroll chooses a settled state; CSS transitions own the elapsed-time motion.
+    textRanges.forEach(({text,start})=>{
+      const state=reduce.matches||y>=start?'visible':'before';
+      if(text.dataset.textState!==state)text.dataset.textState=state;
+    });
+    const readingOffset=Math.max(0,y-readingStart);
+    motes.forEach(mote=>{
+      const screenY=mote.y-readingOffset;
+      const progress=reduce.matches?0:clamp((pageHeight*.9-screenY)/(pageHeight*.9));
+      // Cubic separation keeps the lower view calm and opens up near the top.
+      const drift=progress*progress*progress;
+      mote.group.setAttribute('transform',`translate(${mote.x+mote.side*(mote.gap+mote.reach*drift)} ${mote.y-18*drift})`);
+      mote.group.setAttribute('opacity',reduce.matches?.8:clamp((pageHeight*1.08-screenY)/(pageHeight*.18))*clamp((screenY+pageHeight*.12)/(pageHeight*.18)));
+      mote.group.toggleAttribute('data-visible',screenY>-80&&screenY<pageHeight+80&&!reduce.matches);
+    });
     points.forEach((point,index)=>{
       const {start,end,lightStart,lightEnd}=leafRanges[index],t=clamp((y-start)/(end-start));
       const opening=reduce.matches?1:introEase(clamp((y-lightStart)/(lightEnd-lightStart)));
@@ -340,10 +367,6 @@
       group.setAttribute('transform',`rotate(${side*7*opening} ${at.x} ${at.y})`);
     });
     if(nativeTimeline||reduce.matches)return;
-    textRanges.forEach(({text,start,end})=>{
-      const progress=clamp((y-start)/(end-start)),fade=progress===0||progress===1?progress:introEase(progress);
-      text.style.opacity=fade;text.style.transform=`translateY(${18*(1-fade)}px)`;
-    });
     const introProgress=clamp((y-introStart)/(introEnd-introStart)),intro=introEase(introProgress);
     introLogo.style.opacity=clamp((introProgress-.03)/.05);
     introCircles.forEach(circle=>{
@@ -675,7 +698,7 @@
   }
   const geometryObserver=new ResizeObserver(scheduleMeasure);
   [stage,pages,root.querySelector('.viewport'),...points].forEach(element=>geometryObserver.observe(element));
-  reduce.addEventListener('change',()=>{textRanges.forEach(({text})=>{text.style.removeProperty('opacity');text.style.removeProperty('transform');});introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');introLogo.style.removeProperty('opacity');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
+  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');introLogo.style.removeProperty('opacity');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
   measure();widths.fill(base);
   scheduleMeasure();
   document.fonts.ready.then(scheduleMeasure);

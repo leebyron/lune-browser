@@ -13,8 +13,16 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - The desktop fills the viewport. The browser window is at most 720px tall and
   twice as wide as its height, centered in the desktop space above the Dock.
 - Launch starts after 96px of scrolling. Clicking the chevron or Lune Dock icon
-  stops at 180px, where the intro has fully faded. Inner reading starts at 182px,
+  stops at 180px, where the intro has fully faded. Inner reading starts at 180px,
   which also bypasses any remaining launch delay and fade for fast scrolling.
+- Reading copy lifts and fades in over 600ms and out over 200ms. Scroll selects
+  the target state, and transitions finish even when scrolling stops. Point copy
+  enters at 75% of the browser viewport and stays visible above that threshold,
+  including past the top edge. Scrolling back below the lower threshold fades it
+  out. The personal note triggers at 75% of the logo's opening range,
+  slightly before the mark finishes. Reduced Motion shows settled text.
+- Both Lune wordmarks use Syne 800. The opening title has an explicit 40px
+  fallback so removing a size variable cannot invalidate its font shorthand.
 - Normal launches bounce for 660ms; the window and running dot appear at 320ms.
   The tooltip shares the icon's bounce. Returning to the top resets the launch.
 - CSS scroll timelines handle one continuous story, with a JavaScript fallback
@@ -23,10 +31,35 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   ResizeObserver measures the content to set the scroll distance and reading
   indicator, including after fonts load or the viewport changes. Reduced motion
   removes the launch bounce and zoom.
+- The inner page uses `assets/cotton-paper.jpg`, a generated scan-style cotton
+  paper material blended over the page and soil colors. Dark uses `overlay`;
+  Light uses `multiply` with brighter, higher-contrast fibers so they remain
+  visible on the pale surface. It moves
+  with the page. Adjust `--paper-texture-opacity` on
+  `.pages::after` to change its strength (`.68` Dark, `.24` Light). Both appearances
+  use a 768px square tile for finer fibers. It ignores pointer events.
+  In Dark, the existing `overlay` texture blends above the `#FFFFFF98` reading
+  copy as well as the page, giving the letters the same paper surface.
+  Light keeps the texture beneath its softer cyanotype-blue `#315E73` copy.
+  Text reveal animations remain independent.
+  Generated with the built-in image tool using the prompt: "Flatbed-scan style
+  neutral midgray cotton rag drawing paper, fine interwoven cellulose fibers,
+  uniform diffuse illumination, seamless edges, no text, folds, pits or blotches."
+- Stamens use sun-yellow tips and halos in Light and vivid button-like teal in
+  Dark. Display P3 uses `color(display-p3 0 1 .9)` for saturated tips and halos,
+  with an sRGB teal fallback. The filaments use a quieter matching teal.
+  Fourteen seeded motes follow measured points along the stem, sharing the tips'
+  color and small-area glow. Usually two or three are visible at once. Inner
+  groups trace wide, shallow 26–42 second figure eights; outer groups spread outward with
+  cubic scroll progress, starting gently near the lower edge and accelerating
+  toward the top. Scroll reversal restores their proximity to the stem. Only
+  visible motes run their idle animation; Reduced Motion keeps them stationary
+  relative to their stem anchors. Layout remeasurement preserves their idle phase.
 - Interface surfaces are not text-selectable; headings, prose, attribution links,
   and the address field remain selectable. The sidebar has two pinned tabs and
   no divider above New tab. Chrome uses the accepted #E7EDE3 Light / #10354F Dark mounted palette.
   Selected tabs use #D6E1D2 / #2A4C62 for directional contrast.
+  The GitHub rows read `lune-browser` and `ungoogled-chromium`.
 - The illustrative shell mirrors the native edge-to-edge frame and sidebar-footer
   revisions reviewed on 2026-11-07: 16px outer corners, no content gutter, inner
   radius, outline or shadow. Only the outer window clips the page. A physical-pixel
@@ -56,6 +89,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   fills the window, while the glass sidebar remains until the cursor is more than
   48px away. The sidebar then slides left over 260ms. Scrolling back reverses it.
   CSS scroll timelines own the cursor and layout state, with a JavaScript fallback.
+  Its black arrow, white outline and compact shadow approximate the macOS pointer;
+  its existing tip/hotspot coordinates remain fixed for the toggle click.
   On mobile the pointer and click ring are visible at the browser’s half scale.
   Scroll-positioned transforms move the pointer continuously, pause on the
   toggle and show the click. The floating sidebar stays until the pointer leaves
