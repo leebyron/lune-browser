@@ -49,8 +49,13 @@ Serialize allocation against the latest release records on main. Once committed,
 a version is reserved even if validation fails; gaps are allowed. Retrying an
 unchanged candidate retains its version. Changed release inputs require a new
 version and release commit. Never reuse an allocated version for different
-inputs, overwrite published bytes, or move a published release/input tag. A
-replacement offered to installed clients must compare greater than the latest
+inputs, overwrite published bytes, or move a published release/input tag.
+
+At the owner's request, an abandoned unpublished allocation and its draft notes
+may be removed from active files while retaining the original Git history. This
+does not renumber an already validated candidate or change its frozen source.
+
+A replacement offered to installed clients must compare greater than the latest
 version they could have installed, including historical test builds that were installed. Reject backdated
 allocations and stale concurrent promotions. Rollbacks use a new higher version
 and the normal profile-compatibility and security-freshness gates.
