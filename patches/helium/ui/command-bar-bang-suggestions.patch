@@ -41,7 +41,15 @@
          a[i].command != b[i].command || a[i].tab_index != b[i].tab_index) {
        return false;
      }
-@@ -248,6 +249,9 @@
+@@ -167,6 +168,7 @@
+   StopSuggestions();
+   // Scope is per-invocation: never leak it into the next opening.
+   scope_keyword_.clear();
++  scope_keyword_was_typed_ = false;
+   // Null first: closing runs WindowClosing synchronously, which would
+   // otherwise re-enter and double-close.
+   views::Widget* widget = widget_;
+@@ -248,6 +250,9 @@
  }
  
  void HeliumCommandBarController::OnQueryChanged(const std::u16string& query) {
@@ -51,7 +59,7 @@
    StopSuggestions();
    last_query_ = query;
    if (query.empty()) {
-@@ -285,7 +289,7 @@
+@@ -285,7 +290,7 @@
    // can never overwrite newer results.
    history_tracker_.TryCancelAll();
    ++history_seq_;
@@ -60,7 +68,7 @@
      return;
    }
    history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-@@ -304,7 +308,7 @@
+@@ -304,7 +309,7 @@
  }
  
  void HeliumCommandBarController::StartSuggestions() {
@@ -69,7 +77,7 @@
      return;
    }
    if (scope_keyword_.empty()) {
-@@ -365,7 +369,8 @@
+@@ -365,7 +370,8 @@
    }
    scope_hint_index_.reset();
    for (size_t i = 0; i < items_.size(); ++i) {
@@ -79,7 +87,7 @@
        scope_hint_index_ = i;
        break;
      }
-@@ -395,6 +400,9 @@
+@@ -395,6 +401,9 @@
    }
    const int seq = items_seq_;
    for (size_t i = 0; i < items_.size(); ++i) {
@@ -89,19 +97,21 @@
      const GURL& page_url = items_[i].url;
      const GURL& icon_url =
          items_[i].icon_url.is_valid() ? items_[i].icon_url : page_url;
-@@ -416,19 +424,21 @@
+@@ -416,32 +425,39 @@
  }
  
  
 -void HeliumCommandBarController::EnterScope(const std::string& keyword) {
 +void HeliumCommandBarController::EnterScope(
 +    const std::string& keyword,
-+    const std::u16string& query) {
++    const std::u16string& query,
++    bool keyword_was_typed) {
    if (keyword.empty()) {
      return;
    }
    scope_keyword_ = keyword;
 -  // Clear the keyword so the scoped query is typed fresh. NOTE: SetText
++  scope_keyword_was_typed_ = keyword_was_typed;
 +  // Replace the trigger with the retained query. NOTE: SetText
    // does NOT notify the TextfieldController (only user edits do), so drive
    // the re-query explicitly — otherwise neither results nor the scope
@@ -115,7 +125,36 @@
  }
  
  void HeliumCommandBarController::OnBackspacePressed() {
-@@ -475,6 +485,11 @@
+   if (scope_keyword_.empty()) {
+     return;
+   }
+-  const std::u16string keyword = base::UTF8ToUTF16(scope_keyword_);
+-  const std::u16string restored =
+-      keyword + (last_query_.empty() ? u"" : u" " + last_query_);
++  const std::u16string keyword = scope_keyword_was_typed_
++      ? base::UTF8ToUTF16(scope_keyword_) : std::u16string();
++  const std::u16string restored = keyword.empty()
++      ? last_query_
++      : keyword + (last_query_.empty() ? u"" : u" " + last_query_);
+   scope_keyword_.clear();
++  scope_keyword_was_typed_ = false;
+   if (view_) {
+-    // Restore the editable trigger, with the caret beside it, rather than
+-    // deleting the user's chosen provider or selecting the query text.
++    // Restore only explicitly typed triggers. A completion clears its pill
++    // without exposing a keyword; any search terms remain editable.
+     view_->SetInputText(restored, keyword.size());
+   }
+   OnQueryChanged(restored);
+@@ -468,6 +484,7 @@
+ 
+ void HeliumCommandBarController::ExitScope() {
+   scope_keyword_.clear();
++  scope_keyword_was_typed_ = false;
+   // Rebuild from the full text; the scope bar hides via PushItems.
+   OnQueryChanged(last_query_);
+ }
+@@ -475,6 +492,11 @@
  std::vector<HeliumCommandBarItem> HeliumCommandBarController::CollectResults(
      const std::u16string& query,
      const history::QueryResults* history_rows) {
@@ -127,7 +166,7 @@
    using namespace helium_command_bar_model;
    std::vector<HeliumCommandBarItem> items = suggestions_->items();
    if (!scope_keyword_.empty()) {
-@@ -533,34 +548,23 @@
+@@ -533,34 +555,23 @@
    if (auto direct = UrlOrSearchForQuery(browser_->GetProfile(), query)) {
      items.push_back(std::move(*direct));
    }
@@ -177,7 +216,7 @@
    SortAndCap(items);
    return items;
  }
-@@ -585,8 +589,23 @@
+@@ -585,8 +596,23 @@
    view_->SetItemImage(index, result.image);
  }
  
@@ -201,7 +240,7 @@
      return;
    }
    const HeliumCommandBarItem item = items_[index];
-@@ -603,6 +622,15 @@
+@@ -603,6 +629,16 @@
    switch (item.type) {
      case HeliumCommandBarItem::Type::kTab:
        break;  // Handled above.
@@ -211,7 +250,8 @@
 +      if (helium_command_bar_model::EngineOwnsKeyword(
 +              TemplateURLServiceFactory::GetForProfile(browser_->GetProfile()),
 +              item.site_keyword)) {
-+        EnterScope(item.site_keyword, item.site_query);
++        EnterScope(item.site_keyword, item.site_query,
++                   /*keyword_was_typed=*/false);
 +      }
 +      return;
      case HeliumCommandBarItem::Type::kSiteSearch: {
@@ -232,7 +272,15 @@
    void ActivateItem(size_t index);
    // Esc (or Backspace on empty input while scoped): exits the scope, else
    // closes the bar.
-@@ -142,9 +140,9 @@
+@@ -126,6 +124,7 @@
+     // Same per-invocation rule as Hide(): a focus-loss close must not leak
+     // the scope into the next opening either.
+     scope_keyword_.clear();
++    scope_keyword_was_typed_ = false;
+     template_observation_.Reset();
+     history_tracker_.TryCancelAll();
+     ++history_seq_;
+@@ -142,9 +141,11 @@
                          history::QueryResults results);
    void PushItems(std::vector<HeliumCommandBarItem> items);
    void FetchFavicons();
@@ -240,11 +288,22 @@
 -  // typed fresh. The bar stays open.
 -  void EnterScope(const std::string& keyword);
 +  // Applies the keyword and retained query while keeping the palette open.
-+  void EnterScope(const std::string& keyword, const std::u16string& query = {});
++  void EnterScope(const std::string& keyword,
++                  const std::u16string& query = {},
++                  bool keyword_was_typed = true);
 +  void SubmitBangSearch();
    // NTP-aware navigation shared by all open paths.
    void OpenUrl(const GURL& url);
    void OnFavicon(int seq, size_t index, const std::string& url_spec,
+@@ -168,6 +169,8 @@
+   // Active scope keyword ("gh", or "tab" for the tabs-only scope). Empty
+   // means mixed results.
+   std::string scope_keyword_;
++  // Completion selection must not invent editable trigger text on removal.
++  bool scope_keyword_was_typed_ = false;
+   std::unique_ptr<HeliumCommandBarSuggestions> suggestions_;
+   PrefChangeRegistrar suggest_pref_registrar_;
+   int history_seq_ = 0;
 --- a/chrome/browser/ui/helium/helium_command_bar_model.cc
 +++ b/chrome/browser/ui/helium/helium_command_bar_model.cc
 @@ -5,17 +5,24 @@
