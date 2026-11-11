@@ -165,7 +165,7 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   until the cursor tip crosses the window edge, then begin retracting together
   without a distance buffer. The sidebar slides left over 260ms and the header
   fades over 180ms. Scrolling backward reverses the demonstration.
-  CSS scroll timelines own the cursor and layout state, with a JavaScript fallback.
+  Numeric JavaScript transforms position the cursor and click ring on every screen size; CSS scroll timelines drive layout where available, with a JavaScript fallback.
   Its black arrow, white outline and compact shadow approximate the macOS pointer;
   its existing tip/hotspot coordinates remain fixed for the toggle click.
   On mobile the pointer and click ring are visible at the browser’s half scale.
@@ -585,7 +585,7 @@ The restored phone cursor uses numeric translate3d positions from the measured
 path in the existing scroll animation frame, instead of native motion-path
 interpolation. Its tip stays anchored at the half-scale sidebar toggle during
 the click pause. Opacity, press scale and click ring share the desktop progress
-windows. Resizing back to desktop clears the phone’s inline animation state.
+windows. The later Safari cursor fix extends this numeric positioning to desktop and recomputes it when crossing the mobile breakpoint.
 
 The underline refinement confines the effect to handwritten links and restores
 regular text underlines in the footer. Its upward arc thickens on the right,
@@ -630,3 +630,7 @@ commit; the final Wrangler deployment dry run and whitespace checks pass.
 These are local checks, not a new production deployment.
 
 The updated illustration follows the [accepted native provider-pill design](../agent-docs/project/features/command-bar-bangs.md), with the owner-requested website simplification: no autocomplete results appear at any point. It types `!wiki`, then shows the Wikipedia pill and “Search Wikipedia” placeholder in the same 52px pane. Local browser checks cover Light/Dark desktop, 390×844 phone size, a forced timeline fallback, Reduced Motion, stationary typing, dismissal and reverse-scroll reset. JavaScript syntax, asset/cache-key checks, deployment dry run, documentation links and whitespace pass. Preview fixture hooks are served only by the local test server and are absent from shipped sources. This source refinement has not been deployed.
+
+The Safari cursor fix (November 11, 2026) replaces desktop SVG motion-path positioning with the same measured numeric transforms used on phones. Desktop Safari reproduced the old cursor stuck at the window origin; the fixed local preview moves to the header hold and sidebar click, reverses on backward scrolling and retracts both panels on exit. Cursor opacity, press scale and click ring use the existing scroll-frame update. Reduced Motion continues hiding the demonstration.
+
+Focused Chromium checks pass at 1440×1000 and 390×844, with native and forced-fallback layout timelines, Reduced Motion, phone-to-desktop resizing, reverse scrolling, click-ring visibility and panel exit. The cursor hotspot stays within 0.6px of the toggle during the click hold; no JavaScript errors were observed. JavaScript syntax, asset cache keys, documentation links, whitespace and the pinned Wrangler 4.158.0 deployment dry run pass. No specific GitHub issue tracks this website defect. Physical iPhone Safari was not retested.

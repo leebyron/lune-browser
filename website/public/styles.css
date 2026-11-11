@@ -151,7 +151,7 @@ svg { display: block; }
   #lune .toolbar-icon,#lune .sidebar-toggle { transition:color 100ms; }
   #lune .toolbar-icon:not(.navigation-forward):hover { color:var(--toolbar-hover); }
   #lune .browser-tools img { object-fit:contain; }
-  #lune .demo-cursor { position:absolute; left:var(--cursor-origin-x,0px); top:var(--cursor-origin-y,0px); z-index:50; pointer-events:none; opacity:0; offset-path:var(--cursor-path); offset-rotate:0deg; offset-anchor:2px 1.5px; transform-origin:2px 1.5px; filter:drop-shadow(0 1px 1px #00000066); }
+  #lune .demo-cursor { position:absolute; left:var(--cursor-origin-x,0px); top:var(--cursor-origin-y,0px); z-index:50; pointer-events:none; opacity:0; transform-origin:2px 1.5px; filter:drop-shadow(0 1px 1px #00000066); }
   #lune .demo-click { position:absolute; z-index:45; left:calc(var(--sidebar-width) - 22px); top:26px; width:36px; height:36px; margin:-18px; border:1px solid light-dark(#276C69,#C9F4EF); border-radius:50%; opacity:0; pointer-events:none; }
   #lune .command-demo { position:absolute; z-index:40; top:max(12px,calc((var(--page) - 319px) / 2)); left:50%; translate:-50% 0; width:min(600px,calc(100% - 72px)); border:0; border-radius:18px; background:linear-gradient(145deg,light-dark(#FFFFFF75,#D9E9F21A),transparent 45%),light-dark(#EFF4EFCF,#132F43D9); backdrop-filter:blur(28px) saturate(1.25); box-shadow:0 3px 10px rgb(0 0 0 / .05),inset 0 0 0 1px light-dark(#FFFFFFB3,#DCEAF22E),inset 0 .5px light-dark(#FFFFFF80,#FFFFFF24); color:light-dark(#1D2528,#ECEEF0); font:400 13px/20px -apple-system,BlinkMacSystemFont,sans-serif; opacity:0; visibility:hidden; transform:scale(.98); transform-origin:50% 26px; transition:opacity 180ms ease-out,transform 180ms ease-out,visibility 180ms; pointer-events:none; }
   #lune .command-demo:not([data-command-state="closed"]) { opacity:1; visibility:visible; transform:scale(1); transition:opacity 180ms ease-out,transform 180ms ease-out,visibility 0s; }
@@ -287,12 +287,8 @@ svg { display: block; }
   @keyframes reading { to { transform:translateY(calc(-1 * var(--reading))); } }
   @keyframes scroll-thumb { to { translate:0 var(--thumb-travel); } }
   @keyframes sidebar-fold { 0% { --sidebar-fold:0; animation-timing-function:steps(1,end); } 68%,100% { --sidebar-fold:1; } }
-  @keyframes cursor-journey { 0% { offset-distance:0%; opacity:0; transform:scale(1); } 6% { opacity:1; } 18%,42% { offset-distance:var(--cursor-toolbar-stop); } 62%,76% { offset-distance:var(--cursor-stop); } 64% { transform:scale(1); } 68% { transform:scale(.84); } 72% { transform:scale(1); } 94% { opacity:1; } 100% { offset-distance:100%; opacity:0; transform:scale(1); } }
-  @keyframes cursor-click { 0%,64% { opacity:0; transform:scale(.5); } 68% { opacity:.7; transform:scale(.65); } 76%,100% { opacity:0; transform:scale(1.7); } }
   @supports(animation-timeline:scroll()) {
     #lune .window { animation:sidebar-fold linear both; animation-timeline:--lune-scroll; animation-range:var(--demo-start) var(--demo-end); }
-    #lune .demo-cursor { animation:cursor-journey linear both; animation-timeline:--lune-scroll; animation-range:var(--demo-start) var(--demo-end); }
-    #lune .demo-click { animation:cursor-click linear both; animation-timeline:--lune-scroll; animation-range:var(--demo-start) var(--demo-end); }
     #lune .hero,#lune .learn { animation:info-scroll linear both,info-fade linear both; animation-timeline:--lune-scroll; animation-range:0px var(--opening); }
     #lune .pages { animation:reading linear both; animation-timeline:--lune-scroll; animation-range:var(--reading-start) calc(var(--reading-start) + var(--reading)); }
     #lune .reading-thumb { animation:scroll-thumb linear both; animation-timeline:--lune-scroll; animation-range:var(--reading-start) calc(var(--reading-start) + var(--reading)); }
@@ -304,8 +300,7 @@ svg { display: block; }
 
 @media(max-width:700px) {
   #lune { --browser-scale:.5; }
-  #lune .demo-cursor,#lune .demo-click { animation:none; }
-  #lune .demo-cursor { width:12px; height:15px; offset-path:none; transform-origin:1px .75px; }
+  #lune .demo-cursor { width:12px; height:15px; transform-origin:1px .75px; }
   #lune .viewport { transition:left 260ms cubic-bezier(.2,.8,.2,1); }
 }
 @media(prefers-reduced-motion:reduce) {

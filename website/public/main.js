@@ -215,9 +215,6 @@
     cursorPathLength = path.getTotalLength();
     cursorStop = incomingLength / cursorPathLength * 100;
     toolbarStop=toolbarLength/cursorPathLength*100;
-    demoCursor.style.setProperty('--cursor-toolbar-stop',`${toolbarStop}%`);
-    demoCursor.style.setProperty('--cursor-stop', `${cursorStop}%`);
-    demoCursor.style.setProperty('--cursor-path', `path("${incoming + toToggle + outgoing}")`);
     reading = Math.max(0, pages.scrollHeight - pageHeight);
     root.style.setProperty('--reading', `${reading}px`);
     root.style.setProperty('--thumb-size', `${pageHeight / pages.scrollHeight * 100}%`);
@@ -526,24 +523,14 @@
       if(panelPointer)dismissDistantPanels();
       else if(!toolbarRegion.contains(document.activeElement)&&!windowControls.contains(document.activeElement))hideToolbar();
     }
-    if (!nativeTimeline || browserScale !== 1) {
-      demoCursor.style.opacity = Math.min(clamp(progress / .06), 1 - clamp((progress - .94) / .06));
-      const press = progress <= .68 ? clamp((progress - .64) / .04) : 1 - clamp((progress - .68) / .04);
-      if(browserScale !== 1) {
-        // Drive phone motion with ordinary transforms, independently of native
-        // scroll-timeline interpolation of motion-path offset-distance.
-        demoCursor.style.transform = `translate3d(${cursorPoint.x-2*browserScale}px,${cursorPoint.y-1.5*browserScale}px,0) scale(${1-.16*press})`;
-      } else {
-        demoCursor.style.offsetDistance = `${cursorDistance}%`;
-        demoCursor.style.transform = `scale(${1 - .16 * press})`;
-      }
-      const click = clamp((progress - .64) / .12);
-      demoClick.style.opacity = progress <= .68 ? .7 * clamp((progress - .64) / .04) : .7 * (1 - clamp((progress - .68) / .08));
-      demoClick.style.transform = `scale(${.5 + click * 1.2})`;
-    } else if(demoCursor.style.transform) {
-      ['transform','opacity','offset-distance'].forEach(property=>demoCursor.style.removeProperty(property));
-      ['transform','opacity'].forEach(property=>demoClick.style.removeProperty(property));
-    }
+    // Use the same measured position for rendering and panel visibility on every
+    // screen size. Safari can accept motion-path CSS without moving the SVG.
+    demoCursor.style.opacity = Math.min(clamp(progress / .06), 1 - clamp((progress - .94) / .06));
+    const press = progress <= .68 ? clamp((progress - .64) / .04) : 1 - clamp((progress - .68) / .04);
+    demoCursor.style.transform = `translate3d(${cursorPoint.x-2*browserScale}px,${cursorPoint.y-1.5*browserScale}px,0) scale(${1-.16*press})`;
+    const click = clamp((progress - .64) / .12);
+    demoClick.style.opacity = progress <= .68 ? .7 * clamp((progress - .64) / .04) : .7 * (1 - clamp((progress - .68) / .08));
+    demoClick.style.transform = `scale(${.5 + click * 1.2})`;
   }
   sidebarToggle.addEventListener('click', () => {
     sidebarOverride = sidebarToggle.getAttribute('aria-pressed') === 'true' ? 1 : 0;
