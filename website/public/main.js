@@ -752,6 +752,7 @@
     if (unsupported) {
       root.querySelectorAll('.action.download').forEach(button => {
         button.disabled = true;
+        button.querySelector('.download-chevron').remove();
         button.title = 'Available for macOS only';
       });
       return;
