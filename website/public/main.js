@@ -360,7 +360,7 @@
         reach=Math.max(reach,Math.hypot(at.x-rootX,at.y-groundY)+radius);
       });
       const outline=smoothPath([...left,...right.reverse()],true),opacity=order===0?.95:.72+local()*.25;
-      base.append(svg('path',{d:outline,class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',opacity:opacity*.5,'data-root-order':order}));
+      base.append(svg('path',{d:outline,class:'root-outline',fill:'var(--root-ink)',stroke:'none',opacity:opacity*.5,'data-root-order':order}));
       light.append(svg('path',{d:outline,stroke:'none',opacity:opacity*.9}));
       if(order>=3)return center;
       const count=order===0?5+Math.floor(local()*3):order===1?1+Math.floor(local()*3):2+Math.floor(local()*3);

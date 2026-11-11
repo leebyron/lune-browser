@@ -76,7 +76,9 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   The coda adds 6⅔% of a pane of scrolling below the ground, increasing the
   root-to-logo gap while keeping the brand/actions centered in the final pane.
   The soil extends through the full coda; the thanks and byline retain their
-  positions relative to the actions and bottom edge.
+  positions relative to the actions and bottom edge. Dark roots use the stem
+  ink mixed 15% toward the soil color, making them slightly darker than the
+  stem. Light roots retain the stem ink. Both reveal layers share this color.
 - Normal launches bounce for 660ms; the window and running dot appear at 320ms.
   The tooltip shares the icon's bounce. Returning to the top resets the launch.
 - CSS scroll timelines handle one continuous story, with a JavaScript fallback

@@ -245,8 +245,8 @@ svg { display: block; }
   #lune .petal-right { transform:rotate(24deg); }
   #lune .petal-front { transform:scale(1.08,.72); }
   #lune .vine-soil { fill:light-dark(#E7EDE5,#123347); stroke:none; }
-  #lune .vine-roots { fill:none; stroke:var(--botanical-ink); stroke-width:1; stroke-linecap:round; opacity:.85; }
-  #lune .root-light { fill:light-dark(var(--botanical-ink),color-mix(in oklab,var(--botanical-ink) 55%,var(--biolume))); }
+  #lune .vine-roots { --root-ink:light-dark(var(--botanical-ink),color-mix(in oklab,var(--botanical-ink) 85%,#123347)); fill:none; stroke:var(--root-ink); stroke-width:1; stroke-linecap:round; opacity:.85; }
+  #lune .root-light { fill:var(--root-ink); }
   #lune .root-base-front { transform:scale(calc(var(--root-radius) * .7)); }
   #lune .root-light-front { transform:scale(0); }
   @keyframes root-glow { from { transform:scale(0); } to { transform:scale(var(--root-radius)); } }
