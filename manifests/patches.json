@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "009caf230874153962f9965367ab79e789c8ed36",
+    "commit": "7e40287873ebf0e5bc465c64960485f76391cd6a",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -741,6 +741,10 @@
       {
         "path": "patches/helium/ui/services-update-footer.patch",
         "sha256": "2611f5db306970f23dedf2a9fb4c7421743819b5eeff9f882e85209abfdcf43f"
+      },
+      {
+        "path": "patches/helium/ui/command-menu-stable-glass.patch",
+        "sha256": "3bd246ce872c82b957eca3222d1e86bd1624b70edfb911dba27a68172ccb9fc1"
       }
     ]
   },
@@ -1887,6 +1891,23 @@
         "6a47b58615b227131f7c8bfdc7a9477fe4946e8a",
         "32e5f866c35b141ad2ff0033fb34db98ac8afe96",
         "dece2e93ca27a8b6012cc20910ecfcf2a0e1ae6e"
+      ]
+    },
+    {
+      "id": "command-menu-stable-glass",
+      "depends_on": [
+        "native-glass-command-bar",
+        "native-chrome-appearance",
+        "command-bar-shared-theme-tint"
+      ],
+      "patches": [
+        "patches/helium/ui/command-menu-stable-glass.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep Cmd+T and Cmd+/ frosted and stable as their result lists shrink.",
+      "adaptation": "Keep the existing neutral 80%-opacity backing visible at every command-menu size while retaining regular native glass, tint, legibility, and shadows. Header/sidebar Content aware behavior and older-macOS fallback are unchanged. Developed with quilt, refreshed and unmerged; strict zero-fuzz replay matches the compiled source. Both browser builds and native appearance/lifetime regressions pass; Intel fixture runtime uses Rosetta. Owner accepted the live Apple silicon preview on November 11, 2026. See agent-docs/project/features/command-menu-stable-glass.md.",
+      "commits": [
+        "7e40287873ebf0e5bc465c64960485f76391cd6a"
       ]
     }
   ],
