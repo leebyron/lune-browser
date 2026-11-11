@@ -181,7 +181,18 @@
 \ No newline at end of file
 --- a/chrome/browser/ui/helium/BUILD.gn
 +++ b/chrome/browser/ui/helium/BUILD.gn
-@@ -15,9 +15,9 @@
+@@ -4,6 +4,10 @@
+ 
+ assert(!is_android)
+ 
++source_set("command_symbols") {
++  sources = [ "helium_command_symbols.h" ]
++}
++
+ source_set("helium_layout_state_controller") {
+   sources = [
+     "helium_layout_state_controller.cc",
+@@ -15,9 +19,9 @@
      "//ui/base/unowned_user_data",
    ]
    deps = [
@@ -192,7 +203,7 @@
      "//chrome/common:constants",
    ]
  }
-@@ -67,6 +67,8 @@
+@@ -67,6 +71,8 @@
  
  source_set("helium_command_bar") {
    sources = [
@@ -201,7 +212,7 @@
      "helium_command_bar_controller.cc",
      "helium_command_bar_controller.h",
      "helium_command_bar_model.cc",
-@@ -80,10 +82,22 @@
+@@ -80,10 +86,22 @@
    if (is_mac) {
      sources += [ "helium_command_bar_view_mac.mm" ]
      deps += [
@@ -225,8 +236,11 @@
    } else {
      sources += [ "helium_command_bar_view.cc" ]
    }
-@@ -97,26 +111,25 @@
+@@ -95,28 +113,28 @@
+   ]
+ 
    deps += [
++    ":command_symbols",
      "//chrome/app/vector_icons",
      "//chrome/browser/autocomplete",
 -    "//components/omnibox/browser",
@@ -258,7 +272,7 @@
      "//components/prefs",
      "//components/search_engines",
      "//content/public/browser",
-@@ -124,11 +137,11 @@
+@@ -124,11 +142,11 @@
      "//ui/color",
      "//ui/events",
      "//ui/gfx",
@@ -273,7 +287,7 @@
      sources = [
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_commands.cc
-@@ -0,0 +1,554 @@
+@@ -0,0 +1,559 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -294,6 +308,7 @@
 +#include "chrome/browser/ui/browser_shortcuts/browser_shortcut_service_factory.h"
 +#include "chrome/browser/ui/browser_window.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/helium/helium_command_symbols.h"
 +#include "chrome/browser/ui/helium/helium_layout_state_controller.h"
 +#include "chrome/browser/ui/recently_audible_helper.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -312,6 +327,7 @@
 +
 +namespace helium_command_bar_model {
 +namespace {
++namespace symbols = helium::command_symbols;
 +struct Entry {
 +  int command;
 +  const char* usage_key;
@@ -357,10 +373,10 @@
 +    {IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL,
 +     "IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL",
 +     IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE,
-+     "customize|appearance|themes|wallpaper", "paintbrush"},
++     "customize|appearance|themes|wallpaper", symbols::kCustomizeAppearance},
 +    {IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR, "IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR",
 +     IDS_COMMAND_BAR_CUSTOMIZE_TOOLBAR, "customize toolbar|customize|toolbar",
-+     "slider.horizontal.3"},
++     symbols::kCustomizeToolbar},
 +    {IDC_BACK, "IDC_BACK", IDS_COMMAND_BAR_GO_BACK,
 +     "go back|back|previous page", "arrow.left"},
 +    {IDC_FORWARD, "IDC_FORWARD", IDS_COMMAND_BAR_GO_FORWARD,
@@ -392,7 +408,8 @@
 +     "copy page url|copy url|copy link|copy address", "link"},
 +    {IDC_DEV_TOOLS_TOGGLE, "IDC_DEV_TOOLS_TOGGLE",
 +     IDS_COMMAND_BAR_TOGGLE_DEVELOPER_TOOLS,
-+     "toggle developer tools|devtools|developer tools|web inspector", "hammer"},
++     "toggle developer tools|devtools|developer tools|web inspector",
++     symbols::kDeveloperTools},
 +    {IDC_DEV_TOOLS_CONSOLE, "IDC_DEV_TOOLS_CONSOLE",
 +     IDS_COMMAND_BAR_OPEN_CONSOLE, "open console|javascript console|console",
 +     "terminal"},
@@ -402,11 +419,11 @@
 +    {IDC_VIEW_SOURCE, "IDC_VIEW_SOURCE", IDS_COMMAND_BAR_VIEW_PAGE_SOURCE,
 +     "view page source|source|html", "chevron.left.forwardslash.chevron.right"},
 +    {IDC_TASK_MANAGER, "IDC_TASK_MANAGER", IDS_COMMAND_BAR_TASK_MANAGER,
-+     "task manager|processes|task manager", "gauge"},
++     "task manager|processes|task manager", symbols::kTaskManager},
 +    {IDC_RELOAD_BYPASSING_CACHE, "IDC_RELOAD_BYPASSING_CACHE",
 +     IDS_COMMAND_BAR_RELOAD_WITHOUT_CACHE,
 +     "reload without cache|hard reload|hard refresh|bypass cache",
-+     "arrow.clockwise.circle"},
++     "arrow.clockwise"},
 +    {IDC_WINDOW_PIN_TAB, "IDC_WINDOW_PIN_TAB", IDS_COMMAND_BAR_PIN_TAB,
 +     "pin tab|pin tab|unpin tab", "pin"},
 +    {IDC_WINDOW_MUTE_SITE, "IDC_WINDOW_MUTE_SITE", IDS_COMMAND_BAR_MUTE_SITE,
@@ -420,11 +437,9 @@
 +     "sidebar.right"},
 +    {IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN, "IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN",
 +     IDS_COMMAND_BAR_PIN_TOP_BAR,
-+     "pin toolbar|unpin toolbar|pin top bar|pin header|unpin header|pin top "
-+     "bar|unpin top bar",
-+     "pin"},
++     "pin header|unpin header|pin top bar|unpin top bar", symbols::kPinToolbar},
 +    {kPinSidebar, "kPinSidebar", IDS_COMMAND_BAR_PIN_SIDEBAR,
-+     "pin sidebar|pin sidebar|unpin sidebar", "pin"},
++     "pin sidebar|pin sidebar|unpin sidebar", symbols::kSidebarLeft},
 +    {kMediaPlayPause, "kMediaPlayPause", IDS_COMMAND_BAR_PLAY_MEDIA,
 +     "play|resume media|resume playback", "play.fill"},
 +    {kMediaPictureInPicture, "kMediaPictureInPicture",
@@ -441,7 +456,7 @@
 +    {kMediaStop, "kMediaStop", IDS_COMMAND_BAR_STOP_PLAYBACK,
 +     "stop playback|stop media", "stop.fill"},
 +    {kMediaSkipAd, "kMediaSkipAd", IDS_COMMAND_BAR_SKIP_AD,
-+     "skip ad|skip advertisement", "forward.end"},
++     "skip ad|skip advertisement", "arrow.right.to.line"},
 +};
 +
 +using MediaAction = media_session::mojom::MediaSessionAction;
@@ -579,7 +594,9 @@
 +    const auto entry = std::ranges::find(
 +        commands, id, &browser_shortcuts::CommandInfo::command_id);
 +    if (entry != commands.end() && !entry->accelerators.empty()) {
-+      return entry->accelerators.front().display_text;
++      const auto& shortcut = entry->accelerators.front().display_text;
++      // Present the standard Zoom In chord by its action, like the native menu.
++      return command == IDC_ZOOM_PLUS && shortcut == u"⌘=" ? u"⌘+" : shortcut;
 +    }
 +  }
 +  // The service is authoritative, including deliberately removed bindings.
@@ -715,16 +732,18 @@
 +      }
 +      if (view->IsZenModeTopChromePinned()) {
 +        label = IDS_COMMAND_BAR_UNPIN_TOP_BAR;
-+        symbol = "pin.slash";
 +      }
 +      break;
 +    case kPinSidebar:
 +      if (!zen || !view) {
 +        return std::nullopt;
 +      }
++      symbol = browser->GetProfile()->GetPrefs()->GetBoolean(
++                   prefs::kHeliumVerticalRightAligned)
++                   ? symbols::kSidebarRight
++                   : symbols::kSidebarLeft;
 +      if (view->IsZenModeSideChromePinned()) {
 +        label = IDS_COMMAND_BAR_UNPIN_SIDEBAR;
-+        symbol = "pin.slash";
 +      }
 +      break;
 +  }
@@ -872,14 +891,14 @@
 +#endif  // CHROME_BROWSER_UI_HELIUM_HELIUM_COMMAND_BAR_COMMANDS_H_
 --- a/chrome/browser/ui/helium/helium_command_bar_controller.cc
 +++ b/chrome/browser/ui/helium/helium_command_bar_controller.cc
-@@ -17,6 +17,7 @@
+@@ -16,6 +16,7 @@
+ #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/search_engines/template_url_service_factory.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
- #include "chrome/browser/ui/helium/helium_command_bar_suggestions.h"
 +#include "chrome/browser/ui/helium/helium_command_bar_commands.h"
+ #include "chrome/browser/ui/helium/helium_command_bar_suggestions.h"
  #include "chrome/browser/ui/helium/helium_command_bar_view.h"
  #include "chrome/browser/ui/navigator/browser_navigator.h"
- #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 @@ -33,7 +34,6 @@
  #include "components/search_engines/template_url_service.h"
  #include "content/public/browser/web_contents.h"
@@ -903,15 +922,20 @@
  // Visible identity of a result row. Scores are excluded on purpose: the same
  // query always scores the same, and rebuilding identical rows every
  // keystroke is what made the bubble flash.
-@@ -56,6 +64,8 @@
+@@ -56,9 +64,11 @@
      if (a[i].type != b[i].type || a[i].title != b[i].title ||
          a[i].url_spec != b[i].url_spec ||
          a[i].description != b[i].description ||
 +        a[i].symbol_name != b[i].symbol_name ||
 +        a[i].shortcut != b[i].shortcut ||
          a[i].site_keyword != b[i].site_keyword ||
-         a[i].site_query != b[i].site_query ||
-         a[i].command != b[i].command || a[i].tab_index != b[i].tab_index) {
+-        a[i].site_query != b[i].site_query ||
+-        a[i].command != b[i].command || a[i].tab_index != b[i].tab_index) {
++        a[i].site_query != b[i].site_query || a[i].command != b[i].command ||
++        a[i].tab_index != b[i].tab_index) {
+       return false;
+     }
+   }
 @@ -118,11 +128,13 @@
  }
  
@@ -927,19 +951,18 @@
    HeliumCommandBarView* view = HeliumCommandBarView::Show(
        parent, initial_query,
        base::BindOnce(&HeliumCommandBarController::OnWidgetClosed,
-@@ -146,6 +158,11 @@
+@@ -146,6 +158,10 @@
      template_observation_.Observe(service);
      service->Load();
    }
 +  command_pending_ = false;
 +  ++invocation_;
-+  command_state_timer_.Start(
-+      FROM_HERE, base::Milliseconds(500), this,
-+      &HeliumCommandBarController::RefreshCommandState);
++  command_state_timer_.Start(FROM_HERE, base::Milliseconds(500), this,
++                             &HeliumCommandBarController::RefreshCommandState);
    // Populate from the initial query (empty for Cmd+T, page URL for Cmd+L).
    OnQueryChanged(initial_query);
  }
-@@ -165,8 +182,10 @@
+@@ -165,8 +181,10 @@
    if (!widget_) {
      return;
    }
@@ -950,7 +973,7 @@
    scope_keyword_.clear();
    scope_keyword_was_typed_ = false;
    // Null first: closing runs WindowClosing synchronously, which would
-@@ -180,6 +199,14 @@
+@@ -180,6 +198,14 @@
    return widget_ != nullptr;
  }
  
@@ -965,24 +988,24 @@
  base::WeakPtr<HeliumCommandBarController>
  HeliumCommandBarController::GetWeakPtr() {
    return weak_factory_.GetWeakPtr();
-@@ -198,6 +225,16 @@
+@@ -198,6 +224,16 @@
          ui::Accelerator(key, ui::EF_PLATFORM_ACCELERATOR),
          ui::AcceleratorManager::kHighPriority, this);
    }
 +  // Native controls get a fallback accelerator. WebContents are explicitly
 +  // deferred in BrowserView::PreHandleKeyboardEvent before FocusManager can
 +  // treat an otherwise unknown shortcut as a browser-owned command.
-+  for (const ui::Accelerator& accelerator : {
-+           ui::Accelerator(ui::VKEY_OEM_2, ui::EF_PLATFORM_ACCELERATOR),
-+           ui::Accelerator(ui::VKEY_P,
-+                           ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN)}) {
++  for (const ui::Accelerator& accelerator :
++       {ui::Accelerator(ui::VKEY_OEM_2, ui::EF_PLATFORM_ACCELERATOR),
++        ui::Accelerator(ui::VKEY_P,
++                        ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN)}) {
 +    focus_manager_->RegisterAccelerator(
 +        accelerator, ui::AcceleratorManager::kNormalPriority, this);
 +  }
  }
  
  void HeliumCommandBarController::OnFocusManagerDestroying(
-@@ -211,9 +248,15 @@
+@@ -211,9 +247,15 @@
  
  bool HeliumCommandBarController::AcceleratorPressed(
      const ui::Accelerator& accelerator) {
@@ -1001,7 +1024,7 @@
      return false;
    }
    if (accelerator.key_code() == ui::VKEY_L) {
-@@ -227,8 +270,15 @@
+@@ -227,8 +269,15 @@
            prefs::kHeliumCommandBarEnabled)) {
      return false;
    }
@@ -1018,7 +1041,7 @@
      return true;
    }
    TabStripModel* tab_strip = browser_->GetTabStripModel();
-@@ -241,7 +291,7 @@
+@@ -241,7 +290,7 @@
    if (accelerator.key_code() == ui::VKEY_L) {
      initial = base::UTF8ToUTF16(contents->GetVisibleURL().spec());
    }
@@ -1027,17 +1050,17 @@
    return true;
  }
  
-@@ -262,7 +312,8 @@
+@@ -262,7 +311,8 @@
    // exactly like Tab on the hint row. Only when not already scoped, and
    // only for real scope keywords, so ordinary multi-word searches never
    // trip it.
 -  if (scope_keyword_.empty() && !query.empty() && query.back() == u' ') {
-+  if (scope_keyword_.empty() && !InCommandMode() &&
-+      !query.empty() && query.back() == u' ') {
++  if (scope_keyword_.empty() && !InCommandMode() && !query.empty() &&
++      query.back() == u' ') {
      if (auto split = helium_command_bar_model::SplitKeyword(query, false);
          split && !split->keyword.empty() && !split->has_remainder) {
        TemplateURLService* template_urls =
-@@ -290,7 +341,7 @@
+@@ -290,7 +340,7 @@
    // can never overwrite newer results.
    history_tracker_.TryCancelAll();
    ++history_seq_;
@@ -1046,19 +1069,19 @@
      return;
    }
    history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-@@ -308,8 +359,27 @@
+@@ -308,8 +358,27 @@
        &history_tracker_);
  }
  
 +bool HeliumCommandBarController::InCommandMode() const {
 +  return scope_keyword_.empty() &&
-+         (commands_only_ || helium_command_bar_model::IsCommandQuery(last_query_));
++         (commands_only_ ||
++          helium_command_bar_model::IsCommandQuery(last_query_));
 +}
 +
 +void HeliumCommandBarController::RefreshCommandState() {
 +  if (view_ && (!last_query_.empty() || commands_only_) &&
-+      scope_keyword_.empty() &&
-+      !command_pending_) {
++      scope_keyword_.empty() && !command_pending_) {
 +    // Rebuild other providers only when command availability or labels change.
 +    // In particular, polling must not repeatedly scan a large bang catalogue.
 +    auto commands = helium_command_bar_model::CommandsForQuery(
@@ -1075,7 +1098,7 @@
      return;
    }
    if (scope_keyword_.empty()) {
-@@ -387,6 +457,7 @@
+@@ -387,6 +456,7 @@
            TemplateURLServiceFactory::GetForProfile(browser_->GetProfile()),
            scope_keyword_));
      }
@@ -1083,7 +1106,7 @@
    }
    if (!same) {
      FetchFavicons();
-@@ -468,6 +539,19 @@
+@@ -468,6 +538,19 @@
      ExitScope();
      return;
    }
@@ -1103,7 +1126,7 @@
    HideSoon();
  }
  
-@@ -498,6 +582,12 @@
+@@ -498,6 +581,12 @@
      return {};
    }
    using namespace helium_command_bar_model;
@@ -1116,17 +1139,18 @@
    std::vector<HeliumCommandBarItem> items = suggestions_->items();
    if (!scope_keyword_.empty()) {
      // Scoped: the engine search row (or tabs only), plus matching tabs,
-@@ -544,7 +634,8 @@
+@@ -544,7 +633,9 @@
    auto bookmark_items = BookmarksForQuery(bookmarks, query);
    items.insert(items.end(), std::make_move_iterator(bookmark_items.begin()),
                 std::make_move_iterator(bookmark_items.end()));
 -  auto command_items = CommandsForQuery(query);
-+  auto command_items = CommandsForQuery(browser_, query, /*commands_only=*/false);
++  auto command_items =
++      CommandsForQuery(browser_, query, /*commands_only=*/false);
 +  command_state_ = command_items;
    items.insert(items.end(), std::make_move_iterator(command_items.begin()),
                 std::make_move_iterator(command_items.end()));
    if (history_rows) {
-@@ -679,33 +770,60 @@
+@@ -679,33 +770,68 @@
        }
        break;
      }
@@ -1162,7 +1186,8 @@
 -      break;
 +      auto* strip = browser_->GetTabStripModel();
 +      auto* active = strip ? strip->GetActiveWebContents() : nullptr;
-+      auto current = helium_command_bar_model::CommandForId(browser_, item.command);
++      auto current =
++          helium_command_bar_model::CommandForId(browser_, item.command);
 +      if (!active || !current || current->title != item.title ||
 +          current->symbol_name != item.symbol_name) {
 +        RefreshCommandState();
@@ -1174,19 +1199,23 @@
 +      ++history_seq_;
 +      // Leave the input event stack before destroying the palette. Closing
 +      // synchronously here (inside the posted task) restores page focus before
-+      // Find/Print/DevTools can take it. A weak page and invocation token prevent
-+      // a delayed command from targeting another tab or a reopened palette.
++      // Find/Print/DevTools can take it. A weak page and invocation token
++      // prevent a delayed command from targeting another tab or a reopened
++      // palette.
 +      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-+          FROM_HERE, base::BindOnce(
++          FROM_HERE,
++          base::BindOnce(
 +              [](base::WeakPtr<HeliumCommandBarController> self,
 +                 base::WeakPtr<content::WebContents> target, int invocation,
 +                 HeliumCommandBarItem command) {
-+                if (!self || !self->widget_ || self->invocation_ != invocation) {
++                if (!self || !self->widget_ ||
++                    self->invocation_ != invocation) {
 +                  return;
 +                }
 +                self->command_pending_ = false;
-+                if (!target || self->browser_->GetTabStripModel()
-+                                   ->GetActiveWebContents() != target.get()) {
++                if (!target ||
++                    self->browser_->GetTabStripModel()
++                            ->GetActiveWebContents() != target.get()) {
 +                  self->RefreshCommandState();
 +                  return;
 +                }
@@ -1201,13 +1230,16 @@
 +                self->widget_ = nullptr;
 +                self->view_ = nullptr;
 +                widget->CloseNow();
-+                if (self && target && self->browser_->GetTabStripModel()
-+                                          ->GetActiveWebContents() == target.get()) {
++                if (self && target &&
++                    self->browser_->GetTabStripModel()
++                            ->GetActiveWebContents() == target.get()) {
 +                  // Execution may close the tab/window and destroy self.
 +                  helium_command_bar_model::ExecutePaletteCommand(
 +                      self->browser_, command);
 +                }
-+              }, weak_factory_.GetWeakPtr(), active->GetWeakPtr(), invocation_, item));
++              },
++              weak_factory_.GetWeakPtr(), active->GetWeakPtr(), invocation_,
++              item));
 +      return;
 +    }
      case HeliumCommandBarItem::Type::kSearchSuggestion:
@@ -1228,8 +1260,9 @@
    ~HeliumCommandBarController() override;
  
 -  // Registers Cmd+T / Cmd+L at high accelerator priority. Called once the
-+  // Registers navigation and command-search shortcuts at high priority. Called once the
-   // window's FocusManager exists.
+-  // window's FocusManager exists.
++  // Registers navigation and command-search shortcuts at high priority. Called
++  // once the window's FocusManager exists.
    void RegisterAccelerators(views::FocusManager* focus_manager);
  
    void Toggle(gfx::NativeView parent,
@@ -1368,32 +1401,36 @@
  // space-separated remainder and |require_remainder| is true.
 --- a/chrome/browser/ui/helium/helium_command_bar_view.cc
 +++ b/chrome/browser/ui/helium/helium_command_bar_view.cc
-@@ -117,7 +117,7 @@
+@@ -117,7 +117,8 @@
      // Single-line rows (commands, tabs without... ) must not reserve a
      // second line: an empty Label still measures a full line height, which
      // pushed the title above the icon instead of centering it.
 -    const bool has_subtitle = !item.url_spec.empty();
-+    const bool has_subtitle = !item.url_spec.empty() || !item.description.empty();
++    const bool has_subtitle =
++        !item.url_spec.empty() || !item.description.empty();
      views::Label* url = nullptr;
      if (has_subtitle) {
        const std::u16string subtitle = item.description.empty()
-@@ -133,9 +133,13 @@
+@@ -133,10 +134,15 @@
      // Height follows the labels; the row centers it vertically.
      text->SetPreferredSize(
          gfx::Size(kTextWidth, text->GetPreferredSize().height()));
 +    const std::u16string tag_text =
-+        item.type == HeliumCommandBarItem::Type::kCommand && !item.shortcut.empty()
++        item.type == HeliumCommandBarItem::Type::kCommand &&
++                !item.shortcut.empty()
 +            ? item.shortcut
 +            : base::UTF8ToUTF16(item.type == HeliumCommandBarItem::Type::kBang
-+                                   ? item.site_keyword : TagForType(item.type));
++                                    ? item.site_keyword
++                                    : TagForType(item.type));
      auto* tag = AddChildView(std::make_unique<views::Label>(
 -        base::UTF8ToUTF16(item.type == HeliumCommandBarItem::Type::kBang
 -            ? item.site_keyword : TagForType(item.type)),
-+        tag_text,
-         views::style::CONTEXT_LABEL, views::style::STYLE_SECONDARY));
+-        views::style::CONTEXT_LABEL, views::style::STYLE_SECONDARY));
++        tag_text, views::style::CONTEXT_LABEL, views::style::STYLE_SECONDARY));
      tag->SetHorizontalAlignment(gfx::ALIGN_RIGHT);
      tag->SetElideBehavior(gfx::ELIDE_TAIL);
-@@ -312,8 +316,13 @@
+     tag->SetFontList(tag->font_list().DeriveWithSizeDelta(-1));
+@@ -312,8 +318,14 @@
    if (selection_is_explicit_ && selected_ < displayed_items_.size()) {
      selected = displayed_items_[selected_];
    }
@@ -1401,7 +1438,8 @@
 -  selection_is_explicit_ = false;
 +  // An explicitly selected command that disappears must not redirect Enter
 +  // to a different action. Keep no selection until another edit or selection.
-+  const bool missing_command = selection_is_explicit_ &&
++  const bool missing_command =
++      selection_is_explicit_ &&
 +      (selected_ >= displayed_items_.size() ||
 +       (selected && selected->type == HeliumCommandBarItem::Type::kCommand));
 +  selected_ = missing_command ? items.size() : 0;
@@ -1409,7 +1447,7 @@
    if (selected) {
      for (size_t i = 0; i < items.size(); ++i) {
        if (helium_command_bar_model::SameItem(*selected, items[i])) {
-@@ -379,6 +388,13 @@
+@@ -379,6 +391,13 @@
    ResizeToContents();
  }
  
@@ -1423,13 +1461,13 @@
  void HeliumCommandBarView::SetItemImage(size_t index,
                                            const gfx::Image& image) {
    const auto& children = results_->children();
-@@ -393,7 +409,8 @@
+@@ -393,7 +412,8 @@
    if (count == 0) {
      return;
    }
 -  SetSelected((selected_ + count + delta) % count);
 +  SetSelected(selected_ >= count ? (delta > 0 ? 0 : count - 1)
-+                                  : (selected_ + count + delta) % count);
++                                 : (selected_ + count + delta) % count);
  }
  
  void HeliumCommandBarView::SetSelected(size_t index) {
@@ -1445,7 +1483,7 @@
      case HeliumCommandBarItem::Type::kUrl:
        return @"New tab";
      case HeliumCommandBarItem::Type::kSearch:
-@@ -429,8 +430,13 @@
+@@ -429,8 +430,14 @@
    if (selection_is_explicit_ && selected_ < displayed_items_.size()) {
      selected = displayed_items_[selected_];
    }
@@ -1453,7 +1491,8 @@
 -  selection_is_explicit_ = false;
 +  // An explicitly selected command that disappears must not redirect Enter
 +  // to a different action. Keep no selection until another edit or selection.
-+  const bool missing_command = selection_is_explicit_ &&
++  const bool missing_command =
++      selection_is_explicit_ &&
 +      (selected_ >= displayed_items_.size() ||
 +       (selected && selected->type == HeliumCommandBarItem::Type::kCommand));
 +  selected_ = missing_command ? items.size() : 0;
@@ -1461,17 +1500,18 @@
    if (selected) {
      for (size_t i = 0; i < items.size(); ++i) {
        if (helium_command_bar_model::SameItem(*selected, items[i])) {
-@@ -464,7 +470,8 @@
+@@ -464,7 +471,9 @@
                  item.type == HeliumCommandBarItem::Type::kSiteSearch
              ? @"magnifyingglass"
              : @"globe";
 -    row.symbolName = symbol;
 +    row.symbolName = item.type == HeliumCommandBarItem::Type::kCommand
-+        ? base::SysUTF8ToNSString(item.symbol_name) : symbol;
++                         ? base::SysUTF8ToNSString(item.symbol_name)
++                         : symbol;
      row.accessibilityLabel =
          [NSString stringWithFormat:@"%@, %@, %@", row.primaryText,
                                     row.secondaryText, row.tagText];
-@@ -521,6 +528,14 @@
+@@ -521,6 +530,14 @@
    native_->pane.scopePill.hidden = YES;
    ResizeToContents();
  }
@@ -1486,13 +1526,13 @@
  void HeliumCommandBarView::SetItemImage(size_t index, const gfx::Image& image) {
    if (index >= native_->pane.rows.count || image.IsEmpty()) {
      return;
-@@ -531,7 +546,8 @@
+@@ -531,7 +548,8 @@
  void HeliumCommandBarView::MoveSelection(int delta) {
    size_t count = native_->pane.rows.count;
    if (count) {
 -    SetSelected((selected_ + count + delta) % count);
 +    SetSelected(selected_ >= count ? (delta > 0 ? 0 : count - 1)
-+                                  : (selected_ + count + delta) % count);
++                                   : (selected_ + count + delta) % count);
      [native_->pane layoutSubtreeIfNeeded];
      HeliumNativeResultRow* row = native_->pane.rows[selected_];
      [row scrollRectToVisible:row.bounds];
@@ -1540,14 +1580,14 @@
  
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -92,6 +92,7 @@
- #endif
- #include "chrome/browser/ui/browser_shortcuts/browser_shortcut_service_factory.h"
- #include "chrome/browser/ui/browser_tabstrip.h"
+@@ -111,6 +111,7 @@
+ #include "chrome/browser/ui/global_error/global_error.h"
+ #include "chrome/browser/ui/global_error/global_error_service.h"
+ #include "chrome/browser/ui/global_error/global_error_service_factory.h"
 +#include "chrome/browser/ui/helium/helium_command_bar_controller.h"
- #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
- #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
- #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/location_bar/location_bar.h"
+ #include "chrome/browser/ui/navigator/browser_navigator.h"
 @@ -4428,6 +4429,15 @@
    }
  #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -1584,14 +1624,46 @@
    }
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -813,6 +813,7 @@
+@@ -650,8 +650,8 @@
+     "//chrome/browser/ui/toolbar",
+     "//chrome/browser/ui/views:layout_provider",
+     "//chrome/browser/ui/views/app_menu",
+-    "//chrome/browser/ui/views/interaction",
+     "//chrome/browser/ui/views/helium:native_frame_materials",
++    "//chrome/browser/ui/views/interaction",
+     "//chrome/browser/ui/views/toolbar",
+     "//ui/views",
    ]
-   public_deps = [ ":browser_view_header" ]
-   deps = [
+@@ -905,6 +905,7 @@
+     "//chrome/browser/ui/focus",
+     "//chrome/browser/ui/fullscreen",
+     "//chrome/browser/ui/global_error",
 +    "//chrome/browser/ui/helium:helium_command_bar",
-     ":app_menu_button",
-     ":browser_frame_view",
-     ":browser_native_widget",
+     "//chrome/browser/ui/location_bar",
+     "//chrome/browser/ui/navigator",
+     "//chrome/browser/ui/omnibox",
+@@ -2007,8 +2008,8 @@
+       ":caption_button_placeholder_container",
+       ":contents_container_outline",
+       ":frame",
+-      ":toolbar_button_provider",
+       ":glass_frame_service",
++      ":toolbar_button_provider",
+       ":vertical_tab_strip_region_view",
+       "//chrome/app:command_ids",
+       "//chrome/app:generated_resources",
+@@ -2027,9 +2028,10 @@
+       "//chrome/browser/ui/color:color_headers",
+       "//chrome/browser/ui/color:mixers",
+       "//chrome/browser/ui/exclusive_access",
++      "//chrome/browser/ui/helium:command_symbols",
+       "//chrome/browser/ui/helium:helium_command_bar",
+-      "//chrome/browser/ui/helium:native_result_row",
+       "//chrome/browser/ui/helium:helium_layout_state_controller",
++      "//chrome/browser/ui/helium:native_result_row",
+       "//chrome/browser/ui/immersive:immersive_mode_controller",
+       "//chrome/browser/ui/navigator",
+       "//chrome/browser/ui/tabs",
 --- a/chrome/browser/ui/browser_shortcuts/browser_shortcut_platform_mac.mm
 +++ b/chrome/browser/ui/browser_shortcuts/browser_shortcut_platform_mac.mm
 @@ -83,6 +83,9 @@
@@ -1604,3 +1676,429 @@
    if (action == @selector(performClose:)) {
      return IDC_CLOSE_WINDOW;
    }
+--- /dev/null
++++ b/chrome/browser/ui/helium/helium_command_symbols.h
+@@ -0,0 +1,19 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_HELIUM_HELIUM_COMMAND_SYMBOLS_H_
++#define CHROME_BROWSER_UI_HELIUM_HELIUM_COMMAND_SYMBOLS_H_
++
++namespace helium::command_symbols {
++inline constexpr char kDeveloperTools[] = "wrench.and.screwdriver";
++inline constexpr char kCustomizeToolbar[] = "wrench.adjustable";
++inline constexpr char kTaskManager[] = "gauge";
++// Compatibility name for inset.filled.topthird.rectangle, renamed in macOS 15.
++inline constexpr char kPinToolbar[] = "rectangle.topthird.inset.filled";
++inline constexpr char kSidebarLeft[] = "sidebar.left";
++inline constexpr char kSidebarRight[] = "sidebar.right";
++inline constexpr char kCustomizeAppearance[] = "paintpalette";
++}  // namespace helium::command_symbols
++
++#endif  // CHROME_BROWSER_UI_HELIUM_HELIUM_COMMAND_SYMBOLS_H_
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -28,8 +28,8 @@
+ #include "chrome/browser/headless/headless_mode_util.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/profiles/profile.h"
+-#include "chrome/browser/search_engines/template_url_service_factory.h"
+ #include "chrome/browser/profiles/profile_observer.h"
++#include "chrome/browser/search_engines/template_url_service_factory.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+@@ -41,8 +41,9 @@
+ #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
+ #include "chrome/browser/ui/fullscreen_util_mac.h"
+ #include "chrome/browser/ui/helium/helium_command_bar_controller.h"
+-#include "chrome/browser/ui/helium/native_result_row_mac.h"
++#include "chrome/browser/ui/helium/helium_command_symbols.h"
+ #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
++#include "chrome/browser/ui/helium/native_result_row_mac.h"
+ #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/navigator/browser_navigator.h"
+@@ -60,8 +61,8 @@
+ #include "chrome/browser/ui/views/frame/contents_container_view.h"
+ #include "chrome/browser/ui/views/frame/contents_web_view.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
++#include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+ #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h"
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+@@ -71,11 +72,11 @@
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip.h"
++#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h"
+ #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
+-#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+-#include "chrome/browser/ui/views/toolbar/toolbar_button.h"
+ #include "chrome/browser/ui/views/toolbar/reload_button.h"
+-#include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
++#include "chrome/browser/ui/views/toolbar/toolbar_button.h"
++#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+ #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
+ #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+ #include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
+@@ -89,8 +90,8 @@
+ #include "components/omnibox/browser/autocomplete_enums.h"
+ #include "components/omnibox/browser/autocomplete_input.h"
+ #include "components/omnibox/browser/location_bar_model.h"
+-#include "components/prefs/pref_service.h"
+ #include "components/prefs/pref_change_registrar.h"
++#include "components/prefs/pref_service.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "content/public/browser/navigation_controller.h"
+@@ -127,8 +128,8 @@
+ #include "ui/views/view_targeter.h"
+ #include "ui/views/view_targeter_delegate.h"
+ #include "ui/views/widget/widget.h"
+-#include "ui/views/widget/widget_observer.h"
+ #include "ui/views/widget/widget_delegate.h"
++#include "ui/views/widget/widget_observer.h"
+ 
+ namespace {
+ // Count intended layout visibility, not the previous painted layout. New
+@@ -677,7 +678,8 @@
+   }
+   _browser = view->GetAsWeakPtr();
+   _button = [HeliumSidebarPinButton
+-      buttonWithImage:[NSImage imageWithSystemSymbolName:@"sidebar.left"
++      buttonWithImage:[NSImage imageWithSystemSymbolName:
++                                   @(helium::command_symbols::kSidebarLeft)
+                                 accessibilityDescription:nil]
+                target:self
+                action:@selector(toggle:)];
+@@ -713,8 +715,8 @@
+   _button.accessibilityLabel = _button.toolTip;
+   _button.image = [[NSImage
+       imageWithSystemSymbolName:_browser->IsVerticalTabStripRightAligned()
+-                                    ? @"sidebar.right"
+-                                    : @"sidebar.left"
++                                    ? @(helium::command_symbols::kSidebarRight)
++                                    : @(helium::command_symbols::kSidebarLeft)
+        accessibilityDescription:nil]
+       imageWithSymbolConfiguration:
+           [NSImageSymbolConfiguration
+--- a/chrome/browser/ui/views/helium/BUILD.gn
++++ b/chrome/browser/ui/views/helium/BUILD.gn
+@@ -42,15 +42,17 @@
+   deps = [
+     "//build:buildflag_header_h",
+     "//chrome/browser/profiles:profile",
+-    "//chrome/browser/ui:ui_features",
+     "//chrome/browser/ui:layout_constants",
+-    "//ui/gfx",
+-    "//ui/gfx/geometry",
++    "//chrome/browser/ui:ui_features",
++    "//chrome/browser/ui/actions:actions_headers",
+     "//chrome/browser/ui/browser_window",
++    "//chrome/browser/ui/helium:command_symbols",
+     "//chrome/browser/ui/views/frame:browser_view_header",
+     "//chrome/common:constants",
+     "//components/prefs",
+     "//skia",
++    "//ui/gfx",
++    "//ui/gfx/geometry",
+     "//ui/views",
+   ]
+ 
+@@ -65,8 +67,8 @@
+     deps += [
+       "//chrome/browser:browser_process",
+       "//chrome/browser/themes",
+-      "//ui/native_theme",
+       "//ui/color",
++      "//ui/native_theme",
+     ]
+   }
+ }
+--- a/chrome/browser/ui/views/helium/native_frame_materials.cc
++++ b/chrome/browser/ui/views/helium/native_frame_materials.cc
+@@ -8,7 +8,9 @@
+ 
+ #include "build/build_config.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/actions/chrome_action_id.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/helium/helium_command_symbols.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+@@ -20,6 +22,21 @@
+ 
+ namespace helium {
+ 
++const char* NativeToolbarSymbolNameForAction(int action_id) {
++  switch (action_id) {
++    case kActionDevTools:
++      return command_symbols::kDeveloperTools;
++    case kActionTaskManager:
++      return command_symbols::kTaskManager;
++    case kActionSidePanelShowCustomizeChrome:
++      return command_symbols::kCustomizeAppearance;
++    case kActionSidePanelShowCustomizeChromeToolbar:
++      return command_symbols::kCustomizeToolbar;
++    default:
++      return nullptr;
++  }
++}
++
+ bool IsFloatingToolbarControl(const views::View* view) {
+ #if BUILDFLAG(IS_MAC)
+   return view && view->GetWidget() &&
+@@ -91,6 +108,9 @@
+ }
+ 
+ #if !BUILDFLAG(IS_MAC)
++gfx::ImageSkia NativeToolbarSymbolForName(const char*, int, SkColor) {
++  return {};
++}
+ gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor) {
+   return {};
+ }
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -32,6 +32,12 @@
+                                  const char* icon_name, int size,
+                                  SkColor color);
+ 
++// Semantic action overrides keep shared vector icons (e.g. Settings) distinct.
++const char* NativeToolbarSymbolNameForAction(int action_id);
++gfx::ImageSkia NativeToolbarSymbolForName(const char* symbol_name,
++                                          int size,
++                                          SkColor color);
++
+ // Shared artwork for native chrome and the Customize toolbar list.
+ gfx::ImageSkia NativeToolbarSymbolForIcon(const char* icon_name, int size,
+                                         SkColor color);
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -4,26 +4,28 @@
+ 
+ #import "chrome/browser/ui/views/helium/native_frame_materials_mac.h"
+ 
++#import <objc/runtime.h>
++
+ #include <algorithm>
+ #include <cmath>
+-#include "chrome/browser/ui/views/frame/browser_widget.h"
+-#include "ui/color/color_provider.h"
+-#include "ui/color/color_provider_manager.h"
+-#include "ui/color/color_id.h"
+-#include "ui/gfx/color_utils.h"
+-#import <objc/runtime.h>
+ 
+ #include "base/apple/foundation_util.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+-#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/helium/helium_command_symbols.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/frame/browser_widget.h"
++#include "chrome/browser/ui/views/helium/native_download_progress.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/helium/native_frame_separator.h"
+-#include "chrome/browser/ui/views/helium/native_download_progress.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_provider.h"
++#include "ui/color/color_provider_manager.h"
++#include "ui/gfx/color_utils.h"
+ #include "ui/gfx/image/image_skia_operations.h"
+ #include "ui/gfx/image/image_skia_util_mac.h"
+ #include "ui/native_theme/native_theme.h"
+@@ -637,15 +639,15 @@
+     name = @"qrcode";
+   } else if (icon_name == "kCodeIcon" ||
+              icon_name == "kDeveloperToolsOldIcon") {
+-    name = @"chevron.left.forwardslash.chevron.right";
++    name = @(command_symbols::kDeveloperTools);
+   } else if (icon_name == "kTableChartIcon") {
+-    name = @"memorychip";
++    name = @(command_symbols::kTaskManager);
+   } else if (icon_name == "kLinkIcon" ||
+              icon_name == "kLinkChromeRefreshOldIcon") {
+     name = @"square.and.arrow.up";
+   } else if (icon_name == "kEditIcon" ||
+              icon_name == "kEditChromeRefreshOldIcon") {
+-    name = @"slider.horizontal.2.square";
++    name = @(command_symbols::kCustomizeAppearance);
+   } else if (icon_name == "kAccountBoxIcon" || icon_name == "kAccountBoxOldIcon" ||
+              icon_name == "kAccountCircleIcon" ||
+              icon_name == "kAccountCircleChromeRefreshOldIcon") {
+@@ -690,6 +692,16 @@
+   if (!name) {
+     return {};
+   }
++  return NativeToolbarSymbolForName(name.UTF8String, size, color);
++}
++
++gfx::ImageSkia NativeToolbarSymbolForName(const char* symbol_name,
++                                          int size,
++                                          SkColor color) {
++  if (!symbol_name) {
++    return {};
++  }
++  NSString* name = @(symbol_name);
+   NSImage* symbol = [NSImage imageWithSystemSymbolName:name
+                               accessibilityDescription:nil];
+   if (!symbol && ([name isEqualToString:@"arrow.down.circle.badge.clock"] ||
+--- a/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
+@@ -25,6 +25,7 @@
+ #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_ids.h"
+ #include "chrome/browser/ui/views/event_utils.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button_menu_model.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.h"
+@@ -262,12 +263,14 @@
+         icon, GetColorProvider()->GetColor(kColorToolbarActionItemEngaged),
+         GetColorProvider()->GetColor(kColorToolbarActionItemEngaged),
+         GetColorProvider()->GetColor(kColorToolbarActionItemEngaged),
+-        GetForegroundColor(ButtonState::STATE_DISABLED));
++        GetForegroundColor(ButtonState::STATE_DISABLED),
++        helium::NativeToolbarSymbolNameForAction(action_id_));
+   } else {
+     UpdateIconsWithColors(icon, GetForegroundColor(ButtonState::STATE_NORMAL),
+                           GetForegroundColor(ButtonState::STATE_HOVERED),
+                           GetForegroundColor(ButtonState::STATE_PRESSED),
+-                          GetForegroundColor(ButtonState::STATE_DISABLED));
++                          GetForegroundColor(ButtonState::STATE_DISABLED),
++                          helium::NativeToolbarSymbolNameForAction(action_id_));
+   }
+ }
+ 
+--- a/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button_menu_model.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button_menu_model.cc
+@@ -23,6 +23,8 @@
+ #include "chrome/browser/ui/side_panel/side_panel_enums.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
+ #include "components/tabs/public/tab_interface.h"
+@@ -30,6 +32,9 @@
+ #include "ui/actions/actions.h"
+ #include "ui/base/interaction/element_identifier.h"
+ #include "ui/base/window_open_disposition_utils.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_provider.h"
++#include "ui/gfx/image/image_skia.h"
+ #include "ui/menus/simple_menu_model.h"
+ #include "ui/views/view_class_properties.h"
+ 
+@@ -142,7 +147,16 @@
+   if (GetTypeAt(index) == TYPE_SEPARATOR) {
+     return ui::ImageModel();
+   }
+-
++  if (auto* view = BrowserView::GetBrowserViewForBrowser(browser_);
++      view && view->GetColorProvider()) {
++    auto symbol = helium::NativeToolbarSymbolForName(
++        helium::NativeToolbarSymbolNameForAction(items_[index].action_id),
++        ui::SimpleMenuModel::kDefaultIconSize,
++        view->GetColorProvider()->GetColor(ui::kColorMenuIcon));
++    if (!symbol.isNull()) {
++      return ui::ImageModel::FromImageSkia(symbol);
++    }
++  }
+   const ui::ImageModel& image =
+       GetActionItemFor(items_[index].action_id)->GetImage();
+   // Update the icon size for a context menu if possible.
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -310,10 +310,15 @@
+                                           SkColor normal_color,
+                                           SkColor hovered_color,
+                                           SkColor pressed_color,
+-                                          SkColor disabled_color) {
++                                          SkColor disabled_color,
++                                          const char* native_symbol_name) {
+   const int icon_size = GetIconSize();
+-  const auto native = helium::NativeToolbarSymbol(this, icon.name, icon_size,
+-                                                 SK_ColorBLACK);
++  const auto native =
++      icon.name && native_symbol_name && helium::IsFloatingToolbarControl(this)
++          ? helium::NativeToolbarSymbolForName(native_symbol_name, icon_size,
++                                               SK_ColorBLACK)
++          : helium::NativeToolbarSymbol(this, icon.name, icon_size,
++                                        SK_ColorBLACK);
+   if (!native.isNull()) {
+     SetAnimationDuration(base::Milliseconds(100));
+     SetAnimateOnStateChange(true);
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.h
+@@ -259,7 +259,8 @@
+                              SkColor normal_color,
+                              SkColor hovered_color,
+                              SkColor pressed_color,
+-                             SkColor disabled_color);
++                             SkColor disabled_color,
++                             const char* native_symbol_name = nullptr);
+ 
+   std::optional<SkColor> GetBackgroundColor() const;
+ 
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
+@@ -42,8 +42,18 @@
+ #include "ui/views/vector_icons.h"
+ 
+ namespace {
+-gfx::ImageSkia RasterizeToolbarIcon(const ui::ImageModel& model,
+-                                   const ui::ColorProvider& provider) {
++gfx::ImageSkia RasterizeToolbarIcon(
++    const ui::ImageModel& model,
++    const ui::ColorProvider& provider,
++    std::optional<int> action_id = std::nullopt) {
++  if (action_id) {
++    auto symbol = helium::NativeToolbarSymbolForName(
++        helium::NativeToolbarSymbolNameForAction(*action_id), 20,
++        provider.GetColor(ui::kColorSysOnSurface));
++    if (!symbol.isNull()) {
++      return symbol;
++    }
++  }
+   if (model.IsVectorIcon()) {
+     auto symbol = helium::NativeToolbarSymbolForIcon(
+         model.GetVectorIcon().vector_icon()->name, 20,
+@@ -340,8 +350,13 @@
+           prefs()->GetBoolean(prefs::kShowVerticalTabsCollapseButton), false,
+           side_panel::customize_chrome::mojom::CategoryId::kNavigation,
+           GURL(webui::EncodePNGAndMakeDataURI(
+-              RasterizeToolbarIcon(ui::ImageModel::FromVectorIcon(views::kSidebarLeftIcon,
+-                                             icon_color_id), provider),
++              RasterizeToolbarIcon(
++                  ui::ImageModel::FromVectorIcon(
++                      prefs()->GetBoolean(prefs::kHeliumVerticalRightAligned)
++                          ? views::kSidebarRightIcon
++                          : views::kSidebarLeftIcon,
++                      icon_color_id),
++                  provider),
+               scale_factor)));
+ 
+   auto dynamic_new_tab_action =
+@@ -487,7 +502,8 @@
+             base::UTF16ToUTF8(action_item->GetText()), model_->Contains(id),
+             has_enterprise_controlled_pinned_state, category,
+             GURL(webui::EncodePNGAndMakeDataURI(
+-                RasterizeToolbarIcon(recolored_icon, provider), scale_factor)));
++                RasterizeToolbarIcon(recolored_icon, provider, id),
++                scale_factor)));
+         actions.push_back(std::move(mojo_action));
+       };
+ 
