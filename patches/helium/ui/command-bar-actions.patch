@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -20678,6 +20678,165 @@
+@@ -20678,6 +20678,147 @@
      <message name="IDS_OSCRYPTASYNC_AVAILABILITY_INFOBAR_BUTTON" desc="The text of the button to proceed with relaunching the entire browser to resolve keychain permission issues.">
        Relaunch
      </message>
@@ -118,29 +118,14 @@
 +    <message name="IDS_COMMAND_BAR_ENTER_FULLSCREEN" desc="Command palette action: Enter Fullscreen.">
 +      Enter Fullscreen
 +    </message>
-+    <message name="IDS_COMMAND_BAR_USE_CLASSIC_LAYOUT" desc="Command palette action: Use Classic Layout.">
-+      Use Classic Layout
-+    </message>
-+    <message name="IDS_COMMAND_BAR_USE_COMPACT_LAYOUT" desc="Command palette action: Use Compact Layout.">
-+      Use Compact Layout
-+    </message>
-+    <message name="IDS_COMMAND_BAR_USE_VERTICAL_LAYOUT" desc="Command palette action: Use Vertical Layout.">
-+      Use Vertical Layout
-+    </message>
-+    <message name="IDS_COMMAND_BAR_USE_DYNAMIC_LAYOUT" desc="Command palette action: Use Dynamic Layout.">
-+      Use Dynamic Layout
-+    </message>
 +    <message name="IDS_COMMAND_BAR_MOVE_SIDEBAR_TO_RIGHT" desc="Command palette action: Move Sidebar to Right.">
 +      Move Sidebar to Right
 +    </message>
-+    <message name="IDS_COMMAND_BAR_PIN_TOP_BAR" desc="Command palette action: Pin Top Bar.">
-+      Pin Top Bar
++    <message name="IDS_COMMAND_BAR_PIN_TOP_BAR" desc="Command palette action: Pin Toolbar.">
++      Pin Toolbar
 +    </message>
 +    <message name="IDS_COMMAND_BAR_PIN_SIDEBAR" desc="Command palette action: Pin Sidebar.">
 +      Pin Sidebar
-+    </message>
-+    <message name="IDS_COMMAND_BAR_COLLAPSE_SIDEBAR" desc="Command palette action: Collapse Sidebar.">
-+      Collapse Sidebar
 +    </message>
 +    <message name="IDS_COMMAND_BAR_UNPIN_TAB" desc="Command palette action: Unpin Tab.">
 +      Unpin Tab
@@ -154,14 +139,11 @@
 +    <message name="IDS_COMMAND_BAR_MOVE_SIDEBAR_TO_LEFT" desc="Command palette action: Move Sidebar to Left.">
 +      Move Sidebar to Left
 +    </message>
-+    <message name="IDS_COMMAND_BAR_UNPIN_TOP_BAR" desc="Command palette action: Unpin Top Bar.">
-+      Unpin Top Bar
++    <message name="IDS_COMMAND_BAR_UNPIN_TOP_BAR" desc="Command palette action: Unpin Toolbar.">
++      Unpin Toolbar
 +    </message>
 +    <message name="IDS_COMMAND_BAR_UNPIN_SIDEBAR" desc="Command palette action: Unpin Sidebar.">
 +      Unpin Sidebar
-+    </message>
-+    <message name="IDS_COMMAND_BAR_EXPAND_SIDEBAR" desc="Command palette action: Expand Sidebar.">
-+      Expand Sidebar
 +    </message>
    </messages>
  </release>
@@ -178,21 +160,23 @@
      "helium_command_bar_controller.cc",
      "helium_command_bar_controller.h",
      "helium_command_bar_model.cc",
-@@ -80,6 +82,11 @@
+@@ -80,6 +82,13 @@
    if (is_mac) {
      sources += [ "helium_command_bar_view_mac.mm" ]
      deps += [
 +    ":helium_layout_state_controller",
 +    "//base:i18n",
 +    "//chrome/browser/ui:browser_commands",
++    "//chrome/browser/ui/browser_shortcuts",
 +    "//chrome/browser/ui:browser_window_header",
 +    "//chrome/app:generated_resources",
++    "//chrome/app:branded_strings",
        ":native_result_row",
        "//chrome/browser/ui/views/helium:native_frame_materials",
      ]
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_commands.cc
-@@ -0,0 +1,362 @@
+@@ -0,0 +1,398 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -209,15 +193,17 @@
 +#include "chrome/app/chrome_command_ids.h"
 +#include "chrome/browser/profiles/profile.h"
 +#include "chrome/browser/ui/browser_commands.h"
++#include "chrome/browser/ui/browser_shortcuts/browser_shortcut_service.h"
++#include "chrome/browser/ui/browser_shortcuts/browser_shortcut_service_factory.h"
 +#include "chrome/browser/ui/browser_window.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 +#include "chrome/browser/ui/helium/helium_layout_state_controller.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
 +#include "chrome/browser/ui/tabs/tab_utils.h"
-+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
-+#include "chrome/common/pref_names.h"
 +#include "chrome/common/helium_command_bar_pref_names.h"
++#include "chrome/common/pref_names.h"
++#include "chrome/grit/branded_strings.h"
 +#include "chrome/grit/generated_resources.h"
 +#include "components/prefs/pref_service.h"
 +#include "components/prefs/scoped_user_pref_update.h"
@@ -234,22 +220,26 @@
 +  const char* symbol;
 +};
 +constexpr Entry kCommands[] = {
-+    {IDC_NEW_TAB, "IDC_NEW_TAB", IDS_COMMAND_BAR_NEW_TAB,
-+     "new tab|new tab", "plus"},
++    {IDC_NEW_TAB, "IDC_NEW_TAB", IDS_COMMAND_BAR_NEW_TAB, "new tab|new tab",
++     "plus"},
 +    {IDC_RESTORE_TAB, "IDC_RESTORE_TAB", IDS_COMMAND_BAR_REOPEN_CLOSED_TAB,
-+     "reopen closed tab|restore tab|undo close tab|reopen", "arrow.uturn.backward"},
++     "reopen closed tab|restore tab|undo close tab|reopen",
++     "arrow.uturn.backward"},
 +    {IDC_DUPLICATE_TAB, "IDC_DUPLICATE_TAB", IDS_COMMAND_BAR_DUPLICATE_TAB,
 +     "duplicate tab|clone tab|duplicate", "plus.square.on.square"},
 +    {IDC_CLOSE_TAB, "IDC_CLOSE_TAB", IDS_COMMAND_BAR_CLOSE_TAB,
 +     "close tab|close current tab", "xmark"},
 +    {IDC_NEW_WINDOW, "IDC_NEW_WINDOW", IDS_COMMAND_BAR_NEW_WINDOW,
 +     "new window|open window", "macwindow.badge.plus"},
-+    {IDC_NEW_INCOGNITO_WINDOW, "IDC_NEW_INCOGNITO_WINDOW", IDS_COMMAND_BAR_NEW_PRIVATE_WINDOW,
++    {IDC_NEW_INCOGNITO_WINDOW, "IDC_NEW_INCOGNITO_WINDOW",
++     IDS_COMMAND_BAR_NEW_PRIVATE_WINDOW,
 +     "new private window|incognito|private browsing", "eye.slash"},
 +    {IDC_OPEN_FILE, "IDC_OPEN_FILE", IDS_COMMAND_BAR_OPEN_FILE,
 +     "open file|open local file", "doc"},
-+    {IDC_MOVE_TAB_TO_NEW_WINDOW, "IDC_MOVE_TAB_TO_NEW_WINDOW", IDS_COMMAND_BAR_MOVE_TAB_TO_NEW_WINDOW,
-+     "move tab to new window|detach tab|tear off tab", "rectangle.portrait.and.arrow.right"},
++    {IDC_MOVE_TAB_TO_NEW_WINDOW, "IDC_MOVE_TAB_TO_NEW_WINDOW",
++     IDS_COMMAND_BAR_MOVE_TAB_TO_NEW_WINDOW,
++     "move tab to new window|detach tab|tear off tab",
++     "rectangle.portrait.and.arrow.right"},
 +    {IDC_NEW_SPLIT_TAB, "IDC_NEW_SPLIT_TAB", IDS_COMMAND_BAR_NEW_SPLIT_VIEW,
 +     "new split view|split tab|split screen", "rectangle.split.2x1"},
 +    {IDC_OPTIONS, "IDC_OPTIONS", IDS_COMMAND_BAR_OPEN_SETTINGS,
@@ -258,12 +248,19 @@
 +     "show history|history", "clock.arrow.circlepath"},
 +    {IDC_SHOW_DOWNLOADS, "IDC_SHOW_DOWNLOADS", IDS_COMMAND_BAR_SHOW_DOWNLOADS,
 +     "show downloads|downloads", "arrow.down.circle"},
-+    {IDC_SHOW_BOOKMARK_MANAGER, "IDC_SHOW_BOOKMARK_MANAGER", IDS_COMMAND_BAR_SHOW_BOOKMARKS,
++    {IDC_SHOW_BOOKMARK_MANAGER, "IDC_SHOW_BOOKMARK_MANAGER",
++     IDS_COMMAND_BAR_SHOW_BOOKMARKS,
 +     "show bookmarks|bookmark manager|bookmarks", "book"},
-+    {IDC_MANAGE_EXTENSIONS, "IDC_MANAGE_EXTENSIONS", IDS_COMMAND_BAR_MANAGE_EXTENSIONS,
-+     "manage extensions|extensions|addons", "puzzlepiece.extension"},
-+    {IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR, "IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR", IDS_COMMAND_BAR_CUSTOMIZE_TOOLBAR,
-+     "customize toolbar|customize|toolbar", "slider.horizontal.3"},
++    {IDC_MANAGE_EXTENSIONS, "IDC_MANAGE_EXTENSIONS",
++     IDS_COMMAND_BAR_MANAGE_EXTENSIONS, "manage extensions|extensions|addons",
++     "puzzlepiece.extension"},
++    {IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL,
++     "IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL",
++     IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE,
++     "customize|appearance|themes|wallpaper", "paintbrush"},
++    {IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR, "IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR",
++     IDS_COMMAND_BAR_CUSTOMIZE_TOOLBAR, "customize toolbar|customize|toolbar",
++     "slider.horizontal.3"},
 +    {IDC_BACK, "IDC_BACK", IDS_COMMAND_BAR_GO_BACK,
 +     "go back|back|previous page", "arrow.left"},
 +    {IDC_FORWARD, "IDC_FORWARD", IDS_COMMAND_BAR_GO_FORWARD,
@@ -278,7 +275,8 @@
 +     "find next|next match", "arrow.down"},
 +    {IDC_FIND_PREVIOUS, "IDC_FIND_PREVIOUS", IDS_COMMAND_BAR_FIND_PREVIOUS,
 +     "find previous|previous match", "arrow.up"},
-+    {IDC_BOOKMARK_THIS_TAB, "IDC_BOOKMARK_THIS_TAB", IDS_COMMAND_BAR_BOOKMARK_THIS_PAGE,
++    {IDC_BOOKMARK_THIS_TAB, "IDC_BOOKMARK_THIS_TAB",
++     IDS_COMMAND_BAR_BOOKMARK_THIS_PAGE,
 +     "bookmark this page|bookmark page|add bookmark", "star"},
 +    {IDC_PRINT, "IDC_PRINT", IDS_COMMAND_BAR_PRINT_PAGE,
 +     "print page|print|save as pdf", "printer"},
@@ -292,42 +290,83 @@
 +     "actual size|reset zoom|zoom reset|100%", "1.magnifyingglass"},
 +    {IDC_COPY_URL, "IDC_COPY_URL", IDS_COMMAND_BAR_COPY_PAGE_URL,
 +     "copy page url|copy url|copy link|copy address", "link"},
-+    {IDC_DEV_TOOLS_TOGGLE, "IDC_DEV_TOOLS_TOGGLE", IDS_COMMAND_BAR_TOGGLE_DEVELOPER_TOOLS,
++    {IDC_DEV_TOOLS_TOGGLE, "IDC_DEV_TOOLS_TOGGLE",
++     IDS_COMMAND_BAR_TOGGLE_DEVELOPER_TOOLS,
 +     "toggle developer tools|devtools|developer tools|web inspector", "hammer"},
-+    {IDC_DEV_TOOLS_CONSOLE, "IDC_DEV_TOOLS_CONSOLE", IDS_COMMAND_BAR_OPEN_CONSOLE,
-+     "open console|javascript console|console", "terminal"},
-+    {IDC_DEV_TOOLS_INSPECT, "IDC_DEV_TOOLS_INSPECT", IDS_COMMAND_BAR_INSPECT_ELEMENT,
-+     "inspect element|inspect|element picker", "cursorarrow.rays"},
++    {IDC_DEV_TOOLS_CONSOLE, "IDC_DEV_TOOLS_CONSOLE",
++     IDS_COMMAND_BAR_OPEN_CONSOLE, "open console|javascript console|console",
++     "terminal"},
++    {IDC_DEV_TOOLS_INSPECT, "IDC_DEV_TOOLS_INSPECT",
++     IDS_COMMAND_BAR_INSPECT_ELEMENT, "inspect element|inspect|element picker",
++     "cursorarrow.rays"},
 +    {IDC_VIEW_SOURCE, "IDC_VIEW_SOURCE", IDS_COMMAND_BAR_VIEW_PAGE_SOURCE,
 +     "view page source|source|html", "chevron.left.forwardslash.chevron.right"},
 +    {IDC_TASK_MANAGER, "IDC_TASK_MANAGER", IDS_COMMAND_BAR_TASK_MANAGER,
 +     "task manager|processes|task manager", "gauge"},
-+    {IDC_RELOAD_BYPASSING_CACHE, "IDC_RELOAD_BYPASSING_CACHE", IDS_COMMAND_BAR_RELOAD_WITHOUT_CACHE,
-+     "reload without cache|hard reload|hard refresh|bypass cache", "arrow.clockwise.circle"},
++    {IDC_RELOAD_BYPASSING_CACHE, "IDC_RELOAD_BYPASSING_CACHE",
++     IDS_COMMAND_BAR_RELOAD_WITHOUT_CACHE,
++     "reload without cache|hard reload|hard refresh|bypass cache",
++     "arrow.clockwise.circle"},
 +    {IDC_WINDOW_PIN_TAB, "IDC_WINDOW_PIN_TAB", IDS_COMMAND_BAR_PIN_TAB,
 +     "pin tab|pin tab|unpin tab", "pin"},
 +    {IDC_WINDOW_MUTE_SITE, "IDC_WINDOW_MUTE_SITE", IDS_COMMAND_BAR_MUTE_SITE,
 +     "mute site|mute site|unmute site|sound", "speaker.slash"},
 +    {IDC_FULLSCREEN, "IDC_FULLSCREEN", IDS_COMMAND_BAR_ENTER_FULLSCREEN,
-+     "enter fullscreen|fullscreen|full screen", "arrow.up.left.and.arrow.down.right"},
-+    {IDC_BROWSER_LAYOUT_CLASSIC, "IDC_BROWSER_LAYOUT_CLASSIC", IDS_COMMAND_BAR_USE_CLASSIC_LAYOUT,
-+     "use classic layout|layout|horizontal tabs|classic", "rectangle.topthird.inset.filled"},
-+    {IDC_BROWSER_LAYOUT_COMPACT, "IDC_BROWSER_LAYOUT_COMPACT", IDS_COMMAND_BAR_USE_COMPACT_LAYOUT,
-+     "use compact layout|layout|compact", "rectangle.compress.vertical"},
-+    {IDC_BROWSER_LAYOUT_VERTICAL, "IDC_BROWSER_LAYOUT_VERTICAL", IDS_COMMAND_BAR_USE_VERTICAL_LAYOUT,
-+     "use vertical layout|layout|vertical tabs|sidebar", "sidebar.left"},
-+    {IDC_BROWSER_LAYOUT_DYNAMIC, "IDC_BROWSER_LAYOUT_DYNAMIC", IDS_COMMAND_BAR_USE_DYNAMIC_LAYOUT,
-+     "use dynamic layout|layout|dynamic", "rectangle.3.group"},
-+    {IDC_BROWSER_LAYOUT_VERTICAL_RIGHT, "IDC_BROWSER_LAYOUT_VERTICAL_RIGHT", IDS_COMMAND_BAR_MOVE_SIDEBAR_TO_RIGHT,
-+     "move sidebar to right|sidebar left|sidebar right|move sidebar", "sidebar.right"},
-+    {IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN, "IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN", IDS_COMMAND_BAR_PIN_TOP_BAR,
-+     "pin top bar|pin header|unpin header|pin top bar|unpin top bar", "pin"},
++     "enter fullscreen|fullscreen|full screen",
++     "arrow.up.left.and.arrow.down.right"},
++    {IDC_BROWSER_LAYOUT_VERTICAL_RIGHT, "IDC_BROWSER_LAYOUT_VERTICAL_RIGHT",
++     IDS_COMMAND_BAR_MOVE_SIDEBAR_TO_RIGHT,
++     "move sidebar to right|sidebar left|sidebar right|move sidebar",
++     "sidebar.right"},
++    {IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN, "IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN",
++     IDS_COMMAND_BAR_PIN_TOP_BAR,
++     "pin toolbar|unpin toolbar|pin top bar|pin header|unpin header|pin top "
++     "bar|unpin top bar",
++     "pin"},
 +    {kPinSidebar, "kPinSidebar", IDS_COMMAND_BAR_PIN_SIDEBAR,
 +     "pin sidebar|pin sidebar|unpin sidebar", "pin"},
-+    {kCollapseSidebar, "kCollapseSidebar", IDS_COMMAND_BAR_COLLAPSE_SIDEBAR,
-+     "collapse sidebar|collapse sidebar|expand sidebar", "sidebar.left"},
 +};
-+int CommandUsageScore(const base::DictValue& usage, const char* key,
++std::u16string CommandShortcut(BrowserWindowInterface* browser, int command) {
++  auto* service =
++      browser_shortcuts::BrowserShortcutServiceFactory::GetForProfile(
++          browser->GetProfile());
++  if (!service) {
++    return {};
++  }
++  // Some menu actions and keyboard handlers have different IDs. Match only
++  // wrappers that currently perform this action, never a similarly named
++  // target-tab command or a shortcut currently repurposed for another task.
++  std::vector<int> ids{command};
++  auto* prefs = browser->GetProfile()->GetPrefs();
++  auto* layout = HeliumLayoutStateController::From(browser);
++  const bool collapse = layout && layout->IsVerticalLayout() &&
++                        prefs->GetBoolean(prefs::kVerticalCollapseShortcut);
++  if (command == IDC_TASK_MANAGER) {
++    ids.push_back(IDC_TASK_MANAGER_SHORTCUT);
++  } else if ((command == IDC_COPY_URL &&
++              prefs->GetBoolean(prefs::kCopyPageUrlShortcut)) ||
++             (command == IDC_DEV_TOOLS_INSPECT &&
++              !prefs->GetBoolean(prefs::kCopyPageUrlShortcut))) {
++    ids.push_back(IDC_COPY_OR_INSPECT_SHORTCUT);
++  } else if (command == IDC_SAVE_PAGE && !collapse) {
++    ids.push_back(IDC_CTRL_S_SHORTCUT);
++  } else if (command == kPinSidebar && collapse) {
++    ids.push_back(IDC_CTRL_S_SHORTCUT);
++  }
++  const auto& commands = service->GetCommands();
++  for (int id : ids) {
++    const auto entry = std::ranges::find(
++        commands, id, &browser_shortcuts::CommandInfo::command_id);
++    if (entry != commands.end() && !entry->accelerators.empty()) {
++      return entry->accelerators.front().display_text;
++    }
++  }
++  // The service is authoritative, including deliberately removed bindings.
++  return {};
++}
++
++int CommandUsageScore(const base::DictValue& usage,
++                      const char* key,
 +                      base::Time now) {
 +  const auto* entry = usage.FindDict(key);
 +  if (!entry) {
@@ -335,8 +374,8 @@
 +  }
 +  const int frequency = std::clamp(entry->FindInt("count").value_or(0), 0, 20);
 +  const double last = entry->FindDouble("last_used").value_or(0);
-+  const double age = std::clamp(
-+      (now.InSecondsFSinceUnixEpoch() - last) / 86400.0, 0.0, 30.0);
++  const double age =
++      std::clamp((now.InSecondsFSinceUnixEpoch() - last) / 86400.0, 0.0, 30.0);
 +  const int recency = last > 0 ? 30 - static_cast<int>(age) : 0;
 +  return frequency + recency;
 +}
@@ -352,7 +391,8 @@
 +  ScopedDictPrefUpdate update(profile->GetPrefs(),
 +                              prefs::kHeliumCommandBarCommandUsage);
 +  auto* record = update->EnsureDict(entry->usage_key);
-+  record->Set("count", std::clamp(record->FindInt("count").value_or(0), 0, 999) + 1);
++  record->Set("count",
++              std::clamp(record->FindInt("count").value_or(0), 0, 999) + 1);
 +  record->Set("last_used", base::Time::Now().InSecondsFSinceUnixEpoch());
 +  // Only the fixed registry's stable keys can be written: history is bounded
 +  // by the catalogue rather than query text, URLs or transient tab identities.
@@ -367,8 +407,10 @@
 +}
 +
 +std::optional<HeliumCommandBarItem> CommandForId(
-+    BrowserWindowInterface* browser, int command) {
-+  if (!browser || browser->GetType() != BrowserWindowInterface::Type::TYPE_NORMAL) {
++    BrowserWindowInterface* browser,
++    int command) {
++  if (!browser ||
++      browser->GetType() != BrowserWindowInterface::Type::TYPE_NORMAL) {
 +    return std::nullopt;
 +  }
 +  const auto entry = std::ranges::find(kCommands, command, &Entry::command);
@@ -381,7 +423,6 @@
 +  }
 +  auto* layout = HeliumLayoutStateController::From(browser);
 +  auto* view = BrowserView::GetBrowserViewForBrowser(browser);
-+  auto* vertical = tabs::VerticalTabStripStateController::From(browser);
 +  const bool zen = layout && layout->IsZenModeEnabled();
 +  const bool vertical_layout = layout && layout->IsVerticalLayout();
 +  if (command > 0 && (!chrome::SupportsCommand(browser, command) ||
@@ -446,39 +487,19 @@
 +        symbol = "pin.slash";
 +      }
 +      break;
-+    case kCollapseSidebar:
-+      // Zen hover reveal/pinning and compact vertical collapse are distinct.
-+      if (!vertical_layout || zen || !vertical ||
-+          !vertical->ShouldDisplayVerticalTabs()) {
-+        return std::nullopt;
-+      }
-+      if (vertical->IsCollapsed()) {
-+        label = IDS_COMMAND_BAR_EXPAND_SIDEBAR;
-+      }
-+      break;
-+    case IDC_BROWSER_LAYOUT_CLASSIC:
-+    case IDC_BROWSER_LAYOUT_COMPACT:
-+    case IDC_BROWSER_LAYOUT_VERTICAL:
-+    case IDC_BROWSER_LAYOUT_DYNAMIC:
-+      if (layout &&
-+          ((command == IDC_BROWSER_LAYOUT_CLASSIC && layout->IsClassicLayout()) ||
-+           (command == IDC_BROWSER_LAYOUT_COMPACT && layout->IsCompactLayout()) ||
-+           (command == IDC_BROWSER_LAYOUT_VERTICAL && vertical_layout) ||
-+           (command == IDC_BROWSER_LAYOUT_DYNAMIC && layout->IsDynamicLayout()))) {
-+        return std::nullopt;
-+      }
-+      break;
 +  }
 +  HeliumCommandBarItem item;
 +  item.type = HeliumCommandBarItem::Type::kCommand;
 +  item.command = command;
 +  item.title = l10n_util::GetStringUTF16(label);
 +  item.symbol_name = symbol;
++  item.shortcut = CommandShortcut(browser, command);
 +  return item;
 +}
 +
 +std::vector<HeliumCommandBarItem> CommandsForQuery(
-+    BrowserWindowInterface* browser, const std::u16string& query,
++    BrowserWindowInterface* browser,
++    const std::u16string& query,
 +    bool commands_only) {
 +  std::u16string q;
 +  base::TrimWhitespace(query, base::TRIM_ALL, &q);
@@ -497,8 +518,9 @@
 +      continue;
 +    }
 +    int score = q.empty() ? 1 : ScoreText(base::i18n::ToLower(item->title), q);
-+    for (const auto& alias : base::SplitString(
-+             entry.aliases, "|", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
++    for (const auto& alias :
++         base::SplitString(entry.aliases, "|", base::TRIM_WHITESPACE,
++                           base::SPLIT_WANT_NONEMPTY)) {
 +      score = std::max(score, ScoreText(base::UTF8ToUTF16(alias), q));
 +    }
 +    if (score > 0) {
@@ -506,15 +528,18 @@
 +      items.push_back(std::move(*item));
 +    }
 +  }
-+  const auto& usage = browser->GetProfile()->GetOriginalProfile()->GetPrefs()
-+                          ->GetDict(prefs::kHeliumCommandBarCommandUsage);
++  const auto& usage =
++      browser->GetProfile()->GetOriginalProfile()->GetPrefs()->GetDict(
++          prefs::kHeliumCommandBarCommandUsage);
 +  const auto now = base::Time::Now();
 +  std::ranges::stable_sort(items, [&usage, now](const auto& a, const auto& b) {
 +    if (a.score != b.score) {
 +      return a.score > b.score;
 +    }
-+    const auto entry_a = std::ranges::find(kCommands, a.command, &Entry::command);
-+    const auto entry_b = std::ranges::find(kCommands, b.command, &Entry::command);
++    const auto entry_a =
++        std::ranges::find(kCommands, a.command, &Entry::command);
++    const auto entry_b =
++        std::ranges::find(kCommands, b.command, &Entry::command);
 +    return CommandUsageScore(usage, entry_a->usage_key, now) >
 +           CommandUsageScore(usage, entry_b->usage_key, now);
 +  });
@@ -544,11 +569,6 @@
 +    case kPinSidebar:
 +      BrowserView::GetBrowserViewForBrowser(browser)->ToggleZenModeSideChrome();
 +      return true;
-+    case kCollapseSidebar: {
-+      auto* vertical = tabs::VerticalTabStripStateController::From(browser);
-+      vertical->RequestCollapse(!vertical->IsCollapsed());
-+      return true;
-+    }
 +    default:
 +      // Includes browser policy, navigation and close/unload checks.
 +      return chrome::ExecuteCommand(browser, item.command);
@@ -557,7 +577,7 @@
 +}  // namespace helium_command_bar_model
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_commands.h
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -572,15 +592,16 @@
 +namespace helium_command_bar_model {
 +// Adapters for controls without an unambiguous browser command.
 +inline constexpr int kPinSidebar = -1;
-+inline constexpr int kCollapseSidebar = -2;
 +
 +// A single leading / is reserved only outside an applied engine/tab scope.
 +// A leading // remains ordinary input because it may be a URL prefix.
 +bool IsCommandQuery(const std::u16string& query);
 +std::optional<HeliumCommandBarItem> CommandForId(
-+    BrowserWindowInterface* browser, int command);
++    BrowserWindowInterface* browser,
++    int command);
 +std::vector<HeliumCommandBarItem> CommandsForQuery(
-+    BrowserWindowInterface* browser, const std::u16string& query,
++    BrowserWindowInterface* browser,
++    const std::u16string& query,
 +    bool commands_only);
 +// Revalidates availability and visible toggle state before dispatch.
 +bool ExecutePaletteCommand(BrowserWindowInterface* browser,
@@ -606,15 +627,46 @@
  #include "ui/base/page_transition_types.h"
  #include "ui/base/window_open_disposition.h"
  #include "ui/events/keycodes/keyboard_codes.h"
-@@ -56,6 +56,7 @@
+@@ -44,6 +44,14 @@
+ 
+ namespace {
+ 
++bool IsCommandSearchAccelerator(const ui::Accelerator& accelerator) {
++  return (accelerator.key_code() == ui::VKEY_OEM_2 &&
++          accelerator.modifiers() == ui::EF_PLATFORM_ACCELERATOR) ||
++         (accelerator.key_code() == ui::VKEY_P &&
++          accelerator.modifiers() ==
++              (ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN));
++}
++
+ // Visible identity of a result row. Scores are excluded on purpose: the same
+ // query always scores the same, and rebuilding identical rows every
+ // keystroke is what made the bubble flash.
+@@ -56,6 +64,8 @@
      if (a[i].type != b[i].type || a[i].title != b[i].title ||
          a[i].url_spec != b[i].url_spec ||
          a[i].description != b[i].description ||
 +        a[i].symbol_name != b[i].symbol_name ||
++        a[i].shortcut != b[i].shortcut ||
          a[i].site_keyword != b[i].site_keyword ||
          a[i].site_query != b[i].site_query ||
          a[i].command != b[i].command || a[i].tab_index != b[i].tab_index) {
-@@ -146,6 +147,11 @@
+@@ -118,11 +128,13 @@
+ }
+ 
+ void HeliumCommandBarController::Show(gfx::NativeView parent,
+-                                      const std::u16string& initial_query) {
++                                      const std::u16string& initial_query,
++                                      bool commands_only) {
+   if (widget_) {
+     widget_->Activate();
+     return;
+   }
++  commands_only_ = commands_only;
+   HeliumCommandBarView* view = HeliumCommandBarView::Show(
+       parent, initial_query,
+       base::BindOnce(&HeliumCommandBarController::OnWidgetClosed,
+@@ -146,6 +158,11 @@
      template_observation_.Observe(service);
      service->Load();
    }
@@ -626,15 +678,95 @@
    // Populate from the initial query (empty for Cmd+T, page URL for Cmd+L).
    OnQueryChanged(initial_query);
  }
-@@ -165,6 +171,7 @@
+@@ -165,8 +182,10 @@
    if (!widget_) {
      return;
    }
 +  command_state_timer_.Stop();
    StopSuggestions();
    // Scope is per-invocation: never leak it into the next opening.
++  commands_only_ = false;
    scope_keyword_.clear();
-@@ -262,7 +269,8 @@
+   scope_keyword_was_typed_ = false;
+   // Null first: closing runs WindowClosing synchronously, which would
+@@ -180,6 +199,14 @@
+   return widget_ != nullptr;
+ }
+ 
++bool HeliumCommandBarController::IsCommandSearchShortcut(
++    const ui::Accelerator& accelerator) const {
++  return browser_->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL &&
++         IsCommandSearchAccelerator(accelerator) &&
++         browser_->GetProfile()->GetPrefs()->GetBoolean(
++             prefs::kHeliumCommandBarEnabled);
++}
++
+ base::WeakPtr<HeliumCommandBarController>
+ HeliumCommandBarController::GetWeakPtr() {
+   return weak_factory_.GetWeakPtr();
+@@ -198,6 +225,16 @@
+         ui::Accelerator(key, ui::EF_PLATFORM_ACCELERATOR),
+         ui::AcceleratorManager::kHighPriority, this);
+   }
++  // Native controls get a fallback accelerator. WebContents are explicitly
++  // deferred in BrowserView::PreHandleKeyboardEvent before FocusManager can
++  // treat an otherwise unknown shortcut as a browser-owned command.
++  for (const ui::Accelerator& accelerator : {
++           ui::Accelerator(ui::VKEY_OEM_2, ui::EF_PLATFORM_ACCELERATOR),
++           ui::Accelerator(ui::VKEY_P,
++                           ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN)}) {
++    focus_manager_->RegisterAccelerator(
++        accelerator, ui::AcceleratorManager::kNormalPriority, this);
++  }
+ }
+ 
+ void HeliumCommandBarController::OnFocusManagerDestroying(
+@@ -211,9 +248,15 @@
+ 
+ bool HeliumCommandBarController::AcceleratorPressed(
+     const ui::Accelerator& accelerator) {
+-  if ((accelerator.key_code() != ui::VKEY_T &&
+-       accelerator.key_code() != ui::VKEY_L) ||
+-      accelerator.modifiers() != ui::EF_PLATFORM_ACCELERATOR) {
++  const bool commands_only = IsCommandSearchAccelerator(accelerator);
++  if (commands_only && !IsCommandSearchShortcut(accelerator)) {
++    return false;
++  }
++  const bool navigation_palette =
++      (accelerator.key_code() == ui::VKEY_T ||
++       accelerator.key_code() == ui::VKEY_L) &&
++      accelerator.modifiers() == ui::EF_PLATFORM_ACCELERATOR;
++  if (!commands_only && !navigation_palette) {
+     return false;
+   }
+   if (accelerator.key_code() == ui::VKEY_L) {
+@@ -227,8 +270,15 @@
+           prefs::kHeliumCommandBarEnabled)) {
+     return false;
+   }
+-  // Swallow repeats while open; Esc closes.
++  // Both command-search shortcuts also switch an existing mixed/engine palette.
+   if (IsShowing()) {
++    if (commands_only && !commands_only_) {
++      commands_only_ = true;
++      scope_keyword_.clear();
++      scope_keyword_was_typed_ = false;
++      view_->SetInputText({});
++      OnQueryChanged({});
++    }
+     return true;
+   }
+   TabStripModel* tab_strip = browser_->GetTabStripModel();
+@@ -241,7 +291,7 @@
+   if (accelerator.key_code() == ui::VKEY_L) {
+     initial = base::UTF8ToUTF16(contents->GetVisibleURL().spec());
+   }
+-  Toggle(contents->GetNativeView(), initial);
++  Show(contents->GetNativeView(), initial, commands_only);
+   return true;
+ }
+ 
+@@ -262,7 +312,8 @@
    // exactly like Tab on the hint row. Only when not already scoped, and
    // only for real scope keywords, so ordinary multi-word searches never
    // trip it.
@@ -644,7 +776,7 @@
      if (auto split = helium_command_bar_model::SplitKeyword(query, false);
          split && !split->keyword.empty() && !split->has_remainder) {
        TemplateURLService* template_urls =
-@@ -290,7 +298,7 @@
+@@ -290,7 +341,7 @@
    // can never overwrite newer results.
    history_tracker_.TryCancelAll();
    ++history_seq_;
@@ -653,17 +785,18 @@
      return;
    }
    history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-@@ -308,8 +316,26 @@
+@@ -308,8 +359,27 @@
        &history_tracker_);
  }
  
 +bool HeliumCommandBarController::InCommandMode() const {
 +  return scope_keyword_.empty() &&
-+         helium_command_bar_model::IsCommandQuery(last_query_);
++         (commands_only_ || helium_command_bar_model::IsCommandQuery(last_query_));
 +}
 +
 +void HeliumCommandBarController::RefreshCommandState() {
-+  if (view_ && !last_query_.empty() && scope_keyword_.empty() &&
++  if (view_ && (!last_query_.empty() || commands_only_) &&
++      scope_keyword_.empty() &&
 +      !command_pending_) {
 +    // Rebuild other providers only when command availability or labels change.
 +    // In particular, polling must not repeatedly scan a large bang catalogue.
@@ -681,10 +814,22 @@
      return;
    }
    if (scope_keyword_.empty()) {
-@@ -468,6 +494,15 @@
+@@ -387,6 +457,7 @@
+           TemplateURLServiceFactory::GetForProfile(browser_->GetProfile()),
+           scope_keyword_));
+     }
++    view_->SetCommandMode(InCommandMode());
+   }
+   if (!same) {
+     FetchFavicons();
+@@ -468,6 +539,19 @@
      ExitScope();
      return;
    }
++  if (commands_only_) {
++    HideSoon();
++    return;
++  }
 +  if (InCommandMode()) {
 +    std::u16string query;
 +    base::TrimWhitespace(last_query_, base::TRIM_LEADING, &query);
@@ -697,7 +842,7 @@
    HideSoon();
  }
  
-@@ -498,6 +533,12 @@
+@@ -498,6 +582,12 @@
      return {};
    }
    using namespace helium_command_bar_model;
@@ -710,7 +855,7 @@
    std::vector<HeliumCommandBarItem> items = suggestions_->items();
    if (!scope_keyword_.empty()) {
      // Scoped: the engine search row (or tabs only), plus matching tabs,
-@@ -544,7 +585,8 @@
+@@ -544,7 +634,8 @@
    auto bookmark_items = BookmarksForQuery(bookmarks, query);
    items.insert(items.end(), std::make_move_iterator(bookmark_items.begin()),
                 std::make_move_iterator(bookmark_items.end()));
@@ -720,7 +865,7 @@
    items.insert(items.end(), std::make_move_iterator(command_items.begin()),
                 std::make_move_iterator(command_items.end()));
    if (history_rows) {
-@@ -679,33 +721,60 @@
+@@ -679,33 +770,60 @@
        }
        break;
      }
@@ -817,7 +962,33 @@
  #include "chrome/browser/ui/helium/helium_command_bar_model.h"
  #include "components/favicon_base/favicon_types.h"
  #include "components/history/core/browser/history_types.h"
-@@ -110,6 +111,8 @@
+@@ -71,19 +72,23 @@
+       delete;
+   ~HeliumCommandBarController() override;
+ 
+-  // Registers Cmd+T / Cmd+L at high accelerator priority. Called once the
++  // Registers navigation and command-search shortcuts at high priority. Called once the
+   // window's FocusManager exists.
+   void RegisterAccelerators(views::FocusManager* focus_manager);
+ 
+   void Toggle(gfx::NativeView parent,
+               const std::u16string& initial_query = {});
+   void Show(gfx::NativeView parent,
+-            const std::u16string& initial_query = {});
++            const std::u16string& initial_query = {},
++            bool commands_only = false);
+   void Hide();
+   // Deferred Hide for use inside input/mouse event dispatch, where closing
+   // the widget synchronously would destroy views still on the stack.
+   void HideSoon();
+   bool IsShowing() const;
++  // True only for enabled, page-first command-search shortcuts. BrowserView
++  // defers these to the renderer, then invokes them only if unhandled.
++  bool IsCommandSearchShortcut(const ui::Accelerator& accelerator) const;
+ 
+   // Rebuilds results for |query|: tabs, bookmarks and commands synchronously,
+   // history asynchronously. Called by the view on every keystroke.
+@@ -110,6 +115,8 @@
    void OnFocusManagerDestroying(views::FocusManager* focus_manager) override;
  
   private:
@@ -826,7 +997,7 @@
    void OnTemplateURLServiceChanged() override;
    void StartSuggestions();
    void StopSuggestions();
-@@ -119,6 +122,7 @@
+@@ -119,10 +126,12 @@
  
    void OnWidgetClosed() {
      StopSuggestions();
@@ -834,7 +1005,12 @@
      widget_ = nullptr;
      view_ = nullptr;
      // Same per-invocation rule as Hide(): a focus-loss close must not leak
-@@ -173,6 +177,12 @@
+     // the scope into the next opening either.
++    commands_only_ = false;
+     scope_keyword_.clear();
+     scope_keyword_was_typed_ = false;
+     template_observation_.Reset();
+@@ -173,6 +182,14 @@
    bool scope_keyword_was_typed_ = false;
    std::unique_ptr<HeliumCommandBarSuggestions> suggestions_;
    PrefChangeRegistrar suggest_pref_registrar_;
@@ -843,6 +1019,8 @@
 +  base::RepeatingTimer command_state_timer_;
 +  // Ignore repeated Enter/clicks until the deferred command has dismissed.
 +  bool command_pending_ = false;
++  // Cmd-/ and Cmd-Shift-P open a scope without a visible prefix.
++  bool commands_only_ = false;
 +  int invocation_ = 0;
    int history_seq_ = 0;
    // Cancels in-flight history queries on each keystroke and on destruction.
@@ -904,7 +1082,7 @@
    Type type;
    std::u16string title;
    std::u16string description;
-@@ -57,7 +49,9 @@
+@@ -57,7 +49,11 @@
    // Set for kTab: index in the window's TabStripModel.
    int tab_index = -1;
    // Set for kCommand.
@@ -912,10 +1090,12 @@
 +  int command = 0;
 +  // Native SF Symbol for commands; empty for other result providers.
 +  std::string symbol_name;
++  // Current configured keyboard shortcut, formatted by the shortcut service.
++  std::u16string shortcut;
    // Set for kSiteSearch: the keyword that opened the scope ("gh") and the
    // provider's display name ("GitHub"). Empty for the built-in "tab" scope,
    // which lists open tabs only.
-@@ -93,9 +87,6 @@
+@@ -93,9 +89,6 @@
      const history::QueryResults& results,
      const std::u16string& query);
  
@@ -936,7 +1116,23 @@
      views::Label* url = nullptr;
      if (has_subtitle) {
        const std::u16string subtitle = item.description.empty()
-@@ -312,8 +312,13 @@
+@@ -133,9 +133,13 @@
+     // Height follows the labels; the row centers it vertically.
+     text->SetPreferredSize(
+         gfx::Size(kTextWidth, text->GetPreferredSize().height()));
++    const std::u16string tag_text =
++        item.type == HeliumCommandBarItem::Type::kCommand && !item.shortcut.empty()
++            ? item.shortcut
++            : base::UTF8ToUTF16(item.type == HeliumCommandBarItem::Type::kBang
++                                   ? item.site_keyword : TagForType(item.type));
+     auto* tag = AddChildView(std::make_unique<views::Label>(
+-        base::UTF8ToUTF16(item.type == HeliumCommandBarItem::Type::kBang
+-            ? item.site_keyword : TagForType(item.type)),
++        tag_text,
+         views::style::CONTEXT_LABEL, views::style::STYLE_SECONDARY));
+     tag->SetHorizontalAlignment(gfx::ALIGN_RIGHT);
+     tag->SetElideBehavior(gfx::ELIDE_TAIL);
+@@ -312,8 +316,13 @@
    if (selection_is_explicit_ && selected_ < displayed_items_.size()) {
      selected = displayed_items_[selected_];
    }
@@ -952,7 +1148,21 @@
    if (selected) {
      for (size_t i = 0; i < items.size(); ++i) {
        if (helium_command_bar_model::SameItem(*selected, items[i])) {
-@@ -393,7 +398,8 @@
+@@ -379,6 +388,13 @@
+   ResizeToContents();
+ }
+ 
++void HeliumCommandBarView::SetCommandMode(bool commands_only) {
++  if (commands_only || !scope_bar_->GetVisible()) {
++    input_->SetPlaceholderText(commands_only ? u"Search commands"
++                                             : u"Search or type a URL...");
++  }
++}
++
+ void HeliumCommandBarView::SetItemImage(size_t index,
+                                           const gfx::Image& image) {
+   const auto& children = results_->children();
+@@ -393,7 +409,8 @@
    if (count == 0) {
      return;
    }
@@ -964,7 +1174,17 @@
  void HeliumCommandBarView::SetSelected(size_t index) {
 --- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
 +++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
-@@ -429,8 +429,13 @@
+@@ -65,7 +65,8 @@
+     case HeliumCommandBarItem::Type::kHistory:
+       return @"History";
+     case HeliumCommandBarItem::Type::kCommand:
+-      return @"Command";
++      return item.shortcut.empty() ? @"Command"
++                                   : base::SysUTF16ToNSString(item.shortcut);
+     case HeliumCommandBarItem::Type::kUrl:
+       return @"New tab";
+     case HeliumCommandBarItem::Type::kSearch:
+@@ -429,8 +430,13 @@
    if (selection_is_explicit_ && selected_ < displayed_items_.size()) {
      selected = displayed_items_[selected_];
    }
@@ -980,7 +1200,7 @@
    if (selected) {
      for (size_t i = 0; i < items.size(); ++i) {
        if (helium_command_bar_model::SameItem(*selected, items[i])) {
-@@ -464,7 +469,8 @@
+@@ -464,7 +470,8 @@
                  item.type == HeliumCommandBarItem::Type::kSiteSearch
              ? @"magnifyingglass"
              : @"globe";
@@ -990,7 +1210,22 @@
      row.accessibilityLabel =
          [NSString stringWithFormat:@"%@, %@, %@", row.primaryText,
                                     row.secondaryText, row.tagText];
-@@ -531,7 +537,8 @@
+@@ -521,6 +528,14 @@
+   native_->pane.scopePill.hidden = YES;
+   ResizeToContents();
+ }
++void HeliumCommandBarView::SetCommandMode(bool commands_only) {
++  if (commands_only || native_->pane.scope.hidden) {
++    native_->pane.input.placeholderString =
++        commands_only ? @"Search commands" : @"Search or type a URL";
++  }
++  native_->pane.input.accessibilityLabel =
++      commands_only ? @"Search commands" : @"Search or type a URL";
++}
+ void HeliumCommandBarView::SetItemImage(size_t index, const gfx::Image& image) {
+   if (index >= native_->pane.rows.count || image.IsEmpty()) {
+     return;
+@@ -531,7 +546,8 @@
  void HeliumCommandBarView::MoveSelection(int delta) {
    size_t count = native_->pane.rows.count;
    if (count) {
@@ -1023,3 +1258,88 @@
  }  // namespace prefs
  
  #endif  // CHROME_COMMON_HELIUM_COMMAND_BAR_PREF_NAMES_H_
+--- a/chrome/browser/ui/helium/helium_command_bar_view.h
++++ b/chrome/browser/ui/helium/helium_command_bar_view.h
+@@ -31,7 +31,7 @@
+ }  // namespace views
+ 
+ // Floating command bar popup: a text field with a results list below.
+-// Rows are rebuilt on every keystroke; extras are clipped, never scrolled.
++// Rows are rebuilt as results change; the native viewport scrolls after five.
+ class HeliumCommandBarView : public views::WidgetDelegate,
+                              public views::TextfieldController,
+                              public views::WidgetObserver {
+@@ -68,6 +68,7 @@
+   // Shows the scope bar for |name|; ClearScope hides it again.
+   void SetScope(const std::u16string& name);
+   void ClearScope();
++  void SetCommandMode(bool commands_only);
+   // Sets the favicon for a visible row; no-op if the row is gone.
+   void SetItemImage(size_t index, const gfx::Image& image);
+ 
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -92,6 +92,7 @@
+ #endif
+ #include "chrome/browser/ui/browser_shortcuts/browser_shortcut_service_factory.h"
+ #include "chrome/browser/ui/browser_tabstrip.h"
++#include "chrome/browser/ui/helium/helium_command_bar_controller.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+@@ -4428,6 +4429,15 @@
+   }
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ 
++  if (auto* palette = HeliumCommandBarController::From(browser_);
++      palette && palette->IsCommandSearchShortcut(accelerator)) {
++    // These are fallbacks. The page (including docked DevTools) must see and
++    // be able to consume keydown before the browser opens command search.
++    return event.GetType() == blink::WebInputEvent::Type::kRawKeyDown
++               ? content::KeyboardEventProcessingResult::NOT_HANDLED_IS_SHORTCUT
++               : content::KeyboardEventProcessingResult::NOT_HANDLED;
++  }
++
+   content::KeyboardEventProcessingResult result =
+       browser_widget_->PreHandleKeyboardEvent(event);
+   if (result != content::KeyboardEventProcessingResult::NOT_HANDLED) {
+@@ -4497,6 +4507,17 @@
+ }
+ 
+ bool BrowserView::HandleKeyboardEvent(const NativeWebKeyboardEvent& event) {
++  if (event.GetType() == blink::WebInputEvent::Type::kRawKeyDown) {
++    const ui::Accelerator accelerator =
++        ui::GetAcceleratorFromNativeWebKeyboardEvent(event);
++    if (auto* palette = HeliumCommandBarController::From(browser_);
++        palette && palette->IsCommandSearchShortcut(accelerator) &&
++        palette->AcceleratorPressed(accelerator)) {
++      // Called only after the renderer reports the event unhandled. Handle
++      // before native redispatch so Cocoa cannot run the fallback twice.
++      return true;
++    }
++  }
+   if (browser_widget_->HandleKeyboardEvent(event)) {
+     return true;
+   }
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -813,6 +813,7 @@
+   ]
+   public_deps = [ ":browser_view_header" ]
+   deps = [
++    "//chrome/browser/ui/helium:helium_command_bar",
+     ":app_menu_button",
+     ":browser_frame_view",
+     ":browser_native_widget",
+--- a/chrome/browser/ui/browser_shortcuts/browser_shortcut_platform_mac.mm
++++ b/chrome/browser/ui/browser_shortcuts/browser_shortcut_platform_mac.mm
+@@ -83,6 +83,9 @@
+       [item tag] > 0) {
+     return [item tag];
+   }
++  if (action == @selector(showPreferences:)) {
++    return IDC_OPTIONS;
++  }
+   if (action == @selector(performClose:)) {
+     return IDC_CLOSE_WINDOW;
+   }
