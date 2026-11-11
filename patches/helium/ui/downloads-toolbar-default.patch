@@ -1,0 +1,15 @@
+--- a/chrome/browser/ui/toolbar/toolbar_pref_names.cc
++++ b/chrome/browser/ui/toolbar/toolbar_pref_names.cc
+@@ -15,6 +15,12 @@
+ 
+ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
+   base::ListValue default_pinned_actions;
++  const std::optional<std::string>& downloads_action =
++      actions::ActionIdMap::ActionIdToString(kActionShowDownloads);
++  if (downloads_action.has_value()) {
++    default_pinned_actions.Append(downloads_action.value());
++  }
++
+   const std::optional<std::string>& chrome_labs_action =
+       actions::ActionIdMap::ActionIdToString(kActionShowChromeLabs);
+   // ActionIdToStringMappings are not initialized in unit tests, therefore will
