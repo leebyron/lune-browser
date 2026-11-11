@@ -78,7 +78,16 @@ try:
  next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['defaultSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['defaultSearch'].startswith('Startpage')
- report['searchOrder']=js("return [...document.querySelectorAll('#search-engines-page button')].slice(0,3).map(b=>b.innerText.split('\\n')[0])")
+ report['searchSuggestionsInitiallyOff']=js("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')")
+ assert report['searchSuggestionsInitiallyOff']=='false'
+ js("document.querySelector('#search-engines-page button[role=switch]').click()")
+ wait("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')==='true'")
+ report['searchSuggestionsOptIn']=True
+ wait("return getComputedStyle(document.querySelector('#search-engines-page')).opacity==='1' && !document.querySelector('#welcome-page') && !document.querySelector('#services-page')")
+ screenshot('search')
+ js("document.querySelector('#search-engines-page button[role=switch]').click()")
+ wait("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')==='false'")
+ report['searchOrder']=js("return [...document.querySelectorAll('#search-engines-page button[aria-pressed]')].slice(0,3).map(b=>b.innerText.split('\\n')[0])")
  assert report['searchOrder']==['Startpage','Kagi','DuckDuckGo']
  js("[...document.querySelectorAll('#search-engines-page button')].find(b=>b.innerText.startsWith('DuckDuckGo')).click()")
  next_();wait("return document.querySelector('#import-page.visible, #data-import-page.visible') || document.querySelector('.onboarding-page.visible')?.innerText.includes('Import from')")
@@ -127,7 +136,7 @@ try:
  next_();time.sleep(.5);report['doneUrl']=wd('GET',p+'/url');assert report['doneUrl'] in ('chrome://newtab/','chrome://new-tab-page/')
  nav('chrome://settings/')
  wait('return !!chrome.settingsPrivate')
- report['preferences']=js("const done=arguments[arguments.length-1]; chrome.settingsPrivate.getAllPrefs(p=>done(Object.fromEntries(p.filter(p=>['helium.completed_onboarding','helium.services.enabled','helium.services.browser_updates','helium.browser.vertical_right_aligned','side_panel.is_right_aligned','helium.browser.zen_mode_top_chrome_pinned','helium.browser.top_controls_overlay'].includes(p.key)).map(p=>[p.key,p.value]))));",True)
+ report['preferences']=js("const done=arguments[arguments.length-1]; chrome.settingsPrivate.getAllPrefs(p=>done(Object.fromEntries(p.filter(p=>['search.suggest_enabled','helium.completed_onboarding','helium.services.enabled','helium.services.browser_updates','helium.browser.vertical_right_aligned','side_panel.is_right_aligned','helium.browser.zen_mode_top_chrome_pinned','helium.browser.top_controls_overlay'].includes(p.key)).map(p=>[p.key,p.value]))));",True)
  nav('chrome://settings/appearance')
  wait("const find=(r)=>r.querySelector('settings-appearance-page')||[...r.querySelectorAll('*')].map(e=>e.shadowRoot&&find(e.shadowRoot)).find(Boolean);return !!find(document)")
  report['independentPanelControl']=js("const find=(r)=>r.querySelector('#sidePanelPosition')||[...r.querySelectorAll('*')].map(e=>e.shadowRoot&&find(e.shadowRoot)).find(Boolean);return !!find(document)")
@@ -139,6 +148,7 @@ try:
  assert report['preferences']['side_panel.is_right_aligned'] is False
  assert report['preferences']['helium.browser.zen_mode_top_chrome_pinned'] is True
  assert report['preferences']['helium.browser.top_controls_overlay'] is False
+ assert report['preferences']['search.suggest_enabled'] is False
  assert report['preferences']['helium.services.enabled'] is False
  assert report['preferences']['helium.services.browser_updates'] is False
  nav('chrome://setup/');wait("return document.querySelector('#welcome-page input') && !document.querySelector('#welcome-page input').checked")
@@ -146,6 +156,7 @@ try:
  wait("return document.querySelector('#services-page.visible')");next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['retainedSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['retainedSearch'].startswith('DuckDuckGo')
+ assert js("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')") == 'false'
  if not args.skip_use_defaults:
   nav('chrome://setup/');wait("return document.querySelector('#welcome-page input') && !document.querySelector('#welcome-page input').checked")
   js("document.querySelector('input').click(); document.querySelector('.welcome-actions .ghost').click()")
@@ -155,6 +166,8 @@ try:
   assert report['defaultsUpdates'] is True
   report['defaultsServices']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.enabled',p=>done(p.value));",True)
   assert report['defaultsServices'] is True
+  report['defaultsSearchSuggestions']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('search.suggest_enabled',p=>done(p.value));",True)
+  assert report['defaultsSearchSuggestions'] is True
  else:
   report['useDefaultsConsentBranch']='skipped; services remain disabled'
  report['pass']=True

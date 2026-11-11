@@ -211,7 +211,7 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
             raise RuntimeError('Missing Helium services logo')
     js('document.querySelector("#setup-buttons button:last-child").click();')
     engines = wait_for('''
-        const cards = [...document.querySelectorAll('#search-engines-page button')];
+        const cards = [...document.querySelectorAll('#search-engines-page button[aria-pressed]')];
         return cards.length ? cards.map(card => ({
           name: [...(card.querySelector('.engine-name')?.childNodes || [])]
             .filter(node => node.nodeType === Node.TEXT_NODE)
