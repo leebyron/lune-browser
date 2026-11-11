@@ -220,8 +220,9 @@ svg { display: block; }
   #lune .vine-tendril { fill:none; stroke:var(--botanical-ink); stroke-width:1.25; stroke-linecap:round; opacity:.75; }
   #lune .botanical-bullet { display:block; flex:none; width:80px; height:100px; overflow:visible; pointer-events:none; color:var(--botanical-ink); }
   #lune .flower-bloom { transform-origin:0 0; }
-  #lune .mote-float { offset-path:path('M0 0 C14 -18 28 -18 28 0 C28 18 14 18 0 0 C-14 -18 -28 -18 -28 0 C-28 18 -14 18 0 0'); offset-anchor:0px 0px; offset-rotate:0deg; animation:mote-loft var(--mote-duration) linear infinite; animation-delay:var(--mote-phase); animation-play-state:paused; }
+  #lune .mote-float { offset-path:var(--mote-path,path('M0 0 C14 -18 28 -18 28 0 C28 18 14 18 0 0 C-14 -18 -28 -18 -28 0 C-28 18 -14 18 0 0')); offset-anchor:0px 0px; offset-rotate:0deg; animation:mote-loft var(--mote-duration) linear infinite; animation-delay:var(--mote-phase); animation-play-state:paused; }
   #lune .mote-position[data-visible] .mote-float { animation-play-state:running; }
+  #lune .mote-companion .mote-float { animation-direction:reverse; }
   @keyframes mote-loft { from { offset-distance:0%; } to { offset-distance:100%; } }
   #lune .petal,#lune .flower-stamens { transform-origin:0 0; }
   #lune .petal-left { transform:rotate(-22deg); }
@@ -322,6 +323,10 @@ svg { display: block; }
 }
 
 @media (prefers-color-scheme: light) {
+  @supports (color:color(display-p3 1 1 0)) {
+    /* #EBD039's OKLCH hue/lightness, with chroma at the Display P3 boundary. */
+    #lune .pages { --pollen:color(display-p3 .929206 .81535 0); }
+  }
   #lune .wallpaper { background-image:url('/assets/wallpaper-light.jpg'); }
   #lune .pages::after { --paper-texture-opacity:.24; mix-blend-mode:multiply; filter:grayscale(1) contrast(1.8) brightness(1.3); }
 }

@@ -103,14 +103,31 @@
   filaments.setAttribute('d',filamentPath);stamens.replaceChildren(filaments,halos,anthers);
   // Persistent seeded motes keep their idle phase when layout is measured again.
   const moteRng=random(2147),moteLayer=vine.querySelector('.vine-motes');
-  const motes=Array.from({length:14},(_,index)=>{
+  const motes=Array.from({length:17},(_,index)=>{
     const group=svg('g',{class:'mote-position',opacity:0}),floating=svg('g',{class:'mote-float'});
     const duration=26+moteRng()*16,radius=.95+moteRng()*.65;
     floating.style.setProperty('--mote-duration',`${duration}s`);
-    floating.style.setProperty('--mote-phase',`${-moteRng()*duration}s`);
-    floating.append(svg('circle',{r:radius*2.3,fill:'var(--pollen)',filter:'url(#stamen-light)',opacity:.55}),svg('circle',{r:radius,fill:'var(--pollen)',opacity:.7+moteRng()*.3}));
-    group.append(floating);moteLayer.append(group);
-    return {group,fraction:.025+(index+.2+moteRng()*.5)/14*.9,side:index%2?1:-1,gap:14+moteRng()*18,reach:65+moteRng()*55,x:0,y:0};
+    const phase=-moteRng()*duration;
+    floating.style.setProperty('--mote-phase',`${phase}s`);
+    const inkOpacity=.7+moteRng()*.3;
+    function dot(parent,size,opacity) {
+      parent.append(svg('circle',{r:size*2.3,fill:'var(--pollen)',filter:'url(#stamen-light)',opacity:.55}),svg('circle',{r:size,fill:'var(--pollen)',opacity}));
+    }
+    dot(floating,radius,inkOpacity);
+    group.append(floating);
+    // Each companion floats independently around a slightly offset origin.
+    // Keep the seeded sequence intact so the existing motes stay in place.
+    if(index===3||index===10) {
+      const origin=svg('g',{class:'mote-companion',transform:`translate(${index===3?20:-18} ${index===3?-12:14})`}),companion=svg('g',{class:'mote-float'});
+      companion.style.setProperty('--mote-duration',`${duration*(index===3?1.08:.94)}s`);
+      companion.style.setProperty('--mote-phase',`${phase-duration*.09}s`);
+      companion.style.setProperty('--mote-path',"path('M0 0 C12 -16 24 -16 24 0 C24 16 12 16 0 0 C-12 -16 -24 -16 -24 0 C-24 16 -12 16 0 0')");
+      dot(companion,radius*.85,inkOpacity);
+      origin.append(companion);group.append(origin);
+    }
+    if(index>=14)group.classList.add('mote-at-base');
+    moteLayer.append(group);
+    return {group,fraction:index<14?.025+(index+.2+moteRng()*.5)/14*.9:0,crownDistance:index<14?0:48+(index-14)*24,side:index%2?1:-1,gap:14+moteRng()*18,reach:65+moteRng()*55,x:0,y:0};
   });
   let vineStart=0, vineEnd=1, flowerStart=0, flowerEnd=1,introStart=0,introEnd=1;
   let rootWave=null,sprigRanges=[],textRanges=[];
@@ -246,7 +263,7 @@
     vine.querySelectorAll('.vine-base,.vine-growth').forEach(path=>path.setAttribute('d',d));
     stemLength=vineGrowth.getTotalLength();
     motes.forEach(mote=>{
-      const at=vineGrowth.getPointAtLength(stemLength*mote.fraction);
+      const at=vineGrowth.getPointAtLength(mote.crownDistance?Math.max(0,stemLength-mote.crownDistance):stemLength*mote.fraction);
       mote.x=at.x;mote.y=at.y;
     });
     sprigs.replaceChildren(growth);
