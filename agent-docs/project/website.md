@@ -107,7 +107,7 @@ content. The pane snaps to width when pinning changes. Actual mouse interactions
 boundary; the faux cursor uses the window edge without a buffer. No cooldown timer remains.
 The glass toolbar fades in from the top rail or either sidebar header, matching
 the native browser. The pinned sidebar uses the window material; its floating
-popover is a flush square CSS glass sheet. The window has 16px outer corners and
+popover is a flush square CSS glass sheet. The window has a maximum width of 10/6 of its height, 16px outer corners and
 edge-to-edge content without gutters or an inner shadow. Both sidebar modes share
 header/row geometry; the pinned edge has a semantic hairline. Tab rows use native
 standard-density dimensions and combined region/row insets, with hover-only close

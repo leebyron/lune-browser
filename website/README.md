@@ -11,7 +11,7 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 ## Behavior
 
 - The desktop fills the viewport. The browser window is at most 720px tall and
-  twice as wide as its height, centered in the desktop space above the Dock.
+  at most 10/6 as wide as its height, centered in the desktop space above the Dock.
 - Launch starts after 96px of scrolling. Clicking the chevron or Lune Dock icon
   stops at 180px, where the intro has fully faded. Inner reading starts at 180px,
   which also bypasses any remaining launch delay and fade for fast scrolling.
