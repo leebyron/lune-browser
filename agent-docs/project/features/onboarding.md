@@ -29,7 +29,8 @@ browser behavior remains separate from Lune branding and distribution choices.
 
 ## Final behavior
 
-- Toolbar settings and setup offer On hover, Always, and Always cover (experimental).
+- Setup offers On hover and Always. The native right-click menu also retains
+  Always cover (experimental).
   The existing 52 pt inset, viewport-fit cover handling and safe-area values use
   saved preferences directly on macOS. No Lune launch flag is required.
 - Toolbar visibility does not change native sidebar glass or its 4 px horizontal
@@ -106,3 +107,26 @@ claimed by this source publication.
 A fresh recursive GitHub checkout of the published input tag matches the locked
 platform/core commits and passes patch-series and translation validation. All 44
 orchestration tests and lock/hash/tag/tree/gitlink/ancestry checks pass.
+
+## Setup toolbar choices — November 11, 2026
+
+The final setup page offers only **On hover** and **Always**, as requested by the
+owner. A saved experimental cover preference displays as Always without changing
+the saved setting on entry. Selecting either offered mode clears cover behavior;
+the pinned preference follows the selected mode. The native right-click menu
+retains **Always cover (experimental)**, and its implementation is unchanged.
+
+Platform input `inputs/onboarding-toolbar-options-1/macos` selects commit
+`bc6e31500baab1551d1ffcee4c3bbc44510b7f25` for future main builds. The focused quilt
+patch changes only `components/helium_onboarding/src/pages/Finish.svelte`.
+The existing packaged-flow check now expects and selects only the two setup
+options. No specific open GitHub issue is resolved by this narrow request.
+
+Validation: strict zero-fuzz, zero-offset replay matches the checked source;
+platform patch lint passes; Svelte reports zero errors and warnings; TypeScript
+and the production Vite bundle pass. A browser preview of the real setup
+component confirms exactly two choices, saved cover displaying as Always without
+mutating preferences, and both selections setting pinned/overlay preferences
+correctly. This is frontend validation with the development browser bridge; no
+full native rebuild or packaged-flow rerun is claimed for this change. Previously
+published binaries retain their frozen inputs.

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "62f2f236c7fd191e6f998450a1e0ce8058bcc9ca",
+    "commit": "bc6e31500baab1551d1ffcee4c3bbc44510b7f25",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -753,6 +753,10 @@
       {
         "path": "patches/helium/ui/downloads-toolbar-default.patch",
         "sha256": "c113b884922908fa1de0a901f342041dedac7c41daa00c3842b62425f49fccb7"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-toolbar-options.patch",
+        "sha256": "20db3a816347e64456038ee075118c201adb9810f51b5dee9848e2fa40a27de8"
       }
     ]
   },
@@ -1945,6 +1949,21 @@
       "adaptation": "Developed from the unchanged prepared Chromium preference-registration source with quilt, refreshed, and unmerged into the macOS platform. Zero-fuzz, zero-offset replay matches the compiled source. See agent-docs/project/features/downloads.md.",
       "commits": [
         "62f2f236c7fd191e6f998450a1e0ce8058bcc9ca"
+      ]
+    },
+    {
+      "id": "onboarding-toolbar-options",
+      "depends_on": [
+        "onboarding-reviewed-10"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-toolbar-options.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Offer only On hover and Always on the final setup page, retaining the experimental cover mode in the native context menu.",
+      "adaptation": "Developed from the current prepared Finish.svelte with quilt, refreshed and unmerged. Zero-fuzz, zero-offset replay matches the checked frontend. Svelte/TypeScript checks, production bundling and browser preview interactions pass, including saved cover-mode rendering and preference changes. Native menu sources are unchanged; no full browser rebuild is claimed. See agent-docs/project/features/onboarding.md.",
+      "commits": [
+        "bc6e31500baab1551d1ffcee4c3bbc44510b7f25"
       ]
     }
   ],

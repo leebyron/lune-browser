@@ -36,6 +36,8 @@ Both architectures build on the local Apple silicon Mac. Intel runtime checks us
 
 The owner-accepted [stable command-menu glass](features/command-menu-stable-glass.md) is selected for future main builds through `inputs/command-menu-glass-1/macos`. Cmd+T and Cmd+/ keep the existing neutral backing at every result-list size, preventing the transparent tone-switching transition. Both browser builds and native regressions pass (Intel fixtures under Rosetta). Published releases retain their frozen inputs.
 
+The final [setup toolbar dropdown](features/onboarding.md#setup-toolbar-choices--november-11-2026) now offers only On hover and Always for future main builds through `inputs/onboarding-toolbar-options-1/macos`; the native right-click menu retains Always cover (experimental). Strict replay, frontend checks, production bundling and browser preview interactions pass; no full native rebuild is claimed for this change.
+
 ## Hosting and automation
 
 The public source repository also hosts releases and paired raw-GitHub stable feeds. The [Cloudflare website](website.md) links to fixed GitHub latest-asset URLs. Optional browser services use Helium's hosted service; Lune-hosted services are not deployed.
