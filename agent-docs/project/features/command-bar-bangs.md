@@ -16,7 +16,7 @@ An applied bang shows only its provider pill and query input. No direct-search r
 
 Every newly typed query starts with its highest ranked result selected. Only deliberate keyboard or pointer selection is preserved across asynchronous updates. Native row rebuilds ignore tracking-area entry under a stationary pointer, preventing a bang completion from taking selection from the plain search action above it.
 
-Usage is stored in the local, unsynced profile dictionary `helium.command_bar.bang_usage`. Only submitted searches count; selecting a provider alone does not count. Incognito never writes usage. Records contain a saturated count and last-use time, with a maximum of 200 literal trigger keys and oldest-use eviction. This tracks Command-T use rather than inventing omnibox-wide or global statistics.
+Usage is stored in the local, unsynced profile dictionary `helium.command_bar.bang_usage`. Only submitted searches count; selecting a provider alone does not count. Incognito never writes usage. Records contain a saturated count and last-use time, with a maximum of 200 literal trigger keys and oldest-use eviction. The [native address-bar bang implementation](address-bar-bangs.md) also records submitted scoped searches through this shared recorder. Earlier frozen releases record Command-T use only.
 
 ## Validation
 

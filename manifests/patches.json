@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "7e40287873ebf0e5bc465c64960485f76391cd6a",
+    "commit": "b060587ba6d6ab55a8949b705672f8d92463f389",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -745,6 +745,10 @@
       {
         "path": "patches/helium/ui/command-menu-stable-glass.patch",
         "sha256": "3bd246ce872c82b957eca3222d1e86bd1624b70edfb911dba27a68172ccb9fc1"
+      },
+      {
+        "path": "patches/helium/ui/address-bar-bangs.patch",
+        "sha256": "43cb46399b6cef21f9a07b291eab6f1d15dd82811d02a456c0470ce25d85da56"
       }
     ]
   },
@@ -1908,6 +1912,22 @@
       "adaptation": "Keep the existing neutral 80%-opacity backing visible at every command-menu size while retaining regular native glass, tint, legibility, and shadows. Header/sidebar Content aware behavior and older-macOS fallback are unchanged. Developed with quilt, refreshed and unmerged; strict zero-fuzz replay matches the compiled source. Both browser builds and native appearance/lifetime regressions pass; Intel fixture runtime uses Rosetta. Owner accepted the live Apple silicon preview on November 11, 2026. See agent-docs/project/features/command-menu-stable-glass.md.",
       "commits": [
         "7e40287873ebf0e5bc465c64960485f76391cd6a"
+      ]
+    },
+    {
+      "id": "address-bar-bangs",
+      "depends_on": [
+        "command-bar-bang-suggestions"
+      ],
+      "patches": [
+        "patches/helium/ui/address-bar-bangs.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use Command-T bang matching, provider pills, scope editing and submitted-search usage in the native floating address bar.",
+      "adaptation": "Developed in an isolated quilt workspace from the locked prepared frame source, refreshed and unmerged into the platform. The signed composition preserves the latest accepted command-menu glass input and the complete address-bar topic. Both architecture builds, native production-method fixtures, shared bang regressions and Apple silicon browser interaction checks pass; Intel runtime uses Rosetta. Visual owner acceptance is pending. See agent-docs/project/features/address-bar-bangs.md.",
+      "commits": [
+        "e3161f646192994f5fefa037510df467a22f1e09",
+        "b060587ba6d6ab55a8949b705672f8d92463f389"
       ]
     }
   ],

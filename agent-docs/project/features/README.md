@@ -10,6 +10,7 @@ Read [current status](../status.md) first. These records document implementation
 - [Stable command-menu glass](command-menu-stable-glass.md)
 - [Native glass Command-T palette](command-bar.md)
 - [Command-T bang suggestions](command-bar-bangs.md)
+- [Native address-bar bangs](address-bar-bangs.md)
 - [Expanded Command-T commands](command-bar-actions.md)
 - [Content pane shadow](content-pane-shadow.md)
 - [Wider Lune artwork and day/night appearance](day-night-branding.md)
