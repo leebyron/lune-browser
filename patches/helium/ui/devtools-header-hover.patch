@@ -1,0 +1,95 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2950,7 +2950,9 @@
+   }
+   gfx::Point cursor(base::ClampFloor(mouse.x), base::ClampFloor(mouse.y));
+   views::View::ConvertPointFromWidget(browser_view, &cursor);
+-  const bool in_rail = helium::IsPointerInNativeRevealRail(browser_view, true);
++  const bool in_hover_area = browser_view->IsPointInTopChromeHoverArea(cursor);
++  const bool in_rail = in_hover_area &&
++                       helium::IsPointerInNativeRevealRail(browser_view, true);
+   const bool in_window = browser_view->GetLocalBounds().Contains(cursor);
+   gfx::Rect sidebar_header;
+   if (auto* sidebar = browser_view->GetSidebarView(); sidebar &&
+@@ -2961,10 +2963,11 @@
+   }
+   const bool in_sidebar_header = sidebar_header.Contains(cursor);
+   // Distance hysteresis: enter through the rail or a visible sidebar header.
+-  // Once open, the whole
+-  // window width down to 48 points below the glass retains it.
++  // Once open, page/sidebar columns down to 48 points below the glass retain
++  // it. Side-docked DevTools neither reveal nor retain the header.
+   const bool within_retention = [floating_address_bar_ isPresented] &&
+-                                in_window && cursor.y() <= bounds.bottom() + 48;
++                                in_hover_area && in_window &&
++                                cursor.y() <= bounds.bottom() + 48;
+   const bool editing =
+       floating_address_focus_requested_ || [floating_address_bar_ isEditing];
+ 
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2496,7 +2496,42 @@
+   }
+ }
+ 
++bool BrowserView::IsPointInTopChromeHoverArea(const gfx::Point& point) const {
++  // The detached tabs sidebar can overlap side-docked DevTools.
++  if (auto* sidebar = GetSidebarView(); sidebar && sidebar->IsDrawn() &&
++      GetSideChromeRevealRatio() > 0) {
++    const gfx::Rect bounds = views::View::ConvertRectToTarget(
++        sidebar, this, sidebar->GetLocalBounds());
++    if (point.x() >= bounds.x() && point.x() < bounds.right()) {
++      return true;
++    }
++  }
++  for (const auto& container : multi_contents_view_->contents_container_views()) {
++    if (!container->GetVisible() ||
++        !container->devtools_web_view()->GetVisible()) {
++      continue;
++    }
++    const gfx::Rect pane = views::View::ConvertRectToTarget(
++        container.get(), this, container->GetLocalBounds());
++    if (point.x() < pane.x() || point.x() >= pane.right()) {
++      continue;
++    }
++    const gfx::Rect content = views::View::ConvertRectToTarget(
++        container.get(), this, container->GetContentsViewBounds());
++    using Placement = ContentsContainerView::DevToolsDockedPlacement;
++    const auto placement = container->devtools_docked_placement();
++    if ((placement == Placement::kLeft && point.x() < content.x()) ||
++        (placement == Placement::kRight && point.x() >= content.right())) {
++      return false;
++    }
++  }
++  return true;
++}
++
+ bool BrowserView::IsPointInZenTopTrigger(const gfx::Point& point) const {
++  if (!IsPointInTopChromeHoverArea(point)) {
++    return false;
++  }
+ #if BUILDFLAG(IS_MAC)
+   if (GetFrameView() && GetFrameView()->HasFloatingAddressBar()) {
+     return helium::IsPointerInNativeRevealRail(this, true);
+@@ -2647,7 +2682,8 @@
+ }
+ 
+ bool BrowserView::IsPointInZenTopChromeBounds(const gfx::Point& point) const {
+-  if (!top_container_ || !top_container_->parent()) {
++  if (!IsPointInTopChromeHoverArea(point) || !top_container_ ||
++      !top_container_->parent()) {
+     return false;
+   }
+   if (IsVerticalAddressBarInSidebar() &&
+--- a/chrome/browser/ui/views/frame/browser_view.h
++++ b/chrome/browser/ui/views/frame/browser_view.h
+@@ -445,6 +445,9 @@
+ 
+   // Returns reveal ratios used by BrowserViewLayout for zen mode transitions.
+   bool IsZenModeEnabledForLayout() const;
++  // Tests the horizontal hover span above page content or the visible tabs
++  // sidebar, excluding side-docked DevTools. Callers supply the vertical limit.
++  bool IsPointInTopChromeHoverArea(const gfx::Point& point) const;
+   gfx::Rect GetFloatingSidebarBounds() const;
+   views::View* GetSidebarView() const;
+   void ToggleFloatingSidebar();
