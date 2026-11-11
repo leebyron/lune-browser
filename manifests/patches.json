@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "bc6e31500baab1551d1ffcee4c3bbc44510b7f25",
+    "commit": "651e911573be598a6cf348467169b4ce25ea6d36",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -757,6 +757,10 @@
       {
         "path": "patches/helium/ui/onboarding-toolbar-options.patch",
         "sha256": "20db3a816347e64456038ee075118c201adb9810f51b5dee9848e2fa40a27de8"
+      },
+      {
+        "path": "patches/helium/ui/session-restore-notice-with-tabs.patch",
+        "sha256": "c6d599ddfe7701cb07c39f19eb0e16a68a55b03011a881a05ad9bacd43703b9f"
       }
     ]
   },
@@ -1964,6 +1968,19 @@
       "adaptation": "Developed from the current prepared Finish.svelte with quilt, refreshed and unmerged. Zero-fuzz, zero-offset replay matches the checked frontend. Svelte/TypeScript checks, production bundling and browser preview interactions pass, including saved cover-mode rendering and preference changes. Native menu sources are unchanged; no full browser rebuild is claimed. See agent-docs/project/features/onboarding.md.",
       "commits": [
         "bc6e31500baab1551d1ffcee4c3bbc44510b7f25"
+      ]
+    },
+    {
+      "id": "session-restore-notice-with-tabs",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/session-restore-notice-with-tabs.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Show the informational session-restore notice only when a saved browser session contains restorable tabs, independently of setup.",
+      "adaptation": "Reuse the existing local session read to record profile-owned in-memory eligibility before restored windows open. Empty sessions, app sessions and other profiles do not trigger the notice; actual session restoration and crash-recovery prompts retain their existing behavior. Developed with quilt, refreshed and unmerged; strict locked-order replay matches all five changed files with zero fuzz and offsets. See agent-docs/project/features/session-restore-notice.md.",
+      "commits": [
+        "651e911573be598a6cf348467169b4ce25ea6d36"
       ]
     }
   ],
