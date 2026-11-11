@@ -21,6 +21,7 @@ Read [current status](../status.md) first. These records document implementation
 - [Pinned header and page inset prototype](header-inset-prototype.md)
 - [Scroll through the floating glass header](header-scroll-through.md)
 - [Header hover beside docked DevTools](devtools-header-hover.md)
+- [Helium services notice and update controls](services-update-controls.md)
 - [Floating Media Controls](media-toolbar-controls.md)
 - [Menu reveal retention](menu-reveal-retention.md)
 - [Native window close controls](native-window-close.md)

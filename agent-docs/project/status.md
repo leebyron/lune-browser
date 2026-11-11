@@ -1,6 +1,6 @@
 # Current project status
 
-Updated November 10, 2026. This page summarizes operational state. Exact source and artifact identities live in the linked machine-readable records; dated feature reports retain their original validation scope.
+Updated November 11, 2026. This page summarizes operational state. Exact source and artifact identities live in the linked machine-readable records; dated feature reports retain their original validation scope.
 
 ## Release delivery
 
@@ -22,6 +22,8 @@ The owner-accepted [Customize icon removal](features/trailing-toolbar-controls.m
 The owner-accepted [DevTools header hover fix](features/devtools-header-hover.md) is included in future builds through signed platform input `inputs/devtools-header-hover-1/macos`. Side-docked DevTools no longer reveal or retain the hover header; page content and the visible tabs sidebar remain eligible. Published releases retain their frozen inputs.
 
 The owner-accepted [Command-T bang suggestions](features/command-bar-bangs.md) are included in future builds through signed platform input `inputs/command-bar-bangs-1/macos`. Installed bang services participate in typeahead, leading `!` emphasizes bang intent, and recent/frequent use adjusts ordering. Selection applies a provider pill with no remaining completion rows; removing a suggested bang does not insert an untyped trigger. Both architecture builds and focused regressions pass; Intel runtime uses Rosetta. Published releases retain their frozen inputs.
+
+The owner-accepted [Helium services footer and update controls](features/services-update-controls.md) are included in future builds through signed platform input `inputs/services-update-controls-1/macos`. Browser updates appear last on Privacy and security; the independent Helium update control and changelog collapse with disabled services. Setup enables service updates by default while preserving custom opt-outs. Both builds, setup/settings checks and browsing smoke pass (Intel under Rosetta). Published releases retain their frozen inputs.
 
 Both architectures build on the local Apple silicon Mac. Intel runtime checks use Rosetta unless a report explicitly identifies physical hardware. The owner has Intel Macs on macOS 13.7.8 and 26.6.2 for manual checks; their availability is not acceptance of any particular binary. Publish after single-device acceptance and the technical gates pass; manual Intel results and per-release owner deferrals are not required.
 

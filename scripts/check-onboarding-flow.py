@@ -24,7 +24,7 @@ for _ in range(100):
  try:
   if wd('GET','/status')['ready']:break
  except OSError:time.sleep(.1)
-session=wd('POST','/session',{'capabilities':{'alwaysMatch':{'goog:chromeOptions':{'binary':str(build/'Lune.app/Contents/MacOS/Lune'),'args':['--headless=new','--disable-background-networking','--use-mock-keychain','--password-store=basic','--custom-update-server-url=http://127.0.0.1:1/',f'--user-data-dir={profile}']}}}})
+session=wd('POST','/session',{'capabilities':{'alwaysMatch':{'goog:chromeOptions':{'binary':str(build/'Lune.app/Contents/MacOS/Lune'),'args':['--headless=new','--disable-background-networking','--use-mock-keychain','--password-store=basic','--custom-update-server-url=http://127.0.0.1:1/','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1',f'--user-data-dir={profile}']}}}})
 p='/session/'+session['sessionId']; report={}
 def js(script,async_=False):return wd('POST',p+('/execute/async' if async_ else '/execute/sync'),{'script':script,'args':[]})
 def wait(script):
@@ -75,6 +75,19 @@ try:
  report['services']=js("return document.querySelector('#services-page').innerText")
  assert 'browser updates' not in report['services'].lower()
  assert js("return document.querySelector('#services-page button[role=switch]').getAttribute('aria-checked')") == 'false'
+ wait("const b=document.querySelectorAll('#services-page button[role=switch]')[1];return b?.innerText.includes('Allow automatic Helium services updates') && b.disabled && b.getAttribute('aria-checked')==='true'")
+ js("document.querySelectorAll('#services-page button[role=switch]')[0].click()")
+ wait("const b=document.querySelectorAll('#services-page button[role=switch]')[1];return !b.disabled && b.getAttribute('aria-checked')==='true'")
+ js("document.querySelectorAll('#services-page button[role=switch]')[1].click()")
+ wait("return document.querySelectorAll('#services-page button[role=switch]')[1].getAttribute('aria-checked')==='false'")
+ js("document.querySelectorAll('#services-page button[role=switch]')[0].click()")
+ wait("return document.querySelectorAll('#services-page button[role=switch]')[1].disabled")
+ js("document.querySelectorAll('#services-page button[role=switch]')[0].click()")
+ wait("return !document.querySelectorAll('#services-page button[role=switch]')[1].disabled")
+ assert js("return document.querySelectorAll('#services-page button[role=switch]')[1].getAttribute('aria-checked')") == 'false'
+ js("document.querySelectorAll('#services-page button[role=switch]')[0].click()")
+ wait("return document.querySelectorAll('#services-page button[role=switch]')[1].disabled")
+ report['customServicesUpdates']={'initially_on':True,'disabled_with_services_off':True,'explicit_off_choice_retained':True}
  next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['defaultSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['defaultSearch'].startswith('Startpage')
@@ -136,7 +149,7 @@ try:
  next_();time.sleep(.5);report['doneUrl']=wd('GET',p+'/url');assert report['doneUrl'] in ('chrome://newtab/','chrome://new-tab-page/')
  nav('chrome://settings/')
  wait('return !!chrome.settingsPrivate')
- report['preferences']=js("const done=arguments[arguments.length-1]; chrome.settingsPrivate.getAllPrefs(p=>done(Object.fromEntries(p.filter(p=>['search.suggest_enabled','helium.completed_onboarding','helium.services.enabled','helium.services.browser_updates','helium.browser.vertical_right_aligned','side_panel.is_right_aligned','helium.browser.zen_mode_top_chrome_pinned','helium.browser.top_controls_overlay'].includes(p.key)).map(p=>[p.key,p.value]))));",True)
+ report['preferences']=js("const done=arguments[arguments.length-1]; chrome.settingsPrivate.getAllPrefs(p=>done(Object.fromEntries(p.filter(p=>['search.suggest_enabled','helium.completed_onboarding','helium.services.enabled','helium.services.browser_updates','helium.services.component_updates','helium.browser.vertical_right_aligned','side_panel.is_right_aligned','helium.browser.zen_mode_top_chrome_pinned','helium.browser.top_controls_overlay'].includes(p.key)).map(p=>[p.key,p.value]))));",True)
  nav('chrome://settings/appearance')
  wait("const find=(r)=>r.querySelector('settings-appearance-page')||[...r.querySelectorAll('*')].map(e=>e.shadowRoot&&find(e.shadowRoot)).find(Boolean);return !!find(document)")
  report['independentPanelControl']=js("const find=(r)=>r.querySelector('#sidePanelPosition')||[...r.querySelectorAll('*')].map(e=>e.shadowRoot&&find(e.shadowRoot)).find(Boolean);return !!find(document)")
@@ -151,6 +164,7 @@ try:
  assert report['preferences']['search.suggest_enabled'] is False
  assert report['preferences']['helium.services.enabled'] is False
  assert report['preferences']['helium.services.browser_updates'] is False
+ assert report['preferences']['helium.services.component_updates'] is False
  nav('chrome://setup/');wait("return document.querySelector('#welcome-page input') && !document.querySelector('#welcome-page input').checked")
  js("document.querySelector('.welcome-actions .primary').click()")
  wait("return document.querySelector('#services-page.visible')");next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
@@ -166,8 +180,17 @@ try:
   assert report['defaultsUpdates'] is True
   report['defaultsServices']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.enabled',p=>done(p.value));",True)
   assert report['defaultsServices'] is True
+  report['defaultsServicesUpdates']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.component_updates',p=>done(p.value));",True)
+  assert report['defaultsServicesUpdates'] is True
   report['defaultsSearchSuggestions']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('search.suggest_enabled',p=>done(p.value));",True)
   assert report['defaultsSearchSuggestions'] is True
+  nav('chrome://setup/');wait("return document.querySelector('#welcome-page input')?.checked")
+  js("document.querySelector('input').click(); document.querySelector('.welcome-actions .ghost').click()")
+  wait("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
+  nav('chrome://settings/');wait('return !!chrome.settingsPrivate')
+  assert js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.browser_updates',p=>done(p.value));",True) is False
+  assert js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.component_updates',p=>done(p.value));",True) is True
+  report['defaultsServicesUpdatesIndependentOfBrowserOptOut']=True
  else:
   report['useDefaultsConsentBranch']='skipped; services remain disabled'
  report['pass']=True

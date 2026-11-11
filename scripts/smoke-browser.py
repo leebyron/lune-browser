@@ -274,7 +274,7 @@ def check_settings(request, path):
     request('POST', path + '/url', {'url': 'chrome://settings/privacy/services'})
     wait('return find("#heliumOriginOverride") !== null;')
     provider = js("return find('#servicesToggleButton')?.subLabel;")
-    assert provider and 'Helium-hosted services' in provider and 'Browser updates are controlled separately.' in provider, provider
+    assert provider and 'anonymous web services' in provider and 'browser updates' not in provider.lower(), provider
     assert js("return find('#heliumOriginOverride')?.placeholder;") == 'https://services.helium.imput.net'
     result['service_provider'] = {'host': 'Helium', 'browser_updates': 'Lune', 'disclosure': provider.strip()}
     assert pref('helium.services.enabled') is False, 'Test must keep remote services disabled'
@@ -283,8 +283,9 @@ def check_settings(request, path):
     set_pref('helium.services.user_consented', True)
     wait('return find("#servicesToggleButton")?.pref?.value === false;')
     wait('return find("#servicesCollapse")?.opened === false;')
-    wait('const updates=find("#updatesToggleButton"); return updates?.getClientRects().length > 0 && !updates.disabled;')
-    controls = js('''return ["servicesToggleButton", "extProxyToggleButton", "bangToggleButton", "updatesToggleButton", "filterlistToggleButton"].map(id => {
+    wait('const updates=find("#servicesUpdatesToggleButton"); return updates && updates.disabled && updates.getClientRects().length === 0;')
+    assert js('return find("settings-helium-services-page").shadowRoot.querySelector("#updatesToggleButton") === null;')
+    controls = js('''return ["servicesToggleButton", "extProxyToggleButton", "bangToggleButton", "servicesUpdatesToggleButton", "filterlistToggleButton"].map(id => {
       const el = find("#" + id); return {id, key: el?.pref?.key, checked: el?.checked};
     });''')
     assert all(control.get('key', '').startswith('helium.services.') for control in controls), controls
@@ -294,8 +295,17 @@ def check_settings(request, path):
     assert pref('helium.services.origin_override') == 'https://smoke.invalid', 'Origin did not persist'
     set_pref('helium.services.origin_override', origin)
     wait('return find("#heliumOriginOverride")?.value === ' + json.dumps(origin) + ';')
+    request('POST', path + '/url', {'url': 'chrome://settings/privacy'})
+    wait('const updates=find("#updatesToggleButton"); return updates?.getClientRects().length > 0 && !updates.disabled;')
+    assert js('return find("#updatesToggleButton").pref.key;') == 'helium.services.browser_updates'
+    services_entry = js('const row=find("#heliumServicesLinkRow"); return {icon:row.startIcon, description:row.subLabel};')
+    assert services_entry == {'icon': 'helium-services:logo',
+        'description': 'Manage what Helium services are allowed in your browser'}, services_entry
+    privacy_rows = js('const page=find("settings-privacy-page"); return [...page.shadowRoot.querySelectorAll("cr-link-row, settings-toggle-button")].filter(el=>el.getClientRects().length).map(el=>el.id);')
+    assert privacy_rows[-1] == 'updatesToggleButton', privacy_rows
     result['settings_port'] = {'noise_toggle_persisted_and_observed': True, 'consent_observed': True,
         'services_remained_disabled': True, 'service_controls': controls,
+        'browser_update_control_on_privacy_root': True, 'services_entry': services_entry,
         'origin_normalized_persisted_and_observed': True}
     request('POST', path + '/url', {'url': 'chrome://flags/'})
     flag_names = wait("const d=document.querySelector('flags-app')?.data; return d?.supportedFeatures?.length ? [...d.supportedFeatures,...d.unsupportedFeatures].map(f=>f.internal_name) : null;")

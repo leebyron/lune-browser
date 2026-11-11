@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "51faf29296a2287b0b390a3d077606ebb08e6ae6",
+    "commit": "e61221ca25e8fed639477c667eb8b42115836cd9",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -733,6 +733,10 @@
       {
         "path": "patches/helium/ui/devtools-header-hover.patch",
         "sha256": "94e2013da64867502cd6c8294f6a39512124f873232031af72b1842380c4f30b"
+      },
+      {
+        "path": "patches/helium/ui/services-update-footer.patch",
+        "sha256": "2611f5db306970f23dedf2a9fb4c7421743819b5eeff9f882e85209abfdcf43f"
       }
     ]
   },
@@ -1835,6 +1839,23 @@
         "53f3de78ae3ba29bcb73c5cfb30c1eb55f79a9ec",
         "2baa6ffee1f868d83fb78ffc8d171f292e17cff9",
         "51faf29296a2287b0b390a3d077606ebb08e6ae6"
+      ]
+    },
+    {
+      "id": "services-update-controls",
+      "depends_on": [
+        "sidebar-footer",
+        "canonical-update-repository",
+        "onboarding-search-suggestions"
+      ],
+      "patches": [
+        "patches/helium/ui/services-update-footer.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Move the Helium services notice to a dismissible sidebar footer and separate browser and optional service update controls.",
+      "adaptation": "Owner accepted the final settings/setup preview on November 11, 2026, including real hover dismissal. Developed with quilt, refreshed and unmerged into the platform; independent zero-fuzz replay matches all 24 changed source files. Both architecture builds, production preference/consent/migration checks, update-control persistence, complete setup flows and UI/icon/browsing smoke checks pass (Intel under Rosetta). The compiled preview also contained an isolated command candidate; frozen source hashes and independent services replay record that boundary. See agent-docs/project/features/services-update-controls.md.",
+      "commits": [
+        "e61221ca25e8fed639477c667eb8b42115836cd9"
       ]
     }
   ],
