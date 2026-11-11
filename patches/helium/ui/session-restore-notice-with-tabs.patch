@@ -1,0 +1,165 @@
+--- a/chrome/browser/sessions/session_restore.cc
++++ b/chrome/browser/sessions/session_restore.cc
+@@ -33,6 +33,7 @@
+ #include "base/run_loop.h"
+ #include "base/scoped_observation.h"
+ #include "base/strings/string_number_conversions.h"
++#include "base/supports_user_data.h"
+ #include "base/task/cancelable_task_tracker.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
+@@ -147,6 +148,8 @@
+ 
+ namespace {
+ 
++const char kHasRestorableTabsKey = 0;
++
+ bool HasSingleNewTabPage(BrowserWindowInterface* browser) {
+   if (!browser || !browser->GetTabStripModel() ||
+       browser->GetTabStripModel()->count() != 1) {
+@@ -1824,10 +1827,32 @@
+ }
+ 
+ // static
++bool SessionRestore::HasRestorableTabs(const Profile* profile) {
++  return profile->GetUserData(&kHasRestorableTabsKey) != nullptr;
++}
++
++// static
+ void SessionRestore::OnGotSession(
+     Profile* profile,
+     bool for_apps,
+     const std::vector<const sessions::SessionWindow*>& windows) {
++  if (!for_apps) {
++    // Reuse the session read before any restored browser opens and asks to
++    // display startup notices. A new profile or empty/unreadable session must
++    // not advertise restoration just because it is the startup default.
++    const bool has_tabs = std::ranges::any_of(windows, [](const auto* window) {
++      return SessionService::IsRelevantWindowType(window->type) &&
++             std::ranges::any_of(window->tabs, [](const auto& tab) {
++               return !tab->navigations.empty();
++             });
++    });
++    if (has_tabs) {
++      profile->SetUserData(&kHasRestorableTabsKey,
++                          std::make_unique<base::SupportsUserData::Data>());
++    } else {
++      profile->RemoveUserData(&kHasRestorableTabsKey);
++    }
++  }
+   for (auto& observer : *observers()) {
+     observer.OnGotSession(profile, for_apps, windows);
+   }
+--- a/chrome/browser/sessions/session_restore.h
++++ b/chrome/browser/sessions/session_restore.h
+@@ -134,6 +134,11 @@
+   // lifetime.
+   static bool IsAnySessionRestored();
+ 
++  // Whether the most recent local browser-session read for this profile
++  // contained a restorable browser tab. False before a session has been read;
++  // app windows and sessions from other devices do not affect this value.
++  static bool HasRestorableTabs(const Profile* profile);
++
+   // Returns true if synchronously restoring a session.
+   static bool IsRestoringSynchronously();
+ 
+--- a/chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_model.cc
++++ b/chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_model.cc
+@@ -42,7 +42,7 @@
+ }
+ 
+ bool SessionRestoreInfobarModel::ShouldShowOnStartup() const {
+-  if (is_post_crash_launch_) {
++  if (is_post_crash_launch_ || !SessionRestore::HasRestorableTabs(&*profile_)) {
+     return false;
+   }
+ 
+--- a/chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_model_unittest.cc
++++ b/chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_model_unittest.cc
+@@ -10,6 +10,7 @@
+ #include "chrome/browser/prefs/browser_prefs.h"
+ #include "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h"
+ #include "chrome/browser/profiles/pref_service_builder_utils.h"
++#include "chrome/browser/sessions/session_restore.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/test/base/testing_profile.h"
+ #include "components/prefs/testing_pref_service.h"
+@@ -81,4 +82,67 @@
+   EXPECT_FALSE(model->IsDefaultSessionRestorePref());
+ }
+ 
++TEST_F(SessionRestoreInfobarModelTest, NoNoticeWithoutSavedTabs) {
++  TestingProfile profile;
++  profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, 1);
++  SessionRestoreInfobarModel model(profile, false);
++  EXPECT_FALSE(model.ShouldShowOnStartup());
++
++  SessionRestore::OnGotSession(&profile, false, {});
++  EXPECT_FALSE(model.ShouldShowOnStartup());
++
++  sessions::SessionWindow window;
++  window.type = sessions::SessionWindow::TYPE_NORMAL;
++  SessionRestore::OnGotSession(&profile, false, {&window});
++  EXPECT_FALSE(model.ShouldShowOnStartup());
++
++  window.tabs.push_back(std::make_unique<sessions::SessionTab>());
++  SessionRestore::OnGotSession(&profile, false, {&window});
++  EXPECT_FALSE(model.ShouldShowOnStartup());
++}
++
++TEST_F(SessionRestoreInfobarModelTest, SavedTabsAreScopedToProfileAndSession) {
++  TestingProfile profile;
++  TestingProfile other_profile;
++  profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, 1);
++  other_profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, 1);
++  SessionRestoreInfobarModel model(profile, false);
++  SessionRestoreInfobarModel other_model(other_profile, false);
++  SessionRestoreInfobarModel crash_model(profile, true);
++  sessions::SessionWindow window;
++  window.type = sessions::SessionWindow::TYPE_NORMAL;
++  window.tabs.push_back(std::make_unique<sessions::SessionTab>());
++  window.tabs.back()->navigations.emplace_back();
++  SessionRestore::OnGotSession(&profile, false, {&window});
++  EXPECT_TRUE(model.ShouldShowOnStartup());
++  EXPECT_FALSE(other_model.ShouldShowOnStartup());
++  EXPECT_FALSE(crash_model.ShouldShowOnStartup());
++
++  // An app-session read must not erase the browser-session result.
++  SessionRestore::OnGotSession(&profile, true, {});
++  EXPECT_TRUE(model.ShouldShowOnStartup());
++
++  // A later empty browser session must not retain a stale positive result.
++  SessionRestore::OnGotSession(&profile, false, {});
++  EXPECT_FALSE(model.ShouldShowOnStartup());
++}
++
++TEST_F(SessionRestoreInfobarModelTest, AppTabsDoNotTriggerBrowserNotice) {
++  TestingProfile profile;
++  profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, 1);
++  SessionRestoreInfobarModel model(profile, false);
++  sessions::SessionWindow window;
++  window.type = sessions::SessionWindow::TYPE_APP;
++  window.tabs.push_back(std::make_unique<sessions::SessionTab>());
++  window.tabs.back()->navigations.emplace_back();
++  SessionRestore::OnGotSession(&profile, true, {&window});
++  EXPECT_FALSE(model.ShouldShowOnStartup());
++  SessionRestore::OnGotSession(&profile, false, {&window});
++  EXPECT_FALSE(model.ShouldShowOnStartup());
++
++  window.type = sessions::SessionWindow::TYPE_POPUP;
++  SessionRestore::OnGotSession(&profile, false, {&window});
++  EXPECT_TRUE(model.ShouldShowOnStartup());
++}
++
+ }  // namespace session_restore_infobar
+--- a/chrome/browser/ui/views/session_restore_infobar/BUILD.gn
++++ b/chrome/browser/ui/views/session_restore_infobar/BUILD.gn
+@@ -66,6 +66,7 @@
+     "//chrome/browser/prefs",
+     "//chrome/browser/profiles:profile_util",
+     "//chrome/browser/profiles:profiles_extra_parts",
++    "//chrome/browser/sessions",
+     "//chrome/browser/ui/views:layout_provider",
+     "//chrome/common:constants",
+     "//chrome/test:test_support",
