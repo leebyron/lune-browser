@@ -25,18 +25,18 @@ provenance.
 
 ## Current status
 
-The local source now trials Rock Salt 400 at 16px/32px for the personal note
+The deployed source uses Rock Salt 400 at 16px/32px for the personal note
 and ten botanical paragraphs. The note uses two separate paragraphs with the
 owner's requested wording, staggering their entrances by 860ms. All story
 copy uses a soft 800ms left-to-right wipe with ease-in-out timing, alongside
 a 600ms fade and subtle 6px lift. Reduced Motion
 shows fully visible text without masks or delays. The font and its Apache 2.0
-license are served locally. This revision has not been deployed; the production
-record below describes the previous version.
+license are served locally. The current production record below covers this
+revision; subsequent local-check descriptions preserve their original scope.
 
-The local pollen refinement gives two of the seventeen mote groups a close companion with its own slightly smaller float path, reverse traversal, shifted phase, different speed and origin offset by about 23px, sharing only the scroll anchor. Three additional singles sit 48px, 72px and 96px up the stem from the root crown, above the ground. Light-mode stamen tips, halos and motes use `color(display-p3 .929206 .81535 0)`, preserving the original yellow's OKLCH hue and lightness while increasing chroma to the P3 boundary; `#EBD039` remains the sRGB fallback. Dark retains its existing teal.
+The pollen refinement gives two of the seventeen mote groups a close companion with its own slightly smaller float path, reverse traversal, shifted phase, different speed and origin offset by about 23px, sharing only the scroll anchor. Three additional singles sit 48px, 72px and 96px up the stem from the root crown, above the ground. Light-mode stamen tips, halos and motes use `color(display-p3 .929206 .81535 0)`, preserving the original yellow's OKLCH hue and lightness while increasing chroma to the P3 boundary; `#EBD039` remains the sRGB fallback. Dark retains its existing teal.
 
-The local botanical copy follows the owner's ten-line sequence from Chromium
+The botanical copy follows the owner's ten-line sequence from Chromium
 through removed Google services, extension proxying, blocking, Mac details,
 the command menu, !bangs, toolbar, vertical tabs and open-source foundations.
 Project names link to their sites/repositories, with Helium's !bangs linked to
@@ -53,7 +53,7 @@ same logical coordinates at half scale. Reduced Motion hides the demonstration.
 Copy gaps now follow each seeded specimen's ink bounds, targeting 44px optical
 clearance; the still-opening flower uses a 40px layout gap.
 
-The local Cmd-T demonstration now opens empty as the command-menu sentence
+The Cmd-T demonstration now opens empty as the command-menu sentence
 reaches 70% of the pane. The next sentence triggers !wiki typing at the same
 70% reading position, followed by the Wikipedia provider pill; the completion
 result appears only with the pill.
@@ -65,6 +65,12 @@ source supplies input, provider-pill and row metrics. The CSS pane uses a 600px
 maximum width, 18px corners, 52px empty height and 111px scoped height. The
 supplemental shadow matches 5% black, 10px blur and a 3px downward offset;
 the glass itself remains a web approximation.
+
+[Deployment 42973009910](https://github.com/leebyron/lune-browser/actions/runs/42973009910) successfully deployed website source commit `98b8cd382da10571d4c923b2dcd308dbfd97e66d` after the eleven focused website commits were pushed to `main`. The existing local Mac runner completed validation and production deployment. This includes native-style chrome and tab-close controls, Fastmail pins, footer and download polish, handwritten copy and link wipes, cached radial roots, pollen refinements, the two-stage cursor and passive Cmd-T/Wikipedia sequence.
+
+Public HTTPS readback on November 10, 2026 at 10:32:20 PM PST matches all 41 tracked public files byte for byte with that commit, including HTML, CSS, JavaScript, font, symbol, pen-underline and license assets. `_headers` is deployment configuration rather than a served asset. The fresh official Mac Stable lookup returned `157.0.8103.51`; the frozen published browser lock records `158.0.8127.18`, so it is not behind that observation. Local desktop/phone-size, fallback and Reduced Motion validation is recorded in the source notes; this readback does not add physical iPhone/Safari acceptance or a new browser release.
+
+Previous production record:
 
 [Deployment 42957488988](https://github.com/leebyron/lune-browser/actions/runs/42957488988) successfully deployed website commit `5b6d4ab6c6f2e01f195594da9fd74a5a5a40d590` using the existing local Mac runner and token. The owner accepted the paper surface, appearance-specific ink and pollen, wide shallow mote motion, timed text reveals, earlier personal note, macOS-style cursor and corrected sidebar labels. The opening wordmark retains Syne 800 at 40px after its missing size-variable fallback was repaired.
 
