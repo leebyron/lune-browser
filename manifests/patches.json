@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "1cd15a9c968749af7911e609445823c3092512e6",
+    "commit": "470c9465957673cfd817d557635f5f676ccfba75",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -725,6 +725,10 @@
       {
         "path": "patches/helium/ui/customize-no-transient-toolbar-icon.patch",
         "sha256": "52bc9c266025cbc370630bf6450cf901cacae4813bb775048f9c284cad17283c"
+      },
+      {
+        "path": "patches/helium/ui/devtools-header-hover.patch",
+        "sha256": "94e2013da64867502cd6c8294f6a39512124f873232031af72b1842380c4f30b"
       }
     ]
   },
@@ -1794,6 +1798,21 @@
       "adaptation": "Disable Chromium's existing ephemeral toolbar flag when registering Customize side-panel entries. Explicitly pinned Customize buttons retain their existing visibility and active state. Developed with quilt in prepared source, refreshed and unmerged into the platform; zero-fuzz replay matches the prepared source, patch lint and both architecture builds pass. Live Apple silicon checks cover Appearance, Toolbar and panel closing. Owner accepted November 10, 2026. See agent-docs/project/features/trailing-toolbar-controls.md.",
       "commits": [
         "1cd15a9c968749af7911e609445823c3092512e6"
+      ]
+    },
+    {
+      "id": "devtools-header-hover",
+      "depends_on": [
+        "native-toolbar-controls"
+      ],
+      "patches": [
+        "patches/helium/ui/devtools-header-hover.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Reveal and retain the hover header only over page content or the visible tabs sidebar, excluding side-docked DevTools.",
+      "adaptation": "Developed with quilt, refreshed and unmerged into the platform; strict zero-fuzz replay, patch lint, focused geometry fixtures and both changed GN targets pass. Both architecture browser builds and UI/browsing/persistence smoke checks pass (Intel under Rosetta). Owner accepted the live Apple silicon preview on November 10, 2026. Concurrent preview inputs and the corrected launch are recorded in agent-docs/project/features/devtools-header-hover.md.",
+      "commits": [
+        "470c9465957673cfd817d557635f5f676ccfba75"
       ]
     }
   ],

@@ -19,6 +19,8 @@ Main now includes owner-accepted [search-engine suggestions](features/search-sug
 
 The owner-accepted [Customize icon removal](features/trailing-toolbar-controls.md#customize-temporary-icon-removal) is included in future builds through signed platform input `inputs/customize-icon-1/macos`. Opening Customize no longer adds a temporary config icon to the trailing strip; both architecture builds and live Apple silicon panel checks pass. Published releases retain their frozen inputs.
 
+The owner-accepted [DevTools header hover fix](features/devtools-header-hover.md) is included in future builds through signed platform input `inputs/devtools-header-hover-1/macos`. Side-docked DevTools no longer reveal or retain the hover header; page content and the visible tabs sidebar remain eligible. Published releases retain their frozen inputs.
+
 Both architectures build on the local Apple silicon Mac. Intel runtime checks use Rosetta unless a report explicitly identifies physical hardware. The owner has Intel Macs on macOS 13.7.8 and 26.6.2 for manual checks; their availability is not acceptance of any particular binary. Publish after single-device acceptance and the technical gates pass; manual Intel results and per-release owner deferrals are not required.
 
 ## Hosting and automation
