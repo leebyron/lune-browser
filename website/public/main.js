@@ -113,7 +113,7 @@
     return {group,fraction:.025+(index+.2+moteRng()*.5)/14*.9,side:index%2?1:-1,gap:14+moteRng()*18,reach:65+moteRng()*55,x:0,y:0};
   });
   let vineStart=0, vineEnd=1, flowerStart=0, flowerEnd=1,introStart=0,introEnd=1;
-  let rootRanges=[],sprigRanges=[],textRanges=[];
+  let rootWave=null,sprigRanges=[],textRanges=[];
   const leafRanges=[];
   points.forEach((point, index) => {
     point.style.setProperty('--flow-offset', Math.sin(index / (points.length - 1) * 2 * Math.PI).toFixed(5));
@@ -258,75 +258,15 @@
     floorPoints.sort((a,b)=>a.x-b.x);
     const contour=smoothPath(floorPoints);
     soil.setAttribute('d',`${contour} L ${pages.clientWidth} ${botanicalHeight} L 0 ${botanicalHeight} Z`);
-    // A shared growth front keeps the established roots connected at 70% of
-    // their full reach. A separate mask carries the light from the crown.
-    const rootGrowth=document.createDocumentFragment(),rootMasks=svg('defs'),branches=[];
-    rootGrowth.append(rootMasks);
     const rootWidth=Math.min(420,pages.clientWidth*.54);
-    function rootBranch(start,angle,length,width,order,seed,travel=0) {
-      const local=random(seed),curve=[start],steps=Math.max(8,Math.ceil(length/6));
-      let x=start.x,y=start.y,heading=angle;
-      for(let i=1;i<=steps;i++) {
-        const t=i/steps,down=order===0?.28:.12;
-        const target=angle*(1-down*t)+noise(t*2.3+seed*.13,seed)*.7+noise(t*7.1+seed,seed+31)*.22;
-        heading+=(target-heading)*.48;
-        x+=Math.sin(heading)*length/steps;
-        y+=Math.max(.16,Math.cos(heading))*length/steps;
-        if(x<8||x>pages.clientWidth-8||Math.abs(x-rootX)>rootWidth/2||y>groundY+rootDepth)break;
-        curve.push({x,y});
-      }
-      if(curve.length<4)return;
-      const center=svg('path',{d:smoothPath(curve),class:'root-growth',fill:'none',stroke:'white','stroke-width':width+2,'stroke-linecap':'round',pathLength:1});
-      const distance=center.getTotalLength(),left=[],right=[];
-      curve.forEach((at,i)=>{
-        const before=curve[Math.max(0,i-1)],after=curve[Math.min(curve.length-1,i+1)],dx=after.x-before.x,dy=after.y-before.y,norm=Math.hypot(dx,dy)||1;
-        const taper=Math.pow(1-i/(curve.length-1),.85),radius=width/2*taper*(1+noise(i*.42+seed,seed)*.12);
-        left.push({x:at.x-dy/norm*radius,y:at.y+dx/norm*radius});
-        right.push({x:at.x+dy/norm*radius,y:at.y-dx/norm*radius});
-      });
-      const id=`story-root-${branches.length}`,mask=svg('mask',{id,maskUnits:'userSpaceOnUse',x:0,y:groundY-8,width:pages.clientWidth,height:rootDepth+16});
-      mask.append(center);rootMasks.append(mask);
-      const baseCenter=center.cloneNode();baseCenter.setAttribute('class','root-base-growth');
-      const baseMask=svg('mask',{id:`${id}-base`,maskUnits:'userSpaceOnUse',x:0,y:groundY-8,width:pages.clientWidth,height:rootDepth+16});
-      baseMask.append(baseCenter);rootMasks.append(baseMask);
-      const outline=smoothPath([...left,...right.reverse()],true),opacity=order===0?.95:.72+local()*.25;
-      const ink=svg('path',{d:outline,class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',opacity:opacity*.32,mask:`url(#${id}-base)`,'data-root-order':order});
-      const light=svg('path',{d:outline,class:'root-light',stroke:'none',mask:`url(#${id})`,opacity:opacity*.65});
-      rootGrowth.append(ink,light);branches.push({path:center,basePath:baseCenter,travel,end:travel+distance});
-      if(order>=3)return center;
-      const count=order===0?5+Math.floor(local()*3):order===1?1+Math.floor(local()*3):2+Math.floor(local()*3);
-      let side=local()<.5?-1:1;
-      for(let i=0;i<count;i++) {
-        const fraction=(order===2?.25:.14)+(i+.15+local()*.65)/count*(order===2?.52:.66),at=center.getPointAtLength(distance*fraction);
-        const before=center.getPointAtLength(Math.max(0,distance*fraction-1)),after=center.getPointAtLength(Math.min(distance,distance*fraction+1));
-        const tangent=Math.atan2(after.x-before.x,after.y-before.y);
-        if(local()<.72)side*=-1;
-        const childLength=order===2?7+local()*13:distance*(order===0?.26+local()*.3:.23+local()*.27)*(1-fraction*.35);
-        rootBranch(at,tangent+side*(.5+local()*.65),childLength,Math.max(.38,width*(order===0?.34+local()*.14:order===1?.4:.65)),order+1,seed*7+i+1,travel+distance*fraction);
-      }
-      return center;
-    }
-    const taproot=rootBranch({x:rootX,y:groundY},-.1,rootDepth*.99,3.3,0,113);
-    rootBranch(taproot.getPointAtLength(9),-1.2,rootDepth*1.5,2.7,0,239,9);
-    rootBranch(taproot.getPointAtLength(23),1.04,rootDepth*1.28,2.45,0,419,23);
-    roots.replaceChildren(rootGrowth);
+    measureRoots(rootX,groundY,rootDepth,rootWidth);
     flowerStart=Math.max(readingStart,readingStart+first.y-pageHeight*.85);
     flowerEnd=flowerStart+pageHeight*.45;
     vineStart=Math.max(0,readingStart+first.y-pageHeight*.8,flowerStart+(flowerEnd-flowerStart)*.35);
-    // Travel distance makes each offshoot light up only when the wave reaches
-    // its exact attachment, with the whole burst complete before the last viewport.
     vineEnd=readingStart+groundY-pageHeight*.6;
-    const longest=Math.max(...branches.map(branch=>branch.end)),waveDistance=pageHeight*.27;
-    rootRanges=branches.map(({path,basePath,travel,end:distance})=>{
-      const start=vineEnd+waveDistance*travel/longest,end=vineEnd+waveDistance*distance/longest;
-      path.style.setProperty('--root-start',`${start}px`);path.style.setProperty('--root-end',`${end}px`);
-      const baseFrom=clamp((distance-longest*.7)/(distance-travel));
-      const baseStart=Math.max(vineEnd,vineEnd+waveDistance*(travel/longest-.7)/.3);
-      const baseEnd=Math.max(baseStart+1,vineEnd+waveDistance*(distance/longest-.7)/.3);
-      basePath.style.setProperty('--root-base-from',baseFrom);
-      basePath.style.setProperty('--root-start',`${baseStart}px`);basePath.style.setProperty('--root-end',`${baseEnd}px`);
-      return {path,basePath,start,end,baseFrom,baseStart,baseEnd};
-    });
+    rootWave.start=vineEnd;rootWave.end=vineEnd+pageHeight*.27;
+    roots.style.setProperty('--root-start',`${rootWave.start}px`);
+    roots.style.setProperty('--root-end',`${rootWave.end}px`);
     root.style.setProperty('--vine-start',`${vineStart}px`);
     root.style.setProperty('--vine-end',`${vineEnd}px`);
     root.style.setProperty('--flower-start',`${flowerStart}px`);
@@ -345,6 +285,74 @@
       const center=(box.top-pageBox.top)/scale+point.offsetHeight/2-(index===0?22:10);
       textRanges.push({text,start:readingStart+center-pageHeight*.85});
     });
+  }
+  function measureRoots(rootX,groundY,rootDepth,rootWidth) {
+    // Cache the complete silhouettes until layout changes. Only two radial
+    // fronts animate, instead of a pair of centerline masks for every branch.
+    const key=[rootX,groundY,rootDepth,rootWidth,pages.clientWidth].join(',');
+    if(rootWave?.key===key)return;
+    const rootGrowth=document.createDocumentFragment(),rootMasks=svg('defs');
+    const gradient=svg('radialGradient',{id:'root-reveal',cx:0,cy:0,r:1,gradientUnits:'userSpaceOnUse'});
+    gradient.append(svg('stop',{offset:'.9','stop-color':'white'}),svg('stop',{offset:1,'stop-color':'white','stop-opacity':0}));
+    rootMasks.append(gradient);rootGrowth.append(rootMasks);
+    const base=svg('g',{class:'root-base',mask:'url(#root-base-mask)'});
+    const light=svg('g',{class:'root-light',mask:'url(#root-light-mask)'});
+    rootGrowth.append(base,light);
+    let reach=0;
+    function rootBranch(start,angle,length,width,order,seed) {
+      const local=random(seed),curve=[start],steps=Math.max(8,Math.ceil(length/6));
+      let x=start.x,y=start.y,heading=angle;
+      for(let i=1;i<=steps;i++) {
+        const t=i/steps,down=order===0?.28:.12;
+        const target=angle*(1-down*t)+noise(t*2.3+seed*.13,seed)*.7+noise(t*7.1+seed,seed+31)*.22;
+        heading+=(target-heading)*.48;
+        x+=Math.sin(heading)*length/steps;
+        y+=Math.max(.16,Math.cos(heading))*length/steps;
+        if(x<8||x>pages.clientWidth-8||Math.abs(x-rootX)>rootWidth/2||y>groundY+rootDepth)break;
+        curve.push({x,y});
+      }
+      if(curve.length<4)return;
+      const center=svg('path',{d:smoothPath(curve)});
+      const distance=center.getTotalLength(),left=[],right=[];
+      curve.forEach((at,i)=>{
+        const before=curve[Math.max(0,i-1)],after=curve[Math.min(curve.length-1,i+1)],dx=after.x-before.x,dy=after.y-before.y,norm=Math.hypot(dx,dy)||1;
+        const taper=Math.pow(1-i/(curve.length-1),.85),radius=width/2*taper*(1+noise(i*.42+seed,seed)*.12);
+        left.push({x:at.x-dy/norm*radius,y:at.y+dx/norm*radius});
+        right.push({x:at.x+dy/norm*radius,y:at.y-dx/norm*radius});
+        reach=Math.max(reach,Math.hypot(at.x-rootX,at.y-groundY)+radius);
+      });
+      const outline=smoothPath([...left,...right.reverse()],true),opacity=order===0?.95:.72+local()*.25;
+      base.append(svg('path',{d:outline,class:'root-outline',fill:'var(--botanical-ink)',stroke:'none',opacity:opacity*.5,'data-root-order':order}));
+      light.append(svg('path',{d:outline,stroke:'none',opacity:opacity*.9}));
+      if(order>=3)return center;
+      const count=order===0?5+Math.floor(local()*3):order===1?1+Math.floor(local()*3):2+Math.floor(local()*3);
+      let side=local()<.5?-1:1;
+      for(let i=0;i<count;i++) {
+        const fraction=(order===2?.25:.14)+(i+.15+local()*.65)/count*(order===2?.52:.66),at=center.getPointAtLength(distance*fraction);
+        const before=center.getPointAtLength(Math.max(0,distance*fraction-1)),after=center.getPointAtLength(Math.min(distance,distance*fraction+1));
+        const tangent=Math.atan2(after.x-before.x,after.y-before.y);
+        if(local()<.72)side*=-1;
+        const childLength=order===2?7+local()*13:distance*(order===0?.26+local()*.3:.23+local()*.27)*(1-fraction*.35);
+        rootBranch(at,tangent+side*(.5+local()*.65),childLength,Math.max(.38,width*(order===0?.34+local()*.14:order===1?.4:.65)),order+1,seed*7+i+1);
+      }
+      return center;
+    }
+    const taproot=rootBranch({x:rootX,y:groundY},-.1,rootDepth*.99,3.3,0,113);
+    rootBranch(taproot.getPointAtLength(9),-1.2,rootDepth*1.5,2.7,0,239);
+    rootBranch(taproot.getPointAtLength(23),1.04,rootDepth*1.28,2.45,0,419);
+    // The final opaque plateau covers every outline, including its stroke
+    // width. Keep each mask tightly bounded to the small root illustration.
+    const radius=(reach+2)/.9;
+    function front(kind) {
+      const mask=svg('mask',{id:`root-${kind}-mask`,maskUnits:'userSpaceOnUse',x:rootX-rootWidth/2-8,y:groundY-8,width:rootWidth+16,height:rootDepth+16,style:'mask-type:alpha'});
+      const origin=svg('g',{transform:`translate(${rootX} ${groundY})`});
+      const circle=svg('circle',{class:`root-${kind}-front`,r:1,fill:'url(#root-reveal)'});
+      origin.append(circle);mask.append(origin);rootMasks.append(mask);
+      circle.style.setProperty('--root-radius',radius);
+      return circle;
+    }
+    rootWave={key,base:front('base'),light:front('light'),radius,progress:null};
+    roots.replaceChildren(rootGrowth);
   }
   function updateBotany(y) {
     // Scroll chooses a settled state; CSS transitions own the elapsed-time motion.
@@ -372,6 +380,14 @@
       const opening=reduce.matches?1:introEase(clamp((y-lightStart)/(lightEnd-lightStart)));
       group.setAttribute('transform',`rotate(${side*7*opening} ${at.x} ${at.y})`);
     });
+    if(!nativeTimeline||reduce.matches) {
+      const progress=reduce.matches?1:clamp((y-rootWave.start)/(rootWave.end-rootWave.start));
+      if(progress!==rootWave.progress) {
+        rootWave.base.style.transform=`scale(${rootWave.radius*(.7+.3*progress)})`;
+        rootWave.light.style.transform=`scale(${rootWave.radius*progress})`;
+        rootWave.progress=progress;
+      }
+    }
     if(nativeTimeline||reduce.matches)return;
     const introProgress=clamp((y-introStart)/(introEnd-introStart)),intro=introEase(introProgress);
     introLogo.style.opacity=clamp((introProgress-.03)/.05);
@@ -381,11 +397,6 @@
       if(circle.classList.contains('setup-cutout'))circle.style.r=`${111+1.725508*intro}px`;
     });
     introLogo.style.transform=`scale(${1.2-.2*intro})`;
-    rootRanges.forEach(({path,basePath,start,end,baseFrom,baseStart,baseEnd})=>{
-      const progress=clamp((y-start)/(end-start));
-      path.style.strokeDasharray='1';path.style.strokeDashoffset=1-progress;
-      basePath.style.strokeDasharray='1';basePath.style.strokeDashoffset=baseFrom*(1-clamp((y-baseStart)/(baseEnd-baseStart)));
-    });
     vineGrowth.style.strokeDasharray='1';
     vineGrowth.style.strokeDashoffset=1-clamp((y-vineStart)/(vineEnd-vineStart));
     const bloom=clamp((y-flowerStart)/(flowerEnd-flowerStart));
@@ -719,7 +730,7 @@
   }
   const geometryObserver=new ResizeObserver(scheduleMeasure);
   [stage,pages,root.querySelector('.viewport'),...points].forEach(element=>geometryObserver.observe(element));
-  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');introLogo.style.removeProperty('opacity');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
+  reduce.addEventListener('change',()=>{introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');introLogo.style.removeProperty('opacity');[rootWave.base,rootWave.light].forEach(front=>front.style.removeProperty('transform'));rootWave.progress=null;vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
   measure();widths.fill(base);
   scheduleMeasure();
   document.fonts.ready.then(scheduleMeasure);

@@ -228,10 +228,12 @@ svg { display: block; }
   #lune .petal-right { transform:rotate(24deg); }
   #lune .petal-front { transform:scale(1.08,.72); }
   #lune .vine-soil { fill:light-dark(#E7EDE5,#123347); stroke:none; }
-  #lune .vine-roots { fill:none; stroke:var(--botanical-ink); stroke-width:1; stroke-linecap:round; opacity:.68; }
-  #lune .root-light { fill:color-mix(in oklab,var(--botanical-ink) 55%,var(--biolume)); }
-  @keyframes root-grow { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
-  @keyframes root-base-grow { from { stroke-dashoffset:var(--root-base-from); } to { stroke-dashoffset:0; } }
+  #lune .vine-roots { fill:none; stroke:var(--botanical-ink); stroke-width:1; stroke-linecap:round; opacity:.85; }
+  #lune .root-light { fill:light-dark(var(--botanical-ink),color-mix(in oklab,var(--botanical-ink) 55%,var(--biolume))); }
+  #lune .root-base-front { transform:scale(calc(var(--root-radius) * .7)); }
+  #lune .root-light-front { transform:scale(0); }
+  @keyframes root-glow { from { transform:scale(0); } to { transform:scale(var(--root-radius)); } }
+  @keyframes root-grow { from { transform:scale(calc(var(--root-radius) * .7)); } to { transform:scale(var(--root-radius)); } }
   @keyframes vine-grow { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
   @keyframes flower-unfold { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
   @keyframes petal-back-open { from { transform:scaleX(.6); } to { transform:scaleX(1); } }
@@ -240,8 +242,8 @@ svg { display: block; }
   @keyframes petal-front-open { from { transform:scale(.62,1.14); } to { transform:scale(1.08,.72); } }
   @keyframes stamen-reveal { from { transform:translateY(5px) scale(.16,.72); opacity:.6; } to { transform:translateY(0) scale(1); opacity:1; } }
   @supports(animation-timeline:scroll()) {
-    #lune .root-growth { stroke-dasharray:1; animation:root-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--root-start) var(--root-end); }
-    #lune .root-base-growth { stroke-dasharray:1; animation:root-base-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--root-start) var(--root-end); }
+    #lune .root-base-front,#lune .root-light-front { animation:root-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--root-start) var(--root-end); }
+    #lune .root-light-front { animation-name:root-glow; }
     #lune .vine-growth { stroke-dasharray:1; animation:vine-grow linear both; animation-timeline:--lune-scroll; animation-range:var(--vine-start) var(--vine-end); }
     #lune .flower-bloom { animation:flower-unfold linear both; }
     #lune .petal-back { animation:petal-back-open linear both; }
@@ -300,9 +302,9 @@ svg { display: block; }
   #lune .mote-float { animation:none; offset-path:none; }
   #lune .prelude-note p,#lune .flow-point p { transition:none; opacity:1; transform:none; mask-image:none; }
   #lune .window { animation:none; }
-  #lune .botanical-bullet,#lune .flower-bloom,#lune .petal,#lune .flower-stamens,#lune .vine-growth,#lune .root-growth,#lune .setup-logo,#lune .setup-logo .setup-outer,#lune .setup-logo .setup-cutout { animation:none; }
+  #lune .botanical-bullet,#lune .flower-bloom,#lune .petal,#lune .flower-stamens,#lune .vine-growth,#lune .setup-logo,#lune .setup-logo .setup-outer,#lune .setup-logo .setup-cutout { animation:none; }
   #lune .setup-logo { opacity:1; }
-  #lune .root-growth,#lune .root-base-growth { animation:none; stroke-dasharray:none; stroke-dashoffset:0; opacity:1; }
+  #lune .root-base-front,#lune .root-light-front { animation:none; transform:scale(var(--root-radius)); }
   #lune .vine-growth { stroke-dasharray:none; stroke-dashoffset:0; }
   #lune .demo-cursor,#lune .demo-click { display:none; animation:none; }
   #lune .browser-sidebar,#lune .viewport { transition:none; }
