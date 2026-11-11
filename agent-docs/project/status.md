@@ -40,6 +40,10 @@ The public source repository also hosts releases and paired raw-GitHub stable fe
 
 Use the existing self-hosted Mac runner with no added CI spend. Manual browser builds, setup checks and website deployment are guarded workflows. Scheduled browser builds and unattended publication are not enabled. Credentials stay in Keychain; generated sources, caches and signed artifacts stay in ignored workspaces.
 
+## Completing validated changes
+
+Follow the [commit and completion process](committing.md): close specific fully resolved issues, quit temporary builds and remove disposable artifacts after recording validation evidence. The November 11 [preview cleanup](builds/2026-11-11-development-preview-cleanup.md) removed 22 temporary apps and the completed address-bar fixtures while retaining reusable build inputs and release evidence.
+
 ## Known open product issues
 
 The Make default browser sidebar item can be absent on the reported macOS 13 install; Settings > Default browser remains available. Native resize cursors can flicker while Lune is active; resizing remains functional. Do not claim either fixed without new evidence. Other feature reports and open GitHub issues contain their scoped limitations.

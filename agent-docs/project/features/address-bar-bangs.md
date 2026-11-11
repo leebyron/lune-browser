@@ -1,6 +1,6 @@
 # Native address-bar bangs
 
-Implemented November 11, 2026. The development lock selects platform input `inputs/address-bar-bangs-2/macos` (`b060587ba6d6ab55a8949b705672f8d92463f389`). The owner accepted the live Apple silicon preview on November 11, 2026 and requested inclusion in main builds. The isolated preview is `.work/address-bangs/Lune Address Bangs Test.app`. Published releases retain their frozen inputs.
+Implemented November 11, 2026. The development lock selects platform input `inputs/address-bar-bangs-2/macos` (`b060587ba6d6ab55a8949b705672f8d92463f389`). The owner accepted the live Apple silicon preview on November 11, 2026 and requested inclusion in main builds. The isolated preview was quit and removed after acceptance under the [completion process](../committing.md). Published releases retain their frozen inputs.
 
 ## Behavior
 
@@ -20,9 +20,9 @@ The reusable platform quilt patch is `patches/helium/ui/address-bar-bangs.patch`
 
 Topic commit `e3161f646192994f5fefa037510df467a22f1e09` descends from platform input `009caf230874153962f9965367ab79e789c8ed36`. The signed integration commit has parents `7e40287873ebf0e5bc465c64960485f76391cd6a` (the current accepted command-menu glass input) and the complete address-bar topic. It appends the address patch after the unchanged current series; the core gitlink is unchanged.
 
-Evidence under `.work/address-bangs/`:
+Retained validation logs and JSON reports are under `.work/address-bangs/`. Temporary source/replay fixtures, the platform clone, preview app and disposable test profile were removed after acceptance; see the [cleanup record](../builds/2026-11-11-development-preview-cleanup.md). The entries below describe the completed validation:
 
-- `baseline/` reconstructs the locked prepared frame from its pristine quilt backup using strict patch replay and verifies byte parity before development. `quilt-src/` is an isolated source fixture; `quilt-patches/` retains quilt's refreshed patch. Helium's merge/unmerge tool exports it into the platform clone.
+- `baseline/` reconstructed the locked prepared frame from its pristine quilt backup using strict patch replay and verified byte parity before development. `quilt-src/` was the isolated source fixture; `quilt-patches/` held quilt's refreshed patch. Helium's merge/unmerge tool exported it into the platform clone; the patch and full source history are retained in the published input.
 - `strict-replay.json` and `strict-replay.log` establish zero-fuzz replay and parity with the compiled frame. `composed-input.json` records both parent identities and the integration tree.
 - `build-arm64.log` and `build-x86_64.log` pass complete incremental browser, ChromeDriver and installer targets against the existing prepared development tree. These are not fresh full Chromium preparations.
 - `strict-stack.json` proves the composed input strictly reproduces all six address/shared model/rendering source files, including the accepted command-menu glass. `lock-validation.log` verifies locked ancestry, signed input identity, trees, patch order/hashes and the core gitlink. All 73 repository tests pass (`repository-tests.log`).
