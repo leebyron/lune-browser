@@ -1,0 +1,64 @@
+--- a/chrome/app/settings_chromium_strings.grdp
++++ b/chrome/app/settings_chromium_strings.grdp
+@@ -261,7 +261,7 @@
+     When you type in the address bar or search box, Chromium sends what you type to your default search engine to get better suggestions. This is off in Incognito.
+   </message>
+   <message name="IDS_SETTINGS_SUGGEST_PREF_DESC_HELIUM" desc="The description of the checkbox to enable/disable sending omnibox input to the user's default search engine to get additional suggestions.">
+-    When you type in the address bar, Chromium sends what you type to your default search engine to get suggestions. This is off in Incognito.
++    Send what you type in the address bar and Command-T to your selected search engine for search and website suggestions. This is off in Incognito.
+   </message>
+   <message name="IDS_SETTINGS_SEARCH_AGGREGATOR_PREF_DESC" desc="The description of the 'Show suggestions and results from your organization' checkbox, which enables/disables sending omnibox input to the user's organization's search aggregator to get additional suggestions. Note that this setting is controlled by enterprise policy and, while a checkbox is shown, it is always enabled and cannot be disabled.">
+     When you type in the address bar or search box, Chromium sends what you type to your organization's search, AI, and agent tools to get suggestions.
+@@ -451,4 +451,4 @@
+   <message name="IDS_SETTINGS_DICTATION_SHORTCUT_SUBLABEL" translateable="false" desc="Sublabel for the keyboard shortcut setting in Dictation settings page.">
+     Open Dictation with a keyboard shortcut
+   </message>
+-</grit-part>
+\ No newline at end of file
++</grit-part>
+--- a/chrome/app/shared_settings_strings.grdp
++++ b/chrome/app/shared_settings_strings.grdp
+@@ -248,7 +248,7 @@
+     Improve search suggestions
+   </message>
+   <message name="IDS_SETTINGS_SUGGEST_PREF_HELIUM" desc="The label of the checkbox to enable/disable sending omnibox input to the user's default search engine to get additional suggestions.">
+-    Suggestions from the search engine
++    Search suggestions
+   </message>
+   <!-- Sync Accounts page (used by the <settings-sync-account-control> element) -->
+   <message name="IDS_SETTINGS_PEOPLE_SIGNED_IN_TO_ACCOUNT" desc="The text displayed to the user that the profile is currently signed in to a specific account.">
+@@ -466,4 +466,4 @@
+       Invalid password
+     </message>
+   </if>
+-</grit-part>
+\ No newline at end of file
++</grit-part>
+--- a/chrome/browser/resources/settings/search_page/search_page.html.ts
++++ b/chrome/browser/resources/settings/search_page/search_page.html.ts
+@@ -83,6 +83,12 @@
+       `}
+     ` : ''}
+ 
++    <settings-toggle-button id="searchSuggestToggle" class="hr"
++        pref-key="search.suggest_enabled"
++        label="$i18n{searchSuggestPref}"
++        sub-label="$i18n{searchSuggestPrefDesc}">
++    </settings-toggle-button>
++
+     ${!this.searchSettingsUpdateEnabled_ ? html`
+       <!-- Manage search engines -->
+       <cr-link-row class="hr" id="enginesSubpageTrigger"
+@@ -93,12 +99,6 @@
+   </div>
+ </settings-section>
+ <settings-section page-title="$i18n{addressBarPageTitle}">
+-  <settings-toggle-button id="searchSuggestToggle"
+-      pref-key="search.suggest_enabled"
+-      label="$i18n{searchSuggestPref}"
+-      sub-label="$i18n{searchSuggestPrefDesc}">
+-  </settings-toggle-button>
+-
+   <div class="cr-row">
+     $i18n{localSuggestions}
+   </div>
