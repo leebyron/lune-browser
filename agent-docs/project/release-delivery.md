@@ -8,6 +8,15 @@ commits and existing release records remain immutable. Run build/package command
 from the frozen checkout. The current publication tool accepts `--source-checkout`
 pointing to that checkout and records its own distinct publisher commit.
 
+Launch upload and promotion with `python3 scripts/release/run_publisher.py`,
+followed by the publisher arguments below. Run it from the normal configured
+shell, not through the compilation environment wrapper. The launcher keeps
+macOS utilities first, resolves only the GitHub CLI and OpenPGP tool directories,
+and preserves `GNUPGHOME`, `GPG_TTY`, SSH agent and GitHub authentication settings.
+It checks tool availability before publication. Compilation continues to exclude
+these credentials. Git signing uses the existing configured key; an omitted
+`GNUPGHOME` must not be mistaken for a missing key or trigger key recreation.
+
 ## Public URL contract
 
 Source, browser releases, appcasts and compact release metadata all live in
@@ -112,14 +121,14 @@ additional CI cost; this work does not activate scheduled release jobs.
    in the public Git repository; source-kit export is not a release prerequisite.
 7. Retain a signed annotated `v<VERSION>` source tag at the exact frozen source
    commit and push it and all permanent component input refs to the public source
-   repository. Use the current publisher with `upload --source-checkout FROZEN
+   repository. Use `python3 scripts/release/run_publisher.py upload --source-checkout FROZEN
    --directory PUBLICATION --notes-file NOTES`. It checks anonymous source access
    and exact ref targets, then creates an unpublished, non-prerelease draft and
    uploads only browser delivery files and compact metadata. GitHub asset digests
    must match. Keep upload-receipt.json; promotion rechecks every uploaded asset
    and the public source refs. No asset is overwritten or dependency archive copied.
 8. Record acceptance on one physical device against the version, source commit and exact DMG hashes. Both architectures must pass the software checks; Intel may run under Rosetta on the accepted Apple silicon Mac. Do not wait for manual Intel testing, another owner confirmation or a deferral. Additional hardware/OS checks are optional follow-up.
-9. After single-device acceptance and all technical gates pass, publish the authorized release using the reviewed publisher's `promote --channel stable --source-checkout FROZEN` with the publication directory, acceptance JSON and public checkout. Acceptance and a fresh Chromium lookup pass before it undrafts the final release. It verifies anonymous immutable downloads, rechecks freshness, commits
+9. After single-device acceptance and all technical gates pass, publish the authorized release using `python3 scripts/release/run_publisher.py promote --channel stable --source-checkout FROZEN` with the publication directory, acceptance JSON and public checkout. Acceptance and a fresh Chromium lookup pass before it undrafts the final release. It verifies anonymous immutable downloads, rechecks freshness, commits
    both stable feeds, then marks the release latest. Verify both raw feeds,
    both latest download links, the release page and public HTTPS installed updates,
    then verify the website resolves through those latest links. Deploy the website only when its source changes. If a step fails, preserve existing feeds and resume
