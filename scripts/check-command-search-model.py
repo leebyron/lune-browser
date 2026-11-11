@@ -76,6 +76,7 @@ struct GURL {
 }
 struct Selection {
   size_t selected_ = 0;
+  bool selection_is_explicit_ = false;
   std::vector<HeliumCommandBarItem> displayed_items_;
   void Update(const std::vector<HeliumCommandBarItem>& items) {
 ''' + selection[0] + r'''
@@ -153,6 +154,7 @@ int main() {
   assert(view.selected_ == 0 && view.displayed_items_[0].type == Type::kSearch);
   view.Update(mixed);
   view.selected_ = 3;
+  view.selection_is_explicit_ = true;
   auto arriving = Make(Type::kNavigationSuggestion, "arrived", 60);
   mixed.insert(mixed.begin(), arriving);
   view.Update(mixed);
@@ -167,6 +169,19 @@ int main() {
   scope.site_keyword = "one";
   other_scope.site_keyword = "two";
   assert(!SameItem(scope, other_scope));
+  // A disappearing command cannot silently turn Enter into another action.
+  Item command = Make(Type::kCommand, "", 100);
+  command.command = 42;
+  view.Update({command});
+  view.selected_ = 0;
+  view.selection_is_explicit_ = true;
+  view.Update({Make(Type::kCommand, "", 80)});
+  assert(view.selected_ == 1 && view.selection_is_explicit_);
+  view.Update({Make(Type::kCommand, "", 80), command});
+  assert(view.selected_ == 2 && view.selection_is_explicit_);
+  view.selection_is_explicit_ = false;  // Query edit starts a new selection.
+  view.Update({command});
+  assert(view.selected_ == 0);
   std::cout << "PASS: navigation without keyword, engine-origin filtering, typed action priority, cap, remote/local deduplication, remote ordering, stable selection, removal, empty results and scope identity\n";
 }
 '''
