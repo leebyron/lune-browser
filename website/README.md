@@ -17,8 +17,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   which also bypasses any remaining launch delay and fade for fast scrolling.
 - The personal note and ten botanical paragraphs use locally served Rock Salt
   at 16px/32px. The note has two separate paragraphs: “I made Lune for myself”
-  and “I wanted a private browser that stayed out of my way”. The second begins
-  860ms after the first, so each 800ms wipe completes in sequence.
+  and “I wanted a browser that stayed out of my way”. The second begins
+  1200ms after the first, leaving a 400ms pause after the first 800ms wipe.
 - The flower begins the owner's ten-line sequence: Chromium, removed Google
   services, extension proxying, uBlock Origin, Mac details, the command menu,
   Helium's !bangs, the disappearing toolbar, vertical tabs and open source.
@@ -37,13 +37,17 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   the target state, and transitions finish even when scrolling stops. Point copy
   enters at 85% of the browser viewport and stays visible above that threshold,
   including past the top edge. Scrolling back below the lower threshold fades it
-  out. The personal note triggers at 75% of the logo's opening range,
-  slightly before the mark finishes. Reversing below the threshold cancels the
-  stagger immediately. Reduced Motion shows settled, fully unmasked text.
+  out. The personal note triggers when its first line's resting center reaches
+  68% of the browser viewport, while the logo is still opening. Reversing below
+  the threshold cancels the stagger immediately. Reduced Motion shows settled, fully unmasked text.
   The earlier 85% trigger advances each point by 10% of the browser viewport
   (72px in the 720px desktop window). Local inspection confirms the flower
   copy is visible at an 81.8% resting-center position, before the former 75%
-  threshold. The personal-note trigger and transition timings are unchanged.
+  threshold. The text transition timings remain unchanged.
+- The inner logo starts at 70% of the pane height and opens over 65% of a
+  viewport of scrolling (previously 50% and 22%). The note stays 128px below
+  the logo center. The prelude spans 1.28 viewports, followed by 168px before
+  the flower section, adding 40px of breathing room before the flower.
 - Both Lune wordmarks use Syne 800. The opening title has an explicit 40px
   fallback so removing a size variable cannot invalidate its font shorthand.
 - The Cmd-T sentence opens a passive glass-menu illustration when its center

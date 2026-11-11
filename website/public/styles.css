@@ -197,15 +197,15 @@ svg { display: block; }
   #lune .pages > .story-section { position:relative; z-index:2; }
   #lune .story-section { width:var(--story-width); max-width:100%; margin-inline:auto; padding-inline:clamp(24px,5vw,56px); }
   #lune .story-section p { margin:0; font:400 20px/32px Inter,sans-serif; letter-spacing:0; color:var(--text); text-wrap:balance; }
-  #lune .story-prelude { position:relative; height:calc(var(--page) * 1.08); flex:none; display:flex; align-items:center; justify-content:center; }
-  #lune .story-prelude .prelude-note { position:absolute; top:calc(var(--page) * .5 + 128px); left:50%; translate:-50% 0; width:calc(100% - 64px); display:grid; gap:20px; text-align:center; }
+  #lune .story-prelude { position:relative; height:calc(var(--page) * 1.28); flex:none; display:flex; align-items:center; justify-content:center; }
+  #lune .story-prelude .prelude-note { position:absolute; top:calc(var(--page) * .70 + 128px); left:50%; translate:-50% 0; width:calc(100% - 64px); display:grid; gap:20px; text-align:center; }
   #lune .prelude-note p,#lune .flow-point p { font:400 16px/32px 'Rock Salt',cursive; }
   #lune .prelude-note p { width:fit-content; max-width:100%; margin-inline:auto; }
-  #lune .setup-logo { position:absolute; top:calc(var(--page) * .5); translate:0 -50%; display:block; width:160px; height:auto; flex:none; overflow:visible; opacity:0; }
+  #lune .setup-logo { position:absolute; top:calc(var(--page) * .70); translate:0 -50%; display:block; width:160px; height:auto; flex:none; overflow:visible; opacity:0; }
   #lune .setup-logo circle { transform:translateX(var(--shift)); }
   #lune .setup-left { fill:light-dark(#258D91,#00A7BE); }
   #lune .setup-right { fill:light-dark(#789751,#5386BF); }
-  #lune .story-intro { margin-top:calc(128px - clamp(120px,24vh,180px)); }
+  #lune .story-intro { margin-top:calc(168px - clamp(120px,24vh,180px)); }
   #lune .story-intro .flow-point p { translate:0 -22px; }
   @keyframes setup-circle-open { from { transform:translateX(0); } to { transform:translateX(var(--shift)); } }
   @keyframes setup-cutout-open { from { transform:translateX(0); r:111px; } to { transform:translateX(var(--shift)); r:112.725508px; } }
@@ -213,7 +213,7 @@ svg { display: block; }
   @keyframes setup-logo-appear { 0%,3% { opacity:0; } 8%,100% { opacity:1; } }
   #lune .prelude-note p,#lune .flow-point p { --text-wipe:0%; opacity:var(--text-opacity,0); transform:translateY(var(--text-shift,6px)); mask-image:linear-gradient(to right,#000 calc(var(--text-wipe) - 16%),transparent var(--text-wipe)); transition:opacity var(--text-duration,200ms) cubic-bezier(.2,.8,.2,1) var(--text-delay,0ms),transform var(--text-duration,200ms) cubic-bezier(.2,.8,.2,1) var(--text-delay,0ms),--text-wipe var(--text-wipe-duration,200ms) ease-in-out var(--text-delay,0ms); }
   #lune :is(.prelude-note p,.flow-point p)[data-text-state="visible"] { --text-opacity:1; --text-shift:0px; --text-duration:600ms; --text-wipe-duration:800ms; --text-wipe:116%; }
-  #lune .prelude-note p:nth-child(2)[data-text-state="visible"] { --text-delay:860ms; }
+  #lune .prelude-note p:nth-child(2)[data-text-state="visible"] { --text-delay:1200ms; }
   @supports(animation-timeline:scroll()) {
     #lune .setup-logo { animation:setup-logo-settle cubic-bezier(.2,.8,.2,1) both,setup-logo-appear linear both; }
     #lune .setup-logo .setup-outer { animation:setup-circle-open cubic-bezier(.2,.8,.2,1) both; }

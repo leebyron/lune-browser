@@ -165,10 +165,12 @@
     root.style.setProperty('--hairline', `${1 / (devicePixelRatio * browserScale)}px`);
     root.style.setProperty('--story-width', `${Math.min(840, win.clientWidth - 2 * parseFloat(style.getPropertyValue('--rail')) - sidebarWidth)}px`);
     introStart=readingStart;
-    introEnd=readingStart+pageHeight*.22;
+    introEnd=readingStart+pageHeight*.65;
     root.style.setProperty('--intro-start',`${introStart}px`);
     root.style.setProperty('--intro-end',`${introEnd}px`);
-    textRanges=[...pages.querySelectorAll('.prelude-note p')].map(text=>({text,start:introStart+(introEnd-introStart)*.75}));
+    const note=pages.querySelector('.prelude-note');
+    const noteStart=Math.max(readingStart,readingStart+note.offsetTop+note.firstElementChild.offsetHeight/2-pageHeight*.68);
+    textRanges=[...note.querySelectorAll('p')].map(text=>({text,start:noteStart}));
     const coda=pages.querySelector('.coda'),codaContent=coda.querySelector('.coda-content'),thanks=coda.querySelector('.upstream-thanks'),byline=coda.querySelector('.byline');
     const actionsBottom=pageHeight/2+codaContent.offsetHeight/2;
     coda.style.setProperty('--thanks-top',`${(actionsBottom+byline.offsetTop)/2-thanks.offsetHeight/2}px`);
