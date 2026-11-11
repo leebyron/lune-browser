@@ -74,3 +74,36 @@ claim a clean frozen release build or a new signed/notarized browser release.
 Native Intel hardware and pre-glass macOS runtime acceptance remain unverified.
 The separate Dock removal was validated by its own changed-unit checks rather
 than rebuilding the combined browser after that disjoint patch was added.
+
+## Default toolbar visibility
+
+Requested November 11, 2026. Downloads is included in the registered default
+`toolbar.pinned_actions` list. Profiles without a saved toolbar list show the
+button immediately, including while idle. Saved toolbar lists retain their
+precedence, so an explicit unpin remains effective. Customize Toolbar's existing
+Reset to default action restores Downloads through the same registered default.
+Download progress, completion attention, menus and temporary visibility retain
+their existing behavior.
+
+Signed platform commit `62f2f236c7fd191e6f998450a1e0ce8058bcc9ca`, retained by
+`inputs/downloads-default-1/macos`, adds the focused
+`helium/ui/downloads-toolbar-default.patch` above the accepted address-bar bangs
+input. The core gitlink is unchanged. The development lock and patch provenance
+select this default for future builds; published releases retain their frozen
+inputs. No open issue specifically tracks this request.
+
+The preference change was developed with quilt from the prepared source,
+refreshed and unmerged into the platform stack. Strict replay uses zero fuzz and
+zero offsets and reproduces the compiled source byte for byte. Platform patch
+lint and locked ancestry, tag, tree, gitlink and patch-hash validation pass.
+
+Both full browser/ChromeDriver builds pass. Disposable-profile runtime checks
+pass on native Apple silicon and x86_64 under Rosetta: a fresh profile includes
+Downloads, an explicitly empty pinned list survives a restart, and Settings'
+Reset to default restores Downloads. All 73 repository tests, workflow safety
+checks, documentation links and whitespace checks pass. These checks do not
+claim native Intel hardware validation, a headed visual review, a linked
+Chromium browser-test suite, or a new browser release. Concise build/replay and
+runtime reports are retained under `.work/default-downloads/`; task profiles and
+isolated quilt/checkout artifacts are removed after publication. The shared
+prepared Chromium source and incremental build outputs remain available.

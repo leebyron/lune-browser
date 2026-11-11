@@ -30,6 +30,8 @@ The owner-accepted [expanded Command-T commands](features/command-bar-actions.md
 
 The development lock also includes [native address-bar bangs](features/address-bar-bangs.md), reusing Command-T matching, provider pills, scope editing and local usage. Both builds, focused native regressions and Apple silicon interaction checks pass. The owner accepted the preview on November 11, 2026 and requested inclusion in main builds. Published 26.1111.2 remains unchanged.
 
+The development lock also selects [Downloads pinned by default](features/downloads.md#default-toolbar-visibility) through `inputs/downloads-default-1/macos`. Profiles without saved toolbar customizations show Downloads immediately, saved unpins retain precedence, and Reset to default restores it. Published releases retain their frozen inputs.
+
 Both architectures build on the local Apple silicon Mac. Intel runtime checks use Rosetta unless a report explicitly identifies physical hardware. The owner has Intel Macs on macOS 13.7.8 and 26.6.2 for manual checks; their availability is not acceptance of any particular binary. Publish after single-device acceptance and the technical gates pass; manual Intel results and per-release owner deferrals are not required.
 
 The owner-accepted [stable command-menu glass](features/command-menu-stable-glass.md) is selected for future main builds through `inputs/command-menu-glass-1/macos`. Cmd+T and Cmd+/ keep the existing neutral backing at every result-list size, preventing the transparent tone-switching transition. Both browser builds and native regressions pass (Intel fixtures under Rosetta). Published releases retain their frozen inputs.
