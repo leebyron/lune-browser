@@ -31,9 +31,10 @@ end = command.index('\n}', start)
 command_material = command[start:end].replace('helium::NativeGlassThemeTintColor(browser_view)', 'NativeGlassThemeTintColor(browser_view)')
 command_class = command[command.index('@interface HeliumCommandMaterial'):command.index('@interface HeliumCommandResults')]
 constants = command[command.index('constexpr int kWidth'):command.index('int CommandBarHeight')]
-policy = command_material.index("  const bool content_aware =")
-material = command_material.index("  if (@available(macOS 26, *))", policy)
-command_material = command_material[:policy] + command_material[material:]
+if "  const bool content_aware =" in command_material:
+    policy = command_material.index("  const bool content_aware =")
+    material = command_material.index("  if (@available(macOS 26, *))", policy)
+    command_material = command_material[:policy] + command_material[material:]
 start = colors.index('void SetNativeGlassControlAppearance(')
 bridge = colors[start:colors.index('std::optional<SkColor> NativeGlassControlColor(', start)]
 prefix = r'''
@@ -343,7 +344,7 @@ int main() {
       assert(glass.contentView == pane && pane.appearance == nil);
       assert([glass.tintColor isEqual:NativeGlassThemeTintColor(&browser)]);
       assert(glass.cornerRadius == 18 && backdrop.layer.cornerRadius == 18);
-      assert(backdrop.hidden == bool(aware) && Dark(popup) == bool(dark));
+      assert(!backdrop.hidden && Dark(popup) == bool(dark));
     }
   }
   __block NSInteger notifications = 0;

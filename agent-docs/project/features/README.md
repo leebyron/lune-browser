@@ -7,6 +7,7 @@ Read [current status](../status.md) first. These records document implementation
 - [Application-menu update check](app-menu-update-check.md)
 - [Native chrome appearance](chrome-appearance.md)
 - [Command-T glass bounds and layout](command-bar-corners.md)
+- [Stable command-menu glass](command-menu-stable-glass.md)
 - [Native glass Command-T palette](command-bar.md)
 - [Command-T bang suggestions](command-bar-bangs.md)
 - [Expanded Command-T commands](command-bar-actions.md)
