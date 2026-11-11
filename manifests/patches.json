@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "470c9465957673cfd817d557635f5f676ccfba75",
+    "commit": "51faf29296a2287b0b390a3d077606ebb08e6ae6",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -725,6 +725,10 @@
       {
         "path": "patches/helium/ui/customize-no-transient-toolbar-icon.patch",
         "sha256": "52bc9c266025cbc370630bf6450cf901cacae4813bb775048f9c284cad17283c"
+      },
+      {
+        "path": "patches/helium/ui/command-bar-bang-suggestions.patch",
+        "sha256": "27db0c46e51735151a5ec847d16c41b3ae0e6c82c3b3f947f226c61a78803d8b"
       },
       {
         "path": "patches/helium/ui/devtools-header-hover.patch",
@@ -1813,6 +1817,24 @@
       "adaptation": "Developed with quilt, refreshed and unmerged into the platform; strict zero-fuzz replay, patch lint, focused geometry fixtures and both changed GN targets pass. Both architecture browser builds and UI/browsing/persistence smoke checks pass (Intel under Rosetta). Owner accepted the live Apple silicon preview on November 10, 2026. Concurrent preview inputs and the corrected launch are recorded in agent-docs/project/features/devtools-header-hover.md.",
       "commits": [
         "470c9465957673cfd817d557635f5f676ccfba75"
+      ]
+    },
+    {
+      "id": "command-bar-bang-suggestions",
+      "depends_on": [
+        "native-glass-command-bar",
+        "command-bar-search-suggestions"
+      ],
+      "patches": [
+        "patches/helium/ui/command-bar-bang-suggestions.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match installed bang services in Command-T, emphasize explicit bang intent and personal use, and apply provider scope immediately on selection.",
+      "adaptation": "Developed with quilt and unmerged into the platform. Owner accepted the native Apple silicon preview on November 10, 2026, including completion-specific Backspace behavior. Both architecture builds and compiled ranking, selection, scope, usage and Backspace regressions pass; Intel runtime uses Rosetta. The signed integration preserves the current DevTools input and the complete accepted bang topic, keeping the exact built patch order. Strict replay and provenance are recorded in agent-docs/project/features/command-bar-bangs.md.",
+      "commits": [
+        "53f3de78ae3ba29bcb73c5cfb30c1eb55f79a9ec",
+        "2baa6ffee1f868d83fb78ffc8d171f292e17cff9",
+        "51faf29296a2287b0b390a3d077606ebb08e6ae6"
       ]
     }
   ],

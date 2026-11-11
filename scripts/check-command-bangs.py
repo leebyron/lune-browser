@@ -27,6 +27,8 @@ controller = (ui / 'helium_command_bar_controller.cc').read_text()
 start = controller.index('    case HeliumCommandBarItem::Type::kBang:')
 end = controller.index('    case HeliumCommandBarItem::Type::kSiteSearch:', start)
 submit = function('void HeliumCommandBarController::SubmitBangSearch()', controller).replace('HeliumCommandBarController::', 'Activation::')
+enter_scope = function('void HeliumCommandBarController::EnterScope(', controller).replace('HeliumCommandBarController::', 'Activation::')
+backspace = function('void HeliumCommandBarController::OnBackspacePressed()', controller).replace('HeliumCommandBarController::', 'Activation::')
 collect = controller[controller.index('    const history::QueryResults* history_rows) {') + len('    const history::QueryResults* history_rows) {'):]
 collect = collect[:collect.index('  using namespace helium_command_bar_model;')]
 activation = controller[start:end].replace('    case HeliumCommandBarItem::Type::kBang:', '')
@@ -202,24 +204,33 @@ struct TemplateURLServiceFactory {
 struct Activation {
   Browser browser;
   Browser* browser_ = &browser;
-  std::string scope;
-  std::u16string terms;
+  struct View {
+    std::u16string text;
+    std::optional<size_t> caret;
+    void SetInputText(const std::u16string& value,
+                      std::optional<size_t> position = std::nullopt) {
+      text = value; caret = position;
+    }
+  } view;
+  View* view_ = &view;
   std::string scope_keyword_;
+  bool scope_keyword_was_typed_ = false;
   std::u16string last_query_;
   GURL opened;
   bool closed = false;
   void OpenUrl(const GURL& url) { opened = url; }
   void HideSoon() { closed = true; }
   void SubmitBangSearch();
-  void EnterScope(const std::string& keyword, const std::u16string& query) {
-    scope = keyword; terms = query;
-    scope_keyword_ = keyword; last_query_ = query;
-  }
+  void EnterScope(const std::string& keyword,
+                  const std::u16string& query = {},
+                  bool keyword_was_typed = true);
+  void OnBackspacePressed();
+  void OnQueryChanged(const std::u16string& query) { last_query_ = query; }
   void Activate(const HeliumCommandBarItem& item) {
 ''' + activation + r'''
   }
 };
-''' + submit + r'''
+''' + submit + enter_scope + backspace + r'''
 std::vector<HeliumCommandBarItem> ScopeRows(std::string scope_keyword_) {
 ''' + collect + r'''
   return {HeliumCommandBarItem{}};
@@ -268,12 +279,12 @@ int main() {
   TemplateURLServiceFactory::service = &service;
   Activation action;
   action.Activate(pasted[0]);
-  assert(action.scope == "!gh" && action.terms == u"Cats and Dogs");
+  assert(action.scope_keyword_ == "!gh" && action.last_query_ == u"Cats and Dogs");
   action.Activate(find(u"wiki")[0]);
-  assert(action.scope == "!wiki" && action.terms.empty());
+  assert(action.scope_keyword_ == "!wiki" && action.last_query_.empty());
   github.active = false;
   action.Activate(pasted[0]);
-  assert(action.scope == "!wiki");  // Stale completion cannot apply a removed scope.
+  assert(action.scope_keyword_ == "!wiki");  // Stale completion cannot apply a removed scope.
   github.active = true;
   assert(ScopeRows("!w").empty() && ScopeRows("!anything").empty());
   assert(ScopeRows("tab").size() == 1 && ScopeRows("").size() == 1);
@@ -290,6 +301,27 @@ int main() {
   action.scope_keyword_ = "github.com";
   action.SubmitBangSearch();
   assert(!action.opened.is_valid() && !action.closed);
+  Activation removal;
+  removal.Activate(find(u"wiki")[0]);
+  assert(!removal.scope_keyword_was_typed_);
+  removal.OnBackspacePressed();
+  assert(removal.scope_keyword_.empty() && removal.last_query_.empty());
+  assert(removal.view.text.empty() && removal.view.caret == 0);
+  removal.EnterScope("!w");  // Explicit trigger followed by Space.
+  assert(removal.scope_keyword_was_typed_);
+  removal.OnBackspacePressed();
+  assert(removal.last_query_ == u"!w" && removal.view.caret == 2);
+  removal.EnterScope("!w", u"Cats and Dogs");
+  removal.OnBackspacePressed();
+  assert(removal.last_query_ == u"!w Cats and Dogs" && removal.view.caret == 2);
+  removal.Activate(pasted[0]);  // A completion with retained terms.
+  assert(!removal.scope_keyword_was_typed_);
+  removal.OnBackspacePressed();
+  assert(removal.last_query_ == u"Cats and Dogs" && removal.view.caret == 0);
+  removal.Activate(find(u"wiki")[0]);
+  removal.OnQueryChanged(u"new terms");
+  removal.OnBackspacePressed();
+  assert(removal.last_query_ == u"new terms" && removal.view.caret == 0);
   auto mixed = find(u"github");
   HeliumCommandBarItem search{}, tab{}, top_hit{}, history{};
   search.type = T::kSearch; search.score = kScoreSearch;
@@ -371,7 +403,7 @@ int main() {
   auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - start).count();
   std::cout << "PASS: catalogue, plain/explicit intent, typo/case matching, website/tab priority, "
-    "scope terms, ranked default selection, stationary-pointer hover, explicit selection across async updates, rowless scoped submission, no scoped completions, personal frequency/recency, Incognito, literal keys, bounded history, "
+    "scope terms, completion vs typed-trigger Backspace with retained terms and caret, ranked default selection, stationary-pointer hover, explicit selection across async updates, rowless scoped submission, no scoped completions, personal frequency/recency, Incognito, literal keys, bounded history, "
     "eligibility/precedence, one completion per service, ranking before cap; 15000-entry scan " << ms << "ms\n";
 }
 '''
