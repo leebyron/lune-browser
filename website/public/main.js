@@ -14,7 +14,7 @@
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
   const nativeTimeline=CSS.supports('animation-timeline:scroll()');
   const clamp=x=>Math.max(0,Math.min(1,x));
-  let opening=0,readingStart=182,launchAt=96,pageHeight=0,reading=0,queued=false,base=48,launched=false,appVisible=false,showTimer=0;
+  let opening=0,readingStart=180,launchAt=96,pageHeight=0,reading=0,queued=false,base=48,launched=false,appVisible=false,showTimer=0;
   function svg(tag,attrs={}) {
     const element=document.createElementNS('http://www.w3.org/2000/svg',tag);
     Object.entries(attrs).forEach(([key,value])=>element.setAttribute(key,value));
@@ -151,7 +151,9 @@
     demoCursor.style.setProperty('--cursor-origin-x', `${originX}px`);
     demoCursor.style.setProperty('--cursor-origin-y', `${originY}px`);
     const incoming = `M ${-originX - 28} ${pageHeight * .38 * browserScale} C ${toggleX * .7} ${pageHeight * .38 * browserScale}, ${toggleX + 48 * browserScale} ${100 * browserScale}, ${toggleX} ${toggleY}`;
-    const outgoing = ` C ${toggleX - 32} -24, ${toggleX + 96} ${-originY + 12}, ${toggleX + 140} ${-originY - 36}`;
+    // Arc above the browser, then leave the left edge of the desktop.
+    const exitX = -originX - 32, exitY = -48 * browserScale;
+    const outgoing = ` C ${toggleX - 30 * browserScale} ${-42 * browserScale}, ${exitX + 100 * browserScale} ${exitY - 20 * browserScale}, ${exitX} ${exitY}`;
     // Pause precisely at the toggle, regardless of viewport or curve length.
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', incoming);
@@ -170,12 +172,13 @@
     update();
   }
   function measureBotany() {
-    // Read the SVG boxes directly: offsetParent chains differ across layout engines.
-    // The outer SVG never rotates; explicit user-space pivots keep every join fixed.
+    // Use the stable flex row boxes, not the overflow-visible SVG graphics bounds.
+    // Safari can report their painted bounds before the first settled layout.
     const pageBox=pages.getBoundingClientRect(),scale=pageBox.width/pages.clientWidth;
     const nodes=points.map(point=>{
-      const box=point.querySelector('.botanical-bullet').getBoundingClientRect();
-      return {x:(box.left-pageBox.left)/scale+point.pivotX,y:(box.top-pageBox.top)/scale+86};
+      const box=point.getBoundingClientRect();
+      const bulletHeight=Number(point.querySelector('.botanical-bullet').getAttribute('height'));
+      return {x:(box.left-pageBox.left)/scale+point.pivotX,y:(box.top-pageBox.top)/scale+(box.height/scale-bulletHeight)/2+86};
     });
     const first=nodes[0],last=nodes[nodes.length-1],coda=pages.querySelector('.coda');
     const groundY=coda.offsetTop+pageHeight*.15, rootX=last.x-8,rootDepth=Math.min(180,pageHeight*.25);
@@ -341,7 +344,8 @@
       const progress=clamp((y-start)/(end-start)),fade=progress===0||progress===1?progress:introEase(progress);
       text.style.opacity=fade;text.style.transform=`translateY(${18*(1-fade)}px)`;
     });
-    const intro=introEase(clamp((y-introStart)/(introEnd-introStart)));
+    const introProgress=clamp((y-introStart)/(introEnd-introStart)),intro=introEase(introProgress);
+    introLogo.style.opacity=clamp((introProgress-.03)/.05);
     introCircles.forEach(circle=>{
       const shift=parseFloat(circle.style.getPropertyValue('--shift'));
       circle.style.transform=`translateX(${shift*intro}px)`;
@@ -365,7 +369,7 @@
     stamens.style.opacity=.6+.4*bloom;
   }
   function update(){
-    queued=false;const y=scroll.scrollTop;if(y>launchAt&&pointer!==null){pointer=null;startMagnify();}if(y<=launchAt)close();else {launch();if(y>=readingStart)reveal(true);}const p=clamp(y/opening),r=reading ? clamp((y-readingStart)/reading) : 0;
+    queued=false;const y=scroll.scrollTop;if(y>launchAt&&pointer!==null){pointer=null;startMagnify();}if(y<=launchAt)close();else {launch();if(y>=readingStart&&y>opening)reveal(true);}const p=clamp(y/opening),r=reading ? clamp((y-readingStart)/reading) : 0;
     hero.inert=appVisible||y>=opening;learn.inert=appVisible||y>=opening;
     win.inert=!appVisible;win.setAttribute('aria-hidden',String(!appVisible));win.style.pointerEvents=appVisible?'auto':'none';
     root.dataset.phase=appVisible?'reading':launched?'launching':'closed';root.dataset.progress=p.toFixed(3);
@@ -659,17 +663,22 @@
   function startMagnify(){if(!hoverFrame)hoverFrame=requestAnimationFrame(magnify);}
   dock.addEventListener('pointermove',e=>{if(!fine.matches||reduce.matches)return;pointer=e.clientX;startMagnify();});
   dock.addEventListener('pointerleave',()=>{pointer=null;startMagnify();});
-  new ResizeObserver(()=>{if(pointer===null){items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);}}).observe(stage);
-  reduce.addEventListener('change',()=>{textRanges.forEach(({text})=>{text.style.removeProperty('opacity');text.style.removeProperty('transform');});introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
-  let measuredContentHeight = 0, measuredContentWidth = 0;
-  new ResizeObserver(entries => {
-    const {height,width} = entries[0].contentRect;
-    if (Math.abs(height - measuredContentHeight) > .5 || Math.abs(width - measuredContentWidth) > .5) {
-      measuredContentHeight = height;
-      measuredContentWidth = width;
+  let measureFrame=0;
+  function scheduleMeasure() {
+    if(measureFrame)return;
+    measureFrame=requestAnimationFrame(()=>{
+      measureFrame=0;
+      if(pointer===null)items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});
       measure();
-    }
-  }).observe(pages);
+      if(pointer===null)widths.fill(base);
+    });
+  }
+  const geometryObserver=new ResizeObserver(scheduleMeasure);
+  [stage,pages,root.querySelector('.viewport'),...points].forEach(element=>geometryObserver.observe(element));
+  reduce.addEventListener('change',()=>{textRanges.forEach(({text})=>{text.style.removeProperty('opacity');text.style.removeProperty('transform');});introCircles.forEach(circle=>{circle.style.removeProperty('transform');circle.style.removeProperty('r');});introLogo.style.removeProperty('transform');introLogo.style.removeProperty('opacity');rootRanges.forEach(({path})=>{path.style.removeProperty('stroke-dasharray');path.style.removeProperty('stroke-dashoffset');path.style.removeProperty('opacity');});vineGrowth.style.removeProperty('stroke-dasharray');vineGrowth.style.removeProperty('stroke-dashoffset');flowerBloom.style.removeProperty('transform');petals.forEach(petal=>petal.style.removeProperty('transform'));stamens.style.removeProperty('transform');stamens.style.removeProperty('opacity');if(nativeTimeline&&!reduce.matches&&sidebarOverride===null)win.style.removeProperty('--sidebar-fold');pointer=null;items.forEach(el=>{el.style.width='';el.style.height='';el.style.removeProperty('--rendered-icon');});measure();widths.fill(base);});
   measure();widths.fill(base);
-  document.fonts.ready.then(measure);
+  scheduleMeasure();
+  document.fonts.ready.then(scheduleMeasure);
+  window.addEventListener('load',scheduleMeasure,{once:true});
+  window.addEventListener('pageshow',scheduleMeasure);
 })();
