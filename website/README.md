@@ -15,14 +15,60 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - Launch starts after 96px of scrolling. Clicking the chevron or Lune Dock icon
   stops at 180px, where the intro has fully faded. Inner reading starts at 180px,
   which also bypasses any remaining launch delay and fade for fast scrolling.
-- Reading copy lifts and fades in over 600ms and out over 200ms. Scroll selects
+- The personal note and ten botanical paragraphs use locally served Rock Salt
+  at 16px/32px. The note has two separate paragraphs: “I made Lune for myself”
+  and “I wanted a private browser that stayed out of my way”. The second begins
+  860ms after the first, so each 800ms wipe completes in sequence.
+- The flower begins the owner's ten-line sequence: Chromium, removed Google
+  services, extension proxying, uBlock Origin, Mac details, the command menu,
+  Helium's !bangs, the disappearing toolbar, vertical tabs and open source.
+  Named projects link to their official sites or repositories; !bangs links to
+  Helium's directory. Only handwritten links use the sketched SVG underline,
+  in the text's full ink color: an upward arc thickens toward a dot on the
+  right. Hover or keyboard focus redraws it with a 600ms left-to-right clip
+  wipe; Reduced Motion keeps it still. Footer and other normal text retain
+  regular link underlines.
+  The command-menu line spells the shortcut as Cmd-T.
+  The cursor holds at one-third of the window's top edge for the toolbar
+  line, then demonstrates the sidebar during the vertical-tab line.
+- Reading copy lifts by 6px and fades in over 600ms, with a gentler 800ms
+  feathered left-to-right wipe using ease-in-out timing. It fades out over
+  200ms. Scroll selects
   the target state, and transitions finish even when scrolling stops. Point copy
-  enters at 75% of the browser viewport and stays visible above that threshold,
+  enters at 85% of the browser viewport and stays visible above that threshold,
   including past the top edge. Scrolling back below the lower threshold fades it
   out. The personal note triggers at 75% of the logo's opening range,
-  slightly before the mark finishes. Reduced Motion shows settled text.
+  slightly before the mark finishes. Reversing below the threshold cancels the
+  stagger immediately. Reduced Motion shows settled, fully unmasked text.
+  The earlier 85% trigger advances each point by 10% of the browser viewport
+  (72px in the 720px desktop window). Local inspection confirms the flower
+  copy is visible at an 81.8% resting-center position, before the former 75%
+  threshold. The personal-note trigger and transition timings are unchanged.
 - Both Lune wordmarks use Syne 800. The opening title has an explicit 40px
   fallback so removing a size variable cannot invalidate its font shorthand.
+- The Cmd-T sentence opens a passive glass-menu illustration when its center
+  reaches 70% of the pane, after the prose reveal begins. It starts as a 52px
+  empty input without open-tab options. The following !bangs sentence triggers
+  `!wiki` typing when its center also reaches 70% of the pane; elapsed time
+  finishes the sequence at rest, while scroll
+  progress can advance it to keep up with faster reading. At completion the
+  query becomes a Wikipedia pill with no placeholder, and only then does the
+  selected “Search Wikipedia (!wiki)…” row appear. The scoped pane is 111px tall.
+  It holds until a separate, later scroll threshold, then fades away at its
+  current height. Dismissal begins at least 20% of a pane after completion and
+  at least 8% of a pane after the cursor journey starts,
+  before the cursor arrives at its header hold. Scrolling back restores the
+  pill; returning above the bang sentence resets typing to an empty menu.
+  Reduced Motion hides this illustration. It takes no focus or input and makes
+  no search, suggestion, or navigation requests.
+- Cmd-T geometry follows the native implementation: 600px maximum width,
+  36px minimum side margins, 18px panel corners, 52px input/row heights, 8px
+  result insets, and a 28px provider pill in 13px medium system type. Its top
+  stays anchored against the native five-row maximum even with fewer rows.
+  The supplemental shadow is exactly 5% black with 10px blur and a 3px downward
+  offset, following the rounded silhouette. CSS approximates the native glass.
+- The closing brand group uses a 57.6px logo, 40px wordmark and 12px gap, with
+  36px of vertical space above the download actions.
 - Normal launches bounce for 660ms; the window and running dot appear at 320ms.
   The tooltip shares the icon's bounce. Returning to the top resets the launch.
 - CSS scroll timelines handle one continuous story, with a JavaScript fallback
@@ -46,17 +92,20 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   neutral midgray cotton rag drawing paper, fine interwoven cellulose fibers,
   uniform diffuse illumination, seamless edges, no text, folds, pits or blotches."
 - Stamens use sun-yellow tips and halos in Light and vivid button-like teal in
-  Dark. Display P3 uses `color(display-p3 0 1 .9)` for saturated tips and halos,
-  with an sRGB teal fallback. The filaments use a quieter matching teal.
-  Fourteen seeded motes follow measured points along the stem, sharing the tips'
-  color and small-area glow. Usually two or three are visible at once. Inner
+  Dark. Light uses `color(display-p3 .929206 .81535 0)`: the existing `#EBD039`
+  hue and OKLCH lightness, with chroma increased from 0.16134 to 0.20499 at
+  the P3 gamut boundary. The original yellow remains the sRGB fallback.
+  Dark uses `color(display-p3 0 1 .9)` with an sRGB teal fallback. The filaments use a quieter matching teal.
+  Seventeen seeded mote groups, including two close pairs and three singles anchored 48px, 72px and 96px up the stem from the root crown, follow measured points along the stem, sharing the tips'
+  color and small-area glow. Each companion has its own slightly smaller float path, reverse traversal, shifted phase, different speed and origin offset by about 23px, while sharing its partner's scroll anchor. Usually two or three groups are visible at once. Inner
   groups trace wide, shallow 26–42 second figure eights; outer groups spread outward with
   cubic scroll progress, starting gently near the lower edge and accelerating
   toward the top. Scroll reversal restores their proximity to the stem. Only
   visible motes run their idle animation; Reduced Motion keeps them stationary
   relative to their stem anchors. Layout remeasurement preserves their idle phase.
-- Interface surfaces are not text-selectable; headings, prose, attribution links,
-  and the address field remain selectable. The sidebar has two pinned tabs and
+- Interface surfaces are not text-selectable; headings, prose and attribution
+  links remain selectable. The address is static text with an arrow cursor,
+  no focus target and no focus outline. The sidebar has two pinned tabs and
   no divider above New tab. Chrome uses the accepted #E7EDE3 Light / #10354F Dark mounted palette.
   Selected tabs use #D6E1D2 / #2A4C62 for directional contrast.
   The GitHub rows read `lune-browser` and `ungoogled-chromium`.
@@ -67,6 +116,9 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - Pinned and floating sidebars have identical 216px widths, flush top/bottom/left
   edges and square inner corners. Pinned mode shares the window material;
   floating mode approximates the accepted themed glass: a lighter Light tone and darker Dark tone, with theme selection and hover colors.
+  Its right edge has a physical-pixel glass rim: white at 60% in Light and
+  black at 20% in Dark, approximating the native material's contrasting edge.
+  The edge overlays the pane without changing its width or catching pointer input.
   Pinning changes the content width instantly without moving any sidebar/header
   controls. It does not tween page layout.
 - The header is 52px tall: 36px controls and 8px vertical insets. The toggle has
@@ -81,20 +133,35 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   a 6px gap before New Tab. New Tab stays above the independently scrolling tabs,
   with the same colors and spacing as a regular row and no tooltip.
 - Sample tab close marks appear only on hover, including the selected tab. The
-  32px close region holds an 11px glyph centered 15px from the trailing row edge.
+  32px close region stays inside the row and holds an 11px glyph centered 16px
+  from its trailing edge. The tab list scrolls vertically only.
+  Hovering the close button adds an immediate 20px square contrast fill with
+  4px corners and 16% opacity (14% while pressed), matching the app; the glyph
+  retains the tab's foreground color. Keyboard focus reveals the close control,
+  and touch layouts keep it visible.
   Labels yield space and fade before the close mark without changing row height.
   The illustration omits default-browser and update prompts.
-- During the attention sentence, a scroll-driven cursor enters from the left of the
-  screen, clicks the sidebar toggle and exits through the top. The page immediately
-  fills the window, while the glass sidebar remains until the cursor is more than
-  48px away. The sidebar then slides left over 260ms. Scrolling back reverses it.
+- Tab rows use the regular arrow cursor. Clicking the current Lune tab does
+  nothing. Each regular tab has a separate accessible close button; other tab
+  titles remain links. Closing Lune instantly returns to the desktop at scroll
+  position zero and keeps its row in place. Other closed rows stay removed until
+  reload. Close controls never follow the tab's link.
+- During the toolbar sentence, the scroll-driven cursor enters from the left,
+  pauses at the top edge one-third of the way across the window, and exposes
+  the header. It holds steady, then moves to the sidebar toggle and clicks as
+  the vertical-tab sentence reaches the same reading height (58% of the pane).
+  The page fills the window on click; the floating sidebar and header remain
+  until the cursor tip crosses the window edge, then begin retracting together
+  without a distance buffer. The sidebar slides left over 260ms and the header
+  fades over 180ms. Scrolling backward reverses the demonstration.
   CSS scroll timelines own the cursor and layout state, with a JavaScript fallback.
   Its black arrow, white outline and compact shadow approximate the macOS pointer;
   its existing tip/hotspot coordinates remain fixed for the toggle click.
   On mobile the pointer and click ring are visible at the browser’s half scale.
   Scroll-positioned transforms move the pointer continuously, pause on the
-  toggle and show the click. The floating sidebar stays until the pointer leaves
-  its 48px boundary. Reduced Motion hides the demonstration.
+  header and toggle and show the click. Both panels retract when the simulated
+  pointer leaves the window. Actual mouse interactions retain the established
+  48px dismissal boundary. Reduced Motion hides the demonstration.
 - Windowed reveal bands are 8px at the top and left edges and consume no layout
   space. The sidebar’s full 52px header also reveals the toolbar. Revealed glass
   stays until the pointer is 48px away; the header retains the full window-width
@@ -143,23 +210,42 @@ All runtime assets are served locally; no font or icon CDN requests are needed.
   The original `wallpaper.jpg` remains as the source/reference artwork.
 - The PNG, ICO and Apple touch fallbacks use the dark tile. All logo assets are
   regenerated by `python3 scripts/branding/render-assets.py` on macOS.
-- `public/assets/favicons/`: official Fastmail, Lee Byron, Helium and GitHub
-  icons, served locally. The Fastmail Calendar pin uses an inline calendar glyph.
+- `public/assets/favicons/`: official Lee Byron, Helium and GitHub icons, served
+  locally. The earlier Fastmail favicon remains unused.
   Legacy design-source icons remain unused. Icons belong to their respective
   sites and illustrate the preview tabs.
+- `public/assets/fastmail-mail.svg` and `fastmail-calendar.svg`: the simplified
+  `i-app-mail` and `i-app-calendar` path geometry from the app switcher on
+  <https://www.fastmail.com/>, using its inactive primary/secondary gray fills
+  (`#848B91` / `#ADB1B5`) with CSS grayscale. Fastmail retains ownership; these
+  are not Lune artwork or relicensed by this repository. Both pins link to the
+  public Fastmail homepage, rather than private app routes.
 - Finder and Trash images: macOS system artwork, used in the illustrative Dock.
   Apple retains ownership; these are not Lune artwork or relicensed by this repo.
 - Syne 800 and Inter 400/500: Latin WOFF2 subsets from Google Fonts, Syne v24 and
   Inter v20. SIL Open Font License notices are in `public/licenses/`.
+- Rock Salt 400: Google Fonts v24 TrueType, served locally as
+  `public/assets/fonts/rock-salt.ttf`; Apache 2.0 license in
+  `public/licenses/rock-salt.txt`.
 - `public/assets/ublock-origin.png`: unchanged 32px uBlock Origin toolbar artwork
   from the prepared browser’s `third_party/ublock/img/icon_32.png`. Copyright
   Raymond Hill and contributors; GPLv3 notice in `public/licenses/ublock-origin.txt`.
 - `public/assets/onepassword.svg`: official 1Password favicon from
   <https://1password.com/favicon/icon-v2.svg>, used as illustrative extension
   artwork; the brand belongs to 1Password.
-- Inline interface icons: Lucide (download, arrow-up-right, chevron-down,
-  panel-left, maximize, shield). Its ISC/MIT notices are in
-  `public/licenses/lucide.txt`.
+- `public/assets/browser-symbols.svg`: Apple SF Symbols Medium vector outlines
+  from SF Symbols 7's installed `SFSymbolsFallback.otf`, matched to the app's
+  named symbols and AppKit image proportions. The sprite contains `sidebar.left`,
+  `chevron.backward` (mirrored for Forward), `slider.horizontal.below.rectangle`,
+  `arrow.clockwise`, `puzzlepiece.extension`, `plus`, and `xmark`.
+  Browser controls use the app's 16pt configuration, Site Information and Reload
+  use 14pt, and tab closes use 11pt. Square Views icon slots retain the app's
+  proportional fit, including the 20px Extensions icon slot; native header
+  symbols retain their wider intrinsic sizes.
+  Apple retains ownership; this artwork depicts Lune's macOS interface and is
+  not Lune artwork or relicensed by this repository.
+- Remaining inline interface icons: Lucide (download, arrow-up-right,
+  chevron-down). Its ISC/MIT notices are in `public/licenses/lucide.txt`.
 - Window glyph proportions were checked against [Apple's macOS reference](https://support.apple.com/guide/macbook-pro/are-you-new-to-mac-apd7ae4404d0/mac).
   They are CSS approximations, not native AppKit controls.
 
@@ -174,39 +260,44 @@ changing the story length.
 
 ## Respect story
 
-The tagline is “A respectful browser for Mac.” Nine short sentences make the factual case through enabled ad/tracker blocking,
-third-party cookie defaults, removed Google integrations, consent, extensions,
-keyboard navigation, sidebar control, setup choices and shared source, with no headings, fragments, eyebrows or screenshot placeholder.
+The tagline is “A respectful browser for the Mac”. Ten short sentences cover
+Chromium, removed Google services, extension proxying, blocking, Mac details,
+Cmd-T, Helium's !bangs, the toolbar, vertical tabs and shared source.
 The opening reuses setup’s paired-circle logo reveal, driven by scroll
 rather than a timer. The mark starts at the content viewport’s vertical center
-and moves upward with the page. A short personal note sits directly below it
-in the same Inter 20px/32px as the marketing points, with a 96px section gap
-before the first point;
-the flower is already visible when the browser opens. The opening point
-has only a flower, enlarged 50%; eight uniquely generated leaves mark later points. A branching cyanotype vine joins them with small shoots and curled
-tendrils, rather than a line connecting separate icons. Marketing prose uses
-regular Inter 20px/32px and one foreground color. At 700px or less, the complete
-browser and its content share the same 50% transform: prose renders at 10px/16px.
+and moves upward with the page. Two personal-note paragraphs sit below it in
+Rock Salt 16px/32px, matching the botanical copy. A 1.08-viewport prelude and
+128px section gap keep the first flower offscreen when the browser opens.
+The opening point has only a flower, enlarged 50%; nine generated leaves mark
+later points. A branching cyanotype vine joins them with small shoots and
+curled tendrils. Prose shares one foreground color. At 700px or less, the complete
+browser and its content share the same 50% transform: handwritten prose renders
+at 8px/16px.
 There is no mobile-only enlargement of the text, coda, buttons or author credit.
 The window fixes text-size adjustment at 100% so mobile text autosizing does not
 diverge from the chrome. This does not assert physical Safari-device validation.
 Syne remains confined to the Lune wordmarks.
 
-Each row has the same maximum text measure of 34ch and reserves an 80px
-specimen plus a 36px gap (48px beside the larger flower). The copy is vertically centered beside the leaf or
+Each row retains its overall maximum measure and an 80px specimen box. Its
+text gap now follows the seeded specimen's ink bounds, targeting 44px of optical
+clearance instead of spacing from the transparent SVG box. The opening flower
+uses a 40px layout gap because it is still unfolding at its reading position.
+The copy is vertically centered beside the leaf or
 leaf body, 10px above the row center; the first sentence rises 22px to align
 with its larger flower. The complete row starts horizontally
 centered, then follows x = column center + A sin(2πi / (n − 1)). A is at most
 48px and shrinks to the available room; 32px is reserved so even narrow layouts
-retain a small wave. The browser cursor unpins the sidebar while the attention
-sentence is in view. The coda thanks the authors and contributors behind Helium and
+retain a small wave. The browser cursor unpins the sidebar during the vertical-tab
+sentence. The coda thanks the authors and contributors behind Helium and
 ungoogled-chromium. Its preceding gap is 24px, keeping the ground close to the
 last point. See the [copy rationale and evidence](../agent-docs/project/website-respect-story.md).
 
-The sidebar pins Fastmail and its Calendar. The other tabs link to Lune, Helium, the Lune GitHub project and Lee Byron,
-in that order; the author’s website is last and the Lode row is removed. Every tab, including New tab, is a real
-anchor opening its destination in a new tab with `noopener noreferrer`, as the
-owner requested after considering iframe navigation. No iframe, proxy, external
+The sidebar pins Fastmail and its Calendar, both linking to the Fastmail homepage.
+Regular tabs show Lune, its GitHub project, Helium, ungoogled-chromium and Lee Byron,
+with the author’s website last. The current Lune row is a selection button without a click action;
+other titles and New tab open their destinations in separate tabs with
+`noopener noreferrer`. Each regular row has an independent close button.
+No iframe, proxy, external
 page fetch or private-mail content is loaded in the illustration. The top-right
 trailing group shows only Extensions, uBlock Origin and 1Password. The uBlock
 Origin and 1Password icons are accessible links to their project/site, opening
@@ -277,16 +368,23 @@ Compared the existing illustration with the current development lock and frozen
 26.1110.1 source, using the feature records below. These are website changes;
 they do not change browser patches or constitute native runtime validation.
 
+The subsequent icon alignment uses actual SF Symbol SVG outlines in place of
+the hand-drawn substitutes. Local Light/Dark desktop and 390×844 phone previews,
+sidebar pin/unpin, hover-close rendering, SVG references, cache keys, JavaScript
+syntax, deployment dry run and whitespace checks pass. Browser inspection reports
+no console warnings or errors. This revision remains local; native Safari and
+physical iPhone rendering have not been independently checked.
+
 | Recent browser work | Website treatment |
 | --- | --- |
 | [Themed sidebar](../agent-docs/project/features/themed-unpinned-sidebar.md) | 216px width; mounted palette; lighter Light / darker Dark detached tint; strong #D6E1D2 / #2A4C62 selection and themed hover fills. CSS blur remains an approximation. |
-| [Toolbar polish](../agent-docs/project/features/trailing-toolbar-controls.md) | 72px navigation pill with separator; medium-weight 16px symbol approximations; 14px site-info/reload art in 32px slots; 2px reload inset; address cap at half the available header; 4px trailing padding and 2px gaps; no gap between Extensions and first extension; real uBlock and 1Password artwork. The latest owner revision limits this illustrative group to those three controls, omitting Profile, Downloads and More. |
+| [Toolbar polish](../agent-docs/project/features/trailing-toolbar-controls.md) | 72px navigation pill with 16px separator; Medium SF Symbol SVGs with native proportions; 14pt site-info/reload symbols in 32px slots; 4px site-info and 2px reload insets; neutral AppKit secondary-label, rollover and disabled colors; address cap at half the available header; 4px trailing padding and 2px gaps; no gap between Extensions and first extension; real uBlock and 1Password artwork. The latest owner revision limits this illustrative group to those three controls, omitting Profile, Downloads and More. |
 | [Glass appearance](../agent-docs/project/features/chrome-appearance.md) | Diffuse 5% black / 10px / 3px header shadows, no extra sidebar shadow. CSS tint and foregrounds follow appearance; AppKit content adaptation is not emulated. |
 | [Header scrolling](../agent-docs/project/features/header-scroll-through.md) | Removed the previous wheel-event blocker; native click shielding remains represented. |
 | [Sidebar pin](../agent-docs/project/features/sidebar-pin-activation.md), [edge frame](../agent-docs/project/features/edge-to-edge-frame.md), [New Tab](../agent-docs/project/features/sidebar-new-tab.md), [footer](../agent-docs/project/features/sidebar-footer.md) | Retain accepted flush geometry, pin/reveal choreography, fixed New Tab and hover-only tab closes. The illustration continues to omit installation/update prompts. Native activation colors and OS window menus are not simulated. |
 | [Menu retention](../agent-docs/project/features/menu-reveal-retention.md), [downloads](../agent-docs/project/features/downloads.md), [media](../agent-docs/project/features/media-toolbar-controls.md) | The trailing group shows idle artwork. Native menus, download progress/status and media sessions remain outside this illustration. The website’s real download chooser retains its own popover behavior. |
-| [Command-T/results](../agent-docs/project/features/command-bar-corners.md), [suggestion selection](../agent-docs/project/features/address-suggestion-selection.md), [toolbar modes](../agent-docs/project/features/header-inset-prototype.md), [older macOS](../agent-docs/project/features/older-macos-appearance.md), [window close](../agent-docs/project/features/native-window-close.md) | Keep the default hover-toolbar story and modern window shape; no fake search results, Settings, OS fallback or native multi-window behavior. Website close/minimize return to its desktop; fullscreen uses the web API. |
-| [Setup, fonts and icons](../agent-docs/project/features/onboarding-visual-refinements.md) | Existing accepted wallpaper JPEGs, Inter prose/buttons and compiled Dock artwork already match and are retained. |
+| [Command-T/results](../agent-docs/project/features/command-bar-corners.md), [suggestion selection](../agent-docs/project/features/address-suggestion-selection.md), [toolbar modes](../agent-docs/project/features/header-inset-prototype.md), [older macOS](../agent-docs/project/features/older-macos-appearance.md), [window close](../agent-docs/project/features/native-window-close.md) | The requested passive Cmd-T illustration opens empty, types !wiki, shows its Wikipedia provider pill and then its completion row, and dismisses at a later scroll point. Native geometry and supplemental shadow guide the CSS approximation. Settings, OS fallback and multi-window behavior remain outside the illustration. Website close/minimize return to its desktop; fullscreen uses the web API. |
+| [Setup, fonts and icons](../agent-docs/project/features/onboarding-visual-refinements.md) | Accepted wallpaper JPEGs, Inter interface text/buttons and compiled Dock artwork are retained; story prose now uses Rock Salt. |
 
 The emulated browser itself supplies the visual demonstration; screenshot placeholders are removed. Open default-browser and
 resize-cursor issues are not represented as fixed. This audit tracks the scope of
@@ -314,6 +412,29 @@ mask for appearance contrast. No iframe or private Fastmail content is loaded.
 
 ## Cyanotype botanical illustration
 
+The initial Rock Salt revision passes local desktop Light, a preview-only Dark fixture,
+and 390×844 layout checks without horizontal text overflow. A forced fallback
+sample records the first line at 60.7% wipe with the second still hidden; both
+finish at 116% with full opacity while scrolling is stationary. Reversal resets
+both lines. A forced Reduced Motion fixture shows all twelve text elements at
+full opacity with no mask or transition. No console warnings or errors were
+observed. Syntax, deployment dry run, asset/cache keys, documentation links and
+whitespace checks pass. This revision remains local; physical Safari/iPhone
+rendering has not been independently retested.
+
+The subsequent timing refinement reduces the lift from 18px to 6px and slows
+the wipe from 600ms to 800ms with ease-in-out timing. Local computed-style
+inspection confirms 600ms fade/lift, 800ms wipe, and an 860ms second-line delay.
+
+The following copy revision preserves all ten owner-supplied lines, with Cmd-T
+spelled out, and reduces Rock Salt by 20% to 16px/32px. Its original local pen-underline
+SVG used a shallow arc with changing ink thickness and a pointed right finish
+at 50% opacity; the subsequent refinement below supersedes that treatment. Desktop and 390×844 checks find no horizontal text overflow;
+project links use the sketch asset and retain their destinations. The sidebar
+demonstration targets the vertical-tab line. Exact-copy, SVG, cache-key,
+JavaScript syntax, whitespace and deployment dry-run checks pass, with no
+preview console warnings or errors. This revision remains local.
+
 Original vector artwork is generated from fixed seeds. Every main leaf and
 small offshoot has its own length, width, lean, edge variation and vein pattern.
 Leaves have narrow, pointed silhouettes with restrained edge variation. Each
@@ -337,8 +458,7 @@ with varying side branches and fine rootlets. A further order of short, tapered
 rootlets fans from the fine branches: 135 total paths, including 89 terminal
 rootlets, in the checked desktop and phone layouts. Noise steers their headings;
 filled silhouettes taper all the way to a point. The spread is capped at 420px
-and depth at 25% of the viewport (at most 180px). The base silhouettes begin at 70% of their total reach and grow the remaining 30%. Identical
-lighter copies use separate centerline masks for the light’s travel from crown to tips.
+and depth at 25% of the viewport (at most 180px). Two shared radial masks reveal the cached silhouettes: the base starts at 70% of the final radius and the light starts at zero, both expanding to full coverage.
 
 The flower is 50% larger, faces upwards, and has 19 seeded, curved filaments
 with varied anther positions and brightness. Stamens spread from a narrow bundle to a wide fan as the petals open. The
@@ -404,14 +524,7 @@ retested.
 The growing vine stroke is 2.6px at 68% opacity over a 30% guide. It starts
 once the flower is at least 35% open, then reaches
 the root crown when that junction is 60% down the viewport. The established
-base roots begin at 70% of their total reach, with a shared growth front keeping every branch connected. The remaining 30% grows as the light fans through them. A lighter copy of every tapered outline
-is drawn from 0% to 100% over them, with the full branching burst spanning 27%
-of the viewport’s scroll distance, finishing with 18% of a viewport left to scroll.
-Measured travel distance from the crown sets each branch’s range, so a child’s
-light starts exactly when its parent reaches the attachment. The overlay uses
-a restrained cyan/mint mix at 65% of the root’s existing opacity. Native and
-fallback progress are linear along the paths; Reduced Motion shows the complete
-light trace without motion. Each leaf opens outward by 6 degrees as the stem light reaches its attachment; small shoots and tendrils open by 7 degrees around their own stem junctions. Numeric SVG pivots keep all joins attached. No timer, idle pulse or dependency is added.
+root silhouettes are precomputed during layout and cached until their geometry changes. Two shared radial-gradient masks expand from the crown: the faint base starts at 70% of the final radius and the lighter overlay starts at zero. Both finish over 27% of the viewport’s scroll distance, with 18% of a viewport left to scroll. This replaces the earlier per-junction path timing with a soft radial front and reduces 270 animated centerline masks to two animated transforms. The overlay uses the stem ink in Light and the brighter cyan/mint mix in Dark. Base silhouettes use 50% opacity and the overlay 90%, under an 85% root layer, keeping the fine roots close to the stem’s visual weight. Native scroll timelines and the fallback use the same linear radial progress; Reduced Motion shows both complete layers without motion. Each leaf opens outward by 6 degrees as the stem light reaches its attachment; small shoots and tendrils open by 7 degrees around their own stem junctions. Numeric SVG pivots keep all joins attached. No timer, idle pulse or dependency is added.
 
 The earlier root-light revision verified 135 static base silhouettes and 135 matching
 light silhouettes. Before arrival all light masks are empty; during the burst
@@ -454,3 +567,45 @@ path in the existing scroll animation frame, instead of native motion-path
 interpolation. Its tip stays anchored at the half-scale sidebar toggle during
 the click pause. Opacity, press scale and click ring share the desktop progress
 windows. Resizing back to desktop clears the phone’s inline animation state.
+
+The underline refinement confines the effect to handwritten links and restores
+regular text underlines in the footer. Its upward arc thickens on the right,
+ending in a small ink dot. The stroke uses currentColor without extra opacity,
+and a 600ms clip animation wipes it from left to right on hover or keyboard
+focus. Reduced Motion disables that animation. Lune is plain text in the final
+line; only Helium and ungoogled-chromium are linked there.
+Local inspection confirms currentColor at opacity 1 for handwritten strokes,
+regular CSS underlines with no sketch pseudo-element on footer links, and no
+horizontal text overflow at desktop or 390px width. Keyboard focus samples the
+same 600ms wipe from a 99.4% right inset to 0%. Asset hashes, scope, final-line
+links, syntax and whitespace checks pass.
+
+The radial-root revision was checked locally at desktop and 390×844 phone size, including dark appearance, reverse scrolling, the forced timeline fallback and Reduced Motion. A three-second desktop scroll comparison recorded median frame intervals of 66.1ms with the previous 270 masks and 16.7ms with the two radial masks (55 versus 180 frames). These are local browser preview measurements, not physical iPhone results or production readback. The existing website deployment dry run and JavaScript syntax check pass.
+
+The root contrast refinement strengthens both appearances: Light uses the stem’s exact ink color for the reveal, while Dark retains the lighter cyan/mint mix. The base/overlay opacity multipliers increase from 32%/65% to 50%/90%, and the shared layer from 68% to 85%. Radial reveal geometry and timing are unchanged.
+
+The spacing/header-hold revision checks all ten desktop reading positions and
+390px text bounds without overflow. Native and forced-fallback paths hold the
+cursor at an identical header point through 18–42% of the journey, then click
+the toggle at 68%. Their respective sentences meet the 58% reading height.
+The desktop hover x is 404px in a 1212px window; the phone hover x is 244px in
+a 732px logical window (half-scale). Both panels are visible with the cursor
+tip still 16px inside the top edge and retract when it is about 3px outside;
+reverse scrolling restores them. Phone behavior agrees, and a forced Reduced
+Motion fixture hides the cursor and leaves the header closed. Syntax, asset
+cache keys, local links, whitespace and deployment dry run pass. These are local
+preview checks; this revision has not been deployed.
+
+
+The Cmd-T sequence passes local empty/typing/scoped/dismissal checks: all five
+characters appear without a result row, then the Wikipedia pill and its row
+appear together. Stationary scrolling completes typing and holds the pill;
+reverse scrolling restores or resets the appropriate state. Later entrance,
+bang-typing and dismissal thresholds remain separate. Native and fallback
+previews agree on 600×111px scoped geometry, 18px corners and the 5% black /
+10px / 3px shadow. A 390×844 preview remains within the window, and Reduced
+Motion hides the illustration. Focused state-transition checks cover reversal,
+leaving the story and cancellation. The source consolidation checks JavaScript
+syntax, local assets, SVG symbols and matching cache keys at each intermediate
+commit; the final Wrangler deployment dry run and whitespace checks pass.
+These are local checks, not a new production deployment.

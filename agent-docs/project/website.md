@@ -25,6 +25,47 @@ provenance.
 
 ## Current status
 
+The local source now trials Rock Salt 400 at 16px/32px for the personal note
+and ten botanical paragraphs. The note uses two separate paragraphs with the
+owner's requested wording, staggering their entrances by 860ms. All story
+copy uses a soft 800ms left-to-right wipe with ease-in-out timing, alongside
+a 600ms fade and subtle 6px lift. Reduced Motion
+shows fully visible text without masks or delays. The font and its Apache 2.0
+license are served locally. This revision has not been deployed; the production
+record below describes the previous version.
+
+The local pollen refinement gives two of the seventeen mote groups a close companion with its own slightly smaller float path, reverse traversal, shifted phase, different speed and origin offset by about 23px, sharing only the scroll anchor. Three additional singles sit 48px, 72px and 96px up the stem from the root crown, above the ground. Light-mode stamen tips, halos and motes use `color(display-p3 .929206 .81535 0)`, preserving the original yellow's OKLCH hue and lightness while increasing chroma to the P3 boundary; `#EBD039` remains the sRGB fallback. Dark retains its existing teal.
+
+The local botanical copy follows the owner's ten-line sequence from Chromium
+through removed Google services, extension proxying, blocking, Mac details,
+the command menu, !bangs, toolbar, vertical tabs and open-source foundations.
+Project names link to their sites/repositories, with Helium's !bangs linked to
+the directory. Only handwritten links use the hand-drawn underline: an upward
+arc in the text's ink color thickens to a dot on the right. Hover or keyboard
+focus triggers a 600ms left-to-right clip wipe, disabled for Reduced Motion.
+Normal-text links retain regular underlines. Lune is plain text in the final
+line; Helium and ungoogled-chromium remain linked. The command menu is labeled
+Cmd-T. The cursor pauses at the top edge one-third of the window width during
+the toolbar line, exposing the header, then moves to the sidebar toggle during
+the vertical-tab line. Both panels retract when its tip crosses the window
+edge. Native and fallback paths share the two holds; the phone path uses the
+same logical coordinates at half scale. Reduced Motion hides the demonstration.
+Copy gaps now follow each seeded specimen's ink bounds, targeting 44px optical
+clearance; the still-opening flower uses a 40px layout gap.
+
+The local Cmd-T demonstration now opens empty as the command-menu sentence
+reaches 70% of the pane. The next sentence triggers !wiki typing at the same
+70% reading position, followed by the Wikipedia provider pill; the completion
+result appears only with the pill.
+The pill remains when scrolling is stationary and dismisses at a distinct later
+scroll threshold, before the cursor's header hold. The illustration is passive,
+has no open-tab options or network requests, and is hidden for Reduced Motion.
+Live inspection of the installed app supplied its glass-menu reference; native
+source supplies input, provider-pill and row metrics. The CSS pane uses a 600px
+maximum width, 18px corners, 52px empty height and 111px scoped height. The
+supplemental shadow matches 5% black, 10px blur and a 3px downward offset;
+the glass itself remains a web approximation.
+
 [Deployment 42957488988](https://github.com/leebyron/lune-browser/actions/runs/42957488988) successfully deployed website commit `5b6d4ab6c6f2e01f195594da9fd74a5a5a40d590` using the existing local Mac runner and token. The owner accepted the paper surface, appearance-specific ink and pollen, wide shallow mote motion, timed text reveals, earlier personal note, macOS-style cursor and corrected sidebar labels. The opening wordmark retains Syne 800 at 40px after its missing size-variable fallback was repaired.
 
 Public HTTPS readback on November 11 at 04:11 UTC matches HTML, CSS, JavaScript and the new cotton-paper JPEG byte for byte. Local desktop/phone previews verify 600ms text entrances and 200ms exits only across the bottom threshold, continued visibility past the top edge, and completion while scrolling is stationary. The note trigger is 39.6px earlier in the 720px desktop viewport. Fourteen seeded motes share the stamen glow, with wide shallow 26–42 second loops and reversible cubic outward travel. Light uses yellow-gold; Dark uses saturated Display P3 teal with an sRGB fallback. Reduced Motion settles text and artwork and stops the motes. Native and forced-fallback scroll paths pass. The cursor tip remains within 0.5px of the toggle center on desktop and phone previews. Production readback confirms the restored font, timed reveal state, renamed tabs and P3 motes without console errors. Syntax, deployment dry run, cache keys and whitespace pass. The pre-push official Mac Stable lookup returned `157.0.8103.51`; published Chromium `158.0.8127.18` is not behind that observation. Browser assets, feeds and download targets retain their existing identities. Physical iPhone rendering was not independently retested.
@@ -37,16 +78,16 @@ The source now contains the
 adaptive Chlorophyll Daylight / Pelagic Signal desktop and a continuous
 scroll-driven browser story about respect for privacy, trust and attention,
 credited to both upstream projects.
-The source now uses ten short sentences in one Inter style and color,
-with a restrained, centered sine wave and no screenshot placeholder. The setup mark begins vertically centered and moves upward with the content, above a short personal note in the same Inter 20px/32px as the points; a 1.08-viewport prelude and 128px section gap keep the flower below the initial view. The source triggers the personal note at 75% of the logo’s opening range. Point copy becomes visible when its center reaches 75% of the browser viewport and stays visible through the top edge; only scrolling back below that lower threshold hides it. Scroll selects visibility while timed transitions finish independently (600ms in, 200ms out). Reduced Motion shows settled text. The softer 2.6px growing stroke waits until the flower is at least 35% open, then reaches the root crown before the final viewport, triggering a branching burst of light through the roots over 27% of a viewport. The illumination finishes with 18% of a viewport left to scroll. The unlit roots begin at 70% of their total reach and grow the remaining 30% as centerline masks draw lighter copies from 0% to 100%, timed by travel distance through each junction. Its
-flower is 50% larger, with 19 luminous stamens; eight generated leaves join a vine with
+The source now uses ten short sentences in one Rock Salt style and color,
+with a restrained, centered sine wave and no screenshot placeholder. The setup mark begins vertically centered and moves upward with the content, above a two-paragraph personal note in the same Rock Salt 16px/32px as the points; a 1.08-viewport prelude and 128px section gap keep the flower below the initial view. The source triggers the personal note at 75% of the logo’s opening range. Point copy becomes visible when its center reaches 85% of the browser viewport and stays visible through the top edge; only scrolling back below that lower threshold hides it. Scroll selects visibility while timed transitions finish independently (600ms in, 200ms out). Reduced Motion shows settled text. The softer 2.6px growing stroke waits until the flower is at least 35% open, then reaches the root crown before the final viewport, triggering an outward radial reveal through the roots over 27% of a viewport. The illumination finishes with 18% of a viewport left to scroll. The complete root silhouettes are cached until layout changes. Two shared radial-gradient masks reveal the faint base from 70% to 100% of its radius and the lighter overlay from 0% to 100%, replacing 270 animated centerline masks. Native scroll timelines and the fallback share the same radial progress; Reduced Motion shows both layers fully revealed. Its
+flower is 50% larger, with 19 luminous stamens; nine generated leaves join a vine with
 varied shoots, curled tendrils and subtle scroll motion that respects Reduced Motion.
 Leaves alternate around their exact petiole attachments and open outward by 6 degrees as the light passes; small shoots and tendrils open by 7 degrees around their stem junctions. The vine measures stable flex-row boxes; inner numeric SVG rotations keep the attachments fixed across engines. The stem roots in a
-Perlin-noise horizon 15% down the final viewport, with connected tapered roots starting at 70% of their total reach and a lighter trace growing over them, and the upward-facing flower
+Perlin-noise horizon 15% down the final viewport, with cached tapered roots under a radial base mask starting at 70% of its final radius and a lighter radial reveal growing over them, and the upward-facing flower
 opens its petals to reveal subtly luminous stamens.
-Specimens and copy align vertically with a 36px gap. Leaves are narrow and pointed, with flat-ink petioles and tangent-aligned offshoots. The flower has a straight tapered neck above a vertically tangent first vine segment. The unlit root opacity is 32% of its former value; the independent light trace retains its full reveal. The terrain starts a slightly darker fill through the footer, without a contour stroke. Fine terminal rootlets add detail, and the final mark/button gap is 28px. Mobile shows the half-scale faux cursor and click ring, with numeric scroll-positioned transforms for the cursor journey; the floating sidebar stays visible until the cursor leaves its 48px boundary. Reduced Motion hides the demonstration. Mobile content shares the
+Specimens and copy align vertically with per-specimen optical spacing. Leaves are narrow and pointed, with flat-ink petioles and tangent-aligned offshoots. The flower has a straight tapered neck above a vertically tangent first vine segment. The root base uses 50% silhouette opacity and the reveal 90%, under an 85% shared layer. Light uses the stem’s exact ink color; Dark retains the brighter cyan/mint mix. The terrain starts a slightly darker fill through the footer, without a contour stroke. Fine terminal rootlets add detail, and the final mark/button gap is 36px. Mobile shows the half-scale faux cursor and click ring, with numeric scroll-positioned transforms for the cursor journey; the floating sidebar stays visible until the faux cursor leaves the window. Reduced Motion hides the demonstration. Mobile content shares the
 browser’s 50% scale without typography or coda enlargement. Two pinned links open
-Fastmail and Calendar; regular links open Lune, its `lune-browser` GitHub project, Helium,
+the Fastmail homepage with mail and calendar artwork; regular links open its `lune-browser` GitHub project, Helium,
 `ungoogled-chromium` on GitHub and Lee Byron, with the author’s site last. The top-right
 group is limited to Extensions, uBlock Origin and 1Password; the latter two
 open their sites in new tabs.
@@ -56,8 +97,8 @@ the reading distance follow the content rather than a fixed page count. The
 browser uses the mounted-left layout with the reviewed 216px sidebar and a reversible scroll-driven cursor
 that unpins its sidebar during the minimal-UI section. The floating panel then
 slides away as the cursor leaves; hovering the left rail slides it back over the
-content. The pane snaps to width when pinning changes. Both floating panels
-dismiss beyond a 48px pointer-distance boundary; no cooldown timer remains.
+content. The pane snaps to width when pinning changes. Actual mouse interactions dismiss floating panels beyond a 48px pointer-distance
+boundary; the faux cursor uses the window edge without a buffer. No cooldown timer remains.
 The glass toolbar fades in from the top rail or either sidebar header, matching
 the native browser. The pinned sidebar uses the window material; its floating
 popover is a flush square CSS glass sheet. The window has 16px outer corners and
