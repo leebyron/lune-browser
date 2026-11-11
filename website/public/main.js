@@ -127,6 +127,12 @@
     const bullet=point.querySelector('.botanical-bullet'),sway=svg('g',{class:'botanical-sway'});
     sway.append(...bullet.childNodes);bullet.append(sway);
     point.pivotX=index===0?40:right?16:64;
+    // Reserve the same optical clearance from each painted specimen, rather
+    // than treating its transparent 80px SVG box as the edge of the branch.
+    const ink=sway.getBBox();
+    // The flower is still opening at its reading position, so its full bloom
+    // envelope would reserve too much empty space beside this first sentence.
+    point.style.setProperty('--copy-gap',`${index===0?40:Math.max(4,ink.x+ink.width+44-80)}px`);
   });
   function measure() {
     const style = getComputedStyle(root);
@@ -142,8 +148,7 @@
     introEnd=readingStart+pageHeight*.22;
     root.style.setProperty('--intro-start',`${introStart}px`);
     root.style.setProperty('--intro-end',`${introEnd}px`);
-    const note=pages.querySelector('.prelude-note');
-    textRanges=[{text:note,start:introStart+(introEnd-introStart)*.75}];
+    textRanges=[...pages.querySelectorAll('.prelude-note p')].map(text=>({text,start:introStart+(introEnd-introStart)*.75}));
     const coda=pages.querySelector('.coda'),codaContent=coda.querySelector('.coda-content'),thanks=coda.querySelector('.upstream-thanks'),byline=coda.querySelector('.byline');
     const actionsBottom=pageHeight/2+codaContent.offsetHeight/2;
     coda.style.setProperty('--thanks-top',`${(actionsBottom+byline.offsetTop)/2-thanks.offsetHeight/2}px`);
@@ -338,7 +343,7 @@
       point.style.setProperty('--leaf-end',`${end}px`);
       const text=point.querySelector('p'),box=point.getBoundingClientRect();
       const center=(box.top-pageBox.top)/scale+point.offsetHeight/2-(index===0?22:10);
-      textRanges.push({text,start:readingStart+center-pageHeight*.75});
+      textRanges.push({text,start:readingStart+center-pageHeight*.85});
     });
   }
   function updateBotany(y) {
