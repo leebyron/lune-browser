@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "b33e3f250bb4b687cbe522ab3c514981f6c0f072",
+    "commit": "1cd15a9c968749af7911e609445823c3092512e6",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -721,6 +721,10 @@
       {
         "path": "patches/helium/ui/search-suggestions-settings.patch",
         "sha256": "d31ab8373e9ba561fbde3a2c0a23986091033c6795f536e69c3c437e92b2f368"
+      },
+      {
+        "path": "patches/helium/ui/customize-no-transient-toolbar-icon.patch",
+        "sha256": "52bc9c266025cbc370630bf6450cf901cacae4813bb775048f9c284cad17283c"
       }
     ]
   },
@@ -1775,6 +1779,21 @@
       "adaptation": "Developed in prepared Chromium source with quilt, refreshed and unmerged into the platform; owner accepted November 10, 2026. Both architecture builds and onboarding checks, compiled ranking/selection checks, loopback provider fixtures and native Apple silicon review pass; Intel runtime uses Rosetta. Final zero-fuzz replay matches twenty-one changed source files. Settings wording replays before existing product-name substitution. See agent-docs/project/features/search-suggestions.md and search-suggestions-navigation.md for provider limits.",
       "commits": [
         "b33e3f250bb4b687cbe522ab3c514981f6c0f072"
+      ]
+    },
+    {
+      "id": "customize-no-transient-toolbar-icon",
+      "depends_on": [
+        "native-toolbar-controls"
+      ],
+      "patches": [
+        "patches/helium/ui/customize-no-transient-toolbar-icon.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Opening Customize should not add a temporary config icon to the trailing toolbar strip.",
+      "adaptation": "Disable Chromium's existing ephemeral toolbar flag when registering Customize side-panel entries. Explicitly pinned Customize buttons retain their existing visibility and active state. Developed with quilt in prepared source, refreshed and unmerged into the platform; zero-fuzz replay matches the prepared source, patch lint and both architecture builds pass. Live Apple silicon checks cover Appearance, Toolbar and panel closing. Owner accepted November 10, 2026. See agent-docs/project/features/trailing-toolbar-controls.md.",
+      "commits": [
+        "1cd15a9c968749af7911e609445823c3092512e6"
       ]
     }
   ],

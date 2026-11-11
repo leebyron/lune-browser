@@ -395,3 +395,11 @@ Chromium's Normal Reload, Hard Reload, and Empty Cache and Hard Reload menu.
 The menu remains open after release. DevTools was then closed. This completes
 the earlier pending live Reload hold check; the common recognizer's cancellation
 and short-click behavior also pass the native tests on both architectures.
+
+## Customize temporary icon removal
+
+Requested and owner accepted November 10, 2026. Platform commit `1cd15a9c968749af7911e609445823c3092512e6` on `remove-customize-transient-icon`, retained by signed input tag `inputs/customize-icon-1/macos`, adds `helium/ui/customize-no-transient-toolbar-icon.patch` above the preceding search-suggestions input. Customize side-panel entries now disable Chromium's ephemeral toolbar button, so opening Colors or Toolbar no longer adds a Customize icon to the trailing strip. An explicitly pinned Customize button retains its existing visibility and active state. Menu commands, panel close controls, and the existing header/sidebar reveal hold are unchanged.
+
+The patch was developed in the prepared source with quilt, refreshed, and unmerged into the platform repository. Zero-fuzz replay matches the prepared source exactly; platform patch lint and whitespace checks pass. Both architecture builds pass. Live arm64 inspection confirms Appearance and Toolbar open without adding a Customize button and the panel closes normally. Build and preview evidence is retained under `.work/customize-icon/`. The development lock and patch provenance adopt this input for future builds. Published releases retain their frozen inputs.
+
+The isolated ad-hoc preview initially hit a Keychain identity warning. A subsequent shell-sandbox launch (PID `91627`) aborted during AppKit application registration, before browser UI initialization; its log records Mach bootstrap permission failures. The matching debug symbols resolve the crash through `BrowserCrApplication::sharedApplication`, `RegisterBrowserCrApp`, and `ChromeMainDelegate::PreBrowserMain`. Relaunching outside the shell sandbox with Chromium's mock keychain and a fresh test profile succeeds, and the Customize panel opens without the temporary icon. These test-launch limitations do not establish a browser feature crash.
