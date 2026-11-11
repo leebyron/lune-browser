@@ -42,6 +42,7 @@ def main():
     source = platform / 'build/src'
     report = a.report.resolve()
     lock = lune.read_json(ROOT / 'manifests/browser.lock.json')
+    lock_digest = sha(ROOT / 'manifests/browser.lock.json')
     lune.validate_lock(lock)
     lune.require_clean_orchestrator()
     lune.check_checkout(platform, lock)
@@ -64,8 +65,10 @@ python3 "$_src_dir/third_party/node/node.py" "$_src_dir/components/helium_onboar
         subprocess.run(['/bin/bash', '-c', shell, 'lune-release-prepare', str(platform)],
                        cwd=platform, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
     files, links = inventory(source)
+    if sha(ROOT / 'manifests/browser.lock.json') != lock_digest:
+        raise ValueError('Browser lock changed during preparation; prepare the selected inputs again')
     result = dict(schema_version=1, inventory_version=1,
-                  browser_lock_sha256=sha(ROOT / 'manifests/browser.lock.json'),
+                  browser_lock_sha256=lock_digest,
                   helium=lock['components']['helium']['commit'],
                   macos=lock['components']['macos']['commit'], strict_replay_passed=True,
                   scope='complete prepared source inventory excluding outputs and bookkeeping',
