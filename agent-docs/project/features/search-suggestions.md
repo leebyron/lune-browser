@@ -48,3 +48,7 @@ Final packaged onboarding flow checks pass on arm64 and x86_64 (Rosetta): custom
 - `b33e3f250bb4b687cbe522ab3c514981f6c0f072`: `patches/helium/ui/search-suggestions-settings.patch`.
 
 These signed commits retain the unchanged core gitlink and all preceding patches. The permanent signed platform tag pins their exact combined tree; `manifests/patches.json` records order, dependencies and patch hashes. Main selects that input through `manifests/browser.lock.json`.
+
+## Fresh-preparation correction
+
+Fresh full release preparation on November 11 found that `search-suggestions-settings.patch` expected Chromium in the old Helium-added description, while the pre-substitution source actually says Helium. The owner authorized correcting that one removal line after the first release attempt stopped. Signed commit `009caf230874153962f9965367ab79e789c8ed36`, retained by `inputs/search-suggestions-context-1/macos`, changes only the expected old text; resulting browser text and behavior are unchanged. The rejected hunk passes an isolated zero-fuzz dry run. Complete fresh preparation and release validation are recorded with the retry, separately from the earlier development checks.

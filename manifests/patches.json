@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "dece2e93ca27a8b6012cc20910ecfcf2a0e1ae6e",
+    "commit": "009caf230874153962f9965367ab79e789c8ed36",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -720,7 +720,7 @@
       },
       {
         "path": "patches/helium/ui/search-suggestions-settings.patch",
-        "sha256": "d31ab8373e9ba561fbde3a2c0a23986091033c6795f536e69c3c437e92b2f368"
+        "sha256": "a2560918e9be8bf773a3e48ea8c7d66f7cb8ad5a4d06e2f924cfc5b9df7d9365"
       },
       {
         "path": "patches/helium/ui/customize-no-transient-toolbar-icon.patch",
@@ -1792,9 +1792,10 @@
       ],
       "review_status": "reviewed-port",
       "rationale": "Reuse the shared suggestion toggle beside the selected engine and disclose address-bar and Command-T requests.",
-      "adaptation": "Developed in prepared Chromium source with quilt, refreshed and unmerged into the platform; owner accepted November 10, 2026. Both architecture builds and onboarding checks, compiled ranking/selection checks, loopback provider fixtures and native Apple silicon review pass; Intel runtime uses Rosetta. Final zero-fuzz replay matches twenty-one changed source files. Settings wording replays before existing product-name substitution. See agent-docs/project/features/search-suggestions.md and search-suggestions-navigation.md for provider limits.",
+      "adaptation": "Developed in prepared Chromium source with quilt, refreshed and unmerged into the platform; owner accepted November 10, 2026. Both architecture builds and onboarding checks, compiled ranking/selection checks, loopback provider fixtures and native Apple silicon review pass; Intel runtime uses Rosetta. Final zero-fuzz replay matches twenty-one changed source files. Settings wording replays before existing product-name substitution. See agent-docs/project/features/search-suggestions.md and search-suggestions-navigation.md for provider limits. November 11 release preparation exposed the Helium-added pre-substitution old text, which says Helium rather than Chromium. The owner authorized a one-line removal-context correction; resulting browser text is unchanged. The correction is retained in inputs/search-suggestions-context-1/macos.",
       "commits": [
-        "b33e3f250bb4b687cbe522ab3c514981f6c0f072"
+        "b33e3f250bb4b687cbe522ab3c514981f6c0f072",
+        "009caf230874153962f9965367ab79e789c8ed36"
       ]
     },
     {
