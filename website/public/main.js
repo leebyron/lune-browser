@@ -8,6 +8,9 @@
   const demoCursor=root.querySelector('.demo-cursor'),demoClick=root.querySelector('.demo-click');
   const sidebarRegion=root.querySelector('.sidebar-region'),sidebarRail=root.querySelector('.sidebar-rail');
   const toolbarRegion=root.querySelector('.toolbar-region'),toolbarRail=root.querySelector('.toolbar-rail'),toolbar=root.querySelector('.browser-toolbar');
+  const commandDemo=root.querySelector('.command-demo'),commandQuery=commandDemo.querySelector('.command-demo-query'),commandScope=commandDemo.querySelector('.command-demo-scope');
+  const commandHint=commandDemo.querySelector('.command-demo-hint'),commandPlaceholder=commandDemo.querySelector('.command-demo-placeholder');
+  let commandStart=0,bangStart=0,commandComplete=0,commandDismiss=0,commandEnd=0,bangStartedAt=null,commandFrame=0;
   let panelPointer=null,cursorPath=null,cursorPathLength=0,browserScale=1;
   const panelDismissDistance=48;
   let demoStart=0,demoDistance=460,toolbarStop=25,cursorStop=65,sidebarOverride=null,sidebarHovered=false,demoToolbarActive=false;
@@ -175,6 +178,14 @@
     // The two holds meet their own sentence at the same reading height.
     demoDistance=Math.max(1,(textCenter(minimal)-textCenter(toolbarStory))/.38);
     demoStart=readingStart+textCenter(toolbarStory)-pageHeight*.58-demoDistance*.30;
+    commandStart=readingStart+textCenter(root.querySelector('.command-menu'))-pageHeight*.70;
+    bangStart=readingStart+textCenter(root.querySelector('.bangs'))-pageHeight*.70;
+    commandComplete=bangStart+pageHeight*.14;
+    commandDismiss=Math.max(commandComplete+pageHeight*.20,demoStart+pageHeight*.08);
+    commandEnd=commandDismiss+pageHeight*.04;
+    root.style.setProperty('--command-start',`${commandStart}px`);
+    root.style.setProperty('--command-complete',`${commandComplete}px`);
+    root.style.setProperty('--command-dismiss',`${commandDismiss}px`);
     root.style.setProperty('--demo-start', `${demoStart}px`);
     root.style.setProperty('--demo-end', `${demoStart + demoDistance}px`);
     // Keep the path in window coordinates, but render the cursor on the desktop
@@ -433,6 +444,39 @@
     stamens.style.transform=`translateY(${5-5*bloom}px) scale(${.16+.84*bloom},${.72+.28*bloom})`;
     stamens.style.opacity=.6+.4*bloom;
   }
+  function updateCommandDemo(y) {
+    const active=appVisible&&!reduce.matches&&y>=commandStart&&y<commandEnd;
+    if(!active||y<bangStart) {
+      if(commandFrame)cancelAnimationFrame(commandFrame);
+      commandFrame=0;bangStartedAt=null;
+      renderCommandDemo(active?'open':'closed','',false,false);
+      return;
+    }
+    if(y>=commandDismiss) {
+      if(commandFrame)cancelAnimationFrame(commandFrame);
+      commandFrame=0;
+      renderCommandDemo('closed','',false,false);
+      return;
+    }
+    // Like the prose reveals, typing completes in elapsed time when scrolling
+    // pauses. Leaving this section cancels it; reversing above !bangs resets it.
+    if(bangStartedAt===null)bangStartedAt=performance.now();
+    const elapsed=Math.max(performance.now()-bangStartedAt,clamp((y-bangStart)/(commandComplete-bangStart))*1100);
+    const typed='!wiki'.slice(0,Math.max(0,Math.min(5,Math.floor((elapsed-200)/120))));
+    if(elapsed<1100)renderCommandDemo(typed?'typing':'open',typed,false,false);
+    else renderCommandDemo('scoped','',true,true);
+    if(elapsed<1100&&!commandFrame)commandFrame=requestAnimationFrame(()=>{commandFrame=0;updateCommandDemo(scroll.scrollTop);});
+  }
+  function renderCommandDemo(state,query,scoped,hint) {
+    if(commandDemo.dataset.commandState!==state)commandDemo.dataset.commandState=state;
+    // Fade the whole pane away at its current size, without collapsing its row.
+    if(state==='closed')return;
+    if(commandQuery.textContent!==query)commandQuery.textContent=query;
+    if(commandScope.hidden===scoped)commandScope.hidden=!scoped;
+    if(commandHint.hidden===hint)commandHint.hidden=!hint;
+    const placeholderHidden=scoped||Boolean(query);
+    if(commandPlaceholder.hidden!==placeholderHidden)commandPlaceholder.hidden=placeholderHidden;
+  }
   function update(){
     queued=false;const y=scroll.scrollTop;if(y>launchAt&&pointer!==null){pointer=null;startMagnify();}if(y<=launchAt)close();else {launch();if(y>=readingStart&&y>opening)reveal(true);}const p=clamp(y/opening),r=reading ? clamp((y-readingStart)/reading) : 0;
     hero.inert=appVisible||y>=opening;learn.inert=appVisible||y>=opening;
@@ -440,6 +484,7 @@
     root.dataset.phase=appVisible?'reading':launched?'launching':'closed';root.dataset.progress=p.toFixed(3);
     updateSidebar(y);
     updateBotany(y);
+    updateCommandDemo(y);
     pages.querySelectorAll('.story-section').forEach(section=>{const top=section.offsetTop-r*reading;const offscreen=!appVisible||top>=pageHeight-.5||top+section.offsetHeight<=.5;section.inert=offscreen;section.setAttribute('aria-hidden',String(offscreen));});
     if(!nativeTimeline){
       const fade=1-clamp((p-.18)/.82);hero.style.translate=learn.style.translate=`0 ${-Math.min(y,opening)}px`;hero.style.opacity=learn.style.opacity=fade;

@@ -156,6 +156,25 @@ svg { display: block; }
   #lune .browser-tools img { object-fit:contain; }
   #lune .demo-cursor { position:absolute; left:var(--cursor-origin-x,0px); top:var(--cursor-origin-y,0px); z-index:50; pointer-events:none; opacity:0; offset-path:var(--cursor-path); offset-rotate:0deg; offset-anchor:2px 1.5px; transform-origin:2px 1.5px; filter:drop-shadow(0 1px 1px #00000066); }
   #lune .demo-click { position:absolute; z-index:45; left:calc(var(--sidebar-width) - 22px); top:26px; width:36px; height:36px; margin:-18px; border:1px solid light-dark(#276C69,#C9F4EF); border-radius:50%; opacity:0; pointer-events:none; }
+  #lune .command-demo { position:absolute; z-index:40; top:max(12px,calc((var(--page) - 319px) / 2)); left:50%; translate:-50% 0; width:min(600px,calc(100% - 72px)); border:0; border-radius:18px; background:linear-gradient(145deg,light-dark(#FFFFFF75,#D9E9F21A),transparent 45%),light-dark(#EFF4EFCF,#132F43D9); backdrop-filter:blur(28px) saturate(1.25); box-shadow:0 3px 10px rgb(0 0 0 / .05),inset 0 0 0 1px light-dark(#FFFFFFB3,#DCEAF22E),inset 0 .5px light-dark(#FFFFFF80,#FFFFFF24); color:light-dark(#1D2528,#ECEEF0); font:400 13px/20px -apple-system,BlinkMacSystemFont,sans-serif; opacity:0; visibility:hidden; transform:scale(.98); transform-origin:50% 26px; transition:opacity 180ms ease-out,transform 180ms ease-out,visibility 180ms; pointer-events:none; }
+  #lune .command-demo:not([data-command-state="closed"]) { opacity:1; visibility:visible; transform:scale(1); transition:opacity 180ms ease-out,transform 180ms ease-out,visibility 0s; }
+  #lune .command-demo-input { display:flex; align-items:center; gap:10px; height:52px; padding:0 20px; font-size:18px; line-height:24px; }
+  #lune .command-demo-input:has(.command-demo-scope:not([hidden])) { padding-left:16px; }
+  #lune .command-demo-editor { display:flex; align-items:center; min-width:0; white-space:nowrap; }
+  #lune .command-demo-placeholder { color:light-dark(#747A7C,#B4BEC4); }
+  #lune .command-demo-caret { order:1; height:22px; width:1.5px; background:var(--signal); flex:none; }
+  #lune .command-demo-placeholder + .command-demo-caret { order:-1; }
+  #lune .command-demo-query:not(:empty) ~ .command-demo-placeholder { display:none; }
+  #lune .command-demo-query:not(:empty) ~ .command-demo-caret { order:1; }
+  #lune .command-demo-scope { flex:none; max-width:40%; height:28px; padding:0 12px; border-radius:14px; background:light-dark(#1D25281A,#ECEEF01A); font-weight:500; font-size:13px; line-height:28px; overflow:hidden; text-overflow:ellipsis; }
+  #lune .command-demo-hint { padding:0 8px 7px; }
+  #lune .command-demo-row { position:relative; display:grid; grid-template-columns:16px minmax(0,1fr) 82px; align-items:center; gap:14px; height:52px; padding:0 14px; }
+  #lune .command-demo-selected::before { content:''; position:absolute; inset:1px 0; z-index:-1; border-radius:10px; background:light-dark(#23455020,#C9D9E32E); }
+  #lune .command-demo-row > :is(img,.site-icon) { display:block; width:16px; height:16px; object-fit:contain; }
+  #lune .command-demo-hint-title { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  #lune .command-demo-action { justify-self:end; color:light-dark(#9DA4A6,#83939F); font-size:11px; line-height:18px; white-space:nowrap; }
+  #lune .command-demo-wiki-icon { font:400 17px/20px Georgia,serif; }
+  #lune .command-demo [hidden] { display:none; }
   #lune .window[data-sidebar-override] { animation:none!important; }
   #lune .window-controls { position:absolute; z-index:40; left:8px; top:8px; width:82px; height:36px; padding-inline:7px; gap:1px; display:flex; align-items:center; background:none; opacity:0; visibility:hidden; transition:opacity 180ms ease-out,visibility 180ms; pointer-events:none; }
   #lune .window[data-controls-motion="sidebar"] .window-controls { opacity:1; transform:translateX(calc(-1 * (var(--sidebar-width)))); transition:transform 260ms cubic-bezier(.2,.8,.2,1),visibility 260ms; }
@@ -300,6 +319,7 @@ svg { display: block; }
   #lune .viewport { transition:left 260ms cubic-bezier(.2,.8,.2,1); }
 }
 @media(prefers-reduced-motion:reduce) {
+  #lune .command-demo { display:none; transition:none; }
   #lune .mote-float { animation:none; offset-path:none; }
   #lune .prelude-note p,#lune .flow-point p { transition:none; opacity:1; transform:none; mask-image:none; }
   #lune .window { animation:none; }
