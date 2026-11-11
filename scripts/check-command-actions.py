@@ -39,6 +39,7 @@ label_ids = sorted(labels)
 definitions = '\n'.join(f'constexpr int {name} = {n};'
                         for n, name in enumerate(commands + label_ids, 1))
 label_switch = '\n'.join(f'case {name}: return u"{labels[name]}";' for name in label_ids)
+symbol_constants = (ui / 'helium_command_symbols.h').read_text()
 body = '\n'.join(line for line in registry.splitlines() if not line.startswith('#include'))
 controller = (ui / 'helium_command_bar_controller.cc').read_text()
 mode_helpers = r'''
@@ -73,14 +74,30 @@ program = r'''
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <functional>
+#include <tuple>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
 #include <vector>
 ''' + definitions + r'''
 namespace base {
+template<class T> struct WeakPtr {
+  T* value;T* get() const{return value;}T* operator->() const{return value;}
+  explicit operator bool() const{return value;}
+};
+struct OnceClosure {
+  std::function<void()> fn;
+  void Run(){auto once=std::move(fn);once();}
+};
+template<class F,class... A> OnceClosure BindOnce(F fn,A... args) {
+  return {[fn,args...]() mutable {fn(args...);}};
+}
+struct TimeDelta {int seconds;};
+TimeDelta Seconds(int seconds){return {seconds};}
 struct Time {
   double seconds=2000000000;
   static Time Now(){return {};}
@@ -151,15 +168,102 @@ struct Profile {
   bool IsOffTheRecord(){return off_the_record;}
   Profile* GetOriginalProfile(){return original?original:this;}
 };
-namespace content {struct WebContents {};}
+namespace media_session::mojom {
+enum class MediaSessionAction {kPlay,kPause,kPreviousTrack,kNextTrack,kSeekBackward,kSeekForward,kStop,kSkipAd,kEnterPictureInPicture,kExitPictureInPicture};
+enum class MediaPlaybackState {kPlaying,kPaused};
+enum class MediaPictureInPictureState {kNotInPictureInPicture,kInPictureInPicture};
+constexpr int kDefaultSeekTimeSeconds=5;
+struct MediaSessionInfo {
+  enum class SessionState {kActive,kSuspended,kInactive};
+  SessionState state=SessionState::kActive;
+  bool is_controllable=true;
+  MediaPlaybackState playback_state=MediaPlaybackState::kPlaying;
+  MediaPictureInPictureState picture_in_picture_state=MediaPictureInPictureState::kNotInPictureInPicture;
+};
+}
+namespace tab_groups {using TabGroupId=int;}
+namespace content {class MediaSession;}
+namespace content {struct WebContents {
+  bool recently_audible=false,audibility_available=true;
+  MediaSession* media=nullptr;
+  Profile* context=nullptr;std::string request_id;
+  std::u16string title=u"Media target";
+  Profile* GetBrowserContext(){return context;}
+  const std::u16string& GetTitle(){return title;}
+  base::WeakPtr<WebContents> GetWeakPtr(){return {this};}
+};}
+namespace content {
+class MediaSession {
+ public:
+  enum class SuspendType {kUI};
+  media_session::mojom::MediaSessionInfo info;
+  bool info_available=true;
+  std::vector<media_session::mojom::MediaSessionAction> actions;
+  std::string executed;int seek_seconds=0;
+  inline static std::map<std::string,WebContents*> targets;
+  struct RequestId {std::string value;std::string ToString() const{return value;}};
+  static RequestId GetRequestIdFromWebContents(WebContents* page){
+    if(page->request_id.empty())page->request_id="session-"+std::to_string(targets.size()+1);
+    targets[page->request_id]=page;return {page->request_id};
+  }
+  static WebContents* GetWebContentsFromRequestId(const std::string& id){
+    auto it=targets.find(id);return it==targets.end()?nullptr:it->second;
+  }
+  static MediaSession* GetIfExists(WebContents* page){assert(page);return page->media;}
+  auto GetMediaSessionInfoSync(){return info_available?std::make_unique<media_session::mojom::MediaSessionInfo>(info):nullptr;}
+  auto GetMediaSessionActionsSync() const{return actions;}
+  void Resume(SuspendType){executed="play";}
+  void Suspend(SuspendType){executed="pause";}
+  void PreviousTrack(){executed="previous";}
+  void NextTrack(){executed="next";}
+  void Seek(base::TimeDelta time){executed="seek";seek_seconds=time.seconds;}
+  void Stop(SuspendType){executed="stop";}
+  void SkipAd(){executed="skip ad";}
+  void EnterPictureInPicture(){executed="enter pip";}
+  void ExitPictureInPicture(){executed="exit pip";}
+};
+}
+struct MediaNotificationService {
+  struct Manager {
+    std::vector<std::string> ids;
+    auto GetActiveItemIds(){return ids;}
+  } manager;
+  Manager* media_item_manager(){return &manager;}
+};
+struct MediaNotificationServiceFactory {
+  inline static MediaNotificationService* service=nullptr;
+  static MediaNotificationService* GetForProfile(Profile*){return service;}
+};
+struct RecentlyAudibleHelper {
+  content::WebContents* page;
+  static RecentlyAudibleHelper* FromWebContents(content::WebContents* page){
+    static RecentlyAudibleHelper helper;helper.page=page;
+    return page->audibility_available?&helper:nullptr;
+  }
+  bool WasRecentlyAudible(){return page->recently_audible;}
+};
 struct TabStripModel {
-  enum {CommandTogglePinned,CommandToggleSiteMuted};
+  enum {CommandTogglePinned,CommandToggleSiteMuted,CommandToggleGrouped,CommandRemoveFromGroup};
+  static constexpr int kNoTab=-1;
+  bool groups_supported=true,group_enabled=true,confirm_removal=false;
+  std::optional<int> group[2];int editor=0;std::vector<int> marked;
+  base::OnceClosure pending;
+  bool SupportsTabGroups(){return groups_supported;}
+  std::optional<int> GetTabGroupForTab(int i){return group[i];}
+  int AddToNewGroup(std::vector<int> indices){assert(indices==std::vector<int>{0});group[0]=42;return 42;}
+  void OpenTabGroupEditor(int id){editor=id;}
+  std::vector<int> GetGroupsDestroyedFromRemovingIndices(std::vector<int> indices){assert(indices==std::vector<int>{0});return confirm_removal?std::vector<int>{*group[0]}:std::vector<int>{};}
+  void MarkTabGroupsForClosing(std::vector<int> ids){marked=ids;}
+  int GetIndexOfWebContents(content::WebContents* target){return active_present && target==&page?0:kNoTab;}
+  void RemoveFromGroup(std::vector<int> indices){assert(indices==std::vector<int>{0});group[0].reset();}
+  TabStripModel* delegate(){return this;}
+  void OnRemovingAllTabsFromGroups(std::vector<int> ids,base::OnceClosure callback){assert(ids==marked);pending=std::move(callback);}
   bool active_present=true,pin_enabled=true,mute_enabled=true;
   bool pinned[2]={false,true},muted[2]={false,false};
   content::WebContents page;
   int active_index(){return 0;}
   content::WebContents* GetActiveWebContents(){return active_present?&page:nullptr;}
-  bool IsContextMenuCommandEnabled(int i,int command){assert(i==0);return command==CommandTogglePinned?pin_enabled:mute_enabled;}
+  bool IsContextMenuCommandEnabled(int i,int command){assert(i==0);return command==CommandTogglePinned?pin_enabled:command==CommandToggleSiteMuted?mute_enabled:group_enabled;}
   bool IsTabPinned(int i){return pinned[i];}
   void SetTabPinned(int i,bool pin){pinned[i]=pin;}
   void SetSitesMuted(std::vector<int> indices,bool mute){for(int i:indices)muted[i]=mute;}
@@ -170,6 +274,7 @@ struct BrowserWindowInterface {
   enum class Type {TYPE_NORMAL,TYPE_APP};
   Type type=Type::TYPE_NORMAL;Profile profile;TabStripModel strip;Window window;
   std::set<int> unsupported,disabled;int executed=0;
+  base::WeakPtr<BrowserWindowInterface> GetWeakPtr(){return {this};}
   Type GetType(){return type;}Profile* GetProfile(){return &profile;}
   TabStripModel* GetTabStripModel(){return &strip;}Window* GetWindow(){return &window;}
 };
@@ -220,14 +325,15 @@ BrowserShortcutService* BrowserShortcutServiceFactory::service=nullptr;
 }
 struct HeliumCommandBarItem {
   enum class Type {kCommand};Type type;int command=0,score=0;
-  std::u16string title,shortcut;std::string symbol_name;
+  std::u16string title,shortcut,description;std::string symbol_name,media_request_id;
 };
 namespace helium_command_bar_model {
-constexpr int kPinSidebar=-1;
+constexpr int kPinSidebar=-1,kMediaPlayPause=-2,kMediaPictureInPicture=-3,kMediaPreviousTrack=-4,kMediaNextTrack=-5,kMediaSeekBackward=-6,kMediaSeekForward=-7,kMediaStop=-8,kMediaSkipAd=-9;
 constexpr int kScoreExact=140,kScorePrefix=70,kScoreWord=45,kScoreSubstring=20;
-''' + function(model, 'bool IsWordBoundary(') + '\n' + function(model, 'int ScoreText(') + '\n}\n' + body + mode_helpers + r'''
+''' + function(model, 'bool IsWordBoundary(') + '\n' + function(model, 'int ScoreText(') + '\n}\n' + symbol_constants + body + mode_helpers + r'''
 int main() {
   using namespace helium_command_bar_model;
+  assert(std::size(kCommands)==53);
   assert(IsCommandSearchAccelerator({ui::VKEY_OEM_2,ui::EF_PLATFORM_ACCELERATOR}));
   assert(IsCommandSearchAccelerator({ui::VKEY_P,ui::EF_PLATFORM_ACCELERATOR|ui::EF_SHIFT_DOWN}));
   assert(!IsCommandSearchAccelerator({ui::VKEY_P,ui::EF_PLATFORM_ACCELERATOR}));
@@ -249,6 +355,7 @@ int main() {
   BrowserView view;BrowserView::state=&view;
   tabs::VerticalTabStripStateController vertical;
   tabs::VerticalTabStripStateController::state=&vertical;
+  browser.strip.page.context=&browser.profile;
   auto find=[&](const std::u16string& q,bool scope=true){return CommandsForQuery(&browser,q,scope);};
   auto get=[&](int command){auto item=CommandForId(&browser,command);assert(item);return *item;};
   auto has=[&](const auto& rows,int command){return std::ranges::any_of(rows,[&](const auto& r){return r.command==command;});};
@@ -268,6 +375,36 @@ int main() {
   assert(find(u"/customize")[0].command==IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL);
   assert(find(u"/save as pdf")[0].command==IDC_PRINT);
   assert(find(u"/no match xyz").empty());
+  assert(get(IDC_HOME).symbol_name=="house");
+  assert(get(IDC_CREATE_NEW_TAB_GROUP).symbol_name=="folder.badge.plus");
+  assert(find(u"/ungroup tab").empty());
+  auto group=get(IDC_WINDOW_GROUP_TAB);
+  assert(group.title==u"Group Tab" && group.symbol_name=="folder");
+  browser.strip.group[1]=99;  // Unrelated selection must remain untouched.
+  assert(ExecutePaletteCommand(&browser,group));
+  assert(browser.strip.group[0]==42 && browser.strip.group[1]==99 && browser.strip.editor==42);
+  assert(!ExecutePaletteCommand(&browser,group));  // Stale Group cannot remove.
+  auto remove=get(IDC_WINDOW_GROUP_TAB);
+  assert(remove.title==u"Remove Tab from Group" && remove.symbol_name=="folder");
+  assert(find(u"/ungroup tab")[0].command==IDC_WINDOW_GROUP_TAB);
+  assert(ExecutePaletteCommand(&browser,remove));
+  assert(!browser.strip.group[0] && browser.strip.group[1]==99);
+  browser.strip.group[0]=42;browser.strip.confirm_removal=true;
+  assert(ExecutePaletteCommand(&browser,get(IDC_WINDOW_GROUP_TAB)));
+  assert(browser.strip.group[0]==42 && browser.strip.marked==std::vector<int>{42});
+  browser.strip.pending.Run();assert(!browser.strip.group[0]);
+  browser.strip.group[0]=42;
+  assert(ExecutePaletteCommand(&browser,get(IDC_WINDOW_GROUP_TAB)));
+  browser.strip.group[0]=43;  // Async confirmation cannot redirect to another group.
+  browser.strip.pending.Run();assert(browser.strip.group[0]==43);
+  browser.strip.group[0].reset();browser.strip.group[1].reset();browser.strip.confirm_removal=false;
+  browser.strip.groups_supported=false;
+  assert(!CommandForId(&browser,IDC_WINDOW_GROUP_TAB));
+  assert(!CommandForId(&browser,IDC_CREATE_NEW_TAB_GROUP));
+  browser.strip.groups_supported=true;browser.strip.group_enabled=false;
+  assert(!CommandForId(&browser,IDC_WINDOW_GROUP_TAB));
+  browser.strip.group_enabled=true;
+
   browser.disabled.insert(IDC_RESTORE_TAB);assert(find(u"/undo close tab").empty());
   browser.unsupported.insert(IDC_DEV_TOOLS_CONSOLE);assert(find(u"/console").empty());
   auto print=get(IDC_PRINT);browser.disabled.insert(IDC_PRINT);
@@ -281,14 +418,117 @@ int main() {
   assert(ExecutePaletteCommand(&browser,unpin));
   assert(!browser.strip.pinned[0]&&browser.strip.pinned[1]);
   browser.strip.pin_enabled=false;assert(!CommandForId(&browser,IDC_WINDOW_PIN_TAB));
-  auto mute=get(IDC_WINDOW_MUTE_SITE);assert(ExecutePaletteCommand(&browser,mute));
+  // Silent tabs offer no Mute action; audibility belongs to the active tab.
+  content::WebContents other_media_tab;other_media_tab.recently_audible=true;
+  assert(!CommandForId(&browser,IDC_WINDOW_MUTE_SITE));
+  browser.strip.page.recently_audible=true;
+  auto mute=get(IDC_WINDOW_MUTE_SITE);
+  browser.strip.page.recently_audible=false;
+  assert(!ExecutePaletteCommand(&browser,mute)&&!browser.strip.muted[0]);
+  browser.strip.page.recently_audible=true;
+  assert(ExecutePaletteCommand(&browser,mute));
   assert(browser.strip.muted[0]&&!browser.strip.muted[1]);
-  assert(get(IDC_WINDOW_MUTE_SITE).title==u"Unmute Site");
+  browser.strip.page.recently_audible=false;
+  auto unmute=get(IDC_WINDOW_MUTE_SITE);assert(unmute.title==u"Unmute Site");
   assert(!ExecutePaletteCommand(&browser,mute));
+  assert(ExecutePaletteCommand(&browser,unmute));
+  assert(!CommandForId(&browser,IDC_WINDOW_MUTE_SITE));
+  browser.strip.page.recently_audible=true;
+  browser.strip.page.audibility_available=false;
+  assert(!CommandForId(&browser,IDC_WINDOW_MUTE_SITE));
+  browser.strip.page.audibility_available=true;
+  // Media capabilities belong to the invoking tab, never another session.
+  using Action=media_session::mojom::MediaSessionAction;
+  using Playback=media_session::mojom::MediaPlaybackState;
+  using Pip=media_session::mojom::MediaPictureInPictureState;
+  using State=media_session::mojom::MediaSessionInfo::SessionState;
+  content::MediaSession media,other_media;
+  other_media_tab.media=&other_media;other_media.actions={Action::kPlay,Action::kPause};
+  for(int id=kMediaPlayPause;id>=kMediaSkipAd;--id)assert(!CommandForId(&browser,id));
+  browser.strip.page.media=&media;
+  assert(!CommandForId(&browser,kMediaPlayPause));
+  media.actions={Action::kPlay,Action::kPause};
+  auto pause=get(kMediaPlayPause);assert(pause.title==u"Pause Media"&&pause.symbol_name=="pause.fill");
+  assert(ExecutePaletteCommand(&browser,pause)&&media.executed=="pause");
+  media.info.playback_state=Playback::kPaused;media.info.state=State::kSuspended;
+  assert(!ExecutePaletteCommand(&browser,pause));
+  auto play=get(kMediaPlayPause);assert(play.title==u"Play Media"&&play.symbol_name=="play.fill");
+  assert(ExecutePaletteCommand(&browser,play)&&media.executed=="play");
+  media.actions.clear();assert(!ExecutePaletteCommand(&browser,play));
+  media.actions={Action::kPlay};media.info.is_controllable=false;
+  assert(!CommandForId(&browser,kMediaPlayPause));
+  media.info.is_controllable=true;media.info.state=State::kInactive;
+  assert(!CommandForId(&browser,kMediaPlayPause));
+  media.info.state=State::kActive;media.info_available=false;
+  assert(!CommandForId(&browser,kMediaPlayPause));media.info_available=true;
+  media.actions={Action::kEnterPictureInPicture};
+  auto enter_pip=get(kMediaPictureInPicture);assert(ExecutePaletteCommand(&browser,enter_pip)&&media.executed=="enter pip");
+  media.info.picture_in_picture_state=Pip::kInPictureInPicture;
+  assert(!ExecutePaletteCommand(&browser,enter_pip));
+  media.actions={Action::kExitPictureInPicture};
+  auto exit_pip=get(kMediaPictureInPicture);assert(exit_pip.title==u"Exit Picture in Picture");
+  assert(ExecutePaletteCommand(&browser,exit_pip)&&media.executed=="exit pip");
+  // PiP availability can exist for video without controllable audio.
+  media.info.is_controllable=false;assert(CommandForId(&browser,kMediaPictureInPicture));
+  media.info.is_controllable=true;
+  struct MediaCase {int id;Action action;const char* result;};
+  for(auto test:std::vector<MediaCase>{{kMediaPreviousTrack,Action::kPreviousTrack,"previous"},{kMediaNextTrack,Action::kNextTrack,"next"},{kMediaSeekBackward,Action::kSeekBackward,"seek"},{kMediaSeekForward,Action::kSeekForward,"seek"},{kMediaStop,Action::kStop,"stop"},{kMediaSkipAd,Action::kSkipAd,"skip ad"}}){
+    media.actions={test.action};auto item=get(test.id);
+    assert(ExecutePaletteCommand(&browser,item)&&media.executed==test.result);
+    if(test.id==kMediaSeekBackward)assert(media.seek_seconds==-5);
+    if(test.id==kMediaSeekForward)assert(media.seek_seconds==5);
+    media.actions.clear();assert(!ExecutePaletteCommand(&browser,item));
+    media.actions={test.action};media.info.state=State::kInactive;
+    assert(!CommandForId(&browser,test.id));media.info.state=State::kActive;
+  }
+  media.actions={Action::kSeekBackward,Action::kSeekForward};
+  const auto skip_results=find(u"/skip");
+  assert(has(skip_results,kMediaSeekBackward) && has(skip_results,kMediaSeekForward));
+  assert(find(u"/skip back")[0].command==kMediaSeekBackward);
+  assert(find(u"/skip ahead")[0].command==kMediaSeekForward);
+  media.actions.clear();
+  assert(!has(find(u"/skip"),kMediaSeekBackward) && !has(find(u"/skip"),kMediaSeekForward));
+  browser.strip.page.media=nullptr;assert(!ExecutePaletteCommand(&browser,exit_pip));
+  // The toolbar supplies background candidates; the current playing tab wins.
+  MediaNotificationService notifications;
+  MediaNotificationServiceFactory::service=&notifications;
+  other_media_tab.context=&browser.profile;other_media_tab.title=u"Background audio";
+  other_media.actions={Action::kPlay,Action::kPause,Action::kSeekForward};
+  const auto background_id=content::MediaSession::GetRequestIdFromWebContents(&other_media_tab).ToString();
+  notifications.manager.ids={"cast-without-a-tab",background_id};
+  auto background_pause=get(kMediaPlayPause);
+  assert(background_pause.media_request_id==background_id && background_pause.description==u"Background audio");
+  assert(ExecutePaletteCommand(&browser,background_pause) && other_media.executed=="pause");
+  media.actions={Action::kPlay,Action::kPause};media.info.playback_state=Playback::kPlaying;
+  media.info.state=State::kActive;browser.strip.page.media=&media;
+  const auto foreground_pause=get(kMediaPlayPause);
+  assert(foreground_pause.media_request_id!=background_id);
+  assert(!ExecutePaletteCommand(&browser,background_pause));  // Do not retarget a selected row.
+  assert(ExecutePaletteCommand(&browser,foreground_pause) && media.executed=="pause");
+  assert(!CommandForId(&browser,kMediaSeekForward));  // One target; no capability borrowing.
+  media.info.playback_state=Playback::kPaused;
+  assert(get(kMediaPlayPause).media_request_id==background_id);  // Playing background beats paused current.
+  Profile foreign_profile;content::WebContents foreign_page;content::MediaSession foreign_media;
+  foreign_page.context=&foreign_profile;foreign_page.media=&foreign_media;
+  foreign_media.actions={Action::kPause};
+  const auto foreign_id=content::MediaSession::GetRequestIdFromWebContents(&foreign_page).ToString();
+  notifications.manager.ids={foreign_id,background_id};
+  assert(get(kMediaPlayPause).media_request_id==background_id);  // Keep profile/Incognito boundaries.
+  const auto captured=get(kMediaPlayPause);
+  content::MediaSession::targets.erase(background_id);
+  assert(!ExecutePaletteCommand(&browser,captured));  // Closed background cannot redirect to paused foreground.
+  notifications.manager.ids={foreign_id};browser.strip.page.media=nullptr;
+  assert(!CommandForId(&browser,kMediaPlayPause));
+  MediaNotificationServiceFactory::service=nullptr;
+
   assert(get(IDC_FULLSCREEN).title==u"Enter Fullscreen");browser.window.fullscreen=true;
   assert(get(IDC_FULLSCREEN).title==u"Exit Fullscreen");
   assert(!CommandForId(&browser,IDC_BROWSER_LAYOUT_VERTICAL_RIGHT));
   layout.layout=2;
+  assert(find(u"/move tabs to left")[0].command==IDC_BROWSER_LAYOUT_VERTICAL_RIGHT);
+  assert(find(u"/move tabs to right")[0].command==IDC_BROWSER_LAYOUT_VERTICAL_RIGHT);
+  assert(find(u"/pin tabs")[0].command==kPinSidebar);
+  assert(find(u"/unpin tabs")[0].command==kPinSidebar);
   assert(get(IDC_BROWSER_LAYOUT_VERTICAL_RIGHT).title==u"Move Sidebar to Right");
   browser.profile.prefs.right=true;
   assert(get(IDC_BROWSER_LAYOUT_VERTICAL_RIGHT).title==u"Move Sidebar to Left");
@@ -339,6 +579,12 @@ int main() {
                       {IDC_TASK_MANAGER_SHORTCUT,{{u"Shift+Escape"}}},
                       {IDC_COPY_OR_INSPECT_SHORTCUT,{{u"Command+Shift+C"}}},
                       {IDC_CTRL_S_SHORTCUT,{{u"Command+S"}}}};
+  shortcuts.commands.push_back({IDC_ZOOM_PLUS,{{u"⌘="}}});
+  assert(get(IDC_ZOOM_PLUS).shortcut==u"⌘+");
+  shortcuts.commands.back().accelerators[0].display_text=u"⌘⇧Z";
+  assert(get(IDC_ZOOM_PLUS).shortcut==u"⌘⇧Z");
+  shortcuts.commands.back().accelerators.clear();
+  assert(get(IDC_ZOOM_PLUS).shortcut.empty());
   assert(get(IDC_FIND).shortcut==u"Command+F");
   shortcuts.commands[0].accelerators[0].display_text=u"Custom+F";
   assert(get(IDC_FIND).shortcut==u"Custom+F");
@@ -360,7 +606,7 @@ int main() {
   browser.strip.active_present=false;assert(find(u"/").empty());
   browser.strip.active_present=true;browser.type=BrowserWindowInterface::Type::TYPE_APP;
   assert(find(u"/").empty());assert(!CommandForId(nullptr,IDC_NEW_TAB));
-  std::cout<<"PASS: production command catalogue, symbols, aliases, scope, policy/availability rechecks, single-pane pin/mute, stale toggle rejection, layout state, slash vs double-slash/greater-than prefixes, recency/frequency within match bands, stable usage keys, saturation and Incognito read-only history, active/custom/removed shortcuts and contextual wrapper routing, missing/unsupported windows\n";
+  std::cout<<"PASS: production command catalogue, symbols, aliases, scope, policy/availability rechecks, single-pane pin/mute/grouping and deferred group confirmation, audibility gating and silent-site unmute, foreground-playing preference, toolbar-ordered background media and profile/target identity rechecks, playback/PiP/track/seek/stop/ad dispatch, stale toggle rejection, layout state, slash vs double-slash/greater-than prefixes, recency/frequency within match bands, stable usage keys, saturation and Incognito read-only history, active/custom/removed shortcuts and contextual wrapper routing, missing/unsupported windows\n";
 }
 '''
 with tempfile.TemporaryDirectory(prefix='lune-command-actions-') as temporary:

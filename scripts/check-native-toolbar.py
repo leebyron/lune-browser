@@ -16,21 +16,31 @@ source = (root / 'native_frame_materials_mac.mm').read_text()
 header = (root / 'native_frame_materials.h').read_text()
 start = header.index('enum class NativeGlassColorRole')
 enum = header[start:header.index('};', start) + 2]
-start = source.index('    switch (role) {')
+start = source.index('\n    switch (role) {')
 end = source.index('    NSColor* color =', start)
 selector = 'NSColor* SelectColor(NativeGlassColorRole role) {\nNSColor* semantic=NSColor.labelColor;\n' + source[start:end] + 'return semantic;\n}\n'
 start = source.index('gfx::ImageSkia NativeToolbarSymbol(')
 end = source.index('\n}  // namespace helium', start)
-symbol = 'gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor);\n' + source[start:end]
+symbol = ('gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor);\n'
+          'gfx::ImageSkia NativeToolbarSymbolForName(const char*, int, SkColor);\n' + source[start:end])
+symbol_constants = (args.source / 'chrome/browser/ui/helium/helium_command_symbols.h').read_text()
+symbol_constants += '\nnamespace command_symbols = helium::command_symbols;\n'
+action_source = (root / 'native_frame_materials.cc').read_text()
+start = action_source.index('const char* NativeToolbarSymbolNameForAction(')
+end = action_source.index('\nbool IsFloatingToolbarControl(', start)
+action_symbols = ('enum { kActionDevTools, kActionTaskManager, '
+                  'kActionSidePanelShowCustomizeChrome, '
+                  'kActionSidePanelShowCustomizeChromeToolbar };\n' +
+                  action_source[start:end])
 frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
 start = frame.index('@interface HeliumHeaderSymbolButton : NSButton')
 button_end = frame.index('\n@end', frame.index('@implementation HeliumHeaderSymbolButton', start))
 header_button = frame[start:button_end + len('\n@end')] + '\n'
 start = frame.index('  NSRect address_frame = _addressContainer.frame;')
-end = frame.index('  self.appearance = FloatingChromeAppearance', start)
+end = frame.index('  self.contentAware =', start)
 address_layout = (
     'void ApplyAddressLayout(NSView* _controls, NSView* _addressContainer, '
-    'NSTextField* _address, bool show_reload, bool editing) {\n' +
+    'NSTextField* _address, bool show_reload, bool editing) {\nconst CGFloat outset = 0;\n' +
     frame[start:end].replace('[self isEditing]', 'editing') + '}\n')
 avatar_source = (args.source / 'chrome/browser/ui/views/profiles/avatar_toolbar_button.cc').read_text()
 start = avatar_source.index('void AvatarToolbarButton::AnimationProgressed(')
@@ -46,7 +56,9 @@ prefix = r'''
 #include <optional>
 #include <string>
 using SkColor = unsigned;
-namespace views { struct View { bool floating; }; }
+constexpr int kNativeDownloadProgressKey = 0;
+namespace views { struct View { bool floating; double GetProperty(int) const { return 0; } }; }
+NSImage* NativeDownloadProgressSymbol(int, SkColor, double) { return nil; }
 bool IsFloatingToolbarControl(const views::View* view) { return view->floating; }
 namespace gfx {
 using ImageSkia = NSImage*;
@@ -262,6 +274,18 @@ int main() {
       accessibilityDescription:nil]);
   assert([NSImage imageWithSystemSymbolName:@"play.circle"
       accessibilityDescription:nil]);
+  for (auto [action, name] : {
+       std::pair{kActionDevTools, command_symbols::kDeveloperTools},
+       std::pair{kActionTaskManager, command_symbols::kTaskManager},
+       std::pair{kActionSidePanelShowCustomizeChrome, command_symbols::kCustomizeAppearance},
+       std::pair{kActionSidePanelShowCustomizeChromeToolbar, command_symbols::kCustomizeToolbar}}) {
+    assert(std::string_view(NativeToolbarSymbolNameForAction(action)) == name);
+    assert(NativeToolbarSymbolForName(name, 20, 0));
+  }
+  assert(!NativeToolbarSymbolNameForAction(-1));
+  assert(NativeToolbarSymbolForName(command_symbols::kPinToolbar, 20, 0));
+  assert(NativeToolbarSymbolForName(command_symbols::kSidebarLeft, 20, 0));
+  assert(NativeToolbarSymbolForName(command_symbols::kSidebarRight, 20, 0));
   views::View view{true};
   for (auto name : {"kMoreVertIcon", "kChromeExtensionIcon", "kDownloadIcon",
                     "kPrintIcon", "kHistoryIcon", "kTranslateIcon", "kShareIcon",
@@ -337,7 +361,7 @@ if args.symbols_only:
              tests[tests.index('  assert([NSImage imageWithSystemSymbolName:'):])
 with tempfile.TemporaryDirectory(prefix='lune-toolbar-') as directory:
     path = Path(directory) / 'test.mm'
-    path.write_text(prefix + enum + selector + symbol + header_button + address_layout +
+    path.write_text(prefix + symbol_constants + action_symbols + enum + selector + symbol + header_button + address_layout +
                     press_fixture + avatar_fixture + avatar_callbacks + tests)
     binary = path.with_suffix('')
     subprocess.run(['xcrun', 'clang++', *(['-arch', args.arch] if args.arch else []),

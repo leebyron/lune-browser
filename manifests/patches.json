@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "e61221ca25e8fed639477c667eb8b42115836cd9",
+    "commit": "dece2e93ca27a8b6012cc20910ecfcf2a0e1ae6e",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -733,6 +733,10 @@
       {
         "path": "patches/helium/ui/devtools-header-hover.patch",
         "sha256": "94e2013da64867502cd6c8294f6a39512124f873232031af72b1842380c4f30b"
+      },
+      {
+        "path": "patches/helium/ui/command-bar-actions.patch",
+        "sha256": "2f5ec8e229646b50d9dba696a2437dd7a88b2ce453fc9b33ca3417f75082a616"
       },
       {
         "path": "patches/helium/ui/services-update-footer.patch",
@@ -1856,6 +1860,32 @@
       "adaptation": "Owner accepted the final settings/setup preview on November 11, 2026, including real hover dismissal. Developed with quilt, refreshed and unmerged into the platform; independent zero-fuzz replay matches all 24 changed source files. Both architecture builds, production preference/consent/migration checks, update-control persistence, complete setup flows and UI/icon/browsing smoke checks pass (Intel under Rosetta). The compiled preview also contained an isolated command candidate; frozen source hashes and independent services replay record that boundary. See agent-docs/project/features/services-update-controls.md.",
       "commits": [
         "e61221ca25e8fed639477c667eb8b42115836cd9"
+      ]
+    },
+    {
+      "id": "command-bar-actions",
+      "depends_on": [
+        "native-glass-command-bar",
+        "command-bar-search-suggestions",
+        "command-bar-bang-suggestions",
+        "native-toolbar-controls"
+      ],
+      "patches": [
+        "patches/helium/ui/command-bar-actions.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Expose curated browser, page, developer, tab/group, vertical-control and conditional media commands with native symbols, assigned shortcuts and personal ranking.",
+      "adaptation": "Owner accepted Preview 5 on November 11, 2026. Developed with quilt in prepared Chromium and an isolated source fixture, refreshed and unmerged into the reusable platform patch. Both architecture builds and compiled command, scope, selection, shortcut, grouping, media-target/capability and bang regressions pass; Intel runtime uses Rosetta. Strict replay reproduces all 27 command files and eight active patches reproduce all 48 composed command/services files, preserving the accepted services patch byte-for-byte. The media target prefers a currently playing active tab, otherwise the media toolbar order, and retains session identity through activation. Native Apple silicon preview testing and acceptance are recorded in agent-docs/project/features/command-bar-actions.md. English source-label translation is tracked separately.",
+      "commits": [
+        "c7b091edc5f465c83c814cc8451b938f5d977fbc",
+        "0ced177bc08236685131f8b0c3b33efaf17db8c6",
+        "c2fb17ea2960aef92de2d85a3e250776cbf84720",
+        "3c790da57dab0b58488dc4f464c16274c80b0cc8",
+        "71681fab7442b65016f7a5b0be9ee7b9fe8d34b0",
+        "5059a6ad29e98aa404d3a447b15a935269b4d1fb",
+        "6a47b58615b227131f7c8bfdc7a9477fe4946e8a",
+        "32e5f866c35b141ad2ff0033fb34db98ac8afe96",
+        "dece2e93ca27a8b6012cc20910ecfcf2a0e1ae6e"
       ]
     }
   ],

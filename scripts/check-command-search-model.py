@@ -169,6 +169,12 @@ int main() {
   scope.site_keyword = "one";
   other_scope.site_keyword = "two";
   assert(!SameItem(scope, other_scope));
+  HeliumCommandBarItem media_a{}, media_b{};
+  media_a.type=media_b.type=HeliumCommandBarItem::Type::kCommand;
+  media_a.command=media_b.command=-2;
+  media_a.media_request_id="session-one";media_b.media_request_id="session-two";
+  assert(!SameItem(media_a,media_b));
+  media_b.media_request_id=media_a.media_request_id;assert(SameItem(media_a,media_b));
   // A disappearing command cannot silently turn Enter into another action.
   Item command = Make(Type::kCommand, "", 100);
   command.command = 42;

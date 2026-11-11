@@ -25,6 +25,8 @@ The owner-accepted [Command-T bang suggestions](features/command-bar-bangs.md) a
 
 The owner-accepted [Helium services footer and update controls](features/services-update-controls.md) are included in future builds through signed platform input `inputs/services-update-controls-1/macos`. Browser updates appear last on Privacy and security; the independent Helium update control and changelog collapse with disabled services. Setup enables service updates by default while preserving custom opt-outs. Both builds, setup/settings checks and browsing smoke pass (Intel under Rosetta). Published releases retain their frozen inputs.
 
+The owner-accepted [expanded Command-T commands](features/command-bar-actions.md) are included in future main builds through signed platform input `inputs/command-bar-actions-1/macos`. The catalogue has 53 command identities, including focused tab grouping, vertical controls and conditional media actions. Single `/`, Cmd-/ and Cmd-Shift-P expose commands-only search, with assigned shortcuts, native symbols and local usage ranking. Media commands prefer a playing active tab and otherwise follow the media toolbar across tabs in the profile. Both builds, focused regressions and UI/settings/browsing smoke checks pass (Intel under Rosetta). Published releases retain their frozen inputs.
+
 Both architectures build on the local Apple silicon Mac. Intel runtime checks use Rosetta unless a report explicitly identifies physical hardware. The owner has Intel Macs on macOS 13.7.8 and 26.6.2 for manual checks; their availability is not acceptance of any particular binary. Publish after single-device acceptance and the technical gates pass; manual Intel results and per-release owner deferrals are not required.
 
 ## Hosting and automation

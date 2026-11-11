@@ -9,7 +9,7 @@ Read [current status](../status.md) first. These records document implementation
 - [Command-T glass bounds and layout](command-bar-corners.md)
 - [Native glass Command-T palette](command-bar.md)
 - [Command-T bang suggestions](command-bar-bangs.md)
-- [Expanded Command-T commands (development candidate)](command-bar-actions.md)
+- [Expanded Command-T commands](command-bar-actions.md)
 - [Content pane shadow](content-pane-shadow.md)
 - [Wider Lune artwork and day/night appearance](day-night-branding.md)
 - [Missing default-browser sidebar action after installation](default-browser-first-launch.md)
