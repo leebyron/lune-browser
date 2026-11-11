@@ -4,6 +4,7 @@
   const hero=root.querySelector('.hero'),learn=root.querySelector('.learn'),pages=root.querySelector('.pages');
   const windowControls=root.querySelector('.window-controls');
   const sidebar=root.querySelector('.browser-sidebar'),sidebarToggle=root.querySelector('.sidebar-toggle');
+  const currentTab=sidebar.querySelector('.browser-tab.selected');
   const demoCursor=root.querySelector('.demo-cursor'),demoClick=root.querySelector('.demo-click');
   const sidebarRegion=root.querySelector('.sidebar-region'),sidebarRail=root.querySelector('.sidebar-rail');
   const toolbarRegion=root.querySelector('.toolbar-region'),toolbarRail=root.querySelector('.toolbar-rail'),toolbar=root.querySelector('.browser-toolbar');
@@ -598,12 +599,27 @@
     if(!launched&&!appVisible)return;sidebarHovered=false;panelPointer=null;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
     root.classList.remove('app-open','app-fast');root.querySelector('.lune').classList.remove('launching');
   }
+  function returnToDesktop() {
+    scroll.scrollTo({top:0,behavior:reduce.matches?'instant':'smooth'});
+    scroll.focus({preventScroll:true});
+  }
+  sidebar.querySelectorAll('.tab-close').forEach(button => {
+    button.addEventListener('click', () => {
+      const tab=button.closest('.browser-tab');
+      const next=tab.nextElementSibling??tab.previousElementSibling;
+      if(tab===currentTab) {
+        scroll.scrollTo({top:0,behavior:'instant'});
+        scroll.focus({preventScroll:true});
+      } else {
+        if(tab.contains(document.activeElement))
+          (next?.querySelector('.tab-target')??sidebar.querySelector('.sidebar-new-tab')).focus({preventScroll:true});
+        tab.remove();
+      }
+    });
+  });
   root.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>{scroll.scrollTo({top:opening,behavior:reduce.matches?'instant':'smooth'});}));
   root.querySelectorAll('[data-close]').forEach(button => {
-    button.addEventListener('click', () => {
-      scroll.scrollTo({top: 0, behavior: reduce.matches ? 'instant' : 'smooth'});
-      scroll.focus({preventScroll: true});
-    });
+    button.addEventListener('click', returnToDesktop);
   });
   const downloadChoices = [...root.querySelectorAll('.download-choices')];
   root.querySelectorAll('[popovertarget]').forEach(button => {

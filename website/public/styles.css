@@ -90,18 +90,26 @@ svg { display: block; }
   #lune .sidebar-favorites a:hover { background:var(--tab-hover); }
   #lune .sidebar-favorites img,#lune .browser-tab img { object-fit:contain; flex:none; }
   #lune .sidebar-tabs { display:flex; flex-direction:column; gap:2px; padding:0; border:0; overflow:hidden; min-height:0; }
-  #lune .regular-tabs { display:flex; flex-direction:column; gap:2px; overflow-y:auto; scrollbar-width:thin; min-height:0; }
+  #lune .regular-tabs { display:flex; flex-direction:column; gap:2px; overflow-x:hidden; overflow-y:auto; scrollbar-width:thin; min-height:0; }
   #lune .site-icon { width:16px; height:16px; flex:none; background:currentColor; mask:center / contain no-repeat; }
   #lune .github-icon { mask-image:url(/assets/favicons/github.svg); }
   #lune .browser-tab > svg { flex:none; width:16px; height:16px; }
-  #lune .browser-tab { text-decoration:none; position:relative; display:flex; align-items:center; gap:7px; height:30px; min-height:30px; border-radius:8px; padding:0 7px 0 9px; white-space:nowrap; color:light-dark(#234550,#C9D9E3); }
+  #lune .browser-tab { text-decoration:none; position:relative; display:flex; align-items:center; gap:7px; height:30px; min-height:30px; border-radius:8px; padding:0 7px 0 9px; white-space:nowrap; color:light-dark(#234550,#C9D9E3); cursor:default; }
+  #lune .regular-tabs .browser-tab { padding:0; }
+  #lune .tab-target { display:flex; align-items:center; gap:7px; width:100%; height:100%; min-width:0; padding:0 7px 0 9px; border:0; border-radius:inherit; background:none; color:inherit; font:inherit; text-align:left; text-decoration:none; cursor:default; }
   #lune .browser-tab:hover { background:var(--tab-hover); }
-  #lune .browser-tab > span:not(.tab-close):not(.site-icon) { overflow:hidden; white-space:nowrap; min-width:0; flex:1; }
-  #lune .browser-tab:hover > span:not(.tab-close):not(.site-icon) { mask-image:linear-gradient(to right,#000 calc(100% - 12px),transparent); }
-  #lune .browser-tab:has(.tab-close):hover > span:not(.tab-close):not(.site-icon) { margin-right:28px; }
-  #lune .tab-close { position:absolute; right:-1px; top:-1px; display:none; place-items:center; width:32px; height:32px; }
-  #lune .tab-close svg { width:11px; height:11px; stroke-width:1.6; }
-  #lune .browser-tab:hover .tab-close { display:grid; }
+  #lune .browser-tab > span,#lune .tab-target > span:not(.site-icon) { overflow:hidden; white-space:nowrap; min-width:0; flex:1; }
+  #lune .browser-tab:is(:hover,:focus-within) .tab-target > span:not(.site-icon) { mask-image:linear-gradient(to right,#000 calc(100% - 12px),transparent); margin-right:28px; }
+  #lune .tab-close { position:absolute; right:0; top:-1px; display:none; place-items:center; width:32px; height:32px; padding:0; border:0; background:none; color:inherit; cursor:default; }
+  #lune .tab-close::before { content:''; position:absolute; inset:6px; border-radius:4px; background:light-dark(#000,#FFF); opacity:0; pointer-events:none; }
+  #lune .tab-close:is(:hover,:focus-visible)::before { opacity:.16; }
+  #lune .tab-close:active::before { opacity:.14; }
+  #lune .tab-close svg { position:relative; width:11px; height:11px; }
+  #lune .browser-tab:is(:hover,:focus-within) .tab-close { display:grid; }
+  @media(hover:none) {
+    #lune .tab-close { display:grid; }
+    #lune .tab-target > span:not(.site-icon) { margin-right:28px; }
+  }
   #lune .browser-tab.selected { background:var(--tab-selected); }
   #lune .window:not([data-sidebar="pinned"]) .browser-tab { color:light-dark(#252525,#EEEEEE); }
   #lune .window:not([data-sidebar="pinned"]) .browser-tab.selected { background:var(--tab-selected); color:var(--text); }
