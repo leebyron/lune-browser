@@ -61,6 +61,12 @@ announcements as well as the latest ungoogled-chromium release.
 
 ## Scope and status
 
+Lune's original code, tooling, documentation, and original assets use GNU GPLv3 or later
+(`GPL-3.0-or-later`), except where otherwise noted. See the root [LICENSE](../../LICENSE)
+and [NOTICE](../../NOTICE). Helium's [GPLv3 license](../../LICENSE.helium) and
+ungoogled-chromium's [BSD 3-Clause license](../../LICENSE.ungoogled_chromium) apply
+to their respective imported work. Preserve imported component and asset licenses and attribution.
+
 The supported targets are macOS arm64 and x86_64, with macOS 13 as the current minimum. Windows and Linux are future platform adapters. Keep CI free using the local Mac runner. Signing and notarization credentials are provisioned in Keychain.
 
 Read [current status](status.md) for published releases, active release preparation, selected engine inputs, hosting and validation limits. The [development lock](../../manifests/browser.lock.json) and [patch manifest](../../manifests/patches.json) are authoritative for composition. Feature and build reports are dated evidence rather than a second source of current inclusion state.

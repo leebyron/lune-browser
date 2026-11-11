@@ -227,6 +227,25 @@ feed commit. Do not overwrite the original candidate evidence.
 
 ## Focused release uploads
 
+New release staging includes these files in `Lune.app/Contents/Resources/` before signing:
+
+| Repository source | Packaged filename | Scope |
+| --- | --- | --- |
+| `LICENSE` | `LICENSE.txt` | Lune's original work, GPL-3.0-or-later as granted in `NOTICE`. |
+| `NOTICE` | `NOTICE.txt` | Copyright, license scope, upstream attribution, and source location. |
+| `LICENSE.helium` | `LICENSE.helium.txt` | Helium's GPLv3 text, preserved from the locked upstream input. |
+| `LICENSE.ungoogled_chromium` | `LICENSE.ungoogled_chromium.txt` | ungoogled-chromium's BSD 3-Clause notice, preserved from the locked Helium upstream input. |
+
+Keep the source filenames consistent with Helium's convention; `.txt` makes app
+copies easy to open in Finder. Preserve the original license text and copyright
+notices. These files supplement upstream notices and `chrome://credits`; they do
+not replace them. Verify all four files in the signed app. The installed app retains
+them after the DMG is discarded, and the DMG includes them through that app bundle.
+The optional local source export includes the same files under their source names:
+`LICENSE`,
+`LICENSE.helium`, `LICENSE.ungoogled_chromium`, `NOTICE`, and `README`.
+Existing signed releases and frozen source tags remain unchanged.
+
 The source repository is public. Publish one DMG per architecture, architecture appcasts, checksums and compact release/validation metadata. Release-tag and latest download URLs reference the same asset. Link the exact signed public source tag and permanent component refs.
 Do not re-upload Git history bundles, source kits, or unchanged source/dependency
 archives merely to duplicate what the public repository and recorded immutable

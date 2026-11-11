@@ -60,7 +60,9 @@ def main():
         subprocess.run(['git', 'bundle', 'create', str(kit / f'{name}.bundle'), ref], cwd=ROOT, check=True)
     subprocess.run(['git', 'archive', '--format=tar', '--prefix=orchestrator/',
                     '-o', str(kit / 'orchestrator.tar'), 'HEAD', 'scripts', 'config', 'manifests',
-                    'branding', 'AGENTS.md', 'agent-docs/project'], cwd=ROOT, check=True)
+                    'branding', 'LICENSE', 'LICENSE.helium', 'LICENSE.ungoogled_chromium',
+                    'NOTICE', 'README', 'AGENTS.md',
+                    'agent-docs/project'], cwd=ROOT, check=True)
     (kit / 'archives.json').write_text(json.dumps(archives, indent=2) + '\n')
     (kit / 'README.txt').write_text('''Lune corresponding source kit
 
@@ -83,9 +85,13 @@ prepare_sources true, then write_gn_args TARGET release (TARGET is arm64 or x86_
 Add the release GN flags recorded in the release evidence and run gn_gen, followed
 by helium_build -j 10 chrome/installer/mac. Both targets can be built on Apple silicon.
 
-Lune's browser changes are GPL-3.0 with imported licenses retained. Chromium,
-Sparkle, bundled dependencies, artwork, and assets retain their respective licenses.
-Consult each component's LICENSE, LICENSE.ungoogled_chromium, third-party notices,
+Lune's original code and tooling are GPL-3.0-or-later; see orchestrator/LICENSE and
+orchestrator/NOTICE for the license and scope. Helium's original work remains GPL-3.0-only
+(orchestrator/LICENSE.helium); original unmodified ungoogled-chromium code remains
+BSD-3-Clause (orchestrator/LICENSE.ungoogled_chromium). Modifications derived from
+imported code remain subject to its upstream terms. Chromium, Sparkle, bundled
+dependencies, and third-party artwork and assets retain their respective licenses.
+Consult each component's license files, third-party notices,
 and the packaged chrome://credits page. No blanket relicensing is applied here.
 ''')
     archive = args.output / 'lune-source-kit.tar.gz'

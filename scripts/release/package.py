@@ -94,6 +94,12 @@ def stage(args):
     args.directory.mkdir(parents=True)
     run('ditto', app, args.directory / 'input/Lune.app')
     run('ditto', args.output / 'Lune Packaging', args.directory / 'input/Lune Packaging')
+    # Include Lune's license and scope before signing; retain upstream notices.
+    resources = args.directory / 'input/Lune.app/Contents/Resources'
+    shutil.copyfile(ROOT / 'LICENSE', resources / 'LICENSE.txt')
+    shutil.copyfile(ROOT / 'NOTICE', resources / 'NOTICE.txt')
+    for name in ('LICENSE.helium', 'LICENSE.ungoogled_chromium'):
+        shutil.copyfile(ROOT / name, resources / f'{name}.txt')
     # Version only the outer app. Preserve Chromium's engine/framework identity.
     target = args.directory / 'input/Lune.app/Contents/Info.plist'
     info['CFBundleVersion'] = args.version

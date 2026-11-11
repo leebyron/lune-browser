@@ -204,6 +204,12 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 
 ## Assets and attribution
 
+Original website code and assets are licensed under [GNU GPLv3 or later](../LICENSE)
+(`GPL-3.0-or-later`), except where otherwise noted. See [NOTICE](../NOTICE) for scope.
+The website serves the full license at [`/licenses/gpl-3.0.txt`](public/licenses/gpl-3.0.txt)
+and links it from the open-source story point. Keep that copy identical to the root
+`LICENSE`. The third-party assets below retain their existing licenses and notices.
+
 All runtime assets are served locally; no font or icon CDN requests are needed.
 
 - `public/assets/lune-icon.svg`, `lune-mark.svg`, and `favicon.svg`: adaptive
