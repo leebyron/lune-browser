@@ -1,0 +1,121 @@
+--- a/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
++++ b/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
+@@ -14,6 +14,7 @@
+ #include "base/values.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/browser_process.h"
++#include "chrome/common/pref_names.h"
+ #include "chrome/browser/extensions/webstore_install_with_prompt.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/customize_chrome/side_panel_controller.h"
+@@ -47,7 +48,7 @@
+ 
+   for (const auto [key, _] : GetPreferencesDict()) {
+     pref_change_registrar_.Add(
+-        prefs::kHeliumPrefPrefix + key,
++        key == prefs::kSearchSuggestEnabled ? key : prefs::kHeliumPrefPrefix + key,
+         base::BindRepeating(&OnboardingMessageHandler::OnPreferencesChanged,
+                             base::Unretained(this)));
+   }
+@@ -70,6 +71,10 @@
+                value.Clone());
+   }
+ 
++  // Explicitly allow this one non-Helium preference in onboarding. Keep the
++  // general settings API restricted to its existing Helium namespace.
++  output.Set(prefs::kSearchSuggestEnabled,
++             pref_service_->GetBoolean(prefs::kSearchSuggestEnabled));
+   return output;
+ }
+ 
+@@ -298,7 +303,9 @@
+     return RejectJavascriptCallback(callback_id, "pref is not a string");
+   }
+ 
+-  const auto& pref_name = prefs::kHeliumPrefPrefix + args[1].GetString();
++  const std::string key = args[1].GetString();
++  const std::string pref_name = key == prefs::kSearchSuggestEnabled
++      ? key : prefs::kHeliumPrefPrefix + key;
+   auto* pref = pref_service_->FindPreference(pref_name);
+   if (!pref) {
+     return RejectJavascriptCallback(callback_id, pref_name + " does not exist");
+--- a/components/helium_onboarding/BUILD.gn
++++ b/components/helium_onboarding/BUILD.gn
+@@ -62,6 +62,8 @@
+     "src/components/BrowserImportGraphic.svelte",
+     "src/pages/index.ts",
+     "src/pages/Welcome.svelte",
++    "src/pages/SearchEngine.svelte",
++    "src/components/PreferenceToggle.svelte",
+     "src/pages/Finish.svelte",
+     "src/pages/HeliumServices.svelte",
+     "package.json",
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -283,4 +283,7 @@
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_HOVER" desc="Onboarding appearance choice.">On hover</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_COVER" desc="Keep the toolbar visible and allow pages to opt into drawing beneath it.">Always cover (experimental)</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_ALWAYS" desc="Onboarding appearance choice.">Always</message>
++<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_TITLE" desc="Opt in to search-engine suggestions during setup.">Search suggestions</message>
++<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_DESC" desc="Explains partial query disclosure to the chosen search engine.">Send what you type to your selected search engine to show suggested searches and websites in the address bar and Cmd-T.</message>
++<message name="IDS_HELIUM_ONBOARDING_WELCOME_SEARCH_SUGGESTIONS" desc="Discloses search suggestions included in the Use defaults setup choice.">Defaults include search suggestions from your selected search engine.</message>
+ </grit-part>
+\ No newline at end of file
+--- a/components/helium_onboarding/src/lib/browser/prefs.ts
++++ b/components/helium_onboarding/src/lib/browser/prefs.ts
+@@ -3,6 +3,7 @@
+ 
+ export type Preferences = {
+     'completed_onboarding': boolean,
++    'search.suggest_enabled': boolean,
+     'browser.vertical_right_aligned': boolean,
+     'browser.zen_mode_top_chrome_pinned': boolean,
+     'browser.top_controls_overlay': boolean,
+--- a/components/helium_onboarding/src/pages/SearchEngine.svelte
++++ b/components/helium_onboarding/src/pages/SearchEngine.svelte
+@@ -7,6 +7,7 @@
+ 
+     import PageHeader from "../components/PageHeader.svelte";
+     import SearchEngineItem from "../components/SearchEngineItem.svelte";
++    import PreferenceToggle from "../components/PreferenceToggle.svelte";
+ 
+     const searchDescs: Record<string, string> = s.searchEngines;
+ 
+@@ -25,6 +26,11 @@
+         />
+ 
+         <div class="page-content">
++            <PreferenceToggle
++                title={s.search.suggestionsTitle}
++                desc={s.search.suggestionsDesc}
++                prefName="search.suggest_enabled"
++            />
+             {#each $searchEngines as e}
+                 {@const engineKey = getKeyword(e)}
+                 <SearchEngineItem
+--- a/components/helium_onboarding/src/pages/Welcome.svelte
++++ b/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -16,6 +16,7 @@
+             acceptLatestSchema();
+             await setPref('services.enabled', true);
+             await setPref('services.user_consented', true);
++            await setPref('search.suggest_enabled', true);
+             await setPref('completed_onboarding', true);
+             openNewTab();
+         } finally { working = false; }
+@@ -38,6 +39,7 @@
+             <button class="primary" onclick={next} disabled={working}>{s.button.configure}<IconArrowRight /></button>
+             <button class="ghost" onclick={useDefaults} disabled={working}>{s.button.useDefaults}</button>
+         </div>
++        <p class="defaults-note">{s.welcome.searchSuggestions}</p>
+         <div class="updates">
+             <label>
+                 <input type="checkbox" role="switch"
+@@ -81,6 +83,7 @@
+     .primary:hover { background: var(--helium-blue-hover); }
+     .ghost { background: transparent; color: light-dark(#234550,#C9D9E3); box-shadow: inset 0 0 0 1px light-dark(#23455059,#C9D9E359); }
+     button:focus-visible, input:focus-visible { outline: 2px solid var(--helium-blue); outline-offset: 4px; }
++    .defaults-note { font: 400 12px/18px Inter,sans-serif; color: var(--secondary); max-width: 400px; margin: 16px auto 0; }
+     .updates { margin-top: 28px; }
+     label { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; cursor: pointer; }
+     input { appearance: none; width: 30px; height: 18px; border-radius: 12px; background: color-mix(in srgb,var(--secondary) 30%,transparent); margin: 0; padding: 3px; cursor: pointer; }
