@@ -59,6 +59,60 @@ class AllocationTests(unittest.TestCase):
                 check_allocation(version, {'26.1109.1'})
 
 
+class PreparationBeforeAllocationTests(unittest.TestCase):
+    def fixture(self, root):
+        path = root / 'prepared.json'
+        path.with_suffix('.log').write_text('Complete fresh zero-fuzz preparation\n')
+        lock = {'components': {'helium': {'commit': '1' * 40}, 'macos': {'commit': '2' * 40}}}
+        report = dict(schema_version=1, inventory_version=1, strict_replay_passed=True,
+                      browser_lock_sha256='f' * 64, helium='1' * 40, macos='2' * 40,
+                      files={'source.cc': 'a' * 64}, symlinks={},
+                      preparation_log_sha256=model.sha(path.with_suffix('.log')))
+        path.write_text(json.dumps(report))
+        return path, lock, report
+
+    def test_complete_matching_preparation_binds_report_and_log(self):
+        from reserve import require_preparation
+        with tempfile.TemporaryDirectory() as tmp:
+            path, lock, _ = self.fixture(Path(tmp))
+            self.assertEqual(require_preparation(path, lock, 'f' * 64),
+                             dict(report_sha256=model.sha(path), log_sha256=model.sha(path.with_suffix('.log'))))
+
+    def test_failed_incomplete_or_stale_preparation_cannot_authorize_allocation(self):
+        from reserve import require_preparation
+        with tempfile.TemporaryDirectory() as tmp:
+            path, lock, report = self.fixture(Path(tmp))
+            for changes in ({'strict_replay_passed': False}, {'inventory_version': 0},
+                            {'files': {}}, {'browser_lock_sha256': '0' * 64},
+                            {'helium': '3' * 40}, {'macos': '4' * 40}):
+                with self.subTest(changes=changes):
+                    path.write_text(json.dumps(dict(report, **changes)))
+                    with self.assertRaises(ValueError):
+                        require_preparation(path, lock, 'f' * 64)
+
+    def test_missing_report_or_modified_log_cannot_authorize_allocation(self):
+        from reserve import require_preparation
+        with tempfile.TemporaryDirectory() as tmp:
+            path, lock, _ = self.fixture(Path(tmp))
+            path.with_suffix('.log').write_text('Modified log\n')
+            with self.assertRaisesRegex(ValueError, 'log changed'):
+                require_preparation(path, lock, 'f' * 64)
+            path.unlink()
+            with self.assertRaises(FileNotFoundError):
+                require_preparation(path, lock, 'f' * 64)
+
+    def test_cli_requires_preparation_report_before_attempting_allocation(self):
+        import reserve
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch.object(reserve, 'ROOT', root), patch.object(reserve, 'git') as git, \
+                 patch.object(sys, 'argv', ['reserve.py', '--version', '26.1112.1']):
+                with self.assertRaises(SystemExit):
+                    reserve.main()
+                git.assert_not_called()
+                self.assertFalse((root / 'manifests/releases').exists())
+
+
 class SourceInventoryTests(unittest.TestCase):
     def test_inventory_tracks_sources_and_symlinks_but_excludes_outputs(self):
         from prepare import inventory

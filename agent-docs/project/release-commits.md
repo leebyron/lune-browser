@@ -40,6 +40,11 @@ Use `v26.1108.1` as the source release tag and
 as artifact names. Both architectures share one release identity. Feed channel
 and architecture are separate metadata, not version suffixes. Publishing and promoting the exact same prepared artifacts retains the version; there is no public staging channel.
 
+Complete fresh zero-fuzz source preparation before selecting or allocating the
+version. The reservation command requires its completed report, matching browser
+lock/component identities and unchanged preparation log; it records the report/log
+hashes with the allocation. Never reserve a version while preparation is still running.
+
 Serialize allocation against the latest release records on main. Once committed,
 a version is reserved even if validation fails; gaps are allowed. Retrying an
 unchanged candidate retains its version. Changed release inputs require a new
@@ -137,7 +142,7 @@ Signed source tags and releases live in `leebyron/lune-browser`. Keep the source
 
 The release-delivery tools now implement frozen records, numeric date versions,
 explicit GN/tool identities, both-target build attestation, GitHub asset publication,
-paired feed commits, latest download links, freshness checks and single-device acceptance. `reserve.py` checks retained allocations before creating a record;
+paired feed commits, latest download links, freshness checks and single-device acceptance. `reserve.py --prepared-report REPORT` checks successful complete preparation against the exact current lock and checks retained allocations before creating a record;
 fetch all remote branches first and serialize the reservation commit. This is a
 manual release flow, not a concurrent release scheduler.
 
@@ -148,9 +153,11 @@ candidate publication and each channel promotion.
 
 The actual Sparkle 2.10.1 comparator accepts the date format and orders it after
 build 2, including same-day and year transitions. Every candidate still needs
-installed-update tests from build 2, matching signed artifacts, both architecture
+installed-update tests from the latest published release, matching signed artifacts, both architecture
 runtime checks and acceptance on one physical device before stable. Intel checks may run under Rosetta; manual Intel acceptance and per-release deferrals are not required. Publish the authorized release once the technical gates pass. Unit tests are
-not substitutes for those gates.
+not substitutes for those gates. The owner removed the recurring build-2 migration
+requirement on November 11, 2026; historical migration results remain evidence,
+rather than a gate to repeat.
 
 `prepare.py` inventories every prepared source file and symlink except output
 and bookkeeping directories. `build.py` compares that complete inventory before

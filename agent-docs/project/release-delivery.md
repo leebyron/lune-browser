@@ -70,12 +70,18 @@ additional CI cost; this work does not activate scheduled release jobs.
    files and symlinks. Output and bookkeeping exclusions
    are the root out/ and siso_result.json, Git/quilt metadata, Python bytecode,
    and Vite's node_modules/.vite development cache. Keep its archive verification and
-   patch log. Existing output caches may be reused only after source comparison.
+   patch log. Wait for successful completion and the final inventory report before
+   selecting or reserving a release version; do not overlap allocation with preparation.
+   Use an input-named preflight workspace until preparation passes. Existing output
+   caches may be reused only after source comparison.
 2. Finish tools and source validation and commit release notes following the
    [release-note style](releases.md#release-note-style): terse and factual, with
    new features first, then bug fixes and security changes. Keep each paragraph
    and list item on one source line; allow natural line wrapping. Fetch remote
-   branches and tags, then run `scripts/release/reserve.py --version VERSION`.
+   branches and tags, then run `scripts/release/reserve.py --version VERSION
+   --prepared-report PREPARED_REPORT`. The command requires completed zero-fuzz
+   preparation, matching component inputs and browser-lock hash, and the unchanged
+   preparation log before it can write a version record.
    Review and commit the resulting record, serializing against other allocations.
    Check Chromium freshness with `scripts/release/freshness.py`. Its failure or
    known lag blocks publication; no automatic exception path is implemented.
@@ -95,10 +101,11 @@ additional CI cost; this work does not activate scheduled release jobs.
    Mach-O minimums, About and lune://version, real public HTTPS navigation and
    restart persistence in a disposable profile. It records native versus Rosetta
    execution and does not count Rosetta as native Intel acceptance.
-5. Exercise the real About-page updater from published build 2 to the candidate
+5. Exercise the real About-page updater from the latest published release to the candidate
    with `scripts/release/check_update.py --expected-build VERSION`. Run both
    architectures sequentially, including invalid-signature and unsupported-OS
-   rejection cases. Retain before/after profile and signature evidence.
+   rejection cases. Retain before/after profile and signature evidence. The legacy
+   integer-version build-2 migration is no longer a recurring release requirement.
 6. Use `scripts/release/delivery.py --arm64 CANDIDATE --x86-64 CANDIDATE --output
    PUBLICATION --evidence ACCEPTANCE_JSON` to create matching feeds, one immutable DMG per architecture,
    release metadata, reviewed validation evidence and checksums. Source is retained
@@ -133,7 +140,7 @@ Finder, without bypassing Gatekeeper. Verify About shows the release version and
 Chromium version, then visit public HTTPS sites, use tabs/sidebar/settings, quit
 and reopen, and confirm saved preferences and a test bookmark survive.
 
-For the update check, start from the published build-2 Intel baseline in a
+For the update check, start from the latest published Intel release in a
 separate install location/profile, select the provided loopback test server, enable
 browser updates, and use About → Check for Updates. The local fixture serves the
 exact final signed DMG, with only its test enclosure URL changed; the production

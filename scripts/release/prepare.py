@@ -64,7 +64,9 @@ python3 "$_src_dir/third_party/node/node.py" "$_src_dir/components/helium_onboar
         subprocess.run(['/bin/bash', '-c', shell, 'lune-release-prepare', str(platform)],
                        cwd=platform, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
     files, links = inventory(source)
-    result = dict(schema_version=1, inventory_version=1, helium=lock['components']['helium']['commit'],
+    result = dict(schema_version=1, inventory_version=1,
+                  browser_lock_sha256=sha(ROOT / 'manifests/browser.lock.json'),
+                  helium=lock['components']['helium']['commit'],
                   macos=lock['components']['macos']['commit'], strict_replay_passed=True,
                   scope='complete prepared source inventory excluding outputs and bookkeeping',
                   files=files, symlinks=links, preparation_log_sha256=sha(report.with_suffix('.log')))

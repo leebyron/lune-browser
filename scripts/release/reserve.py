@@ -18,13 +18,36 @@ def check_allocation(version, allocated):
         raise ValueError('Use the next sequence for this release date')
 
 
+def require_preparation(path, lock, lock_digest):
+    prepared = json.loads(path.read_text())
+    if (prepared.get('schema_version') != 1 or prepared.get('inventory_version') != 1
+            or prepared.get('strict_replay_passed') is not True
+            or not isinstance(prepared.get('files'), dict) or not prepared['files']
+            or not isinstance(prepared.get('symlinks'), dict)):
+        raise ValueError('Complete successful zero-fuzz source preparation is required before version allocation')
+    if prepared.get('browser_lock_sha256') != lock_digest:
+        raise ValueError('Preparation uses a different browser lock; prepare the selected inputs again')
+    for component in ('helium', 'macos'):
+        if prepared.get(component) != lock['components'][component]['commit']:
+            raise ValueError('Preparation uses different component inputs')
+    log_digest = sha(path.with_suffix('.log'))
+    if prepared.get('preparation_log_sha256') != log_digest:
+        raise ValueError('Preparation log changed; preserve and review the completed preparation')
+    return dict(report_sha256=sha(path), log_sha256=log_digest)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--version', required=True)
+    p.add_argument('--prepared-report', type=Path, required=True,
+                   help='Completed fresh zero-fuzz preparation report for the exact current browser lock')
     a = p.parse_args()
     day, sequence = version_parts(a.version)
     if git(ROOT, 'status', '--porcelain'):
         raise ValueError('Commit input and note changes before reserving a release')
+    lock_path = ROOT / 'manifests/browser.lock.json'
+    lock = json.loads(lock_path.read_text())
+    preparation = require_preparation(a.prepared_report, lock, sha(lock_path))
     # Fetch first in the runbook. Include abandoned allocations in retained history.
     history = git(ROOT, 'log', '--all', '--format=', '--name-only', '--', 'manifests/releases/*.json')
     allocated = {Path(name).stem for name in history.splitlines() if name.endswith('.json')}
@@ -32,13 +55,14 @@ def main():
     names = {'manifests/browser.lock.json', 'manifests/patches.json', 'config/product.json',
              'config/release-recipe.json', f'agent-docs/project/releases/{a.version}.md',
              'agent-docs/project/releases.md', 'agent-docs/project/release-delivery.md'}
-    names.update(json.loads((ROOT / 'manifests/browser.lock.json').read_text())['download_configs'])
+    names.update(lock['download_configs'])
     names.update(git(ROOT, 'ls-files', 'scripts', 'config/requirements*.txt').splitlines())
     for name in names:
         git(ROOT, 'ls-files', '--error-unmatch', name)
     record = dict(schema_version=1, version=a.version, date=day.isoformat(), sequence=sequence,
                   timezone='America/Los_Angeles', architectures=list(ARCHES), tag='v' + a.version,
-                  initial_channel='stable', filenames={arch: filename(a.version, arch) for arch in ARCHES},
+                  initial_channel='stable', preparation=preparation,
+                  filenames={arch: filename(a.version, arch) for arch in ARCHES},
                   files={name: sha(ROOT / name) for name in sorted(names)})
     path = ROOT / f'manifests/releases/{a.version}.json'
     path.parent.mkdir(parents=True, exist_ok=True)
