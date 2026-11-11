@@ -1,10 +1,10 @@
 {
-  "version": "26.1110.1",
-  "source_commit": "db6982004a67e3c73dc9649db29e3de87717095e",
-  "scope": "Single-device production acceptance on the local Apple silicon Mac. Both architectures pass signed runtime and installed-update checks; Intel executes under Rosetta. Physical Intel testing is optional follow-up, not a publication gate.",
+  "version": "26.1111.2",
+  "source_commit": "e0dcb1e96c6f6ec402f4195840b50f3ad82789b4",
+  "scope": "Signed local software acceptance on the physical Apple silicon Mac; Intel executes under Rosetta. Native Intel compatibility remains unverified. Publication and feed promotion are not asserted by this record.",
   "architectures": {
     "arm64": {
-      "sha256": "9c3b7ab8d4fd04505ee7b18dd1e9b41a316500bedd17a2413f3ce0d96c5b3d0c",
+      "sha256": "73c3f9902169f3b26ad7ae85c353efebf94a529c40323a2a8d28b50a0a95c367",
       "install": true,
       "browse": true,
       "profile_persistence": true,
@@ -13,8 +13,7 @@
       "native_hardware": true,
       "execution_mode": "native Apple silicon",
       "update_baselines": [
-        "26.1109.2",
-        "2"
+        "26.1110.1"
       ],
       "invalid_signature_rejected": true,
       "unsupported_os_rejected": true,
@@ -22,7 +21,7 @@
       "updates_independent_of_optional_services": true
     },
     "x86_64": {
-      "sha256": "80b4ab6b42a3d6e4c8e025cbde1a7f00582918002bb6c801080b0b0f1f7506fd",
+      "sha256": "67cdd14946ceb43e3184298918b8e48b92ea1481ad1f30d9c35c6d32505a5d41",
       "install": true,
       "browse": true,
       "profile_persistence": true,
@@ -31,44 +30,39 @@
       "native_hardware": false,
       "execution_mode": "Rosetta on Apple silicon",
       "update_baselines": [
-        "26.1109.2",
-        "2"
+        "26.1110.1"
       ],
       "invalid_signature_rejected": true,
       "unsupported_os_rejected": true,
       "canonical_stock_feed_verified": true,
-      "updates_independent_of_optional_services": true,
-      "devices": [],
-      "owner_confirmation": ""
+      "updates_independent_of_optional_services": true
     }
   },
   "report_sha256": {
-    "prepared.json": "b3095fdee38ac8609ffb59283157e1dc96a0a08184121d4ae0c0ef69838cde93",
-    "cache-reuse.json": "f34f4a98b569aea7517276ad953f40fc387de521260b85d319305c9e407e045c",
-    "pre-sign-validation.json": "f53a3d0171fcbb7d0c1cd3fe017269a9c6b7c89aafbead18aeb157c9568f8d70",
-    "update-arm64-positive/result.json": "271c4db79f24242d5056357bd961361c12472dcf2d8f4228b7395f952aeb4d48",
-    "update-arm64-build-2/result.json": "3c6448c5825f3ccbe05289d6ece609a2e0b7f80554dbda09d8b12d372bf76452",
-    "update-arm64-signature/result.json": "6b27ca2dfc3fe052eaa7868e6c3a4ccbf5eb54e47e899c67c15b4987925c91c6",
-    "update-arm64-unsupported-os/result.json": "f9dba00a16be738829a0959b7c9c64b72e54f2a26624464b57a3e3df47c626ad",
-    "candidates/arm64/candidate.json": "2089b91cbe3a060ffc50e4d4fff3a6fbed7de82868e37ffc41ac37b8a682dcc3",
-    "build-arm64.json": "f219a14b51bbd5d851e3ef88e1731ab6aca160445c410984b78aa55ab67f36d6",
-    "smoke-arm64.json": "f66902ce94f2270c6b6ffdf63287d8ab4f3a72e0587bcd7a9829d9f318d1500d",
-    "runtime-arm64/result.json": "5ad50b4e9dd7d121cc6404e9620f31e82e6aff4bac322bce3c26b502e2080b25",
-    "canonical-feed-arm64/result.json": "5e3de89d65382af932e80ab21c5cf2a59368653800ce6a2116f5564289808794",
-    "candidates/arm64/dmg-notarization.json": "f54ef6a6ca343c0e92bb653735fbe55cf78ef2ded8aead106079ec56aee57fbc",
-    "update-x86_64-positive/result.json": "daa5c06f0df345675a17c39da20201807ccec93bb2af5076207a6d7fe5920909",
-    "update-x86_64-build-2/result.json": "b59ab49dbb6da872f4d1ce19b9d86cfb08b6f9f73a11b0e03ef24601de8041f4",
-    "update-x86_64-signature/result.json": "b1d0573803cd1901b8e42fb462fe067dc8450f9fe947233262567f379d51cc0e",
-    "update-x86_64-unsupported-os/result.json": "5fb51c50d015e4a994b3503577ccec34bee37b22f40441217436d18b6049357a",
-    "candidates/x86_64/candidate.json": "67fad4e2f97b22b12b62f88f17759ec8b8438f81a80589f777f8b303ed02b3c1",
-    "build-x86_64.json": "52177a25eae7b7cae1183bc6bcae7360f3c62b20d7741392ce1a72a58d7e51af",
-    "smoke-x86_64.json": "619239f405fceaa8cce03bd4ecbf7f8a1d6293233ee86c4f848335246ea71659",
-    "runtime-x86_64/result.json": "3ea350f4445c0904a4b9b342909645aee37edb56d03f990441c06afb7920bc86",
-    "canonical-feed-x86_64/result.json": "3f76d47d2c4e500c49d2eb6a4ec0dac851d4ca39172715d6b1fe24b10dd4352e",
-    "candidates/x86_64/dmg-notarization.json": "d9de7d909a42f22049a1408af668cc15510155ab37b7dd1bcb52ce91de4aad76"
+    "prepared.json": "434227fde46c2bb76ec0df47794a716cd6793484ce6c93c3c2186ecf4c35abee",
+    "cache-reuse.json": "7f75dd15199544453b0b47d9c206bf3ecb6106b7d9e3cced3d07dd2450d245b8",
+    "pre-sign-validation.json": "9a532bf1d84ccd62aefd64d7e9dac60ed4467cbb32eeaf0a2fa38120982114fc",
+    "keychain-retrieval-resolution.json": "5caf6d70125eeb4e66df09b33905dfb959cdca0717c1aa5f796840890a849b00",
+    "repository-tests-reservation-guard-final.log": "3a6aaab83c131100c2019baee031a9ebd4d524f2748fca28324d1d2493697c0f",
+    "update-arm64-positive/result.json": "4dc79047f57dadda932fbddc17b2c37af91fcfce06a42c14e820f9ea3bb601bf",
+    "update-arm64-signature/result.json": "f71c5d8130d928a4e8137785dbd54c1301a4bc6d27dab218c026f4cdb0722a46",
+    "update-arm64-unsupported-os/result.json": "c71ebf7349cff5d3dce557cf4011d0166c5a5e51f0cd3281cd1f9b786055177c",
+    "candidates/arm64/candidate.json": "379744591cf9ac8ae24b7b6c95d5c79b2b02c68cb7f378bd6ebba2745b5a248f",
+    "build-arm64.json": "3f4c95887457b680e6049dc380f98a87a91113609b62b43b1b08f88a9eb72220",
+    "smoke-arm64.json": "152975a03c5a52283c9928774eeb1139de107735296c3fb2668f9d868f1c7207",
+    "runtime-arm64/result.json": "e6c6d81c5545c808f4ff4fd17b676e0eb9d06c1d94c80191124ee7c53a8806b4",
+    "canonical-feed-arm64/result.json": "07d05fbe549621d9a8792bcd960c253d2add3e40a5c55fc9ef44610538505b99",
+    "candidates/arm64/dmg-notarization.json": "072a88acc3f4279fc420c2906d2a7be20907d412c8e5638f4cf1bc08d99c1cae",
+    "update-x86_64-positive/result.json": "e9daafabd654611c391544818bfdbc6d4c634136eafb9efb3db9aeb88b29dec2",
+    "update-x86_64-signature/result.json": "fa8278de4e54c72258ca3e92b1bf20971500efc3bae7cdbe69c5572ba2005af2",
+    "update-x86_64-unsupported-os/result.json": "c51be9de04d157313c0dbfc7a6ed3945b1665be83f0bbfd69bf0fd8988fcb5c6",
+    "candidates/x86_64/candidate.json": "50e9fb75662311e75c46556a7c216370feaae7ff13aacc47013c738e680a10fd",
+    "build-x86_64.json": "03630b7906f55abb042c31e36fbc14c6968a82d5173b6700c404d6f02893c35a",
+    "smoke-x86_64.json": "d5dfc1dcc60d9537f3426c65b136e56d95d9ec71b8c4197502c2a155b5897e80",
+    "runtime-x86_64/result.json": "c850820f9a3f6bbf88825fb9f62305c2e1e355bab25691a550459084127bb89b",
+    "canonical-feed-x86_64/result.json": "8957e985933970ab7de1a152bf974b9ffee9865dd74553bda4121b0145497c5e",
+    "candidates/x86_64/dmg-notarization.json": "263e7e2f98846e2c3629ae2343cf886bf2ac3d8d8b70afce0ce849fbac3d64b8"
   },
-  "test_harness_notes": [
-    "The first arm64 unsupported-OS run could not start ChromeDriver because its chosen local port was already in use. The failed fixture was preserved and that case passed in a new isolated run."
-  ],
-  "release_policy": "Publish after acceptance on one physical device and all technical gates pass; no manual Intel acceptance or per-release owner deferral is required."
+  "test_harness_notes": [],
+  "validation_policy": "Owner removed the recurring legacy build-2 migration gate on November 11, 2026; installed updates use the latest published release, 26.1110.1, plus signature and unsupported-OS rejection checks."
 }
