@@ -1,0 +1,653 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -13745,6 +13745,9 @@
+       <message name="IDS_APP_MENU_BUTTON_UPDATE" desc="Short label next to app-menu button when an update is available.">
+         Update
+       </message>
++      <message name="IDS_HELIUM_SERVICES_DISMISS_UPDATE" desc="Accessible name for the close button on the Helium services update notice.">
++        Dismiss Helium services update
++      </message>
+       <message name="IDS_APP_MENU_BUTTON_HELIUM_SERVICES_UPDATE" desc="Short label next to app-menu button when Helium services behavior changes.">
+         Services updated
+       </message>
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -1817,7 +1817,7 @@
+       Updates to Helium services:
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SCHEMA_NOTICE_DESCRIPTION" desc="Description of the alert shown when Helium services have a change in behavior">
+-      These changes are not active until you dismiss this notice.
++      Select Got it to accept these changes.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SCHEMA_IGNORE" desc="Checkbox label to ignore any future services change alerts">
+       Don't notify me again
+@@ -4831,6 +4831,12 @@
+     Allow Lune to connect to Helium-hosted services. These requests stay disabled until you consent. Browser updates are controlled separately.
+   </message>
+   <message name="IDS_LUNE_SERVICES_UPDATES" desc="Lune service provider and update disclosure.">
+-    Browser updates are delivered by Lune through GitHub. Keep this enabled to receive security fixes. Component updates also require Helium services to be enabled.
++    Automatically download and install Lune updates.
++  </message>
++  <message name="IDS_SETTINGS_HELIUM_SERVICES_COMPONENT_UPDATES" desc="Toggle for automatic updates to Helium-provided browser components, separate from browser updates.">
++    Allow automatic Helium services updates
++  </message>
++  <message name="IDS_SETTINGS_HELIUM_SERVICES_COMPONENT_UPDATES_DESCRIPTION" desc="Description of automatic Helium component updates.">
++    Lune will automatically check for component updates and install them. We recommend keeping this setting enabled.
+   </message>
+ </grit-part>
+\ No newline at end of file
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -514,6 +514,8 @@
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumSpellcheckEnabled] =
+       settings_api::PrefType::kBoolean;
++  (*s_allowlist)[::prefs::kHeliumComponentUpdatesEnabled] =
++      settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumUpdateFetchingEnabled] =
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumUBlockAssetsEnabled] =
+--- a/chrome/browser/prefs/BUILD.gn
++++ b/chrome/browser/prefs/BUILD.gn
+@@ -57,6 +57,7 @@
+   ]
+ 
+   deps = [
++    "//components/helium_services",
+     ":prefs",
+     ":util",
+     "//chrome/browser:browser_process",
+--- a/chrome/browser/prefs/browser_prefs.cc
++++ b/chrome/browser/prefs/browser_prefs.cc
+@@ -137,6 +137,7 @@
+ #include "components/enterprise/net/core/prefs.h"
+ #include "components/enterprise/network_header_injection/core/network_header_injection_prefs.h"
+ #include "components/feature_engagement/public/pref_names.h"
++#include "components/helium_services/pref_names.h"
+ #include "components/history_clusters/core/history_clusters_prefs.h"
+ #include "components/image_fetcher/core/cache/image_cache.h"
+ #include "components/language/content/browser/geo_language_provider.h"
+@@ -2772,6 +2773,15 @@
+   // of here, or by calling migration code in the appropriate place for iOS
+   // specifically, e.g. ios/chrome/browser/shared/model/prefs/browser_prefs.mm.
+ 
++  // Preserve the old combined update choice once, then let the two controls
++  // change independently. Persist the default too so a later browser-only
++  // change cannot be mistaken for an unmigrated profile on the next launch.
++  if (!profile_prefs->GetUserPrefValue(prefs::kHeliumComponentUpdatesEnabled)) {
++    profile_prefs->SetBoolean(
++        prefs::kHeliumComponentUpdatesEnabled,
++        profile_prefs->GetBoolean(prefs::kHeliumUpdateFetchingEnabled));
++  }
++
+   // BEGIN_MIGRATE_OBSOLETE_PROFILE_PREFS
+   // Please don't delete the preceding line. It is used by PRESUBMIT.py.
+ 
+--- a/chrome/browser/resources/settings/privacy_page/services_page.html
++++ b/chrome/browser/resources/settings/privacy_page/services_page.html
+@@ -41,11 +41,6 @@
+ 
+ <settings-subpage page-title="$i18n{heliumServicesTitle}" route-path$="[[routePath]]">
+ <div class="cr-col first">
+-            <settings-toggle-button id="updatesToggleButton"
+-                pref-key="helium.services.browser_updates"
+-                label="$i18n{heliumUpdatesToggle}"
+-                sub-label="$i18n{heliumUpdatesToggleDescription}">
+-            </settings-toggle-button>
+ 
+     <template is="dom-if" if="[[!userConsentedPref_.value]]">
+         <div class="cr-row" id="onboarding-notice">
+@@ -62,25 +57,6 @@
+     </template>
+ 
+     <template is="dom-if" if="[[userConsentedPref_.value]]">
+-        <template is="dom-if" if="[[changes_.length]]">
+-          <div id="changelog-notice">
+-            <div id="changelog-title">$i18n{heliumSchemaUpdatedTitle}</div>
+-            <ul>
+-                <template is="dom-repeat" items="[[changes_]]" as="change">
+-                    <li>[[change]]</li>
+-                </template>
+-            </ul>
+-            <div id="changelog-description">
+-                $i18n{heliumSchemaUpdatedDescription}
+-            </div>
+-            <div id="changelog-notice-actions">
+-                <cr-button on-click="onAcknowledgedChangelog_">$i18n{heliumGotIt}</cr-button>
+-                <cr-checkbox id="checkbox" checked="{{ignoreChecked_}}">
+-                    $i18n{heliumSchemaIgnore}
+-                </cr-checkbox>
+-            </div>
+-          </div>
+-        </template>
+     <settings-toggle-button id="servicesToggleButton"
+         pref-key="helium.services.enabled"
+         label="$i18n{heliumServicesToggle}"
+@@ -88,6 +64,31 @@
+     </settings-toggle-button>
+     <div class="cr-col">
+         <cr-collapse id="servicesCollapse" opened="[[servicesEnabledPref_.value]]">
++            <settings-toggle-button id="servicesUpdatesToggleButton"
++                pref-key="helium.services.component_updates"
++                label="$i18n{heliumServicesUpdatesToggle}"
++                sub-label="$i18n{heliumServicesUpdatesToggleDescription}"
++                disabled="[[!servicesEnabledPref_.value]]">
++            </settings-toggle-button>
++            <template is="dom-if" if="[[changes_.length]]">
++              <div id="changelog-notice">
++                <div id="changelog-title">$i18n{heliumSchemaUpdatedTitle}</div>
++                <ul>
++                    <template is="dom-repeat" items="[[changes_]]" as="change">
++                        <li>[[change]]</li>
++                    </template>
++                </ul>
++                <div id="changelog-description">
++                    $i18n{heliumSchemaUpdatedDescription}
++                </div>
++                <div id="changelog-notice-actions">
++                    <cr-button on-click="onAcknowledgedChangelog_">$i18n{heliumGotIt}</cr-button>
++                    <cr-checkbox id="checkbox" checked="{{ignoreChecked_}}">
++                        $i18n{heliumSchemaIgnore}
++                    </cr-checkbox>
++                </div>
++              </div>
++            </template>
+             <settings-toggle-button id="extProxyToggleButton"
+                 pref-key="helium.services.ext_proxy"
+                 label="$i18n{heliumExtProxyToggle}"
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -280,6 +280,8 @@
+ 
+   {
+     registry->RegisterIntegerPref(prefs::kHeliumSchemaVersion, 0);
++    registry->RegisterIntegerPref(prefs::kHeliumDismissedSchemaVersion, 0);
++    registry->RegisterBooleanPref(prefs::kHeliumComponentUpdatesEnabled, true);
+     registry->RegisterBooleanPref(prefs::kHeliumDisableSchemaAlerts, false);
+     registry->RegisterBooleanPref(prefs::kHeliumServicesEnabled, true);
+     registry->RegisterBooleanPref(prefs::kHeliumBangsEnabled, true);
+--- a/chrome/browser/ui/toolbar/app_menu_icon_controller.cc
++++ b/chrome/browser/ui/toolbar/app_menu_icon_controller.cc
+@@ -197,11 +197,6 @@
+     return {IconType::kGlobalError, SeverityFromError(error)};
+   }
+ 
+-  if (auto* prefs = profile_->GetPrefs()) {
+-    if (helium::ShouldShowSchemaNotification(*prefs)) {
+-      return {IconType::kHeliumServicesUpdate, Severity::kLow};
+-    }
+-  }
+ #endif
+ 
+   return {IconType::kNone, Severity::kNone};
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -535,6 +535,9 @@
+     "//ui/views",
+   ]
+   deps = [
++    "//chrome/browser/profiles:profile",
++    "//chrome/browser/ui:chrome_pages",
++    "//components/helium_services",
+     ":browser_view_header",
+     ":frame",
+     "//chrome/app:branded_strings",
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -5,12 +5,15 @@
+ #include "chrome/browser/ui/views/frame/sidebar_footer_view.h"
+ 
+ #include <algorithm>
++#include <iterator>
+ 
+ #include "base/functional/bind.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ref.h"
+ #include "chrome/browser/buildflags.h"
+ #include "chrome/browser/lifetime/application_lifetime.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/chrome_pages.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+@@ -20,12 +23,16 @@
+ #include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/grit/generated_resources.h"
++#include "components/helium_services/pref_names.h"
++#include "components/helium_services/schema.h"
+ #include "components/omnibox/browser/vector_icons.h"
++#include "components/prefs/pref_service.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "components/vector_icons/vector_icons.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/gfx/canvas.h"
++#include "ui/gfx/vector_icon_types.h"
+ #include "ui/strings/grit/ui_strings.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/border.h"
+@@ -39,6 +46,46 @@
+ #endif
+ 
+ namespace {
++// Original Helium logo from
++// helium-chromium/resources/branding/product_logo.icon (The Helium Authors,
++// GPL-3.0). Keep the service identity independent of the distribution's browser
++// icon.
++// clang-format off
++constexpr gfx::PathElement kHeliumServicesPath[] = {
++    gfx::CANVAS_DIMENSIONS, 56,
++    gfx::FILL_RULE_NONZERO,
++    gfx::MOVE_TO, 33.19f, 51.17f,
++    gfx::LINE_TO, 28, 55,
++    gfx::LINE_TO, 22.81f, 51.17f,
++    gfx::LINE_TO, 25.17f, 32.9f,
++    gfx::LINE_TO, 10.5f, 44.08f,
++    gfx::LINE_TO, 4.59f, 41.5f,
++    gfx::LINE_TO, 5.31f, 35.09f,
++    gfx::LINE_TO, 22.33f, 28,
++    gfx::LINE_TO, 5.31f, 20.91f,
++    gfx::LINE_TO, 4.59f, 14.5f,
++    gfx::LINE_TO, 10.5f, 11.92f,
++    gfx::LINE_TO, 25.17f, 23.1f,
++    gfx::LINE_TO, 22.81f, 4.83f,
++    gfx::LINE_TO, 28, 1,
++    gfx::LINE_TO, 33.19f, 4.83f,
++    gfx::LINE_TO, 30.83f, 23.1f,
++    gfx::LINE_TO, 45.5f, 11.92f,
++    gfx::LINE_TO, 51.41f, 14.5f,
++    gfx::LINE_TO, 50.69f, 20.91f,
++    gfx::LINE_TO, 33.67f, 28,
++    gfx::LINE_TO, 50.69f, 35.09f,
++    gfx::LINE_TO, 51.41f, 41.5f,
++    gfx::LINE_TO, 45.5f, 44.08f,
++    gfx::LINE_TO, 30.83f, 32.9f,
++    gfx::LINE_TO, 33.19f, 51.17f,
++    gfx::CLOSE
++};
++// clang-format on
++constexpr gfx::VectorIconRep kHeliumServicesReps[] = {{kHeliumServicesPath}};
++constexpr gfx::VectorIcon kHeliumServicesIcon = {
++    kHeliumServicesReps, std::size(kHeliumServicesReps), "helium_services"};
++
+ // Match the density and native colors of the surrounding tab rows. A footer
+ // action keeps its preferred height even when the tabs have room to grow.
+ class FooterButton : public views::LabelButton {
+@@ -100,14 +147,13 @@
+ BEGIN_METADATA(FooterButton)
+ END_METADATA
+ // One hover surface, including the trailing close control, like a tab row.
+-class SidebarDefaultBrowserRow : public views::View {
+-  METADATA_HEADER(SidebarDefaultBrowserRow, views::View)
++class SidebarDismissibleRow : public views::View {
++  METADATA_HEADER(SidebarDismissibleRow, views::View)
+  public:
+-  SidebarDefaultBrowserRow() {
++  SidebarDismissibleRow(int message, const gfx::VectorIcon& icon) {
+     SetNotifyEnterExitOnChild(true);
+     action_ = AddChildView(std::make_unique<FooterButton>(
+-        base::RepeatingClosure(), IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL,
+-        omnibox::kProductChromeRefreshOldIcon, false));
++        base::RepeatingClosure(), message, icon, false));
+     action_->SetElideBehavior(gfx::FADE_TAIL);
+     close_ = AddChildView(std::make_unique<TabCloseButton>(
+         base::RepeatingClosure(),
+@@ -179,7 +225,7 @@
+   raw_ptr<TabCloseButton> close_;
+   bool collapsed_ = false;
+ };
+-BEGIN_METADATA(SidebarDefaultBrowserRow)
++BEGIN_METADATA(SidebarDismissibleRow)
+ END_METADATA
+ }  // namespace
+ 
+@@ -195,7 +241,39 @@
+       base::BindRepeating([] { chrome::AttemptRelaunch(); }),
+       IDS_APP_MENU_BUTTON_UPDATE_ALT2, vector_icons::kRefreshIcon));
+ 
+-  auto* row = AddChildView(std::make_unique<SidebarDefaultBrowserRow>());
++  auto* services_row = AddChildView(std::make_unique<SidebarDismissibleRow>(
++      IDS_APP_MENU_BUTTON_HELIUM_SERVICES_UPDATE, kHeliumServicesIcon));
++  services_prompt_ = services_row;
++  services_button_ = services_row->action();
++  services_button_->SetCallback(base::BindRepeating(
++      [](BrowserWindowInterface* browser) {
++        chrome::ShowHeliumServices(browser);
++      },
++      base::Unretained(browser_.get())));
++  services_row->close()->GetViewAccessibility().SetName(
++      l10n_util::GetStringUTF16(IDS_HELIUM_SERVICES_DISMISS_UPDATE));
++  services_row->close()->SetCallback(base::BindRepeating(
++      [](BrowserWindowInterface* browser) {
++        // Dismiss only this version's notice; reviewing/accepting service
++        // changes remains an explicit action on the settings page.
++        browser->GetProfile()->GetPrefs()->SetInteger(
++            prefs::kHeliumDismissedSchemaVersion,
++            helium::kHeliumCurrentSchemaVersion);
++      },
++      base::Unretained(browser_.get())));
++  services_registrar_.Init(browser_->GetProfile()->GetPrefs());
++  for (const char* pref :
++       {prefs::kHeliumSchemaVersion, prefs::kHeliumDismissedSchemaVersion,
++        prefs::kHeliumDisableSchemaAlerts, prefs::kHeliumServicesEnabled,
++        prefs::kHeliumServicesConsented}) {
++    services_registrar_.Add(pref,
++                            base::BindRepeating(&SidebarFooterView::UpdateState,
++                                                base::Unretained(this)));
++  }
++
++  auto* row = AddChildView(std::make_unique<SidebarDismissibleRow>(
++      IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL,
++      omnibox::kProductChromeRefreshOldIcon));
+   default_prompt_ = row;
+   default_button_ = row->action();
+   dismiss_button_ = row->close();
+@@ -255,11 +333,26 @@
+   update_button_->SetTooltipText(
+       collapsed ? l10n_util::GetStringUTF16(IDS_APP_MENU_BUTTON_UPDATE_ALT2)
+                 : u"");
+-  static_cast<SidebarDefaultBrowserRow*>(default_prompt_.get())
++  static_cast<SidebarDismissibleRow*>(default_prompt_.get())
++      ->SetCollapsed(collapsed);
++  services_button_->SetText(
++      collapsed ? u""
++                : l10n_util::GetStringUTF16(
++                      IDS_APP_MENU_BUTTON_HELIUM_SERVICES_UPDATE));
++  services_button_->GetViewAccessibility().SetName(
++      l10n_util::GetStringUTF16(IDS_APP_MENU_BUTTON_HELIUM_SERVICES_UPDATE));
++  services_button_->SetTooltipText(
++      collapsed ? l10n_util::GetStringUTF16(
++                      IDS_APP_MENU_BUTTON_HELIUM_SERVICES_UPDATE)
++                : u"");
++  static_cast<SidebarDismissibleRow*>(services_prompt_.get())
+       ->SetCollapsed(collapsed);
++  const bool services_updated =
++      helium::ShouldShowSchemaNotification(*browser_->GetProfile()->GetPrefs());
++  services_prompt_->SetVisible(services_updated);
+   default_prompt_->SetVisible(has_default_prompt_);
+   update_button_->SetVisible(ready);
+-  SetVisible(has_default_prompt_ || ready);
++  SetVisible(has_default_prompt_ || ready || services_updated);
+   PreferredSizeChanged();
+ }
+ 
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.h
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.h
+@@ -8,6 +8,7 @@
+ #include "base/callback_list.h"
+ #include "base/functional/callback.h"
+ #include "base/memory/raw_ptr.h"
++#include "components/prefs/pref_change_registrar.h"
+ #include "ui/menus/simple_menu_model.h"
+ #include "ui/views/context_menu_controller.h"
+ #include "ui/views/layout/flex_layout_view.h"
+@@ -54,6 +55,9 @@
+   raw_ptr<views::LabelButton> default_button_;
+   raw_ptr<views::LabelButton> dismiss_button_;
+   raw_ptr<views::LabelButton> update_button_;
++  raw_ptr<views::View> services_prompt_;
++  raw_ptr<views::LabelButton> services_button_;
++  PrefChangeRegistrar services_registrar_;
+   bool has_default_prompt_ = false;
+   base::CallbackListSubscription collapse_subscription_;
+   base::CallbackListSubscription update_subscription_;
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -2697,9 +2697,8 @@
+       {"noiseCustomDescription", IDS_SETTINGS_NOISE_CUSTOM_DESCRIPTION},
+       {"noiseAllowOverridesTitle", IDS_SETTINGS_NOISE_ALLOW_OVERRIDES_TITLE},
+       {"heliumServicesTitle", IDS_SETTINGS_HELIUM_SERVICES},
+-      {"heliumServicesDescription", IDS_LUNE_SERVICES_PROVIDER},
+-      {"heliumCrashReportingTitle",
+-       IDS_SETTINGS_HELIUM_CRASH_REPORTING_TITLE},
++      {"heliumServicesDescription", IDS_SETTINGS_HELIUM_SERVICES_DESCRIPTION},
++      {"heliumCrashReportingTitle", IDS_SETTINGS_HELIUM_CRASH_REPORTING_TITLE},
+       {"heliumCrashReportingDescription",
+        IDS_SETTINGS_HELIUM_CRASH_REPORTING_DESCRIPTION},
+       {"heliumCrashReportingDisabled",
+@@ -2707,42 +2706,46 @@
+       {"heliumCrashReportingAsk", IDS_SETTINGS_HELIUM_CRASH_REPORTING_ASK},
+       {"heliumCrashReportingAutomatic",
+        IDS_SETTINGS_HELIUM_CRASH_REPORTING_AUTOMATIC},
+-      {"heliumServicesSetupPendingText", IDS_SETTINGS_HELIUM_SERVICES_SETUP_PENDING_TEXT},
+-      {"heliumServicesSetupPendingButton", IDS_SETTINGS_HELIUM_SERVICES_SETUP_PENDING_BUTTON},
++      {"heliumServicesSetupPendingText",
++       IDS_SETTINGS_HELIUM_SERVICES_SETUP_PENDING_TEXT},
++      {"heliumServicesSetupPendingButton",
++       IDS_SETTINGS_HELIUM_SERVICES_SETUP_PENDING_BUTTON},
+       {"heliumServicesToggle", IDS_SETTINGS_HELIUM_SERVICES_TOGGLE},
+       {"heliumServicesToggleDescription",
+-        IDS_LUNE_SERVICES_CONSENT},
++        IDS_SETTINGS_HELIUM_SERVICES_TOGGLE_DESCRIPTION},
+       {"heliumSchemaUpdatedTitle", IDS_SETTINGS_HELIUM_SCHEMA_NOTICE_TITLE},
+       {"heliumSchemaUpdatedDescription",
+-        IDS_SETTINGS_HELIUM_SCHEMA_NOTICE_DESCRIPTION},
++       IDS_SETTINGS_HELIUM_SCHEMA_NOTICE_DESCRIPTION},
+       {"heliumGotIt", IDS_SETTINGS_GOT_IT},
+       {"heliumSchemaIgnore", IDS_SETTINGS_HELIUM_SCHEMA_IGNORE},
+-      {"heliumExtProxyToggle",
+-        IDS_SETTINGS_HELIUM_SERVICES_EXT_PROXY_TOGGLE},
++      {"heliumExtProxyToggle", IDS_SETTINGS_HELIUM_SERVICES_EXT_PROXY_TOGGLE},
+       {"heliumExtProxyToggleDescription",
+-        IDS_SETTINGS_HELIUM_SERVICES_EXT_PROXY_TOGGLE_DESCRIPTION},
++       IDS_SETTINGS_HELIUM_SERVICES_EXT_PROXY_TOGGLE_DESCRIPTION},
+       {"heliumBangsToggle", IDS_SETTINGS_HELIUM_SERVICES_BANGS_TOGGLE},
+       {"heliumBangsToggleDescription",
+-        IDS_SETTINGS_HELIUM_SERVICES_BANGS_TOGGLE_DESCRIPTION},
+-      {"heliumSpellcheckToggle", IDS_SETTINGS_HELIUM_SERVICES_SPELLCHECK_TOGGLE},
++       IDS_SETTINGS_HELIUM_SERVICES_BANGS_TOGGLE_DESCRIPTION},
++      {"heliumSpellcheckToggle",
++       IDS_SETTINGS_HELIUM_SERVICES_SPELLCHECK_TOGGLE},
+       {"heliumSpellcheckToggleDescription",
+-        IDS_SETTINGS_HELIUM_SERVICES_SPELLCHECK_TOGGLE_DESCRIPTION},
++       IDS_SETTINGS_HELIUM_SERVICES_SPELLCHECK_TOGGLE_DESCRIPTION},
++      {"heliumServicesUpdatesToggle",
++       IDS_SETTINGS_HELIUM_SERVICES_COMPONENT_UPDATES},
++      {"heliumServicesUpdatesToggleDescription",
++       IDS_SETTINGS_HELIUM_SERVICES_COMPONENT_UPDATES_DESCRIPTION},
+       {"heliumUpdatesToggle", IDS_SETTINGS_HELIUM_SERVICES_UPDATE},
+-      {"heliumUpdatesToggleDescription",
+-        IDS_LUNE_SERVICES_UPDATES},
+-      {"heliumUboToggle",
+-        IDS_SETTINGS_HELIUM_SERVICES_UBO},
++      {"heliumUpdatesToggleDescription", IDS_LUNE_SERVICES_UPDATES},
++      {"heliumUboToggle", IDS_SETTINGS_HELIUM_SERVICES_UBO},
+       {"heliumUboToggleDescription",
+-        IDS_SETTINGS_HELIUM_SERVICES_UBO_DESCRIPTION},
++       IDS_SETTINGS_HELIUM_SERVICES_UBO_DESCRIPTION},
+       {"heliumOriginOverride", IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE},
+       {"heliumOriginOverrideDescription",
+-        IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION},
++       IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION},
+       {"heliumOriginOverrideDescriptionWarning",
+-        IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION_WARNING},
++       IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION_WARNING},
+       {"heliumOriginOverrideLabel",
+-        IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_ARIA_LABEL},
++       IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_ARIA_LABEL},
+       {"heliumOriginOverrideInvalidOrigin",
+-        IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_INVALID_ORIGIN},
++       IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_INVALID_ORIGIN},
+       {"advancedProtectionProgramTitle",
+        IDS_SETTINGS_ADVANCED_PROTECTION_PROGRAM},
+       {"advancedProtectionProgramDesc",
+--- a/components/helium_services/helium_services_helpers.cc
++++ b/components/helium_services/helium_services_helpers.cc
+@@ -104,9 +104,8 @@
+ }
+ 
+ bool ShouldAccessComponentUpdateService(const PrefService& prefs) {
+-    return ShouldAccessServices(prefs) &&
+-            HasAcceptedSchema(prefs, 1) &&
+-            prefs.GetBoolean(prefs::kHeliumUpdateFetchingEnabled);
++  return ShouldAccessServices(prefs) && HasAcceptedSchema(prefs, 1) &&
++         prefs.GetBoolean(prefs::kHeliumComponentUpdatesEnabled);
+ }
+ 
+ bool ShouldAccessUBlockAssets(const PrefService& prefs) {
+--- a/components/helium_services/pref_names.h
++++ b/components/helium_services/pref_names.h
+@@ -10,6 +10,12 @@
+ inline constexpr char kHeliumSchemaVersion[] =
+     "helium.services.schema_version";
+ 
++inline constexpr char kHeliumDismissedSchemaVersion[] =
++    "helium.services.dismissed_schema_version";
++
++inline constexpr char kHeliumComponentUpdatesEnabled[] =
++    "helium.services.component_updates";
++
+ inline constexpr char kHeliumDisableSchemaAlerts[] =
+     "helium.services.disable_schema_alerts";
+ 
+--- a/components/helium_services/schema.cc
++++ b/components/helium_services/schema.cc
+@@ -21,18 +21,19 @@
+ 
+ bool ShouldShowSchemaNotification(const PrefService& prefs) {
+   return ShouldAccessServices(prefs) &&
+-         !HasAcceptedSchema(prefs, kHeliumCurrentSchemaVersion);
++         !HasAcceptedSchema(prefs, kHeliumCurrentSchemaVersion) &&
++         prefs.GetInteger(prefs::kHeliumDismissedSchemaVersion) <
++             kHeliumCurrentSchemaVersion;
+ }
+ 
+ ServicesChangelog& GetChangelog() {
+-  static constexpr auto kHeliumSchemaChangelog =
+-      base::MakeFixedFlatMap<int, std::string_view>({
+-          {
+-            1,
+-            "Automatic component updates are now available. They're managed by the same toggle that enables automatic browser updates.\n"
+-            "From now on, you'll be notified about major changes to Helium services. Even though these notifications are extremely rare, you can choose to ignore them and accept all future changes automatically."
+-          }
+-      });
++  static constexpr auto kHeliumSchemaChangelog = base::MakeFixedFlatMap<
++      int, std::string_view>(
++      {{1,
++        "Automatic component updates are now available.\n"
++        "From now on, you'll be notified about major changes to Helium "
++        "services. Even though these notifications are extremely rare, you can "
++        "choose to ignore them and accept all future changes automatically."}});
+ 
+   return kHeliumSchemaChangelog;
+ }
+--- a/chrome/browser/ui/webui/settings/services_schema_handler.cc
++++ b/chrome/browser/ui/webui/settings/services_schema_handler.cc
+@@ -34,7 +34,10 @@
+   const auto& callback_id = args[0].GetString();
+   base::ListValue out;
+ 
+-  if (helium::ShouldShowSchemaNotification(*pref_service_)) {
++  // Dismissing the footer notice does not accept the changes. Keep them
++  // available here until the user explicitly acknowledges them.
++  if (!helium::HasAcceptedSchema(*pref_service_,
++                                 helium::kHeliumCurrentSchemaVersion)) {
+     int user_version = pref_service_->GetInteger(prefs::kHeliumSchemaVersion);
+     auto& changelog = helium::GetChangelog();
+ 
+--- a/chrome/browser/resources/settings/icons.html.ts
++++ b/chrome/browser/resources/settings/icons.html.ts
+@@ -494,3 +494,12 @@
+ for (const iconset of iconsets) {
+   document.head.appendChild(iconset);
+ }
++
++// Original Helium logo: The Helium Authors, GPL-3.0. Preserve the service
++// provider's identity independently of the distribution's browser artwork.
++const heliumServicesIcons = document.createElement('div');
++heliumServicesIcons.innerHTML = getTrustedHTML`
++<cr-iconset name="helium-services" size="56">
++  <svg><defs><g id="logo"><path d="M33.19 51.17 28 55 22.81 51.17 25.17 32.9 10.5 44.08 4.59 41.5 5.31 35.09 22.33 28 5.31 20.91 4.59 14.5 10.5 11.92 25.17 23.1 22.81 4.83 28 1 33.19 4.83 30.83 23.1 45.5 11.92 51.41 14.5 50.69 20.91 33.67 28 50.69 35.09 51.41 41.5 45.5 44.08 30.83 32.9Z"></path></g></defs></svg>
++</cr-iconset>`;
++document.head.appendChild(heliumServicesIcons);
+--- a/chrome/browser/resources/settings/privacy_page/privacy_page.html
++++ b/chrome/browser/resources/settings/privacy_page/privacy_page.html
+@@ -45,11 +45,17 @@
+         sub-label="$i18n{siteSettingsSublabel}"
+         @click="${this.onSiteSettingsLinkRowClick_}"
+         role-description="$i18n{subpageArrowRoleDescription}"></cr-link-row>
+-    <cr-link-row id="heliumServicesLinkRow" start-icon="cr:chrome-product"
++    <cr-link-row id="heliumServicesLinkRow" start-icon="helium-services:logo"
+         class="hr" label="$i18n{heliumServicesTitle}"
+         sub-label="$i18n{heliumServicesDescription}"
+         @click="${this.onHeliumServicesPageClick_}"
+         role-description="$i18n{subpageArrowRoleDescription}"></cr-link-row>
++    <settings-toggle-button id="updatesToggleButton" class="hr"
++        pref-key="helium.services.browser_updates"
++        icon="cr:sync"
++        label="$i18n{heliumUpdatesToggle}"
++        sub-label="$i18n{heliumUpdatesToggleDescription}">
++    </settings-toggle-button>
+     <cr-toast id="deleteBrowsingDataToast" duration="5000">
+       <div>${this.dbdDeletionConfirmationToastLabel_}</div>
+     </cr-toast>
+--- a/chrome/browser/resources/settings/privacy_page/privacy_page.ts
++++ b/chrome/browser/resources/settings/privacy_page/privacy_page.ts
+@@ -11,6 +11,7 @@
+ import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
+ import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+ import '../icons.html.js';
++import '../controls/settings_toggle_button.js';
+ import '../privacy_icons.html.js';
+ import '../settings_page/settings_section.js';
+ import './privacy_guide/privacy_guide_dialog.js';
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -286,4 +286,10 @@
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_TITLE" desc="Opt in to search-engine suggestions during setup.">Search suggestions</message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_DESC" desc="Explains partial query disclosure to the chosen search engine.">Send what you type to your selected search engine to show suggested searches and websites in the address bar and Cmd-T.</message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_SEARCH_SUGGESTIONS" desc="Discloses search suggestions included in the Use defaults setup choice.">Defaults include search suggestions from your selected search engine.</message>
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_TITLE" desc="Independent automatic Helium service component updates toggle.">
++  Allow automatic Helium services updates
++</message>
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_DESC" desc="Description of automatic Helium service component updates.">
++  Automatically download and install updates to Helium-provided browser components.
++</message>
+ </grit-part>
+\ No newline at end of file
+--- a/components/helium_onboarding/src/lib/browser/prefs.ts
++++ b/components/helium_onboarding/src/lib/browser/prefs.ts
+@@ -14,6 +14,7 @@
+     'services.user_consented': boolean,
+     'services.spellcheck_files': boolean,
+     'services.browser_updates': boolean,
++    'services.component_updates': boolean,
+     'services.ublock_assets': boolean,
+ };
+ 
+--- a/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
++++ b/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
+@@ -31,6 +31,7 @@
+     'services.user_consented': false,
+     'services.spellcheck_files': true,
+     'services.browser_updates': true,
++    'services.component_updates': true,
+     'services.ublock_assets': true,
+ };
+ 
+--- a/components/helium_onboarding/src/pages/HeliumServices.svelte
++++ b/components/helium_onboarding/src/pages/HeliumServices.svelte
+@@ -53,6 +53,12 @@
+                 desc={s.services.consent}
+                 prefName="services.enabled"
+             />
++            <PreferenceToggle
++                title={s.services.componentUpdatesTitle}
++                desc={s.services.componentUpdatesDesc}
++                prefName="services.component_updates"
++                disabled={!servicesEnabled}
++            />
+             <div class="toggle-separator"></div>
+             {#each services as service (service.prefName)}
+                 <PreferenceToggle
+--- a/components/helium_onboarding/src/pages/Welcome.svelte
++++ b/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -14,6 +14,7 @@
+         try {
+             await updateWrite;
+             acceptLatestSchema();
++            await setPref('services.component_updates', true);
+             await setPref('services.enabled', true);
+             await setPref('services.user_consented', true);
+             await setPref('search.suggest_enabled', true);
