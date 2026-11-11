@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -20678,6 +20678,147 @@
+@@ -20678,6 +20678,177 @@
      <message name="IDS_OSCRYPTASYNC_AVAILABILITY_INFOBAR_BUTTON" desc="The text of the button to proceed with relaunching the entire browser to resolve keychain permission issues.">
        Relaunch
      </message>
@@ -145,12 +145,53 @@
 +    <message name="IDS_COMMAND_BAR_UNPIN_SIDEBAR" desc="Command palette action: Unpin Sidebar.">
 +      Unpin Sidebar
 +    </message>
++    <message name="IDS_COMMAND_BAR_PLAY_MEDIA" desc="Command palette action: Play Media.">
++      Play Media
++    </message>
++    <message name="IDS_COMMAND_BAR_ENTER_PICTURE_IN_PICTURE" desc="Command palette action: Enter Picture in Picture.">
++      Enter Picture in Picture
++    </message>
++    <message name="IDS_COMMAND_BAR_PREVIOUS_TRACK" desc="Command palette action: Previous Track.">
++      Previous Track
++    </message>
++    <message name="IDS_COMMAND_BAR_NEXT_TRACK" desc="Command palette action: Next Track.">
++      Next Track
++    </message>
++    <message name="IDS_COMMAND_BAR_SEEK_BACKWARD" desc="Command palette action: Seek Backward.">
++      Seek Backward
++    </message>
++    <message name="IDS_COMMAND_BAR_SEEK_FORWARD" desc="Command palette action: Seek Forward.">
++      Seek Forward
++    </message>
++    <message name="IDS_COMMAND_BAR_STOP_PLAYBACK" desc="Command palette action: Stop Playback.">
++      Stop Playback
++    </message>
++    <message name="IDS_COMMAND_BAR_SKIP_AD" desc="Command palette action: Skip Ad.">
++      Skip Ad
++    </message>
++    <message name="IDS_COMMAND_BAR_PAUSE_MEDIA" desc="Command palette action: Pause Media.">
++      Pause Media
++    </message>
++    <message name="IDS_COMMAND_BAR_EXIT_PICTURE_IN_PICTURE" desc="Command palette action: Exit Picture in Picture.">
++      Exit Picture in Picture
++    </message>
    </messages>
  </release>
  </grit>
 \ No newline at end of file
 --- a/chrome/browser/ui/helium/BUILD.gn
 +++ b/chrome/browser/ui/helium/BUILD.gn
+@@ -15,9 +15,9 @@
+     "//ui/base/unowned_user_data",
+   ]
+   deps = [
+-    "//chrome/browser/ui/browser_window",
+     "//chrome/browser/ui:layout_constants",
+     "//chrome/browser/ui:ui_features",
++    "//chrome/browser/ui/browser_window",
+     "//chrome/common:constants",
+   ]
+ }
 @@ -67,6 +67,8 @@
  
  source_set("helium_command_bar") {
@@ -160,23 +201,79 @@
      "helium_command_bar_controller.cc",
      "helium_command_bar_controller.h",
      "helium_command_bar_model.cc",
-@@ -80,6 +82,13 @@
+@@ -80,10 +82,22 @@
    if (is_mac) {
      sources += [ "helium_command_bar_view_mac.mm" ]
      deps += [
-+    ":helium_layout_state_controller",
-+    "//base:i18n",
-+    "//chrome/browser/ui:browser_commands",
-+    "//chrome/browser/ui/browser_shortcuts",
-+    "//chrome/browser/ui:browser_window_header",
-+    "//chrome/app:generated_resources",
-+    "//chrome/app:branded_strings",
++      ":helium_layout_state_controller",
        ":native_result_row",
++      "//base:i18n",
++      "//chrome/app:branded_strings",
++      "//chrome/app:generated_resources",
++      "//chrome/browser/ui:browser_commands",
++      "//chrome/browser/ui:browser_window_header",
++      "//chrome/browser/ui:recently_audible_helper",
++      "//chrome/browser/ui/browser_shortcuts",
        "//chrome/browser/ui/views/helium:native_frame_materials",
++      "//services/media_session/public/mojom",
++    ]
++    frameworks = [
++      "AppKit.framework",
++      "QuartzCore.framework",
      ]
+-    frameworks = [ "AppKit.framework", "QuartzCore.framework" ]
+   } else {
+     sources += [ "helium_command_bar_view.cc" ]
+   }
+@@ -97,26 +111,25 @@
+   deps += [
+     "//chrome/app/vector_icons",
+     "//chrome/browser/autocomplete",
+-    "//components/omnibox/browser",
+-    "//chrome/browser/profiles",
+-    "//chrome/browser/themes",
+-    "//ui/native_theme",
+     "//chrome/browser/bookmarks",
+     "//chrome/browser/favicon",
+     "//chrome/browser/history",
++    "//chrome/browser/profiles",
+     "//chrome/browser/search_engines",
++    "//chrome/browser/themes",
+     "//chrome/browser/ui/navigator",
+-    "//chrome/browser/ui/views/frame:browser_view_header",
+-    "//chrome/browser/ui/views/frame:browser_frame_view",
+-    "//chrome/browser/ui/views/frame:browser_widget",
+     "//chrome/browser/ui/tabs:tab_model",
+     "//chrome/browser/ui/tabs:tab_strip",
++    "//chrome/browser/ui/views/frame:browser_frame_view",
++    "//chrome/browser/ui/views/frame:browser_view_header",
++    "//chrome/browser/ui/views/frame:browser_widget",
+     "//components/bookmarks/browser",
+     "//components/favicon/content",
+     "//components/favicon/core",
+     "//components/favicon_base",
+     "//components/history/core/browser",
+     "//components/keyed_service/core",
++    "//components/omnibox/browser",
+     "//components/prefs",
+     "//components/search_engines",
+     "//content/public/browser",
+@@ -124,11 +137,11 @@
+     "//ui/color",
+     "//ui/events",
+     "//ui/gfx",
++    "//ui/native_theme",
+     "//ui/views",
+   ]
+ }
+ 
+-
+ if (is_mac) {
+   source_set("native_result_row") {
+     sources = [
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_commands.cc
-@@ -0,0 +1,398 @@
+@@ -0,0 +1,554 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -198,6 +295,7 @@
 +#include "chrome/browser/ui/browser_window.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 +#include "chrome/browser/ui/helium/helium_layout_state_controller.h"
++#include "chrome/browser/ui/recently_audible_helper.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
 +#include "chrome/browser/ui/tabs/tab_utils.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
@@ -207,7 +305,9 @@
 +#include "chrome/grit/generated_resources.h"
 +#include "components/prefs/pref_service.h"
 +#include "components/prefs/scoped_user_pref_update.h"
++#include "content/public/browser/media_session.h"
 +#include "content/public/browser/web_contents.h"
++#include "services/media_session/public/mojom/constants.mojom.h"
 +#include "ui/base/l10n/l10n_util.h"
 +
 +namespace helium_command_bar_model {
@@ -325,7 +425,128 @@
 +     "pin"},
 +    {kPinSidebar, "kPinSidebar", IDS_COMMAND_BAR_PIN_SIDEBAR,
 +     "pin sidebar|pin sidebar|unpin sidebar", "pin"},
++    {kMediaPlayPause, "kMediaPlayPause", IDS_COMMAND_BAR_PLAY_MEDIA,
++     "play|resume media|resume playback", "play.fill"},
++    {kMediaPictureInPicture, "kMediaPictureInPicture",
++     IDS_COMMAND_BAR_ENTER_PICTURE_IN_PICTURE,
++     "picture in picture|pip|pop out video", "pip.enter"},
++    {kMediaPreviousTrack, "kMediaPreviousTrack", IDS_COMMAND_BAR_PREVIOUS_TRACK,
++     "previous track|previous song", "backward.end.fill"},
++    {kMediaNextTrack, "kMediaNextTrack", IDS_COMMAND_BAR_NEXT_TRACK,
++     "next track|next song|skip track", "forward.end.fill"},
++    {kMediaSeekBackward, "kMediaSeekBackward", IDS_COMMAND_BAR_SEEK_BACKWARD,
++     "seek backward|rewind|backward", "gobackward"},
++    {kMediaSeekForward, "kMediaSeekForward", IDS_COMMAND_BAR_SEEK_FORWARD,
++     "seek forward|fast forward", "goforward"},
++    {kMediaStop, "kMediaStop", IDS_COMMAND_BAR_STOP_PLAYBACK,
++     "stop playback|stop media", "stop.fill"},
++    {kMediaSkipAd, "kMediaSkipAd", IDS_COMMAND_BAR_SKIP_AD,
++     "skip ad|skip advertisement", "forward.end"},
 +};
++
++using MediaAction = media_session::mojom::MediaSessionAction;
++
++bool IsMediaCommand(int command) {
++  return command <= kMediaPlayPause && command >= kMediaSkipAd;
++}
++
++std::optional<MediaAction> AvailableMediaAction(content::WebContents* contents,
++                                                int command) {
++  auto* session = content::MediaSession::GetIfExists(contents);
++  if (!session) {
++    return std::nullopt;
++  }
++  const auto info = session->GetMediaSessionInfoSync();
++  if (!info ||
++      (command != kMediaPictureInPicture &&
++       (!info->is_controllable ||
++        info->state ==
++            media_session::mojom::MediaSessionInfo::SessionState::kInactive))) {
++    return std::nullopt;
++  }
++  MediaAction action;
++  switch (command) {
++    case kMediaPlayPause:
++      action = info->playback_state ==
++                       media_session::mojom::MediaPlaybackState::kPlaying
++                   ? MediaAction::kPause
++                   : MediaAction::kPlay;
++      break;
++    case kMediaPictureInPicture:
++      action = info->picture_in_picture_state ==
++                       media_session::mojom::MediaPictureInPictureState::
++                           kInPictureInPicture
++                   ? MediaAction::kExitPictureInPicture
++                   : MediaAction::kEnterPictureInPicture;
++      break;
++    case kMediaPreviousTrack:
++      action = MediaAction::kPreviousTrack;
++      break;
++    case kMediaNextTrack:
++      action = MediaAction::kNextTrack;
++      break;
++    case kMediaSeekBackward:
++      action = MediaAction::kSeekBackward;
++      break;
++    case kMediaSeekForward:
++      action = MediaAction::kSeekForward;
++      break;
++    case kMediaStop:
++      action = MediaAction::kStop;
++      break;
++    case kMediaSkipAd:
++      action = MediaAction::kSkipAd;
++      break;
++    default:
++      return std::nullopt;
++  }
++  const auto actions = session->GetMediaSessionActionsSync();
++  return std::ranges::find(actions, action) != actions.end()
++             ? std::optional(action)
++             : std::nullopt;
++}
++
++bool ExecuteMediaAction(content::MediaSession* session, MediaAction action) {
++  using SuspendType = content::MediaSession::SuspendType;
++  switch (action) {
++    case MediaAction::kPlay:
++      session->Resume(SuspendType::kUI);
++      break;
++    case MediaAction::kPause:
++      session->Suspend(SuspendType::kUI);
++      break;
++    case MediaAction::kPreviousTrack:
++      session->PreviousTrack();
++      break;
++    case MediaAction::kNextTrack:
++      session->NextTrack();
++      break;
++    case MediaAction::kSeekBackward:
++      session->Seek(
++          base::Seconds(-media_session::mojom::kDefaultSeekTimeSeconds));
++      break;
++    case MediaAction::kSeekForward:
++      session->Seek(
++          base::Seconds(media_session::mojom::kDefaultSeekTimeSeconds));
++      break;
++    case MediaAction::kStop:
++      session->Stop(SuspendType::kUI);
++      break;
++    case MediaAction::kSkipAd:
++      session->SkipAd();
++      break;
++    case MediaAction::kEnterPictureInPicture:
++      session->EnterPictureInPicture();
++      break;
++    case MediaAction::kExitPictureInPicture:
++      session->ExitPictureInPicture();
++      break;
++    default:
++      return false;
++  }
++  return true;
++}
++
 +std::u16string CommandShortcut(BrowserWindowInterface* browser, int command) {
 +  auto* service =
 +      browser_shortcuts::BrowserShortcutServiceFactory::GetForProfile(
@@ -432,6 +653,19 @@
 +  int label = entry->label;
 +  std::string symbol = entry->symbol;
 +  const int active = strip->active_index();
++  if (IsMediaCommand(command)) {
++    auto action = AvailableMediaAction(strip->GetActiveWebContents(), command);
++    if (!action) {
++      return std::nullopt;
++    }
++    if (*action == MediaAction::kPause) {
++      label = IDS_COMMAND_BAR_PAUSE_MEDIA;
++      symbol = "pause.fill";
++    } else if (*action == MediaAction::kExitPictureInPicture) {
++      label = IDS_COMMAND_BAR_EXIT_PICTURE_IN_PICTURE;
++      symbol = "pip.exit";
++    }
++  }
 +  switch (command) {
 +    case IDC_WINDOW_PIN_TAB:
 +      if (!strip->IsContextMenuCommandEnabled(
@@ -451,6 +685,12 @@
 +      if (IsSiteMuted(*strip, active)) {
 +        label = IDS_COMMAND_BAR_UNMUTE_SITE;
 +        symbol = "speaker.wave.2";
++      } else {
++        auto* audible = RecentlyAudibleHelper::FromWebContents(
++            strip->GetActiveWebContents());
++        if (!audible || !audible->WasRecentlyAudible()) {
++          return std::nullopt;
++        }
 +      }
 +      break;
 +    case IDC_FULLSCREEN:
@@ -555,8 +795,21 @@
 +  }
 +  // Record the accepted invocation before a handler can destroy its window
 +  // or profile (for example, closing the final private tab).
-+  RecordCommandUse(browser->GetProfile(), item.command);
 +  auto* strip = browser->GetTabStripModel();
++  content::MediaSession* session = nullptr;
++  std::optional<MediaAction> media_action;
++  if (IsMediaCommand(item.command)) {
++    session = content::MediaSession::GetIfExists(strip->GetActiveWebContents());
++    media_action =
++        AvailableMediaAction(strip->GetActiveWebContents(), item.command);
++    if (!session || !media_action) {
++      return false;
++    }
++  }
++  RecordCommandUse(browser->GetProfile(), item.command);
++  if (media_action) {
++    return ExecuteMediaAction(session, *media_action);
++  }
 +  const int active = strip->active_index();
 +  switch (item.command) {
 +    case IDC_WINDOW_PIN_TAB:
@@ -577,7 +830,7 @@
 +}  // namespace helium_command_bar_model
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_commands.h
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,39 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -592,6 +845,14 @@
 +namespace helium_command_bar_model {
 +// Adapters for controls without an unambiguous browser command.
 +inline constexpr int kPinSidebar = -1;
++inline constexpr int kMediaPlayPause = -2;
++inline constexpr int kMediaPictureInPicture = -3;
++inline constexpr int kMediaPreviousTrack = -4;
++inline constexpr int kMediaNextTrack = -5;
++inline constexpr int kMediaSeekBackward = -6;
++inline constexpr int kMediaSeekForward = -7;
++inline constexpr int kMediaStop = -8;
++inline constexpr int kMediaSkipAd = -9;
 +
 +// A single leading / is reserved only outside an applied engine/tab scope.
 +// A leading // remains ordinary input because it may be a URL prefix.
