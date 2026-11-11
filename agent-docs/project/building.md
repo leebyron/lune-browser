@@ -299,7 +299,13 @@ The downloaded Sparkle 2.10.1 tools archive has SHA-256
 `1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27`, verified
 against its GitHub release asset digest. Tools/cache are ignored by Git.
 
-Notarization uses Keychain profile `lune-notary` for team `RBC9EP7948`. The owner restored it on November 10, 2026, and an authenticated history request succeeded. The password stays in macOS Keychain; never copy it into Git, chat, logs or documentation. Verify access with `xcrun notarytool history --keychain-profile lune-notary` before signing. Provision or restore the profile when it is missing by creating an app-specific password at
+Notarization uses Keychain profile `lune-notary` for team `RBC9EP7948`. The owner restored it on November 10, 2026, and an authenticated history request succeeded. The password stays in macOS Keychain; never copy it into Git, chat, logs or documentation. Verify access with `xcrun notarytool history --keychain-profile lune-notary` before signing.
+
+The setup script omits `--keychain`, so notarytool stores this profile in the data protection Keychain, displayed as iCloud or Local Items in Keychain Access. This is distinct from the file-based login Keychain. Apple documents this [notarytool default](https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool#Save-credentials-in-the-keychain) and [item accessibility](https://developer.apple.com/documentation/security/restricting-keychain-item-accessibility): the default accessibility requires the device to be unlocked. A failed lookup while the Mac is locked does not establish that a saved profile was deleted. Unlock the Mac and retry the existing profile before requesting credential re-entry. An explicit `--keychain ~/Library/Keychains/login.keychain-db` query searches a different store and cannot confirm the absence of the default profile. The `security` CLI primarily inspects file-based Keychains.
+
+On November 11, default and explicit login-file lookups failed while the console was locked, with the lock timestamp preceding the first failure. This supports a lock-state retrieval problem; an unlocked retry is required to confirm the existing profile remains available. Do not describe it as expired or lost based on these checks alone.
+
+Only if the existing profile remains unavailable after an unlocked retry, provision or restore it using an app-specific password from
 [Apple Account](https://account.apple.com/), then run this in an interactive terminal:
 
 ```sh
