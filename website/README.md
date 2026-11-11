@@ -189,7 +189,9 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 - The emulated browser is the visual demonstration; there is no screenshot
   placeholder or separate feature illustration. Both Download buttons
   select the matching build when macOS User-Agent Client Hints report `arm` or
-  `x86`. Unsupported, denied, or unknown hints (and other platforms) retain a
+  `x86`. Windows, iOS/iPadOS, Android, Linux and ChromeOS identities disable and
+  dim both buttons, including iPads using a desktop Mac identity. Unknown
+  platforms and unsupported, denied or unknown architecture hints retain a
   native popover with explicit Apple silicon and Intel choices. Legacy
   `MacIntel`/user-agent strings are not used to infer chip architecture.
   The download buttons and explicit choices use permanent GitHub
@@ -348,8 +350,8 @@ by `render-app-icons.py`; no extra CSS glass frame is painted over the Lune icon
 ## Release download links
 
 The download chooser uses GitHub latest-release aliases Lune-macos-arm64.dmg
-and Lune-macos-x86_64.dmg. Explicit architecture hints select the matching link;
-otherwise both remain available. Keep these names identical across stable
+and Lune-macos-x86_64.dmg. Explicit macOS architecture hints select the matching link;
+otherwise both remain available unless the device is known to use an unsupported platform. Keep these names identical across stable
 releases so website redeployment is unnecessary for each new browser version.
 Canonical feeds live under `lune-browser/main/updates/stable/mac/`; legacy
 website redirects and historical staging feed files are removed.

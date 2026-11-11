@@ -741,6 +741,21 @@
   scroll.addEventListener('scroll', dismissDownloads, {passive: true});
   window.addEventListener('resize', dismissDownloads);
   async function detectDownloadArchitecture() {
+    const platform = navigator.userAgentData?.platform || navigator.platform || '';
+    const agent = navigator.userAgent || '';
+    // iPadOS can use a desktop Mac identity, but still reports multiple touch points.
+    const iPad = /Mac/i.test(platform + agent) && navigator.maxTouchPoints > 1;
+    const unsupported = /^(Windows|Android|iOS|Linux|Chrome OS|Chromium OS)$/i.test(platform)
+      || /^(Win|Linux|iPhone|iPad|iPod)/i.test(platform)
+      || /Windows|Android|iPhone|iPad|iPod|Linux|CrOS/i.test(agent)
+      || iPad;
+    if (unsupported) {
+      root.querySelectorAll('.action.download').forEach(button => {
+        button.disabled = true;
+        button.title = 'Available for macOS only';
+      });
+      return;
+    }
     // MacIntel and the legacy user-agent string also occur on Apple silicon.
     // Only use explicit architecture hints; unsupported or withheld hints keep the chooser.
     const ua = navigator.userAgentData;

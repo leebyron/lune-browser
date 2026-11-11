@@ -112,8 +112,8 @@ edge-to-edge content without gutters or an inner shadow. Both sidebar modes shar
 header/row geometry; the pinned edge has a semantic hairline. Tab rows use native
 standard-density dimensions and combined region/row insets, with hover-only close
 marks. The illustration omits default-browser and update prompts. The emulated browser provides the visual demonstration. Download detects Apple silicon or Intel when the browser exposes macOS
-architecture hints, otherwise offering both choices. Production download buttons are enabled and point to permanent GitHub
-latest-asset links. The canonical Sparkle feeds live in the same GitHub repository; legacy feed
+architecture hints, otherwise offering both choices. Eligible download buttons point to permanent GitHub
+latest-asset links. Known Windows, iOS/iPadOS, Android, Linux and ChromeOS devices see dimmed, disabled download buttons; unknown platforms keep the chooser. The canonical Sparkle feeds live in the same GitHub repository; legacy feed
 redirects are retired during the November 10 consolidation.
 For future releases, preserve [the promotion ordering](release-delivery.md)
 and public byte readback before moving feeds or latest links.
