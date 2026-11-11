@@ -53,7 +53,7 @@ same logical coordinates at half scale. Reduced Motion hides the demonstration.
 Copy gaps now follow each seeded specimen's ink bounds, targeting 44px optical
 clearance; the still-opening flower uses a 40px layout gap.
 
-The Cmd-T demonstration now opens empty as the command-menu sentence
+The recorded production Cmd-T demonstration opens empty as the command-menu sentence
 reaches 70% of the pane. The next sentence triggers !wiki typing at the same
 70% reading position, followed by the Wikipedia provider pill; the completion
 result appears only with the pill.
@@ -61,10 +61,12 @@ The pill remains when scrolling is stationary and dismisses at a distinct later
 scroll threshold, before the cursor's header hold. The illustration is passive,
 has no open-tab options or network requests, and is hidden for Reduced Motion.
 Live inspection of the installed app supplied its glass-menu reference; native
-source supplies input, provider-pill and row metrics. The CSS pane uses a 600px
+source supplies input, provider-pill and row metrics. That recorded revision uses a 600px
 maximum width, 18px corners, 52px empty height and 111px scoped height. The
 supplemental shadow matches 5% black, 10px blur and a 3px downward offset;
 the glass itself remains a web approximation.
+
+The local source now uses the accepted native provider-pill design, with the owner-requested website simplification: no autocomplete row appears while typing or after scope application. The illustration types `!wiki`, then shows the Wikipedia pill and “Search Wikipedia” placeholder. Its pane remains 52px tall. Light/Dark desktop, 390×844, forced-fallback and Reduced Motion checks pass, including dismissal and reverse-scroll reset. Syntax, assets/cache keys, deployment dry run, documentation links and whitespace pass. This source refinement has not been deployed; the production record below retains its original scope.
 
 [Deployment 42973009910](https://github.com/leebyron/lune-browser/actions/runs/42973009910) successfully deployed website source commit `98b8cd382da10571d4c923b2dcd308dbfd97e66d` after the eleven focused website commits were pushed to `main`. The existing local Mac runner completed validation and production deployment. This includes native-style chrome and tab-close controls, Fastmail pins, footer and download polish, handwritten copy and link wipes, cached radial roots, pollen refinements, the two-stage cursor and passive Cmd-T/Wikipedia sequence.
 

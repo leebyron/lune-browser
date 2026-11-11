@@ -55,9 +55,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   empty input without open-tab options. The following !bangs sentence triggers
   `!wiki` typing when its center also reaches 70% of the pane; elapsed time
   finishes the sequence at rest, while scroll
-  progress can advance it to keep up with faster reading. At completion the
-  query becomes a Wikipedia pill with no placeholder, and only then does the
-  selected “Search Wikipedia (!wiki)…” row appear. The scoped pane is 111px tall.
+  progress can advance it to keep up with faster reading. The website intentionally
+  shows no autocomplete results, during typing or after applying the scope.
+  At completion, the query becomes the Wikipedia provider pill followed by the
+  placeholder “Search Wikipedia”. The pane remains 52px tall throughout.
   It holds until a separate, later scroll threshold, then fades away at its
   current height. Dismissal begins at least 20% of a pane after completion and
   at least 8% of a pane after the cursor journey starts,
@@ -66,8 +67,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   Reduced Motion hides this illustration. It takes no focus or input and makes
   no search, suggestion, or navigation requests.
 - Cmd-T geometry follows the native implementation: 600px maximum width,
-  36px minimum side margins, 18px panel corners, 52px input/row heights, 8px
-  result insets, and a 28px provider pill in 13px medium system type. Its top
+  36px minimum side margins, 18px panel corners, 52px input height, and a
+  28px provider pill in 13px medium system type. Its top
   stays anchored against the native five-row maximum even with fewer rows.
   The supplemental shadow is exactly 5% black with 10px blur and a 3px downward
   offset, following the rounded silhouette. CSS approximates the native glass.
@@ -401,7 +402,7 @@ physical iPhone rendering have not been independently checked.
 | [Header scrolling](../agent-docs/project/features/header-scroll-through.md) | Removed the previous wheel-event blocker; native click shielding remains represented. |
 | [Sidebar pin](../agent-docs/project/features/sidebar-pin-activation.md), [edge frame](../agent-docs/project/features/edge-to-edge-frame.md), [New Tab](../agent-docs/project/features/sidebar-new-tab.md), [footer](../agent-docs/project/features/sidebar-footer.md) | Retain accepted flush geometry, pin/reveal choreography, fixed New Tab and hover-only tab closes. The illustration continues to omit installation/update prompts. Native activation colors and OS window menus are not simulated. |
 | [Menu retention](../agent-docs/project/features/menu-reveal-retention.md), [downloads](../agent-docs/project/features/downloads.md), [media](../agent-docs/project/features/media-toolbar-controls.md) | The trailing group shows idle artwork. Native menus, download progress/status and media sessions remain outside this illustration. The website’s real download chooser retains its own popover behavior. |
-| [Command-T/results](../agent-docs/project/features/command-bar-corners.md), [suggestion selection](../agent-docs/project/features/address-suggestion-selection.md), [toolbar modes](../agent-docs/project/features/header-inset-prototype.md), [older macOS](../agent-docs/project/features/older-macos-appearance.md), [window close](../agent-docs/project/features/native-window-close.md) | The requested passive Cmd-T illustration opens empty, types !wiki, shows its Wikipedia provider pill and then its completion row, and dismisses at a later scroll point. Native geometry and supplemental shadow guide the CSS approximation. Settings, OS fallback and multi-window behavior remain outside the illustration. Website close/minimize return to its desktop; fullscreen uses the web API. |
+| [Command-T/results](../agent-docs/project/features/command-bar-corners.md), [suggestion selection](../agent-docs/project/features/address-suggestion-selection.md), [toolbar modes](../agent-docs/project/features/header-inset-prototype.md), [older macOS](../agent-docs/project/features/older-macos-appearance.md), [window close](../agent-docs/project/features/native-window-close.md) | The passive Cmd-T illustration opens empty, types !wiki without autocomplete results, applies the provider pill with a search placeholder, and dismisses at a later scroll point. Native geometry and supplemental shadow guide the CSS approximation. Settings, OS fallback and multi-window behavior remain outside the illustration. Website close/minimize return to its desktop; fullscreen uses the web API. |
 | [Setup, fonts and icons](../agent-docs/project/features/onboarding-visual-refinements.md) | Accepted wallpaper JPEGs, Inter interface text/buttons and compiled Dock artwork are retained; story prose now uses Rock Salt. |
 
 The emulated browser itself supplies the visual demonstration; screenshot placeholders are removed. Open default-browser and
@@ -615,7 +616,7 @@ cache keys, local links, whitespace and deployment dry run pass. These are local
 preview checks; this revision has not been deployed.
 
 
-The Cmd-T sequence passes local empty/typing/scoped/dismissal checks: all five
+The earlier Cmd-T sequence passed local empty/typing/scoped/dismissal checks: all five
 characters appear without a result row, then the Wikipedia pill and its row
 appear together. Stationary scrolling completes typing and holds the pill;
 reverse scrolling restores or resets the appropriate state. Later entrance,
@@ -627,3 +628,5 @@ leaving the story and cancellation. The source consolidation checks JavaScript
 syntax, local assets, SVG symbols and matching cache keys at each intermediate
 commit; the final Wrangler deployment dry run and whitespace checks pass.
 These are local checks, not a new production deployment.
+
+The updated illustration follows the [accepted native provider-pill design](../agent-docs/project/features/command-bar-bangs.md), with the owner-requested website simplification: no autocomplete results appear at any point. It types `!wiki`, then shows the Wikipedia pill and “Search Wikipedia” placeholder in the same 52px pane. Local browser checks cover Light/Dark desktop, 390×844 phone size, a forced timeline fallback, Reduced Motion, stationary typing, dismissal and reverse-scroll reset. JavaScript syntax, asset/cache-key checks, deployment dry run, documentation links and whitespace pass. Preview fixture hooks are served only by the local test server and are absent from shipped sources. This source refinement has not been deployed.

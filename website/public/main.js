@@ -9,7 +9,7 @@
   const sidebarRegion=root.querySelector('.sidebar-region'),sidebarRail=root.querySelector('.sidebar-rail');
   const toolbarRegion=root.querySelector('.toolbar-region'),toolbarRail=root.querySelector('.toolbar-rail'),toolbar=root.querySelector('.browser-toolbar');
   const commandDemo=root.querySelector('.command-demo'),commandQuery=commandDemo.querySelector('.command-demo-query'),commandScope=commandDemo.querySelector('.command-demo-scope');
-  const commandHint=commandDemo.querySelector('.command-demo-hint'),commandPlaceholder=commandDemo.querySelector('.command-demo-placeholder');
+  const commandPlaceholder=commandDemo.querySelector('.command-demo-placeholder');
   let commandStart=0,bangStart=0,commandComplete=0,commandDismiss=0,commandEnd=0,bangStartedAt=null,commandFrame=0;
   let panelPointer=null,cursorPath=null,cursorPathLength=0,browserScale=1;
   const panelDismissDistance=48;
@@ -451,13 +451,13 @@
     if(!active||y<bangStart) {
       if(commandFrame)cancelAnimationFrame(commandFrame);
       commandFrame=0;bangStartedAt=null;
-      renderCommandDemo(active?'open':'closed','',false,false);
+      renderCommandDemo(active?'open':'closed','',false);
       return;
     }
     if(y>=commandDismiss) {
       if(commandFrame)cancelAnimationFrame(commandFrame);
       commandFrame=0;
-      renderCommandDemo('closed','',false,false);
+      renderCommandDemo('closed','',false);
       return;
     }
     // Like the prose reveals, typing completes in elapsed time when scrolling
@@ -465,18 +465,19 @@
     if(bangStartedAt===null)bangStartedAt=performance.now();
     const elapsed=Math.max(performance.now()-bangStartedAt,clamp((y-bangStart)/(commandComplete-bangStart))*1100);
     const typed='!wiki'.slice(0,Math.max(0,Math.min(5,Math.floor((elapsed-200)/120))));
-    if(elapsed<1100)renderCommandDemo(typed?'typing':'open',typed,false,false);
-    else renderCommandDemo('scoped','',true,true);
+    if(elapsed<1100)renderCommandDemo(typed?'typing':'open',typed,false);
+    else renderCommandDemo('scoped','',true);
     if(elapsed<1100&&!commandFrame)commandFrame=requestAnimationFrame(()=>{commandFrame=0;updateCommandDemo(scroll.scrollTop);});
   }
-  function renderCommandDemo(state,query,scoped,hint) {
+  function renderCommandDemo(state,query,scoped) {
     if(commandDemo.dataset.commandState!==state)commandDemo.dataset.commandState=state;
-    // Fade the whole pane away at its current size, without collapsing its row.
+    // Fade the whole pane away without changing its input state.
     if(state==='closed')return;
     if(commandQuery.textContent!==query)commandQuery.textContent=query;
     if(commandScope.hidden===scoped)commandScope.hidden=!scoped;
-    if(commandHint.hidden===hint)commandHint.hidden=!hint;
-    const placeholderHidden=scoped||Boolean(query);
+    const placeholder=scoped?'Search Wikipedia':'Search or type a URL';
+    if(commandPlaceholder.textContent!==placeholder)commandPlaceholder.textContent=placeholder;
+    const placeholderHidden=Boolean(query);
     if(commandPlaceholder.hidden!==placeholderHidden)commandPlaceholder.hidden=placeholderHidden;
   }
   function update(){
