@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -20678,6 +20678,177 @@
+@@ -20678,6 +20678,189 @@
      <message name="IDS_OSCRYPTASYNC_AVAILABILITY_INFOBAR_BUTTON" desc="The text of the button to proceed with relaunching the entire browser to resolve keychain permission issues.">
        Relaunch
      </message>
@@ -175,6 +175,18 @@
 +    <message name="IDS_COMMAND_BAR_EXIT_PICTURE_IN_PICTURE" desc="Command palette action: Exit Picture in Picture.">
 +      Exit Picture in Picture
 +    </message>
++    <message name="IDS_COMMAND_BAR_GO_HOME" desc="Command palette action: Go Home.">
++      Go Home
++    </message>
++    <message name="IDS_COMMAND_BAR_GROUP_TAB" desc="Command palette action: Group Tab.">
++      Group Tab
++    </message>
++    <message name="IDS_COMMAND_BAR_NEW_TAB_GROUP" desc="Command palette action: New Tab Group.">
++      New Tab Group
++    </message>
++    <message name="IDS_COMMAND_BAR_REMOVE_TAB_FROM_GROUP" desc="Command palette action: Remove Tab from Group.">
++      Remove Tab from Group
++    </message>
    </messages>
  </release>
  </grit>
@@ -287,7 +299,7 @@
      sources = [
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_commands.cc
-@@ -0,0 +1,559 @@
+@@ -0,0 +1,625 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -296,6 +308,7 @@
 +
 +#include <algorithm>
 +
++#include "base/functional/bind.h"
 +#include "base/i18n/case_conversion.h"
 +#include "base/strings/string_split.h"
 +#include "base/strings/string_util.h"
@@ -312,6 +325,7 @@
 +#include "chrome/browser/ui/helium/helium_layout_state_controller.h"
 +#include "chrome/browser/ui/recently_audible_helper.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 +#include "chrome/browser/ui/tabs/tab_utils.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
 +#include "chrome/common/helium_command_bar_pref_names.h"
@@ -457,6 +471,13 @@
 +     "stop playback|stop media", "stop.fill"},
 +    {kMediaSkipAd, "kMediaSkipAd", IDS_COMMAND_BAR_SKIP_AD,
 +     "skip ad|skip advertisement", "arrow.right.to.line"},
++    {IDC_HOME, "IDC_HOME", IDS_COMMAND_BAR_GO_HOME, "home|homepage|home page",
++     "house"},
++    {IDC_WINDOW_GROUP_TAB, "IDC_WINDOW_GROUP_TAB", IDS_COMMAND_BAR_GROUP_TAB,
++     "group tab|add tab to new group", "folder"},
++    {IDC_CREATE_NEW_TAB_GROUP, "IDC_CREATE_NEW_TAB_GROUP",
++     IDS_COMMAND_BAR_NEW_TAB_GROUP, "new tab group|create tab group",
++     "folder.badge.plus"},
 +};
 +
 +using MediaAction = media_session::mojom::MediaSessionAction;
@@ -684,6 +705,22 @@
 +    }
 +  }
 +  switch (command) {
++    case IDC_WINDOW_GROUP_TAB:
++      if (!strip->SupportsTabGroups() ||
++          !strip->IsContextMenuCommandEnabled(
++              active, TabStripModel::CommandToggleGrouped)) {
++        return std::nullopt;
++      }
++      if (strip->GetTabGroupForTab(active)) {
++        label = IDS_COMMAND_BAR_REMOVE_TAB_FROM_GROUP;
++        symbol = "folder";
++      }
++      break;
++    case IDC_CREATE_NEW_TAB_GROUP:
++      if (!strip->SupportsTabGroups()) {
++        return std::nullopt;
++      }
++      break;
 +    case IDC_WINDOW_PIN_TAB:
 +      if (!strip->IsContextMenuCommandEnabled(
 +              active, TabStripModel::CommandTogglePinned)) {
@@ -777,9 +814,14 @@
 +      continue;
 +    }
 +    int score = q.empty() ? 1 : ScoreText(base::i18n::ToLower(item->title), q);
-+    for (const auto& alias :
-+         base::SplitString(entry.aliases, "|", base::TRIM_WHITESPACE,
-+                           base::SPLIT_WANT_NONEMPTY)) {
++    const char* aliases = entry.aliases;
++    if (entry.command == IDC_WINDOW_GROUP_TAB &&
++        browser->GetTabStripModel()->GetTabGroupForTab(
++            browser->GetTabStripModel()->active_index())) {
++      aliases = "remove tab from group|ungroup tab";
++    }
++    for (const auto& alias : base::SplitString(
++             aliases, "|", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
 +      score = std::max(score, ScoreText(base::UTF8ToUTF16(alias), q));
 +    }
 +    if (score > 0) {
@@ -831,6 +873,42 @@
 +  }
 +  const int active = strip->active_index();
 +  switch (item.command) {
++    case IDC_WINDOW_GROUP_TAB: {
++      const auto group = strip->GetTabGroupForTab(active);
++      if (!group) {
++        const auto created = strip->AddToNewGroup({active});
++        strip->OpenTabGroupEditor(created);
++        return true;
++      }
++      const auto closing =
++          strip->GetGroupsDestroyedFromRemovingIndices({active});
++      strip->MarkTabGroupsForClosing(closing);
++      auto remove = base::BindOnce(
++          [](base::WeakPtr<BrowserWindowInterface> owner,
++             base::WeakPtr<content::WebContents> target,
++             tab_groups::TabGroupId expected_group) {
++            if (!owner || !target) {
++              return;
++            }
++            auto* model = owner->GetTabStripModel();
++            const int index = model->GetIndexOfWebContents(target.get());
++            if (index != TabStripModel::kNoTab && model->SupportsTabGroups() &&
++                model->GetTabGroupForTab(index) == expected_group &&
++                model->IsContextMenuCommandEnabled(
++                    index, TabStripModel::CommandRemoveFromGroup)) {
++              model->RemoveFromGroup({index});
++            }
++          },
++          browser->GetWeakPtr(), strip->GetActiveWebContents()->GetWeakPtr(),
++          *group);
++      if (closing.empty()) {
++        std::move(remove).Run();
++      } else {
++        strip->delegate()->OnRemovingAllTabsFromGroups(closing,
++                                                       std::move(remove));
++      }
++      return true;
++    }
 +    case IDC_WINDOW_PIN_TAB:
 +      // Explicitly target the active pane, even with a multi-tab selection.
 +      strip->SetTabPinned(active, !strip->IsTabPinned(active));
