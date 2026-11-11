@@ -172,7 +172,7 @@
     const noteStart=Math.max(readingStart,readingStart+note.offsetTop+note.firstElementChild.offsetHeight/2-pageHeight*.68);
     textRanges=[...note.querySelectorAll('p')].map(text=>({text,start:noteStart}));
     const coda=pages.querySelector('.coda'),codaContent=coda.querySelector('.coda-content'),thanks=coda.querySelector('.upstream-thanks'),byline=coda.querySelector('.byline');
-    const actionsBottom=pageHeight/2+codaContent.offsetHeight/2;
+    const actionsBottom=codaContent.offsetTop+codaContent.offsetHeight/2;
     coda.style.setProperty('--thanks-top',`${(actionsBottom+byline.offsetTop)/2-thanks.offsetHeight/2}px`);
     measureBotany();
     const toolbarStory=root.querySelector('.toolbar-story'),minimal=root.querySelector('.minimal-story');
@@ -236,7 +236,7 @@
     });
     const first=nodes[0],last=nodes[nodes.length-1],coda=pages.querySelector('.coda');
     const groundY=coda.offsetTop+pageHeight*.15, rootX=last.x-8,rootDepth=Math.min(180,pageHeight*.25);
-    const botanicalHeight=coda.offsetTop+pageHeight;
+    const botanicalHeight=coda.offsetTop+coda.offsetHeight;
     vine.setAttribute('viewBox',`0 0 ${pages.clientWidth} ${botanicalHeight}`);
     vine.style.height=`${botanicalHeight}px`;
     let d=`M ${first.x} ${first.y}`,stemLength=0;

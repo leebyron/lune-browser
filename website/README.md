@@ -73,6 +73,10 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   offset, following the rounded silhouette. CSS approximates the native glass.
 - The closing brand group uses a 57.6px logo, 40px wordmark and 12px gap, with
   36px of vertical space above the download actions.
+  The coda adds 6⅔% of a pane of scrolling below the ground, increasing the
+  root-to-logo gap while keeping the brand/actions centered in the final pane.
+  The soil extends through the full coda; the thanks and byline retain their
+  positions relative to the actions and bottom edge.
 - Normal launches bounce for 660ms; the window and running dot appear at 320ms.
   The tooltip shares the icon's bounce. Returning to the top resets the launch.
 - CSS scroll timelines handle one continuous story, with a JavaScript fallback

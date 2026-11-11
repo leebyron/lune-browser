@@ -270,8 +270,8 @@ svg { display: block; }
     #lune .flower-stamens { animation:stamen-reveal linear both; }
     #lune .flower-bloom,#lune .petal,#lune .flower-stamens { animation-timeline:--lune-scroll; animation-range:var(--flower-start) var(--flower-end); }
   }
-  #lune .coda { margin-top:calc(24px - clamp(120px,24vh,180px)); position:relative; display:flex; flex-direction:column; align-items:center; min-height:var(--page); padding-top:0; padding-bottom:18px; text-align:center; }
-  #lune .coda-content { position:absolute; top:50%; left:0; width:100%; translate:0 -50%; }
+  #lune .coda { margin-top:calc(24px - clamp(120px,24vh,180px)); position:relative; display:flex; flex-direction:column; align-items:center; min-height:calc(var(--page) * (1 + .1 * 2 / 3)); padding-top:0; padding-bottom:18px; text-align:center; }
+  #lune .coda-content { position:absolute; top:calc(100% - var(--page) * .5); left:0; width:100%; translate:0 -50%; }
   #lune .upstream-thanks { position:absolute; top:var(--thanks-top,calc(75% - 22px)); left:50%; translate:-50% 0; width:calc(100% - 48px); max-width:44ch; margin:0; font:400 14px/22px Inter,sans-serif; }
   #lune .upstream-thanks p { font:inherit; color:var(--muted); }
   #lune .coda p { text-wrap:balance; }
