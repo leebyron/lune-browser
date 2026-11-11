@@ -137,8 +137,8 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
   from its trailing edge. The tab list scrolls vertically only.
   Hovering the close button adds an immediate 20px square contrast fill with
   4px corners and 16% opacity (14% while pressed), matching the app; the glyph
-  retains the tab's foreground color. Keyboard focus reveals the close control,
-  and touch layouts keep it visible.
+  retains the tab's foreground color. Keyboard focus also reveals the close
+  control; touch layouts keep it hidden unless the row is hovered.
   Labels yield space and fade before the close mark without changing row height.
   The illustration omits default-browser and update prompts.
 - Tab rows use the regular arrow cursor. Clicking the current Lune tab does
