@@ -224,23 +224,14 @@
      "helium_command_bar_controller.cc",
      "helium_command_bar_controller.h",
      "helium_command_bar_model.cc",
-@@ -80,10 +86,23 @@
+@@ -79,11 +85,11 @@
+   deps = []
    if (is_mac) {
      sources += [ "helium_command_bar_view_mac.mm" ]
-     deps += [
-+      ":helium_layout_state_controller",
-       ":native_result_row",
-+      "//base:i18n",
-+      "//chrome/app:branded_strings",
-+      "//chrome/app:generated_resources",
-+      "//chrome/browser/ui:browser_commands",
-+      "//chrome/browser/ui:browser_window_header",
-+      "//chrome/browser/ui:recently_audible_helper",
-+      "//chrome/browser/ui/browser_shortcuts",
-+      "//chrome/browser/ui/global_media_controls",
-       "//chrome/browser/ui/views/helium:native_frame_materials",
-+      "//services/media_session/public/mojom",
-+    ]
+-    deps += [
+-      ":native_result_row",
+-      "//chrome/browser/ui/views/helium:native_frame_materials",
++    deps += [ ":native_result_row" ]
 +    frameworks = [
 +      "AppKit.framework",
 +      "QuartzCore.framework",
@@ -249,11 +240,15 @@
    } else {
      sources += [ "helium_command_bar_view.cc" ]
    }
-@@ -95,28 +114,28 @@
+@@ -95,40 +101,51 @@
    ]
  
    deps += [
 +    ":command_symbols",
++    ":helium_layout_state_controller",
++    "//base:i18n",
++    "//chrome/app:branded_strings",
++    "//chrome/app:generated_resources",
      "//chrome/app/vector_icons",
      "//chrome/browser/autocomplete",
 -    "//components/omnibox/browser",
@@ -266,6 +261,11 @@
 +    "//chrome/browser/profiles",
      "//chrome/browser/search_engines",
 +    "//chrome/browser/themes",
++    "//chrome/browser/ui:browser_commands",
++    "//chrome/browser/ui:browser_window_header",
++    "//chrome/browser/ui:recently_audible_helper",
++    "//chrome/browser/ui/browser_shortcuts",
++    "//chrome/browser/ui/global_media_controls",
      "//chrome/browser/ui/navigator",
 -    "//chrome/browser/ui/views/frame:browser_view_header",
 -    "//chrome/browser/ui/views/frame:browser_frame_view",
@@ -275,6 +275,7 @@
 +    "//chrome/browser/ui/views/frame:browser_frame_view",
 +    "//chrome/browser/ui/views/frame:browser_view_header",
 +    "//chrome/browser/ui/views/frame:browser_widget",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
      "//components/bookmarks/browser",
      "//components/favicon/content",
      "//components/favicon/core",
@@ -285,7 +286,8 @@
      "//components/prefs",
      "//components/search_engines",
      "//content/public/browser",
-@@ -124,11 +143,11 @@
++    "//services/media_session/public/mojom",
+     "//ui/base",
      "//ui/color",
      "//ui/events",
      "//ui/gfx",
