@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "9ceaaad8a2f71ece40aab464c6504ee1f356312f",
+    "commit": "b33e3f250bb4b687cbe522ab3c514981f6c0f072",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -709,6 +709,18 @@
       {
         "path": "patches/lune/canonical-update-repository.patch",
         "sha256": "b9141d4bc20e39935d8b46f49ad589bdb6eb3b4c2dc1c25af23c738e478869f9"
+      },
+      {
+        "path": "patches/helium/ui/command-bar-search-suggestions.patch",
+        "sha256": "c8b461f29322e46b97912ea0291951402865d22d33e16a376f3310be33287d21"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-search-suggestions.patch",
+        "sha256": "4a0f54582aace03277b8fd876bf7852a227ab39cc41b67db63c25287e9f89d1c"
+      },
+      {
+        "path": "patches/helium/ui/search-suggestions-settings.patch",
+        "sha256": "d31ab8373e9ba561fbde3a2c0a23986091033c6795f536e69c3c437e92b2f368"
       }
     ]
   },
@@ -1717,6 +1729,52 @@
       "adaptation": "Developed with quilt and refreshed/unmerged into the macOS platform. Owner accepted Lune Update Test on November 10, 2026. Both browser builds, native menu/state fixtures and UI/settings/persistence smoke checks pass (Intel under Rosetta); strict replay matches all twelve changed source files. See agent-docs/project/features/app-menu-update-check.md.",
       "commits": [
         "9ceaaad8a2f71ece40aab464c6504ee1f356312f"
+      ]
+    },
+    {
+      "id": "command-bar-search-suggestions",
+      "depends_on": [
+        "native-glass-command-bar",
+        "native-address-suggestions"
+      ],
+      "patches": [
+        "patches/helium/ui/command-bar-search-suggestions.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the selected engine for query and explicit website suggestions in both menus; retain typed actions, scopes and stable asynchronous selection.",
+      "adaptation": "Developed in prepared Chromium source with quilt, refreshed and unmerged into the platform; owner accepted November 10, 2026. Both architecture builds and onboarding checks, compiled ranking/selection checks, loopback provider fixtures and native Apple silicon review pass; Intel runtime uses Rosetta. Final zero-fuzz replay matches twenty-one changed source files. Settings wording replays before existing product-name substitution. See agent-docs/project/features/search-suggestions.md and search-suggestions-navigation.md for provider limits.",
+      "commits": [
+        "970eb35392bcec855095273350e54367cb97d13e"
+      ]
+    },
+    {
+      "id": "onboarding-search-suggestions",
+      "depends_on": [
+        "command-bar-search-suggestions"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-search-suggestions.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Enable suggestions through Use defaults and require explicit opt-in on the configurable search-engine page.",
+      "adaptation": "Developed in prepared Chromium source with quilt, refreshed and unmerged into the platform; owner accepted November 10, 2026. Both architecture builds and onboarding checks, compiled ranking/selection checks, loopback provider fixtures and native Apple silicon review pass; Intel runtime uses Rosetta. Final zero-fuzz replay matches twenty-one changed source files. Settings wording replays before existing product-name substitution. See agent-docs/project/features/search-suggestions.md and search-suggestions-navigation.md for provider limits.",
+      "commits": [
+        "f946533f497ca9d8e04325d301acd1e723e7a74b"
+      ]
+    },
+    {
+      "id": "search-suggestions-settings",
+      "depends_on": [
+        "command-bar-search-suggestions"
+      ],
+      "patches": [
+        "patches/helium/ui/search-suggestions-settings.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Reuse the shared suggestion toggle beside the selected engine and disclose address-bar and Command-T requests.",
+      "adaptation": "Developed in prepared Chromium source with quilt, refreshed and unmerged into the platform; owner accepted November 10, 2026. Both architecture builds and onboarding checks, compiled ranking/selection checks, loopback provider fixtures and native Apple silicon review pass; Intel runtime uses Rosetta. Final zero-fuzz replay matches twenty-one changed source files. Settings wording replays before existing product-name substitution. See agent-docs/project/features/search-suggestions.md and search-suggestions-navigation.md for provider limits.",
+      "commits": [
+        "b33e3f250bb4b687cbe522ab3c514981f6c0f072"
       ]
     }
   ],

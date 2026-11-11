@@ -3,6 +3,7 @@
 Read [current status](../status.md) first. These records document implementation choices, source inputs, owner acceptance and validation at a particular time. Older statements such as “not in the development lock” are historical; consult the current lock or a frozen release record to establish inclusion. Rosetta results do not establish physical Intel acceptance.
 
 - [Selected address-bar suggestions](address-suggestion-selection.md)
+- [Search-engine suggestions and top hits](search-suggestions.md)
 - [Application-menu update check](app-menu-update-check.md)
 - [Native chrome appearance](chrome-appearance.md)
 - [Command-T glass bounds and layout](command-bar-corners.md)
