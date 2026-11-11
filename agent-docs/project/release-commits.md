@@ -2,6 +2,8 @@
 
 This document defines release identity and frozen-input boundaries. Use [release delivery](release-delivery.md) for commands, [release policy](releases.md) for gates and [current status](status.md) for active work. Examples do not reserve a version.
 
+For all changes, follow the [commit and completion process](committing.md), including resolved issue closure and temporary-build/artifact cleanup. This document adds the release-specific frozen-input contract; preserve published artifacts and required release evidence during cleanup.
+
 ## Identity and version rules
 
 One reviewed commit in the project history freezes the release version and all

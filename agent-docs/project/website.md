@@ -150,6 +150,10 @@ npm run deploy
 authentication. Dependencies are locked; commit `package-lock.json` with dependency
 changes. Keep OAuth and API tokens outside the repository.
 
+## Completing a website change
+
+After the authorized change is validated and its required public readback passes, follow the [commit and completion process](committing.md). Close specific resolved issues, stop task-owned preview/dev servers and delete disposable generated previews or build artifacts after retaining concise visual/deployment evidence.
+
 ## GitHub flow
 
 Owner pushes to `main` affecting the website or its workflow run validation and

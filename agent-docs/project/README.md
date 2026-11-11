@@ -73,6 +73,7 @@ Read [current status](status.md) for published releases, active release preparat
 
 ## Read next
 
+- [Completion process](committing.md): validated commits, resolved issue closure, temporary-build shutdown and artifact cleanup.
 - [Architecture](architecture.md): repository histories, patch selection, Git flow.
 - [Release delivery](release-delivery.md): current commands and publication/update procedure.
 - [Release policy](releases.md): freshness, validation gates and release-note style.

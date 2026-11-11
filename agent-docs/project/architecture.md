@@ -116,6 +116,8 @@ is not a reliable feature-selection mechanism.
 
 ## PR and contribution lifecycle
 
+Complete adopted solutions using the [commit and completion process](committing.md): close the specific resolved issues, quit temporary builds and delete disposable build artifacts after recording evidence.
+
 Each selected PR records repository, number/URL, base/head SHAs, ordered commits,
 dependencies, rationale, review status, and any local adaptation. New PR head
 commits require review before the daily builder includes them. Upstream release

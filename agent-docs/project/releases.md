@@ -2,6 +2,8 @@
 
 Use [current status](status.md) for operational state and [release delivery](release-delivery.md) for executable commands, URLs and acceptance records. [Release commits](release-commits.md) defines frozen inputs and version identity. This document defines policy; it does not activate schedules or publish a release.
 
+Complete validated work using the [commit and completion process](committing.md), including specific resolved issue closure and temporary-build/artifact cleanup while preserving release evidence.
+
 ## Platforms and build environment
 
 Support macOS arm64 and x86_64 with separate DMGs and Sparkle feeds. Use the local Mac runner without additional CI spend. Pin source archives, component commits, Xcode/SDK/Metal, compilers, Python, Sparkle and relevant build tools. Reuse caches only after comparison with a fresh preparation from locked inputs; retain the original caches and validation evidence. Bit-for-bit binary reproducibility remains unproven.

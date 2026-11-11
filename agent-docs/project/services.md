@@ -9,6 +9,8 @@ Cloudflare Workers Static Assets; `lune.computer` is registered at DNSimple.
 See the [website runbook](website.md) for activation and CI status.
 Source findings are recorded in [research](research.md).
 
+Validated service/tooling changes follow the [commit and completion process](committing.md), including resolved issue closure, temporary process shutdown and disposable artifact cleanup. Service deployment remains separately authorized.
+
 ## Future self-hosting design
 
 Track `imputnet/helium-services` on its upstream-derived component branch. Use a

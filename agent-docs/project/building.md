@@ -6,6 +6,10 @@ Main includes the accepted update menu and canonical Sparkle endpoint, preservin
 
 Use this runbook for development builds. For a production release, follow [release delivery](release-delivery.md), run commands from its frozen checkout and retain its preparation/build reports. Never edit an existing frozen source workspace to pick up a main-branch change.
 
+## Completing development work
+
+Follow the [commit and completion process](committing.md) after validation and acceptance. Close the specific issues the adopted change resolves, quit previews and their fixture/driver processes, and delete disposable preview/package/profile artifacts. Retain the prepared source and reusable incremental build caches needed for future work, plus concise validation evidence.
+
 ## Tracked inputs
 
 `manifests/browser.lock.json` pins component commits/trees/refs, the Chromium target and ungoogled provenance, product/build requirements, patch selections and host download manifests. Every source download has a fixed hash. `manifests/patches.json` records the reviewed full Helium stack, selected contributions and local adaptations; do not apply ungoogled twice.

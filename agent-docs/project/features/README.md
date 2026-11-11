@@ -2,6 +2,8 @@
 
 Read [current status](../status.md) first. These records document implementation choices, source inputs, owner acceptance and validation at a particular time. Older statements such as “not in the development lock” are historical; consult the current lock or a frozen release record to establish inclusion. Rosetta results do not establish physical Intel acceptance.
 
+After a feature is validated and accepted, follow the [completion process](../committing.md): close its fully resolved issues, quit temporary previews and delete their disposable artifacts after retaining evidence.
+
 - [Selected address-bar suggestions](address-suggestion-selection.md)
 - [Search-engine suggestions and top hits](search-suggestions.md)
 - [Application-menu update check](app-menu-update-check.md)

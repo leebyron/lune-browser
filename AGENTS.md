@@ -13,6 +13,7 @@ Lune is a macOS Chromium distribution assembled from ungoogled-chromium, Helium,
 | Prepare sources or compile | [Build runbook](agent-docs/project/building.md) |
 | Freeze, sign, publish or verify updates | [Release delivery](agent-docs/project/release-delivery.md) |
 | Release policy, freshness and notes | [Release policy](agent-docs/project/releases.md) |
+| Commit, close resolved issues and clean up validated work | [Completion process](agent-docs/project/committing.md) |
 | Version allocation and commit boundaries | [Release commits](agent-docs/project/release-commits.md) |
 | Native UI changes | [Feature index](agent-docs/project/features/README.md) and the relevant feature record |
 | Website deployment | [Website runbook](agent-docs/project/website.md) |
@@ -57,6 +58,8 @@ Lune is a macOS Chromium distribution assembled from ungoogled-chromium, Helium,
 
 ## Working practices
 
+- Follow the [completion process](agent-docs/project/committing.md) when a change is validated as the solution: commit and push within the authorized scope, close the specific GitHub issues it fully resolves, quit temporary builds and remove their disposable artifacts after retaining concise validation evidence. Existing authorization covers this routine cleanup; preserve active work, reusable caches and release evidence.
+
 - Keep changes focused and use descriptive branch names. Do not add a `codex/`
   prefix unless tooling explicitly requires it.
 - Update project docs when a design decision changes. Distinguish recommendations,
@@ -78,6 +81,7 @@ documentation separate when it is added.
 
 - [Definition and scope](agent-docs/project/README.md)
 - [Repository and patch architecture](agent-docs/project/architecture.md)
+- [Committing and completing validated changes](agent-docs/project/committing.md)
 - [Builds, releases, and updates](agent-docs/project/releases.md)
 - [Services and website](agent-docs/project/services.md)
 - [Website deployment runbook](agent-docs/project/website.md)

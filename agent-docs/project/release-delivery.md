@@ -203,6 +203,10 @@ cannot establish this hardware-rejection result. Record both outcomes and any
 error text with the candidate DMG hash. These instructions are prepared;
 owner-run native Intel results remain pending.
 
+## Completion after validated delivery
+
+Apply the [commit and completion process](committing.md): close issues resolved by the delivered change, quit temporary test browsers and update-fixture servers, and delete disposable installed-app copies, profiles and packaging intermediates. Retain immutable published assets, frozen inputs and the required release/update/signature evidence. Record cleanup without changing signed release bytes or frozen records.
+
 ## Acceptance record
 
 `delivery.py --evidence` and `publish.py promote --acceptance` consume the same
