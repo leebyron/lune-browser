@@ -277,9 +277,9 @@ svg { display: block; }
   @keyframes info-fade { 0%,18% { opacity:1; } 100% { opacity:0; } }
   @keyframes reading { to { transform:translateY(calc(-1 * var(--reading))); } }
   @keyframes scroll-thumb { to { translate:0 var(--thumb-travel); } }
-  @keyframes sidebar-fold { 0% { --sidebar-fold:0; animation-timing-function:steps(1,end); } 50%,100% { --sidebar-fold:1; } }
-  @keyframes cursor-journey { 0% { offset-distance:0%; opacity:0; transform:scale(1); } 6% { opacity:1; } 44%,64% { offset-distance:var(--cursor-stop); } 46% { transform:scale(1); } 50% { transform:scale(.84); } 56% { transform:scale(1); } 94% { opacity:1; } 100% { offset-distance:100%; opacity:0; transform:scale(1); } }
-  @keyframes cursor-click { 0%,46% { opacity:0; transform:scale(.5); } 50% { opacity:.7; transform:scale(.65); } 64%,100% { opacity:0; transform:scale(1.7); } }
+  @keyframes sidebar-fold { 0% { --sidebar-fold:0; animation-timing-function:steps(1,end); } 68%,100% { --sidebar-fold:1; } }
+  @keyframes cursor-journey { 0% { offset-distance:0%; opacity:0; transform:scale(1); } 6% { opacity:1; } 18%,42% { offset-distance:var(--cursor-toolbar-stop); } 62%,76% { offset-distance:var(--cursor-stop); } 64% { transform:scale(1); } 68% { transform:scale(.84); } 72% { transform:scale(1); } 94% { opacity:1; } 100% { offset-distance:100%; opacity:0; transform:scale(1); } }
+  @keyframes cursor-click { 0%,64% { opacity:0; transform:scale(.5); } 68% { opacity:.7; transform:scale(.65); } 76%,100% { opacity:0; transform:scale(1.7); } }
   @supports(animation-timeline:scroll()) {
     #lune .window { animation:sidebar-fold linear both; animation-timeline:--lune-scroll; animation-range:var(--demo-start) var(--demo-end); }
     #lune .demo-cursor { animation:cursor-journey linear both; animation-timeline:--lune-scroll; animation-range:var(--demo-start) var(--demo-end); }

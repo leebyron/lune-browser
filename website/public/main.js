@@ -10,7 +10,7 @@
   const toolbarRegion=root.querySelector('.toolbar-region'),toolbarRail=root.querySelector('.toolbar-rail'),toolbar=root.querySelector('.browser-toolbar');
   let panelPointer=null,cursorPath=null,cursorPathLength=0,browserScale=1;
   const panelDismissDistance=48;
-  let demoStart=0,demoDistance=460,cursorStop=50,sidebarOverride=null,sidebarHovered=false;
+  let demoStart=0,demoDistance=460,toolbarStop=25,cursorStop=65,sidebarOverride=null,sidebarHovered=false,demoToolbarActive=false;
   const dock=root.querySelector('.dock'),items=[...dock.querySelectorAll('.dock-item')];
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
   const nativeTimeline=CSS.supports('animation-timeline:scroll()');
@@ -170,9 +170,11 @@
     const actionsBottom=pageHeight/2+codaContent.offsetHeight/2;
     coda.style.setProperty('--thanks-top',`${(actionsBottom+byline.offsetTop)/2-thanks.offsetHeight/2}px`);
     measureBotany();
-    const minimal = root.querySelector('.minimal-story');
-    demoStart = readingStart + minimal.offsetTop - pageHeight * .7;
-    demoDistance = Math.min(460, pageHeight * .65);
+    const toolbarStory=root.querySelector('.toolbar-story'),minimal=root.querySelector('.minimal-story');
+    const textCenter=section=>section.offsetTop+section.querySelector('.flow-point').offsetHeight/2-10;
+    // The two holds meet their own sentence at the same reading height.
+    demoDistance=Math.max(1,(textCenter(minimal)-textCenter(toolbarStory))/.38);
+    demoStart=readingStart+textCenter(toolbarStory)-pageHeight*.58-demoDistance*.30;
     root.style.setProperty('--demo-start', `${demoStart}px`);
     root.style.setProperty('--demo-end', `${demoStart + demoDistance}px`);
     // Keep the path in window coordinates, but render the cursor on the desktop
@@ -181,22 +183,28 @@
     const originY = win.offsetTop;
     const toggleX = (sidebarWidth - 22) * browserScale;
     const toggleY = 26 * browserScale;
+    const toolbarX=Math.max(sidebarWidth+24,win.clientWidth/3)*browserScale,toolbarY=4*browserScale;
     demoCursor.style.setProperty('--cursor-origin-x', `${originX}px`);
     demoCursor.style.setProperty('--cursor-origin-y', `${originY}px`);
-    const incoming = `M ${-originX - 28} ${pageHeight * .38 * browserScale} C ${toggleX * .7} ${pageHeight * .38 * browserScale}, ${toggleX + 48 * browserScale} ${100 * browserScale}, ${toggleX} ${toggleY}`;
+    const incoming = `M ${-originX - 28} ${pageHeight * .38 * browserScale} C ${toolbarX*.35} ${pageHeight*.38*browserScale}, ${toolbarX*.8} ${toolbarY}, ${toolbarX} ${toolbarY}`;
+    const toToggle=` C ${toolbarX*.8} ${toolbarY}, ${toggleX+48*browserScale} ${toggleY}, ${toggleX} ${toggleY}`;
     // Arc above the browser, then leave the left edge of the desktop.
     const exitX = -originX - 32, exitY = -48 * browserScale;
     const outgoing = ` C ${toggleX - 30 * browserScale} ${-42 * browserScale}, ${exitX + 100 * browserScale} ${exitY - 20 * browserScale}, ${exitX} ${exitY}`;
     // Pause precisely at the toggle, regardless of viewport or curve length.
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', incoming);
+    const toolbarLength=path.getTotalLength();
+    path.setAttribute('d',incoming+toToggle);
     const incomingLength = path.getTotalLength();
-    path.setAttribute('d', incoming + outgoing);
+    path.setAttribute('d', incoming + toToggle + outgoing);
     cursorPath = path;
     cursorPathLength = path.getTotalLength();
     cursorStop = incomingLength / cursorPathLength * 100;
+    toolbarStop=toolbarLength/cursorPathLength*100;
+    demoCursor.style.setProperty('--cursor-toolbar-stop',`${toolbarStop}%`);
     demoCursor.style.setProperty('--cursor-stop', `${cursorStop}%`);
-    demoCursor.style.setProperty('--cursor-path', `path("${incoming + outgoing}")`);
+    demoCursor.style.setProperty('--cursor-path', `path("${incoming + toToggle + outgoing}")`);
     reading = Math.max(0, pages.scrollHeight - pageHeight);
     root.style.setProperty('--reading', `${reading}px`);
     root.style.setProperty('--thumb-size', `${pageHeight / pages.scrollHeight * 100}%`);
@@ -442,14 +450,18 @@
   scroll.addEventListener('scroll',()=>{sidebarOverride=null;delete win.dataset.sidebarOverride;if(nativeTimeline&&!reduce.matches)win.style.removeProperty('--sidebar-fold');if(!queued){queued=true;requestAnimationFrame(update);}},{passive:true});
   function updateSidebar(y) {
     const progress = clamp((y - demoStart) / demoDistance);
-    const animatedFold = Number(progress >= .5);
+    const animatedFold = Number(progress >= .68);
     const fold = sidebarOverride ?? animatedFold;
     if (!nativeTimeline || reduce.matches || sidebarOverride !== null) win.style.setProperty('--sidebar-fold', fold);
-    const floating = sidebarOverride !== null ? Boolean(sidebarOverride) : progress >= .5;
-    const cursorDistance = progress <= .44 ? clamp(progress / .44) * cursorStop : cursorStop + clamp((progress - .64) / .36) * (100 - cursorStop);
+    const floating = sidebarOverride !== null ? Boolean(sidebarOverride) : progress >= .68;
+    const cursorDistance=progress<=.18?clamp(progress/.18)*toolbarStop:
+      progress<=.42?toolbarStop:
+      progress<=.62?toolbarStop+clamp((progress-.42)/.20)*(cursorStop-toolbarStop):
+      progress<=.76?cursorStop:cursorStop+clamp((progress-.76)/.24)*(100-cursorStop);
     const cursorPoint = cursorPath.getPointAtLength(cursorDistance / 100 * cursorPathLength);
-    const demoHolding = sidebarOverride === null && (progress < .5 || distanceFromPanel({x:cursorPoint.x / browserScale,y:cursorPoint.y / browserScale},
-      {left:0,right:sidebar.offsetWidth,top:0,bottom:win.clientHeight}) <= panelDismissDistance);
+    const cursorInsideWindow=cursorPoint.x>=0&&cursorPoint.x<=win.clientWidth*browserScale&&
+      cursorPoint.y>=0&&cursorPoint.y<=win.clientHeight*browserScale;
+    const demoHolding = sidebarOverride === null && (progress < .68 || cursorInsideWindow);
     const keyboardFocus = Boolean(sidebarRegion.querySelector(':focus-visible'));
     const visible = !floating || demoHolding || sidebarHovered || keyboardFocus;
     sidebar.inert = !visible;
@@ -459,9 +471,16 @@
     sidebarToggle.setAttribute('aria-label', floating ? 'Pin sidebar' : 'Unpin sidebar');
     win.dataset.sidebar = !floating ? 'pinned' : visible ? 'floating' : 'hidden';
     updateWindowControls('sidebar');
+    const wasDemoToolbarActive=demoToolbarActive;
+    demoToolbarActive=!reduce.matches&&sidebarOverride===null&&progress>=.18&&progress<1&&cursorInsideWindow;
+    if(demoToolbarActive)showToolbar();
+    else if(wasDemoToolbarActive) {
+      if(panelPointer)dismissDistantPanels();
+      else if(!toolbarRegion.contains(document.activeElement)&&!windowControls.contains(document.activeElement))hideToolbar();
+    }
     if (!nativeTimeline || browserScale !== 1) {
       demoCursor.style.opacity = Math.min(clamp(progress / .06), 1 - clamp((progress - .94) / .06));
-      const press = progress <= .5 ? clamp((progress - .46) / .04) : 1 - clamp((progress - .5) / .06);
+      const press = progress <= .68 ? clamp((progress - .64) / .04) : 1 - clamp((progress - .68) / .04);
       if(browserScale !== 1) {
         // Drive phone motion with ordinary transforms, independently of native
         // scroll-timeline interpolation of motion-path offset-distance.
@@ -470,8 +489,8 @@
         demoCursor.style.offsetDistance = `${cursorDistance}%`;
         demoCursor.style.transform = `scale(${1 - .16 * press})`;
       }
-      const click = clamp((progress - .46) / .18);
-      demoClick.style.opacity = progress <= .5 ? .7 * clamp((progress - .46) / .04) : .7 * (1 - clamp((progress - .5) / .14));
+      const click = clamp((progress - .64) / .12);
+      demoClick.style.opacity = progress <= .68 ? .7 * clamp((progress - .64) / .04) : .7 * (1 - clamp((progress - .68) / .08));
       demoClick.style.transform = `scale(${.5 + click * 1.2})`;
     } else if(demoCursor.style.transform) {
       ['transform','opacity','offset-distance'].forEach(property=>demoCursor.style.removeProperty(property));
@@ -543,6 +562,7 @@
     updateWindowControls('toolbar');
   }
   function hideToolbar() {
+    if(demoToolbarActive)return;
     delete toolbarRegion.dataset.open;
     delete win.dataset.toolbarOpen;
     toolbar.inert = true;
@@ -573,7 +593,7 @@
     const area = toolbarRegion.getBoundingClientRect();
     const rect = {left:frame.left,right:frame.right,top:area.top,bottom:area.top + 44 * browserScale};
     const controlsRect = windowControls.getBoundingClientRect();
-    if (toolbarRegion.hasAttribute('data-open') && !toolbarRegion.contains(document.activeElement) &&
+    if (!demoToolbarActive && toolbarRegion.hasAttribute('data-open') && !toolbarRegion.contains(document.activeElement) &&
         !windowControls.contains(document.activeElement) &&
         Math.min(distanceFromPanel(panelPointer, rect), distanceFromPanel(panelPointer, controlsRect)) > panelDismissDistance) hideToolbar();
   }
@@ -629,7 +649,7 @@
     root.classList.add('app-open');
   }
   function close(){
-    if(!launched&&!appVisible)return;sidebarHovered=false;panelPointer=null;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
+    if(!launched&&!appVisible)return;sidebarHovered=false;panelPointer=null;demoToolbarActive=false;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
     root.classList.remove('app-open','app-fast');root.querySelector('.lune').classList.remove('launching');
   }
   function returnToDesktop() {
