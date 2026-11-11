@@ -33,7 +33,7 @@ Publish and verify immutable browser assets before moving either feed. Commit bo
 
 Keep release notes terse and factual. Lead with new features, then bug fixes and security changes, followed by a compact engine-version/freshness note. Omit Downloads and compatibility and Testing and known issues sections. Keep routine installation instructions, test inventories and recurring boilerplate in the runbook and validation evidence.
 
-Describe concrete changes without humor, lighthearted framing, marketing language or an internal work log. Tie each change to the frozen inputs and previous published version. Do not invent security fixes or imply an engine upgrade when Chromium is unchanged. State the exact engine and freshness status; keep test scope and limitations in validation evidence.
+Describe concrete changes without humor, lighthearted framing, marketing language or an internal work log. Tie each change to the frozen inputs and the last actually published release; verify that diff and do not use unpublished allocations or previews as the baseline. Do not invent security fixes or imply an engine upgrade when Chromium is unchanged. State the exact engine and freshness status; keep test scope and limitations in validation evidence.
 
 Keep each paragraph and list item on one source line. Allow natural wrapping; do not insert manual line breaks or hard-wrap prose.
 
