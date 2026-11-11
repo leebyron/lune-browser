@@ -224,7 +224,7 @@
      "helium_command_bar_controller.cc",
      "helium_command_bar_controller.h",
      "helium_command_bar_model.cc",
-@@ -80,10 +86,22 @@
+@@ -80,10 +86,23 @@
    if (is_mac) {
      sources += [ "helium_command_bar_view_mac.mm" ]
      deps += [
@@ -237,6 +237,7 @@
 +      "//chrome/browser/ui:browser_window_header",
 +      "//chrome/browser/ui:recently_audible_helper",
 +      "//chrome/browser/ui/browser_shortcuts",
++      "//chrome/browser/ui/global_media_controls",
        "//chrome/browser/ui/views/helium:native_frame_materials",
 +      "//services/media_session/public/mojom",
 +    ]
@@ -248,7 +249,7 @@
    } else {
      sources += [ "helium_command_bar_view.cc" ]
    }
-@@ -95,28 +113,28 @@
+@@ -95,28 +114,28 @@
    ]
  
    deps += [
@@ -284,7 +285,7 @@
      "//components/prefs",
      "//components/search_engines",
      "//content/public/browser",
-@@ -124,11 +142,11 @@
+@@ -124,11 +143,11 @@
      "//ui/color",
      "//ui/events",
      "//ui/gfx",
@@ -299,7 +300,7 @@
      sources = [
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_commands.cc
-@@ -0,0 +1,625 @@
+@@ -0,0 +1,675 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -321,6 +322,8 @@
 +#include "chrome/browser/ui/browser_shortcuts/browser_shortcut_service_factory.h"
 +#include "chrome/browser/ui/browser_window.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/global_media_controls/media_notification_service.h"
++#include "chrome/browser/ui/global_media_controls/media_notification_service_factory.h"
 +#include "chrome/browser/ui/helium/helium_command_symbols.h"
 +#include "chrome/browser/ui/helium/helium_layout_state_controller.h"
 +#include "chrome/browser/ui/recently_audible_helper.h"
@@ -332,6 +335,7 @@
 +#include "chrome/common/pref_names.h"
 +#include "chrome/grit/branded_strings.h"
 +#include "chrome/grit/generated_resources.h"
++#include "components/global_media_controls/public/media_item_manager.h"
 +#include "components/prefs/pref_service.h"
 +#include "components/prefs/scoped_user_pref_update.h"
 +#include "content/public/browser/media_session.h"
@@ -447,13 +451,15 @@
 +     "arrow.up.left.and.arrow.down.right"},
 +    {IDC_BROWSER_LAYOUT_VERTICAL_RIGHT, "IDC_BROWSER_LAYOUT_VERTICAL_RIGHT",
 +     IDS_COMMAND_BAR_MOVE_SIDEBAR_TO_RIGHT,
-+     "move sidebar to right|sidebar left|sidebar right|move sidebar",
++     "move sidebar to right|move sidebar to left|sidebar left|sidebar "
++     "right|move sidebar|move tabs to right|move tabs to left|tabs left|tabs "
++     "right|move tabs",
 +     "sidebar.right"},
 +    {IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN, "IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN",
 +     IDS_COMMAND_BAR_PIN_TOP_BAR,
 +     "pin header|unpin header|pin top bar|unpin top bar", symbols::kPinToolbar},
 +    {kPinSidebar, "kPinSidebar", IDS_COMMAND_BAR_PIN_SIDEBAR,
-+     "pin sidebar|pin sidebar|unpin sidebar", symbols::kSidebarLeft},
++     "pin sidebar|unpin sidebar|pin tabs|unpin tabs", symbols::kSidebarLeft},
 +    {kMediaPlayPause, "kMediaPlayPause", IDS_COMMAND_BAR_PLAY_MEDIA,
 +     "play|resume media|resume playback", "play.fill"},
 +    {kMediaPictureInPicture, "kMediaPictureInPicture",
@@ -484,6 +490,40 @@
 +
 +bool IsMediaCommand(int command) {
 +  return command <= kMediaPlayPause && command >= kMediaSkipAd;
++}
++
++content::WebContents* MediaCommandTarget(BrowserWindowInterface* browser) {
++  auto* active = browser->GetTabStripModel()->GetActiveWebContents();
++  if (auto* session = content::MediaSession::GetIfExists(active)) {
++    const auto info = session->GetMediaSessionInfoSync();
++    if (info &&
++        info->state !=
++            media_session::mojom::MediaSessionInfo::SessionState::kInactive &&
++        info->playback_state ==
++            media_session::mojom::MediaPlaybackState::kPlaying) {
++      return active;
++    }
++  }
++  // Use the media toolbar's ordering: playing sessions precede paused ones.
++  // Keep the same profile boundary as the toolbar, including private windows.
++  if (auto* service = MediaNotificationServiceFactory::GetForProfile(
++          browser->GetProfile())) {
++    for (const auto& id : service->media_item_manager()->GetActiveItemIds()) {
++      auto* target = content::MediaSession::GetWebContentsFromRequestId(id);
++      if (!target || target->GetBrowserContext() != browser->GetProfile()) {
++        continue;  // Cast-only items and other profiles cannot target a tab.
++      }
++      auto* session = content::MediaSession::GetIfExists(target);
++      const auto info = session ? session->GetMediaSessionInfoSync() : nullptr;
++      if (info && info->is_controllable &&
++          info->state !=
++              media_session::mojom::MediaSessionInfo::SessionState::kInactive) {
++        return target;
++      }
++    }
++  }
++  // Preserve current-tab PiP and resumable media before a toolbar item exists.
++  return active;
 +}
 +
 +std::optional<MediaAction> AvailableMediaAction(content::WebContents* contents,
@@ -691,8 +731,10 @@
 +  int label = entry->label;
 +  std::string symbol = entry->symbol;
 +  const int active = strip->active_index();
++  content::WebContents* media_target = nullptr;
 +  if (IsMediaCommand(command)) {
-+    auto action = AvailableMediaAction(strip->GetActiveWebContents(), command);
++    media_target = MediaCommandTarget(browser);
++    auto action = AvailableMediaAction(media_target, command);
 +    if (!action) {
 +      return std::nullopt;
 +    }
@@ -790,6 +832,12 @@
 +  item.title = l10n_util::GetStringUTF16(label);
 +  item.symbol_name = symbol;
 +  item.shortcut = CommandShortcut(browser, command);
++  if (media_target) {
++    item.media_request_id =
++        content::MediaSession::GetRequestIdFromWebContents(media_target)
++            .ToString();
++    item.description = media_target->GetTitle();
++  }
 +  return item;
 +}
 +
@@ -851,7 +899,8 @@
 +                           const HeliumCommandBarItem& item) {
 +  auto current = CommandForId(browser, item.command);
 +  if (!current || current->title != item.title ||
-+      current->symbol_name != item.symbol_name) {
++      current->symbol_name != item.symbol_name ||
++      current->media_request_id != item.media_request_id) {
 +    return false;
 +  }
 +  // Record the accepted invocation before a handler can destroy its window
@@ -860,9 +909,11 @@
 +  content::MediaSession* session = nullptr;
 +  std::optional<MediaAction> media_action;
 +  if (IsMediaCommand(item.command)) {
-+    session = content::MediaSession::GetIfExists(strip->GetActiveWebContents());
++    auto* target = content::MediaSession::GetWebContentsFromRequestId(
++        item.media_request_id);
++    session = target ? content::MediaSession::GetIfExists(target) : nullptr;
 +    media_action =
-+        AvailableMediaAction(strip->GetActiveWebContents(), item.command);
++        target ? AvailableMediaAction(target, item.command) : std::nullopt;
 +    if (!session || !media_action) {
 +      return false;
 +    }
@@ -1000,12 +1051,13 @@
  // Visible identity of a result row. Scores are excluded on purpose: the same
  // query always scores the same, and rebuilding identical rows every
  // keystroke is what made the bubble flash.
-@@ -56,9 +64,11 @@
+@@ -56,9 +64,12 @@
      if (a[i].type != b[i].type || a[i].title != b[i].title ||
          a[i].url_spec != b[i].url_spec ||
          a[i].description != b[i].description ||
 +        a[i].symbol_name != b[i].symbol_name ||
 +        a[i].shortcut != b[i].shortcut ||
++        a[i].media_request_id != b[i].media_request_id ||
          a[i].site_keyword != b[i].site_keyword ||
 -        a[i].site_query != b[i].site_query ||
 -        a[i].command != b[i].command || a[i].tab_index != b[i].tab_index) {
@@ -1014,7 +1066,7 @@
        return false;
      }
    }
-@@ -118,11 +128,13 @@
+@@ -118,11 +129,13 @@
  }
  
  void HeliumCommandBarController::Show(gfx::NativeView parent,
@@ -1029,7 +1081,7 @@
    HeliumCommandBarView* view = HeliumCommandBarView::Show(
        parent, initial_query,
        base::BindOnce(&HeliumCommandBarController::OnWidgetClosed,
-@@ -146,6 +158,10 @@
+@@ -146,6 +159,10 @@
      template_observation_.Observe(service);
      service->Load();
    }
@@ -1040,7 +1092,7 @@
    // Populate from the initial query (empty for Cmd+T, page URL for Cmd+L).
    OnQueryChanged(initial_query);
  }
-@@ -165,8 +181,10 @@
+@@ -165,8 +182,10 @@
    if (!widget_) {
      return;
    }
@@ -1051,7 +1103,7 @@
    scope_keyword_.clear();
    scope_keyword_was_typed_ = false;
    // Null first: closing runs WindowClosing synchronously, which would
-@@ -180,6 +198,14 @@
+@@ -180,6 +199,14 @@
    return widget_ != nullptr;
  }
  
@@ -1066,7 +1118,7 @@
  base::WeakPtr<HeliumCommandBarController>
  HeliumCommandBarController::GetWeakPtr() {
    return weak_factory_.GetWeakPtr();
-@@ -198,6 +224,16 @@
+@@ -198,6 +225,16 @@
          ui::Accelerator(key, ui::EF_PLATFORM_ACCELERATOR),
          ui::AcceleratorManager::kHighPriority, this);
    }
@@ -1083,7 +1135,7 @@
  }
  
  void HeliumCommandBarController::OnFocusManagerDestroying(
-@@ -211,9 +247,15 @@
+@@ -211,9 +248,15 @@
  
  bool HeliumCommandBarController::AcceleratorPressed(
      const ui::Accelerator& accelerator) {
@@ -1102,7 +1154,7 @@
      return false;
    }
    if (accelerator.key_code() == ui::VKEY_L) {
-@@ -227,8 +269,15 @@
+@@ -227,8 +270,15 @@
            prefs::kHeliumCommandBarEnabled)) {
      return false;
    }
@@ -1119,7 +1171,7 @@
      return true;
    }
    TabStripModel* tab_strip = browser_->GetTabStripModel();
-@@ -241,7 +290,7 @@
+@@ -241,7 +291,7 @@
    if (accelerator.key_code() == ui::VKEY_L) {
      initial = base::UTF8ToUTF16(contents->GetVisibleURL().spec());
    }
@@ -1128,7 +1180,7 @@
    return true;
  }
  
-@@ -262,7 +311,8 @@
+@@ -262,7 +312,8 @@
    // exactly like Tab on the hint row. Only when not already scoped, and
    // only for real scope keywords, so ordinary multi-word searches never
    // trip it.
@@ -1138,7 +1190,7 @@
      if (auto split = helium_command_bar_model::SplitKeyword(query, false);
          split && !split->keyword.empty() && !split->has_remainder) {
        TemplateURLService* template_urls =
-@@ -290,7 +340,7 @@
+@@ -290,7 +341,7 @@
    // can never overwrite newer results.
    history_tracker_.TryCancelAll();
    ++history_seq_;
@@ -1147,7 +1199,7 @@
      return;
    }
    history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-@@ -308,8 +358,27 @@
+@@ -308,8 +359,27 @@
        &history_tracker_);
  }
  
@@ -1176,7 +1228,7 @@
      return;
    }
    if (scope_keyword_.empty()) {
-@@ -387,6 +456,7 @@
+@@ -387,6 +457,7 @@
            TemplateURLServiceFactory::GetForProfile(browser_->GetProfile()),
            scope_keyword_));
      }
@@ -1184,7 +1236,7 @@
    }
    if (!same) {
      FetchFavicons();
-@@ -468,6 +538,19 @@
+@@ -468,6 +539,19 @@
      ExitScope();
      return;
    }
@@ -1204,7 +1256,7 @@
    HideSoon();
  }
  
-@@ -498,6 +581,12 @@
+@@ -498,6 +582,12 @@
      return {};
    }
    using namespace helium_command_bar_model;
@@ -1217,7 +1269,7 @@
    std::vector<HeliumCommandBarItem> items = suggestions_->items();
    if (!scope_keyword_.empty()) {
      // Scoped: the engine search row (or tabs only), plus matching tabs,
-@@ -544,7 +633,9 @@
+@@ -544,7 +634,9 @@
    auto bookmark_items = BookmarksForQuery(bookmarks, query);
    items.insert(items.end(), std::make_move_iterator(bookmark_items.begin()),
                 std::make_move_iterator(bookmark_items.end()));
@@ -1228,7 +1280,7 @@
    items.insert(items.end(), std::make_move_iterator(command_items.begin()),
                 std::make_move_iterator(command_items.end()));
    if (history_rows) {
-@@ -679,33 +770,68 @@
+@@ -679,33 +771,70 @@
        }
        break;
      }
@@ -1267,7 +1319,8 @@
 +      auto current =
 +          helium_command_bar_model::CommandForId(browser_, item.command);
 +      if (!active || !current || current->title != item.title ||
-+          current->symbol_name != item.symbol_name) {
++          current->symbol_name != item.symbol_name ||
++          current->media_request_id != item.media_request_id) {
 +        RefreshCommandState();
 +        return;
 +      }
@@ -1300,7 +1353,8 @@
 +                auto current = helium_command_bar_model::CommandForId(
 +                    self->browser_, command.command);
 +                if (!current || current->title != command.title ||
-+                    current->symbol_name != command.symbol_name) {
++                    current->symbol_name != command.symbol_name ||
++                    current->media_request_id != command.media_request_id) {
 +                  self->RefreshCommandState();
 +                  return;
 +                }
@@ -1437,6 +1491,17 @@
  std::optional<HeliumCommandBarItem> UrlOrSearchForQuery(
      Profile* profile,
      const std::u16string& query) {
+@@ -248,8 +217,8 @@
+ 
+ bool SameItem(const HeliumCommandBarItem& a, const HeliumCommandBarItem& b) {
+   return a.type == b.type && a.url == b.url && a.tab_index == b.tab_index &&
+-         a.command == b.command && a.site_keyword == b.site_keyword &&
+-         a.site_query == b.site_query;
++         a.command == b.command && a.media_request_id == b.media_request_id &&
++         a.site_keyword == b.site_keyword && a.site_query == b.site_query;
+ }
+ 
+ void SortAndCap(std::vector<HeliumCommandBarItem>& items) {
 --- a/chrome/browser/ui/helium/helium_command_bar_model.h
 +++ b/chrome/browser/ui/helium/helium_command_bar_model.h
 @@ -40,14 +40,6 @@
@@ -1454,7 +1519,7 @@
    Type type;
    std::u16string title;
    std::u16string description;
-@@ -57,7 +49,11 @@
+@@ -57,7 +49,13 @@
    // Set for kTab: index in the window's TabStripModel.
    int tab_index = -1;
    // Set for kCommand.
@@ -1464,10 +1529,12 @@
 +  std::string symbol_name;
 +  // Current configured keyboard shortcut, formatted by the shortcut service.
 +  std::u16string shortcut;
++  // Set for media commands: the chosen session, retained through activation.
++  std::string media_request_id;
    // Set for kSiteSearch: the keyword that opened the scope ("gh") and the
    // provider's display name ("GitHub"). Empty for the built-in "tab" scope,
    // which lists open tabs only.
-@@ -93,9 +89,6 @@
+@@ -93,9 +91,6 @@
      const history::QueryResults& results,
      const std::u16string& query);
  
