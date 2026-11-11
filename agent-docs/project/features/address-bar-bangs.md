@@ -1,6 +1,6 @@
 # Native address-bar bangs
 
-Implemented November 11, 2026. The development lock selects platform input `inputs/address-bar-bangs-2/macos` (`b060587ba6d6ab55a8949b705672f8d92463f389`). Native owner acceptance is pending; the isolated Apple silicon preview is `.work/address-bangs/Lune Address Bangs Test.app`. Published releases retain their frozen inputs.
+Implemented November 11, 2026. The development lock selects platform input `inputs/address-bar-bangs-2/macos` (`b060587ba6d6ab55a8949b705672f8d92463f389`). The owner accepted the live Apple silicon preview on November 11, 2026 and requested inclusion in main builds. The isolated preview is `.work/address-bangs/Lune Address Bangs Test.app`. Published releases retain their frozen inputs.
 
 ## Behavior
 
@@ -32,4 +32,4 @@ Evidence under `.work/address-bangs/`:
 - `native-checks.json` records live Apple silicon interaction: typed `!w ` entry, empty scoped Enter, rowless scope, current-tab search, `!wik Cats and Dogs` completion with retained terms, completion Backspace preserving terms, plain `github` search/history priority, pointer-applied GitHub scope, empty completion removal, typed-trigger restoration and Cmd-Enter opening a new foreground tab. Search destinations were verified through a loopback-only catalogue fixture and actual loaded page URLs.
 - `smoke-arm64.json` and `smoke-x86_64.json` record isolated page JavaScript, profile persistence, defaults and settings checks. Intel runtime uses Rosetta on the Apple silicon host.
 
-Native Intel hardware, macOS 13, broad accessibility/IME acceptance and visual owner acceptance remain unverified. This is a development implementation; it does not publish a browser release.
+Native Intel hardware, macOS 13 and broad accessibility/IME acceptance remain unverified. This is a development implementation; it does not publish a browser release.
