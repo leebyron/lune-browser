@@ -91,3 +91,7 @@ on a live remote service. It is not a published browser artifact.
 Native Intel hardware, pre-macOS-26 fallback, Reduce Transparency, VoiceOver,
 IME composition, fullscreen, and broad pointer/keyboard acceptance remain open.
 No signed release, update feed, deployment, or release acceptance is implied.
+
+## Catalogue-wide suggestions candidate
+
+The November 10 [bang suggestions candidate](command-bar-bangs.md) adds provider/trigger matching on ordinary text, explicit bang priority, personal frequency/recency, and immediate scope application on selection. Its record distinguishes the candidate from the current development lock and frozen releases.
