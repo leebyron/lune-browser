@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "af297bc814a9dba21e27433a9e1d3794844f2d6b",
+    "commit": "810b4ea9b84d347e38ca38ace6a5800aad243075",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -817,6 +817,10 @@
       {
         "path": "patches/helium/ui/toolbar-not-on-hover.patch",
         "sha256": "c57d589a644e27f74fdc286a20255246c59f3fa856931952673646f45dfa0658"
+      },
+      {
+        "path": "patches/helium/ui/remove-session-restore-notice.patch",
+        "sha256": "8d8240030da41ef430b62ca3ca46a6300963b154d6c82c83e777bdf870b26ee9"
       }
     ]
   },
@@ -2258,6 +2262,19 @@
       "adaptation": "Prepared-source quilt patch refreshed and unmerged. Native menu, Settings and setup use the exact requested labels, with the sidebar mode last. Setup still excludes experimental cover. Strict changed-file replay, both browser builds, production-expression fixtures, packaged Settings/default/persistence and setup checks pass; Intel runs under Rosetta. The final native menu labels were inspected on Apple silicon. See agent-docs/project/builds/2026-11-12-toolbar-hover-options.json for source scope and test-update isolation.",
       "commits": [
         "af297bc814a9dba21e27433a9e1d3794844f2d6b"
+      ]
+    },
+    {
+      "id": "remove-session-restore-notice",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/remove-session-restore-notice.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Restore saved browser tabs quietly, without the informational Continue where you left off startup bar.",
+      "adaptation": "Remove only the production startup call and unused controller/model includes in infobar_utils.cc. Session restoration, Settings choices, and the separate crash-recovery paths retain their behavior. Prepared-source quilt refresh and Helium unmerge; full affected-file locked replay has zero fuzz and offsets. Both incremental browser builds, headed fresh/saved/crashed-profile checks in both setup states, and saved startup-choice regressions pass (Intel under Rosetta). Intel headed checks use an ad-hoc signed copy with software rendering. Shared development builds include unrelated pending UI patches; independent replay binds this one-file change to the input. See agent-docs/project/features/session-restore-notice.md.",
+      "commits": [
+        "810b4ea9b84d347e38ca38ace6a5800aad243075"
       ]
     }
   ],

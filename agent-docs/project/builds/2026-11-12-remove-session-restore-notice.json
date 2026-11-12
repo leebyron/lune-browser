@@ -1,0 +1,369 @@
+{
+  "feature": "remove-session-restore-notice",
+  "date": "2026-11-12",
+  "input": {
+    "commit": "810b4ea9b84d347e38ca38ace6a5800aad243075",
+    "base": "af297bc814a9dba21e27433a9e1d3794844f2d6b",
+    "ref": "refs/tags/inputs/remove-session-restore-notice-2/macos"
+  },
+  "builds": {
+    "arm64": {
+      "architecture": "arm64",
+      "exit_code": 0,
+      "seconds": 7.05672287940979,
+      "release": false
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "exit_code": 0,
+      "seconds": 9.83348798751831,
+      "release": false
+    }
+  },
+  "headed_startup": {
+    "arm64": [
+      {
+        "completed_onboarding": false,
+        "fresh_urls": [
+          "chrome://setup/"
+        ],
+        "fresh_has_saved_tab": false,
+        "fresh_has_setup_tab": true,
+        "fresh_exit_type": "Normal",
+        "fresh_notice_count": 0,
+        "saved_urls": [
+          "chrome://setup/",
+          "<saved-tab>",
+          "chrome://setup/"
+        ],
+        "saved_has_saved_tab": true,
+        "saved_has_setup_tab": true,
+        "saved_exit_type": "Normal",
+        "saved_notice_count": 0,
+        "crashed_urls": [
+          "chrome://setup/"
+        ],
+        "crashed_has_saved_tab": false,
+        "crash_bubble_histogram": {
+          "buckets": [
+            {
+              "count": 1,
+              "high": 2,
+              "low": 1
+            }
+          ],
+          "count": 1,
+          "name": "Startup.CrashBubbleShown",
+          "sum": 1
+        },
+        "crashed_has_setup_tab": true,
+        "crashed_exit_type": "Crashed",
+        "crashed_notice_count": 0,
+        "passed": true
+      },
+      {
+        "completed_onboarding": true,
+        "fresh_urls": [
+          "chrome://newtab/"
+        ],
+        "fresh_has_saved_tab": false,
+        "fresh_has_setup_tab": false,
+        "fresh_exit_type": "Normal",
+        "fresh_notice_count": 0,
+        "saved_urls": [
+          "<saved-tab>",
+          "chrome://newtab/"
+        ],
+        "saved_has_saved_tab": true,
+        "saved_has_setup_tab": false,
+        "saved_exit_type": "Normal",
+        "saved_notice_count": 0,
+        "crashed_urls": [
+          "chrome://newtab/"
+        ],
+        "crashed_has_saved_tab": false,
+        "crash_bubble_histogram": {
+          "buckets": [
+            {
+              "count": 1,
+              "high": 2,
+              "low": 1
+            }
+          ],
+          "count": 1,
+          "name": "Startup.CrashBubbleShown",
+          "sum": 1
+        },
+        "crashed_has_setup_tab": false,
+        "crashed_exit_type": "Crashed",
+        "crashed_notice_count": 0,
+        "passed": true
+      }
+    ],
+    "x86_64": [
+      {
+        "completed_onboarding": false,
+        "gpu_disabled": true,
+        "fresh_urls": [
+          "chrome://setup/"
+        ],
+        "fresh_has_saved_tab": false,
+        "fresh_has_setup_tab": true,
+        "fresh_exit_type": "Normal",
+        "fresh_notice_count": 0,
+        "saved_urls": [
+          "chrome://setup/",
+          "<saved-tab>",
+          "chrome://setup/"
+        ],
+        "saved_has_saved_tab": true,
+        "saved_has_setup_tab": true,
+        "saved_exit_type": "Normal",
+        "saved_notice_count": 0,
+        "crashed_urls": [
+          "chrome://setup/"
+        ],
+        "crashed_has_saved_tab": false,
+        "crash_bubble_histogram": {
+          "buckets": [
+            {
+              "count": 1,
+              "high": 2,
+              "low": 1
+            }
+          ],
+          "count": 1,
+          "name": "Startup.CrashBubbleShown",
+          "sum": 1
+        },
+        "crashed_has_setup_tab": true,
+        "crashed_exit_type": "Crashed",
+        "crashed_notice_count": 0,
+        "passed": true
+      },
+      {
+        "completed_onboarding": true,
+        "gpu_disabled": true,
+        "fresh_urls": [
+          "chrome://newtab/"
+        ],
+        "fresh_has_saved_tab": false,
+        "fresh_has_setup_tab": false,
+        "fresh_exit_type": "Normal",
+        "fresh_notice_count": 0,
+        "saved_urls": [
+          "<saved-tab>",
+          "chrome://newtab/"
+        ],
+        "saved_has_saved_tab": true,
+        "saved_has_setup_tab": false,
+        "saved_exit_type": "Normal",
+        "saved_notice_count": 0,
+        "crashed_urls": [
+          "chrome://newtab/"
+        ],
+        "crashed_has_saved_tab": false,
+        "crash_bubble_histogram": {
+          "buckets": [
+            {
+              "count": 1,
+              "high": 2,
+              "low": 1
+            }
+          ],
+          "count": 1,
+          "name": "Startup.CrashBubbleShown",
+          "sum": 1
+        },
+        "crashed_has_setup_tab": false,
+        "crashed_exit_type": "Crashed",
+        "crashed_notice_count": 0,
+        "passed": true
+      }
+    ]
+  },
+  "startup_choices": {
+    "arm64": {
+      "passed": true,
+      "cases": [
+        {
+          "case": "default",
+          "saved_choice": null,
+          "effective_startup_choice": 1,
+          "write_exit_type": "Normal",
+          "restored_fixture_pages": [
+            "/saved-a",
+            "/saved-b"
+          ],
+          "reopen_exit_type": "Normal",
+          "passed": true
+        },
+        {
+          "case": "saved-new-tab",
+          "saved_choice": 5,
+          "effective_startup_choice": 5,
+          "write_exit_type": "Normal",
+          "restored_fixture_pages": [],
+          "reopen_exit_type": "Normal",
+          "passed": true
+        }
+      ]
+    },
+    "x86_64": {
+      "passed": true,
+      "cases": [
+        {
+          "case": "default",
+          "saved_choice": null,
+          "effective_startup_choice": 1,
+          "write_exit_type": "Normal",
+          "restored_fixture_pages": [
+            "/saved-a",
+            "/saved-b"
+          ],
+          "reopen_exit_type": "Normal",
+          "passed": true
+        },
+        {
+          "case": "saved-new-tab",
+          "saved_choice": 5,
+          "effective_startup_choice": 5,
+          "write_exit_type": "Normal",
+          "restored_fixture_pages": [],
+          "reopen_exit_type": "Normal",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "intel_fixture": {
+    "built_framework_sha256": "e435c1a14fa19651980c4b74ba7d03b86cc3f1036cb2c36e187ee85310952728",
+    "fixture_before_signing_framework_sha256": "e435c1a14fa19651980c4b74ba7d03b86cc3f1036cb2c36e187ee85310952728",
+    "scope": "Freshly built Intel app copied unchanged, then ad-hoc signed solely for Rosetta runtime checks. Not a production-signed release.",
+    "tested_framework_sha256": "6e1a100bf09ab25bbdc59bec2598cffa25e773bc5b2e2a291ad6bab37a6ac4a7"
+  },
+  "strict_replay": {
+    "passed": true,
+    "files": [
+      "chrome/browser/ui/startup/infobar_utils.cc"
+    ],
+    "patches": [
+      "debian/disable-google-api-warning.patch",
+      "ungoogled-chromium/add-flag-to-hide-crashed-bubble.patch",
+      "helium/core/add-default-browser-reject-button.patch",
+      "helium/ui/crash-dialog.patch",
+      "helium/ui/remove-session-restore-notice.patch"
+    ],
+    "base": "af297bc814a9dba21e27433a9e1d3794844f2d6b",
+    "scope": "Locked patch order from prepared preimages through the new fix",
+    "offsets": 0,
+    "fuzz": 0
+  },
+  "crash_source": {
+    "passed": true,
+    "scope": "Crash bubble and Helium crash-dialog startup block remains byte-identical",
+    "sha256": "3f0bcf57f482fcf0ccd85348d297f4c54eda7a80f8c925e866b2febeb85df3b9"
+  },
+  "negative_baseline": {
+    "passed": true,
+    "baseline": "26.1111.3 arm64 signed release",
+    "expected_failure": "The saved-session relaunch restores the fixture tab and records one notice, failing the new zero-notice assertion."
+  },
+  "gn_include_audit": {
+    "result": "Two pre-existing errors in unchanged startup_browser_creator_impl.cc, identical on both targets and the released 26.1111.3 baseline.",
+    "comparison": [
+      {
+        "source": "current",
+        "arch": "arm64",
+        "exit_code": 1,
+        "errors": [
+          "ERROR at //chrome/browser/ui/startup/startup_browser_creator_impl.cc:38:11: Include not allowed.",
+          "ERROR at //chrome/browser/ui/startup/startup_browser_creator_impl.cc:67:11: Can't include this header from here."
+        ],
+        "startup_creator_sha256": "0a1c08fe71faa900ef61def02c54fbebce9b228dda3ce099ad25a85fe0e3e5bf"
+      },
+      {
+        "source": "current",
+        "arch": "x86_64",
+        "exit_code": 1,
+        "errors": [
+          "ERROR at //chrome/browser/ui/startup/startup_browser_creator_impl.cc:38:11: Include not allowed.",
+          "ERROR at //chrome/browser/ui/startup/startup_browser_creator_impl.cc:67:11: Can't include this header from here."
+        ],
+        "startup_creator_sha256": "0a1c08fe71faa900ef61def02c54fbebce9b228dda3ce099ad25a85fe0e3e5bf"
+      },
+      {
+        "source": "released-baseline",
+        "arch": "arm64",
+        "exit_code": 1,
+        "errors": [
+          "ERROR at //chrome/browser/ui/startup/startup_browser_creator_impl.cc:38:11: Include not allowed.",
+          "ERROR at //chrome/browser/ui/startup/startup_browser_creator_impl.cc:67:11: Can't include this header from here."
+        ],
+        "startup_creator_sha256": "0a1c08fe71faa900ef61def02c54fbebce9b228dda3ce099ad25a85fe0e3e5bf"
+      },
+      {
+        "source": "released-baseline",
+        "arch": "x86_64",
+        "exit_code": 1,
+        "errors": [
+          "ERROR at //chrome/browser/ui/startup/startup_browser_creator_impl.cc:38:11: Include not allowed.",
+          "ERROR at //chrome/browser/ui/startup/startup_browser_creator_impl.cc:67:11: Can't include this header from here."
+        ],
+        "startup_creator_sha256": "0a1c08fe71faa900ef61def02c54fbebce9b228dda3ce099ad25a85fe0e3e5bf"
+      }
+    ]
+  },
+  "repository_tests": 73,
+  "patch_lint": "passed",
+  "initial_attempts": {
+    "sandbox": "sccache and loopback fixtures needed local execution permissions; reruns passed.",
+    "intel_packaging": "The existing outer app bundle rejected a resource replacement. It was preserved at .work/search-suggestions/platform/build/src/out/Intel/Lune.before-session-notice.app; rebuilding a fresh outer app passed.",
+    "intel_unsigned_runtime": "Raw unsigned output stalled before runtime checks completed. The final checks use a verified copy of the freshly built app, ad-hoc signed for local testing.",
+    "intel_headed_gpu": "The first ad-hoc signed headed run passed the setup-incomplete matrix, then timed out navigating a page in the setup-complete case. The final complete matrix uses software rendering; normal headless startup-choice checks also pass.",
+    "crash_fixture": "The first arm64 attempt reached and passed the crash-bubble histogram check, then incorrectly expected an unacknowledged crash state to clear. The fixture expectation was corrected and the entire matrix passed."
+  },
+  "scope": "Future-main source adoption; no browser release. Shared incremental outputs include pending focus-retention work. Full affected-file replay independently binds this change to the exact platform input. Apple silicon runtime is native; Intel runtime is Rosetta on this Apple silicon Mac. The crash case simulates a persisted unclean-exit preference and confirms the separate prompt through Startup.CrashBubbleShown.",
+  "specific_issue": null,
+  "retained_evidence": ".work/remove-session-notice/",
+  "evidence_sha256": {
+    "shared-source.json": "827260289181eb5607ede8b0ed369d729040762c7b8adf61fdfc81f0b368fe01",
+    "repository-tests.log": "16b5b1281b805f0689b3b6d708fc34ada472e84b1771968ac6e81d598f36150c",
+    "patch-lint.log": "86c545dc762a6fea320639aed20b9baa00964d77cb949a671abf3e93fa3ba8dd",
+    "notice-arm64-final/report.json": "1df641e824515d4f8e6b715dc88b26492956c4b0c168e689270e4b1aa0d61c61",
+    "notice-x86_64-final/report.json": "c51691ec052a961bd068293684663619f3ce2a6c057f78de8e1e4d98d2927013",
+    "restore-arm64/report.json": "1c05e290e56b4c6a66e2f2caabadcd6a2d0aa24a51911ce6f2ac7b3e93e90809",
+    "restore-x86_64/report.json": "1c05e290e56b4c6a66e2f2caabadcd6a2d0aa24a51911ce6f2ac7b3e93e90809"
+  },
+  "arm64_framework_sha256": "5dbf6ba452dba522b4b69d91f520fd868b0a8397eb2b2b514398480c84e3efa8",
+  "cleanup": {
+    "passed": true,
+    "task_processes_exited": true,
+    "removed": [
+      ".work/remove-session-notice/baseline-negative/setup-incomplete/profile",
+      ".work/remove-session-notice/baseline-output",
+      ".work/remove-session-notice/intel-test-output",
+      ".work/remove-session-notice/locked-replay",
+      ".work/remove-session-notice/notice-arm64-final/setup-complete/profile",
+      ".work/remove-session-notice/notice-arm64-final/setup-incomplete/profile",
+      ".work/remove-session-notice/notice-arm64/setup-incomplete/profile",
+      ".work/remove-session-notice/notice-x86_64-final/setup-complete/profile",
+      ".work/remove-session-notice/notice-x86_64-final/setup-incomplete/profile",
+      ".work/remove-session-notice/notice-x86_64-gpu-attempt/setup-complete/profile",
+      ".work/remove-session-notice/notice-x86_64-gpu-attempt/setup-incomplete/profile",
+      ".work/remove-session-notice/notice-x86_64-unsigned/setup-incomplete/profile",
+      ".work/remove-session-notice/restore-arm64/default/profile",
+      ".work/remove-session-notice/restore-arm64/saved-new-tab/profile",
+      ".work/remove-session-notice/restore-x86_64-unsigned/default/profile",
+      ".work/remove-session-notice/restore-x86_64/default/profile",
+      ".work/remove-session-notice/restore-x86_64/saved-new-tab/profile",
+      ".work/remove-session-notice/selected.patch"
+    ],
+    "retained": [
+      "validation reports and logs",
+      "component source checkout and permanent input refs",
+      "shared prepared Chromium source, current build outputs and reusable caches",
+      "prior protected shared Intel output at .work/search-suggestions/platform/build/src/out/Intel/Lune.before-session-notice.app"
+    ]
+  }
+}

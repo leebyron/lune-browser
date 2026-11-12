@@ -41,7 +41,7 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [Sidebar new-tab placement](sidebar-new-tab.md)
 - [Sidebar pin activation](sidebar-pin-activation.md)
 - [Startup default](startup-default.md)
-- [Session-restore notice eligibility](session-restore-notice.md)
+- [Session-restore notice](session-restore-notice.md)
 - [String review and frame-thickness label](string-review.md)
 - [Themed unpinned sidebar and 216 px default width](themed-unpinned-sidebar.md)
 - [Trailing toolbar controls](trailing-toolbar-controls.md)

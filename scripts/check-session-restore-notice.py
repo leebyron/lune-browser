@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Check the startup notice with real session files and both setup states.
+"""Check quiet session restoration with real session files and both setup states.
 
 Launch without ChromeDriver's enable-automation/no-first-run flags, which would
-suppress the notice being tested. Attach only after the browser has started.
+bypass the startup notices and make absence checks misleading. Attach only after
+startup; simulate an unclean exit to check the separate crash-recovery bubble.
 """
 import argparse
 import http.server
@@ -18,6 +19,8 @@ import requests
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path)
 parser.add_argument('evidence', type=Path)
+parser.add_argument('--disable-gpu', action='store_true',
+                    help='Use software rendering for the test process.')
 args = parser.parse_args()
 build = args.output.resolve()
 evidence = args.evidence.resolve()
@@ -78,8 +81,13 @@ try:
             'helium': {'completed_onboarding': completed,
                        'services': {'enabled': False, 'browser_updates': False}}
         }))
-        row = {'completed_onboarding': completed}
-        for phase in ('fresh', 'saved'):
+        row = {'completed_onboarding': completed, 'gpu_disabled': args.disable_gpu}
+        for phase in ('fresh', 'saved', 'crashed'):
+            if phase == 'crashed':
+                preferences = profile/'Default/Preferences'
+                prefs = json.loads(preferences.read_text())
+                prefs['profile']['exit_type'] = 'Crashed'
+                preferences.write_text(json.dumps(prefs))
             active = profile/'DevToolsActivePort'
             active.unlink(missing_ok=True)
             with (case/f'{phase}.log').open('w') as log:
@@ -87,7 +95,9 @@ try:
                     str(build/'Lune.app/Contents/MacOS/Lune'),
                     '--remote-debugging-port=0',
                     f'--user-data-dir={profile}', '--disable-background-networking',
+                    *(['--disable-gpu'] if args.disable_gpu else []),
                     '--use-mock-keychain', '--password-store=basic',
+                    '--enable-features=SessionRestoreInfobar',
                     '--custom-update-server-url=http://127.0.0.1:1/',
                     '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1'
                 ], stdout=log, stderr=subprocess.STDOUT)
@@ -110,7 +120,15 @@ try:
                 urls = [target['url'] for target in targets if target['type'] == 'page']
                 row[phase+'_urls'] = [url.replace(saved_url, '<saved-tab>') for url in urls]
                 row[phase+'_has_saved_tab'] = saved_url in urls
-                assert row[phase+'_has_saved_tab'] == (phase == 'saved'), row
+                if phase != 'crashed':
+                    assert row[phase+'_has_saved_tab'] == (phase == 'saved'), row
+                if phase == 'crashed':
+                    histogram = wd('POST', sid+'/goog/cdp/execute', {
+                        'cmd': 'Browser.getHistogram',
+                        'params': {'name': 'Startup.CrashBubbleShown'}
+                    })['histogram']
+                    row['crash_bubble_histogram'] = histogram
+                    assert histogram['sum'] >= 1, row
                 row[phase+'_has_setup_tab'] = any('://setup' in url for url in urls)
                 if not completed:
                     assert row[phase+'_has_setup_tab'], row
@@ -125,10 +143,13 @@ try:
                 browser.wait(timeout=30)
                 assert browser.returncode == 0, browser.returncode
                 prefs = json.loads((profile/'Default/Preferences').read_text())
-                assert prefs['profile']['exit_type'] == 'Normal', prefs['profile']
+                row[phase+'_exit_type'] = prefs['profile']['exit_type']
+                # An unacknowledged crash bubble preserves the pending crash.
+                if phase != 'crashed':
+                    assert row[phase+'_exit_type'] == 'Normal', row
                 shown = prefs.get('browser', {}).get('session_restore_infobar_times_shown', 0)
                 row[phase+'_notice_count'] = shown
-                assert shown == (0 if phase == 'fresh' else 1), row
+                assert shown == 0, row
                 try:
                     wd('DELETE', sid)
                 except (RuntimeError, requests.RequestException):
