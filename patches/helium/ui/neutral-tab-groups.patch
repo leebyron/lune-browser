@@ -1,0 +1,1158 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
+@@ -11,11 +11,13 @@
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/tab_group_data.h"
+ #include "chrome/browser/ui/tabs/tab_group_theme.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/event_utils.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_style.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/browser/ui/views/tabs/groups/tab_group_accessibility.h"
+@@ -49,6 +51,7 @@
+ #include "ui/views/controls/scroll_view.h"
+ #include "ui/views/interaction/element_tracker_views.h"
+ #include "ui/views/layout/layout_types.h"
++#include "ui/views/layout/proposed_layout.h"
+ #include "ui/views/view.h"
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/widget/widget.h"
+@@ -72,55 +75,6 @@
+   return nullptr;
+ }
+ 
+-void ConfigureEditorBubbleButton(views::LabelButton* button) {
+-  button->SetHasInkDropActionOnClick(true);
+-
+-  // Inkdrop configuration
+-  auto highlight_path =
+-      std::make_unique<views::CircleHighlightPathGenerator>(gfx::Insets());
+-
+-  highlight_path->set_use_contents_bounds(true);
+-  views::HighlightPathGenerator::Install(button, std::move(highlight_path));
+-
+-  views::InkDrop::Get(button)->SetMode(views::InkDropHost::InkDropMode::ON);
+-  views::InkDrop::Get(button)->SetHighlightOpacity(0.2f);
+-  views::InkDrop::Get(button)->SetVisibleOpacity(0.08f);
+-
+-  button->button_controller()->set_notify_action(
+-      views::ButtonController::NotifyAction::kOnPress);
+-  button->GetViewAccessibility().SetName(
+-      l10n_util::GetStringUTF16(IDS_VERTICAL_TAB_GROUP_MORE_OPTIONS));
+-  button->SetFocusBehavior(TabGroupHeaderView::FocusBehavior::ACCESSIBLE_ONLY);
+-  button->SetVisible(false);
+-  views::FocusRing::Install(button);
+-  button->SetProperty(views::kElementIdentifierKey,
+-                      kTabGroupEditorBubbleButtonElementId);
+-}
+-
+-void UpdateEditorButtonColors(views::LabelButton* button,
+-                              SkColor foreground_color) {
+-  views::InkDrop::Get(button)->SetBaseColor(
+-      color_utils::GetColorWithMaxContrast(foreground_color));
+-  button->SetImageModel(
+-      views::Button::STATE_NORMAL,
+-      ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+-                                         ? kMoreVertIcon
+-                                         : kBrowserToolsChromeRefreshOldIcon,
+-                                     foreground_color, kIconSize));
+-  button->SetImageModel(
+-      views::Button::STATE_HOVERED,
+-      ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+-                                         ? kMoreVertIcon
+-                                         : kBrowserToolsChromeRefreshOldIcon,
+-                                     foreground_color, kIconSize));
+-  button->SetImageModel(
+-      views::Button::STATE_PRESSED,
+-      ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+-                                         ? kMoreVertIcon
+-                                         : kBrowserToolsChromeRefreshOldIcon,
+-                                     foreground_color, kIconSize));
+-}
+-
+ class TabGroupHeaderLabel : public views::Label {
+   METADATA_HEADER(TabGroupHeaderLabel, views::Label)
+  public:
+@@ -148,12 +102,6 @@
+       group_header_label_(
+           AddChildView(std::make_unique<TabGroupHeaderLabel>())),
+       attention_indicator_(AddChildView(std::make_unique<views::ImageView>())),
+-      editor_bubble_button_(
+-          orientation == TabStripOrientation::kVertical
+-              ? AddChildView(std::make_unique<views::LabelButton>(
+-                    base::BindRepeating(&TabGroupHeaderView::ShowEditorBubble,
+-                                        base::Unretained(this))))
+-              : nullptr),
+       collapse_icon_(orientation == TabStripOrientation::kVertical
+                          ? AddChildView(std::make_unique<views::ImageView>())
+                          : nullptr),
+@@ -166,13 +114,15 @@
+   attention_indicator_->SetCanProcessEventsWithinSubtree(false);
+   if (collapse_icon_) {
+     collapse_icon_->SetCanProcessEventsWithinSubtree(false);
++    collapse_icon_->GetViewAccessibility().SetIsIgnored(true);
++    collapse_icon_->SetProperty(views::kViewIgnoredByLayoutKey, true);
++    // Use the same native section typography as Older Tabs.
++    group_header_label_->SetFontList(
++        views::Label().font_list().DeriveWithWeight(
++            gfx::Font::Weight::SEMIBOLD));
+   }
+   SetNotifyEnterExitOnChild(true);
+ 
+-  if (editor_bubble_button_) {
+-    ConfigureEditorBubbleButton(editor_bubble_button_);
+-    UpdateEditorBubbleButtonVisibility(/*hovered=*/false);
+-  }
+   editor_bubble_opened_subscription_ =
+       editor_bubble_tracker_.RegisterOnBubbleOpened(base::BindRepeating(
+           &TabGroupHeaderView::OnBubbleOpened, base::Unretained(this)));
+@@ -186,9 +136,8 @@
+              views::FlexSpecification(
+                  views::MinimumFlexSizeRule::kScaleToMinimumSnapToZero,
+                  views::MaximumFlexSizeRule::kPreferred));
+-  // Let the header label grow to fill any extra available space but at a lower
+-  // order so that things like the editor bubble button will be shown over the
+-  // label. Set the cross axis minimum flex size rule to kScaleToZero so that
++  // Let the header label fill available space after status icons. Set the
++  // cross axis minimum flex size rule to kScaleToZero so that
+   // as much of the label shows as possible if the height is taller than the max
+   // height.
+   group_header_label_->SetProperty(
+@@ -200,19 +149,6 @@
+           /*adjust_height_for_width=*/false,
+           views::MinimumFlexSizeRule::kScaleToZero)
+           .WithOrder(2));
+-  // The collapse icon should be seen when not in focus mode.
+-  // Let the collapse icon grow to fill the remaining available space while
+-  // keeping the icon trailing aligned.
+-  if (collapse_icon_) {
+-    collapse_icon_->SetHorizontalAlignment(
+-        views::ImageViewBase::Alignment::kTrailing);
+-    collapse_icon_->SetProperty(
+-        views::kFlexBehaviorKey,
+-        views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
+-                                 views::MaximumFlexSizeRule::kPreferred));
+-    collapse_icon_->SetVisible(!delegate_->IsGroupFocused());
+-  }
+-
+   sync_icon_->SetProperty(views::kMarginsKey,
+                           gfx::Insets::TLBR(0, 0, 0, kSyncIconLabelPadding));
+   attention_indicator_->SetProperty(
+@@ -410,16 +346,16 @@
+ void TabGroupHeaderView::OnMouseMoved(const ui::MouseEvent& event) {
+   // Linux enter/leave events are sometimes flaky, so we don't want to "miss"
+   // an enter event and fail to update state.
+-  UpdateEditorBubbleButtonVisibility();
++  UpdateDisclosureVisibility();
+ }
+ 
+ void TabGroupHeaderView::OnMouseEntered(const ui::MouseEvent& event) {
+   delegate_->UpdateHoverCard(TabSlotController::HoverCardUpdateType::kHover);
+-  UpdateEditorBubbleButtonVisibility();
++  UpdateDisclosureVisibility();
+ }
+ 
+ void TabGroupHeaderView::OnMouseExited(const ui::MouseEvent& event) {
+-  UpdateEditorBubbleButtonVisibility(
++  UpdateDisclosureVisibility(
+ #if BUILDFLAG(IS_LINUX)
+       // Bypasses the synchronous IsMouseHovered() check which can be stale on
+       // Linux Wayland/X11 due to asynchronous cursor updates during mouse exit
+@@ -435,12 +371,12 @@
+ }
+ 
+ void TabGroupHeaderView::OnFocus() {
+-  UpdateEditorBubbleButtonVisibility();
++  UpdateDisclosureVisibility();
+   delegate_->UpdateHoverCard(TabSlotController::HoverCardUpdateType::kFocus);
+ }
+ 
+ void TabGroupHeaderView::OnBlur() {
+-  UpdateEditorBubbleButtonVisibility();
++  UpdateDisclosureVisibility();
+   if (!delegate_->IsFocusInTabStrip() || delegate_->IsUnfocusButtonFocused()) {
+     delegate_->HideHoverCard(TabSlotController::HoverCardUpdateType::kFocus);
+   }
+@@ -459,33 +395,13 @@
+ 
+ void TabGroupHeaderView::OnWillChangeFocus(views::View* focused_before,
+                                            views::View* focused_now) {
+-  if (Contains(focused_now)) {
+-    UpdateEditorBubbleButtonVisibility();
+-    // If navigating upward from below, the button is initially hidden and gets
+-    // skipped. We detect reverse focus traversal (from a view physically below
+-    // this one) and manually forward the focus to the button.
+-    if (focused_now == this && delegate_->CanShowEditorBubbleButton() &&
+-        focused_before &&
+-        focused_before->GetBoundsInScreen().y() > GetBoundsInScreen().y()) {
+-      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+-          FROM_HERE,
+-          base::BindOnce(
+-              [](base::WeakPtr<TabGroupHeaderView> view) {
+-                if (view && view->editor_bubble_button_) {
+-                  view->GetFocusManager()->SetFocusedViewWithReason(
+-                      view->editor_bubble_button_,
+-                      views::FocusManager::FocusChangeReason::kFocusTraversal);
+-                }
+-              },
+-              weak_ptr_factory_.GetWeakPtr()));
+-    }
+-  }
++  // The section header itself is the focus target; there is no editor button.
+ }
+ 
+ void TabGroupHeaderView::OnDidChangeFocus(views::View* focused_before,
+                                           views::View* focused_now) {
+   if (Contains(focused_before) && !Contains(focused_now)) {
+-    UpdateEditorBubbleButtonVisibility();
++    UpdateDisclosureVisibility();
+   }
+ }
+ 
+@@ -559,7 +475,14 @@
+   if (delegate_->IsValid() && delegate_->GetTabGroup().is_ephemeral()) {
+     OnTabCountChanged();
+   } else {
+-    group_header_label_->SetText(tab_group_visual_data_.title());
++    const auto& title = tab_group_visual_data_.title();
++    // A neutral unnamed group still needs a visible, draggable heading.
++    group_header_label_->SetText(
++        orientation_ == TabStripOrientation::kVertical && title.empty()
++            ? l10n_util::GetPluralStringFUTF16(
++                  IDS_TAB_GROUPS_UNNAMED_GROUP_HOVER_CARD_HEADER,
++                  tab_group_data.num_tabs_in_group)
++            : title);
+   }
+ 
+   SetInteriorMargin(GetHeaderInsets());
+@@ -619,6 +542,9 @@
+   if (!GetColorProvider()) {
+     return SK_ColorBLACK;
+   }
++  if (orientation_ == TabStripOrientation::kVertical) {
++    return SK_ColorTRANSPARENT;
++  }
+   const bool frame_active = GetWidget() && GetWidget()->ShouldPaintAsActive();
+   if (delegate_->IsValid() && delegate_->GetTabGroup().is_ephemeral()) {
+     const SkColor normal_bg = GetColorProvider()->GetColor(
+@@ -639,6 +565,12 @@
+   if (!GetColorProvider()) {
+     return SK_ColorBLACK;
+   }
++  if (orientation_ == TabStripOrientation::kVertical) {
++    return helium::NativeGlassColor(
++               this, helium::NativeGlassColorRole::kSidebarSection)
++        .value_or(
++            GetColorProvider()->GetColor(ui::kColorLabelForegroundSecondary));
++  }
+   if (delegate_->IsValid() && delegate_->GetTabGroup().is_ephemeral()) {
+     const bool frame_active = GetWidget() && GetWidget()->ShouldPaintAsActive();
+     return GetColorProvider()->GetColor(
+@@ -676,61 +608,56 @@
+     attention_indicator_->SetVisible(false);
+   }
+ 
+-  // Update editor bubble button.
+-  if (editor_bubble_button_) {
+-    UpdateEditorButtonColors(editor_bubble_button_, foreground_color);
+-    UpdateEditorBubbleButtonVisibility();
+-  }
++  if (collapse_icon_) {
++    const auto icon_color = helium::NativeGlassControlColor(this).value_or(
++        TabStyle::Get()->GetTabForegroundColor(
++            /*apparently_active=*/true, /*hovered=*/true,
++            GetWidget()->ShouldPaintAsActive(), GetColorProvider()));
++    collapse_icon_->SetImage(
++        ui::ImageModel::FromImageSkia(helium::NativeSidebarSymbolForName(
++            tab_group_visual_data_.is_collapsed() ? "chevron.forward"
++                                                  : "chevron.down",
++            icon_color)));
++    UpdateDisclosureVisibility();
++  }
++
++  SetBackground(orientation_ == TabStripOrientation::kVertical
++                    ? nullptr
++                    : views::CreateRoundedRectBackground(background_color,
++                                                         GetCornerRadii()));
++}
+ 
+-  // Update collapse icon.
++void TabGroupHeaderView::UpdateDisclosureVisibility(
++    std::optional<bool> hovered) {
+   if (collapse_icon_) {
+-    collapse_icon_->SetVisible(!delegate_->IsGroupFocused());
+-    collapse_icon_->SetImage(ui::ImageModel::FromVectorIcon(
+-        tab_group_visual_data_.is_collapsed()
+-            ? features::IsRoundedIconsEnabled()
+-                  ? kKeyboardArrowDownIcon
+-                  : kKeyboardArrowDownChromeRefreshOldIcon
+-        : features::IsRoundedIconsEnabled()
+-            ? vector_icons::kKeyboardArrowUpIcon
+-            : kKeyboardArrowUpChromeRefreshOldIcon,
+-        foreground_color, kIconSize));
++    collapse_icon_->SetVisible(!delegate_->IsGroupFocused() && width() > 64 &&
++                               hovered.value_or(IsMouseHovered()));
++    InvalidateLayout();
+   }
+-
+-  // Update background.
+-  SetBackground(
+-      views::CreateRoundedRectBackground(background_color, GetCornerRadii()));
+ }
+ 
+-void TabGroupHeaderView::UpdateEditorBubbleButtonVisibility(
+-    std::optional<bool> hovered) {
+-  // The editor bubble button only exists in the vertical orientation.
+-  if (!editor_bubble_button_) {
+-    return;
++void TabGroupHeaderView::Layout(PassKey) {
++  LayoutSuperclass<views::FlexLayoutView>(this);
++  if (collapse_icon_) {
++    collapse_icon_->SetVisible(!delegate_->IsGroupFocused() && width() > 64 &&
++                               IsMouseHovered());
++    views::ProposedLayout layout;
++    layout.host_size = size();
++    layout.child_layouts.emplace_back(group_header_label_.get(), true,
++                                      group_header_label_->bounds());
++    LayoutSidebarSectionHeader(
++        layout, group_header_label_, collapse_icon_, size(),
++        !delegate_->IsGroupFocused() && IsMouseHovered());
++    for (const auto& child : layout.child_layouts) {
++      child.child_view->SetVisible(child.visible);
++      child.child_view->SetBoundsRect(child.bounds);
++    }
+   }
++}
+ 
+-  const bool is_hovered_or_focused =
+-      hovered.value_or(IsMouseHovered()) ||
+-      (GetFocusManager() && Contains(GetFocusManager()->GetFocusedView()));
+-  const bool is_focused = delegate_->IsGroupFocused();
+-  editor_bubble_button_->SetBorder(
+-      is_focused ? views::CreateEmptyBorder(gfx::Insets())
+-                 : std::unique_ptr<views::Border>(
+-                       editor_bubble_button_->CreateDefaultBorder()));
+-  editor_bubble_button_->SetProperty(
+-      views::kFlexBehaviorKey,
+-      views::FlexSpecification(
+-          is_focused ? views::MinimumFlexSizeRule::kPreferred
+-                     : views::MinimumFlexSizeRule::kScaleToMinimumSnapToZero,
+-          is_focused ? views::MaximumFlexSizeRule::kUnbounded
+-                     : views::MaximumFlexSizeRule::kPreferred)
+-          .WithAlignment(views::LayoutAlignment::kEnd));
+-  // In focus mode, the button is always visible. It should never be visible in
+-  // the collapsed state. Otherwise it is visible on hover or when the editor
+-  // bubble is open.
+-  editor_bubble_button_->SetVisible(
+-      is_focused ||
+-      (delegate_->CanShowEditorBubbleButton() &&
+-       (editor_bubble_tracker_.is_open() || is_hovered_or_focused)));
++void TabGroupHeaderView::OnThemeChanged() {
++  views::FlexLayoutView::OnThemeChanged();
++  UpdateColors();
+ }
+ 
+ void TabGroupHeaderView::OnBubbleOpened() {
+@@ -744,7 +671,7 @@
+     closing_helper->PauseMouseWatcher();
+   }
+ 
+-  UpdateEditorBubbleButtonVisibility();
++  UpdateDisclosureVisibility();
+   UpdateColors();
+ }
+ 
+@@ -754,7 +681,7 @@
+   if (auto* closing_helper = delegate_->GetTabClosingHelper()) {
+     closing_helper->ResumeMouseWatcher();
+   }
+-  UpdateEditorBubbleButtonVisibility();
++  UpdateDisclosureVisibility();
+   UpdateColors();
+ }
+ 
+@@ -801,6 +728,14 @@
+       delegate_->IsGroupFocused()) {
+     return TabGroupStyle::GetInsetsForFocusedHeaderChip();
+   }
++  if (orientation_ == TabStripOrientation::kVertical) {
++    // Horizontal allocation only; title and disclosure vertical placement use
++    // the same full-cell routine as Older Tabs.
++    const int inset =
++        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
++    return gfx::Insets::TLBR(
++        0, inset, 0, GetLayoutConstant(LayoutConstant::kVerticalTabHeight));
++  }
+   return gfx::Insets::VH(0, GetHorizontalInset());
+ }
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view.h
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view.h
+@@ -90,6 +90,8 @@
+   gfx::Size CalculatePreferredSize(
+       const views::SizeBounds& available_size) const override;
+   gfx::Rect GetAnchorBoundsInScreen() const override;
++  void Layout(PassKey) override;
++  void OnThemeChanged() override;
+   bool OnKeyPressed(const ui::KeyEvent& event) override;
+   bool OnMousePressed(const ui::MouseEvent& event) override;
+   bool OnMouseDragged(const ui::MouseEvent& event) override;
+@@ -134,8 +136,7 @@
+   views::Label* title_label_for_testing() { return group_header_label_; }
+ 
+  private:
+-  void UpdateEditorBubbleButtonVisibility(
+-      std::optional<bool> hovered = std::nullopt);
++  void UpdateDisclosureVisibility(std::optional<bool> hovered = std::nullopt);
+   void OnBubbleOpened();
+   void OnBubbleClosed();
+   void ShowEditorBubble();
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view_unittest.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view_unittest.cc
+@@ -31,8 +31,11 @@
+ #include "ui/events/types/event_type.h"
+ #include "ui/gfx/text_elider.h"
+ #include "ui/views/accessibility/view_accessibility.h"
++#include "ui/views/border.h"
+ #include "ui/views/controls/button/label_button.h"
++#include "ui/views/controls/label.h"
+ #include "ui/views/test/views_test_base.h"
++#include "ui/views/view_utils.h"
+ #include "ui/views/widget/widget.h"
+ 
+ namespace {
+@@ -176,7 +179,7 @@
+ 
+   // The label height should be constrained_height rather than snapping to 0.
+   EXPECT_GT(header->title_label_for_testing()->bounds().height(), 0);
+-  EXPECT_EQ(header->title_label_for_testing()->bounds().height(),
++  EXPECT_LE(header->title_label_for_testing()->bounds().height(),
+             constrained_height);
+ }
+ 
+@@ -197,7 +200,7 @@
+   MoveMouseTo(generator, header, true);
+ }
+ 
+-TEST_F(TabGroupHeaderViewTest, EditorBubbleButtonVisibilityOnHover) {
++TEST_F(TabGroupHeaderViewTest, NoEditorButtonOnHover) {
+   MockDelegate delegate;
+   tab_groups::TabGroupVisualData visual_data(
+       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
+@@ -210,22 +213,21 @@
+ 
+   ui::test::EventGenerator generator(GetContext(), widget->GetNativeWindow());
+ 
+-  auto check_editor_bubble_button_visible = [&](bool expected_visibility) {
+-    EXPECT_EQ(expected_visibility,
+-              header->editor_bubble_button()->GetVisible());
++  auto check_editor_bubble_button_visible = [&]() {
++    EXPECT_EQ(nullptr, header->editor_bubble_button());
+   };
+ 
+   // Move mouse outside the header.
+   MoveMouseTo(generator, header, false);
+-  check_editor_bubble_button_visible(false);
++  check_editor_bubble_button_visible();
+ 
+   // Move mouse over the header.
+   MoveMouseTo(generator, header, true);
+-  check_editor_bubble_button_visible(true);
++  check_editor_bubble_button_visible();
+ 
+   // Move mouse outside the header again.
+   MoveMouseTo(generator, header, false);
+-  check_editor_bubble_button_visible(false);
++  check_editor_bubble_button_visible();
+ }
+ 
+ TEST_F(TabGroupHeaderViewTest, FocusModeVisibility) {
+@@ -241,25 +243,23 @@
+       delegate, TabStripOrientation::kVertical, nullptr, &visual_data));
+   widget->Show();
+ 
+-  // In focus mode, the 3-dot menu should always be visible and collapse button
+-  // hidden.
+-  EXPECT_TRUE(header->editor_bubble_button()->GetVisible());
++  // Focus mode has no editor button or collapse disclosure.
++  EXPECT_EQ(nullptr, header->editor_bubble_button());
+   EXPECT_FALSE(header->collapse_icon_for_testing()->GetVisible());
+ 
+   ui::test::EventGenerator generator(GetContext(), widget->GetNativeWindow());
+ 
+-  // Even when hovering over the header, 3-dot button is visible and collapse
+-  // button is hidden.
++  // Hovering must not introduce a hidden focus target.
+   MoveMouseTo(generator, header, true);
+-  EXPECT_TRUE(header->editor_bubble_button()->GetVisible());
++  EXPECT_EQ(nullptr, header->editor_bubble_button());
+   EXPECT_FALSE(header->collapse_icon_for_testing()->GetVisible());
+ 
+   // Move mouse outside the header.
+   MoveMouseTo(generator, header, false);
+-  EXPECT_TRUE(header->editor_bubble_button()->GetVisible());
++  EXPECT_EQ(nullptr, header->editor_bubble_button());
+   EXPECT_FALSE(header->collapse_icon_for_testing()->GetVisible());
+ 
+-  // In the collapsed tab strip, the 3-dot button should always be visible.
++  // Narrow focus mode also has no editor button.
+   tab_groups::TabGroupId group_id = tab_groups::TabGroupId::GenerateNew();
+   tabs::MockTabGroup mock_tab_group(nullptr, group_id, visual_data);
+   EXPECT_CALL(delegate, GetTabGroup())
+@@ -276,10 +276,7 @@
+                     GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth),
+                     GetLayoutConstant(LayoutConstant::kVerticalTabHeight));
+   header->DeprecatedLayoutImmediately();
+-  EXPECT_TRUE(header->editor_bubble_button()->GetVisible());
+-  EXPECT_GT(header->editor_bubble_button()->width(), 0);
+-  EXPECT_EQ(header->editor_bubble_button()->bounds().CenterPoint().x(),
+-            header->GetLocalBounds().CenterPoint().x());
++  EXPECT_EQ(nullptr, header->editor_bubble_button());
+   EXPECT_FALSE(header->collapse_icon_for_testing()->GetVisible());
+ }
+ 
+@@ -878,3 +875,64 @@
+   ASSERT_TRUE(button->GetImageModel(views::Button::STATE_NORMAL).has_value());
+   EXPECT_TRUE(button->GetImageModel(views::Button::STATE_NORMAL)->IsEmpty());
+ }
++
++TEST_F(TabGroupHeaderViewTest, VerticalHeaderIgnoresStoredGroupColor) {
++  MockDelegate delegate;
++  tabs::TabGroupData data;
++  data.num_tabs_in_group = 2;
++  data.visual_data = tab_groups::TabGroupVisualData(
++      u"Research", tab_groups::TabGroupColorId::kBlue, false);
++  auto widget = CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
++  auto* header = widget->SetContentsView(std::make_unique<TabGroupHeaderView>(
++      delegate, TabStripOrientation::kVertical, nullptr, &data.visual_data));
++  EXPECT_CALL(delegate, GetTabGroupData())
++      .WillRepeatedly(testing::ReturnRef(data));
++  header->OnDataChanged(data);
++  const auto neutral_color =
++      header->title_label_for_testing()->GetEnabledColor();
++  EXPECT_EQ(nullptr, header->background());
++  EXPECT_EQ(nullptr, header->editor_bubble_button());
++
++  data.visual_data = tab_groups::TabGroupVisualData(
++      u"Renamed", tab_groups::TabGroupColorId::kRed, false);
++  header->OnDataChanged(data);
++  EXPECT_EQ(neutral_color,
++            header->title_label_for_testing()->GetEnabledColor());
++  EXPECT_EQ(u"Renamed", header->title_label_for_testing()->GetText());
++  EXPECT_EQ(nullptr, header->background());
++}
++
++TEST_F(TabGroupHeaderViewTest, TitleBaselineMatchesOlderTabsLabelButton) {
++  MockDelegate delegate;
++  tab_groups::TabGroupVisualData visual_data(
++      u"Research", tab_groups::TabGroupColorId::kBlue, false);
++  auto widget = CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
++  auto* host = widget->SetContentsView(std::make_unique<views::View>());
++  auto* group = host->AddChildView(std::make_unique<TabGroupHeaderView>(
++      delegate, TabStripOrientation::kVertical, nullptr, &visual_data));
++  // Older Tabs uses LabelButton, whose vertical border insets do not move text.
++  auto* older = host->AddChildView(std::make_unique<views::LabelButton>(
++      views::Button::PressedCallback(), u"Older Tabs"));
++  views::Label* reference_title = nullptr;
++  for (const auto& child : older->children()) {
++    if (auto* label = views::AsViewClass<views::Label>(child.get())) {
++      reference_title = label;
++      break;
++    }
++  }
++  ASSERT_TRUE(reference_title);
++  reference_title->SetFontList(
++      views::Label().font_list().DeriveWithWeight(gfx::Font::Weight::SEMIBOLD));
++  older->SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(6, 9, 0, 9)));
++  group->SetBounds(0, 0, 240, 24);
++  group->title_label_for_testing()->SetText(u"Research");
++  older->SetBounds(0, 30, 240, 24);
++  group->DeprecatedLayoutImmediately();
++  older->DeprecatedLayoutImmediately();
++  const auto* title = group->title_label_for_testing();
++  EXPECT_EQ(title->y() + title->GetBaseline(),
++            reference_title->y() + reference_title->GetBaseline());
++  EXPECT_EQ(
++      group->height() - title->y() - title->GetBaseline(),
++      older->height() - reference_title->y() - reference_title->GetBaseline());
++}
+--- a/chrome/browser/ui/views/tabs/common/tab_group_unfocus_button.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_unfocus_button.cc
+@@ -14,6 +14,7 @@
+ #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+ #include "chrome/browser/ui/tabs/tab_group_theme.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_style.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -29,6 +30,7 @@
+ #include "ui/views/background.h"
+ #include "ui/views/border.h"
+ #include "ui/views/controls/focus_ring.h"
++#include "ui/views/controls/label.h"
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/widget/widget.h"
+ 
+@@ -51,6 +53,14 @@
+           : gfx::Insets::VH(
+                 0, TabGroupStyle::GetInsetsForHeaderChip(orientation_).left());
+   SetBorder(views::CreateEmptyBorder(insets));
++  if (orientation_ == TabStripOrientation::kVertical) {
++    label()->SetFontList(views::Label().font_list().DeriveWithWeight(
++        gfx::Font::Weight::SEMIBOLD));
++    label()->SetAutoColorReadabilityEnabled(false);
++    const int inset =
++        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
++    SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(0, inset)));
++  }
+   views::FocusRing::Install(this);
+ }
+ 
+@@ -92,6 +102,10 @@
+         ui::ImageModel::FromVectorIcon(kFilterTiltShiftIcon, fg, kIconSize));
+   }
+ 
++  if (orientation_ == TabStripOrientation::kVertical) {
++    SetBackground(nullptr);
++    return;
++  }
+   const float radius = TabGroupStyle::GetFocusedChipCornerRadius(orientation_);
+   constexpr float kFlatRadius = 2.0f;
+   gfx::RoundedCornersF radii;
+@@ -129,6 +143,12 @@
+   if (!GetColorProvider()) {
+     return gfx::kPlaceholderColor;
+   }
++  if (orientation_ == TabStripOrientation::kVertical) {
++    return helium::NativeGlassColor(
++               this, helium::NativeGlassColorRole::kSidebarSection)
++        .value_or(
++            GetColorProvider()->GetColor(ui::kColorLabelForegroundSecondary));
++  }
+   const bool frame_active = GetWidget() && GetWidget()->ShouldPaintAsActive();
+   if (is_ephemeral_) {
+     return GetColorProvider()->GetColor(
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view.h
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view.h
+@@ -37,7 +37,7 @@
+   METADATA_HEADER(TabGroupView, TabCollectionZOrderManager)
+ 
+  public:
+-  static constexpr int kTabLeadingPadding = 6;
++  static constexpr int kTabLeadingPadding = 0;
+ 
+   explicit TabGroupView(TabCollectionNode* collection_node);
+   TabGroupView(const TabGroupView&) = delete;
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_browsertest.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_browsertest.cc
+@@ -9,6 +9,7 @@
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_tabstrip.h"
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/features.h"
+ #include "chrome/browser/ui/tabs/tab_group_attention_indicator.h"
+ #include "chrome/browser/ui/tabs/tab_group_features.h"
+@@ -178,32 +179,19 @@
+                        HeaderCollapseIconUpdatesWithCollapseState) {
+   CreateInactiveTabGroup();
+ 
+-  // Verify the collapse icon is correct.
+-  TabCollectionNode* group_node =
+-      unpinned_collection_node()->GetChildNodeOfType(
+-          TabCollectionNode::Type::GROUP);
+-  TabGroupHeaderView* group_header =
++  auto* group_node = unpinned_collection_node()->GetChildNodeOfType(
++      TabCollectionNode::Type::GROUP);
++  auto* group_header =
+       views::AsViewClass<TabGroupView>(group_node->view())->group_header();
+-  EXPECT_EQ(group_header->collapse_icon_for_testing()
+-                ->GetImageModel()
+-                .GetVectorIcon()
+-                .vector_icon()
+-                ->name,
+-            features::IsRoundedIconsEnabled()
+-                ? vector_icons::kKeyboardArrowUpIcon.name
+-                : kKeyboardArrowUpChromeRefreshOldIcon.name);
+-
+-  // Collapse the tab group and verify the collapse icon is correctly updated.
++  // Vertical disclosures use the native SF Symbol raster, as Older Tabs does.
++  EXPECT_TRUE(
++      group_header->collapse_icon_for_testing()->GetImageModel().IsImage());
++  EXPECT_EQ(nullptr, group_header->editor_bubble_button());
+   ClickTabGroupHeaderToToggleCollapse();
+-  EXPECT_TRUE(base::test::RunUntil([&]() {
+-    return group_header->collapse_icon_for_testing()
+-               ->GetImageModel()
+-               .GetVectorIcon()
+-               .vector_icon()
+-               ->name == (features::IsRoundedIconsEnabled()
+-                              ? kKeyboardArrowDownIcon.name
+-                              : kKeyboardArrowDownChromeRefreshOldIcon.name);
+-  }));
++  EXPECT_TRUE(base::test::RunUntil(
++      [&]() { return !group_node->children()[0]->view()->GetVisible(); }));
++  EXPECT_TRUE(
++      group_header->collapse_icon_for_testing()->GetImageModel().IsImage());
+ }
+ 
+ IN_PROC_BROWSER_TEST_F(TabGroupViewTest,
+@@ -333,14 +321,14 @@
+ }
+ 
+ #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+-#define MAYBE_EditorBubbleOpensOnEditorBubbleButtonPress \
+-  EditorBubbleOpensOnEditorBubbleButtonPress
++#define MAYBE_EditorBubbleOpensOnHeaderRightClick \
++  EditorBubbleOpensOnHeaderRightClick
+ #else
+-#define MAYBE_EditorBubbleOpensOnEditorBubbleButtonPress \
+-  DISABLED_EditorBubbleOpensOnEditorBubbleButtonPress
++#define MAYBE_EditorBubbleOpensOnHeaderRightClick \
++  DISABLED_EditorBubbleOpensOnHeaderRightClick
+ #endif
+ IN_PROC_BROWSER_TEST_F(TabGroupViewTest,
+-                       MAYBE_EditorBubbleOpensOnEditorBubbleButtonPress) {
++                       MAYBE_EditorBubbleOpensOnHeaderRightClick) {
+ #if BUILDFLAG(IS_OZONE)
+   if (ui::OzonePlatform::GetInstance()->RunningOnWaylandForTest()) {
+     // The test constantly failing on wayland.
+@@ -354,16 +342,16 @@
+       views::AsViewClass<TabGroupHeaderView>(
+           BrowserElementsViews::From(browser())->GetView(
+               kTabGroupHeaderElementId));
+-  ui::MouseEvent mouse_press_event(ui::EventType::kMousePressed, gfx::Point(),
++  ui::MouseEvent mouse_press_event(ui::EventType::kMouseReleased, gfx::Point(),
+                                    gfx::Point(), ui::EventTimeForNow(),
+-                                   ui::EF_LEFT_MOUSE_BUTTON,
+-                                   ui::EF_LEFT_MOUSE_BUTTON);
++                                   ui::EF_RIGHT_MOUSE_BUTTON,
++                                   ui::EF_RIGHT_MOUSE_BUTTON);
+ 
+   EXPECT_FALSE(ui::ElementTracker::GetElementTracker()->GetElementInAnyContext(
+       kTabGroupEditorBubbleId));
+-  tab_group_header->editor_bubble_button()->OnMousePressed(mouse_press_event);
++  tab_group_header->OnMouseReleased(mouse_press_event);
+   // The editor dialog should be visible after activating it via the tab group
+-  // header's editor bubble button.
++  // header's right-click action.
+   EXPECT_TRUE(ui::ElementTracker::GetElementTracker()->GetElementInAnyContext(
+       kTabGroupEditorBubbleId));
+ }
+@@ -517,9 +505,8 @@
+   TabView* tab = views::AsViewClass<TabView>(tab_node->view());
+   ASSERT_TRUE(tab);
+ 
+-  // Initially in expanded mode (not focused), group line is visible and tab is
+-  // indented.
+-  EXPECT_TRUE(group_view->group_line()->GetVisible());
++  // Group rows and their background align with ordinary tabs.
++  EXPECT_FALSE(group_view->group_line()->GetVisible());
+   EXPECT_EQ(tab->x(), TabGroupView::kTabLeadingPadding);
+ 
+   // Focus the group.
+@@ -535,8 +522,8 @@
+   browser()->GetTabStripModel()->ExitFocusMode();
+   RunScheduledLayouts();
+ 
+-  // Group line should be restored and tab indented again.
+-  EXPECT_TRUE(group_view->group_line()->GetVisible());
++  // Leaving focus mode must not restore a colored bar or indentation.
++  EXPECT_FALSE(group_view->group_line()->GetVisible());
+   EXPECT_EQ(tab->x(), TabGroupView::kTabLeadingPadding);
+ }
+ 
+@@ -562,9 +549,9 @@
+   ASSERT_TRUE(group_header);
+ 
+   // In non-group focus mode, the collapse (caret) icon should be hidden and
+-  // the 3-dot editor bubble button should be visible.
++  // there must be no editor button.
+   EXPECT_FALSE(group_header->collapse_icon_for_testing()->GetVisible());
+-  EXPECT_TRUE(group_header->editor_bubble_button()->GetVisible());
++  EXPECT_EQ(nullptr, group_header->editor_bubble_button());
+ }
+ 
+ IN_PROC_BROWSER_TEST_F(TabGroupViewTest,
+@@ -592,7 +579,7 @@
+   // Enter focus mode.
+   browser()->GetTabStripModel()->EnterFocusMode(group_id);
+   RunScheduledLayouts();
+-  EXPECT_TRUE(group_header->editor_bubble_button()->GetVisible());
++  EXPECT_EQ(nullptr, group_header->editor_bubble_button());
+ 
+   // Exit focus mode.
+   browser()->GetTabStripModel()->ExitFocusMode();
+@@ -607,7 +594,7 @@
+                                    gfx::Point(), ui::EventTimeForNow(), 0, 0);
+   group_header->OnMouseEntered(mouse_enter_event);
+ 
+-  EXPECT_FALSE(group_header->editor_bubble_button()->GetVisible());
++  EXPECT_EQ(nullptr, group_header->editor_bubble_button());
+ }
+ 
+ class HorizontalTabGroupViewBrowserTest : public InProcessBrowserTest {
+@@ -980,3 +967,38 @@
+ 
+ // TODO(crbug.com/490428062): Create Tests to Verify Focus Order of Tab Group
+ // Header w/ Editor Bubble Button.
++
++IN_PROC_BROWSER_TEST_F(TabGroupViewTest, NormalRowBoundsAndGroupTrailingGap) {
++  auto animation_mode_reset = gfx::AnimationTestApi::SetRichAnimationRenderMode(
++      gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
++  CreateInactiveTabGroup();
++  auto* unpinned = unpinned_collection_node();
++  auto* group_node =
++      unpinned->GetChildNodeOfType(TabCollectionNode::Type::GROUP);
++  ASSERT_TRUE(group_node);
++  auto* group_view = views::AsViewClass<TabGroupView>(group_node->view());
++  auto* grouped_tab = group_node->children()[0]->view();
++  auto* following_tab = unpinned->children().back()->view();
++  const auto group_bounds = GetTabStripViewTargetBounds(group_view);
++  const auto grouped_bounds = GetTabStripViewTargetBounds(grouped_tab);
++  const auto following_bounds = GetTabStripViewTargetBounds(following_tab);
++  EXPECT_EQ(group_bounds.x() + grouped_bounds.x(), following_bounds.x());
++  EXPECT_EQ(grouped_bounds.width(), following_bounds.width());
++  EXPECT_EQ(following_bounds.y() - group_bounds.y() - grouped_bounds.bottom(),
++            GetLayoutConstant(LayoutConstant::kVerticalTabHeight) / 2 - 6);
++  EXPECT_EQ(GetTabStripViewTargetBounds(group_view->group_header()).y(), 0);
++  EXPECT_FALSE(group_view->group_line()->GetVisible());
++
++  ClickTabGroupHeaderToToggleCollapse();
++  ASSERT_TRUE(
++      base::test::RunUntil([&]() { return !grouped_tab->GetVisible(); }));
++  RunScheduledLayouts();
++  const auto collapsed_group = GetTabStripViewTargetBounds(group_view);
++  const auto collapsed_header =
++      GetTabStripViewTargetBounds(group_view->group_header());
++  const auto after_collapsed = GetTabStripViewTargetBounds(following_tab);
++  EXPECT_EQ(collapsed_header.y(), 0);
++  EXPECT_EQ(
++      after_collapsed.y() - collapsed_group.y() - collapsed_header.bottom(),
++      GetLayoutConstant(LayoutConstant::kVerticalTabHeight) / 2 - 6);
++}
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
+@@ -19,13 +19,10 @@
+ 
+ namespace {
+ constexpr int kTabVerticalPadding = 2;
+-constexpr int kGroupLineWidth = 2;
+-constexpr int kGroupLineCollapsedLeadingPadding = 2;
+-constexpr int kGroupHeaderVerticalMargin = 3;
+ constexpr int kFocusedHeadersGap = 2;
+ 
+ int GetGroupHeaderHeight() {
+-  return GetHeliumUiDensity() == HeliumUiDensity::kComfortable ? 32 : 26;
++  return 24;  // 18px section content plus the 6px extended hit target.
+ }
+ }  // namespace
+ 
+@@ -41,19 +38,12 @@
+     const views::SizeBounds& size_bounds) const {
+   views::ProposedLayout layouts;
+   int width = 0;
+-  int height = kGroupHeaderVerticalMargin;
++  int height = 0;
+   auto tab_strip_collapse_state = TabGroupView().GetTabStripCollapseState();
+ 
+   gfx::Rect header_bounds;
+-  gfx::Rect group_line_bounds;
+-  group_line_bounds.set_width(kGroupLineWidth);
+-
+-  // If the tab strip is collapsed then the group line should appear on the
+-  // leading side of all grouped tabs and the header.
+   if (tab_strip_collapse_state !=
+       tabs::VerticalTabStripCollapseState::kExpanded) {
+-    group_line_bounds.set_x(kGroupLineCollapsedLeadingPadding);
+-    group_line_bounds.set_y(height);
+     header_bounds.set_x(
+         GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding));
+   }
+@@ -90,25 +80,14 @@
+                                      TabGroupView().group_header_->GetVisible(),
+                                      header_bounds);
+ 
+-  height +=
+-      header_bounds.height() + kGroupHeaderVerticalMargin + kTabVerticalPadding;
++  height += header_bounds.height();
+   width = std::max(width, header_bounds.width() + header_bounds.x());
+ 
+-  // If the tab strip is not collapsed then the group line is below and left
+-  // aligned with the header.
+-  if (tab_strip_collapse_state ==
+-      tabs::VerticalTabStripCollapseState::kExpanded) {
+-    group_line_bounds.set_x(0);
+-    group_line_bounds.set_y(height);
+-  }
+-
+   const auto children =
+       TabGroupView().collection_node_
+           ? TabGroupView().collection_node_->GetDirectChildren()
+           : TabCollectionNode::ChildViews();
+ 
+-  const bool is_focused = TabGroupView().IsGroupFocused();
+-
+   // Layout children in order. Children will have their preferred height and
+   // fill available width.
+   for (auto* child : children) {
+@@ -118,15 +97,12 @@
+     CHECK(!drag_data || !drag_data->should_hide);
+     bounds.set_y(drag_data ? drag_data->offset.y() : height);
+ 
+-    // If the tab strip is not collapsed and not focused then the groups tabs
+-    // should be inset.
++    // Keep the same row bounds as ordinary tabs in both sidebar states.
+     int child_x = 0;
+     if (tab_strip_collapse_state !=
+         tabs::VerticalTabStripCollapseState::kExpanded) {
+       child_x =
+           GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
+-    } else if (!is_focused) {
+-      child_x = TabGroupView::kTabLeadingPadding;
+     }
+     bounds.set_x(child_x);
+     // If width is bounded, child views should respect the width constraints
+@@ -141,21 +117,18 @@
+   // Remove excess padding.
+   height -= kTabVerticalPadding;
+ 
+-  if (!children.empty()) {
+-    group_line_bounds.set_height(height - group_line_bounds.y());
+-  }
+-  const bool show_group_line =
+-      !TabGroupView().IsGroupFocused() && !TabGroupView().is_collapsed();
+   if (TabGroupView().group_line_) {
+-    layouts.child_layouts.emplace_back(TabGroupView().group_line_.get(),
+-                                       show_group_line, group_line_bounds);
++    layouts.child_layouts.emplace_back(TabGroupView().group_line_.get(), false,
++                                       gfx::Rect());
+   }
+ 
+-  // Add extra padding below the group if not collapsed.
+   const bool is_group_collapsed = TabGroupView().IsCollapsed();
+-  if (!is_group_collapsed) {
+-    height += kTabVerticalPadding;
+-  }
++  // Group separation belongs to the group, even when its tabs are hidden.
++  // Include the parent's 2px row gap in the half-tab minus 6px separation.
++  const int trailing_margin =
++      GetLayoutConstant(LayoutConstant::kVerticalTabHeight) / 2 -
++      kTabVerticalPadding - 6;
++  height += trailing_margin;
+ 
+   // If the group is focused and we are handling a drag, we need to account for
+   // the dragged views' bottom bound.
+@@ -169,8 +142,7 @@
+   }
+ 
+   layouts.host_size = gfx::Size(
+-      width, is_group_collapsed
+-                 ? header_bounds.height() + (2 * kGroupHeaderVerticalMargin)
+-                 : std::max(height, dragged_view_bottom));
++      width, is_group_collapsed ? header_bounds.bottom() + trailing_margin
++                                : std::max(height, dragged_view_bottom));
+   return layouts;
+ }
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
+@@ -6,6 +6,11 @@
+ 
+ #include <cmath>
+ 
++#include "chrome/browser/ui/layout_constants.h"
++#include "ui/views/controls/image_view.h"
++#include "ui/views/controls/label.h"
++#include "ui/views/layout/proposed_layout.h"
++
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
+ #include "ui/events/event.h"
+@@ -60,3 +65,23 @@
+   }
+   return scroll_view->IsHorizontalContentOverflowing() && dx >= dy;
+ }
++
++void LayoutSidebarSectionHeader(views::ProposedLayout& layout,
++                                views::Label* title,
++                                views::ImageView* disclosure,
++                                const gfx::Size& size,
++                                bool show_disclosure) {
++  auto* title_layout = layout.GetLayoutFor(title);
++  if (!title_layout) {
++    // LabelButton returns an empty layout for an unbounded size query.
++    return;
++  }
++  title_layout->bounds.set_y(0);
++  title_layout->bounds.set_height(size.height());
++  // Match the tab close slot, using the native symbol's 16px canvas.
++  const int tab_height = GetLayoutConstant(LayoutConstant::kVerticalTabHeight);
++  layout.child_layouts.emplace_back(
++      disclosure, show_disclosure && size.width() > 64,
++      gfx::Rect(size.width() - tab_height / 2 - 6, (size.height() - 16) / 2, 16,
++                16));
++}
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.h
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.h
+@@ -15,8 +15,11 @@
+ }
+ 
+ namespace views {
++class ImageView;
++class Label;
+ class View;
+-}
++struct ProposedLayout;
++}  // namespace views
+ 
+ // Returns the target bounds for the provided `view` in the tab strip
+ // hierarchy. For views managed by `TabCollectionAnimatingLayoutManager` this
+@@ -34,4 +37,13 @@
+                         TabStripOrientation orientation,
+                         const ui::GestureEvent& event);
+ 
++// Shared final title and disclosure placement for sidebar section headings.
++// Keep the caller's horizontal title allocation; center text in the full cell,
++// as LabelButton does for Older Tabs, without applying vertical border insets.
++void LayoutSidebarSectionHeader(views::ProposedLayout& layout,
++                                views::Label* title,
++                                views::ImageView* disclosure,
++                                const gfx::Size& size,
++                                bool show_disclosure);
++
+ #endif  // CHROME_BROWSER_UI_VIEWS_TABS_COMMON_TAB_STRIP_UTILS_H_
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -40,6 +40,7 @@
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_drag_handler.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_view.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_view.h"
+ #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_horizontal_layout.h"
+@@ -135,16 +136,11 @@
+   views::ProposedLayout CalculateProposedLayout(
+       const views::SizeBounds& size_bounds) const override {
+     auto layout = views::LabelButton::CalculateProposedLayout(size_bounds);
+-    const int width = size_bounds.width().value_or(0);
+-    const int height = size_bounds.height().value_or(0);
+-    // Match the tab close icon's horizontal center even though section
+-    // headings are shorter than a tab row. Lift the native SF artwork 3px
+-    // optically to center it on the text. Hover never changes geometry.
+-    const int tab_height =
+-        GetLayoutConstant(LayoutConstant::kVerticalTabHeight);
+-    layout.child_layouts.emplace_back(
+-        chevron_.get(), IsMouseHovered() && width > 64,
+-        gfx::Rect(width - tab_height / 2 - 6, (height - 16) / 2, 16, 16));
++    LayoutSidebarSectionHeader(
++        layout, label(), chevron_,
++        gfx::Size(size_bounds.width().value_or(0),
++                  size_bounds.height().value_or(0)),
++        IsMouseHovered());
+     return layout;
+   }
+ 
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -88,6 +88,7 @@
+   const int text_inset =
+       GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
+   bool previous_older_tab = false;
++  bool previous_visible_group = false;
+   auto layout_tab = [&](views::View* child, bool older_slot) {
+     int x =
+         views::AsViewClass<TabGroupView>(child) &&
+@@ -139,12 +140,19 @@
+     const auto drag_data = container.GetVisualDataForDraggedView(*child);
+     const bool visible = IsChildVisibleInContainer(focused_group_id, child) &&
+                          (!older_slot || show_older);
++    const bool is_group = views::AsViewClass<TabGroupView>(child) != nullptr;
++    // Give each group 6px of leading space, collapsing that added margin
++    // against a preceding group's existing trailing separation.
++    if (visible && is_group && !previous_visible_group) {
++      height += 6;
++    }
+     bounds.set_y(drag_data ? drag_data->offset.y() : height);
+     if (!visible) {
+       bounds.set_height(0);
+     }
+     layouts.child_layouts.emplace_back(child, visible, bounds);
+     if (visible) {
++      previous_visible_group = is_group;
+       previous_older_tab = older_slot;
+       height += bounds.height() + kTabVerticalPadding;
+       width = std::max(width, bounds.right());
+--- a/chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.cc
++++ b/chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.cc
+@@ -49,6 +49,7 @@
+ #include "chrome/browser/ui/tabs/tab_group_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
++#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+ #include "chrome/browser/ui/views/bubble_menu_item_factory.h"
+@@ -426,19 +427,21 @@
+   const tab_groups::TabGroupVisualData* new_visuals =
+       change.GetVisualsChange()->new_visuals;
+ 
+-  const std::optional<int> selected_color =
+-      color_selector_->GetSelectedElement();
+-
+-  const bool color_changed =
+-      !selected_color.has_value() ||
+-      static_cast<int>(colors_.size()) <= selected_color.value() ||
+-      colors_[selected_color.value()].first != new_visuals->color();
+-
+-  if (color_changed) {
+-    const std::optional<size_t> index = GetIndexOf(color_selector_);
+-    CHECK(index.has_value());
+-    RemoveChildViewT<ColorPickerView>(color_selector_);
+-    color_selector_ = AddChildViewAt(BuildColorPicker(), index.value());
++  if (color_selector_) {
++    const std::optional<int> selected_color =
++        color_selector_->GetSelectedElement();
++
++    const bool color_changed =
++        !selected_color.has_value() ||
++        static_cast<int>(colors_.size()) <= selected_color.value() ||
++        colors_[selected_color.value()].first != new_visuals->color();
++
++    if (color_changed) {
++      const std::optional<size_t> index = GetIndexOf(color_selector_);
++      CHECK(index.has_value());
++      RemoveChildViewT<ColorPickerView>(color_selector_);
++      color_selector_ = AddChildViewAt(BuildColorPicker(), index.value());
++    }
+   }
+ 
+   const bool text_changed = title_field_->GetText() != new_visuals->title();
+@@ -460,7 +463,7 @@
+     return;
+   }
+   const std::optional<int> selected_element =
+-      color_selector_->GetSelectedElement();
++      color_selector_ ? color_selector_->GetSelectedElement() : std::nullopt;
+   TabGroup* const tab_group =
+       browser_->GetTabStripModel()->group_model()->GetTabGroup(group_);
+ 
+@@ -629,7 +632,11 @@
+ 
+   title_field_ = AddChildView(title_field ? std::move(title_field)
+                                           : BuildTitleField(title_at_opening_));
+-  color_selector_ = AddChildView(BuildColorPicker());
++  const auto* vertical_state =
++      tabs::VerticalTabStripStateController::From(browser_);
++  if (!vertical_state || !vertical_state->ShouldDisplayVerticalTabs()) {
++    color_selector_ = AddChildView(BuildColorPicker());
++  }
+   if (IsEphemeralTabGroup()) {
+     AddChildView(BuildEphemeralGroupButtons());
+     return;
