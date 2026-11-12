@@ -2,7 +2,8 @@
 """Exercise production address-bar scope layout and key handling with AppKit.
 
 Engine/browser doubles isolate scope transitions. Real catalogue ranking is
-covered by check-command-bangs.py; navigation needs a browser fixture.
+covered by check-command-bangs.py; word movement by check-native-word-navigation.py.
+Navigation needs a browser fixture.
 """
 import argparse
 from pathlib import Path
@@ -34,6 +35,11 @@ program = r'''
 #include <optional>
 #include <string>
 #include <vector>
+// This fixture sends scope commands only. The production word adapter is
+// exercised with real Chromium ICU by check-native-word-navigation.py.
+namespace helium {
+bool HandleNativeWordNavigation(NSControl*, NSTextView*, SEL) { return false; }
+}
 namespace base {
 NSString* SysUTF16ToNSString(const std::u16string& s) {
   return [[NSString alloc] initWithCharacters:(const unichar*)s.data() length:s.size()];

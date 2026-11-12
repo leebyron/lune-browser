@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "3aa1b256f8b18b802b2d076a293a953417c9697d",
+    "commit": "f90cd9d3c45a540b813c8d4d215f4c73159cede5",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -825,6 +825,10 @@
       {
         "path": "patches/helium/ui/toolbar-hover-order.patch",
         "sha256": "a7117490154ad62b3ea9df817269edb380eb86d9a0030d7591557a948163d16e"
+      },
+      {
+        "path": "patches/helium/ui/native-word-navigation.patch",
+        "sha256": "3800a89bab1d4cae7246f78d91a46d3441d435624b9aa610ed22667861f59730"
       }
     ]
   },
@@ -2294,6 +2298,23 @@
       "adaptation": "Unchanged independently reviewed ordering patch composed onto the latest session-restore input without dropping its patch. Strict zero-fuzz/zero-offset replay passes for all three files. Both browser builds, packaged Settings/mode persistence, browsing and setup checks pass, with Intel under Rosetta. Native Apple silicon menu inspection confirms the exact requested order. No hover or retention behavior changes. See agent-docs/project/builds/2026-11-12-toolbar-hover-order.json.",
       "commits": [
         "3aa1b256f8b18b802b2d076a293a953417c9697d"
+      ]
+    },
+    {
+      "id": "native-word-navigation",
+      "depends_on": [
+        "native-glass-command-bar",
+        "native-floating-address"
+      ],
+      "patches": [
+        "patches/helium/ui/native-word-navigation.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use Chromium hostname-aware word boundaries for native Cmd-T and address-bar Option-Arrow navigation and Option-Shift-Arrow selection.",
+      "adaptation": "Shared AppKit cell installs scoped text storage before typing, preserving undo. Chromium ICU supplies only word boundaries while AppKit retains selection anchors, bidi motion, marked text and other native commands. The owner accepted the Apple silicon preview on November 12, 2026 and requested commit/push and build inclusion. Both browser builds, UI/settings/browsing smoke, 117 production native checks per architecture and 73 tooling tests pass; Intel runs under Rosetta. Review builds include the recorded pending development UI topics. Full affected-file replay of the current input has zero fuzz; the refreshed feature has zero offsets and identical tested adapter bytes. Earlier parent-patch offsets are retained in the evidence. Physical Intel/macOS 13 and broad IME/accessibility runtime checks remain unverified. See agent-docs/project/features/native-word-navigation.md.",
+      "commits": [
+        "e4ef36463128b2e76892c12c80d983ce31dec43c",
+        "f90cd9d3c45a540b813c8d4d215f4c73159cede5"
       ]
     }
   ],
