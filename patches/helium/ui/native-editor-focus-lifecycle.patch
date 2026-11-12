@@ -1,7 +1,7 @@
-Index: word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+Index: prepared-src/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
 ===================================================================
---- word-base.orig/chrome/browser/ui/helium/helium_command_bar_view_mac.mm	2026-11-12 12:28:32.462269550 -0800
-+++ word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm	2026-11-12 12:28:32.467421919 -0800
+--- prepared-src.orig/chrome/browser/ui/helium/helium_command_bar_view_mac.mm	2026-11-12 12:28:51.694989579 -0800
++++ prepared-src/chrome/browser/ui/helium/helium_command_bar_view_mac.mm	2026-11-12 13:36:46.288723193 -0800
 @@ -15,6 +15,7 @@
  #include "chrome/browser/ui/helium/native_result_row_mac.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -31,7 +31,7 @@ Index: word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
      pane.input.delegate = nil;
      pane.onQuery = nil;
      pane.onCommand = nil;
-@@ -247,6 +252,71 @@
+@@ -247,6 +252,74 @@
    [view->native_->pane.input.window
        makeFirstResponder:view->native_->pane.input];
    [view->native_->pane.input selectText:nil];
@@ -88,7 +88,10 @@ Index: word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
 +          }
 +          return event;
 +        }
-+        if (event.window) {
++        // The click that brings Lune forward preserves the suspended input.
++        // A later click dismisses even if native editor activation is delayed.
++        if (event.window &&
++            ![pane.input isApplicationActivationClick:event]) {
 +          const NSPoint screen_point =
 +              [event.window convertPointToScreen:event.locationInWindow];
 +          const NSRect content = [pane.window convertRectToScreen:
@@ -103,7 +106,7 @@ Index: word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
    return view;
  }
  
-@@ -276,8 +346,9 @@
+@@ -276,8 +349,9 @@
    native_->pane = pane;
    pane.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
    pane.rows = [[NSMutableArray alloc] init];
@@ -114,7 +117,7 @@ Index: word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
    pane.input.font = [NSFont systemFontOfSize:18];
    pane.input.bordered = NO;
    pane.input.drawsBackground = NO;
-@@ -410,6 +481,7 @@
+@@ -410,6 +484,7 @@
  
  HeliumCommandBarView::~HeliumCommandBarView() = default;
  void HeliumCommandBarView::Close() {
@@ -122,7 +125,7 @@ Index: word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
    if (GetWidget()) {
      GetWidget()->Close();
    }
-@@ -574,13 +646,22 @@
+@@ -574,13 +649,22 @@
    }
  }
  void HeliumCommandBarView::WindowClosing() {
@@ -146,10 +149,10 @@ Index: word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
    }
  }
  void HeliumCommandBarView::ContentsChanged(views::Textfield*,
-Index: word-base/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+Index: prepared-src/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
 ===================================================================
---- word-base.orig/chrome/browser/ui/views/frame/browser_frame_view_mac.mm	2026-11-12 12:28:32.465489197 -0800
-+++ word-base/chrome/browser/ui/views/frame/browser_frame_view_mac.mm	2026-11-12 12:28:32.468196467 -0800
+--- prepared-src.orig/chrome/browser/ui/views/frame/browser_frame_view_mac.mm	2026-11-12 12:28:51.698840232 -0800
++++ prepared-src/chrome/browser/ui/views/frame/browser_frame_view_mac.mm	2026-11-12 12:28:51.719942676 -0800
 @@ -70,6 +70,7 @@
  #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
  #include "chrome/browser/ui/views/helium/native_frame_materials.h"
@@ -258,10 +261,10 @@ Index: word-base/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
    if (host && host->GetVisible()) {
      host->SetBoundsRect(bounds);
      [floating_address_bar_ refresh];
-Index: word-base/chrome/browser/ui/views/helium/BUILD.gn
+Index: prepared-src/chrome/browser/ui/views/helium/BUILD.gn
 ===================================================================
---- word-base.orig/chrome/browser/ui/views/helium/BUILD.gn	2026-11-12 12:28:32.456871345 -0800
-+++ word-base/chrome/browser/ui/views/helium/BUILD.gn	2026-11-12 10:18:29.033303555 -0800
+--- prepared-src.orig/chrome/browser/ui/views/helium/BUILD.gn	2026-11-12 12:28:51.559561000 -0800
++++ prepared-src/chrome/browser/ui/views/helium/BUILD.gn	2026-11-12 12:28:51.720910350 -0800
 @@ -62,6 +62,8 @@
        "native_frame_materials_mac.h",
        "native_frame_materials_mac.mm",
@@ -271,11 +274,11 @@ Index: word-base/chrome/browser/ui/views/helium/BUILD.gn
      ]
  
      deps += [
-Index: word-base/chrome/browser/ui/views/helium/native_text_field_mac.h
+Index: prepared-src/chrome/browser/ui/views/helium/native_text_field_mac.h
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ word-base/chrome/browser/ui/views/helium/native_text_field_mac.h	2026-11-12 11:49:33.995332470 -0800
-@@ -0,0 +1,21 @@
++++ prepared-src/chrome/browser/ui/views/helium/native_text_field_mac.h	2026-11-12 13:36:46.288147069 -0800
+@@ -0,0 +1,23 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -293,15 +296,17 @@ Index: word-base/chrome/browser/ui/views/helium/native_text_field_mac.h
 +@property(nonatomic) BOOL restoresPopupKeyWindow;
 +// Explicit in-app ownership transfer, separate from temporary app deactivation.
 +@property(nonatomic, copy) void (^onFocusTransferred)(void);
++// A click generated before activation only returns the app to the foreground.
++- (BOOL)isApplicationActivationClick:(NSEvent*)event;
 +- (void)cancelFocusRestoration;
 +@end
 +
 +#endif  // CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_TEXT_FIELD_MAC_H_
-Index: word-base/chrome/browser/ui/views/helium/native_text_field_mac.mm
+Index: prepared-src/chrome/browser/ui/views/helium/native_text_field_mac.mm
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ word-base/chrome/browser/ui/views/helium/native_text_field_mac.mm	2026-11-12 11:49:33.995934077 -0800
-@@ -0,0 +1,125 @@
++++ prepared-src/chrome/browser/ui/views/helium/native_text_field_mac.mm	2026-11-12 13:36:46.288291028 -0800
+@@ -0,0 +1,135 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -311,6 +316,7 @@ Index: word-base/chrome/browser/ui/views/helium/native_text_field_mac.mm
 +@implementation HeliumNativeTextField {
 +  BOOL _preservingFocus;
 +  NSRange _savedSelection;
++  NSTimeInterval _activationTimestamp;
 +}
 +@synthesize restoresPopupKeyWindow = _restoresPopupKeyWindow;
 +@synthesize onFocusTransferred = _onFocusTransferred;
@@ -336,6 +342,12 @@ Index: word-base/chrome/browser/ui/views/helium/native_text_field_mac.mm
 +  return _preservingFocus;
 +}
 +
++- (BOOL)isApplicationActivationClick:(NSEvent*)event {
++  return !NSApp.active ||
++      (_activationTimestamp > 0 && event.timestamp > 0 &&
++       event.timestamp <= _activationTimestamp);
++}
++
 +- (void)cancelFocusRestoration {
 +  _preservingFocus = NO;
 +}
@@ -349,6 +361,9 @@ Index: word-base/chrome/browser/ui/views/helium/native_text_field_mac.mm
 +}
 +
 +- (void)applicationDidBecome:(NSNotification*)notification {
++  // NSEvent timestamps share system uptime. Delivery can occur after the app
++  // has become active, so retain the boundary rather than a dismissal delay.
++  _activationTimestamp = NSProcessInfo.processInfo.systemUptime;
 +  [self noteFocusRingMaskChanged];
 +  [self restoreFocusAfterActivation];
 +}
