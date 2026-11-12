@@ -1,6 +1,6 @@
 # Sidebar new-tab placement
 
-Requested November 6–7, 2026. Development implementation; not release-accepted.
+Requested November 6–7, 2026. See the development lock and frozen release inputs for current inclusion. The November 11 refinement below is owner-accepted for future main builds.
 
 ## Behavior
 
@@ -94,3 +94,42 @@ These are incremental development builds, not fresh release preparation. Native
 Intel hardware and the full light/dark, collapsed, detached, scrolling, split-tab,
 and horizontal-mode interaction matrix have not been accepted for this change.
 No release or deployment was performed.
+
+## New Tab button refinement — November 11, 2026
+
+The sidebar plus icon paints at 70% opacity and its label at 50%, relative to the
+existing theme foreground. Hover backgrounds and row geometry retain their
+existing behavior. The website demo applies the same independent opacities in
+pinned and floating sidebars.
+
+Pressing a New Tab button opens the command menu through the existing Cmd-T
+controller. If the menu is already showing, the button closes it and creates one
+new tab through the original action. Mouse-down captures the menu state before
+popup deactivation so releasing the button does not reopen it. With the command
+menu disabled, direct creation remains available; Linux middle-click clipboard
+handling retains its earlier path. The website's illustrated menu likewise opens
+on first activation and its second activation opens the existing Lune link in a
+new browser tab. Escape, clicking elsewhere and scrolling dismiss/reset the
+manual illustration; Reduced Motion keeps manual activation available.
+
+The focused platform patch is `helium/ui/new-tab-button-command-menu.patch`,
+based on `4c97c78c54a326e093e35552c466181269ea4e10` and selected by
+`inputs/new-tab-button-1/macos`. It was developed with quilt in the prepared tree,
+refreshed and exported with the platform unmerge tool. This input contains only
+the button change; the unrelated tab-group preview patch is excluded.
+
+Both arm64 and x86_64 compilation/linking pass, as do focused shared/vertical GN
+checks, patch lint and replay of all four changed files from retained prepared
+preimages with zero fuzz, zero offsets and byte parity. This is focused replay,
+not a fresh full-tree preparation. The incremental source workspace also carries
+an unrelated tab-group preview; its source files do not overlap this patch.
+Native Apple silicon inspection verifies the first press opens the menu and two
+presses create exactly one tab (seven tabs become eight). The owner accepted the
+preview with “Looks good” and requested a focused commit for all main builds.
+
+Website checks confirm 0.7/0.5 computed opacity, both sidebar modes, first-open /
+second-new-tab behavior, dark mode, Reduced Motion and a phone-sized viewport.
+JavaScript syntax and the deployment dry run pass. Phone emulation does not
+establish physical iPhone acceptance. No browser release is modified and no
+specific GitHub issue is associated with this refinement. Compact build and replay
+evidence is in [the adoption record](../builds/2026-11-11-new-tab-button.json).

@@ -93,6 +93,8 @@ svg { display: block; }
   #lune .sidebar-toggle { display:grid; place-items:center; width:36px; height:36px; padding:0; border:0; border-radius:6px; background:transparent; cursor:default; color:var(--toolbar-ink); }
   #lune .sidebar-toggle:hover { color:var(--toolbar-hover); }
   #lune .browser-tab.sidebar-new-tab { color:inherit; margin-bottom:0; }
+  #lune .sidebar-new-tab > svg { opacity:.7; }
+  #lune .sidebar-new-tab > span { opacity:.5; }
   #lune .sidebar-favorites { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; padding:0 0 6px; flex:none; }
   #lune .sidebar-favorites a { display:grid; place-items:center; height:30px; border-radius:8px; background:light-dark(#23455012,#DDE7EA12); }
   #lune .sidebar-favorites a { color:inherit; text-decoration:none; cursor:default; }
@@ -119,7 +121,6 @@ svg { display: block; }
   #lune .browser-tab.selected { background:var(--tab-selected); }
   #lune .window:not([data-sidebar="pinned"]) .browser-tab { color:light-dark(#252525,#EEEEEE); }
   #lune .window:not([data-sidebar="pinned"]) .browser-tab.selected { background:var(--tab-selected); color:var(--text); }
-  #lune .window:not([data-sidebar="pinned"]) .sidebar-new-tab { color:light-dark(#666666,#B8B8B8); }
   #lune .header-shield { position:absolute; z-index:24; inset:0 0 auto; height:52px; pointer-events:none; }
   #lune .window[data-toolbar-open] .header-shield { pointer-events:auto; }
   #lune .toolbar-region { position:absolute; z-index:25; top:0; left:calc(var(--sidebar-width) + 4px); right:0; height:52px; container-type:inline-size; transition:left 260ms cubic-bezier(.2,.8,.2,1); pointer-events:none; }
@@ -304,7 +305,8 @@ svg { display: block; }
   #lune .viewport { transition:left 260ms cubic-bezier(.2,.8,.2,1); }
 }
 @media(prefers-reduced-motion:reduce) {
-  #lune .command-demo { display:none; transition:none; }
+  #lune .command-demo { transition:none; }
+  #lune .command-demo:not([data-command-manual]) { display:none; }
   #lune .mote-float { animation:none; offset-path:none; }
   #lune .prelude-note p,#lune .flow-point p { transition:none; opacity:1; transform:none; mask-image:none; }
   #lune .window { animation:none; }

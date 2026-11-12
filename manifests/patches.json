@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "4c97c78c54a326e093e35552c466181269ea4e10",
+    "commit": "fba622e9794eba10df8db0ae455118e1790f5ff1",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -769,6 +769,10 @@
       {
         "path": "patches/helium/ui/sidebar-drag-header-retention.patch",
         "sha256": "cc03dce6c830133da3cf9bbd63ace5c46ce605d13651b6a76a79ac01e62a41dc"
+      },
+      {
+        "path": "patches/helium/ui/new-tab-button-command-menu.patch",
+        "sha256": "1d900e82793e1c8a2be8fe57190e51dcba08d0cef30f76c7384c9414d34968e9"
       }
     ]
   },
@@ -2020,6 +2024,22 @@
       "adaptation": "Developed in prepared Chromium with quilt, refreshed and unmerged. Native window dragging joins the existing resize/menu presentation hold; pinning, Customize and explicit header-menu reveals retain precedence. Both builds, 4096-state production-expression regressions and browser smoke/settings checks pass (Intel under Rosetta). The owner accepted the reported native drag interaction on November 11, 2026; issue #29 is closed and future main builds include the pinned fix. See agent-docs/project/features/sidebar-drag-header-retention.md.",
       "commits": [
         "4c97c78c54a326e093e35552c466181269ea4e10"
+      ]
+    },
+    {
+      "id": "new-tab-button-command-menu",
+      "depends_on": [
+        "sidebar-new-tab",
+        "native-glass-command-bar"
+      ],
+      "patches": [
+        "patches/helium/ui/new-tab-button-command-menu.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use 70% icon and 50% label opacity for the sidebar New Tab button. Follow Cmd-T: open the command menu first, then create a tab when already showing.",
+      "adaptation": "Owner accepted the native preview and website demo on November 11, 2026. Developed in prepared Chromium with quilt, refreshed and unmerged into a focused platform input. Both architecture builds, focused GN checks and zero-fuzz replay pass; native Apple silicon button interactions pass. The shared button preserves direct creation when the command menu is disabled and Linux clipboard middle-click behavior. See agent-docs/project/features/sidebar-new-tab.md.",
+      "commits": [
+        "fba622e9794eba10df8db0ae455118e1790f5ff1"
       ]
     }
   ],

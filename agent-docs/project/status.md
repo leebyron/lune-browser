@@ -44,6 +44,8 @@ The owner-accepted [automatic Older Tabs](features/older-tabs.md) feature is sel
 
 The development lock includes the [sidebar drag header fix](features/sidebar-drag-header-retention.md) through `inputs/sidebar-drag-header-1/macos`. Native window dragging preserves the header's existing presentation. Both builds, focused/smoke checks and the post-push setup check pass. The owner accepted the native preview on November 11, 2026. The source input and main integration are published, future main builds include the fix, and issue #29 is closed.
 
+The owner-accepted [New Tab button refinement](features/sidebar-new-tab.md#new-tab-button-refinement--november-11-2026) is selected for future main builds through `inputs/new-tab-button-1/macos`. The sidebar icon uses 70% opacity and its label 50%; the button opens the Cmd-T menu, then creates a tab on a repeated press while the menu is open. Both architecture builds, focused GN checks, zero-fuzz replay and native Apple silicon interactions pass. The website demo matches the appearance and two-press sequence. Published browser releases retain their frozen inputs.
+
 ## Hosting and automation
 
 The public source repository also hosts releases and paired raw-GitHub stable feeds. The [Cloudflare website](website.md) links to fixed GitHub latest-asset URLs. Optional browser services use Helium's hosted service; Lune-hosted services are not deployed.

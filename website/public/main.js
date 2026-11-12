@@ -10,6 +10,7 @@
   const toolbarRegion=root.querySelector('.toolbar-region'),toolbarRail=root.querySelector('.toolbar-rail'),toolbar=root.querySelector('.browser-toolbar');
   const commandDemo=root.querySelector('.command-demo'),commandQuery=commandDemo.querySelector('.command-demo-query'),commandScope=commandDemo.querySelector('.command-demo-scope');
   const commandPlaceholder=commandDemo.querySelector('.command-demo-placeholder');
+  let commandOverride=null;
   let commandStart=0,bangStart=0,commandComplete=0,commandDismiss=0,commandEnd=0,bangStartedAt=null,commandFrame=0;
   let panelPointer=null,cursorPath=null,cursorPathLength=0,browserScale=1;
   const panelDismissDistance=48;
@@ -444,6 +445,10 @@
     stamens.style.opacity=.6+.4*bloom;
   }
   function updateCommandDemo(y) {
+    if(commandOverride!==null) {
+      renderCommandDemo(commandOverride,'',false);
+      return;
+    }
     const active=appVisible&&!reduce.matches&&y>=commandStart&&y<commandEnd;
     if(!active||y<bangStart) {
       if(commandFrame)cancelAnimationFrame(commandFrame);
@@ -467,6 +472,8 @@
     if(elapsed<1100&&!commandFrame)commandFrame=requestAnimationFrame(()=>{commandFrame=0;updateCommandDemo(scroll.scrollTop);});
   }
   function renderCommandDemo(state,query,scoped) {
+    commandDemo.toggleAttribute('data-command-manual',commandOverride!==null);
+    commandDemo.setAttribute('aria-hidden',String(commandOverride!=='open'));
     if(commandDemo.dataset.commandState!==state)commandDemo.dataset.commandState=state;
     // Fade the whole pane away without changing its input state.
     if(state==='closed')return;
@@ -684,13 +691,39 @@
     root.classList.add('app-open');
   }
   function close(){
-    if(!launched&&!appVisible)return;sidebarHovered=false;panelPointer=null;demoToolbarActive=false;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
+    if(!launched&&!appVisible)return;commandOverride=null;sidebarHovered=false;panelPointer=null;demoToolbarActive=false;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
     root.classList.remove('app-open','app-fast');root.querySelector('.lune').classList.remove('launching');
   }
   function returnToDesktop() {
     scroll.scrollTo({top:0,behavior:reduce.matches?'instant':'smooth'});
     scroll.focus({preventScroll:true});
   }
+  const newTabButton=sidebar.querySelector('.sidebar-new-tab');
+  newTabButton.addEventListener('click', event => {
+    if(commandDemo.dataset.commandState!=='closed') {
+      commandOverride='closed';
+    } else {
+      event.preventDefault();
+      commandOverride='open';
+    }
+    if(commandFrame)cancelAnimationFrame(commandFrame);
+    commandFrame=0;bangStartedAt=null;
+    updateCommandDemo(scroll.scrollTop);
+  });
+  win.addEventListener('pointerdown', event => {
+    if(commandOverride==='open'&&!newTabButton.contains(event.target)) {
+      commandOverride='closed';
+      updateCommandDemo(scroll.scrollTop);
+    }
+  });
+  win.addEventListener('keydown', event => {
+    if(event.key==='Escape'&&commandOverride==='open') {
+      commandOverride='closed';
+      updateCommandDemo(scroll.scrollTop);
+      newTabButton.focus({preventScroll:true});
+    }
+  });
+  scroll.addEventListener('scroll', () => {commandOverride=null;}, {passive:true});
   sidebar.querySelectorAll('.tab-close').forEach(button => {
     button.addEventListener('click', () => {
       const tab=button.closest('.browser-tab');

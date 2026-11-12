@@ -10,6 +10,11 @@ workflow. See [the deployment runbook](../agent-docs/project/website.md).
 
 ## Behavior
 
+- The New Tab row uses 70% icon and 50% label opacity in both sidebar modes.
+  Its first activation opens the illustrated command menu; its second opens
+  Lune in a new tab. Escape, outside clicks and scrolling dismiss/reset the
+  manual menu, which remains available with Reduced Motion enabled.
+
 - The desktop fills the viewport. The browser window is at most 720px tall and
   at most 10/6 as wide as its height, centered in the desktop space above the Dock.
 - Launch starts after 96px of scrolling. Clicking the chevron or Lune Dock icon

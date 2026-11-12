@@ -1,0 +1,142 @@
+{
+  "date": "2026-11-11",
+  "status": "owner-accepted; selected for future main builds",
+  "platform_commit": "fba622e9794eba10df8db0ae455118e1790f5ff1",
+  "platform_tree": "fb2733010577b9c4b8a5b8c4d95fecfd783d2f73",
+  "platform_ref": "refs/tags/inputs/new-tab-button-1/macos",
+  "platform_base": "4c97c78c54a326e093e35552c466181269ea4e10",
+  "patch": "patches/helium/ui/new-tab-button-command-menu.patch",
+  "patch_sha256": "1d900e82793e1c8a2be8fe57190e51dcba08d0cef30f76c7384c9414d34968e9",
+  "builds": {
+    "Default": {
+      "exit_code": 0,
+      "seconds": 154.5454080104828
+    },
+    "Intel": {
+      "exit_code": 0,
+      "seconds": 174.20484709739685
+    }
+  },
+  "focused_gn_checks": {
+    "Default/shared": 0,
+    "Default/vertical": 0,
+    "Intel/shared": 0,
+    "Intel/vertical": 0
+  },
+  "replay": {
+    "passed": true,
+    "scope": "Focused patch against exact prepared preimages; not full-tree preparation",
+    "patch_sha256": "1d900e82793e1c8a2be8fe57190e51dcba08d0cef30f76c7384c9414d34968e9",
+    "files": {
+      "chrome/browser/ui/views/tabs/shared/BUILD.gn": "829d00e1ae1f66facc9026337e846c60eef110aa0f37189f62042dc00cf0b50d",
+      "chrome/browser/ui/views/tabs/shared/new_tab_button.cc": "b2cda4c1839bf395b83a3b6308bb2ed39f670b69d1bf0c8e7fdbf0c93c66993a",
+      "chrome/browser/ui/views/tabs/shared/new_tab_button.h": "9bbf9d4ea62855d41638d592c40a8823e3cc434a222d7e1a1543df6155ac575c",
+      "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc": "7b122375cf57307ccd26b4e7a32b93b768d9f81b2e02f636a3e3a61a9ffe0b56"
+    },
+    "fuzz": 0,
+    "offsets": 0
+  },
+  "patch_lint": true,
+  "native_interaction": {
+    "architecture": "arm64",
+    "first_press": "command menu opened",
+    "two_presses": "one tab created; 7 to 8 tabs",
+    "opacity": "icon 0.7 and label 0.5 compositor layers",
+    "owner_acceptance": "Looks good, create a focused commit with this change only so its included in all main builds"
+  },
+  "website": {
+    "opacities": [
+      0.7,
+      0.5
+    ],
+    "pinned_and_floating": true,
+    "first_press_opens_menu": true,
+    "second_press_opens_tab": true,
+    "dark_and_reduced_motion": true,
+    "phone_viewport": [
+      393,
+      740
+    ],
+    "javascript_syntax": true,
+    "deployment_dry_run": true,
+    "stable_mac_observation": "157.0.8103.79"
+  },
+  "incremental_workspace_limit": "Prepared source also contains the unrelated neutral-tab-groups preview patch; it is excluded from this input and touches different files. No fresh full-tree preparation or physical Intel acceptance claimed.",
+  "release_modified": false,
+  "specific_issue": null,
+  "smoke": {
+    "arm64": {
+      "bundle_id": "computer.lune.browser",
+      "architecture": "arm64",
+      "test_host_architecture": "arm64",
+      "chromium_version": "158.0.8127.18",
+      "executable_sha256": "d09a67c3e9abe1a8fc204245e7ec581f8cf77616a80423048aacb8c0fe01118e",
+      "framework_sha256": "b21924141b505e5d5edb1e7da535a7519305dde893876ae1b5011e872f31f144",
+      "driver_version": "ChromeDriver 158.0.8127.18 (6449d9f9a6a906edff724b7b220199b3fde4615c-refs/branch-heads/8127@{#845})",
+      "app_version": "0.22.1.1",
+      "checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "mode": "headless",
+      "release_validated": false,
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "passed": true
+    },
+    "x86_64": {
+      "bundle_id": "computer.lune.browser",
+      "architecture": "x86_64",
+      "test_host_architecture": "arm64",
+      "chromium_version": "158.0.8127.18",
+      "executable_sha256": "dc843f08573ed7c9f931976e17dbc3ccebefb2a3f69192683f8126c0bd38227c",
+      "framework_sha256": "863104c80ea6174bbd40d0895dbc1ee00167b4865339191cc44bd0ab052657a5",
+      "driver_version": "ChromeDriver 158.0.8127.18 (6449d9f9a6a906edff724b7b220199b3fde4615c-refs/branch-heads/8127@{#845})",
+      "app_version": "0.22.1.1",
+      "checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "mode": "headless",
+      "release_validated": false,
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "passed": true
+    }
+  },
+  "repository_tests": 73,
+  "locked_component_and_translation_checks": true,
+  "signed_input_and_commit_verified": true,
+  "cleanup": {
+    "preview_exited": true,
+    "removed": [
+      "isolated preview app and profile",
+      "generated focused replay tree"
+    ],
+    "retained": [
+      "signed component Git input",
+      "compact logs and reports",
+      "prepared source and both incremental build outputs"
+    ]
+  }
+}
