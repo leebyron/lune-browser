@@ -40,6 +40,8 @@ The final [setup toolbar dropdown](features/onboarding.md#setup-toolbar-choices-
 
 The [session-restore notice fix](features/session-restore-notice.md) is selected for future main builds through `inputs/session-restore-notice-1/macos`. The informational bar now requires saved browser tabs from the existing session read, independently of setup state. Both builds and real headed fresh/relaunch checks pass (Intel under Rosetta). Published 26.1111.2 remains unchanged.
 
+The owner-accepted [automatic Older Tabs](features/older-tabs.md) feature is selected for future main builds through `inputs/older-tabs-1/macos`. Inactive tabs move after 1 day by default and close after 3 further inactive days; Keep and drag-out restore regular placement. Pinned/split protection, optional group aging, Never/Immediately behavior, native section/date styling and conditional Keep commands follow the accepted preview. Both builds and startup/settings/lifecycle checks pass, with Intel runtime under Rosetta. Published 26.1111.2 remains unchanged.
+
 ## Hosting and automation
 
 The public source repository also hosts releases and paired raw-GitHub stable feeds. The [Cloudflare website](website.md) links to fixed GitHub latest-asset URLs. Optional browser services use Helium's hosted service; Lune-hosted services are not deployed.

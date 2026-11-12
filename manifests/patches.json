@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "651e911573be598a6cf348467169b4ce25ea6d36",
+    "commit": "a7fef19376b799585e4a62bfd9bfe25ba6d26d47",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -761,6 +761,10 @@
       {
         "path": "patches/helium/ui/session-restore-notice-with-tabs.patch",
         "sha256": "c6d599ddfe7701cb07c39f19eb0e16a68a55b03011a881a05ad9bacd43703b9f"
+      },
+      {
+        "path": "patches/helium/ui/automatic-older-tabs.patch",
+        "sha256": "43663257207174b6021b03e217dbb759c132283edcf3bc2843561d8bdec944bb"
       }
     ]
   },
@@ -1981,6 +1985,22 @@
       "adaptation": "Reuse the existing local session read to record profile-owned in-memory eligibility before restored windows open. Empty sessions, app sessions and other profiles do not trigger the notice; actual session restoration and crash-recovery prompts retain their existing behavior. Developed with quilt, refreshed and unmerged; strict locked-order replay matches all five changed files with zero fuzz and offsets. See agent-docs/project/features/session-restore-notice.md.",
       "commits": [
         "651e911573be598a6cf348467169b4ce25ea6d36"
+      ]
+    },
+    {
+      "id": "automatic-older-tabs",
+      "depends_on": [
+        "native-chrome-appearance",
+        "command-bar-actions"
+      ],
+      "patches": [
+        "patches/helium/ui/automatic-older-tabs.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Organize inactive live tabs in a collapsible Older Tabs section, with independent move/close durations and explicit Keep or drag-out restoration.",
+      "adaptation": "Owner accepted the native preview on November 11, 2026 and authorized adoption in main builds. Developed in prepared Chromium with quilt, refreshed and exported into the platform. Separate persisted clocks, frozen calendar buckets and logical ordering preserve activity and Keep/drag semantics. Pinned/split protection, optional group aging, Never disable behavior, Immediately closing, a three-day retention default and startup-mode persistence follow the reviewed design. Both architecture builds and runtime checks pass; Intel runs under Rosetta. See agent-docs/project/features/older-tabs.md and its adoption record.",
+      "commits": [
+        "a7fef19376b799585e4a62bfd9bfe25ba6d26d47"
       ]
     }
   ],

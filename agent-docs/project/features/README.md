@@ -4,6 +4,7 @@ Read [current status](../status.md) first. These records document implementation
 
 After a feature is validated and accepted, follow the [completion process](../committing.md): close its fully resolved issues, quit temporary previews and delete their disposable artifacts after retaining evidence.
 
+- [Automatic Older Tabs](older-tabs.md)
 - [Selected address-bar suggestions](address-suggestion-selection.md)
 - [Search-engine suggestions and top hits](search-suggestions.md)
 - [Application-menu update check](app-menu-update-check.md)

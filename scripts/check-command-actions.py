@@ -34,6 +34,9 @@ labels = {m.attrib['name']: ''.join(m.itertext()).strip()
 for message in ET.parse(args.source / 'chrome/app/chromium_strings.grd').iter('message'):
     if message.attrib.get('name') == 'IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE':
         labels[message.attrib['name']] = ''.join(message.itertext()).strip()
+for message in ET.parse(args.source / 'chrome/app/settings_strings.grdp').iter('message'):
+    if message.attrib.get('name') == 'IDS_OLDER_TABS_KEEP':
+        labels[message.attrib['name']] = ''.join(message.itertext()).strip()
 commands = sorted(set(re.findall(r'\bIDC_[A-Z_]+', registry)))
 label_ids = sorted(labels)
 definitions = '\n'.join(f'constexpr int {name} = {n};'
@@ -184,7 +187,7 @@ struct MediaSessionInfo {
 namespace tab_groups {using TabGroupId=int;}
 namespace content {class MediaSession;}
 namespace content {struct WebContents {
-  bool recently_audible=false,audibility_available=true;
+  bool older=false,recently_audible=false,audibility_available=true;
   MediaSession* media=nullptr;
   Profile* context=nullptr;std::string request_id;
   std::u16string title=u"Media target";
@@ -242,7 +245,17 @@ struct RecentlyAudibleHelper {
   }
   bool WasRecentlyAudible(){return page->recently_audible;}
 };
+namespace tabs {
+struct OlderTabsController {
+  bool enabled=true;int kept=0;
+  bool IsEnabled(){return enabled;}
+  static bool IsOlder(const content::WebContents* page){return page&&page->older;}
+  void Keep(content::WebContents* page){++kept;page->older=false;}
+};
+}
 struct TabStripModel {
+  tabs::OlderTabsController cleanup;
+  tabs::OlderTabsController* older_tabs_controller(){return &cleanup;}
   enum {CommandTogglePinned,CommandToggleSiteMuted,CommandToggleGrouped,CommandRemoveFromGroup};
   static constexpr int kNoTab=-1;
   bool groups_supported=true,group_enabled=true,confirm_removal=false;
@@ -328,12 +341,12 @@ struct HeliumCommandBarItem {
   std::u16string title,shortcut,description;std::string symbol_name,media_request_id;
 };
 namespace helium_command_bar_model {
-constexpr int kPinSidebar=-1,kMediaPlayPause=-2,kMediaPictureInPicture=-3,kMediaPreviousTrack=-4,kMediaNextTrack=-5,kMediaSeekBackward=-6,kMediaSeekForward=-7,kMediaStop=-8,kMediaSkipAd=-9;
+constexpr int kPinSidebar=-1,kMediaPlayPause=-2,kMediaPictureInPicture=-3,kMediaPreviousTrack=-4,kMediaNextTrack=-5,kMediaSeekBackward=-6,kMediaSeekForward=-7,kMediaStop=-8,kMediaSkipAd=-9,kKeepOlderTab=-10;
 constexpr int kScoreExact=140,kScorePrefix=70,kScoreWord=45,kScoreSubstring=20;
 ''' + function(model, 'bool IsWordBoundary(') + '\n' + function(model, 'int ScoreText(') + '\n}\n' + symbol_constants + body + mode_helpers + r'''
 int main() {
   using namespace helium_command_bar_model;
-  assert(std::size(kCommands)==53);
+  assert(std::size(kCommands)==54);
   assert(IsCommandSearchAccelerator({ui::VKEY_OEM_2,ui::EF_PLATFORM_ACCELERATOR}));
   assert(IsCommandSearchAccelerator({ui::VKEY_P,ui::EF_PLATFORM_ACCELERATOR|ui::EF_SHIFT_DOWN}));
   assert(!IsCommandSearchAccelerator({ui::VKEY_P,ui::EF_PLATFORM_ACCELERATOR}));
@@ -359,6 +372,21 @@ int main() {
   auto find=[&](const std::u16string& q,bool scope=true){return CommandsForQuery(&browser,q,scope);};
   auto get=[&](int command){auto item=CommandForId(&browser,command);assert(item);return *item;};
   auto has=[&](const auto& rows,int command){return std::ranges::any_of(rows,[&](const auto& r){return r.command==command;});};
+  assert(!CommandForId(&browser,kKeepOlderTab));
+  assert(!has(find(u"keep tab",false),kKeepOlderTab));
+  browser.strip.page.older=true;
+  auto keep=get(kKeepOlderTab);assert(keep.title==u"Keep Tab");
+  assert(has(find(u"keep tab",false),kKeepOlderTab));
+  assert(has(find(u"/keep tab"),kKeepOlderTab));
+  browser.strip.cleanup.enabled=false;
+  assert(!CommandForId(&browser,kKeepOlderTab));
+  assert(!ExecutePaletteCommand(&browser,keep));
+  browser.strip.cleanup.enabled=true;browser.strip.page.older=false;
+  assert(!ExecutePaletteCommand(&browser,keep));
+  browser.strip.page.older=true;
+  assert(ExecutePaletteCommand(&browser,keep));
+  assert(browser.strip.cleanup.kept==1&&!browser.strip.page.older);
+  assert(!CommandForId(&browser,kKeepOlderTab));
   assert(IsCommandQuery(u"/reload") && IsCommandQuery(u"  / reload"));
   assert(!IsCommandQuery(u"//") && !IsCommandQuery(u"//example.com"));
   assert(!IsCommandQuery(u">reload"));
@@ -606,7 +634,7 @@ int main() {
   browser.strip.active_present=false;assert(find(u"/").empty());
   browser.strip.active_present=true;browser.type=BrowserWindowInterface::Type::TYPE_APP;
   assert(find(u"/").empty());assert(!CommandForId(nullptr,IDC_NEW_TAB));
-  std::cout<<"PASS: production command catalogue, symbols, aliases, scope, policy/availability rechecks, single-pane pin/mute/grouping and deferred group confirmation, audibility gating and silent-site unmute, foreground-playing preference, toolbar-ordered background media and profile/target identity rechecks, playback/PiP/track/seek/stop/ad dispatch, stale toggle rejection, layout state, slash vs double-slash/greater-than prefixes, recency/frequency within match bands, stable usage keys, saturation and Incognito read-only history, active/custom/removed shortcuts and contextual wrapper routing, missing/unsupported windows\n";
+  std::cout<<"PASS: production command catalogue, conditional Older Keep action and stale-state rejection, symbols, aliases, scope, policy/availability rechecks, single-pane pin/mute/grouping and deferred group confirmation, audibility gating and silent-site unmute, foreground-playing preference, toolbar-ordered background media and profile/target identity rechecks, playback/PiP/track/seek/stop/ad dispatch, stale toggle rejection, layout state, slash vs double-slash/greater-than prefixes, recency/frequency within match bands, stable usage keys, saturation and Incognito read-only history, active/custom/removed shortcuts and contextual wrapper routing, missing/unsupported windows\n";
 }
 '''
 with tempfile.TemporaryDirectory(prefix='lune-command-actions-') as temporary:

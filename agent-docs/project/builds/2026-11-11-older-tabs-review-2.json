@@ -1,0 +1,250 @@
+{
+  "date": "2026-11-11",
+  "issue": "https://github.com/leebyron/lune-browser/issues/20",
+  "status": "Historical review-stage evidence; owner accepted November 11; superseded by 2026-11-11-older-tabs-adoption.json",
+  "main_commit": "e40306685abb96695743c460c2ec07e47e172880",
+  "review_branch": "automatic-older-tabs-review",
+  "platform_base": "651e911573be598a6cf348467169b4ce25ea6d36",
+  "core_base": "49bdc572bee38436250f9058351c8a328cd8c8ad",
+  "candidate_patch": ".work/older-tabs/platform/patches/helium/ui/automatic-older-tabs.patch",
+  "candidate_patch_sha256": "4d774f9552dc691dbe33d33d54c98ee79a7cbe84ccd31a69152b9331c35b09aa",
+  "requirements": [
+    "Stable calendar heading views animate with tab rows; headings are not drag sources",
+    "Individual Older tab can return to its frozen chronological slot or move into regular tabs; arbitrary Older reordering is rejected",
+    "Older Tabs has no count or leading icon; semibold system section typography at the same font size as tab labels",
+    "Trailing native chevron.down/chevron.forward only on hover; horizontal center matches tab close icon",
+    "Two thirds of a blank tab-row slot above section; 18px section content, 24px hit target extending upward, and 16px date headers share bottom clearance",
+    "No Today/Yesterday heading; weekday headings for days 2-7; final Older bucket beyond 7 calendar days",
+    "Smaller uppercase date labels aligned with section title, AppKit semantic secondary label color; date rows trim 2px at top and bottom",
+    "No additional inset in tab content; full-width rows",
+    "Move choices Never, 6 hours, 1 day, 2 days; close choices Immediately, 1 day, 2 days, 3 days, 7 days, Never",
+    "Immediately closes eligible aged regular tabs directly without entering Older; protections and launch/settings grace preserved",
+    "Move inactive tabs from groups defaults off; Never collapses both dependent settings",
+    "Group cleanup waits for saved-group initialization and pending restoration connections",
+    "Finder section weight/color: semibold system font matching tab-label metrics and native secondary label color",
+    "Header context menu: Close All Older Tabs, Keep All Older Tabs, Settings",
+    "Keep Tab available in both Command-T and Command-/ only for the active Older tab; availability revalidated before dispatch",
+    "Grouped-tab description exactly: Allow moving inactive tabs from tab groups to Older Tabs",
+    "Chevron lifted 3px to center against Older Tabs text",
+    "Date heading removes preceding Older tab row trailing 2px gap; following-tab clearance unchanged",
+    "Older tab menu omits creation, Add/Move, Pin, Close Other Tabs and Close Tabs Above; regular menu retains them",
+    "Pinned tabs never age; stale Older state on restored pinned tabs is cleared",
+    "Only Continue where you left off automatically restores Older Tabs across a clean quit; New Tab and specified-page startup modes do not",
+    "No redundant Organize inactive tabs UI or enable preference; Never suspends cleanup and presents every tab without Older section/date headings",
+    "Date labels use a further 15 percent alpha reduction and their glyphs sit 1px higher inside the unchanged layout box",
+    "Chevron uses the tab close icon 11pt medium / 16px canvas recipe and hovered tab foreground color; additional 2px adjustment removed",
+    "Default close retention is 3 days (72 hours), preserving the 7-day option"
+  ],
+  "runtime": {
+    "arm64": {
+      "execution": "native Apple silicon",
+      "cases": {
+        "settings": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review7-settings-arm64/report.json",
+          "scope": "Final settings and controller; final build differs only in chevron/date pixel placement"
+        },
+        "group_default_off": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review2-signed-groups-arm64-off-2/report.json"
+        },
+        "group_opt_in_restore": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review3-fixed-group-on-arm64/report.json"
+        },
+        "immediate_direct_close": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review2-signed-immediate-arm64/report.json"
+        },
+        "pinned_exclusion_and_repair": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review6-pinned-arm64/report.json",
+          "scope": "Background pinned B stays regular with old age, pinned C clears stale Older residency, overdue unpinned D enters Older"
+        },
+        "startup_continue": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review6-startup-arm64-continue/report.json",
+          "scope": "Real Settings preference; clean Browser.close and fresh launch without command-line URLs; inspect live tabs and saved Older identities/clocks"
+        },
+        "startup_new-tab": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review6-startup-arm64-new-tab/report.json",
+          "scope": "Real Settings preference; clean Browser.close and fresh launch without command-line URLs; inspect live tabs and saved Older identities/clocks"
+        },
+        "startup_urls": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review6-startup-arm64-urls/report.json",
+          "scope": "Real Settings preference; clean Browser.close and fresh launch without command-line URLs; inspect live tabs and saved Older identities/clocks"
+        },
+        "never": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review7-never-arm64/report.json",
+          "scope": "Final settings and controller; final build differs only in chevron/date pixel placement"
+        }
+      },
+      "scope": "Final controller/settings validated in review7; final review8 changes only the chevron/date pixel positions. Older menu, pinned/group, Immediately and command cases use the preceding revisions with unchanged affected behavior."
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "cases": {
+        "settings": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review7-settings-x86_64/report.json",
+          "scope": "Final settings/controller; final build differs only in chevron/date pixel placement"
+        },
+        "group_default_off": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review2-signed-groups-x86_64-off-2/report.json"
+        },
+        "group_opt_in_restore": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review3-fixed-group-on-x86_64/report.json"
+        },
+        "immediate_direct_close": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review2-signed-immediate-x86_64/report.json"
+        },
+        "pinned_exclusion_and_repair": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review6-pinned-x86_64/report.json",
+          "scope": "Background pinned B stays regular with old age, pinned C clears stale Older residency, overdue unpinned D enters Older"
+        },
+        "startup_continue": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review6-startup-x86_64-continue-2/report.json",
+          "scope": "Clean quit/relaunch with real startup preference; live tabs plus stable Older identities, frozen dates and close clocks"
+        },
+        "never": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review7-never-x86_64/report.json",
+          "scope": "Clean quit, real Settings preference, launch without command-line URL override; live tabs and saved residency verified"
+        },
+        "startup_new-tab": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review6-startup-x86_64-new-tab-2/report.json",
+          "scope": "Clean quit, real Settings preference, launch without command-line URL override; live tabs and saved residency verified"
+        },
+        "startup_urls": {
+          "passed": true,
+          "evidence": ".work/older-tabs/review7-urls-x86_64/report.json",
+          "scope": "Clean quit, real Settings preference, launch without command-line URL override; live tabs and saved residency verified"
+        }
+      },
+      "scope": "Final controller/settings validated in review7; final review8 changes only the chevron/date pixel positions. Older menu, pinned/group, Immediately and command cases use the preceding revisions with unchanged affected behavior."
+    }
+  },
+  "model_regressions": {
+    "count": 9,
+    "source_compile_arm64": true,
+    "source_compile_x86_64": true,
+    "full_test_binary_executed": false
+  },
+  "feature_replay": {
+    "passed": true,
+    "files": 28,
+    "fuzz": 0,
+    "offsets": 0,
+    "scope": "feature against exact retained preimages; not fresh full-stack preparation"
+  },
+  "gn_header_checks": [
+    {
+      "target": "//chrome/browser/ui/views/tabs/common:impl",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    },
+    {
+      "target": "//chrome/browser/ui/tabs:tab_strip_impl",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    },
+    {
+      "target": "//chrome/browser/ui/tabs:tab_menu_impl",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    },
+    {
+      "target": "//chrome/browser/ui/views/helium:native_frame_materials",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    },
+    {
+      "target": "//chrome/browser/ui/helium:helium_command_bar",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    }
+  ],
+  "regression_found_and_fixed": {
+    "symptom": "group opt-in could crash at restart before ChromeDriver attached",
+    "cause": "removing restored local groups before saved-group pending reconnection",
+    "fix": "observe service initialization and reconcile after pending actions complete",
+    "paired_saved_session_cases_passed": true
+  },
+  "limits": [
+    "Owner visual and native drag acceptance pending",
+    "Full model-test executable not linked or run",
+    "Fresh full-stack source preparation not passed; focused feature replay only",
+    "Intel runtime is Rosetta on Apple silicon; no physical Intel test",
+    "English fallback strings; translations not authored"
+  ],
+  "preview": {
+    "app": ".work/older-tabs/preview-review8-arm64/Lune.app",
+    "fixture": ".work/older-tabs/review8-native-arm64",
+    "keep_open_for_owner_review": true
+  },
+  "command_registry_regressions": {
+    "arm64": {
+      "passed": true,
+      "evidence": ".work/older-tabs/command-actions-arm64.log",
+      "scope": "production matching/availability/dispatch code with browser/controller doubles"
+    },
+    "x86_64": {
+      "passed": true,
+      "evidence": ".work/older-tabs/command-actions-x86_64.log",
+      "scope": "production matching/availability/dispatch code with browser/controller doubles"
+    }
+  },
+  "builds": {
+    "arm64": {
+      "exit_code": 0,
+      "seconds": 185.3589539527893
+    },
+    "x86_64": {
+      "exit_code": 0,
+      "seconds": 199.11547899246216
+    }
+  },
+  "source_hashes_evidence": ".work/older-tabs/review8-build-inputs.json",
+  "native_arm64_actions": {
+    "passed": true,
+    "evidence": [
+      ".work/older-tabs/native-review5-actions.json",
+      ".work/older-tabs/native-review5-close.json",
+      ".work/older-tabs/native-review6-menu.json",
+      ".work/older-tabs/native-review7-never.json"
+    ],
+    "checks": [
+      "exact context menu entries",
+      "Settings opens appearance page",
+      "Command-/ Keep returns F to regular stack",
+      "Command-T Keep returns B to regular stack",
+      "Keep All restores A B C D E F G and clears Older state, retaining identities",
+      "Close All closes only B C E F G, keeps A/D and creates Recently closed entries",
+      "Older tab menu omits all requested actions; ordinary tab menu retains those actions",
+      "Never removes section/date headings and restores ordinary tab menus without closing any sample tab",
+      "Finite move duration restores section and dependent Settings; close default is 3 days"
+    ]
+  },
+  "screenshots": [
+    ".work/older-tabs/older-tabs-review8-expanded.png",
+    ".work/older-tabs/older-tabs-review7-never.png",
+    ".work/older-tabs/older-tabs-review6-expanded.png",
+    ".work/older-tabs/older-tabs-review6-tab-menu.png",
+    ".work/older-tabs/older-tabs-review5-expanded.png",
+    ".work/older-tabs/older-tabs-review5-menu.png",
+    ".work/older-tabs/older-tabs-review5-keep-command.png",
+    ".work/older-tabs/older-tabs-review5-all-kept.png",
+    ".work/older-tabs/older-tabs-review5-all-closed.png"
+  ],
+  "screenshots_note": "Review8 is the final date placement. Review7 Never capture shows no section/date headings and collapsed settings. Earlier menu, settings, bulk and palette screenshots retain the behavior evidence for those checks. Native drag acceptance remains pending.",
+  "startup_automation_note": "First concurrent Intel attempts and one serial specified-URL attempt timed out during ChromeDriver attachment before reaching startup assertions. All three modes and Never subsequently passed serial runs. Harness keeps the fixture controller active and allows a longer driver-attachment deadline under Rosetta; browser source did not require a startup change."
+}

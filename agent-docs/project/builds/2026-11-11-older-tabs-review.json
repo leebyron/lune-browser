@@ -1,0 +1,156 @@
+{
+  "date": "2026-11-11",
+  "issue": "https://github.com/leebyron/lune-browser/issues/20",
+  "status": "Historical review-stage evidence; owner accepted November 11; superseded by 2026-11-11-older-tabs-adoption.json",
+  "main_commit": "e40306685abb96695743c460c2ec07e47e172880",
+  "review_branch": "automatic-older-tabs-review",
+  "platform_base": "651e911573be598a6cf348467169b4ce25ea6d36",
+  "core_base": "49bdc572bee38436250f9058351c8a328cd8c8ad",
+  "chromium": "158.0.8127.18",
+  "candidate_patch": ".work/older-tabs/platform/patches/helium/ui/automatic-older-tabs.patch",
+  "candidate_patch_sha256": "e75d37407664e0a4058ba8e85c4e79c71cc3b73ff51e8c798ecd3cfffb515ccc",
+  "source_tree": ".work/search-suggestions/platform/build/src",
+  "host_architecture": "arm64",
+  "builds": {
+    "arm64": {
+      "exit_code": 0,
+      "seconds": 180.03561925888062
+    },
+    "x86_64": {
+      "exit_code": 0,
+      "seconds": 154.2367708683014
+    }
+  },
+  "runtime": {
+    "arm64": {
+      "execution": "native Apple silicon",
+      "session_case_passed": true,
+      "existing_smoke_passed": true,
+      "session_checks": [
+        "24-hour aging and full new retention after entry",
+        "frozen chronological ordering retained through restart",
+        "overdue unprotected tab closes after real launch grace/minute sweep",
+        "equally overdue unload-protected tab remains open",
+        "closed tab present in Recently closed and reopens with fresh regular metadata",
+        "per-tab state persisted after orderly quit"
+      ],
+      "evidence": ".work/older-tabs/automated-arm64-final/report.json",
+      "harness_note": "Corrected a harness assertion to compare the frozen snapshot with authoritative last use, rather than the independent aging baseline. The seeded values can differ by microseconds. Browser execution, retention, protection and recovery checks had already completed."
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "session_case_passed": true,
+      "existing_smoke_passed": true,
+      "session_checks": [
+        "24-hour aging and full new retention after entry",
+        "frozen chronological ordering retained through restart",
+        "overdue unprotected tab closes after real launch grace/minute sweep",
+        "equally overdue unload-protected tab remains open",
+        "closed tab present in Recently closed and reopens with fresh regular metadata",
+        "per-tab state persisted after orderly quit"
+      ],
+      "evidence": ".work/older-tabs/automated-x86_64-final/report.json",
+      "harness_note": "Corrected a harness assertion to compare the frozen snapshot with authoritative last use, rather than the independent aging baseline. The seeded values can differ by microseconds. Browser execution, retention, protection and recovery checks had already completed."
+    }
+  },
+  "native_arm64_review": {
+    "exercised": [
+      "expanded date headings and accessibility order",
+      "collapse and expansion",
+      "Keep C then B restores A B C D",
+      "Older-tab activation and trusted page input retain membership and frozen date while extending retention",
+      "both duration settings change independently; Never; disable/re-enable retains membership",
+      "session metadata survives orderly restart",
+      "recently-closed recovery has fresh regular identity"
+    ],
+    "drag": "Native pointer automation did not reorder tabs, including ordinary tabs. Actual drag-out and cancel are not runtime-verified.",
+    "visual_scope": "Native Older tabs inspected in light appearance; existing headless appearance smoke covers light and dark Settings/onboarding."
+  },
+  "model_regressions": {
+    "Default": {
+      "source_compile_passed": true,
+      "full_test_binary_executed": false
+    },
+    "Intel": {
+      "source_compile_passed": true,
+      "full_test_binary_executed": false
+    }
+  },
+  "feature_patch_replay": {
+    "passed": true,
+    "files": 21,
+    "fuzz": 0,
+    "offsets": 0,
+    "scope": "New feature patch against exact retained prepared preimages; not fresh full-stack source preparation"
+  },
+  "gn_header_checks": [
+    {
+      "target": "//chrome/browser/ui/tabs:tab_strip_impl",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    },
+    {
+      "target": "//chrome/browser/ui/views/tabs/common:impl",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    },
+    {
+      "target": "//chrome/browser/sessions:impl",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    },
+    {
+      "target": "//chrome/browser/ui/views/tabs/dragging:impl",
+      "exit_code": 0,
+      "output": "Header dependency check OK\n"
+    }
+  ],
+  "limits": [
+    "Full Chromium unit-test binary not linked or executed.",
+    "Fresh full-stack source preparation not passed: historical replay from older retained preimages encountered pre-existing offsets and a canonical-update patch EOF mismatch.",
+    "Full-tree GN check blocked by previously pruned V8 test sources; affected target checks passed.",
+    "Native drag acceptance, broader group/split/transfer/crash/resume coverage, and owner visual acceptance remain outstanding.",
+    "New strings use English source fallback; no new translations authored.",
+    "No release signing, notarization, installed update, or native Intel validation claimed."
+  ],
+  "screenshots": [
+    ".work/older-tabs/older-tabs-final-expanded.png",
+    ".work/older-tabs/older-tabs-collapsed.png",
+    ".work/older-tabs/older-tabs-keep-menu.png",
+    ".work/older-tabs/older-tabs-kept.png",
+    ".work/older-tabs/older-tabs-settings.png"
+  ],
+  "manual_preview": {
+    "app": ".work/older-tabs/preview-validated/Lune.app",
+    "profile": ".work/older-tabs/manual-review/profile",
+    "runner": "scripts/check-older-tabs.py",
+    "mode": "--interactive --review",
+    "stop": "Create .work/older-tabs/manual-review/finish for orderly shutdown.",
+    "note": "Review fixture gives seeded Older tabs fresh retention clocks; production defaults remain 24 hours and 7 days."
+  },
+  "held_changes": [
+    "main commit",
+    "development lock adoption",
+    "issue closure",
+    "release",
+    "deployment"
+  ],
+  "group_exclusion_regression": {
+    "requirement": "Tabs in a tab group do not age into Older tabs, whether expanded or collapsed.",
+    "mode": "headless real saved-session restore",
+    "control": "An ungrouped tab seeded with the same 48-hour inactivity moves into Older tabs.",
+    "checks": {
+      "arm64": {
+        "passed": true,
+        "execution": "native Apple silicon",
+        "evidence": ".work/older-tabs/group-check-arm64-headless/report.json"
+      },
+      "x86_64": {
+        "passed": true,
+        "execution": "Rosetta on Apple silicon",
+        "evidence": ".work/older-tabs/group-check-x86_64-headless/report.json"
+      }
+    },
+    "limitation": "Headed automation attempts timed out in the renderer and are not counted as native group UI acceptance."
+  }
+}

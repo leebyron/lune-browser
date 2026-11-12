@@ -1,0 +1,296 @@
+{
+  "date": "2026-11-11",
+  "issue": "https://github.com/leebyron/lune-browser/issues/20",
+  "owner_acceptance": "Accepted final native preview and authorized focused commit/push for future main builds",
+  "status": "owner-accepted; signed input published and selected for future main builds",
+  "platform_commit": "a7fef19376b799585e4a62bfd9bfe25ba6d26d47",
+  "platform_tree": "c148bbcc3b72794faf3aee83a6841bf30cb0e9ab",
+  "platform_ref": "refs/tags/inputs/older-tabs-1/macos",
+  "platform_base": "651e911573be598a6cf348467169b4ce25ea6d36",
+  "core_commit": "49bdc572bee38436250f9058351c8a328cd8c8ad",
+  "chromium": "158.0.8127.18",
+  "patch": "patches/helium/ui/automatic-older-tabs.patch",
+  "patch_sha256": "43663257207174b6021b03e217dbb759c132283edcf3bc2843561d8bdec944bb",
+  "builds": {
+    "arm64": {
+      "full": {
+        "exit_code": 0,
+        "seconds": 346.3853540420532
+      },
+      "consistency": {
+        "exit_code": 0,
+        "seconds": 159.336501121521
+      },
+      "final_normalization": {
+        "exit_code": 0,
+        "seconds": 22.034147024154663
+      }
+    },
+    "x86_64": {
+      "full": {
+        "exit_code": 0,
+        "seconds": 352.5798189640045
+      },
+      "consistency": {
+        "exit_code": 0,
+        "seconds": 173.26063895225525
+      },
+      "final_normalization": {
+        "exit_code": 0,
+        "seconds": 21.655797958374023
+      }
+    }
+  },
+  "validation": {
+    "repository_tests": 73,
+    "core_platform_patch_and_translation_lint": true,
+    "signed_commit_and_tag_verified": true,
+    "lock_ancestry_tags_trees_gitlink_verified": true,
+    "command_registry_regressions": [
+      "arm64 native",
+      "x86_64 Rosetta"
+    ],
+    "model_regressions": {
+      "count": 9,
+      "source_compile": [
+        "arm64",
+        "x86_64"
+      ],
+      "full_binary_executed": false
+    },
+    "runtime_before_cleanup": {
+      "both_architectures": [
+        "Exact Settings choices/defaults, Never collapse/reload and group preference",
+        "Pinned-tab exclusion plus stale Older-state repair on restore",
+        "Group default exclusion and opt-in after saved-group initialization",
+        "Immediately direct closing with real five-minute grace, unload protection and historical recovery",
+        "Continue startup retains Older identities, frozen dates and close clocks",
+        "New Tab and specified-page startup restore no Older tabs",
+        "Never persists across a clean quit/restore"
+      ]
+    },
+    "native_preview": [
+      "Section collapse/expand and date ordering",
+      "Older tab menu exclusions; regular menu preserved",
+      "Header Settings, Keep All and Close All",
+      "Command-T and Command-/ Keep Tab",
+      "Keep All restores A B C D E F G with retained identities",
+      "Close All closes only Older tabs into Recently closed",
+      "Never hides section/date headings and restores normal menus; finite duration restores them"
+    ],
+    "feature_replay": {
+      "files": 29,
+      "fuzz": 0,
+      "offsets": 0,
+      "exact_byte_parity": true
+    },
+    "composed_archive_replay": {
+      "files": 29,
+      "patches": 100,
+      "fuzz": 0,
+      "exact_byte_parity_after_official_domain_and_name_substitutions": true,
+      "scope": "All composed patches touching the feature files; not full-tree preparation",
+      "settings_string_hunk_offset": 4,
+      "offset_reason": "Normal XML name substitution removes four lines; prepared-source replay has zero offsets",
+      "archive_sha256": "3186d708deaa8dcf622b0f3ce696c8716894b1e047abf7afcef3117796461f34"
+    },
+    "fresh_recursive_GitHub_checkout": true,
+    "remote_patch_hash_verified": true,
+    "post_cleanup_settings": {
+      "arm64": {
+        "passed": true,
+        "report_sha256": "1988dd3a9618a2d09fd762531dc8f4e48cd29171dee771196af8716a88e9c4fd",
+        "checks": {
+          "options": [
+            [
+              {
+                "name": "Never",
+                "value": 0
+              },
+              {
+                "name": "6 hours",
+                "value": 6
+              },
+              {
+                "name": "1 day",
+                "value": 24
+              },
+              {
+                "name": "2 days",
+                "value": 48
+              }
+            ],
+            [
+              {
+                "name": "Immediately",
+                "value": -1
+              },
+              {
+                "name": "1 day",
+                "value": 24
+              },
+              {
+                "name": "2 days",
+                "value": 48
+              },
+              {
+                "name": "3 days",
+                "value": 72
+              },
+              {
+                "name": "7 days",
+                "value": 168
+              },
+              {
+                "name": "Never",
+                "value": 0
+              }
+            ]
+          ],
+          "group_default_off": true,
+          "organize_switch_removed": true,
+          "default_close_hours": 72,
+          "group_label_description_exact": true,
+          "group_toggle_round_trip": true,
+          "never_collapses_on_change_and_reload": true,
+          "immediately_distinct_from_never": true,
+          "standalone_keep_sentence_removed": true
+        }
+      },
+      "x86_64": {
+        "passed": true,
+        "report_sha256": "1988dd3a9618a2d09fd762531dc8f4e48cd29171dee771196af8716a88e9c4fd",
+        "checks": {
+          "options": [
+            [
+              {
+                "name": "Never",
+                "value": 0
+              },
+              {
+                "name": "6 hours",
+                "value": 6
+              },
+              {
+                "name": "1 day",
+                "value": 24
+              },
+              {
+                "name": "2 days",
+                "value": 48
+              }
+            ],
+            [
+              {
+                "name": "Immediately",
+                "value": -1
+              },
+              {
+                "name": "1 day",
+                "value": 24
+              },
+              {
+                "name": "2 days",
+                "value": 48
+              },
+              {
+                "name": "3 days",
+                "value": 72
+              },
+              {
+                "name": "7 days",
+                "value": 168
+              },
+              {
+                "name": "Never",
+                "value": 0
+              }
+            ]
+          ],
+          "group_default_off": true,
+          "organize_switch_removed": true,
+          "default_close_hours": 72,
+          "group_label_description_exact": true,
+          "group_toggle_round_trip": true,
+          "never_collapses_on_change_and_reload": true,
+          "immediately_distinct_from_never": true,
+          "standalone_keep_sentence_removed": true
+        }
+      }
+    },
+    "gn_header_checks": [
+      {
+        "target": "//chrome/browser/ui/views/tabs/common:impl",
+        "exit_code": 0,
+        "output": "Header dependency check OK\n"
+      },
+      {
+        "target": "//chrome/browser/ui/tabs:tab_strip_impl",
+        "exit_code": 0,
+        "output": "Header dependency check OK\n"
+      },
+      {
+        "target": "//chrome/browser/ui/tabs:tab_menu_impl",
+        "exit_code": 0,
+        "output": "Header dependency check OK\n"
+      },
+      {
+        "target": "//chrome/browser/ui/views/helium:native_frame_materials",
+        "exit_code": 0,
+        "output": "Header dependency check OK\n"
+      },
+      {
+        "target": "//chrome/browser/ui/helium:helium_command_bar",
+        "exit_code": 0,
+        "output": "Header dependency check OK\n"
+      },
+      {
+        "target": "//chrome/browser/ui/views/tabs/tab:impl",
+        "exit_code": 0,
+        "output": "Header dependency check OK\n"
+      }
+    ]
+  },
+  "limits": [
+    "Intel runtime is Rosetta on Apple silicon; no physical Intel test",
+    "Full Chromium model-test binary not linked or run",
+    "Full-tree source preparation not run for this input; composed feature-file replay passed",
+    "Native drag gestures lack a separately recorded manual matrix",
+    "English fallback strings; translations not authored"
+  ],
+  "release_boundary": "Future main builds only; published 26.1111.2, frozen sources, binaries and feeds unchanged",
+  "evidence": {
+    "source_hashes": ".work/older-tabs/adoption-build-inputs.json",
+    "archive_replay": ".work/older-tabs/archive-replay.json",
+    "review_record": "agent-docs/project/builds/2026-11-11-older-tabs-review-2.json",
+    "screenshots": [
+      ".work/older-tabs/older-tabs-review8-expanded.png",
+      ".work/older-tabs/older-tabs-review7-never.png",
+      ".work/older-tabs/older-tabs-review6-tab-menu.png"
+    ]
+  },
+  "cleanup": {
+    "code": [
+      "Share exact 11pt-medium/16px SF Symbol rendering between tab close and disclosure icons",
+      "Centralize 24-hour move and 72-hour close defaults",
+      "Remove unused Organize toggle and obsolete retention-help resources",
+      "Calculate date age once per layout update and reuse it for heading text",
+      "Format touched code and standardize new-file license headers"
+    ],
+    "artifacts": {
+      "preview_folders_removed": 21,
+      "isolated_profiles_removed": 66,
+      "replay_trees_removed": 7,
+      "temporary_remote_clone_removed": true,
+      "task_processes_exited": true,
+      "retained": [
+        "platform Git input clone",
+        "screenshots and compact reports/logs",
+        "shared prepared Chromium and incremental outputs",
+        "compiler/download caches"
+      ]
+    },
+    "local_inventory": ".work/older-tabs/cleanup.json"
+  },
+  "issue_resolution": "Fixes #20 in the enclosing main adoption commit"
+}
