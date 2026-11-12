@@ -46,6 +46,8 @@ The development lock includes the [sidebar drag header fix](features/sidebar-dra
 
 The owner-accepted [New Tab button refinement](features/sidebar-new-tab.md#new-tab-button-refinement--november-11-2026) is selected for future main builds through `inputs/new-tab-button-1/macos`. The sidebar icon uses 70% opacity and its label 50%; the button opens the Cmd-T menu, then creates a tab on a repeated press while the menu is open. Both architecture builds, focused GN checks, zero-fuzz replay and native Apple silicon interactions pass. The website demo matches the appearance and two-press sequence. Published browser releases retain their frozen inputs.
 
+The development lock includes the [header Customize Toolbar command](features/trailing-toolbar-controls.md#header-context-menu-opens-toolbar) through `inputs/header-customize-toolbar-2/macos`. Right-clicking the header now offers Customize Toolbar and opens the toolbar section directly. Both architecture builds and native Apple silicon menu selection pass. Published 26.1111.2 remains unchanged.
+
 ## Hosting and automation
 
 The public source repository also hosts releases and paired raw-GitHub stable feeds. The [Cloudflare website](website.md) links to fixed GitHub latest-asset URLs. Optional browser services use Helium's hosted service; Lune-hosted services are not deployed.

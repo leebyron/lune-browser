@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "fba622e9794eba10df8db0ae455118e1790f5ff1",
+    "commit": "92a3c352323fbe0aed6a5dd4412ff2a50852fdcf",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -773,6 +773,10 @@
       {
         "path": "patches/helium/ui/new-tab-button-command-menu.patch",
         "sha256": "1d900e82793e1c8a2be8fe57190e51dcba08d0cef30f76c7384c9414d34968e9"
+      },
+      {
+        "path": "patches/helium/ui/header-customize-toolbar.patch",
+        "sha256": "bca64e74d6e2221cafcf705004fa9cb0ae7f3c4bb4810e0bf733300b0507f24c"
       }
     ]
   },
@@ -2040,6 +2044,21 @@
       "adaptation": "Owner accepted the native preview and website demo on November 11, 2026. Developed in prepared Chromium with quilt, refreshed and unmerged into a focused platform input. Both architecture builds, focused GN checks and zero-fuzz replay pass; native Apple silicon button interactions pass. The shared button preserves direct creation when the command menu is disabled and Linux clipboard middle-click behavior. See agent-docs/project/features/sidebar-new-tab.md.",
       "commits": [
         "fba622e9794eba10df8db0ae455118e1790f5ff1"
+      ]
+    },
+    {
+      "id": "header-customize-toolbar",
+      "depends_on": [
+        "native-chrome-appearance"
+      ],
+      "patches": [
+        "patches/helium/ui/header-customize-toolbar.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Open toolbar customization directly from the header context menu with the Customize Toolbar label.",
+      "adaptation": "Replace the generic appearance command and string with Chromium's existing toolbar-specific command and localized label. Developed with quilt, refreshed and unmerged; focused zero-fuzz/zero-offset replay matches compiled source. Both architecture builds and native Apple silicon menu selection pass. See agent-docs/project/features/trailing-toolbar-controls.md.",
+      "commits": [
+        "92a3c352323fbe0aed6a5dd4412ff2a50852fdcf"
       ]
     }
   ],
