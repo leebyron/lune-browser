@@ -1,0 +1,91 @@
+--- a/chrome/browser/ui/views/tabs/shared/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/shared/BUILD.gn
+@@ -47,6 +47,7 @@
+     "//chrome/browser/ui:layout_constants",
+     "//chrome/browser/ui/browser_window",
+     "//chrome/browser/ui/color:color_headers",
++    "//chrome/browser/ui/helium:helium_command_bar",
+     "//chrome/browser/ui/tabs",
+     "//chrome/browser/ui/tabs:tab_group",
+     "//chrome/browser/ui/tabs:tab_strip",
+--- a/chrome/browser/ui/views/tabs/shared/new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/shared/new_tab_button.cc
+@@ -8,6 +8,7 @@
+ #include "build/build_config.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
+ #include "chrome/browser/ui/browser_actions.h"
++#include "chrome/browser/ui/helium/helium_command_bar_controller.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -119,6 +120,13 @@
+   middle_click_callback_for_testing_ = std::move(callback);
+ }
+ 
++bool NewTabButton::OnMousePressed(const ui::MouseEvent& event) {
++  // The popup can lose activation before the button's release action runs.
++  auto* command_bar = HeliumCommandBarController::From(browser_);
++  command_bar_showing_on_press_ = command_bar && command_bar->IsShowing();
++  return TabStripFlatEdgeButton::OnMousePressed(event);
++}
++
+ void NewTabButton::NotifyClick(const ui::Event& event) {
+ #if BUILDFLAG(IS_LINUX)
+   if (event.IsMouseEvent()) {
+@@ -136,6 +144,18 @@
+     }
+   }
+ #endif
++  auto* command_bar = HeliumCommandBarController::From(browser_);
++  const bool was_showing =
++      event.IsMouseEvent() && command_bar_showing_on_press_;
++  command_bar_showing_on_press_ = false;
++  if (command_bar && (was_showing || command_bar->IsShowing())) {
++    command_bar->Hide();
++  } else if (command_bar && command_bar->AcceleratorPressed(
++                                ui::Accelerator(ui::VKEY_T,
++                                                ui::EF_PLATFORM_ACCELERATOR))) {
++    NotifyWillInvokeAction();
++    return;
++  }
+   TabStripFlatEdgeButton::NotifyClick(event);
+ }
+ 
+--- a/chrome/browser/ui/views/tabs/shared/new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/shared/new_tab_button.h
+@@ -47,6 +47,8 @@
+       ui::mojom::MenuSourceType source_type) override;
+ 
+  protected:
++  bool OnMousePressed(const ui::MouseEvent& event) override;
++
+   // views::Button:
+   void NotifyClick(const ui::Event& event) override;
+ 
+@@ -62,6 +64,7 @@
+   base::RepeatingClosure on_context_menu_closed_callback_;
+   base::RepeatingClosure middle_click_callback_for_testing_;
+ 
++  bool command_bar_showing_on_press_ = false;
+   raw_ptr<BrowserWindowInterface> browser_;
+ };
+ 
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -10,6 +10,7 @@
+ #include "chrome/grit/generated_resources.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/compositor/layer.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/views/animation/ink_drop.h"
+ #include "ui/views/widget/widget.h"
+@@ -38,6 +39,8 @@
+                                    kBigPadding));
+   SetImageLabelSpacing(kBigPadding);
+   SetShouldShowLabel(true);
++  SetIconOpacity(0.7f);
++  label()->layer()->SetOpacity(0.5f);
+   SetLabelText(l10n_util::GetStringUTF16(IDS_ACCNAME_NEWTAB));
+   SetPreferredSize(
+       gfx::Size(-1, GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
