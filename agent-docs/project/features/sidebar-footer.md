@@ -146,3 +146,15 @@ result; this is distinct from the automated checks above.
 These are incremental development builds, not fresh release preparation. Native Intel hardware,
 real installed updates with this input, and the full horizontal/collapsed/split
 interaction matrix remain unaccepted. No release or deployment was performed.
+
+## Scroll edges and internal padding — November 11, 2026
+
+The owner accepted the final sidebar layout, hairlines and footer spacing on November 11. Future main builds select signed input `inputs/sidebar-reviewed-1/macos`, ending at platform commit `51acf1cc9d8cb0ec4b6a71e40c4416bb10b93175`. Published 26.1111.2 retains its frozen inputs.
+
+The tab scroll area has no overflow fades. A full-width top hairline appears while content remains above the viewport. The footer owns its top divider, shown while content remains below the viewport; hiding the footer naturally hides the divider and its spacing. Both use translucent black resolved through the browser theme: alpha 15/255 in Light (about 6%) and 31/255 in Dark (about 12%). Neither divider handles input or takes layout space. Tab-drag scroll timers retain their behavior.
+
+Mounted and popover scroll viewports reach the sidebar edges. The native popover window reserves only header clearance, with no bottom/side clipping; resize synchronization uses the same bounds, and the child window clips its outer bottom corner to the browser window radius. Pinned rows, individual tabs, group/date headings, New Tab, header rows and footer contents carry 4 px of additional horizontal padding internally. The scrolling tab content has 8 px trailing padding. The footer owns 6 px interior top padding plus its existing row margin, and 9 px bottom padding. No layout branch reserves a gap based on footer visibility.
+
+The independently committed patches are `helium/ui/sidebar-scroll-content-layout.patch` and `helium/ui/sidebar-scroll-edge-lines.patch`. [Sidebar groups](sidebar-groups.md) and [Older Tabs](older-tabs.md#shared-disclosure-and-collapse-animation--november-11-2026) describe the related accepted refinements. The isolated Make default browser row was restored only for review; production prompt eligibility and dismissal remain unchanged.
+
+The [adoption record](../builds/2026-11-11-sidebar-reviewed-adoption.json) records both browser builds, startup/defaults/settings/artwork smoke checks, dependency checks, exact archive replay, source fixtures and owner acceptance. Intel runtime uses Rosetta. The full Chromium unit/browser-test executables and the entire native interaction matrix were not rerun; affected test translation units compile for both architectures. This is development adoption, not fresh release preparation or installed-update validation. Temporary review apps, test profiles and replay fixtures are removed after retaining the validation record; reusable sources, component inputs and build caches remain.

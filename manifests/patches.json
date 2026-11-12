@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "7744d8734689a9bb9adb7051128b6ed825757a67",
+    "commit": "51acf1cc9d8cb0ec4b6a71e40c4416bb10b93175",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -777,6 +777,30 @@
       {
         "path": "patches/helium/ui/header-customize-toolbar-scope.patch",
         "sha256": "52fce4018de60f8e25b16673efb01a96e0e2e964996f90ab0fd3371573135992"
+      },
+      {
+        "path": "patches/helium/ui/neutral-tab-groups.patch",
+        "sha256": "d0d5866c1823cd8ed2e398eaa0222bdd979cca6d1e74a1c256fce71f5b7d8a72"
+      },
+      {
+        "path": "patches/helium/ui/older-tabs-collapse-animation.patch",
+        "sha256": "f2c560ef3fccd4a7661976c759961da7a507a08cfd1e4e518f533a2538eeda52"
+      },
+      {
+        "path": "patches/helium/ui/older-tabs-weekday-headings.patch",
+        "sha256": "3e2a69046d18a5dc64b320153fefe04a4bafcb5f10e2c6da86404aad1c7a5780"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-disclosure-alignment.patch",
+        "sha256": "90382ac09fac824cf26ccb0e03087b67014881605a34b97b535df8405e12f4a5"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-scroll-content-layout.patch",
+        "sha256": "50dd1216fb8aaac5f62a29c93da9948206ee070c3ba80803da48752e7d9edbfe"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-scroll-edge-lines.patch",
+        "sha256": "a45e343ef8f80f0fc2f08e523f23a6dea798cbabbeea8ec3cc1bbabad0ec291b"
       }
     ]
   },
@@ -2061,6 +2085,98 @@
       "adaptation": "Owner accepted the corrected right-click behavior on November 11, 2026. Developed with quilt and exported as an independent correction above the current Downloads visibility input; pending sidebar styling and scroll-layout candidates are excluded. Focused replay has zero fuzz and offsets; builder/widget files and native context-routing implementations match the compiled review source. Both builds and native routing fixtures pass (Intel fixture under Rosetta); actual owner interaction acceptance is on Apple silicon. Each menu initialization refreshes the source. See agent-docs/project/features/trailing-toolbar-controls.md and builds/2026-11-11-header-menu-scope-validation.json.",
       "commits": [
         "7744d8734689a9bb9adb7051128b6ed825757a67"
+      ]
+    },
+    {
+      "id": "neutral-tab-groups",
+      "depends_on": [
+        "automatic-older-tabs"
+      ],
+      "patches": [
+        "patches/helium/ui/neutral-tab-groups.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use neutral Older Tabs-style vertical group headers, normal grouped rows and accepted compact section spacing.",
+      "adaptation": "Owner accepted the complete native Apple silicon review on November 11, 2026 and requested focused commits, future-main adoption, issue #30 closure and cleanup. Developed with quilt in prepared Chromium, partitioned into single-thesis patches and unmerged into the platform. All 30 accepted review files remain byte-identical. Archive-backed replay of 123 relevant composed patches across 31 files has zero fuzz, no offsets in these six patches and no final source differences. Both browser builds, focused dependency/source checks and affected test translation-unit compilation pass; startup/defaults/settings/artwork smoke passes on both architectures, Intel under Rosetta. Full Chromium test executables, physical Intel and the full native interaction matrix were not rerun. See agent-docs/project/features/sidebar-groups.md, sidebar-footer.md, older-tabs.md and builds/2026-11-11-sidebar-reviewed-adoption.json.",
+      "commits": [
+        "3bdafbd103c2e3e8db17583c02c6628e08f2cfdd"
+      ]
+    },
+    {
+      "id": "older-tabs-collapse-animation",
+      "depends_on": [
+        "neutral-tab-groups"
+      ],
+      "patches": [
+        "patches/helium/ui/older-tabs-collapse-animation.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Expand and collapse Older Tabs through the shared tab-collection animation, including clipped rows and smooth reversals.",
+      "adaptation": "Owner accepted the complete native Apple silicon review on November 11, 2026 and requested focused commits, future-main adoption, issue #30 closure and cleanup. Developed with quilt in prepared Chromium, partitioned into single-thesis patches and unmerged into the platform. All 30 accepted review files remain byte-identical. Archive-backed replay of 123 relevant composed patches across 31 files has zero fuzz, no offsets in these six patches and no final source differences. Both browser builds, focused dependency/source checks and affected test translation-unit compilation pass; startup/defaults/settings/artwork smoke passes on both architectures, Intel under Rosetta. Full Chromium test executables, physical Intel and the full native interaction matrix were not rerun. See agent-docs/project/features/sidebar-groups.md, sidebar-footer.md, older-tabs.md and builds/2026-11-11-sidebar-reviewed-adoption.json.",
+      "commits": [
+        "6d26b3fe7c5ac2ded02456d59fc6ec7546fa74d4"
+      ]
+    },
+    {
+      "id": "older-tabs-weekday-headings",
+      "depends_on": [
+        "automatic-older-tabs"
+      ],
+      "patches": [
+        "patches/helium/ui/older-tabs-weekday-headings.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use weekdays for preceding-six-day tabs and one Older bucket for seven or more calendar days.",
+      "adaptation": "Owner accepted the complete native Apple silicon review on November 11, 2026 and requested focused commits, future-main adoption, issue #30 closure and cleanup. Developed with quilt in prepared Chromium, partitioned into single-thesis patches and unmerged into the platform. All 30 accepted review files remain byte-identical. Archive-backed replay of 123 relevant composed patches across 31 files has zero fuzz, no offsets in these six patches and no final source differences. Both browser builds, focused dependency/source checks and affected test translation-unit compilation pass; startup/defaults/settings/artwork smoke passes on both architectures, Intel under Rosetta. Full Chromium test executables, physical Intel and the full native interaction matrix were not rerun. See agent-docs/project/features/sidebar-groups.md, sidebar-footer.md, older-tabs.md and builds/2026-11-11-sidebar-reviewed-adoption.json.",
+      "commits": [
+        "134dbb0f129b2b9d7c01be135175831385659f1f"
+      ]
+    },
+    {
+      "id": "sidebar-disclosure-alignment",
+      "depends_on": [
+        "neutral-tab-groups"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-disclosure-alignment.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Move the shared group and Older Tabs disclosure pair 2px left.",
+      "adaptation": "Owner accepted the complete native Apple silicon review on November 11, 2026 and requested focused commits, future-main adoption, issue #30 closure and cleanup. Developed with quilt in prepared Chromium, partitioned into single-thesis patches and unmerged into the platform. All 30 accepted review files remain byte-identical. Archive-backed replay of 123 relevant composed patches across 31 files has zero fuzz, no offsets in these six patches and no final source differences. Both browser builds, focused dependency/source checks and affected test translation-unit compilation pass; startup/defaults/settings/artwork smoke passes on both architectures, Intel under Rosetta. Full Chromium test executables, physical Intel and the full native interaction matrix were not rerun. See agent-docs/project/features/sidebar-groups.md, sidebar-footer.md, older-tabs.md and builds/2026-11-11-sidebar-reviewed-adoption.json.",
+      "commits": [
+        "ece7b7c3a930879b1474ae2a5dc7341a7c54f239"
+      ]
+    },
+    {
+      "id": "sidebar-scroll-content-layout",
+      "depends_on": [
+        "older-tabs-collapse-animation",
+        "floating-sidebar-surface",
+        "sidebar-footer"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-scroll-content-layout.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep mounted and popover scroll viewports flush while rows and the footer own accepted internal padding.",
+      "adaptation": "Owner accepted the complete native Apple silicon review on November 11, 2026 and requested focused commits, future-main adoption, issue #30 closure and cleanup. Developed with quilt in prepared Chromium, partitioned into single-thesis patches and unmerged into the platform. All 30 accepted review files remain byte-identical. Archive-backed replay of 123 relevant composed patches across 31 files has zero fuzz, no offsets in these six patches and no final source differences. Both browser builds, focused dependency/source checks and affected test translation-unit compilation pass; startup/defaults/settings/artwork smoke passes on both architectures, Intel under Rosetta. Full Chromium test executables, physical Intel and the full native interaction matrix were not rerun. See agent-docs/project/features/sidebar-groups.md, sidebar-footer.md, older-tabs.md and builds/2026-11-11-sidebar-reviewed-adoption.json.",
+      "commits": [
+        "cb0a8d6215d42922d6ff5a932bd9067cd8a5bf62"
+      ]
+    },
+    {
+      "id": "sidebar-scroll-edge-lines",
+      "depends_on": [
+        "sidebar-scroll-content-layout"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-scroll-edge-lines.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Replace overflow fades with full-width translucent black top and footer-owned scroll-edge hairlines.",
+      "adaptation": "Owner accepted the complete native Apple silicon review on November 11, 2026 and requested focused commits, future-main adoption, issue #30 closure and cleanup. Developed with quilt in prepared Chromium, partitioned into single-thesis patches and unmerged into the platform. All 30 accepted review files remain byte-identical. Archive-backed replay of 123 relevant composed patches across 31 files has zero fuzz, no offsets in these six patches and no final source differences. Both browser builds, focused dependency/source checks and affected test translation-unit compilation pass; startup/defaults/settings/artwork smoke passes on both architectures, Intel under Rosetta. Full Chromium test executables, physical Intel and the full native interaction matrix were not rerun. See agent-docs/project/features/sidebar-groups.md, sidebar-footer.md, older-tabs.md and builds/2026-11-11-sidebar-reviewed-adoption.json.",
+      "commits": [
+        "51acf1cc9d8cb0ec4b6a71e40c4416bb10b93175"
       ]
     }
   ],
