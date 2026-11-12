@@ -1,0 +1,68 @@
+--- a/chrome/browser/ui/views/extensions/extension_popup.cc
++++ b/chrome/browser/ui/views/extensions/extension_popup.cc
+@@ -130,6 +130,7 @@
+ 
+ void ExtensionPopup::OnWidgetDestroying(views::Widget* widget) {
+   BubbleDialogDelegateView::OnWidgetDestroying(widget);
++  toolbar_reveal_hold_.RunAndReset();
+   anchor_widget_observation_.Reset();
+   extension_registry_observation_.Reset();
+   security_dialog_tracker_observation_.Reset();
+@@ -138,6 +139,14 @@
+   browser_ = nullptr;
+ }
+ 
++void ExtensionPopup::OnWidgetVisibilityChanged(views::Widget* widget,
++                                              bool visible) {
++  BubbleDialogDelegateView::OnWidgetVisibilityChanged(widget, visible);
++  if (widget == GetWidget() && !visible) {
++    toolbar_reveal_hold_.RunAndReset();
++  }
++}
++
+ void ExtensionPopup::OnWidgetTreeActivated(views::Widget* root_widget,
+                                            views::Widget* active_widget) {
+   // The widget is shown asynchronously and may take a long time to appear, so
+@@ -335,6 +344,14 @@
+     return;
+   }
+ 
++  // Reveal before showing, including programmatic opens while hidden.
++  // Floating extension buttons live in a separate child widget, outside the
++  // top-container ancestry checked by the generic anchor-View bubble scan.
++  if (auto* view = BrowserView::GetBrowserViewForBrowser(browser_);
++      view && !toolbar_reveal_hold_) {
++    toolbar_reveal_hold_ =
++        BrowserView::HoldChromeRevealForMenu(view->GetWidget(), true);
++  }
+   GetWidget()->Show();
+   withheld_from_view_.reset();
+ 
+--- a/chrome/browser/ui/views/extensions/extension_popup.h
++++ b/chrome/browser/ui/views/extensions/extension_popup.h
+@@ -6,6 +6,7 @@
+ #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSION_POPUP_H_
+ 
+ #include "base/functional/callback.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/scoped_observation.h"
+ #include "chrome/browser/ui/extensions/extension_popup_types.h"
+@@ -81,6 +82,7 @@
+ 
+   // views::WidgetObserver:
+   void OnWidgetDestroying(views::Widget* widget) override;
++  void OnWidgetVisibilityChanged(views::Widget* widget, bool visible) override;
+   void OnWidgetTreeActivated(views::Widget* root_widget,
+                              views::Widget* active_widget) override;
+ 
+@@ -162,6 +164,9 @@
+ 
+   ShowPopupCallback shown_callback_;
+ 
++  // Retain the floating toolbar even when its anchor is outside top_container.
++  base::ScopedClosureRunner toolbar_reveal_hold_;
++
+   base::ScopedObservation<views::Widget, views::WidgetObserver>
+       anchor_widget_observation_{this};
+ 
