@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "1aecd0bcfe68e2e74140fa84e812850981d57c61",
+    "commit": "af297bc814a9dba21e27433a9e1d3794844f2d6b",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -813,6 +813,10 @@
       {
         "path": "patches/helium/ui/extension-popup-toolbar-retention.patch",
         "sha256": "20f7182dcc468ff6a5daf00c4c18529707bf5930d008141a6807f23dafe18044"
+      },
+      {
+        "path": "patches/helium/ui/toolbar-not-on-hover.patch",
+        "sha256": "c57d589a644e27f74fdc286a20255246c59f3fa856931952673646f45dfa0658"
       }
     ]
   },
@@ -2237,6 +2241,23 @@
       "adaptation": "Prepared-source quilt patch refreshed, unmerged and strictly replayed with zero fuzz/offsets. The owner accepted the native Apple silicon extension-popup interaction. Both browser builds and browsing checks pass; Intel executes under Rosetta. Exact test-package provenance and the corrected Sparkle test isolation are recorded in agent-docs/project/builds/2026-11-12-extension-popup-retention.json.",
       "commits": [
         "1aecd0bcfe68e2e74140fa84e812850981d57c61"
+      ]
+    },
+    {
+      "id": "toolbar-hover-options",
+      "depends_on": [
+        "native-header-settings",
+        "devtools-header-hover",
+        "onboarding-toolbar-options"
+      ],
+      "patches": [
+        "patches/helium/ui/toolbar-not-on-hover.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Offer On hover edge and On hover sidebar, disabling only page-edge entry in the sidebar mode while preserving sidebar-header and engaged-control reveals.",
+      "adaptation": "Prepared-source quilt patch refreshed and unmerged. Native menu, Settings and setup use the exact requested labels, with the sidebar mode last. Setup still excludes experimental cover. Strict changed-file replay, both browser builds, production-expression fixtures, packaged Settings/default/persistence and setup checks pass; Intel runs under Rosetta. The final native menu labels were inspected on Apple silicon. See agent-docs/project/builds/2026-11-12-toolbar-hover-options.json for source scope and test-update isolation.",
+      "commits": [
+        "af297bc814a9dba21e27433a9e1d3794844f2d6b"
       ]
     }
   ],

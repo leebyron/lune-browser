@@ -45,4 +45,5 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [String review and frame-thickness label](string-review.md)
 - [Themed unpinned sidebar and 216 px default width](themed-unpinned-sidebar.md)
 - [Trailing toolbar controls](trailing-toolbar-controls.md)
+- [Toolbar hover modes](toolbar-visibility.md)
 - [Native window-menu retention](window-menu-retention.md)
