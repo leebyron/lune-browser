@@ -166,6 +166,8 @@ struct TemplateURL {
 };
 struct TemplateURLService {
   std::vector<TemplateURL*> entries;
+  const TemplateURL* default_provider = nullptr;
+  const TemplateURL* GetDefaultSearchProvider() { return default_provider; }
   std::vector<TemplateURL*> GetTemplateURLs() { return entries; }
   TemplateURL* GetTemplateURLForKeyword(const std::u16string& keyword) {
     for (auto* p : entries) if (p->trigger == keyword) return p;
@@ -262,6 +264,70 @@ int main() {
   assert(BangsForQuery(nullptr, profile.GetPrefs(), u"!").empty());
   auto popular = find(u"!");
   assert(popular.size() == 3 && popular[0].site_keyword == "!w");
+  // Setup's default is a separate engine from the installed bang aliases.
+  // Its preference is read on every query and competes within relevance bands.
+  {
+    Profile fresh;
+    TemplateURL selected{u"startpage.com", u"Startpage"};
+    TemplateURL sp{u"!s", u"StartPage"}, sp_alias{u"!sp", u"StartPage"};
+    TemplateURL sp_full{u"!startpage", u"Startpage"};
+    TemplateURL sp_images{u"!spi", u"Startpage Images"};
+    TemplateURL google{u"!g", u"Google"}, google_default{u"google.com", u"Google"};
+    std::vector<TemplateURL> fillers;
+    fillers.reserve(20);
+    TemplateURLService engines{{&google}};
+    for (int i = 0; i < 20; ++i) {
+      fillers.push_back({base::UTF8ToUTF16("!aa" + std::to_string(i)), u"Filler " + base::UTF8ToUTF16(std::to_string(i))});
+      engines.entries.push_back(&fillers.back());
+    }
+    engines.entries.insert(engines.entries.end(),
+                           {&selected, &sp, &sp_alias, &sp_full, &sp_images});
+    auto ranked = [&](std::u16string query) {
+      return BangsForQuery(&engines, fresh.GetPrefs(), query);
+    };
+    assert(ranked(u"!")[0].site_keyword == "!g");
+    engines.default_provider = &selected;
+    auto preferred = ranked(u"!");
+    assert(preferred.size() == 9 && preferred[0].site_keyword == "!s");
+    assert(std::ranges::count_if(preferred, [](const auto& row) {
+      return row.site_name == u"StartPage";
+    }) == 1);
+    engines.default_provider = &google_default;
+    assert(ranked(u"!")[0].site_keyword == "!g");
+    engines.default_provider = &selected;
+    assert(ranked(u"!")[0].site_keyword == "!s");
+    auto image_score = ranked(u"!spi")[0].score;
+    engines.default_provider = nullptr;
+    assert(ranked(u"!spi")[0].score == image_score);
+    engines.default_provider = &selected;
+    // A selected provider must still match the typed trigger/name.
+    assert(ranked(u"!g")[0].site_keyword == "!g");
+    TemplateURL exact{u"!start", u"Other engine"};
+    engines.entries.push_back(&exact);
+    assert(ranked(u"!start")[0].site_keyword == "!start");
+    assert(ranked(u"startpage")[0].score < 60);
+    // Submitted favorites can overtake the modest default preference.
+    RecordBangUse(&fresh, "!g");
+    assert(ranked(u"!")[0].site_keyword == "!g");
+    engines.default_provider = &google_default;
+    assert(ranked(u"!")[0].site_keyword == "!g");
+    engines.default_provider = nullptr;
+    assert(ranked(u"!")[0].site_keyword == "!g");
+    engines.default_provider = &selected;
+    sp.active = false;
+    sp_alias.active = false;
+    assert(std::ranges::none_of(ranked(u"!sp"), [](const auto& row) {
+      return row.site_keyword == "!s" || row.site_keyword == "!sp";
+    }));
+    sp.active = true;
+    sp.searchable = false;
+    assert(std::ranges::none_of(ranked(u"!sp"), [](const auto& row) {
+      return row.site_keyword == "!s" || row.site_keyword == "!sp";
+    }));
+    // A default which itself has a bang keyword also receives the preference.
+    engines.default_provider = &sp_full;
+    assert(ranked(u"!startpage")[0].site_keyword == "!startpage");
+  }
   for (auto query : {u"gh", u"git", u"github", u"githb", u"gihtub", u"!githb", u"!GITHUB"}) {
     auto rows = find(query);
     assert(!rows.empty() && rows[0].site_keyword == "!gh");
@@ -403,6 +469,7 @@ int main() {
   auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - start).count();
   std::cout << "PASS: catalogue, plain/explicit intent, typo/case matching, website/tab priority, "
+    "current default-engine preference, alias/case matching, default changes, "
     "scope terms, completion vs typed-trigger Backspace with retained terms and caret, ranked default selection, stationary-pointer hover, explicit selection across async updates, rowless scoped submission, no scoped completions, personal frequency/recency, Incognito, literal keys, bounded history, "
     "eligibility/precedence, one completion per service, ranking before cap; 15000-entry scan " << ms << "ms\n";
 }

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "15170d0c385565cbe94cd59c282d9f89a9edd367",
+    "commit": "7ccbf6d4c324dc8f62e81cbf2fc6b52467a7d931",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -805,6 +805,11 @@
       {
         "path": "patches/lune/thicker-logo.patch",
         "sha256": "9e4e847250ed86acd0c5969d6583498676630bdd9abe47b429c0c33bb8d02eec"
+      },
+      {
+        "path": "patches/helium/ui/default-search-bang-ranking.patch",
+        "sha256": "a4e342799f0397a872192041db17948250fbc27faa4623dd45987159d8d65cce",
+        "source_sha256": "a4e342799f0397a872192041db17948250fbc27faa4623dd45987159d8d65cce"
       }
     ]
   },
@@ -2198,6 +2203,21 @@
         "3dbf35b2431b5e9220b4214d66f5631f9e936a39",
         "e65fc51805539145eeb935b1f567bd56da7cb33b",
         "15170d0c385565cbe94cd59c282d9f89a9edd367"
+      ]
+    },
+    {
+      "id": "default-search-bang-ranking",
+      "depends_on": [
+        "command-bar-bang-suggestions"
+      ],
+      "patches": [
+        "patches/helium/ui/default-search-bang-ranking.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Give matching bangs for the current default search engine a modest ranking preference, putting the selected engine first on initial bare ! input.",
+      "adaptation": "Prepared-source quilt patch refreshed and unmerged. Case-insensitive provider names bridge separate default-engine and catalogue entries without boosting specialized provider names. A 20-point preference stays within text relevance bands and below strong recent usage. Both architecture compiled production ranking regressions pass, with x86_64 tests under Rosetta. The arm64 browser build, native Startpage selection and smoke check pass; the x86_64 browser build is still running. Full committed model-stack replay has zero fuzz and offsets. Native Startpage/default-change checks and shared-source composition limits are recorded in agent-docs/project/features/command-bar-bangs.md.",
+      "commits": [
+        "7ccbf6d4c324dc8f62e81cbf2fc6b52467a7d931"
       ]
     }
   ],
