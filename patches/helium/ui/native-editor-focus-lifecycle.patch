@@ -1,0 +1,429 @@
+Index: word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+===================================================================
+--- word-base.orig/chrome/browser/ui/helium/helium_command_bar_view_mac.mm	2026-11-12 12:28:32.462269550 -0800
++++ word-base/chrome/browser/ui/helium/helium_command_bar_view_mac.mm	2026-11-12 12:28:32.467421919 -0800
+@@ -15,6 +15,7 @@
+ #include "chrome/browser/ui/helium/native_result_row_mac.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials_mac.h"
++#include "chrome/browser/ui/views/helium/native_text_field_mac.h"
+ #include "ui/gfx/image/image.h"
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/border.h"
+@@ -125,7 +126,7 @@
+ @end
+ 
+ @interface HeliumCommandPane : NSView <NSTextFieldDelegate>
+-@property(nonatomic, strong) NSTextField* input;
++@property(nonatomic, strong) HeliumNativeTextField* input;
+ @property(nonatomic, strong) NSTextField* scope;
+ @property(nonatomic, strong) NSBox* scopePill;
+ @property(nonatomic, strong) NSScrollView* scroll;
+@@ -196,7 +197,11 @@
+   HeliumCommandPane* __strong pane;
+   raw_ptr<views::NativeViewHost> host = nullptr;
+   int width = kWidth;
++  id __strong dismissal_monitor;
+   ~Native() {
++    if (dismissal_monitor) {
++      [NSEvent removeMonitor:dismissal_monitor];
++    }
+     pane.input.delegate = nil;
+     pane.onQuery = nil;
+     pane.onCommand = nil;
+@@ -247,6 +252,71 @@
+   [view->native_->pane.input.window
+       makeFirstResponder:view->native_->pane.input];
+   [view->native_->pane.input selectText:nil];
++  // Dismissal is an input action, independent of key-window notifications.
++  // App reactivation can restore the native editor after Views focus has moved.
++  // Keep Escape and clicks outside the glass working in that intermediate state.
++  auto weak_widget = widget->GetWeakPtr();
++  auto* browser_view = BrowserView::GetBrowserViewForNativeWindow(
++      parent_widget->GetNativeWindow());
++  auto weak_browser = browser_view ? browser_view->GetAsWeakPtr()
++                                   : base::WeakPtr<BrowserView>();
++  __weak HeliumCommandPane* weak_pane = view->native_->pane;
++  view->native_->dismissal_monitor = [NSEvent
++      addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown |
++                                          NSEventMaskLeftMouseDown |
++                                          NSEventMaskRightMouseDown
++      handler:^NSEvent*(NSEvent* event) {
++        HeliumCommandPane* pane = weak_pane;
++        if (!pane || !weak_widget || weak_widget->IsClosed()) {
++          return event;
++        }
++        if (event.type == NSEventTypeKeyDown) {
++          const NSEventModifierFlags command_modifiers =
++              event.modifierFlags & (NSEventModifierFlagCommand |
++                                     NSEventModifierFlagShift |
++                                     NSEventModifierFlagControl |
++                                     NSEventModifierFlagOption);
++          if (command_modifiers == NSEventModifierFlagCommand &&
++              [event.charactersIgnoringModifiers.lowercaseString
++                  isEqualToString:@"l"] &&
++              (event.window == pane.window ||
++               event.window == pane.window.parentWindow)) {
++            [pane.input cancelFocusRestoration];
++            // Leave input dispatch before destroying the popup, then focus
++            // the owning browser after its native window regains key status.
++            dispatch_async(dispatch_get_main_queue(), ^{
++              if (weak_widget) {
++                weak_widget->CloseNow();
++              }
++              if (weak_browser && weak_browser->GetWidget()) {
++                weak_browser->GetWidget()->Activate();
++                weak_browser->SetFocusToLocationBar(true);
++              }
++            });
++            return nil;
++          }
++          if (event.keyCode == 53 &&
++              !(event.modifierFlags & (NSEventModifierFlagCommand |
++                                       NSEventModifierFlagControl |
++                                       NSEventModifierFlagOption))) {
++            [pane.input cancelFocusRestoration];
++            pane.onCommand(@selector(cancelOperation:));
++            return nil;
++          }
++          return event;
++        }
++        if (event.window) {
++          const NSPoint screen_point =
++              [event.window convertPointToScreen:event.locationInWindow];
++          const NSRect content = [pane.window convertRectToScreen:
++              [pane convertRect:pane.bounds toView:nil]];
++          if (!NSPointInRect(screen_point, content)) {
++            [pane.input cancelFocusRestoration];
++            weak_widget->Close();
++          }
++        }
++        return event;
++      }];
+   return view;
+ }
+ 
+@@ -276,8 +346,9 @@
+   native_->pane = pane;
+   pane.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+   pane.rows = [[NSMutableArray alloc] init];
+-  pane.input = [[NSTextField alloc] init];
++  pane.input = [[HeliumNativeTextField alloc] init];
+   pane.input.cell = [[HeliumWordTextFieldCell alloc] initTextCell:@""];
++  pane.input.restoresPopupKeyWindow = YES;
+   pane.input.font = [NSFont systemFontOfSize:18];
+   pane.input.bordered = NO;
+   pane.input.drawsBackground = NO;
+@@ -410,6 +481,7 @@
+ 
+ HeliumCommandBarView::~HeliumCommandBarView() = default;
+ void HeliumCommandBarView::Close() {
++  [native_->pane.input cancelFocusRestoration];
+   if (GetWidget()) {
+     GetWidget()->Close();
+   }
+@@ -574,13 +646,22 @@
+   }
+ }
+ void HeliumCommandBarView::WindowClosing() {
++  [native_->pane.input cancelFocusRestoration];
+   GetWidget()->RemoveObserver(this);
+   std::move(on_closed_).Run();
+ }
+ void HeliumCommandBarView::OnWidgetActivationChanged(views::Widget* widget,
+                                                      bool active) {
+   if (!active) {
+-    Close();
++    // AppKit reports a key-window change before app deactivation has finished.
++    // Check on the next turn so switching apps preserves this invocation,
++    // while clicking the page or another Lune window still dismisses it.
++    auto weak_widget = widget->GetWeakPtr();
++    dispatch_async(dispatch_get_main_queue(), ^{
++      if (weak_widget && NSApp.active && !weak_widget->IsActive()) {
++        weak_widget->Close();
++      }
++    });
+   }
+ }
+ void HeliumCommandBarView::ContentsChanged(views::Textfield*,
+Index: word-base/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+===================================================================
+--- word-base.orig/chrome/browser/ui/views/frame/browser_frame_view_mac.mm	2026-11-12 12:28:32.465489197 -0800
++++ word-base/chrome/browser/ui/views/frame/browser_frame_view_mac.mm	2026-11-12 12:28:32.468196467 -0800
+@@ -70,6 +70,7 @@
+ #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #import "chrome/browser/ui/views/helium/native_frame_materials_mac.h"
++#import "chrome/browser/ui/views/helium/native_text_field_mac.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+@@ -1302,7 +1303,7 @@
+ 
+ // Keep the system focus indicator but supply the whole glass surface as its
+ // mask. AppKit chooses the ring color and accessibility contrast treatment.
+-@interface HeliumGlassAddressField : NSTextField
++@interface HeliumGlassAddressField : HeliumNativeTextField
+ @property(nonatomic, weak) NSView* focusSurface;
+ @property(nonatomic) BOOL userEditing;
+ @property(nonatomic, copy) void (^onInitialFocus)(void);
+@@ -1324,10 +1325,20 @@
+   }
+   [super mouseDown:event];
+ }
++- (BOOL)hasActiveEditor {
++  NSText* editor = self.currentEditor;
++  return NSApp.active && self.window.isKeyWindow && editor &&
++         self.window.firstResponder == editor;
++}
+ - (NSRect)focusRingMaskBounds {
+-  return [self convertRect:self.focusSurface.bounds fromView:self.focusSurface];
++  return [self hasActiveEditor]
++      ? [self convertRect:self.focusSurface.bounds fromView:self.focusSurface]
++      : NSZeroRect;
+ }
+ - (void)drawFocusRingMask {
++  if (![self hasActiveEditor]) {
++    return;
++  }
+   [[NSBezierPath bezierPathWithRoundedRect:self.focusRingMaskBounds
+                                    xRadius:18
+                                    yRadius:18] fill];
+@@ -1655,6 +1666,14 @@
+       [owner beginEditing];
+     }
+   };
++  _address.onFocusTransferred = ^{
++    HeliumFloatingAddressBar* owner = weakSelf;
++    if (owner && [owner isEditing]) {
++      [owner->_address cancelFocusRestoration];
++      [owner.window makeFirstResponder:nil];
++      [owner finishEditing];
++    }
++  };
+   _keyMonitor = [NSEvent
+       addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown
+                                    handler:^NSEvent*(NSEvent* event) {
+@@ -1784,8 +1803,10 @@
+   // The profile observer also covers incognito's last-window shutdown.
+   _browserView.reset();
+   _editing = NO;
++  [_address cancelFocusRestoration];
+   _address.delegate = nil;
+   _address.onInitialFocus = nil;
++  _address.onFocusTransferred = nil;
+   if (_keyMonitor) {
+     [NSEvent removeMonitor:_keyMonitor];
+     _keyMonitor = nil;
+@@ -1990,6 +2011,7 @@
+     return;
+   }
+   _editing = NO;
++  [_address cancelFocusRestoration];
+   _scopeKeyword.clear();
+   _scopeWasTyped = NO;
+   _scopePill.hidden = YES;
+@@ -2015,7 +2037,9 @@
+   __weak HeliumFloatingAddressBar* weakSelf = self;
+   dispatch_async(dispatch_get_main_queue(), ^{
+     HeliumFloatingAddressBar* owner = weakSelf;
+-    if (owner && !owner->_address.currentEditor) {
++    if (owner && owner->_editing && NSApp.active &&
++        !owner->_address.preservingFocus &&
++        !owner->_address.currentEditor) {
+       [owner finishEditing];
+     }
+   });
+@@ -3087,8 +3111,12 @@
+   const bool window_menu_open = IsWindowControlsMenuOpen() ||
+                                 browser_view->IsChromeRevealHeldForMenu();
+   const bool customize_open = browser_view->IsCustomizeChromeShowing();
++  // A suspended native address editor still owns the header while switching
++  // applications. Use the same editing state for inactivity and hover gates.
++  const bool editing =
++      floating_address_focus_requested_ || [floating_address_bar_ isEditing];
+   if (!HasFloatingAddressBar() ||
+-      (!browser_view->IsZenModeTopChromePinned() &&
++      (!browser_view->IsZenModeTopChromePinned() && !editing &&
+        !dragging && !resizing && !window_menu_open && !customize_open &&
+        ((!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
+         !NSApp.active))) {
+@@ -3199,9 +3227,6 @@
+   const bool within_retention = [floating_address_bar_ isPresented] &&
+                                 in_hover_area && in_window &&
+                                 cursor.y() <= bounds.bottom() + 48;
+-  const bool editing =
+-      floating_address_focus_requested_ || [floating_address_bar_ isEditing];
+-
+   if (host && host->GetVisible()) {
+     host->SetBoundsRect(bounds);
+     [floating_address_bar_ refresh];
+Index: word-base/chrome/browser/ui/views/helium/BUILD.gn
+===================================================================
+--- word-base.orig/chrome/browser/ui/views/helium/BUILD.gn	2026-11-12 12:28:32.456871345 -0800
++++ word-base/chrome/browser/ui/views/helium/BUILD.gn	2026-11-12 10:18:29.033303555 -0800
+@@ -62,6 +62,8 @@
+       "native_frame_materials_mac.h",
+       "native_frame_materials_mac.mm",
+       "native_frame_separator.h",
++      "native_text_field_mac.h",
++      "native_text_field_mac.mm",
+     ]
+ 
+     deps += [
+Index: word-base/chrome/browser/ui/views/helium/native_text_field_mac.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ word-base/chrome/browser/ui/views/helium/native_text_field_mac.h	2026-11-12 11:49:33.995332470 -0800
+@@ -0,0 +1,21 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_TEXT_FIELD_MAC_H_
++#define CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_TEXT_FIELD_MAC_H_
++
++#import <AppKit/AppKit.h>
++
++// Views restores its own focused view when a window becomes key. Embedded
++// AppKit editors need their focus and selection restored after that step.
++@interface HeliumNativeTextField : NSTextField
++@property(nonatomic, readonly) BOOL preservingFocus;
++// A command popup may return through its owning browser window.
++@property(nonatomic) BOOL restoresPopupKeyWindow;
++// Explicit in-app ownership transfer, separate from temporary app deactivation.
++@property(nonatomic, copy) void (^onFocusTransferred)(void);
++- (void)cancelFocusRestoration;
++@end
++
++#endif  // CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_TEXT_FIELD_MAC_H_
+Index: word-base/chrome/browser/ui/views/helium/native_text_field_mac.mm
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ word-base/chrome/browser/ui/views/helium/native_text_field_mac.mm	2026-11-12 11:49:33.995934077 -0800
+@@ -0,0 +1,125 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#import "chrome/browser/ui/views/helium/native_text_field_mac.h"
++
++@implementation HeliumNativeTextField {
++  BOOL _preservingFocus;
++  NSRange _savedSelection;
++}
++@synthesize restoresPopupKeyWindow = _restoresPopupKeyWindow;
++@synthesize onFocusTransferred = _onFocusTransferred;
++
++- (instancetype)initWithFrame:(NSRect)frame {
++  if ((self = [super initWithFrame:frame])) {
++    NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
++    [center addObserver:self selector:@selector(applicationWillResign:)
++                   name:NSApplicationWillResignActiveNotification object:NSApp];
++    [center addObserver:self selector:@selector(applicationDidBecome:)
++                   name:NSApplicationDidBecomeActiveNotification object:NSApp];
++    [center addObserver:self selector:@selector(applicationDidResign:)
++                   name:NSApplicationDidResignActiveNotification object:NSApp];
++  }
++  return self;
++}
++
++- (void)dealloc {
++  [NSNotificationCenter.defaultCenter removeObserver:self];
++}
++
++- (BOOL)preservingFocus {
++  return _preservingFocus;
++}
++
++- (void)cancelFocusRestoration {
++  _preservingFocus = NO;
++}
++
++- (void)applicationWillResign:(NSNotification*)notification {
++  NSText* editor = self.currentEditor;
++  if (editor && self.window.firstResponder == editor) {
++    _savedSelection = editor.selectedRange;
++    _preservingFocus = YES;
++  }
++}
++
++- (void)applicationDidBecome:(NSNotification*)notification {
++  [self noteFocusRingMaskChanged];
++  [self restoreFocusAfterActivation];
++}
++
++- (void)applicationDidResign:(NSNotification*)notification {
++  [self noteFocusRingMaskChanged];
++}
++
++- (void)windowDidResignKey:(NSNotification*)notification {
++  [self noteFocusRingMaskChanged];
++}
++
++- (void)viewDidMoveToWindow {
++  [super viewDidMoveToWindow];
++  NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
++  [center removeObserver:self name:NSWindowDidBecomeKeyNotification object:nil];
++  [center removeObserver:self name:NSWindowDidResignKeyNotification object:nil];
++  if (self.window) {
++    [center addObserver:self selector:@selector(windowDidBecomeKey:)
++                   name:NSWindowDidBecomeKeyNotification object:nil];
++    [center addObserver:self selector:@selector(windowDidResignKey:)
++                   name:NSWindowDidResignKeyNotification object:self.window];
++  } else {
++    [self cancelFocusRestoration];
++  }
++}
++
++- (void)windowDidBecomeKey:(NSNotification*)notification {
++  [self noteFocusRingMaskChanged];
++  if (NSApp.active && self.window && notification.object != self.window &&
++      self.onFocusTransferred) {
++    self.onFocusTransferred();
++  }
++  // Returning through the browser may make its window key before the command
++  // popup. Observe that handoff as well as the popup's own key notification.
++  if (notification.object == self.window ||
++      (self.restoresPopupKeyWindow &&
++       notification.object == self.window.parentWindow)) {
++    [self restoreFocusAfterActivation];
++  }
++}
++
++- (void)restoreFocusAfterActivation {
++  // Wait for NativeWidgetMac/FocusManager to finish restoring Views focus.
++  __weak HeliumNativeTextField* weakSelf = self;
++  dispatch_async(dispatch_get_main_queue(), ^{
++    HeliumNativeTextField* field = weakSelf;
++    if (!field || !field->_preservingFocus || !NSApp.active) {
++      return;
++    }
++    // Wait until the parent has actually become key. Checking only its main
++    // status during app activation can miss the handoff or steal a dialog's
++    // focus. The parent-key notification also reaches this deferred path.
++    if (field.restoresPopupKeyWindow &&
++        field.window.parentWindow.isKeyWindow && !field.window.isKeyWindow) {
++      [field.window makeKeyWindow];
++      // Its key notification schedules editor restoration after Views has
++      // processed this second activation, too.
++      return;
++    }
++    if (!field.window.isKeyWindow) {
++      return;
++    }
++    const NSRange selection = field->_savedSelection;
++    if ([field.window makeFirstResponder:field]) {
++      NSText* editor = field.currentEditor;
++      if (editor) {
++        const NSUInteger length = field.stringValue.length;
++        const NSUInteger location = MIN(selection.location, length);
++        editor.selectedRange = NSMakeRange(
++            location, MIN(selection.length, length - location));
++        field->_preservingFocus = NO;
++        [field noteFocusRingMaskChanged];
++      }
++    }
++  });
++}
++@end
