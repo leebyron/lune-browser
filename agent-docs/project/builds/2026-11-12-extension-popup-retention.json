@@ -1,0 +1,76 @@
+{
+  "date": "2026-11-12",
+  "status": "Validated development inputs; no browser release",
+  "component": {
+    "base": "7ccbf6d4c324dc8f62e81cbf2fc6b52467a7d931",
+    "commit": "1aecd0bcfe68e2e74140fa84e812850981d57c61",
+    "tree": "7738c90756d0a7145b89ffd56f82d6a8a4b28955",
+    "input_ref": "refs/tags/inputs/extension-popup-retention-1/macos",
+    "owner_acceptance": "Extension bug seems fixed. We can commit that.",
+    "published": true
+  },
+  "tested_with_toolbar_input": "af297bc814a9dba21e27433a9e1d3794844f2d6b",
+  "extra_local_input": "Native-editor focus-retention patch already active in the prepared development tree; excluded from these two component commits.",
+  "architectures": {
+    "arm64": {
+      "host": "Apple silicon",
+      "runtime": "native",
+      "build": {
+        "architecture": "arm64",
+        "exit_code": 0,
+        "seconds": 216.3286578655243,
+        "release": false
+      },
+      "smoke_passed": true,
+      "executable_sha256": "d09a67c3e9abe1a8fc204245e7ec581f8cf77616a80423048aacb8c0fe01118e",
+      "framework_sha256": "571221a0ddef785517ef87c9251d5029dde1d92822497af649eb72d938bff08c"
+    },
+    "x86_64": {
+      "host": "Apple silicon",
+      "runtime": "Rosetta",
+      "build": {
+        "architecture": "x86_64",
+        "exit_code": 0,
+        "seconds": 47.1526939868927,
+        "release": false
+      },
+      "smoke_passed": true,
+      "executable_sha256": "aab7642f39dc73ee99ad013ab6d99c62ac1ce6aa2ba13258a58b71c8747ee309",
+      "framework_sha256": "7bb84c833706aeab69f67d99d2482c73a97152294fc95b8c31b4a9b28e52683c"
+    }
+  },
+  "patch_sha256": "20f7182dcc468ff6a5daf00c4c18529707bf5930d008141a6807f23dafe18044",
+  "strict_replay": {
+    "passed": true,
+    "fuzz": 0,
+    "offsets": 0,
+    "files": {
+      "chrome/browser/ui/views/extensions/extension_popup.cc": "7d522c20e442acee9cc4ada3f1582a7ffac155a4661ad49b20ec236e680f683f",
+      "chrome/browser/ui/views/extensions/extension_popup.h": "5310ead969d62831f1d6c0ab05d1c799a3b1e5b3534bc639d1b0a1380244722b"
+    }
+  },
+  "owner_acceptance": "Extension bug seems fixed. We can commit that.",
+  "native_popup_observation": {
+    "is_presented": true,
+    "is_hidden": false,
+    "is_editing": false,
+    "log_sha256": "ac55effe14db8c2af41518e052736827b531b97d826d820634c9bd2561a9de51",
+    "debugger_detached": true
+  },
+  "runtime_diagnostics": {
+    "observations": [
+      "Initial Intel smoke lost its window. Later test copies had been replaced with the notarized published 26.1111.3 release, confirmed by version and signature.",
+      "The custom Settings fixture lacked a local feed override and left browser updates enabled; Sparkle downloaded and installed the published release on test-browser quit.",
+      "Final Settings tests disable browser updates only in their disposable profile and use a loopback feed override. Existing smoke/setup tests already supply loopback update overrides.",
+      "The final isolated Intel package was reconstructed from current Ninja bundle-copy inputs. Its unsigned main/framework hashes match the exact final build, its Mach-O UUID is preserved across ad-hoc test signing, and its framework/version remain unchanged after all final checks."
+    ],
+    "production_update_policy_changed": false
+  },
+  "limits": [
+    "Not a fresh full-tree source preparation or a release/update acceptance run.",
+    "Native Intel hardware was not tested.",
+    "A complete physical hover, multi-window and fullscreen gesture matrix was not recorded."
+  ],
+  "specific_github_issue": null,
+  "published_browser_changed": false
+}

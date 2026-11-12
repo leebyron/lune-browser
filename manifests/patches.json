@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "7ccbf6d4c324dc8f62e81cbf2fc6b52467a7d931",
+    "commit": "1aecd0bcfe68e2e74140fa84e812850981d57c61",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -809,6 +809,10 @@
       {
         "path": "patches/helium/ui/default-search-bang-ranking.patch",
         "sha256": "a4e342799f0397a872192041db17948250fbc27faa4623dd45987159d8d65cce"
+      },
+      {
+        "path": "patches/helium/ui/extension-popup-toolbar-retention.patch",
+        "sha256": "20f7182dcc468ff6a5daf00c4c18529707bf5930d008141a6807f23dafe18044"
       }
     ]
   },
@@ -2217,6 +2221,22 @@
       "adaptation": "Prepared-source quilt patch refreshed and unmerged. Case-insensitive provider names bridge separate default-engine and catalogue entries without boosting specialized provider names. A 20-point preference stays within text relevance bands and below strong recent usage. Both architecture compiled production ranking regressions pass, with x86_64 tests under Rosetta. Both browser builds, arm64 UI smoke and native Startpage selection pass. Intel browsing/persistence passes under Rosetta with mock-Keychain in an ad-hoc fixture bound to the freshly built framework; packaged Intel UI/artwork acceptance is not claimed. Full committed model-stack replay has zero fuzz and offsets. Native Startpage selection and model default-change checks and shared-source composition limits are recorded in agent-docs/project/features/command-bar-bangs.md.",
       "commits": [
         "7ccbf6d4c324dc8f62e81cbf2fc6b52467a7d931"
+      ]
+    },
+    {
+      "id": "extension-popup-toolbar-retention",
+      "depends_on": [
+        "chrome-menu-reveal-retention",
+        "toolbar-bubble-reveal"
+      ],
+      "patches": [
+        "patches/helium/ui/extension-popup-toolbar-retention.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep the toolbar mounted while an extension action popup is visible, including icons hosted in the floating native child widget.",
+      "adaptation": "Prepared-source quilt patch refreshed, unmerged and strictly replayed with zero fuzz/offsets. The owner accepted the native Apple silicon extension-popup interaction. Both browser builds and browsing checks pass; Intel executes under Rosetta. Exact test-package provenance and the corrected Sparkle test isolation are recorded in agent-docs/project/builds/2026-11-12-extension-popup-retention.json.",
+      "commits": [
+        "1aecd0bcfe68e2e74140fa84e812850981d57c61"
       ]
     }
   ],

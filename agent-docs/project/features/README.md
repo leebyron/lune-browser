@@ -21,6 +21,7 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [Dock-pinning message bar](dock-infobar.md)
 - [Download menus and native progress](downloads.md)
 - [Edge-to-edge macOS frame](edge-to-edge-frame.md)
+- [Toolbar retention for extension popups](extension-popup-retention.md)
 - [Floating native address capsule](floating-address-bar.md)
 - [Floating footer prompts](floating-infobars.md)
 - [Pinned header and page inset prototype](header-inset-prototype.md)
