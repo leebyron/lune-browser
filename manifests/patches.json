@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "92a3c352323fbe0aed6a5dd4412ff2a50852fdcf",
+    "commit": "e262732c9ad7afb477ba7f7285eea3972591363a",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -749,10 +749,6 @@
       {
         "path": "patches/helium/ui/address-bar-bangs.patch",
         "sha256": "43cb46399b6cef21f9a07b291eab6f1d15dd82811d02a456c0470ce25d85da56"
-      },
-      {
-        "path": "patches/helium/ui/downloads-toolbar-default.patch",
-        "sha256": "c113b884922908fa1de0a901f342041dedac7c41daa00c3842b62425f49fccb7"
       },
       {
         "path": "patches/helium/ui/onboarding-toolbar-options.patch",
@@ -1956,19 +1952,6 @@
       "commits": [
         "e3161f646192994f5fefa037510df467a22f1e09",
         "b060587ba6d6ab55a8949b705672f8d92463f389"
-      ]
-    },
-    {
-      "id": "downloads-toolbar-default",
-      "depends_on": [],
-      "patches": [
-        "patches/helium/ui/downloads-toolbar-default.patch"
-      ],
-      "review_status": "reviewed-port",
-      "rationale": "Pin Downloads in the default toolbar, while retaining saved toolbar preferences and the existing Reset to default behavior.",
-      "adaptation": "Developed from the unchanged prepared Chromium preference-registration source with quilt, refreshed, and unmerged into the macOS platform. Zero-fuzz, zero-offset replay matches the compiled source. See agent-docs/project/features/downloads.md.",
-      "commits": [
-        "62f2f236c7fd191e6f998450a1e0ce8058bcc9ca"
       ]
     },
     {

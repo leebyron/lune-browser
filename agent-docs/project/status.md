@@ -30,7 +30,7 @@ The owner-accepted [expanded Command-T commands](features/command-bar-actions.md
 
 The development lock also includes [native address-bar bangs](features/address-bar-bangs.md), reusing Command-T matching, provider pills, scope editing and local usage. Both builds, focused native regressions and Apple silicon interaction checks pass. The owner accepted the preview on November 11, 2026 and requested inclusion in main builds. Published 26.1111.2 remains unchanged.
 
-The development lock also selects [Downloads pinned by default](features/downloads.md#default-toolbar-visibility) through `inputs/downloads-default-1/macos`. Profiles without saved toolbar customizations show Downloads immediately, saved unpins retain precedence, and Reset to default restores it. Published releases retain their frozen inputs.
+The development lock restores [Downloads unpinned by default](features/downloads.md#default-toolbar-visibility) through `inputs/downloads-conditional-default-1/macos`. Downloads still appears temporarily when a download starts; the setting controls persistent idle visibility. Saved toolbar choices retain precedence, and Reset to default leaves Downloads unpinned. Published releases retain their frozen inputs.
 
 Both architectures build on the local Apple silicon Mac. Intel runtime checks use Rosetta unless a report explicitly identifies physical hardware. The owner has Intel Macs on macOS 13.7.8 and 26.6.2 for manual checks; their availability is not acceptance of any particular binary. Publish after single-device acceptance and the technical gates pass; manual Intel results and per-release owner deferrals are not required.
 

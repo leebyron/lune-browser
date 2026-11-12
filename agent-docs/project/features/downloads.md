@@ -77,20 +77,50 @@ than rebuilding the combined browser after that disjoint patch was added.
 
 ## Default toolbar visibility
 
-Requested November 11, 2026. Downloads is included in the registered default
-`toolbar.pinned_actions` list. Profiles without a saved toolbar list show the
-button immediately, including while idle. Saved toolbar lists retain their
-precedence, so an explicit unpin remains effective. Customize Toolbar's existing
-Reset to default action restores Downloads through the same registered default.
-Download progress, completion attention, menus and temporary visibility retain
-their existing behavior.
+Downloads is unpinned by default for future builds. The owner requested this
+restoration on November 11, 2026 after confirming that disabling its toolbar
+setting only removes persistent pinning. A new download still requests temporary
+visibility independently of the pin state. Existing progress, completion/menu
+attention and automatic hiding remain unchanged. Saved toolbar lists retain
+precedence, including explicit pins; Reset to default leaves Downloads unpinned.
+
+Signed platform commit `e262732c9ad7afb477ba7f7285eea3972591363a`, retained by
+`inputs/downloads-conditional-default-1/macos`, retires only the standalone
+`helium/ui/downloads-toolbar-default.patch` and its series entry from platform
+input `92a3c352323fbe0aed6a5dd4412ff2a50852fdcf`. The development lock and patch
+manifest select the restored default. The core gitlink and published release
+inputs are unchanged. No specific open issue tracks this request.
+
+Source inspection confirms that `DownloadDisplayController::OnNewItem()` updates
+the display state; in-progress downloads call `ShowToolbarButton()`, and
+`DownloadToolbarUIController::Show()` requests ephemeral visibility through
+`ShowActionEphemerallyInToolbar()` without checking the pinned preference. Its
+existing `ButtonShowsForDownloadingItems` browser test covers that behavior;
+that browser-test binary was not built or run for this change.
+
+A focused reverse replay with zero fuzz and zero offsets restores the preference
+registration file byte-for-byte to the source built in published 26.1111.2.
+Neither remaining selected component patch series touches that file. Platform
+patch lint, lock ancestry/tree/gitlink/patch-hash validation and repository checks
+pass. No new native rebuild or headed interaction check is claimed for this
+patch retirement. Concise source and replay evidence is retained under
+`.work/downloads-conditional-default/`.
+
+### Earlier pinned-default change
+
+Requested earlier on November 11, 2026. This superseded change included Downloads
+in the registered default `toolbar.pinned_actions` list. Profiles without a saved
+toolbar list showed the button immediately, including while idle. Saved lists
+retained precedence, and Reset to default restored Downloads. Progress, completion
+attention, menus and temporary visibility were unchanged.
 
 Signed platform commit `62f2f236c7fd191e6f998450a1e0ce8058bcc9ca`, retained by
 `inputs/downloads-default-1/macos`, adds the focused
 `helium/ui/downloads-toolbar-default.patch` above the accepted address-bar bangs
 input. The core gitlink is unchanged. The development lock and patch provenance
-select this default for future builds; published releases retain their frozen
-inputs. No open issue specifically tracks this request.
+initially selected this default, which was later retired as described above.
+Published releases retained their frozen inputs. No open issue specifically
+tracked this request.
 
 The preference change was developed with quilt from the prepared source,
 refreshed and unmerged into the platform stack. Strict replay uses zero fuzz and
