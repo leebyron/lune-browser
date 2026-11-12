@@ -1,0 +1,378 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -588,7 +588,7 @@
+ }
+ - (void)resetCursorRects {
+   // This flush material must not replace AppKit resize cursors at the edges.
+-  // The inset child widget supplies cursors for the tab controls.
++  // The child widget supplies cursors for the tab controls.
+ }
+ - (CGFloat)materialCornerRadius {
+   return 0;
+@@ -3868,15 +3868,13 @@
+     const int header_clearance =
+         empty_header ? 10 :
+         std::max(0, 8 + 36 + TopUIFullscreenYOffset() - bounds.y());
+-    const int outer_resize = view->IsFullscreen() ? 0 : 6;
+-    const int left_resize = right ? 5 : outer_resize;
+-    const int right_resize = right ? outer_resize : 5;
+     floating_sidebar_material_.controlsWindow =
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+-    floating_sidebar_material_.controlsInsets = NSEdgeInsetsMake(
+-        header_clearance, left_resize, outer_resize, right_resize);
+-    bounds.Inset(gfx::Insets::TLBR(header_clearance, left_resize, outer_resize,
+-                                   right_resize));
++    // Row padding belongs inside the scrollable content. The native child
++    // window must not clip its scrollbar, edge hairlines or trailing rows.
++    floating_sidebar_material_.controlsInsets =
++        NSEdgeInsetsMake(header_clearance, 0, 0, 0);
++    bounds.Inset(gfx::Insets::TLBR(header_clearance, 0, 0, 0));
+     // A child NSWindow is not clipped by its parent during the slide.
+     bounds.Intersect(view->GetLocalBounds());
+     views::View::ConvertRectToScreen(view, &bounds);
+@@ -3885,6 +3883,13 @@
+     floating_sidebar_widget_->LayoutRootViewIfNecessary();
+     NSWindow* window =
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
++    // Child windows are not clipped by the parent's rounded bottom corner.
++    NSView* content = window.contentView;
++    content.wantsLayer = YES;
++    content.layer.cornerRadius = view->IsFullscreen() ? 0 : GetSystemWindowRadius();
++    content.layer.maskedCorners =
++        right ? kCALayerMaxXMinYCorner : kCALayerMinXMinYCorner;
++    content.layer.masksToBounds = YES;
+     NSAppearance* appearance = FloatingChromeAppearance(GetBrowserView());
+     if (![window.appearance isEqual:appearance] || sidebar_appearance_changed) {
+       window.appearance = appearance;
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -236,7 +236,7 @@
+   SetOrientation(views::LayoutOrientation::kVertical);
+   SetCrossAxisAlignment(views::LayoutAlignment::kStretch);
+   SetDefault(views::kMarginsKey, gfx::Insets::TLBR(2, 0, 0, 0));
+-
++  SetContentPadding(0);
+   update_button_ = AddChildView(std::make_unique<FooterButton>(
+       base::BindRepeating([] { chrome::AttemptRelaunch(); }),
+       IDS_APP_MENU_BUTTON_UPDATE_ALT2, vector_icons::kRefreshIcon));
+@@ -295,6 +295,14 @@
+ 
+ SidebarFooterView::~SidebarFooterView() = default;
+ 
++void SidebarFooterView::SetContentPadding(int padding) {
++  const int side_padding =
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding) +
++      padding;
++  SetInteriorMargin(
++      gfx::Insets::TLBR(6, side_padding, 5 + padding, side_padding));
++}
++
+ void SidebarFooterView::SetDefaultBrowserPrompt(base::RepeatingClosure accept,
+                                                 base::RepeatingClosure dismiss,
+                                                 base::RepeatingClosure reject) {
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.h
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.h
+@@ -33,6 +33,7 @@
+   SidebarFooterView(BrowserWindowInterface* browser,
+                     tabs::VerticalTabStripStateController* state_controller);
+   ~SidebarFooterView() override;
++  void SetContentPadding(int padding);
+   void SetDefaultBrowserPrompt(base::RepeatingClosure accept,
+                                base::RepeatingClosure dismiss,
+                                base::RepeatingClosure reject);
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -51,6 +51,7 @@
+ #include "chrome/browser/ui/views/tabs/common/tab_drag_handler.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_view.h"
+ #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
+ #include "chrome/browser/ui/views/tabs/organizer/organizer_panel_view.h"
+@@ -75,6 +76,7 @@
+ #include "ui/views/controls/button/label_button.h"
+ #include "ui/views/controls/focus_ring.h"
+ #include "ui/views/controls/resize_area.h"
++#include "ui/views/controls/scroll_view.h"
+ #include "ui/views/focus/focus_manager.h"
+ #include "ui/views/interaction/element_tracker_views.h"
+ #include "ui/views/layout/delegating_layout_manager.h"
+@@ -205,10 +207,6 @@
+   footer_ =
+       content_area_view_->AddChildView(std::make_unique<SidebarFooterView>(
+           browser_view->browser(), state_controller_));
+-  footer_->SetProperty(views::kMarginsKey,
+-                       gfx::Insets::TLBR(4, region_horizontal_padding, 5,
+-                                         region_horizontal_padding));
+-
+   gemini_button_ =
+       content_area_view_->AddChildView(std::make_unique<views::View>());
+ 
+@@ -1029,8 +1027,6 @@
+       views::kFlexBehaviorKey,
+       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
+                                views::MaximumFlexSizeRule::kUnbounded));
+-  view->SetProperty(views::kMarginsKey,
+-                    gfx::Insets::TLBR(0, 0, kBottomContainerGap, 0));
+ 
+   views::View* const content_parent =
+       content_area_view_ ? content_area_view_.get() : this;
+@@ -1084,8 +1080,6 @@
+ }
+ 
+ void VerticalTabStripRegionView::UpdateInteriorMargin() {
+-  const int padding = GetLayoutConstant(
+-      LayoutConstant::kVerticalTabStripUncollapsedVerticalPadding);
+   int top_padding = 0;
+   BrowserView* const browser = browser_view();
+   if (browser && browser->IsZenModeEnabledForLayout()) {
+@@ -1108,15 +1102,10 @@
+     }
+   }
+ 
+-  int horizontal_padding = 0;
+-#if BUILDFLAG(IS_MAC)
+-  if (browser && browser->IsZenModeEnabledForLayout() &&
+-      browser->IsVerticalAddressBarInSidebar()) {
+-    horizontal_padding = 4;
+-  }
+-#endif
+-  interior_margin_ = gfx::Insets::TLBR(
+-      top_padding, horizontal_padding, padding, horizontal_padding);
++  // Header and tab rows carry their own horizontal padding. Keep the scroll
++  // viewport flush with the sidebar, including when hosted in the popover.
++  footer_->SetContentPadding(GetSidebarContentPadding(browser));
++  interior_margin_ = gfx::Insets::TLBR(top_padding, 0, 0, 0);
+   InvalidateLayout();
+ }
+ 
+--- a/chrome/browser/ui/views/tabs/common/pinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/pinned_tab_container_view_vertical_layout.cc
+@@ -13,6 +13,7 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+@@ -86,7 +87,14 @@
+   int total_width = 0;
+   int total_height = 0;
+ 
+-  int x = 0;
++  const int horizontal_padding =
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding) +
++      GetSidebarContentPadding(
++          PinnedTabContainerView().collection_node_
++              ? PinnedTabContainerView().collection_node_->GetController()
++                    ->GetBrowserView()
++              : nullptr);
++  int x = horizontal_padding;
+   int y = 0;
+   int children_on_row = children.size();
+ 
+@@ -114,8 +122,7 @@
+     // Apply horizontal padding immediately at start of collapse animation by
+     // including collapsing state.
+     int available_width =
+-        size_bounds.width().value() -
+-        GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++        std::max(0, size_bounds.width().value() - 2 * horizontal_padding);
+ 
+     // When we are in collapsed state, only one child should be shown per row.
+     // During collapse animation and other cases, fit as many as possible.
+@@ -129,6 +136,8 @@
+                                        PinnedTabContainerView::kTabPadding)) +
+                            1));
+ 
++    children_on_row = std::max(1, children_on_row);
++
+     // Cap the number of pinned tabs per row when the user set a maximum.
+     // Zero means uncapped: keep the width-based fit.
+     const int max_per_row = GetMaxPinnedTabsPerRow(
+@@ -179,7 +188,7 @@
+       if (row_index >= children_on_row) {
+         y = total_height + PinnedTabContainerView::kTabPadding;
+         row_index = 0;
+-        x = 0;
++        x = horizontal_padding;
+       }
+     }
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
+@@ -6,7 +6,9 @@
+ 
+ #include <cmath>
+ 
++#include "build/build_config.h"
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "ui/views/controls/image_view.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/layout/proposed_layout.h"
+@@ -66,6 +68,16 @@
+   return scroll_view->IsHorizontalContentOverflowing() && dx >= dy;
+ }
+ 
++int GetSidebarContentPadding(const BrowserView* browser) {
++#if BUILDFLAG(IS_MAC)
++  if (browser && browser->IsZenModeEnabledForLayout() &&
++      browser->IsVerticalAddressBarInSidebar()) {
++    return 4;
++  }
++#endif
++  return 0;
++}
++
+ void LayoutSidebarSectionHeader(views::ProposedLayout& layout,
+                                 views::Label* title,
+                                 views::ImageView* disclosure,
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.h
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.h
+@@ -8,6 +8,7 @@
+ #include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
+ #include "ui/gfx/geometry/rect.h"
+ 
++class BrowserView;
+ class TabStripView;
+ 
+ namespace ui {
+@@ -37,6 +38,9 @@
+                         TabStripOrientation orientation,
+                         const ui::GestureEvent& event);
+ 
++// Padding inside sidebar rows, never around their scroll viewports.
++int GetSidebarContentPadding(const BrowserView* browser);
++
+ // Shared final title and disclosure placement for sidebar section headings.
+ // Keep the caller's horizontal title allocation; center text in the full cell,
+ // as LabelButton does for Older Tabs, without applying vertical border insets.
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
+@@ -13,6 +13,7 @@
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
+ #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.h"
+ #include "chrome/browser/ui/views/tabs/horizontal/horizontal_tab_closing_helper.h"
+@@ -264,13 +265,16 @@
+   }
+ 
+   const int region_horizontal_padding =
+-      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding) +
++      GetSidebarContentPadding(
++          tab_strip_view->collection_node_
++              ? tab_strip_view->collection_node_->GetController()->GetBrowserView()
++              : nullptr);
+ 
+   int y = 0;
+ 
+   // Determine container preferred heights.
+-  views::SizeBounds pinned_tab_container_size_bounds =
+-      size_bounds.Inset(gfx::Insets::TLBR(0, region_horizontal_padding, 0, 0));
++  views::SizeBounds pinned_tab_container_size_bounds = size_bounds;
+   const int pinned_preferred_height =
+       pinned_tabs_scroll_view
+           ->GetPreferredSize(pinned_tab_container_size_bounds)
+@@ -318,8 +322,7 @@
+     remaining_height -= pinned_container_height;
+   }
+   gfx::Rect pinned_container_bounds(
+-      region_horizontal_padding, y,
+-      pinned_tab_container_size_bounds.width().value(),
++      0, y, pinned_tab_container_size_bounds.width().value(),
+       pinned_container_height);
+   layouts.child_layouts.emplace_back(pinned_tabs_scroll_view,
+                                      pinned_tabs_scroll_view->GetVisible(),
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -11,6 +11,8 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_view.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
+ #include "components/tab_groups/tab_group_id.h"
+ #include "ui/gfx/geometry/rect.h"
+@@ -75,8 +77,12 @@
+   int dragged_view_bottom = 0;
+   auto collapse_state = UnpinnedTabContainerView().GetTabStripCollapseState();
+ 
++  const int content_padding = GetSidebarContentPadding(
++      UnpinnedTabContainerView().collection_node_->GetController()
++          ->GetBrowserView());
+   const int horizontal_padding =
+-      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding) +
++      content_padding;
+ 
+   const auto& container = UnpinnedTabContainerView();
+   auto* header = container.older_header();
+@@ -94,7 +100,7 @@
+     int x =
+         views::AsViewClass<TabGroupView>(child) &&
+                 collapse_state != tabs::VerticalTabStripCollapseState::kExpanded
+-            ? 0
++            ? content_padding
+             : horizontal_padding;
+     views::SizeBound child_height_bound = size_bounds.height();
+     if (focused_group_id && !child_height_bound.is_bounded()) {
+@@ -193,7 +199,10 @@
+   }
+   if (height > 0) {
+     height -= kTabVerticalPadding;
+-
++    // Keep the last row's breathing room inside the scrolling content so the
++    // viewport and scrollbar extend to the sidebar or footer boundary.
++    height += GetLayoutConstant(
++        LayoutConstant::kVerticalTabStripUncollapsedVerticalPadding) + 2;
+   }
+ 
+   if (UnpinnedTabContainerView().IsHandlingDrag()) {
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
+@@ -18,6 +18,7 @@
+ #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
+ #include "chrome/browser/ui/views/frame/browser_frame_view.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/browser/ui/views/frame/browser_widget.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
+@@ -158,7 +159,8 @@
+       base::BindRepeating(&VerticalTabStripHeaderView::UpdateFloatingHeaderLayout,
+                           base::Unretained(this)));
+   const int horizontal_padding =
+-      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding) +
++      GetSidebarContentPadding(browser_view_);
+ 
+   // Slim top margin so the gap above the navigation row matches the thin
+   // margin at the bottom of the sidebar, with a little room to breathe.
+@@ -244,7 +246,8 @@
+       browser_view_->IsVerticalTabStripRightAligned() &&
+       !show_sidebar_toggle_.GetValue();
+   const int horizontal_padding =
+-      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding) +
++      GetSidebarContentPadding(browser_view_);
+   const auto margins = gfx::Insets::TLBR(
+       HasFloatingControls(browser_view_) ? 0 : 5, horizontal_padding,
+       empty ? 0 : 4, horizontal_padding);
+@@ -259,7 +262,8 @@
+   LayoutSuperclass<views::View>(this);
+   const bool floating = HasFloatingControls(browser_view_);
+   const int horizontal_padding =
+-      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding) +
++      GetSidebarContentPadding(browser_view_);
+   if (floating && GetVisible()) {
+     top_controls_container_->SetBounds(0, 0, width(), 36);
+     for (views::View* child : top_controls_container_->children()) {
