@@ -1,0 +1,29 @@
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -485,8 +485,12 @@
+   };
+   return (date(newer) - date(older)).InDays();
+ }
++bool IsOlderDateBucket(int days) {
++  return days > 6;
++}
++
+ std::u16string OlderDate(base::Time time, int days) {
+-  if (days > 7) {
++  if (IsOlderDateBucket(days)) {
+     return l10n_util::GetStringUTF16(IDS_OLDER_TABS_OLDER_LABEL);
+   }
+   UErrorCode error = U_ZERO_ERROR;
+@@ -610,9 +614,10 @@
+     if (narrow || days < 2) {
+       continue;
+     }
+-    // The final Older bucket combines every date more than a week ago.
++    // Weekdays cover the preceding six days; earlier dates share Older.
+     const int key =
+-        days > 7 ? -1 : CivilDaysBetween(frozen, base::Time::UnixEpoch());
++        IsOlderDateBucket(days) ? -1
++                                : CivilDaysBetween(frozen, base::Time::UnixEpoch());
+     if (!used_days.insert(key).second) {
+       continue;
+     }
