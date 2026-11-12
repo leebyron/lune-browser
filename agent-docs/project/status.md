@@ -42,6 +42,8 @@ The [session-restore notice fix](features/session-restore-notice.md) is selected
 
 The owner-accepted [automatic Older Tabs](features/older-tabs.md) feature is selected for future main builds through `inputs/older-tabs-1/macos`. Inactive tabs move after 1 day by default and close after 3 further inactive days; Keep and drag-out restore regular placement. Pinned/split protection, optional group aging, Never/Immediately behavior, native section/date styling and conditional Keep commands follow the accepted preview. Both builds and startup/settings/lifecycle checks pass, with Intel runtime under Rosetta. Published 26.1111.2 remains unchanged.
 
+The local development lock includes the [sidebar drag header fix](features/sidebar-drag-header-retention.md) through `inputs/sidebar-drag-header-1/macos`. Native window dragging preserves the header's existing presentation. Both builds and focused/smoke checks pass; owner-confirmed native gesture acceptance and publication remain pending. Issue #29 stays open.
+
 ## Hosting and automation
 
 The public source repository also hosts releases and paired raw-GitHub stable feeds. The [Cloudflare website](website.md) links to fixed GitHub latest-asset URLs. Optional browser services use Helium's hosted service; Lune-hosted services are not deployed.

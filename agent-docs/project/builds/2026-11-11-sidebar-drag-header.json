@@ -1,0 +1,106 @@
+{
+  "date": "2026-11-11",
+  "issue": "https://github.com/leebyron/lune-browser/issues/29",
+  "status": "implemented and committed locally; native gesture acceptance and publication pending",
+  "platform_commit": "4c97c78c54a326e093e35552c466181269ea4e10",
+  "platform_tree": "da3ac8eb645d9fc4881c9e3670dc6444c1b952d8",
+  "platform_ref": "refs/tags/inputs/sidebar-drag-header-1/macos",
+  "platform_base": "a7fef19376b799585e4a62bfd9bfe25ba6d26d47",
+  "patch": "patches/helium/ui/sidebar-drag-header-retention.patch",
+  "patch_sha256": "cc03dce6c830133da3cf9bbd63ace5c46ce605d13651b6a76a79ac01e62a41dc",
+  "builds": {
+    "Default": {
+      "exit_code": 0,
+      "seconds": 134.5335340499878
+    },
+    "Intel": {
+      "exit_code": 0,
+      "seconds": 143.09390306472778
+    }
+  },
+  "replay": {
+    "passed": true,
+    "patches": 73,
+    "fuzz": 0,
+    "candidate_offsets": 0,
+    "existing_offsets": [
+      {
+        "patch": "ungoogled-chromium/add-flag-to-hide-window-buttons.patch",
+        "output": "patching file chrome/browser/ui/views/frame/browser_frame_view_mac.mm\nHunk #1 succeeded at 468 (offset 8 lines).\n"
+      },
+      {
+        "patch": "helium/ui/fix-caption-button-bounds.patch",
+        "output": "patching file chrome/browser/ui/views/frame/browser_frame_view_mac.mm\nHunk #1 succeeded at 486 (offset 8 lines).\n"
+      },
+      {
+        "patch": "helium/macos/helium-immersive-fullscreen.patch",
+        "output": "patching file chrome/browser/ui/views/frame/browser_frame_view_mac.mm\nHunk #7 succeeded at 376 (offset 8 lines).\nHunk #8 succeeded at 388 (offset 8 lines).\nHunk #9 succeeded at 485 (offset 8 lines).\nHunk #10 succeeded at 667 (offset 8 lines).\n"
+      },
+      {
+        "patch": "helium/ui/pinned-floating-toolbar.patch",
+        "output": "patching file chrome/browser/ui/views/frame/browser_frame_view_mac.mm\nHunk #1 succeeded at 2804 (offset -3 lines).\n"
+      },
+      {
+        "patch": "helium/ui/sidebar-pin-tooltip.patch",
+        "output": "patching file chrome/browser/ui/views/frame/browser_frame_view_mac.mm\nHunk #1 succeeded at 727 (offset -3 lines).\nHunk #2 succeeded at 751 (offset -3 lines).\n"
+      },
+      {
+        "patch": "helium/ui/themed-unpinned-sidebar.patch",
+        "output": "patching file chrome/browser/ui/views/frame/browser_frame_view_mac.mm\nHunk #1 succeeded at 2343 (offset 1 line).\nHunk #2 succeeded at 3588 (offset 2 lines).\n"
+      }
+    ],
+    "source_sha256": "cc47f70f9120f641a2ceb9cc1b41ab5ef9ea8eec234c1ca8648d8ebd85186d19",
+    "scope": "Locked-order replay of the changed file from retained prepared preimage; not full-tree preparation"
+  },
+  "regression": {
+    "production_expression_states": 4096,
+    "architectures": [
+      "arm64 native",
+      "x86_64 Rosetta"
+    ],
+    "pre_fix_failed": "dragging=true, previously presented=false",
+    "release_transitions": true,
+    "devtools_hover_checks": true,
+    "native_pointer_test": false
+  },
+  "smoke": {
+    "arm64": {
+      "passed": true,
+      "architecture": "arm64",
+      "test_host_architecture": "arm64",
+      "mode": "headless",
+      "framework_sha256": "8f1a5223cdbcd188e698e2cb4e9ddf6dda515e2da73c96a036777a1e19b78235",
+      "framework_unchanged": true
+    },
+    "x86_64": {
+      "passed": true,
+      "architecture": "x86_64",
+      "test_host_architecture": "arm64",
+      "mode": "headless",
+      "framework_sha256": "9c95868724268b151c4318ba1ead0180a0bfffa7cba89501ff0cc8774ab867e5",
+      "framework_unchanged": true
+    }
+  },
+  "patch_and_translation_lint": true,
+  "native_ui_attempt": "Isolated arm64 app launched; cua.getApp timed out (-10005); no native interaction acceptance claimed",
+  "release_modified": false,
+  "issue_closed": false,
+  "repository_tests": 73,
+  "lock_ancestry_tags_trees_gitlink_verified": true,
+  "signed_component_and_input_tag_verified": true,
+  "documentation_links_and_whitespace_verified": true,
+  "cleanup": {
+    "preview_exited": true,
+    "removed": [
+      "Lune Drag Check.app",
+      "preview-profile",
+      "replay"
+    ],
+    "retained": [
+      "component Git input clone",
+      "compact logs and reports",
+      "prepared Chromium source",
+      "both incremental browser outputs"
+    ]
+  }
+}
