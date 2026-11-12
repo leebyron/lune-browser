@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "e262732c9ad7afb477ba7f7285eea3972591363a",
+    "commit": "7744d8734689a9bb9adb7051128b6ed825757a67",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -773,6 +773,10 @@
       {
         "path": "patches/helium/ui/header-customize-toolbar.patch",
         "sha256": "bca64e74d6e2221cafcf705004fa9cb0ae7f3c4bb4810e0bf733300b0507f24c"
+      },
+      {
+        "path": "patches/helium/ui/header-customize-toolbar-scope.patch",
+        "sha256": "52fce4018de60f8e25b16673efb01a96e0e2e964996f90ab0fd3371573135992"
       }
     ]
   },
@@ -2042,6 +2046,21 @@
       "adaptation": "Replace the generic appearance command and string with Chromium's existing toolbar-specific command and localized label. Developed with quilt, refreshed and unmerged; focused zero-fuzz/zero-offset replay matches compiled source. Both architecture builds and native Apple silicon menu selection pass. See agent-docs/project/features/trailing-toolbar-controls.md.",
       "commits": [
         "92a3c352323fbe0aed6a5dd4412ff2a50852fdcf"
+      ]
+    },
+    {
+      "id": "header-customize-toolbar-scope",
+      "depends_on": [
+        "header-customize-toolbar"
+      ],
+      "patches": [
+        "patches/helium/ui/header-customize-toolbar-scope.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep Customize Toolbar on the header toolbar and Customize Lune throughout the sidebar, including its native upper section.",
+      "adaptation": "Owner accepted the corrected right-click behavior on November 11, 2026. Developed with quilt and exported as an independent correction above the current Downloads visibility input; pending sidebar styling and scroll-layout candidates are excluded. Focused replay has zero fuzz and offsets; builder/widget files and native context-routing implementations match the compiled review source. Both builds and native routing fixtures pass (Intel fixture under Rosetta); actual owner interaction acceptance is on Apple silicon. Each menu initialization refreshes the source. See agent-docs/project/features/trailing-toolbar-controls.md and builds/2026-11-11-header-menu-scope-validation.json.",
+      "commits": [
+        "7744d8734689a9bb9adb7051128b6ed825757a67"
       ]
     }
   ],

@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-11",
+  "platform_commit": "7744d8734689a9bb9adb7051128b6ed825757a67",
+  "platform_base": "e262732c9ad7afb477ba7f7285eea3972591363a",
+  "core_commit": "49bdc572bee38436250f9058351c8a328cd8c8ad",
+  "input_tag": "refs/tags/inputs/header-customize-toolbar-scope-1/macos",
+  "patch_sha256": "52fce4018de60f8e25b16673efb01a96e0e2e964996f90ab0fd3371573135992",
+  "owner_acceptance": "Right-click menu behavior accepted on physical Apple silicon; sidebar spacing remains in review.",
+  "replay": {
+    "fuzz": 0,
+    "offsets": 0,
+    "files": [
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm",
+      "chrome/browser/ui/views/frame/browser_widget.cc",
+      "chrome/browser/ui/views/frame/browser_widget.h",
+      "chrome/browser/ui/views/frame/system_menu_model_builder.cc",
+      "chrome/browser/ui/views/frame/system_menu_model_builder.h"
+    ],
+    "source_parity": "Four complete builder/widget files and both native context routing implementations match compiled source. Other native frame changes are pending independent layout work."
+  },
+  "builds": {
+    "Default": {
+      "exit_code": 0,
+      "source_unchanged_during_build": true,
+      "menu_source_sha256": {
+        "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "5352bb1e5d9bacd807400465aa81f41362b4bf42c884c26b9f6999674aaabfc4",
+        "chrome/browser/ui/views/frame/browser_widget.cc": "767be606b423d0b3a4a54a05313f3634b830a546d4cdc3dab4bddff1482cb53a",
+        "chrome/browser/ui/views/frame/browser_widget.h": "ea688c7349b2523dcd077d219f870a65b14c7c31a4687c48f6060432b499ee88",
+        "chrome/browser/ui/views/frame/system_menu_model_builder.cc": "4bfea85f3da52da525c6956b8c51379e1c875d5f470f514dcf201e9f2be5d678",
+        "chrome/browser/ui/views/frame/system_menu_model_builder.h": "2c950290a77c1d170e1ef3f901cbd93697de5be5c1d03ece948f0ffe9aa2d28b"
+      }
+    },
+    "Intel": {
+      "exit_code": 0,
+      "source_unchanged_during_build": true,
+      "menu_source_sha256": {
+        "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "5352bb1e5d9bacd807400465aa81f41362b4bf42c884c26b9f6999674aaabfc4",
+        "chrome/browser/ui/views/frame/browser_widget.cc": "767be606b423d0b3a4a54a05313f3634b830a546d4cdc3dab4bddff1482cb53a",
+        "chrome/browser/ui/views/frame/browser_widget.h": "ea688c7349b2523dcd077d219f870a65b14c7c31a4687c48f6060432b499ee88",
+        "chrome/browser/ui/views/frame/system_menu_model_builder.cc": "4bfea85f3da52da525c6956b8c51379e1c875d5f470f514dcf201e9f2be5d678",
+        "chrome/browser/ui/views/frame/system_menu_model_builder.h": "2c950290a77c1d170e1ef3f901cbd93697de5be5c1d03ece948f0ffe9aa2d28b"
+      }
+    }
+  },
+  "native_routing_fixtures": {
+    "arm64": {
+      "passed": true,
+      "execution": "native",
+      "output": "PASS: native upper-sidebar/header/pinned/popup menu sources and alternating customization commands; popover full-width/bottom bounds after resize on both sides, fullscreen and rounded clipping"
+    },
+    "x86_64": {
+      "passed": true,
+      "execution": "Rosetta",
+      "output": "PASS: native upper-sidebar/header/pinned/popup menu sources and alternating customization commands; popover full-width/bottom bounds after resize on both sides, fullscreen and rounded clipping"
+    }
+  },
+  "build_context": "Incremental shared prepared-source builds included independently pending sidebar candidates; this accepted component exports only context routing. Native frame parity is limited to the context-routing implementations because unrelated popover geometry remains pending.",
+  "issues_resolved": [],
+  "release_published": false,
+  "preview_retained": "Ongoing owner sidebar spacing review"
+}

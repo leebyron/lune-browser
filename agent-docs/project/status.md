@@ -61,3 +61,5 @@ Follow the [commit and completion process](committing.md): close specific fully 
 ## Known open product issues
 
 The Make default browser sidebar item can be absent on the reported macOS 13 install; Settings > Default browser remains available. Native resize cursors can flicker while Lune is active; resizing remains functional. Do not claim either fixed without new evidence. Other feature reports and open GitHub issues contain their scoped limitations.
+
+The owner-accepted [header/sidebar customization scope correction](features/trailing-toolbar-controls.md#header-and-sidebar-menu-scope-correction) is selected for future main builds through `inputs/header-customize-toolbar-scope-1/macos`. The upper, pinned and popover sidebar retain Customize Lune; the header toolbar uses Customize Toolbar. Both builds, strict focused replay and native routing fixtures pass, with Intel fixtures under Rosetta. Published releases and separately pending sidebar spacing candidates are unchanged.
