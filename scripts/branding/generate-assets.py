@@ -45,7 +45,7 @@ def svg(data, tile=True, mode=None, favicon=False):
     left, right = paths(data['geometry'])
     result = f'''<svg xmlns="http://www.w3.org/2000/svg" {size} viewBox="{viewbox}">
   <title>Lune</title>
-  <desc>Paired lunes, 30% thicker. Chlorophyll Daylight and Pelagic Signal.</desc>
+  <desc>Paired lunes. Chlorophyll Daylight and Pelagic Signal.</desc>
   <style>{style}</style>
   {tile_rect}
   <g transform="{transform}">

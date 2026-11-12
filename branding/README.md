@@ -1,8 +1,9 @@
 # Lune / Day and night
 
-The approved paired lunes are 30% wider at their horizontal midpoint: 36.4
-instead of 28 source units. Their outside silhouette and pointed endpoints
-stay fixed. The geometry and sRGB palettes live in [`palettes.json`](palettes.json).
+The paired lunes use adjusted inner circular arcs, preserving the outside
+silhouette and pointed tips. Their midpoint thickness is 48.412 source units,
+33% greater than the previous 36.4. Outer radius 111 and center offsets 14 stay
+fixed. The geometry and sRGB palettes live in [`palettes.json`](palettes.json).
 `lune.svg` follows appearance; `lune-light.svg` and `lune-dark.svg` are fixed variants.
 
 The dark palette comes from **Lune / Color Atlas**, version 3,
@@ -43,7 +44,41 @@ selects the light/dark brand colors without JavaScript or separate URLs.
 The PNG and multi-resolution ICO fallbacks use the same transparent framing
 with the fixed dark palette. Apple touch artwork retains its opaque background.
 
-### Native macOS icon shape candidate (2026-11-09)
+### Native floating-glass icons (2026-11-12)
+
+The current app mark retains the selected adjusted arcs at scale 3.0 rather than
+3.3: its complete unit is 9.1% smaller inside Apple's icon region. Each
+lune occupies a separate Icon Composer group in both appearances with native glass enabled, inside
+specular highlights, 40% translucency, 60% refraction strength/height and 50%
+chromatic shadows. These controls give the pieces translucent lower edges and
+colored light spill beneath them. Light and Dark share the exact same material settings; Dark uses its native
+appearance and explicit blue background. No shading, shadows, or bevels are baked
+into the imported SVGs.
+
+Both appearances render through the current Icon Composer renderer, explicitly
+using design generation 27. `actool` supplies the legacy macOS icon canvas and
+size-specific margins; `package-app-icon.swift` fits each native rendering
+to a clean transparent canvas before `iconutil` packages all ten representations. No older-renderer rim/shadow is composited behind the new mask, avoiding
+straight shadow seams at its transparent corners. The half-alpha
+keyline preserves antialiased small-size edges without treating the outer
+shadow as artwork. The website Dock uses the exact 256px packaged representations.
+Layered `.icon` sources are retained beside the platform's `.icns` inputs.
+
+Lune's existing runtime packages flattened `.icns` files and switches between
+Light and Dark with its appearance observer. This change preserves that runtime;
+it does not claim system-driven lighting or Clear/Tinted support from a bundled
+layered asset catalog. Websites, favicons and internal marks retain flat artwork.
+Their static and animated paths share the selected adjusted-arc geometry.
+
+Apple's [Icon Composer workflow](https://developer.apple.com/documentation/xcode/creating-your-app-icon-using-icon-composer)
+and [2026 Icon Composer lab](https://developer.apple.com/videos/play/wwdc2026/8012/)
+explain separate groups, Individual effects, inside/outside specular placement,
+refraction, translucency and chromatic/ring shadows. The light source was opened
+in Icon Composer and its actual two-group, generation-27 material verified.
+See [the current feature record](../agent-docs/project/features/day-night-branding.md#thicker-adjusted-arcs-and-native-glass--november-12-2026)
+for source adoption and validation limits.
+
+### Native macOS icon shape candidate (2026-11-09) — historical
 
 `scripts/branding/render-app-icons.py` now generates Icon Composer sources from
 the canonical palettes and lune paths, then uses Xcode's `actool` to produce

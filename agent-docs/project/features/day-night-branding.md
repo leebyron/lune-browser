@@ -76,3 +76,39 @@ the same resource. Colored app tiles and layout spacing are unchanged. Generator
 consistency, exact geometry bounds, and all ten source/resource copies pass;
 the arm64 browser build passes. The owner accepted the updated mark in
 Lune Icon Test on November 9, 2026.
+
+## Thicker adjusted arcs and native glass — November 12, 2026
+
+The owner selected the adjusted-inner-arc comparison over the equal-circle
+alternative. Midpoint thickness increases a further 33%, from 36.4 to 48.412
+source units (`width_multiplier: 1.729`). The outer radius 111, center offsets
+14, outside silhouette and tip intersections stay fixed; the inner radius is
+117.451309 and its center offset is 40.863309. This is deliberately the selected
+unequal-radius construction. The website's native scroll timeline, JavaScript
+fallback, onboarding opening, monochrome WebUI paths, favicons and all mapped
+browser resources use the new curves. The JavaScript easing returns exact zero
+and one at the ends, avoiding residual slivers in the closed frame.
+
+The macOS app mark uses scale 3.0 rather than 3.3, a 9.1% smaller complete unit.
+Both app icons use two independent native glass groups, inside highlights,
+40% translucency, 60% refraction strength/height and 50% chromatic shadows. The
+lighting/material configuration is shared between Light and Dark; only the
+palette and native appearance differ. Both appearances explicitly use
+Icon Composer's generation-27 rendering; Apple's compiler supplies the mask,
+native legacy canvas dimensions. Every physical size is rendered before
+ICNS packaging. Editable `.icon` sources accompany the resource inputs. Current
+`.icns` packaging remains a fixed rendering selected by appearance, not a new
+live layered asset-catalog integration.
+
+The light source's groups and material controls were inspected in the native
+Icon Composer preview. Geometry, source resource parity and exact patch replay
+are recorded in the [artwork validation record](../builds/2026-11-12-thicker-glass-icons.json).
+The earlier sections retain their original validation and release scope.
+
+The development input is `3dbf35b2431b5e9220b4214d66f5631f9e936a39`, retained under signed
+`inputs/thicker-glass-icons-1/macos`. Both incremental builds and exact packaged/loaded
+artwork, appearance and restart smoke pass; Intel executes under Rosetta. All 73
+tooling tests, component lint, lock/Git identity checks and the website deployment
+dry run pass. No specific GitHub issue is resolved. Published browser releases
+retain their frozen artwork. The local review board remains available for the
+owner; native Intel and older-macOS visual review were not repeated.

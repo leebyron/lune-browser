@@ -82,6 +82,8 @@
     return specimen;
   }
   function introEase(x) {
+    if(x<=0)return 0;
+    if(x>=1)return 1;
     // Match setup's cubic-bezier(.2,.8,.2,1) in the no-timeline fallback.
     let low=0,high=1,t=x;
     for(let i=0;i<12;i++){t=(low+high)/2;const bx=3*(1-t)*(1-t)*t*.2+3*(1-t)*t*t*.2+t*t*t;if(bx<x)low=t;else high=t;}
@@ -430,7 +432,7 @@
     introCircles.forEach(circle=>{
       const shift=parseFloat(circle.style.getPropertyValue('--shift'));
       circle.style.transform=`translateX(${shift*intro}px)`;
-      if(circle.classList.contains('setup-cutout'))circle.style.r=`${111+1.725508*intro}px`;
+      if(circle.classList.contains('setup-cutout'))circle.style.r=`${111+6.451309*intro}px`;
     });
     introLogo.style.transform=`scale(${1.2-.2*intro})`;
     vineGrowth.style.strokeDasharray='1';

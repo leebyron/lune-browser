@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "51acf1cc9d8cb0ec4b6a71e40c4416bb10b93175",
+    "commit": "3dbf35b2431b5e9220b4214d66f5631f9e936a39",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -801,6 +801,10 @@
       {
         "path": "patches/helium/ui/sidebar-scroll-edge-lines.patch",
         "sha256": "a45e343ef8f80f0fc2f08e523f23a6dea798cbabbeea8ec3cc1bbabad0ec291b"
+      },
+      {
+        "path": "patches/lune/thicker-logo.patch",
+        "sha256": "9e4e847250ed86acd0c5969d6583498676630bdd9abe47b429c0c33bb8d02eec"
       }
     ]
   },
@@ -2177,6 +2181,21 @@
       "adaptation": "Owner accepted the complete native Apple silicon review on November 11, 2026 and requested focused commits, future-main adoption, issue #30 closure and cleanup. Developed with quilt in prepared Chromium, partitioned into single-thesis patches and unmerged into the platform. All 30 accepted review files remain byte-identical. Archive-backed replay of 123 relevant composed patches across 31 files has zero fuzz, no offsets in these six patches and no final source differences. Both browser builds, focused dependency/source checks and affected test translation-unit compilation pass; startup/defaults/settings/artwork smoke passes on both architectures, Intel under Rosetta. Full Chromium test executables, physical Intel and the full native interaction matrix were not rerun. See agent-docs/project/features/sidebar-groups.md, sidebar-footer.md, older-tabs.md and builds/2026-11-11-sidebar-reviewed-adoption.json.",
       "commits": [
         "51acf1cc9d8cb0ec4b6a71e40c4416bb10b93175"
+      ]
+    },
+    {
+      "id": "thicker-glass-icons",
+      "depends_on": [
+        "onboarding-reviewed-10"
+      ],
+      "patches": [
+        "patches/lune/thicker-logo.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the owner-selected 33% thicker adjusted arcs across static and animated browser artwork.",
+      "adaptation": "Prepared-source quilt patch refreshed and unmerged; exact retained-preimage replay has zero fuzz and offsets. Native app resources use current Icon Composer lighting, two separate glass groups and identical material settings for both appearances. See agent-docs/project/features/day-night-branding.md and builds/2026-11-12-thicker-glass-icons.json for artifact-bound validation and packaging limits.",
+      "commits": [
+        "3dbf35b2431b5e9220b4214d66f5631f9e936a39"
       ]
     }
   ],
