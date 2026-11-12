@@ -1,0 +1,178 @@
+{
+  "feature": "default-search-bang-ranking",
+  "date": "2026-11-12",
+  "input": {
+    "commit": "7ccbf6d4c324dc8f62e81cbf2fc6b52467a7d931",
+    "ref": "refs/tags/inputs/default-search-bang-1/macos",
+    "base": "15170d0c385565cbe94cd59c282d9f89a9edd367"
+  },
+  "builds": {
+    "arm64": {
+      "architecture": "arm64",
+      "exit_code": 0,
+      "seconds": 774.8084352016449,
+      "release": false
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "exit_code": 0,
+      "seconds": 1161.634370803833,
+      "release": false
+    }
+  },
+  "smoke": {
+    "arm64": {
+      "passed": true,
+      "execution": "native Apple silicon",
+      "report": ".work/default-search-bang/smoke-arm64.json",
+      "scope": "standard UI/browsing/persistence"
+    },
+    "x86_64": {
+      "passed": true,
+      "execution": "Intel under Rosetta on Apple silicon",
+      "report": ".work/default-search-bang/smoke-x86_64-built-framework.json",
+      "scope": "browsing/persistence with mock-Keychain/basic password storage in a disposable ad-hoc fixture bound to the freshly linked framework"
+    }
+  },
+  "focused_regressions": {
+    "production_bang_model": [
+      "arm64",
+      "x86_64 under Rosetta"
+    ],
+    "shared_search_model": [
+      "arm64",
+      "x86_64 under Rosetta"
+    ],
+    "native_address_scope_model": [
+      "arm64",
+      "x86_64 under Rosetta"
+    ],
+    "repository_tests": 73,
+    "gn_header_checks": "passed",
+    "component_patch_and_translation_lint": "passed"
+  },
+  "native": {
+    "passed": true,
+    "host_architecture": "arm64",
+    "method": "Native CUA accessibility inspection of isolated headed browser",
+    "default_engine": {
+      "canBeActivated": false,
+      "canBeDeactivated": false,
+      "canBeDefault": false,
+      "canBeEdited": true,
+      "canBeRemoved": false,
+      "default": true,
+      "displayName": "Startpage (Default)",
+      "iconPath": "chrome://theme/IDR_SEARCH_ENGINE_STARTPAGE_IMAGE@2x",
+      "id": "db:6",
+      "isManaged": false,
+      "isOmniboxExtension": false,
+      "isPrepopulated": true,
+      "isRecommendedFromPolicy": false,
+      "isStarterPack": false,
+      "keyword": "startpage.com",
+      "name": "Startpage",
+      "shouldConfirmRemoval": true,
+      "suggestionsUrl": "https://www.startpage.com/osuggestions?q=%s",
+      "url": "https://www.startpage.com/sp/search?q=%s",
+      "urlLocked": true
+    },
+    "usage_before_query": {},
+    "input": "!",
+    "first_row": {
+      "provider": "StartPage",
+      "trigger": "!s",
+      "selected": true
+    },
+    "following_providers": [
+      "Google",
+      "Wikipedia",
+      "YouTube",
+      "GitHub"
+    ],
+    "catalogue": "Loopback-only fixture including real primary StartPage names/triggers and 10000 unrelated entries",
+    "production_catalogue_name_evidence": "real-startpage-bangs.json",
+    "component": "7ccbf6d4c324dc8f62e81cbf2fc6b52467a7d931",
+    "model_sha256": "57f3d2182df901f7e33a6175b168f3612227232c650b0007940fbdc4ad18cc8e",
+    "limitations": [
+      "Shared browser includes independently pending focus-retention and toolbar candidates; this component contains only the model ranking patch.",
+      "Physical Intel and macOS 13 not exercised."
+    ],
+    "usage_after_query": {}
+  },
+  "intel_fixture": {
+    "built_framework_sha256": "99306c1b90faed3189389b3a7d3766093f866b3d61130dfd3be300245facc293",
+    "test_framework_sha256": "7bb84c833706aeab69f67d99d2482c73a97152294fc95b8c31b4a9b28e52683c",
+    "framework_source": ".work/search-suggestions/platform/build/src/out/Intel/Lune Framework.framework",
+    "code_component": "7ccbf6d4c324dc8f62e81cbf2fc6b52467a7d931",
+    "scope": "Disposable ad-hoc development fixture using freshly linked Intel framework and an existing outer bundle. No packaged artwork claim.",
+    "mock_keychain": true,
+    "password_store": "basic"
+  },
+  "intel_initial_attempts": {
+    "headless_shared_output": "Local-page navigation timed out.",
+    "headed_shared_output": "Rejected before launch because concurrent shared output had different artwork.",
+    "frozen_existing_outer_bundle": "Navigation timed out without mock-Keychain; passed with mock-Keychain, but framework hash identified it as an older binary, so that pass is not feature validation."
+  },
+  "strict_model_stack": {
+    "passed": true,
+    "scope": "All committed platform patch blocks affecting the model, in locked order plus candidate",
+    "patches": [
+      "helium/ui/floating-url-bar.patch",
+      "helium/ui/native-glass-command-bar.patch",
+      "helium/ui/command-bar-search-suggestions.patch",
+      "helium/ui/command-bar-bang-suggestions.patch",
+      "helium/ui/command-bar-actions.patch",
+      "helium/ui/default-search-bang-ranking.patch"
+    ],
+    "source_sha256": "57f3d2182df901f7e33a6175b168f3612227232c650b0007940fbdc4ad18cc8e"
+  },
+  "strict_preimage_replay": {
+    "passed": true,
+    "base": "15170d0c385565cbe94cd59c282d9f89a9edd367",
+    "patch": "helium/ui/default-search-bang-ranking.patch",
+    "fuzz": 0,
+    "offsets": 0,
+    "before_sha256": "f0d31f596407ce42b8043f9218bd45d51a495768b10948eefcfe71c0757efd7f",
+    "after_sha256": "57f3d2182df901f7e33a6175b168f3612227232c650b0007940fbdc4ad18cc8e"
+  },
+  "setup_check": {
+    "conclusion": "success",
+    "databaseId": 43283005871,
+    "headSha": "c48ee8e4b0daf431284180e488816725a34ac33c",
+    "status": "completed",
+    "url": "https://github.com/leebyron/lune-browser/actions/runs/43283005871"
+  },
+  "cleanup": {
+    "preview_exited": true,
+    "driver_exited": true,
+    "removed": [
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/Lune Search Bang Review.app",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/native/profile",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/platform",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/replay",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/stack-replay",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/model-before.cc",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/catalogue.json",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/isolated-intel",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/default-search-bang/verified-intel"
+    ],
+    "retained": [
+      "shared prepared Chromium source and both incremental output directories",
+      "compact model/native/strict-replay results and primary catalogue evidence",
+      "build/test/setup logs",
+      "public signed input and main commits"
+    ],
+    "component_inventory": {
+      "tracked_changes": false,
+      "stashes": false,
+      "feature_commit_retained_in_root_and_public_signed_tag": true,
+      "other_local_branch": "main at already-published 550d3dcc9b7f8eb4bbfb8bd6e410861df9d7523a",
+      "core_generated_changes": "Python bytecode caches only"
+    },
+    "intel_fixture_processes_exited": true
+  },
+  "scope": "Shared incremental development browser also includes pending focus-retention/toolbar candidates; only this independently replayed model patch is in this input. This is future-main adoption, not a new browser release.",
+  "issue": null,
+  "evidence_directory": ".work/default-search-bang/"
+}
