@@ -1,0 +1,36 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_model.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_model.cc
+@@ -414,6 +414,10 @@
+   }
+   const auto& usage = pref_service->GetDict(prefs::kHeliumCommandBarBangUsage);
+   const auto now = base::Time::Now();
++  const TemplateURL* default_provider = template_urls->GetDefaultSearchProvider();
++  const std::u16string default_name =
++      default_provider ? base::ToLowerASCII(default_provider->short_name())
++                       : std::u16string();
+   for (const auto& provider : template_urls->GetTemplateURLs()) {
+     const auto& keyword = provider->keyword();
+     if (!keyword.starts_with(u"!") || keyword.size() < 2) {
+@@ -440,11 +444,19 @@
+     hint->description = keyword;
+     hint->site_query = remainder;
+     const int usage_score = BangUsageScore(usage, hint->site_keyword, now);
+-    // Text relevance always dominates personal use. On ordinary input,
++    // The default engine and its catalogue bangs are separate TemplateURLs.
++    // Match their provider names, including aliases and case differences.
++    const bool is_default_engine =
++        provider == default_provider ||
++        (!default_name.empty() &&
++         base::ToLowerASCII(provider->short_name()) == default_name);
++    const int personal_score = usage_score + (is_default_engine ? 20 : 0);
++    // Text relevance always dominates personal/default-engine preference.
++    // On ordinary input,
+     // even an exact bang stays below a comparably relevant website or tab.
+-    hint->score = explicit_bang ? 2000 + relevance * 10 + usage_score +
++    hint->score = explicit_bang ? 2000 + relevance * 10 + personal_score +
+                                       FamiliarBangScore(keyword)
+-                                : relevance / 3 + std::min(usage_score / 10, 4);
++                                : relevance / 3 + std::min(personal_score / 10, 4);
+     items.push_back(std::move(*hint));
+   }
+   std::ranges::sort(items, [](const auto& a, const auto& b) {
