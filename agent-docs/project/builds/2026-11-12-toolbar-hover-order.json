@@ -1,0 +1,206 @@
+{
+  "date": "2026-11-12",
+  "component": {
+    "base": "810b4ea9b84d347e38ca38ace6a5800aad243075",
+    "commit": "3aa1b256f8b18b802b2d076a293a953417c9697d",
+    "tree": "d7c40145805cf986fa3be214215787019aef693d",
+    "input_ref": "refs/tags/inputs/toolbar-hover-order-1/macos",
+    "published": true,
+    "original_commit": "68d4cebc24e015c0a7bcefa81f51f4c9d1b4b8c6"
+  },
+  "scope": "Ordering-only follow-up; existing hover and popup retention behavior unchanged.",
+  "owner_confirmed_order": {
+    "setup": [
+      "On hover edge",
+      "On hover sidebar",
+      "Always"
+    ],
+    "context_menu_and_settings": [
+      "On hover edge",
+      "On hover sidebar",
+      "Always",
+      "Always cover (experimental)"
+    ]
+  },
+  "strict_replay": {
+    "passed": true,
+    "fuzz": 0,
+    "offsets": 0,
+    "files": {
+      "chrome/browser/ui/views/frame/system_menu_model_builder.cc": "d11ec030ccd6e73f8329a03a7c76a7c0deef91ed0c9515831f0bc9709d3fc10c",
+      "chrome/browser/resources/settings/appearance_page/appearance_page.ts": "e862b85893851977577ccb8f6a394cc57345ada44ac7c46fe0936f5640c004d4",
+      "components/helium_onboarding/src/pages/Finish.svelte": "174e71828dd27a0873bc0223e2efd249ba8f16cb5df8fadec23772ba4e651c63"
+    },
+    "native_order": [
+      "On hover edge",
+      "On hover sidebar",
+      "Always",
+      "Always cover (experimental)"
+    ],
+    "setup_order": [
+      "On hover edge",
+      "On hover sidebar",
+      "Always"
+    ],
+    "applied_source_patches": [
+      "helium/ui/app-menu-update-check.patch",
+      "lune/canonical-update-repository.patch",
+      "helium/ui/command-bar-search-suggestions.patch",
+      "helium/ui/onboarding-search-suggestions.patch",
+      "helium/ui/search-suggestions-settings.patch",
+      "helium/ui/customize-no-transient-toolbar-icon.patch",
+      "helium/ui/command-bar-bang-suggestions.patch",
+      "helium/ui/devtools-header-hover.patch",
+      "helium/ui/command-bar-actions.patch",
+      "helium/ui/services-update-footer.patch",
+      "helium/ui/command-menu-stable-glass.patch",
+      "helium/ui/session-restore-notice-with-tabs.patch",
+      "helium/ui/automatic-older-tabs.patch",
+      "helium/ui/sidebar-drag-header-retention.patch",
+      "helium/ui/new-tab-button-command-menu.patch",
+      "helium/ui/header-customize-toolbar.patch",
+      "helium/ui/header-customize-toolbar-scope.patch",
+      "helium/ui/neutral-tab-groups.patch",
+      "helium/ui/older-tabs-collapse-animation.patch",
+      "helium/ui/older-tabs-weekday-headings.patch",
+      "helium/ui/sidebar-disclosure-alignment.patch",
+      "helium/ui/sidebar-scroll-content-layout.patch",
+      "helium/ui/sidebar-scroll-edge-lines.patch",
+      "lune/thicker-logo.patch",
+      "helium/ui/native-editor-focus-retention.patch",
+      "helium/ui/default-search-bang-ranking.patch",
+      "helium/ui/onboarding-toolbar-options.patch",
+      "helium/ui/toolbar-not-on-hover.patch",
+      "helium/ui/extension-popup-toolbar-retention.patch",
+      "helium/ui/remove-session-restore-notice.patch",
+      "helium/ui/toolbar-hover-order.patch"
+    ]
+  },
+  "architectures": {
+    "arm64": {
+      "build": {
+        "architecture": "arm64",
+        "exit_code": 0,
+        "seconds": 205.2440950870514,
+        "release": false
+      },
+      "raw_framework_sha256": "a000d20f4f8031b795a9fe1f746125beee719ff12e5ea660ff7fb8f793ea4b4d",
+      "raw_executable_sha256": "d09a67c3e9abe1a8fc204245e7ec581f8cf77616a80423048aacb8c0fe01118e",
+      "framework_sha256": "cfd76a1c8f64eddd2eca9510eeb335828052e5ec984e92a47ad0cc397a67b969",
+      "macho_uuid": "4C4C44C9-5555-3144-A134-4C350BD655C7",
+      "app_version": "0.22.1.1",
+      "checks": {
+        "settings": true,
+        "smoke": true,
+        "onboarding": true
+      }
+    },
+    "x86_64": {
+      "build": {
+        "architecture": "x86_64",
+        "exit_code": 0,
+        "seconds": 236.5090250968933,
+        "release": false
+      },
+      "raw_framework_sha256": "78380f8e23f1ed0f7e2568c098534e63acb701adcfaff5ef48316353d7162cbf",
+      "raw_executable_sha256": "dc843f08573ed7c9f931976e17dbc3ccebefb2a3f69192683f8126c0bd38227c",
+      "framework_sha256": "fa777babcb47e099047da765e9561095c06b45c0cf2159aa5247a048a7b20b8f",
+      "macho_uuid": "4C4C4443-5555-3144-A10A-8FBBF3AE2A3B",
+      "app_version": "0.22.1.1",
+      "checks": {
+        "settings": true,
+        "smoke": true,
+        "onboarding": true
+      }
+    }
+  },
+  "native_menu_order_verified": true,
+  "runtime": {
+    "arm64": "native Apple silicon",
+    "x86_64": "Rosetta on Apple silicon"
+  },
+  "setup_results": {
+    "arm64": {
+      "label": "Show toolbar",
+      "options": [
+        {
+          "label": "On hover edge",
+          "value": "hover"
+        },
+        {
+          "label": "On hover sidebar",
+          "value": "no-hover"
+        },
+        {
+          "label": "Always",
+          "value": "always"
+        }
+      ],
+      "value": "hover"
+    },
+    "x86_64": {
+      "label": "Show toolbar",
+      "options": [
+        {
+          "label": "On hover edge",
+          "value": "hover"
+        },
+        {
+          "label": "On hover sidebar",
+          "value": "no-hover"
+        },
+        {
+          "label": "Always",
+          "value": "always"
+        }
+      ],
+      "value": "hover"
+    }
+  },
+  "settings_results": {
+    "arm64": [
+      {
+        "label": "On hover edge",
+        "value": "hover"
+      },
+      {
+        "label": "On hover sidebar",
+        "value": "no-hover"
+      },
+      {
+        "label": "Always",
+        "value": "always"
+      },
+      {
+        "label": "Always cover (experimental)",
+        "value": "cover"
+      }
+    ],
+    "x86_64": [
+      {
+        "label": "On hover edge",
+        "value": "hover"
+      },
+      {
+        "label": "On hover sidebar",
+        "value": "no-hover"
+      },
+      {
+        "label": "Always",
+        "value": "always"
+      },
+      {
+        "label": "Always cover (experimental)",
+        "value": "cover"
+      }
+    ]
+  },
+  "all_package_hash_guards_passed": true,
+  "diagnostic": "First Intel loopback navigation timed out with the app unchanged. The successful rerun used mock-Keychain/basic-password-store switches with the standard smoke assertions unchanged. Update feeds were isolated throughout this follow-up.",
+  "limits": [
+    "Not a fresh full-tree release preparation.",
+    "Prepared source also contains other active native-editor work.",
+    "Native Intel hardware was not tested."
+  ],
+  "published_browser_changed": false
+}

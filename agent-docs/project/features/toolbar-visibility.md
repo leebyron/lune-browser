@@ -1,10 +1,10 @@
 # Toolbar hover modes
 
-Requested November 12, 2026. The development lock selects signed input `inputs/toolbar-hover-options-1/macos` at `af297bc814a9dba21e27433a9e1d3794844f2d6b` for future main builds.
+Requested November 12, 2026. The development lock selects signed input `inputs/toolbar-hover-order-1/macos` at `3aa1b256f8b18b802b2d076a293a953417c9697d` for future main builds.
 
 ## Behavior
 
-Show toolbar offers **On hover sidebar** as its last option in the native window menu and Appearance settings. Setup also offers it last, after On hover edge and Always; the existing exclusion of Always cover from setup is preserved.
+Show toolbar uses **On hover edge**, **On hover sidebar**, then **Always** in setup. The toolbar/sidebar context menu and Appearance settings use those three choices followed by **Always cover (experimental)** as the final option. Setup continues to exclude experimental cover.
 
 The new mode disables only entry through the page's top-edge hover rail. A visible sidebar's upper region still reveals the toolbar. Address editing, Downloads details, toolbar bubbles, explicit menu holds, pinning and Customize retain their existing behavior. Once revealed, ordinary pointer retention and dismissal remain intact, including the existing exclusion of side-docked DevTools. The preference applies to the profile and updates open windows immediately. Existing profiles and fresh profiles keep the edge-hover behavior as their default.
 
@@ -23,3 +23,7 @@ Focused replay reproduces all 19 changed files with zero fuzz and zero offsets. 
 No specific GitHub issue was assigned to this request. The current published browser and frozen release records remain unchanged.
 
 The [validation record](../builds/2026-11-12-toolbar-hover-options.json) retains exact source/input hashes and test-artifact scope. Initial Intel test copies were silently replaced by Sparkle with published 26.1111.3. Final tests use an exact development package, disable browser updates only in the disposable Settings profile, use loopback update feeds and verify the app hash/version remain unchanged after every check. This does not change production update behavior.
+
+## Confirmed ordering
+
+The owner confirmed the final order and requested a focused commit/push. `helium/ui/toolbar-hover-order.patch` reorders the shared native menu, Settings options and setup options without changing preferences or reveal behavior. Both builds and packaged mode/persistence/setup checks pass, with Intel under Rosetta. Native menu inspection confirms the four-item order. The [ordering validation record](../builds/2026-11-12-toolbar-hover-order.json) retains exact inputs, package hashes and limits. The concurrent session-restore input is preserved as this input's parent.

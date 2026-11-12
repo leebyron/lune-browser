@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "810b4ea9b84d347e38ca38ace6a5800aad243075",
+    "commit": "3aa1b256f8b18b802b2d076a293a953417c9697d",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -821,6 +821,10 @@
       {
         "path": "patches/helium/ui/remove-session-restore-notice.patch",
         "sha256": "8d8240030da41ef430b62ca3ca46a6300963b154d6c82c83e777bdf870b26ee9"
+      },
+      {
+        "path": "patches/helium/ui/toolbar-hover-order.patch",
+        "sha256": "a7117490154ad62b3ea9df817269edb380eb86d9a0030d7591557a948163d16e"
       }
     ]
   },
@@ -2275,6 +2279,21 @@
       "adaptation": "Remove only the production startup call and unused controller/model includes in infobar_utils.cc. Session restoration, Settings choices, and the separate crash-recovery paths retain their behavior. Prepared-source quilt refresh and Helium unmerge; full affected-file locked replay has zero fuzz and offsets. Both incremental browser builds, headed fresh/saved/crashed-profile checks in both setup states, and saved startup-choice regressions pass (Intel under Rosetta). Intel headed checks use an ad-hoc signed copy with software rendering. Shared development builds include unrelated pending UI patches; independent replay binds this one-file change to the input. See agent-docs/project/features/session-restore-notice.md.",
       "commits": [
         "810b4ea9b84d347e38ca38ace6a5800aad243075"
+      ]
+    },
+    {
+      "id": "toolbar-hover-order",
+      "depends_on": [
+        "toolbar-hover-options"
+      ],
+      "patches": [
+        "patches/helium/ui/toolbar-hover-order.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use edge hover, sidebar hover, Always in setup; append experimental Always cover last in native menus and Settings.",
+      "adaptation": "Unchanged independently reviewed ordering patch composed onto the latest session-restore input without dropping its patch. Strict zero-fuzz/zero-offset replay passes for all three files. Both browser builds, packaged Settings/mode persistence, browsing and setup checks pass, with Intel under Rosetta. Native Apple silicon menu inspection confirms the exact requested order. No hover or retention behavior changes. See agent-docs/project/builds/2026-11-12-toolbar-hover-order.json.",
+      "commits": [
+        "3aa1b256f8b18b802b2d076a293a953417c9697d"
       ]
     }
   ],

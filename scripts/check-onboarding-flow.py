@@ -133,7 +133,7 @@ try:
   report['backgroundsByAppearance'][value]=colors
  for option in report['dropdowns'][1]['options']:select('Theme',option['value'])
  select('Theme','lune')
- assert [o['label'] for o in report['dropdowns'][3]['options']]==['On hover edge','Always','On hover sidebar']
+ assert [o['label'] for o in report['dropdowns'][3]['options']]==['On hover edge','On hover sidebar','Always']
  select('Show toolbar','always');select('Show toolbar','hover');select('Show toolbar','no-hover');select('Show toolbar','always')
  select('Tab sidebar','right');select('Tab sidebar','left');select('Tab sidebar','right')
  assert report['finish']['buttons']==['Back','Done']
