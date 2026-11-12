@@ -1,6 +1,6 @@
 {
   "date": "2026-11-12",
-  "status": "Validated development source; publication completing",
+  "status": "Source published and validated; production website deployment awaiting explicit authorization",
   "platform": {
     "base": "51acf1cc9d8cb0ec4b6a71e40c4416bb10b93175",
     "commit": "3dbf35b2431b5e9220b4214d66f5631f9e936a39",
@@ -480,5 +480,34 @@
     "https://developer.apple.com/design/human-interface-guidelines/app-icons",
     "https://developer.apple.com/documentation/xcode/creating-your-app-icon-using-icon-composer",
     "https://developer.apple.com/videos/play/wwdc2026/8012/"
-  ]
+  ],
+  "source_commit": "fbb10367e59b9d9b16bf519cb964bef91484aa30",
+  "post_push_checks": {
+    "build_setup": {
+      "run_id": 43272268348,
+      "url": "https://github.com/leebyron/lune-browser/actions/runs/43272268348",
+      "conclusion": "success"
+    },
+    "website": {
+      "run_id": 43272268379,
+      "url": "https://github.com/leebyron/lune-browser/actions/runs/43272268379",
+      "state": "queued",
+      "deployment_executed": false,
+      "automatic_approval_review": "Rejected starting the local runner for production deployment because the asset-update request did not explicitly authorize that consequential mutation. No alternative deployment attempted."
+    }
+  },
+  "public_site": {
+    "url": "https://lune.computer/favicon.svg",
+    "readback_verified": false,
+    "response": "HTTP 403 Forbidden",
+    "deployment_run": 43272268379,
+    "deployment_state": "queued; runner start rejected by automatic approval review"
+  },
+  "cleanup": {
+    "disposable_probe_directories_removed": 5,
+    "native_icon_composer_preview_quit": true,
+    "finished_website_test_server_stopped": true,
+    "review_board_retained": "http://127.0.0.1:8770/?glass=matched",
+    "final_input_and_build_caches_retained": true
+  }
 }
