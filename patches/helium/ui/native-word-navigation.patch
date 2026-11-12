@@ -1,0 +1,336 @@
+Index: fixture-src/chrome/browser/ui/helium/BUILD.gn
+===================================================================
+--- fixture-src.orig/chrome/browser/ui/helium/BUILD.gn	2026-11-12 11:03:52.017042000 -0800
++++ fixture-src/chrome/browser/ui/helium/BUILD.gn	2026-11-12 11:03:52.333165544 -0800
+@@ -85,7 +85,10 @@
+   deps = []
+   if (is_mac) {
+     sources += [ "helium_command_bar_view_mac.mm" ]
+-    deps += [ ":native_result_row" ]
++    deps += [
++      ":native_result_row",
++      ":native_word_navigation",
++    ]
+     frameworks = [
+       "AppKit.framework",
+       "QuartzCore.framework",
+@@ -147,6 +150,18 @@
+ }
+ 
+ if (is_mac) {
++  source_set("native_word_navigation") {
++    sources = [
++      "native_word_navigation_mac.h",
++      "native_word_navigation_mac.mm",
++    ]
++    deps = [
++      "//base",
++      "//base:i18n",
++    ]
++    frameworks = [ "AppKit.framework" ]
++  }
++
+   source_set("native_result_row") {
+     sources = [
+       "native_result_row_mac.h",
+Index: fixture-src/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+===================================================================
+--- fixture-src.orig/chrome/browser/ui/helium/helium_command_bar_view_mac.mm	2026-11-11 07:47:19.162660056 -0800
++++ fixture-src/chrome/browser/ui/helium/helium_command_bar_view_mac.mm	2026-11-12 11:23:52.835637505 -0800
+@@ -8,6 +8,7 @@
+ #import <QuartzCore/QuartzCore.h>
+ 
+ #include "base/strings/sys_string_conversions.h"
++#include "chrome/browser/ui/helium/native_word_navigation_mac.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+@@ -151,6 +152,9 @@
+ - (BOOL)control:(NSControl*)control
+                textView:(NSTextView*)textView
+     doCommandBySelector:(SEL)selector {
++  if (helium::HandleNativeWordNavigation(control, textView, selector)) {
++    return YES;
++  }
+   return self.onCommand && self.onCommand(selector);
+ }
+ - (void)activateRow:(NSButton*)sender {
+@@ -273,6 +277,7 @@
+   pane.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+   pane.rows = [[NSMutableArray alloc] init];
+   pane.input = [[NSTextField alloc] init];
++  pane.input.cell = [[HeliumWordTextFieldCell alloc] initTextCell:@""];
+   pane.input.font = [NSFont systemFontOfSize:18];
+   pane.input.bordered = NO;
+   pane.input.drawsBackground = NO;
+Index: fixture-src/chrome/browser/ui/helium/native_word_navigation_mac.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ fixture-src/chrome/browser/ui/helium/native_word_navigation_mac.h	2026-11-12 11:23:52.831681017 -0800
+@@ -0,0 +1,25 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_HELIUM_NATIVE_WORD_NAVIGATION_MAC_H_
++#define CHROME_BROWSER_UI_HELIUM_NATIVE_WORD_NAVIGATION_MAC_H_
++
++#import <AppKit/AppKit.h>
++
++// Installs the word-boundary storage before editing starts, so native typing
++// undo always targets the active storage. Other cell behavior stays native.
++@interface HeliumWordTextFieldCell : NSTextFieldCell
++@end
++
++namespace helium {
++
++// Supplies Chromium word boundaries to AppKit for word movement/selection.
++// AppKit still performs the command and owns selection anchors and bidi motion.
++bool HandleNativeWordNavigation(NSControl* control,
++                                 NSTextView* editor,
++                                 SEL command);
++
++}  // namespace helium
++
++#endif  // CHROME_BROWSER_UI_HELIUM_NATIVE_WORD_NAVIGATION_MAC_H_
+Index: fixture-src/chrome/browser/ui/helium/native_word_navigation_mac.mm
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ fixture-src/chrome/browser/ui/helium/native_word_navigation_mac.mm	2026-11-12 11:23:52.834912416 -0800
+@@ -0,0 +1,169 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/ui/helium/native_word_navigation_mac.h"
++
++#import <objc/message.h>
++#import <objc/runtime.h>
++
++#include "base/i18n/break_iterator.h"
++#include "base/strings/sys_string_conversions.h"
++
++namespace {
++char kWordStorageKey;
++}  // namespace
++
++// AppKit's word commands consult NSTextStorage's nextWordFromIndex:forward:.
++// Override only that decision, leaving native movement, bidi selection and its
++// internal anchor intact. The field editor remains an ordinary NSTextView.
++@interface HeliumWordTextStorage : NSTextStorage
++- (void)prepareForControl:(NSControl*)control
++                  editor:(NSTextView*)editor
++          wordNavigation:(BOOL)wordNavigation;
++@end
++
++@implementation HeliumWordTextStorage {
++  NSMutableAttributedString* _backing;
++  __weak NSControl* _control;
++  __weak NSTextView* _editor;
++  BOOL _wordNavigation;
++}
++
++- (instancetype)init {
++  if ((self = [super init])) {
++    _backing = [[NSMutableAttributedString alloc] init];
++  }
++  return self;
++}
++
++- (NSString*)string {
++  return _backing.string;
++}
++
++- (NSDictionary<NSAttributedStringKey, id>*)attributesAtIndex:(NSUInteger)index
++                                            effectiveRange:(NSRangePointer)range {
++  return [_backing attributesAtIndex:index effectiveRange:range];
++}
++
++- (void)replaceCharactersInRange:(NSRange)range withString:(NSString*)string {
++  _wordNavigation = NO;
++  [_backing replaceCharactersInRange:range withString:string];
++  [self edited:NSTextStorageEditedCharacters
++                 range:range
++        changeInLength:static_cast<NSInteger>(string.length) -
++                       static_cast<NSInteger>(range.length)];
++}
++
++- (void)setAttributes:(NSDictionary<NSAttributedStringKey, id>*)attributes
++                range:(NSRange)range {
++  [_backing setAttributes:attributes range:range];
++  [self edited:NSTextStorageEditedAttributes range:range changeInLength:0];
++}
++
++- (void)prepareForControl:(NSControl*)control
++                  editor:(NSTextView*)editor
++          wordNavigation:(BOOL)wordNavigation {
++  _control = control;
++  _editor = editor;
++  _wordNavigation = wordNavigation;
++}
++
++- (NSUInteger)nextWordFromIndex:(NSUInteger)location forward:(BOOL)forward {
++  if (!_wordNavigation || !_editor || _control.currentEditor != _editor ||
++      _editor.hasMarkedText || location > self.length) {
++    return [super nextWordFromIndex:location forward:forward];
++  }
++  const std::u16string text = base::SysNSStringToUTF16(self.string);
++  base::i18n::BreakIterator words(text, base::i18n::BreakIterator::BREAK_WORD);
++  if (!words.Init()) {
++    return [super nextWordFromIndex:location forward:forward];
++  }
++  // Match RenderText's forward word ends and backward word starts. Chromium's
++  // existing ICU data splits hostnames at dots while retaining decimal numbers.
++  NSUInteger previous = 0;
++  while (words.Advance()) {
++    if (!words.IsWord()) {
++      continue;
++    }
++    if (forward && words.pos() > location) {
++      return words.pos();
++    }
++    if (!forward) {
++      if (words.prev() >= location) {
++        break;
++      }
++      previous = words.prev();
++    }
++  }
++  return forward ? text.size() : previous;
++}
++@end
++
++@implementation HeliumWordTextFieldCell
++- (instancetype)initTextCell:(NSString*)string {
++  if ((self = [super initTextCell:string])) {
++    self.editable = YES;
++    self.selectable = YES;
++    self.scrollable = YES;
++  }
++  return self;
++}
++
++- (NSText*)setUpFieldEditorAttributes:(NSText*)textObject {
++  NSText* result = [super setUpFieldEditorAttributes:textObject];
++  if ([result isKindOfClass:NSTextView.class]) {
++    NSTextView* editor = (NSTextView*)result;
++    HeliumWordTextStorage* storage =
++        objc_getAssociatedObject(editor, &kWordStorageKey);
++    if (!storage || editor.textStorage != storage) {
++      // Opt into AppKit's supported TextKit 1 compatibility mode before typing
++      // registers undo operations against the field editor's text storage.
++      NSTextStorage* original = editor.textStorage;
++      storage = [[HeliumWordTextStorage alloc] init];
++      [storage setAttributedString:original];
++      [editor.layoutManager replaceTextStorage:storage];
++      objc_setAssociatedObject(editor, &kWordStorageKey, storage,
++                               OBJC_ASSOCIATION_RETAIN_NONATOMIC);
++    }
++  }
++  return result;
++}
++@end
++
++namespace helium {
++namespace {
++
++bool IsWordNavigation(SEL command) {
++  return command == @selector(moveWordLeft:) ||
++         command == @selector(moveWordRight:) ||
++         command == @selector(moveWordBackward:) ||
++         command == @selector(moveWordForward:) ||
++         command == @selector(moveWordLeftAndModifySelection:) ||
++         command == @selector(moveWordRightAndModifySelection:) ||
++         command == @selector(moveWordBackwardAndModifySelection:) ||
++         command == @selector(moveWordForwardAndModifySelection:);
++}
++}  // namespace
++
++bool HandleNativeWordNavigation(NSControl* control,
++                                NSTextView* editor,
++                                SEL command) {
++  if (!control || !editor || !IsWordNavigation(command) || editor.hasMarkedText) {
++    return false;
++  }
++  HeliumWordTextStorage* storage =
++      objc_getAssociatedObject(editor, &kWordStorageKey);
++  if (!storage || editor.textStorage != storage) {
++    return false;
++  }
++  // Invoke the native action directly, avoiding a second delegate dispatch.
++  // Enable the boundary override only for this command, including its selection
++  // update. Mouse selection, deletion and other controls keep native behavior.
++  [storage prepareForControl:control editor:editor wordNavigation:YES];
++  using WordAction = void (*)(id, SEL, id);
++  reinterpret_cast<WordAction>(objc_msgSend)(editor, command, nil);
++  [storage prepareForControl:nil editor:nil wordNavigation:NO];
++  return true;
++}
++}  // namespace helium
+Index: fixture-src/chrome/browser/ui/views/frame/BUILD.gn
+===================================================================
+--- fixture-src.orig/chrome/browser/ui/views/frame/BUILD.gn	2026-11-12 11:03:52.017211000 -0800
++++ fixture-src/chrome/browser/ui/views/frame/BUILD.gn	2026-11-12 11:03:52.339484634 -0800
+@@ -535,21 +535,21 @@
+     "//ui/views",
+   ]
+   deps = [
+-    "//chrome/browser/profiles:profile",
+-    "//chrome/browser/ui:chrome_pages",
+-    "//components/helium_services",
+     ":browser_view_header",
+     ":frame",
+     "//chrome/app:branded_strings",
+     "//chrome/app:generated_resources",
+     "//chrome/browser:buildflags",
+     "//chrome/browser/lifetime",
++    "//chrome/browser/profiles:profile",
+     "//chrome/browser/themes",
++    "//chrome/browser/ui:chrome_pages",
+     "//chrome/browser/ui:layout_constants",
+     "//chrome/browser/ui/color:color_headers",
+     "//chrome/browser/ui/tabs:tab_strip",
+     "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui/views/tabs/tab",
++    "//components/helium_services",
+     "//components/omnibox/browser:vector_icons",
+     "//components/strings:components_strings_grit",
+     "//components/vector_icons",
+@@ -2037,6 +2037,7 @@
+       "//chrome/browser/ui/helium:helium_command_bar",
+       "//chrome/browser/ui/helium:helium_layout_state_controller",
+       "//chrome/browser/ui/helium:native_result_row",
++      "//chrome/browser/ui/helium:native_word_navigation",
+       "//chrome/browser/ui/immersive:immersive_mode_controller",
+       "//chrome/browser/ui/navigator",
+       "//chrome/browser/ui/tabs",
+Index: fixture-src/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+===================================================================
+--- fixture-src.orig/chrome/browser/ui/views/frame/browser_frame_view_mac.mm	2026-11-11 22:47:14.311468539 -0800
++++ fixture-src/chrome/browser/ui/views/frame/browser_frame_view_mac.mm	2026-11-12 11:23:52.838635153 -0800
+@@ -46,6 +46,7 @@
+ #include "chrome/browser/ui/helium/helium_command_symbols.h"
+ #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
+ #include "chrome/browser/ui/helium/native_result_row_mac.h"
++#include "chrome/browser/ui/helium/native_word_navigation_mac.h"
+ #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/navigator/browser_navigator.h"
+@@ -1620,6 +1621,7 @@
+   [_controls addSubview:_addressContainer];
+   _address =
+       [[HeliumGlassAddressField alloc] initWithFrame:_addressContainer.bounds];
++  _address.cell = [[HeliumWordTextFieldCell alloc] initTextCell:@""];
+   _address.focusSurface = _material;
+   _address.bezeled = NO;
+   _address.drawsBackground = NO;
+@@ -2182,6 +2184,9 @@
+ - (BOOL)control:(NSControl*)control
+                textView:(NSTextView*)textView
+     doCommandBySelector:(SEL)command {
++  if (helium::HandleNativeWordNavigation(control, textView, command)) {
++    return YES;
++  }
+   if (command == @selector(insertNewline:) ||
+       command == @selector(insertNewlineIgnoringFieldEditor:)) {
+     [self acceptAddress];
