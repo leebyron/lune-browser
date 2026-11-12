@@ -1,0 +1,30 @@
+--- a/chrome/browser/ui/startup/infobar_utils.cc
++++ b/chrome/browser/ui/startup/infobar_utils.cc
+@@ -57,11 +57,6 @@
+ #include "chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_controller.h"
+ #endif
+ 
+-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+-#include "chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_controller.h"
+-#include "chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_model.h"
+-#endif
+-
+ #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+ #include "chrome/browser/global_features.h"
+ #include "chrome/browser/win/installer_downloader/installer_downloader_controller.h"
+@@ -307,15 +302,6 @@
+     return;
+   }
+ 
+-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+-  if (base::FeatureList::IsEnabled(features::kSessionRestoreInfobar)) {
+-    auto* session_restore_infobar_controller =
+-        session_restore_infobar::SessionRestoreInfobarController::From(browser);
+-    session_restore_infobar_controller->MaybeShowInfoBar(*profile,
+-                                                         is_post_crash_launch);
+-  }
+-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+-
+   // The default browser prompt should only be shown after the first run.
+   if (is_first_run == chrome::startup::IsFirstRun::kNo) {
+ #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
