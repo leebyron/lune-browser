@@ -1,0 +1,2403 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -4839,4 +4839,20 @@
+   <message name="IDS_SETTINGS_HELIUM_SERVICES_COMPONENT_UPDATES_DESCRIPTION" desc="Description of automatic Helium component updates.">
+     Lune will automatically check for component updates and install them. We recommend keeping this setting enabled.
+   </message>
++  <message name="IDS_OLDER_TABS" desc="olderTabs: automatic sidebar tab cleanup.">Older Tabs</message>
++  <message name="IDS_OLDER_TABS_KEEP" desc="olderTabsKeep: automatic sidebar tab cleanup.">Keep Tab</message>
++  <message name="IDS_OLDER_TABS_MOVE_AFTER" desc="olderTabsMoveAfter: automatic sidebar tab cleanup.">Move inactive tabs to Older Tabs after</message>
++  <message name="IDS_OLDER_TABS_CLOSE_AFTER" desc="olderTabsCloseAfter: automatic sidebar tab cleanup.">Close inactive Older Tabs after</message>
++  <message name="IDS_OLDER_TABS_SIX_HOURS" desc="olderTabsSixHours: automatic sidebar tab cleanup.">6 hours</message>
++  <message name="IDS_OLDER_TABS_DAY" desc="olderTabsDay: automatic sidebar tab cleanup.">1 day</message>
++  <message name="IDS_OLDER_TABS_THREE_DAYS" desc="olderTabsThreeDays: automatic sidebar tab cleanup.">3 days</message>
++  <message name="IDS_OLDER_TABS_WEEK" desc="olderTabsWeek: automatic sidebar tab cleanup.">7 days</message>
++  <message name="IDS_OLDER_TABS_TWO_DAYS" desc="olderTabsTwoDays: automatic sidebar tab cleanup.">2 days</message>
++  <message name="IDS_OLDER_TABS_IMMEDIATELY" desc="olderTabsImmediately: automatic sidebar tab cleanup.">Immediately</message>
++  <message name="IDS_OLDER_TABS_OLDER_LABEL" desc="Heading for tabs last used more than one week ago.">Older</message>
++  <message name="IDS_OLDER_TABS_NEVER" desc="olderTabsNever: automatic sidebar tab cleanup.">Never</message>
++  <message name="IDS_OLDER_TABS_CLOSE_ALL" desc="Context menu action to close every tab in Older Tabs.">Close All Older Tabs</message>
++  <message name="IDS_OLDER_TABS_KEEP_ALL" desc="Context menu action to return every Older tab to its former regular stack position.">Keep All Older Tabs</message>
++  <message name="IDS_OLDER_TABS_MOVE_GROUPED_DESCRIPTION" desc="Description for opting grouped tabs into Older Tabs cleanup.">Allow moving inactive tabs from tab groups to Older Tabs</message>
++  <message name="IDS_OLDER_TABS_MOVE_GROUPED" desc="Allow inactive grouped tabs to leave their groups and move to Older Tabs.">Move inactive tabs from groups</message>
+ </grit-part>
+\ No newline at end of file
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -33,6 +33,7 @@
+ #include "chrome/browser/ssl/generated_https_first_mode_pref.h"
+ #include "chrome/browser/ui/omnibox/omnibox_everywhere/omnibox_everywhere_prefs.h"
+ #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
+ #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
+ #include "chrome/common/extensions/api/settings_private.h"
+@@ -308,6 +309,10 @@
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kSidePanelAlignmentOverrides] =
+       settings_api::PrefType::kDictionary;
++  (*s_allowlist)[tabs::kOlderTabsMoveGrouped] =
++      settings_api::PrefType::kBoolean;
++  (*s_allowlist)[tabs::kOlderTabsMoveHours] = settings_api::PrefType::kNumber;
++  (*s_allowlist)[tabs::kOlderTabsCloseHours] = settings_api::PrefType::kNumber;
+   (*s_allowlist)[::prefs::kVerticalTabsExpandOnHoverEnabled] =
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kTabSearchPinnedToTabstrip] =
+--- a/chrome/browser/resources/settings/appearance_page/appearance_behavior_page.html
++++ b/chrome/browser/resources/settings/appearance_page/appearance_behavior_page.html
+@@ -50,4 +50,27 @@
+       label="$i18n{allowSplitViewDragAndDrop}">
+   </settings-toggle-button>
+ 
++  <div class="cr-row hr">
++    <div class="flex" aria-hidden="true">$i18n{olderTabsMoveAfter}</div>
++    <settings-dropdown-menu id="olderTabsMoveAfter"
++        pref-key="helium.tabs.cleanup_move_hours"
++        label="$i18n{olderTabsMoveAfter}"
++        menu-options="[[cleanupMoveOptions_]]">
++    </settings-dropdown-menu>
++  </div>
++  <cr-collapse id="olderTabsDetails" opened="[[cleanupMoveEnabled_]]">
++    <div class="cr-row">
++      <div class="flex" aria-hidden="true">$i18n{olderTabsCloseAfter}</div>
++      <settings-dropdown-menu id="olderTabsCloseAfter"
++          pref-key="helium.tabs.cleanup_close_hours"
++          label="$i18n{olderTabsCloseAfter}"
++          menu-options="[[cleanupCloseOptions_]]">
++      </settings-dropdown-menu>
++    </div>
++    <settings-toggle-button id="olderTabsMoveGrouped"
++        pref-key="helium.tabs.cleanup_move_grouped"
++        label="$i18n{olderTabsMoveGrouped}"
++        sub-label="$i18n{olderTabsMoveGroupedDescription}">
++    </settings-toggle-button>
++  </cr-collapse>
+ </settings-section>
+--- a/chrome/browser/resources/settings/appearance_page/appearance_behavior_page.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_behavior_page.ts
+@@ -3,19 +3,40 @@
+ // the terms of the GPL-3.0 license that can be found in the LICENSE file.
+ 
+ import '../controls/settings_toggle_button.js';
++import '../controls/settings_dropdown_menu.js';
++import type {DropdownMenuOptionList} from '../controls/settings_dropdown_menu.js';
+ import '../settings_page/settings_section.js';
++import 'chrome://resources/cr_elements/cr_collapse/cr_collapse.js';
++import {PrefServiceObserverMixin} from '/shared/settings/prefs2/pref_service_observer_mixin.js';
+ 
+ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+ 
++import {loadTimeData} from '../i18n_setup.js';
++
+ import {getTemplate} from './appearance_behavior_page.html.js';
+ 
+-export class AppearanceBehaviorPageElement extends PolymerElement {
++export class AppearanceBehaviorPageElement extends PrefServiceObserverMixin(PolymerElement) {
+   static get is() {
+     return 'settings-appearance-behavior-page';
+   }
+ 
+   static get properties() {
+     return {
++      cleanupMoveEnabled_: {type: Boolean, value: true},
++      cleanupMoveOptions_: {type: Array, value: () => ([
++        {value: 0, name: loadTimeData.getString('olderTabsNever')},
++        {value: 6, name: loadTimeData.getString('olderTabsSixHours')},
++        {value: 24, name: loadTimeData.getString('olderTabsDay')},
++        {value: 48, name: loadTimeData.getString('olderTabsTwoDays')},
++      ])},
++      cleanupCloseOptions_: {type: Array, value: () => ([
++        {value: -1, name: loadTimeData.getString('olderTabsImmediately')},
++        {value: 24, name: loadTimeData.getString('olderTabsDay')},
++        {value: 48, name: loadTimeData.getString('olderTabsTwoDays')},
++        {value: 72, name: loadTimeData.getString('olderTabsThreeDays')},
++        {value: 168, name: loadTimeData.getString('olderTabsWeek')},
++        {value: 0, name: loadTimeData.getString('olderTabsNever')},
++      ])},
+       visualTabSwitcherEnabled_: {
+         type: Boolean,
+         value: false,
+@@ -24,6 +45,16 @@
+   }
+ 
+   declare protected visualTabSwitcherEnabled_: boolean;
++  declare protected cleanupMoveEnabled_: boolean;
++
++  override connectedCallback() {
++    super.connectedCallback();
++    this.addPrefObserver<number>('helium.tabs.cleanup_move_hours', pref => {
++      this.cleanupMoveEnabled_ = pref.value !== 0;
++    });
++  }
++  declare protected cleanupMoveOptions_: DropdownMenuOptionList;
++  declare protected cleanupCloseOptions_: DropdownMenuOptionList;
+ 
+   static get template() {
+     return getTemplate();
+--- a/chrome/browser/sessions/session_service_base.cc
++++ b/chrome/browser/sessions/session_service_base.cc
+@@ -33,6 +33,7 @@
+ #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+ #include "chrome/browser/ui/startup/startup_browser_creator.h"
+ #include "chrome/browser/ui/tabs/features.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+ #include "chrome/browser/ui/tabs/tab_group_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+@@ -619,6 +620,12 @@
+   command_storage_manager()->AppendRebuildCommand(
+       sessions::CreateSetTabWindowCommand(window_id, session_id));
+ 
++  const auto cleanup = tabs::OlderTabsController::Serialize(tab);
++  if (!cleanup.empty()) {
++    command_storage_manager()->AppendRebuildCommand(
++        sessions::CreateAddTabExtraDataCommand(
++            session_id, tabs::kOlderTabsSessionKey, cleanup));
++  }
+   const int current_index = tab->GetController().GetCurrentEntryIndex();
+   const int min_index =
+       std::max(current_index - sessions::gMaxPersistNavigationCount, 0);
+--- a/chrome/browser/ui/browser_live_tab_context.cc
++++ b/chrome/browser/ui/browser_live_tab_context.cc
+@@ -32,6 +32,7 @@
+ #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+ #include "chrome/browser/ui/tabs/tab_group_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+@@ -207,6 +208,10 @@
+   std::map<std::string, std::string> extra_data;
+   tabs::TabInterface* const tab = tab_strip_model_->GetTabAtIndex(index);
+ 
++  const auto cleanup = tabs::OlderTabsController::Serialize(tab->GetContents());
++  if (!cleanup.empty()) {
++    extra_data.emplace(tabs::kOlderTabsSessionKey, cleanup);
++  }
+   glic::PopulateGlicExtraData(tab, &extra_data);
+   if (auto* contextual_tasks_controller =
+           contextual_tasks::ContextualTasksPanelController::From(
+--- a/chrome/browser/ui/browser_tabrestore.cc
++++ b/chrome/browser/ui/browser_tabrestore.cc
+@@ -21,6 +21,7 @@
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_activation_tracker.h"
+ #include "chrome/browser/ui/tab_ui_helper.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/public/tab_features.h"
+ #include "chrome/browser/ui/tabs/tab_enums.h"
+ #include "chrome/browser/ui/tabs/tab_group_model.h"
+@@ -84,6 +85,11 @@
+   apps::SetAppIdForWebContents(browser->GetProfile(), web_contents.get(),
+                                extension_app_id);
+ 
++  if (auto it = extra_data.find(tabs::kOlderTabsSessionKey);
++      it != extra_data.end()) {
++    tabs::OlderTabsController::Restore(web_contents.get(), it->second,
++                                       from_session_restore);
++  }
+   glic::RestoreGlicStateFromExtraData(web_contents.get(), extra_data);
+   contextual_tasks::ContextualTasksTabRestoreData::RestoreFromExtraData(
+       web_contents.get(), extra_data);
+--- a/chrome/browser/ui/tabs/BUILD.gn
++++ b/chrome/browser/ui/tabs/BUILD.gn
+@@ -355,6 +355,7 @@
+     sources = [
+       "tab_close_types_data.h",
+       "tab_strip_model.h",
++      "older_tabs_controller.h",
+       "tab_strip_model_delegate.h",
+       "tab_strip_model_selection_state.h",
+       "tab_strip_model_stats_recorder.h",
+@@ -380,6 +381,7 @@
+     sources = [
+       "tab_close_types_data.cc",
+       "tab_strip_model.cc",
++      "older_tabs_controller.cc",
+       "tab_strip_model_delegate.cc",
+       "tab_strip_model_selection_state.cc",
+       "tab_strip_model_stats_recorder.cc",
+@@ -405,6 +407,7 @@
+       "//chrome/browser/profiles:profile",
+       "//chrome/browser/reading_list",
+       "//chrome/browser/resource_coordinator",
++      "//chrome/browser/tab_group_sync:factories",
+       "//chrome/browser/ui:browser_command_controller",
+       "//chrome/browser/ui:browser_commands",
+       "//chrome/browser/ui:browser_tab_strip",
+@@ -423,6 +426,7 @@
+       "//chrome/browser/ui/user_education",
+       "//chrome/browser/ui/views/frame:browser_view_header",
+       "//chrome/browser/ui/views/tabs/common",
++      "//chrome/browser/ui/views/tabs/dragging:dragging",
+       "//chrome/browser/ui/views/tabs/vertical",
+       "//chrome/browser/ui/web_applications",
+       "//chrome/browser/ui/web_applications:launch_utils",
+@@ -433,6 +437,7 @@
+       "//components/omnibox/common:features",
+       "//components/pref_registry",
+       "//components/reading_list/core",
++      "//components/saved_tab_groups/public",
+       "//components/tab_groups",
+       "//components/web_modal",
+       "//components/webapps/common",
+--- /dev/null
++++ b/chrome/browser/ui/tabs/older_tabs_controller.cc
+@@ -0,0 +1,757 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
++
++#include <algorithm>
++#include <cmath>
++#include <map>
++#include <memory>
++#include <optional>
++#include <string_view>
++#include <tuple>
++
++#include "base/auto_reset.h"
++#include "base/json/json_reader.h"
++#include "base/json/json_writer.h"
++#include "base/json/values_util.h"
++#include "base/power_monitor/power_monitor.h"
++#include "base/supports_user_data.h"
++#include "base/task/single_thread_task_runner.h"
++#include "base/uuid.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/sessions/session_restore.h"
++#include "chrome/browser/sessions/session_service.h"
++#include "chrome/browser/sessions/session_service_factory.h"
++#include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
++#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
++#include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
++#include "components/prefs/pref_service.h"
++#include "components/saved_tab_groups/public/tab_group_sync_service.h"
++#include "components/sessions/content/session_tab_helper.h"
++#include "content/public/browser/browser_context.h"
++#include "content/public/browser/download_manager.h"
++#include "content/public/browser/web_contents.h"
++#include "content/public/browser/web_contents_observer.h"
++
++namespace tabs {
++namespace {
++const char kDataKey = 0;
++
++// Lives with the WebContents, so transfer between windows retains the clocks.
++// Replacement/discard explicitly copies the serializable state below.
++class CleanupData : public base::SupportsUserData::Data,
++                    public content::WebContentsObserver {
++ public:
++  explicit CleanupData(content::WebContents* contents)
++      : content::WebContentsObserver(contents) {}
++  void DidGetUserInteraction(const blink::WebInputEvent&) override {
++    auto* tab = TabInterface::MaybeGetFromContents(web_contents());
++    auto* browser = tab ? tab->GetBrowserWindowInterface() : nullptr;
++    if (browser) {
++      browser->GetTabStripModel()->older_tabs_controller()->Interact(
++          web_contents());
++    }
++  }
++
++  std::string id = base::Uuid::GenerateRandomV4().AsLowercaseString();
++  base::Time last_use = base::Time::Now();
++  base::Time age = last_use;
++  base::Time close_clock;
++  base::Time frozen;
++  double order = 0;
++  std::optional<double> drag_original_order;
++  int drag_origin_window = 0;
++  bool dirty = true;
++  bool detached = false;
++  bool drag_regular = false;
++  bool dragging = false;
++  base::TimeTicks last_saved;
++};
++
++CleanupData* Find(const content::WebContents* contents) {
++  return contents ? static_cast<CleanupData*>(contents->GetUserData(&kDataKey))
++                  : nullptr;
++}
++CleanupData& Get(content::WebContents* contents) {
++  if (!Find(contents)) {
++    contents->SetUserData(&kDataKey, std::make_unique<CleanupData>(contents));
++  }
++  return *Find(contents);
++}
++void ReturnToRegular(CleanupData& data, base::Time now) {
++  data.age = now;
++  data.close_clock = base::Time();
++  data.frozen = base::Time();
++}
++base::TimeDelta Duration(PrefService* prefs, const char* key, int fallback) {
++  // Invalid external writes fail conservatively. Zero is an explicit Never;
++  // bound positive durations to one year before constructing a TimeDelta.
++  const int hours = prefs->GetInteger(key);
++  if (hours == -1 && std::string_view(key) == kOlderTabsCloseHours) {
++    return base::TimeDelta();  // Explicit Immediately retention.
++  }
++  if (hours == 0) {
++    return base::TimeDelta::Max();
++  }
++  return base::Hours(hours > 0 && hours <= 24 * 365 ? hours : fallback);
++}
++}  // namespace
++
++// Session restore queues saved-group reconnection independently of restoring
++// the tab strip. Do not remove members until those pending connections finish.
++class OlderTabsGroupReadiness
++    : public tab_groups::TabGroupSyncService::Observer {
++ public:
++  OlderTabsGroupReadiness(tab_groups::TabGroupSyncService* service,
++                          base::RepeatingClosure ready)
++      : service_(service), ready_(std::move(ready)), initialized_(!service) {
++    if (service_) {
++      // AddObserver also reports initialization to late observers.
++      service_->AddObserver(this);
++    }
++  }
++  ~OlderTabsGroupReadiness() override {
++    if (service_) {
++      service_->RemoveObserver(this);
++    }
++  }
++  bool initialized() const { return initialized_; }
++  void OnInitialized() override {
++    initialized_ = true;
++    ready_.Run();
++  }
++  void OnWillBeDestroyed() override {
++    service_->RemoveObserver(this);
++    service_ = nullptr;
++    initialized_ = false;
++  }
++
++ private:
++  raw_ptr<tab_groups::TabGroupSyncService> service_;
++  base::RepeatingClosure ready_;
++  bool initialized_;
++};
++
++OlderTabsController::OlderTabsController(TabStripModel* model) : model_(model) {
++  model_->AddObserver(this);
++  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
++  auto* prefs = model_->profile()->GetPrefs();
++  if (!prefs->FindPreference(kOlderTabsMoveHours)) {
++    return;  // Minimal tab-model test profiles may not register browser prefs.
++  }
++  pref_registrar_.Init(prefs);
++  for (const char* key :
++       {kOlderTabsMoveHours, kOlderTabsCloseHours, kOlderTabsMoveGrouped}) {
++    pref_registrar_.Add(
++        key, base::BindRepeating(&OlderTabsController::OnSettingsChanged,
++                                 base::Unretained(this)));
++  }
++  pref_registrar_.Add(
++      kOlderTabsCollapsed,
++      base::BindRepeating(&OlderTabsController::ScheduleReconcile,
++                          base::Unretained(this)));
++  close_not_before_ = base::TimeTicks::Now() + base::Minutes(5);
++  timer_.Start(FROM_HERE, base::Minutes(1), this,
++               &OlderTabsController::Reconcile);
++}
++OlderTabsController::~OlderTabsController() {
++  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
++  model_->RemoveObserver(this);
++}
++void OlderTabsController::OnResume() {
++  close_not_before_ = base::TimeTicks::Now() + base::Minutes(5);
++  ScheduleReconcile();
++}
++
++bool OlderTabsController::IsOlder(const content::WebContents* contents) {
++  auto* data = Find(contents);
++  return data && !data->close_clock.is_null();
++}
++bool OlderTabsController::ComesBefore(const content::WebContents* a,
++                                      const content::WebContents* b) {
++  const auto& x = *Find(a);
++  const auto& y = *Find(b);
++  return x.frozen != y.frozen ? x.frozen > y.frozen : x.id < y.id;
++}
++bool OlderTabsController::IsDraggingToRegular(
++    const content::WebContents* contents) {
++  auto* data = Find(contents);
++  return data && data->drag_regular && TabDragController::IsActive();
++}
++base::Time OlderTabsController::FrozenLastUse(
++    const content::WebContents* contents) {
++  auto* data = Find(contents);
++  return data ? data->frozen : base::Time();
++}
++std::string OlderTabsController::Serialize(
++    const content::WebContents* contents) {
++  auto* data = Find(contents);
++  if (!data) {
++    return {};
++  }
++  base::DictValue value;
++  value.Set("version", 1);
++  value.Set("id", data->id);
++  value.Set("last_use", base::TimeToValue(data->last_use));
++  value.Set("age", base::TimeToValue(data->age));
++  value.Set("close_clock", base::TimeToValue(data->close_clock));
++  value.Set("frozen", base::TimeToValue(data->frozen));
++  value.Set("order", data->order);
++  return base::WriteJson(value).value_or("");
++}
++void OlderTabsController::Restore(content::WebContents* contents,
++                                  const std::string& serialized,
++                                  bool from_session_restore) {
++  auto value = base::JSONReader::ReadDict(serialized, base::JSON_PARSE_RFC);
++  if (!value || value->FindInt("version") != 1) {
++    return;
++  }
++  auto read_time = [&](const char* key) {
++    const auto* v = value->Find(key);
++    return v ? base::ValueToTime(*v).value_or(base::Time()) : base::Time();
++  };
++  const auto now = base::Time::Now();
++  auto& data = Get(contents);
++  auto valid_time = [&](base::Time time) {
++    return !time.is_null() && time <= now && time > base::Time::UnixEpoch();
++  };
++  const auto last_use = read_time("last_use");
++  const auto age = read_time("age");
++  const auto close_clock = read_time("close_clock");
++  const auto frozen = read_time("frozen");
++  if (!valid_time(last_use) || !valid_time(age) ||
++      (!close_clock.is_null() &&
++       (!valid_time(close_clock) || !valid_time(frozen)))) {
++    return;  // Missing/corrupt/future dates receive fresh migration grace.
++  }
++  if (const auto* id = value->FindString("id");
++      id && base::Uuid::ParseLowercase(*id).is_valid()) {
++    data.id = *id;
++  }
++  data.last_use = last_use;
++  data.age = age;
++  data.close_clock = close_clock;
++  data.frozen = frozen;
++  const auto order = value->FindDouble("order").value_or(0);
++  data.order = std::isfinite(order) && std::abs(order) < 1e12 ? order : 0;
++  if (!from_session_restore) {
++    // Explicit recently-closed recovery starts a fresh regular aging cycle.
++    ReturnToRegular(data, now);
++    data.order = 0;
++    data.id = base::Uuid::GenerateRandomV4().AsLowercaseString();
++  }
++}
++
++bool OlderTabsController::IsEnabled() const {
++  if (model_->profile()->IsOffTheRecord() ||
++      !model_->profile()->GetPrefs()->FindPreference(kOlderTabsMoveHours) ||
++      Duration(model_->profile()->GetPrefs(), kOlderTabsMoveHours,
++               kDefaultOlderTabsMoveHours)
++          .is_max() ||
++      !model_->delegate()->IsNormalWindow()) {
++    return false;
++  }
++  auto* browser = model_->delegate()->GetBrowserWindowInterface();
++  auto* state =
++      browser ? VerticalTabStripStateController::From(browser) : nullptr;
++  return state && state->ShouldDisplayVerticalTabs();
++}
++int OlderTabsController::FirstOlderIndex() const {
++  for (int i = 0; i < model_->count(); ++i) {
++    if (IsOlder(model_->GetWebContentsAt(i))) {
++      return i;
++    }
++  }
++  return model_->count();
++}
++
++void OlderTabsController::Save(content::WebContents* contents) {
++  Get(contents).dirty = true;
++  if (observing_change_) {
++    return;  // SessionService observes insertion later; save after
++             // notifications.
++  }
++  if (model_->profile()->IsOffTheRecord()) {
++    return;
++  }
++  auto* helper = sessions::SessionTabHelper::FromWebContents(contents);
++  if (helper && helper->window_id().is_valid()) {
++    if (auto* service =
++            SessionServiceFactory::GetForProfile(model_->profile())) {
++      service->AddTabExtraData(helper->window_id(), helper->session_id(),
++                               kOlderTabsSessionKey, Serialize(contents));
++      Get(contents).last_saved = base::TimeTicks::Now();
++      Get(contents).dirty = false;
++    }
++  }
++}
++void OlderTabsController::Interact(content::WebContents* contents) {
++  if (!contents ||
++      model_->GetIndexOfWebContents(contents) == TabStripModel::kNoTab) {
++    return;
++  }
++  auto& data = Get(contents);
++  const auto now = base::Time::Now();
++  data.last_use = now;
++  data.dirty = true;
++  if (IsOlder(contents)) {
++    data.close_clock = now;
++  } else {
++    data.age = now;
++  }
++  // Keep event contents private and coalesce disk writes, while updating the
++  // in-memory deadline on every trusted input event.
++  if (base::TimeTicks::Now() - data.last_saved >= base::Seconds(30)) {
++    Save(contents);
++  }
++}
++void OlderTabsController::NormalizeOrderKeys() {
++  std::vector<content::WebContents*> tabs;
++  for (int i = 0; i < model_->count(); ++i) {
++    tabs.push_back(model_->GetWebContentsAt(i));
++  }
++  std::stable_sort(tabs.begin(), tabs.end(), [](auto* a, auto* b) {
++    return std::tie(Get(a).order, Get(a).id) <
++           std::tie(Get(b).order, Get(b).id);
++  });
++  // Retain each hidden tab's next surviving logical neighbor, then rebase
++  // keys in current regular-stack order. This also handles bulk/group moves
++  // and precision exhaustion without recursion on inverted neighbor keys.
++  std::map<content::WebContents*, std::vector<content::WebContents*>> before;
++  std::vector<content::WebContents*> trailing;
++  for (size_t i = 0; i < tabs.size(); ++i) {
++    if (!IsOlder(tabs[i])) {
++      continue;
++    }
++    auto next = std::find_if(tabs.begin() + i + 1, tabs.end(),
++                             [](auto* tab) { return !IsOlder(tab); });
++    if (next == tabs.end()) {
++      trailing.push_back(tabs[i]);
++    } else {
++      before[*next].push_back(tabs[i]);
++    }
++  }
++  std::vector<content::WebContents*> logical;
++  for (int i = 0; i < model_->count(); ++i) {
++    auto* contents = model_->GetWebContentsAt(i);
++    if (IsOlder(contents)) {
++      continue;
++    }
++    auto& hidden = before[contents];
++    logical.insert(logical.end(), hidden.begin(), hidden.end());
++    logical.push_back(contents);
++  }
++  logical.insert(logical.end(), trailing.begin(), trailing.end());
++  double key = 1024;
++  for (auto* contents : logical) {
++    Get(contents).order = key;
++    key += 1024;
++    Save(contents);
++  }
++}
++void OlderTabsController::AssignOrder(content::WebContents* contents) {
++  const int index = model_->GetIndexOfWebContents(contents);
++  double previous = 0;
++  double next = 0;
++  for (int i = index - 1; i >= 0; --i) {
++    auto* candidate = model_->GetWebContentsAt(i);
++    if (!IsOlder(candidate) && Get(candidate).order != 0) {
++      previous = Get(candidate).order;
++      break;
++    }
++  }
++  for (int i = index + 1; i < model_->count(); ++i) {
++    auto* candidate = model_->GetWebContentsAt(i);
++    if (!IsOlder(candidate) && Get(candidate).order != 0) {
++      next = Get(candidate).order;
++      break;
++    }
++  }
++  if (next != 0 && next <= previous) {
++    NormalizeOrderKeys();
++    AssignOrder(contents);
++    return;
++  }
++  // Insert after hidden logical positions in this gap. Hidden tabs do not
++  // collide with a new fractional key, and repeated Keep actions preserve
++  // their relative order regardless of the order in which they are kept.
++  for (int i = 0; i < model_->count(); ++i) {
++    auto* candidate = model_->GetWebContentsAt(i);
++    if (candidate != contents && IsOlder(candidate) &&
++        (next == 0 || Get(candidate).order < next)) {
++      previous = std::max(previous, Get(candidate).order);
++    }
++  }
++  if (next == 0) {
++    next = previous + 2048;
++  }
++  if (next - previous < 0.000001 || next > 1e11) {
++    NormalizeOrderKeys();
++    AssignOrder(contents);
++    return;
++  }
++  Get(contents).order = (previous + next) / 2;
++  Save(contents);
++}
++void OlderTabsController::Keep(content::WebContents* contents) {
++  if (model_->GetIndexOfWebContents(contents) == TabStripModel::kNoTab ||
++      !IsOlder(contents)) {
++    return;
++  }
++  ReturnToRegular(Get(contents), base::Time::Now());
++  // Return before the first surviving regular neighbor with a greater logical
++  // key. If a group was formed across the old position, use its leading edge.
++  int target = FirstOlderIndex();
++  for (int i = model_->IndexOfFirstNonPinnedTab(); i < model_->count(); ++i) {
++    auto* candidate = model_->GetWebContentsAt(i);
++    if (candidate != contents && !IsOlder(candidate) &&
++        Get(candidate).order > Get(contents).order) {
++      target = i;
++      if (auto group = model_->GetTabAtIndex(i)->GetGroup()) {
++        while (target > model_->IndexOfFirstNonPinnedTab() &&
++               model_->GetTabAtIndex(target - 1)->GetGroup() == group) {
++          --target;
++        }
++      }
++      break;
++    }
++  }
++  const int current = model_->GetIndexOfWebContents(contents);
++  if (current < target) {
++    --target;
++  }
++  {
++    base::AutoReset<bool> guard(&mutating_, true);
++    model_->MoveWebContentsAt(
++        current, std::max(target, model_->IndexOfFirstNonPinnedTab()), false);
++  }
++  Save(contents);
++  ScheduleReconcile();
++}
++void OlderTabsController::KeepAll() {
++  std::vector<content::WebContents*> older;
++  for (int i = 0; i < model_->count(); ++i) {
++    auto* contents = model_->GetWebContentsAt(i);
++    if (IsOlder(contents)) {
++      older.push_back(contents);
++    }
++  }
++  // Keep uses saved logical neighbors, independently of frozen date order.
++  for (auto* contents : older) {
++    Keep(contents);
++  }
++}
++void OlderTabsController::CloseAll() {
++  // This is an explicit user command. Use the ordinary bulk historical close
++  // path, including unload handling and fresh handle/protection checks.
++  model_->ExecuteCloseTabsCommand(
++      base::BindRepeating(
++          [](base::WeakPtr<OlderTabsController> controller) {
++            std::vector<TabHandle> handles;
++            if (controller) {
++              auto* model = controller->model_.get();
++              for (int i = 0; i < model->count(); ++i) {
++                if (IsOlder(model->GetWebContentsAt(i))) {
++                  handles.push_back(model->GetTabAtIndex(i)->GetHandle());
++                }
++              }
++            }
++            return handles;
++          },
++          weak_factory_.GetWeakPtr()),
++      /*delete_groups=*/false);
++}
++void OlderTabsController::SetDragDestination(content::WebContents* contents,
++                                             bool regular) {
++  auto& data = Get(contents);
++  if (!data.dragging) {
++    data.dragging = true;
++    if (!data.drag_original_order) {
++      data.drag_original_order = data.order;
++      auto* browser = model_->delegate()->GetBrowserWindowInterface();
++      data.drag_origin_window = browser ? browser->GetSessionID().id() : 0;
++    }
++  }
++  data.drag_regular = regular;
++}
++void OlderTabsController::FinishDrag(
++    const std::vector<content::WebContents*>& contents,
++    bool completed) {
++  for (auto* tab : contents) {
++    if (model_->GetIndexOfWebContents(tab) == TabStripModel::kNoTab) {
++      continue;
++    }
++    auto& data = Get(tab);
++    if (completed && (!IsOlder(tab) || data.drag_regular)) {
++      ReturnToRegular(data, base::Time::Now());
++      AssignOrder(tab);
++    }
++    if ((!completed || (IsOlder(tab) && !data.drag_regular)) &&
++        data.drag_original_order) {
++      auto* browser = model_->delegate()->GetBrowserWindowInterface();
++      if (browser && browser->GetSessionID().id() == data.drag_origin_window) {
++        data.order = *data.drag_original_order;
++        Save(tab);
++      }
++    }
++    data.dragging = false;
++    data.drag_original_order.reset();
++    data.drag_origin_window = 0;
++    data.drag_regular = false;
++  }
++  ScheduleReconcile();
++}
++void OlderTabsController::NormalizeModelOrder() {
++  std::vector<content::WebContents*> older;
++  for (int i = model_->IndexOfFirstNonPinnedTab(); i < model_->count(); ++i) {
++    auto* contents = model_->GetWebContentsAt(i);
++    if (IsOlder(contents)) {
++      older.push_back(contents);
++    }
++  }
++  std::sort(older.begin(), older.end(),
++            [](auto* a, auto* b) { return ComesBefore(a, b); });
++  // Only move eligible standalone Older tabs. Never extract individual group
++  // or split members while shifting regular rows to make room.
++  // First gather Older tabs at the end in their existing order; moving to
++  // the end is always outside every regular group and split collection.
++  bool gathered = true;
++  const int first = model_->count() - older.size();
++  for (int i = model_->IndexOfFirstNonPinnedTab(); i < model_->count(); ++i) {
++    if (IsOlder(model_->GetWebContentsAt(i)) != (i >= first)) {
++      gathered = false;
++      break;
++    }
++  }
++  if (!gathered) {
++    std::vector<content::WebContents*> current;
++    for (int i = 0; i < model_->count(); ++i) {
++      if (IsOlder(model_->GetWebContentsAt(i))) {
++        current.push_back(model_->GetWebContentsAt(i));
++      }
++    }
++    for (auto* contents : current) {
++      model_->MoveWebContentsAt(model_->GetIndexOfWebContents(contents),
++                                model_->count() - 1, false);
++    }
++  }
++  for (size_t i = 0; i < older.size(); ++i) {
++    const int current = model_->GetIndexOfWebContents(older[i]);
++    const int target = first + i;
++    if (current != target) {
++      model_->MoveWebContentsAt(current, target, false);
++    }
++  }
++}
++
++bool OlderTabsController::IsProtected(int index, bool closing) const {
++  auto* tab = model_->GetTabAtIndex(index);
++  auto* contents = tab->GetContents();
++  if (model_->IsTabPinned(index) ||
++      (tab->GetGroup() &&
++       !model_->profile()->GetPrefs()->GetBoolean(kOlderTabsMoveGrouped)) ||
++      tab->GetSplit() || model_->IsTabSelected(index) || tab->IsVisible() ||
++      contents->IsLoading() || contents->IsCurrentlyAudible() ||
++      contents->IsBeingCaptured() || contents->HasPictureInPictureVideo() ||
++      contents->HasPictureInPictureDocument()) {
++    return true;
++  }
++  return closing &&
++         (contents->NeedToFireBeforeUnloadOrUnloadEvents() ||
++          model_->profile()->GetDownloadManager()->InProgressCount() > 0);
++}
++void OlderTabsController::Reconcile() {
++  reconcile_pending_ = false;
++  if (mutating_ || model_->closing_all() || TabDragController::IsActive() ||
++      SessionRestore::IsRestoring(model_->profile())) {
++    return;
++  }
++  base::AutoReset<bool> guard(&mutating_, true);
++  const auto now = base::Time::Now();
++  auto* prefs = model_->profile()->GetPrefs();
++  // An absent UI suspends lifecycle transitions; all tabs remain visible in
++  // horizontal mode or with cleanup disabled. Membership is retained.
++  const bool enabled = IsEnabled();
++  if (enabled) {
++    const auto move_after =
++        Duration(prefs, kOlderTabsMoveHours, kDefaultOlderTabsMoveHours);
++    const auto close_after =
++        Duration(prefs, kOlderTabsCloseHours, kDefaultOlderTabsCloseHours);
++    const bool move_grouped = prefs->GetBoolean(kOlderTabsMoveGrouped);
++    if (move_grouped && !group_readiness_) {
++      group_readiness_ = std::make_unique<OlderTabsGroupReadiness>(
++          tab_groups::TabGroupSyncServiceFactory::GetForProfile(
++              model_->profile()),
++          base::BindRepeating(&OlderTabsController::ScheduleReconcile,
++                              weak_factory_.GetWeakPtr()));
++    }
++    std::vector<content::WebContents*> candidates;
++    for (int i = model_->count() - 1; i >= 0; --i) {
++      candidates.push_back(model_->GetWebContentsAt(i));
++    }
++    // Ungrouping can move a tab to a group's boundary. Walk stable contents,
++    // rather than indices, so no neighbor is processed twice or skipped.
++    for (auto* contents : candidates) {
++      const int i = model_->GetIndexOfWebContents(contents);
++      if (i == TabStripModel::kNoTab) {
++        continue;
++      }
++      auto& data = Get(contents);
++      if (data.order == 0) {
++        AssignOrder(contents);
++      }
++      const bool grouped = model_->GetTabAtIndex(i)->GetGroup().has_value();
++      if (model_->IsTabPinned(i) || model_->GetTabAtIndex(i)->GetSplit() ||
++          (grouped && (!move_grouped || IsOlder(contents)))) {
++        if (IsOlder(contents)) {
++          ReturnToRegular(data, now);
++          AssignOrder(contents);
++        }
++        continue;
++      }
++      if (grouped && !group_readiness_->initialized()) {
++        continue;
++      }
++      // Clock rollback/future timestamps get a fresh deadline, keeping a valid
++      // historical date snapshot separate from the new grace baseline.
++      if (data.age > now || data.close_clock > now || data.last_use > now) {
++        data.age = now;
++        data.last_use = std::min(data.last_use, now);
++        if (IsOlder(contents)) {
++          data.close_clock = now;
++        }
++        Save(contents);
++        continue;
++      }
++      if (IsOlder(contents)) {
++        if (base::TimeTicks::Now() >= close_not_before_ &&
++            now - data.close_clock >= close_after && !IsProtected(i, true)) {
++          // Recheck current preferences and protection immediately before the
++          // standard historical-tab close path. Never impersonate user input.
++          model_->CloseWebContentsAt(
++              i, TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
++        }
++      } else if (now - data.age >= move_after && !IsProtected(i, false)) {
++        if (close_after.is_zero()) {
++          // Immediately bypasses Older entirely. A protected or grace-delayed
++          // tab stays regular until the ordinary close path can handle it.
++          if (base::TimeTicks::Now() >= close_not_before_ &&
++              !IsProtected(i, true)) {
++            model_->CloseWebContentsAt(
++                i, TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
++          }
++          continue;
++        }
++        if (grouped) {
++          // Move the eligible tab alone. Date buckets are presentation rows,
++          // and never become tab groups or drag sources.
++          model_->RemoveFromGroup({i});
++        }
++        data.frozen = data.last_use;
++        data.close_clock =
++            now;  // One transition: downtime cannot skip retention.
++        Save(contents);
++      }
++    }
++    NormalizeModelOrder();
++  }
++  // Insertion observers run before SessionService has tracked the tab/window.
++  // Flush coalesced activity and initial metadata after all notifications
++  // finish.
++  for (int i = 0; i < model_->count(); ++i) {
++    auto* contents = model_->GetWebContentsAt(i);
++    if (Get(contents).dirty) {
++      Save(contents);
++    }
++  }
++  changed_.Notify();
++}
++
++void OlderTabsController::ScheduleReconcile() {
++  if (reconcile_pending_) {
++    return;
++  }
++  reconcile_pending_ = true;
++  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++      FROM_HERE, base::BindOnce(&OlderTabsController::Reconcile,
++                                weak_factory_.GetWeakPtr()));
++}
++void OlderTabsController::OnSettingsChanged() {
++  // A shorter retention setting cannot surprise-close tabs while the user is
++  // editing it. Date snapshots and age baselines stay unchanged.
++  close_not_before_ = base::TimeTicks::Now() + base::Minutes(5);
++  ScheduleReconcile();
++}
++base::CallbackListSubscription OlderTabsController::RegisterChanged(
++    base::RepeatingClosure callback) {
++  return changed_.Add(std::move(callback));
++}
++void OlderTabsController::OnTabStripModelChanged(
++    TabStripModel*,
++    const TabStripModelChange& change,
++    const TabStripSelectionChange& selection) {
++  if (mutating_) {
++    return;
++  }
++  base::AutoReset<bool> observation_guard(&observing_change_, true);
++  if (const auto* replace = change.type() == TabStripModelChange::kReplaced
++                                ? change.GetReplace()
++                                : nullptr) {
++    Restore(replace->new_contents, Serialize(replace->old_contents), true);
++  }
++  if (const auto* remove = change.type() == TabStripModelChange::kRemoved
++                               ? change.GetRemove()
++                               : nullptr) {
++    for (const auto& removed : remove->contents) {
++      if (auto* data = Find(removed.contents)) {
++        if (TabDragController::IsActive() && !data->drag_original_order) {
++          data->dragging = true;
++          data->drag_original_order = data->order;
++          auto* browser = model_->delegate()->GetBrowserWindowInterface();
++          data->drag_origin_window = browser ? browser->GetSessionID().id() : 0;
++        }
++        data->detached = true;
++      }
++    }
++  }
++  if (const auto* insert = change.type() == TabStripModelChange::kInserted
++                               ? change.GetInsert()
++                               : nullptr) {
++    for (const auto& inserted : insert->contents) {
++      auto& data = Get(inserted.contents);
++      if (data.detached) {
++        data.order = 0;
++        data.detached = false;
++      }
++      if (data.order == 0) {
++        AssignOrder(inserted.contents);
++      }
++      Save(inserted.contents);
++    }
++  }
++  if (const auto* move = change.type() == TabStripModelChange::kMoved
++                             ? change.GetMove()
++                             : nullptr;
++      move && !TabDragController::IsActive() &&
++      !(Find(move->contents) && Find(move->contents)->dragging)) {
++    auto* contents = move->contents.get();
++    if (IsOlder(contents)) {
++      ReturnToRegular(Get(contents), base::Time::Now());
++    }
++    AssignOrder(contents);
++    Interact(contents);
++  }
++  if (selection.active_tab_changed() && selection.new_contents) {
++    Interact(selection.new_contents);
++    if (IsOlder(selection.new_contents)) {
++      model_->profile()->GetPrefs()->SetBoolean(kOlderTabsCollapsed, false);
++    }
++  }
++  ScheduleReconcile();
++}
++}  // namespace tabs
+--- /dev/null
++++ b/chrome/browser/ui/tabs/older_tabs_controller.h
+@@ -0,0 +1,103 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_TABS_OLDER_TABS_CONTROLLER_H_
++#define CHROME_BROWSER_UI_TABS_OLDER_TABS_CONTROLLER_H_
++
++#include <memory>
++#include <string>
++#include <vector>
++
++#include "base/callback_list.h"
++#include "base/memory/raw_ptr.h"
++#include "base/memory/weak_ptr.h"
++#include "base/power_monitor/power_observer.h"
++#include "base/time/time.h"
++#include "base/timer/timer.h"
++#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
++#include "components/prefs/pref_change_registrar.h"
++
++class TabStripModel;
++namespace content {
++class WebContents;
++}
++
++namespace tabs {
++
++class OlderTabsGroupReadiness;
++
++// Local profile settings. Durations are elapsed hours; zero explicitly means
++// Never; close-hours alone also accepts -1 for Immediately. Neither preferences
++// nor per-tab lifecycle data sync to other devices.
++inline constexpr int kDefaultOlderTabsMoveHours = 24;
++inline constexpr int kDefaultOlderTabsCloseHours = 72;
++inline constexpr char kOlderTabsMoveHours[] = "helium.tabs.cleanup_move_hours";
++inline constexpr char kOlderTabsCloseHours[] =
++    "helium.tabs.cleanup_close_hours";
++inline constexpr char kOlderTabsMoveGrouped[] =
++    "helium.tabs.cleanup_move_grouped";
++inline constexpr char kOlderTabsCollapsed[] = "helium.tabs.older_collapsed";
++inline constexpr char kOlderTabsSessionKey[] = "helium.older_tabs.v1";
++
++// Owns lifecycle independently of the sidebar view. Older tabs form a trailing
++// model segment; a separate persisted ordering key retains their former stack
++// positions. The existing model remains authoritative for selection and DnD.
++class OlderTabsController : public TabStripModelObserver,
++                            public base::PowerSuspendObserver {
++ public:
++  explicit OlderTabsController(TabStripModel* model);
++  ~OlderTabsController() override;
++
++  static bool IsOlder(const content::WebContents* contents);
++  static bool ComesBefore(const content::WebContents* a,
++                          const content::WebContents* b);
++  static bool IsDraggingToRegular(const content::WebContents* contents);
++  static base::Time FrozenLastUse(const content::WebContents* contents);
++  static std::string Serialize(const content::WebContents* contents);
++  static void Restore(content::WebContents* contents,
++                      const std::string& data,
++                      bool from_session_restore);
++
++  bool IsEnabled() const;
++  int FirstOlderIndex() const;
++  void Keep(content::WebContents* contents);
++  void KeepAll();
++  void CloseAll();
++  void Interact(content::WebContents* contents);
++  void SetDragDestination(content::WebContents* contents, bool regular);
++  void FinishDrag(const std::vector<content::WebContents*>& contents,
++                  bool completed);
++  void Reconcile();
++  void OnResume() override;
++  base::CallbackListSubscription RegisterChanged(
++      base::RepeatingClosure callback);
++
++  void OnTabStripModelChanged(
++      TabStripModel* model,
++      const TabStripModelChange& change,
++      const TabStripSelectionChange& selection) override;
++
++ private:
++  void ScheduleReconcile();
++  void OnSettingsChanged();
++  void AssignOrder(content::WebContents* contents);
++  void NormalizeOrderKeys();
++  void NormalizeModelOrder();
++  bool IsProtected(int index, bool closing) const;
++  void Save(content::WebContents* contents);
++
++  const raw_ptr<TabStripModel> model_;
++  PrefChangeRegistrar pref_registrar_;
++  std::unique_ptr<OlderTabsGroupReadiness> group_readiness_;
++  base::RepeatingTimer timer_;
++  base::TimeTicks close_not_before_;
++  bool mutating_ = false;
++  bool observing_change_ = false;
++  bool reconcile_pending_ = false;
++  base::RepeatingClosureList changed_;
++  base::WeakPtrFactory<OlderTabsController> weak_factory_{this};
++};
++
++}  // namespace tabs
++#endif  // CHROME_BROWSER_UI_TABS_OLDER_TABS_CONTROLLER_H_
+--- a/chrome/browser/ui/tabs/tab_menu_model.cc
++++ b/chrome/browser/ui/tabs/tab_menu_model.cc
+@@ -35,6 +35,7 @@
+ #include "chrome/browser/ui/tabs/existing_window_sub_menu_model.h"
+ #include "chrome/browser/ui/tabs/features.h"
+ #include "chrome/browser/ui/tabs/glic_tab_sub_menu_model.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/split_tab_menu_model.h"
+ #include "chrome/browser/ui/tabs/split_tab_mute_menu_model.h"
+ #include "chrome/browser/ui/tabs/split_tab_swap_menu_model.h"
+@@ -103,6 +104,42 @@
+   } else {
+     Build(index);
+   }
++  if (tab_strip_->older_tabs_controller()->IsEnabled() &&
++      tabs::OlderTabsController::IsOlder(tab_strip_->GetWebContentsAt(index))) {
++    // Older tabs use Keep to return to the regular stack. Omit structural
++    // creation/move/pin actions and closes that reach outside this section.
++    const base::flat_set<int> excluded = {
++        TabStripModel::CommandNewTabToRight,
++        TabStripModel::CommandAddToNewGroup,
++        TabStripModel::CommandAddToExistingGroup,
++        TabStripModel::CommandAddToSplit,
++        TabStripModel::CommandAddToReadLater,
++        TabStripModel::CommandMoveToExistingWindow,
++        TabStripModel::CommandMoveTabsToNewWindow,
++        TabStripModel::CommandTogglePinned,
++        TabStripModel::CommandCloseOtherTabs,
++        TabStripModel::CommandCloseTabsToLeft,
++    };
++    for (size_t i = GetItemCount(); i > 0; --i) {
++      if (excluded.contains(GetCommandIdAt(i - 1))) {
++        RemoveItemAt(i - 1);
++      }
++    }
++    // Filtering can empty a group of actions. Keep native separator layout
++    // clean without changing the ordinary tab menu.
++    bool next_is_separator = true;
++    for (size_t i = GetItemCount(); i > 0; --i) {
++      const bool separator = GetTypeAt(i - 1) == ui::MenuModel::TYPE_SEPARATOR;
++      if (separator && next_is_separator) {
++        RemoveItemAt(i - 1);
++      } else {
++        next_is_separator = separator;
++      }
++    }
++    if (GetItemCount() > 0 && GetTypeAt(0) == ui::MenuModel::TYPE_SEPARATOR) {
++      RemoveItemAt(0);
++    }
++  }
+ }
+ 
+ TabMenuModel::~TabMenuModel() = default;
+@@ -307,6 +344,12 @@
+ // variants) to follow Apple Human Interface Guidelines (HIG), while other
+ // platforms use sentence case.
+ void TabMenuModel::Build(int index) {
++  if (tab_strip_->older_tabs_controller()->IsEnabled() &&
++      tabs::OlderTabsController::IsOlder(tab_strip_->GetWebContentsAt(index))) {
++    AddItem(TabStripModel::CommandKeepTab,
++            l10n_util::GetStringUTF16(IDS_OLDER_TABS_KEEP));
++    AddSeparator(ui::NORMAL_SEPARATOR);
++  }
+   std::vector<int> indices;
+   if (tab_strip_->IsTabSelected(index)) {
+     const ui::ListSelectionModel::SelectedIndices sel =
+--- a/chrome/browser/ui/tabs/tab_strip_model.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model.cc
+@@ -64,6 +64,7 @@
+ #include "chrome/browser/ui/tab_ui_helper.h"
+ #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
+ #include "chrome/browser/ui/tabs/features.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+ #include "chrome/browser/ui/tabs/tab_change_type.h"
+ #include "chrome/browser/ui/tabs/tab_close_types_data.h"
+@@ -100,9 +101,9 @@
+ #include "components/content_settings/core/common/content_settings_types.h"
+ #include "components/contextual_tasks/public/features.h"
+ #include "components/feature_engagement/public/feature_constants.h"
++#include "components/omnibox/common/composebox_features.h"
+ #include "components/performance_manager/public/performance_manager.h"
+ #include "components/prefs/pref_service.h"
+-#include "components/omnibox/common/composebox_features.h"
+ #include "components/reading_list/core/reading_list_model.h"
+ #include "components/sessions/core/session_id.h"
+ #include "components/split_tabs/split_tab_id.h"
+@@ -353,9 +354,11 @@
+     group_model_ = group_model_factory->Create();
+   }
+   scrubbing_metrics_.Init();
++  older_tabs_controller_ = std::make_unique<tabs::OlderTabsController>(this);
+ }
+ 
+ TabStripModel::~TabStripModel() {
++  older_tabs_controller_.reset();
+   for (auto& observer : observers_) {
+     observer.ModelDestroyed(TabStripModelObserver::ModelPasskey(), this);
+   }
+@@ -2779,6 +2782,9 @@
+   tabs::TabHandle context_tab = GetTabAtIndex(context_index)->GetHandle();
+ 
+   switch (command_id) {
++    case CommandKeepTab:
++      return tabs::OlderTabsController::IsOlder(
++          GetWebContentsAt(context_index));
+     case CommandNewTabToRight:
+     case CommandCloseTab:
+       return true;
+@@ -2961,6 +2967,10 @@
+   }
+   tabs::TabHandle context_tab = GetTabAtIndex(context_index)->GetHandle();
+   switch (command_id) {
++    case CommandKeepTab:
++      older_tabs_controller_->Keep(GetWebContentsAt(context_index));
++      break;
++
+     case CommandNewTabToRight: {
+       base::UmaHistogramCounts1000(
+           "Tab.ContextMenu.NewTabToRight.SelectedTabsCount",
+--- a/chrome/browser/ui/tabs/tab_strip_model.h
++++ b/chrome/browser/ui/tabs/tab_strip_model.h
+@@ -50,6 +50,10 @@
+ #error This file should only be included on desktop.
+ #endif
+ 
++namespace tabs {
++class OlderTabsController;
++}
++
+ class DraggingTabsSession;
+ class Profile;
+ class TabGroupModel;
+@@ -255,6 +259,10 @@
+   // call to CloseAllTabs). As tabs close, the selection in the tabstrip
+   // changes which notifies observers, which can use this as an optimization to
+   // avoid doing meaningless or unhelpful work.
++  tabs::OlderTabsController* older_tabs_controller() const {
++    return older_tabs_controller_.get();
++  }
++
+   bool closing_all() const { return closing_all_; }
+ 
+   // Basic API /////////////////////////////////////////////////////////////////
+@@ -1516,6 +1524,7 @@
+ 
+   // True if all tabs are currently being closed via CloseAllTabs.
+   bool closing_all_ = false;
++  std::unique_ptr<tabs::OlderTabsController> older_tabs_controller_;
+ 
+   // This must be kept in sync with `contents_data_`.
+   tabs::TabStripModelSelectionState selection_model_;
+--- a/chrome/browser/ui/tabs/tab_strip_model_unittest.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model_unittest.cc
+@@ -4,6 +4,10 @@
+ 
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ 
++#include "base/json/json_reader.h"
++#include "base/json/json_writer.h"
++#include "base/json/values_util.h"
++
+ #include <stddef.h>
+ 
+ #include <algorithm>
+@@ -36,6 +40,7 @@
+ #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+ #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+ #include "chrome/browser/ui/tabs/features.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+ #include "chrome/browser/ui/tabs/tab_change_type.h"
+ #include "chrome/browser/ui/tabs/tab_close_types_data.h"
+@@ -8713,3 +8718,173 @@
+   EXPECT_EQ(TabStripModel::kNoTab,
+             tabstrip()->GetIndexOfWebContents(contents_to_close));
+ }
++
++namespace {
++std::string CleanupFixture(WebContents* contents, double order, bool older) {
++  auto value =
++      base::JSONReader::ReadDict(tabs::OlderTabsController::Serialize(contents),
++                                 base::JSON_PARSE_RFC)
++          .value();
++  const auto used = base::Time::Now() - base::Days(3);
++  value.Set("order", order);
++  value.Set("last_use", base::TimeToValue(used));
++  value.Set("age", base::TimeToValue(used));
++  value.Set("frozen", base::TimeToValue(older ? used : base::Time()));
++  value.Set("close_clock", base::TimeToValue(older ? used : base::Time()));
++  return base::WriteJson(value).value();
++}
++base::DictValue CleanupState(WebContents* contents) {
++  return base::JSONReader::ReadDict(
++             tabs::OlderTabsController::Serialize(contents),
++             base::JSON_PARSE_RFC)
++      .value();
++}
++}  // namespace
++
++TEST_F(TabStripModelTest, OlderInteractionOnlyExtendsRetention) {
++  PrepareTabs(tabstrip(), 2);
++  auto* contents = tabstrip()->GetWebContentsAt(0);
++  tabs::OlderTabsController::Restore(contents,
++                                     CleanupFixture(contents, 1, true), true);
++  const auto before = CleanupState(contents);
++  tabstrip()->older_tabs_controller()->Interact(contents);
++  const auto after = CleanupState(contents);
++  EXPECT_TRUE(tabs::OlderTabsController::IsOlder(contents));
++  EXPECT_EQ(*before.Find("age"), *after.Find("age"));
++  EXPECT_EQ(*before.Find("frozen"), *after.Find("frozen"));
++  EXPECT_EQ(*before.Find("order"), *after.Find("order"));
++  EXPECT_NE(*before.Find("close_clock"), *after.Find("close_clock"));
++}
++
++TEST_F(TabStripModelTest, KeepMultipleOlderTabsRestoresRelativeOrder) {
++  PrepareTabs(tabstrip(), 4);
++  auto* a = tabstrip()->GetWebContentsAt(0);
++  auto* b = tabstrip()->GetWebContentsAt(1);
++  auto* c = tabstrip()->GetWebContentsAt(2);
++  auto* d = tabstrip()->GetWebContentsAt(3);
++  const auto b_state = CleanupFixture(b, 2, true);
++  const auto c_state = CleanupFixture(c, 3, true);
++  tabstrip()->MoveWebContentsAt(1, 3, false);
++  tabstrip()->MoveWebContentsAt(1, 3, false);
++  tabs::OlderTabsController::Restore(a, CleanupFixture(a, 1, false), true);
++  tabs::OlderTabsController::Restore(d, CleanupFixture(d, 4, false), true);
++  tabs::OlderTabsController::Restore(b, b_state, true);
++  tabs::OlderTabsController::Restore(c, c_state, true);
++  tabstrip()->older_tabs_controller()->Keep(c);
++  EXPECT_EQ(c, tabstrip()->GetWebContentsAt(1));
++  tabstrip()->older_tabs_controller()->Keep(b);
++  EXPECT_EQ(a, tabstrip()->GetWebContentsAt(0));
++  EXPECT_EQ(b, tabstrip()->GetWebContentsAt(1));
++  EXPECT_EQ(c, tabstrip()->GetWebContentsAt(2));
++  EXPECT_EQ(d, tabstrip()->GetWebContentsAt(3));
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(b));
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(c));
++}
++
++TEST_F(TabStripModelTest, KeepAllOlderTabsRestoresLogicalOrder) {
++  PrepareTabs(tabstrip(), 4);
++  auto* a = tabstrip()->GetWebContentsAt(0);
++  auto* b = tabstrip()->GetWebContentsAt(1);
++  auto* c = tabstrip()->GetWebContentsAt(2);
++  auto* d = tabstrip()->GetWebContentsAt(3);
++  tabstrip()->MoveWebContentsAt(1, 3, false);
++  tabstrip()->MoveWebContentsAt(1, 3, false);
++  tabstrip()->MoveWebContentsAt(3, 2, false);
++  tabs::OlderTabsController::Restore(a, CleanupFixture(a, 1, false), true);
++  tabs::OlderTabsController::Restore(d, CleanupFixture(d, 4, false), true);
++  tabs::OlderTabsController::Restore(b, CleanupFixture(b, 2, true), true);
++  tabs::OlderTabsController::Restore(c, CleanupFixture(c, 3, true), true);
++  tabstrip()->older_tabs_controller()->KeepAll();
++  EXPECT_EQ(a, tabstrip()->GetWebContentsAt(0));
++  EXPECT_EQ(b, tabstrip()->GetWebContentsAt(1));
++  EXPECT_EQ(c, tabstrip()->GetWebContentsAt(2));
++  EXPECT_EQ(d, tabstrip()->GetWebContentsAt(3));
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(b));
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(c));
++}
++
++TEST_F(TabStripModelTest, CloseAllOlderTabsPreservesRegularTabs) {
++  PrepareTabs(tabstrip(), 3);
++  auto* a = tabstrip()->GetWebContentsAt(0);
++  auto* b = tabstrip()->GetWebContentsAt(1);
++  auto* c = tabstrip()->GetWebContentsAt(2);
++  tabs::OlderTabsController::Restore(b, CleanupFixture(b, 2, true), true);
++  tabstrip()->ActivateTabAt(1);
++  tabstrip()->older_tabs_controller()->CloseAll();
++  EXPECT_EQ(2, tabstrip()->count());
++  EXPECT_EQ(a, tabstrip()->GetWebContentsAt(0));
++  EXPECT_EQ(c, tabstrip()->GetWebContentsAt(1));
++}
++
++TEST_F(TabStripModelTest, CanceledOlderDragRetainsClocksAndMembership) {
++  PrepareTabs(tabstrip(), 3);
++  auto* contents = tabstrip()->GetWebContentsAt(1);
++  tabs::OlderTabsController::Restore(contents,
++                                     CleanupFixture(contents, 1, true), true);
++  const auto before = CleanupState(contents);
++  tabstrip()->older_tabs_controller()->SetDragDestination(contents, true);
++  // Chromium marks its drag controller stopped before reverting model moves.
++  // These moves must not be mistaken for deliberate external tab movement.
++  tabstrip()->MoveWebContentsAt(1, 0, false);
++  tabstrip()->MoveWebContentsAt(0, 1, false);
++  tabstrip()->older_tabs_controller()->FinishDrag({contents}, false);
++  EXPECT_EQ(before, CleanupState(contents));
++}
++
++TEST_F(TabStripModelTest, CompletedOlderDragUsesDroppedPosition) {
++  PrepareTabs(tabstrip(), 3);
++  auto* contents = tabstrip()->GetWebContentsAt(1);
++  tabs::OlderTabsController::Restore(contents,
++                                     CleanupFixture(contents, 2, true), true);
++  tabstrip()->older_tabs_controller()->SetDragDestination(contents, true);
++  tabstrip()->MoveWebContentsAt(1, 0, false);
++  tabstrip()->older_tabs_controller()->FinishDrag({contents}, true);
++  EXPECT_EQ(contents, tabstrip()->GetWebContentsAt(0));
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(contents));
++  auto state = CleanupState(contents);
++  EXPECT_GE(base::ValueToTime(*state.Find("age")).value(),
++            base::Time::Now() - base::Seconds(1));
++}
++
++TEST_F(TabStripModelTest, OlderDragBackIntoOlderRetainsFrozenPosition) {
++  PrepareTabs(tabstrip(), 3);
++  auto* contents = tabstrip()->GetWebContentsAt(1);
++  tabs::OlderTabsController::Restore(contents,
++                                     CleanupFixture(contents, 2, true), true);
++  const auto before = CleanupState(contents);
++  auto* controller = tabstrip()->older_tabs_controller();
++  controller->SetDragDestination(contents, true);
++  tabstrip()->MoveWebContentsAt(1, 0, false);
++  controller->SetDragDestination(contents, false);
++  tabstrip()->MoveWebContentsAt(0, 2, false);
++  controller->FinishDrag({contents}, true);
++  // An invalid chronological drop is a return to Older, not a fresh placement.
++  EXPECT_TRUE(tabs::OlderTabsController::IsOlder(contents));
++  EXPECT_EQ(before, CleanupState(contents));
++}
++
++TEST_F(TabStripModelTest, ExplicitRecoveryClearsOlderResidency) {
++  PrepareTabs(tabstrip(), 2);
++  auto* contents = tabstrip()->GetWebContentsAt(0);
++  const auto state = CleanupFixture(contents, 1, true);
++  tabs::OlderTabsController::Restore(contents, state, true);
++  EXPECT_TRUE(tabs::OlderTabsController::IsOlder(contents));
++  const auto id = *CleanupState(contents).FindString("id");
++  tabs::OlderTabsController::Restore(contents, state, false);
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(contents));
++  EXPECT_NE(id, *CleanupState(contents).FindString("id"));
++}
++
++TEST_F(TabStripModelTest, FutureOrMalformedCleanupStateGetsGrace) {
++  PrepareTabs(tabstrip(), 2);
++  auto* contents = tabstrip()->GetWebContentsAt(0);
++  auto value = base::JSONReader::ReadDict(CleanupFixture(contents, 1, true),
++                                          base::JSON_PARSE_RFC)
++                   .value();
++  value.Set("age", base::TimeToValue(base::Time::Now() + base::Days(1)));
++  tabs::OlderTabsController::Restore(contents, base::WriteJson(value).value(),
++                                     true);
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(contents));
++  tabs::OlderTabsController::Restore(contents, "{broken", true);
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(contents));
++}
+--- a/chrome/browser/ui/tabs/tab_strip_prefs.cc
++++ b/chrome/browser/ui/tabs/tab_strip_prefs.cc
+@@ -9,6 +9,7 @@
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
+ #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
+ #include "chrome/browser/ui/tabs/features.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
+@@ -22,6 +23,12 @@
+ namespace tabs {
+ 
+ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
++  registry->RegisterIntegerPref(kOlderTabsMoveHours,
++                                kDefaultOlderTabsMoveHours);
++  registry->RegisterIntegerPref(kOlderTabsCloseHours,
++                                kDefaultOlderTabsCloseHours);
++  registry->RegisterBooleanPref(kOlderTabsCollapsed, false);
++  registry->RegisterBooleanPref(kOlderTabsMoveGrouped, false);
+   registry->RegisterBooleanPref(prefs::kTabSearchPinnedToTabstrip, true);
+   registry->RegisterBooleanPref(prefs::kOrganizerPanelPinnedToTabstrip, true);
+   registry->RegisterBooleanPref(prefs::kEverythingMenuPinnedToTabstrip, true);
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -4,6 +4,33 @@
+ 
+ #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
+ 
++#include <algorithm>
++#include <set>
++
++#include "base/i18n/case_conversion.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/chrome_pages.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
++#include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "chrome/common/webui_url_constants.h"
++#include "chrome/grit/generated_resources.h"
++#include "components/prefs/pref_service.h"
++#include "third_party/icu/source/i18n/unicode/smpdtfmt.h"
++#include "ui/base/l10n/l10n_util.h"
++#include "ui/base/models/image_model.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_provider.h"
++#include "ui/menus/simple_menu_model.h"
++#include "ui/views/accessibility/view_accessibility.h"
++#include "ui/views/border.h"
++#include "ui/views/context_menu_controller.h"
++#include "ui/views/controls/button/label_button.h"
++#include "ui/views/controls/image_view.h"
++#include "ui/views/controls/label.h"
++#include "ui/views/controls/menu/menu_runner.h"
++
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+@@ -29,9 +56,117 @@
+ #include "ui/views/view_targeter.h"
+ #include "ui/views/view_targeter_delegate.h"
+ #include "ui/views/view_utils.h"
++#include "ui/views/widget/widget.h"
+ 
+ namespace {
+ 
++enum OlderTabsMenuCommand { kCloseAllOlder = 1, kKeepAllOlder, kOlderSettings };
++
++class OlderTabsHeaderButton : public views::LabelButton,
++                              public views::ContextMenuController,
++                              public ui::SimpleMenuModel::Delegate {
++  METADATA_HEADER(OlderTabsHeaderButton, views::LabelButton)
++
++ public:
++  OlderTabsHeaderButton(PressedCallback callback,
++                        const std::u16string& text,
++                        base::RepeatingCallback<void(int)> menu_command)
++      : views::LabelButton(std::move(callback), text),
++        menu_command_(std::move(menu_command)) {
++    set_context_menu_controller(this);
++    // macOS sidebar section headings use a semibold system font and
++    // secondary label color. The disclosure occupies the trailing close slot.
++    // TabTitle uses a default Label font. Match its metrics while retaining
++    // the section heading's semibold weight and native secondary color.
++    const auto section_font = views::Label().font_list();
++    label()->SetFontList(
++        section_font.DeriveWithWeight(gfx::Font::Weight::SEMIBOLD));
++    label()->SetAutoColorReadabilityEnabled(false);
++    SetEnabledTextColors(ui::kColorLabelForegroundSecondary);
++    chevron_ = AddChildView(std::make_unique<views::ImageView>());
++    chevron_->SetCanProcessEventsWithinSubtree(false);
++    chevron_->GetViewAccessibility().SetIsIgnored(true);
++  }
++
++  void ShowContextMenuForViewImpl(
++      views::View* source,
++      const gfx::Point& point,
++      ui::mojom::MenuSourceType source_type) override {
++    menu_runner_.reset();
++    menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
++    menu_model_->AddItemWithStringId(kCloseAllOlder, IDS_OLDER_TABS_CLOSE_ALL);
++    menu_model_->AddItemWithStringId(kKeepAllOlder, IDS_OLDER_TABS_KEEP_ALL);
++    menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
++    menu_model_->AddItemWithStringId(kOlderSettings, IDS_SETTINGS_SETTINGS);
++    menu_runner_ = std::make_unique<views::MenuRunner>(
++        menu_model_.get(), views::MenuRunner::CONTEXT_MENU);
++    menu_runner_->RunMenuAt(GetWidget(), nullptr, gfx::Rect(point, gfx::Size()),
++                            views::MenuAnchorPosition::kTopLeft, source_type);
++  }
++  void ExecuteCommand(int command_id, int event_flags) override {
++    menu_command_.Run(command_id);
++  }
++
++  void SetCollapsed(bool collapsed) {
++    if (!GetColorProvider()) {
++      return;
++    }
++    const auto color = helium::NativeGlassColor(
++                           this, helium::NativeGlassColorRole::kSidebarSection)
++                           .value_or(GetColorProvider()->GetColor(
++                               ui::kColorLabelForegroundSecondary));
++    const auto icon_color = helium::NativeGlassControlColor(this).value_or(
++        TabStyle::Get()->GetTabForegroundColor(
++            /*apparently_active=*/true, /*hovered=*/true,
++            GetWidget()->ShouldPaintAsActive(), GetColorProvider()));
++    if (collapsed_ == collapsed && color_ == color &&
++        icon_color_ == icon_color) {
++      return;
++    }
++    collapsed_ = collapsed;
++    color_ = color;
++    icon_color_ = icon_color;
++    SetEnabledTextColors(color);
++    chevron_->SetImage(
++        ui::ImageModel::FromImageSkia(helium::NativeSidebarSymbolForName(
++            collapsed ? "chevron.forward" : "chevron.down", icon_color)));
++  }
++
++  views::ProposedLayout CalculateProposedLayout(
++      const views::SizeBounds& size_bounds) const override {
++    auto layout = views::LabelButton::CalculateProposedLayout(size_bounds);
++    const int width = size_bounds.width().value_or(0);
++    const int height = size_bounds.height().value_or(0);
++    // Match the tab close icon's horizontal center even though section
++    // headings are shorter than a tab row. Lift the native SF artwork 3px
++    // optically to center it on the text. Hover never changes geometry.
++    const int tab_height =
++        GetLayoutConstant(LayoutConstant::kVerticalTabHeight);
++    layout.child_layouts.emplace_back(
++        chevron_.get(), IsMouseHovered() && width > 64,
++        gfx::Rect(width - tab_height / 2 - 6, (height - 16) / 2, 16, 16));
++    return layout;
++  }
++
++ protected:
++  void StateChanged(ButtonState old_state) override {
++    views::LabelButton::StateChanged(old_state);
++    InvalidateLayout();
++  }
++
++ private:
++  base::RepeatingCallback<void(int)> menu_command_;
++  std::unique_ptr<ui::SimpleMenuModel> menu_model_;
++  std::unique_ptr<views::MenuRunner> menu_runner_;
++  raw_ptr<views::ImageView> chevron_ = nullptr;
++  std::optional<bool> collapsed_;
++  std::optional<SkColor> color_;
++  std::optional<SkColor> icon_color_;
++};
++
++BEGIN_METADATA(OlderTabsHeaderButton)
++END_METADATA
++
+ // The following are percentages used to determine the amount that dragged
+ // tabs must be peeking into/out of a tab group view in order for the handling
+ // drag container to change.
+@@ -124,6 +259,27 @@
+     auto* state_controller =
+         collection_node_->GetController()->GetStateController();
+     CHECK(state_controller);
++    older_header_ = AddChildView(std::make_unique<OlderTabsHeaderButton>(
++        base::BindRepeating(&UnpinnedTabContainerView::ToggleOlderTabs,
++                            base::Unretained(this)),
++        l10n_util::GetStringUTF16(IDS_OLDER_TABS),
++        base::BindRepeating(
++            &UnpinnedTabContainerView::ExecuteOlderTabsMenuCommand,
++            base::Unretained(this))));
++    older_header_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
++    const int header_inset =
++        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
++    older_header_->SetBorder(views::CreateEmptyBorder(
++        gfx::Insets::TLBR(6, header_inset, 0, header_inset)));
++    older_header_->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
++    older_header_->SetVisible(false);
++    auto* model =
++        collection_node_->GetController()->GetDragHandler().GetTabStripModel();
++    older_changed_subscription_ =
++        model->older_tabs_controller()->RegisterChanged(
++            base::BindRepeating(&UnpinnedTabContainerView::UpdateOlderTabs,
++                                base::Unretained(this)));
++    UpdateOlderTabs();
+     collapsed_state_changed_subscription_ =
+         state_controller->RegisterOnCollapseChanged(base::BindRepeating(
+             &UnpinnedTabContainerView::OnCollapseStateChanged,
+@@ -303,13 +459,225 @@
+       ->GetUnconstrainedPreferredWidth();
+ }
+ 
++namespace {
++content::WebContents* ContentsForView(const views::View* view) {
++  const auto* tab = views::AsViewClass<TabView>(view);
++  return tab && tab->GetTabInterface() ? tab->GetTabInterface()->GetContents()
++                                       : nullptr;
++}
++// Convert a local calendar date to a synthetic UTC midnight. Subtraction of
++// these dates counts civil days without treating a DST day as 24 elapsed hours.
++int CivilDaysBetween(base::Time newer, base::Time older) {
++  auto date = [](base::Time time) {
++    base::Time::Exploded parts;
++    time.LocalExplode(&parts);
++    parts.hour = parts.minute = parts.second = parts.millisecond = 0;
++    base::Time result;
++    return base::Time::FromUTCExploded(parts, &result) ? result : base::Time();
++  };
++  return (date(newer) - date(older)).InDays();
++}
++std::u16string OlderDate(base::Time time, int days) {
++  if (days > 7) {
++    return l10n_util::GetStringUTF16(IDS_OLDER_TABS_OLDER_LABEL);
++  }
++  UErrorCode error = U_ZERO_ERROR;
++  icu::SimpleDateFormat formatter(icu::UnicodeString("EEEE"), error);
++  icu::UnicodeString text;
++  if (U_SUCCESS(error)) {
++    formatter.format(time.InMillisecondsFSinceUnixEpoch(), text);
++  }
++  return std::u16string(text.getBuffer(), text.length());
++}
++}  // namespace
++
++bool UnpinnedTabContainerView::IsOlderView(const views::View* view) const {
++  return has_older_tabs_ &&
++         tabs::OlderTabsController::IsOlder(ContentsForView(view)) &&
++         !tabs::OlderTabsController::IsDraggingToRegular(ContentsForView(view));
++}
++bool UnpinnedTabContainerView::IsOlderTabView(const views::View* view) const {
++  return has_older_tabs_ &&
++         tabs::OlderTabsController::IsOlder(ContentsForView(view));
++}
++std::vector<views::View*> UnpinnedTabContainerView::OlderViewsInDateOrder()
++    const {
++  std::vector<views::View*> result;
++  if (collection_node_) {
++    for (auto* child : collection_node_->GetDirectChildren()) {
++      if (tabs::OlderTabsController::IsOlder(ContentsForView(child))) {
++        result.push_back(child);
++      }
++    }
++  }
++  std::sort(result.begin(), result.end(), [](auto* a, auto* b) {
++    return tabs::OlderTabsController::ComesBefore(ContentsForView(a),
++                                                  ContentsForView(b));
++  });
++  return result;
++}
++void UnpinnedTabContainerView::OnThemeChanged() {
++  TabCollectionZOrderManager::OnThemeChanged();
++  UpdateOlderTabs();
++}
++bool UnpinnedTabContainerView::CanReorderDraggedTabsAt(
++    const gfx::Point& point) const {
++  // Older is a chronological list, never an arbitrary insertion destination.
++  return !has_older_tabs_ || !older_header_ || point.y() < older_header_->y();
++}
++bool UnpinnedTabContainerView::OlderTabsCollapsed() const {
++  if (!collection_node_) {
++    return false;
++  }
++  auto* model =
++      collection_node_->GetController()->GetDragHandler().GetTabStripModel();
++  return model->profile()->GetPrefs()->GetBoolean(tabs::kOlderTabsCollapsed);
++}
++views::View* UnpinnedTabContainerView::older_header() const {
++  return older_header_;
++}
++views::View* UnpinnedTabContainerView::OlderDateHeading(
++    const views::View* view) const {
++  auto it = older_date_headings_.find(view);
++  return it != older_date_headings_.end() ? it->second.get() : nullptr;
++}
++void UnpinnedTabContainerView::ToggleOlderTabs() {
++  if (!collection_node_) {
++    return;
++  }
++  auto* prefs = collection_node_->GetController()
++                    ->GetDragHandler()
++                    .GetTabStripModel()
++                    ->profile()
++                    ->GetPrefs();
++  prefs->SetBoolean(tabs::kOlderTabsCollapsed, !OlderTabsCollapsed());
++  UpdateOlderTabs();
++}
++void UnpinnedTabContainerView::ExecuteOlderTabsMenuCommand(int command) {
++  if (!collection_node_) {
++    return;
++  }
++  auto* model =
++      collection_node_->GetController()->GetDragHandler().GetTabStripModel();
++  switch (command) {
++    case kCloseAllOlder:
++      model->older_tabs_controller()->CloseAll();
++      return;
++    case kKeepAllOlder:
++      model->older_tabs_controller()->KeepAll();
++      return;
++    case kOlderSettings:
++      chrome::ShowSettingsSubPage(
++          model->delegate()->GetBrowserWindowInterface(),
++          chrome::kAppearanceSubPage);
++      return;
++  }
++}
++void UnpinnedTabContainerView::UpdateOlderTabs() {
++  if (!collection_node_ || !older_header_) {
++    return;
++  }
++  auto* model =
++      collection_node_->GetController()->GetDragHandler().GetTabStripModel();
++  const bool enabled = model->older_tabs_controller()->IsEnabled();
++  const bool narrow = GetTabStripCollapseState() !=
++                      tabs::VerticalTabStripCollapseState::kExpanded;
++  const auto older =
++      enabled ? OlderViewsInDateOrder() : std::vector<views::View*>();
++  has_older_tabs_ = !older.empty();
++  older_date_headings_.clear();
++  std::set<int> used_days;
++  const auto now = base::Time::Now();
++  for (auto* child : older) {
++    const auto frozen =
++        tabs::OlderTabsController::FrozenLastUse(ContentsForView(child));
++    const int days = CivilDaysBetween(now, frozen);
++    if (narrow || days < 2) {
++      continue;
++    }
++    // The final Older bucket combines every date more than a week ago.
++    const int key =
++        days > 7 ? -1 : CivilDaysBetween(frozen, base::Time::UnixEpoch());
++    if (!used_days.insert(key).second) {
++      continue;
++    }
++    auto& label = older_day_labels_[key];
++    if (!label) {
++      label = AddChildView(std::make_unique<views::Label>());
++      label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
++      label->SetEnabledColor(ui::kColorLabelForegroundSecondary);
++      label->SetAutoColorReadabilityEnabled(false);
++      label->SetFontList(label->font_list().DeriveWithSizeDelta(-3));
++      // Trim two pixels from each edge without recentering the text.
++      label->SetVerticalAlignment(gfx::ALIGN_TOP);
++      label->SetBorder(views::CreateEmptyBorder(gfx::Insets().set_top(
++          std::max(0, (20 - label->font_list().GetHeight()) / 2 - 3))));
++      label->SetCanProcessEventsWithinSubtree(false);
++      label->GetViewAccessibility().SetRole(ax::mojom::Role::kHeading);
++    }
++    if (GetColorProvider()) {
++      const auto secondary =
++          GetColorProvider()->GetColor(ui::kColorLabelForegroundSecondary);
++      const auto color =
++          helium::NativeGlassColor(
++              label, helium::NativeGlassColorRole::kSidebarSection)
++              .value_or(SkColorSetA(secondary, SkColorGetA(secondary) * 0.65f));
++      label->SetEnabledColor(SkColorSetA(color, SkColorGetA(color) * 0.85f));
++    }
++    const auto name = OlderDate(frozen, days);
++    label->SetText(base::i18n::ToUpper(name));
++    label->GetViewAccessibility().SetName(name);
++    older_date_headings_[child] = label;
++  }
++  for (auto it = older_day_labels_.begin(); it != older_day_labels_.end();) {
++    if (!used_days.contains(it->first)) {
++      RemoveChildViewT(it->second.get());
++      it = older_day_labels_.erase(it);
++    } else {
++      ++it;
++    }
++  }
++  // Stable views participate in the same animation as tab rows. Recreating
++  // headings on every insertion made their animation start at another point.
++  size_t index = 0;
++  for (auto* child : collection_node_->GetDirectChildren()) {
++    if (!enabled ||
++        !tabs::OlderTabsController::IsOlder(ContentsForView(child))) {
++      ReorderChildView(child, index++);
++    }
++  }
++  ReorderChildView(older_header_, index++);
++  for (auto* child : older) {
++    if (auto* heading = OlderDateHeading(child)) {
++      ReorderChildView(heading, index++);
++    }
++    ReorderChildView(child, index++);
++  }
++  InvalidateZOrder();
++  older_header_->SetVisible(has_older_tabs_);
++  older_header_->SetText(narrow ? std::u16string()
++                                : l10n_util::GetStringUTF16(IDS_OLDER_TABS));
++  older_header_->GetViewAccessibility().SetName(
++      l10n_util::GetStringUTF16(IDS_OLDER_TABS));
++  static_cast<OlderTabsHeaderButton*>(older_header_.get())
++      ->SetCollapsed(OlderTabsCollapsed());
++  if (OlderTabsCollapsed()) {
++    older_header_->GetViewAccessibility().SetIsCollapsed();
++  } else {
++    older_header_->GetViewAccessibility().SetIsExpanded();
++  }
++  InvalidateLayout();
++}
++
+ void UnpinnedTabContainerView::ResetCollectionNode() {
+   collapsed_state_changed_subscription_ = {};
++  older_changed_subscription_ = {};
+   collection_node_ = nullptr;
+ }
+ 
+ void UnpinnedTabContainerView::OnCollapseStateChanged(
+     tabs::VerticalTabStripCollapseState state) {
++  UpdateOlderTabs();
+   InvalidateLayout();
+ }
+ 
+@@ -332,6 +700,27 @@
+ 
+ DraggedTabsContainer& UnpinnedTabContainerView::GetTabDragTarget(
+     const gfx::Point& point_in_screen) {
++  if (has_older_tabs_ && older_header_) {
++    const auto local =
++        views::View::ConvertPointFromScreen(this, point_in_screen);
++    if (auto* drag = GetDragHandler().GetDragController();
++        drag && drag->active()) {
++      const bool regular = local.y() < older_header_->y();
++      for (const auto& item : drag->GetSessionData().tab_drag_data_) {
++        if (item.contents) {
++          const bool was_regular =
++              tabs::OlderTabsController::IsDraggingToRegular(item.contents);
++          GetDragHandler()
++              .GetTabStripModel()
++              ->older_tabs_controller()
++              ->SetDragDestination(item.contents, regular);
++          if (was_regular != regular) {
++            UpdateOlderTabs();
++          }
++        }
++      }
++    }
++  }
+   if (GetDragHandler().IsDraggingGroups()) {
+     // Don't consider other tab group views as a drag target if we're dragging
+     // a group header already.
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
+@@ -5,7 +5,9 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_TABS_COMMON_UNPINNED_TAB_CONTAINER_VIEW_H_
+ #define CHROME_BROWSER_UI_VIEWS_TABS_COMMON_UNPINNED_TAB_CONTAINER_VIEW_H_
+ 
++#include <map>
+ #include <optional>
++#include <vector>
+ 
+ #include "base/callback_list.h"
+ #include "base/memory/raw_ptr.h"
+@@ -21,6 +23,10 @@
+ 
+ class TabCollectionNode;
+ class TabGroupView;
++namespace views {
++class Label;
++class LabelButton;
++}  // namespace views
+ 
+ // The view class that represents the unpinned tab region for the
+ // tab strip. It hosts all the unpinned tabs and serves as the drag target
+@@ -58,6 +64,14 @@
+         const views::View* child) const;
+   };
+ 
++  bool IsOlderView(const views::View* view) const;
++  bool IsOlderTabView(const views::View* view) const;
++  std::vector<views::View*> OlderViewsInDateOrder() const;
++  void OnThemeChanged() override;
++  bool OlderTabsCollapsed() const;
++  views::View* older_header() const;
++  views::View* OlderDateHeading(const views::View* view) const;
++
+   // TabCollectionAnimatingLayoutManager::Delegate:
+   bool IsDragging() const override;
+   bool IsViewDragging(const views::View& child_view) const override;
+@@ -93,15 +107,27 @@
+   const TabCollectionNode* GetCollectionNodeFromView(
+       const views::View& view) const override;
+ 
++  bool CanReorderDraggedTabsAt(const gfx::Point& point) const override;
++
+   // Returns whether a drag that is currently being handled by the given
+   // `group_view` should continue being handled by it.
+   bool ShouldDragRemainInGroup(const TabGroupView& group_view,
+                                const gfx::Rect& proposed_group_bounds,
+                                const gfx::Point& point_in_screen) const;
+ 
++  void UpdateOlderTabs();
++  void ToggleOlderTabs();
++  void ExecuteOlderTabsMenuCommand(int command);
+   void ResetCollectionNode();
+   void OnCollapseStateChanged(tabs::VerticalTabStripCollapseState state);
+ 
++  bool has_older_tabs_ = false;
++  raw_ptr<views::LabelButton> older_header_ = nullptr;
++  std::map<const views::View*, raw_ptr<views::Label>> older_date_headings_;
++  // Calendar buckets own stable presentation views, independently of tabs.
++  std::map<int, raw_ptr<views::Label>> older_day_labels_;
++  base::CallbackListSubscription older_changed_subscription_;
++
+   const TabStripOrientation orientation_;
+   raw_ptr<TabCollectionNode> collection_node_ = nullptr;
+ 
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -78,53 +78,106 @@
+   const int horizontal_padding =
+       GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
+ 
+-  for (auto* child : children) {
++  const auto& container = UnpinnedTabContainerView();
++  auto* header = container.older_header();
++  const auto older = container.has_older_tabs_
++                         ? container.OlderViewsInDateOrder()
++                         : std::vector<views::View*>();
++  const bool show_older = !container.OlderTabsCollapsed() && !focused_group_id;
++  const int row_height = GetLayoutConstant(LayoutConstant::kVerticalTabHeight);
++  const int text_inset =
++      GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
++  bool previous_older_tab = false;
++  auto layout_tab = [&](views::View* child, bool older_slot) {
+     int x =
+         views::AsViewClass<TabGroupView>(child) &&
+                 collapse_state != tabs::VerticalTabStripCollapseState::kExpanded
+             ? 0
+             : horizontal_padding;
+     views::SizeBound child_height_bound = size_bounds.height();
+-    // In focused mode, pass the scroll viewport height constraint to the child
+-    // focused group if the incoming size bounds height is unbounded, so that
+-    // TabGroupView can clamp dragged view bounds during a drag operation.
+-    if (focused_group_id.has_value() && !child_height_bound.is_bounded()) {
+-      if (const auto* scroll_view =
+-              UnpinnedTabContainerView().GetScrollViewForContainer()) {
++    if (focused_group_id && !child_height_bound.is_bounded()) {
++      if (const auto* scroll_view = container.GetScrollViewForContainer()) {
+         child_height_bound = scroll_view->height();
+       }
+     }
+-    views::SizeBounds child_size_bounds =
+-        views::SizeBounds(size_bounds.width().is_bounded()
+-                              ? (size_bounds.width() - (x + horizontal_padding))
+-                              : size_bounds.width(),
+-                          child_height_bound);
+-    gfx::Rect bounds = gfx::Rect(child->GetPreferredSize(child_size_bounds));
++    views::SizeBounds child_size_bounds(
++        size_bounds.width().is_bounded()
++            ? size_bounds.width() - (x + horizontal_padding)
++            : size_bounds.width(),
++        child_height_bound);
++    gfx::Rect bounds(child->GetPreferredSize(child_size_bounds));
+     bounds.set_x(x);
+-
+-    auto drag_data =
+-        UnpinnedTabContainerView().GetVisualDataForDraggedView(*child);
+-    bool should_show_child = IsChildVisibleInContainer(focused_group_id, child);
+-
+-    if (!should_show_child) {
+-      layouts.child_layouts.emplace_back(
+-          child, false,
+-          gfx::Rect(x, drag_data ? drag_data->offset.y() : height,
+-                    bounds.width(), 0));
+-      continue;
++    if (size_bounds.width().is_bounded()) {
++      bounds.set_width(
++          std::max(0, size_bounds.width().value() - x - horizontal_padding));
+     }
+-
++    if (older_slot) {
++      if (auto* heading = container.OlderDateHeading(child)) {
++        // Consume the preceding tab's 2px row gap, preserving the label's
++        // clearance to its following tab and the first section heading.
++        if (show_older && previous_older_tab) {
++          height -= kTabVerticalPadding;
++        }
++        layouts.child_layouts.emplace_back(
++            heading, show_older,
++            gfx::Rect(x + text_inset, height,
++                      std::max(0, bounds.width() - text_inset), 16));
++        if (show_older) {
++          height += 16;
++        }
++      }
++      if (!container.IsOlderView(child)) {
++        // While dragged above the divider, the tab is drawn in the regular
++        // stack. Its former chronological slot and heading stay behind.
++        if (show_older) {
++          height += bounds.height() + kTabVerticalPadding;
++          previous_older_tab = true;
++        }
++        return;
++      }
++    }
++    const auto drag_data = container.GetVisualDataForDraggedView(*child);
++    const bool visible = IsChildVisibleInContainer(focused_group_id, child) &&
++                         (!older_slot || show_older);
+     bounds.set_y(drag_data ? drag_data->offset.y() : height);
+-
+-    if (size_bounds.width().is_bounded()) {
+-      bounds.set_width(size_bounds.width().value() - bounds.x() -
+-                       horizontal_padding);
++    if (!visible) {
++      bounds.set_height(0);
++    }
++    layouts.child_layouts.emplace_back(child, visible, bounds);
++    if (visible) {
++      previous_older_tab = older_slot;
++      height += bounds.height() + kTabVerticalPadding;
++      width = std::max(width, bounds.right());
++    }
++  };
++  for (auto* child : children) {
++    if (!container.IsOlderTabView(child) || !container.IsOlderView(child)) {
++      layout_tab(child, false);
+     }
+-    layouts.child_layouts.emplace_back(child, true, bounds);
+-    height += bounds.height() + kTabVerticalPadding;
+-    width = std::max(width, bounds.width() + bounds.x());
+   }
+-
++  if (header && !older.empty() && !focused_group_id) {
++    // Keep two thirds of the previous blank tab-row separation.
++    height += (row_height + kTabVerticalPadding) * 2 / 3;
++    const int header_width =
++        size_bounds.width().is_bounded()
++            ? std::max(0, size_bounds.width().value() - 2 * horizontal_padding)
++            : 200;
++    layouts.child_layouts.emplace_back(
++        header, true,
++        // Extend the hit target upward into the separator while keeping the
++        // visible heading and the following tab at their compact positions.
++        gfx::Rect(horizontal_padding, height - 6, header_width, 24));
++    // Section and date headings share the same compact bottom clearance.
++    height += 18;
++    width = std::max(width, header_width + 2 * horizontal_padding);
++  } else if (header) {
++    layouts.child_layouts.emplace_back(header, false, gfx::Rect());
++  }
++  // Use frozen date order even while Chromium transiently moves dragged tabs
++  // through the model. Headings are presentation rows, never dragged views.
++  for (auto* child : older) {
++    layout_tab(child, true);
++  }
+   if (height > 0) {
+     height -= kTabVerticalPadding;
+   }
+--- a/chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc
++++ b/chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc
+@@ -35,6 +35,7 @@
+ #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+ #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
+ #include "chrome/browser/ui/sad_tab_helper.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/split_tab_util.h"
+ #include "chrome/browser/ui/tabs/tab_enums.h"
+ #include "chrome/browser/ui/tabs/tab_group_model.h"
+@@ -2174,6 +2175,17 @@
+     return;
+   }
+ 
++  if (attached_context_ && previous_state != DragState::kNotStarted) {
++    std::vector<content::WebContents*> contents;
++    for (const auto& item : drag_data_.tab_drag_data_) {
++      if (item.contents) {
++        contents.push_back(item.contents);
++      }
++    }
++    attached_context_->GetTabStripModel()->older_tabs_controller()->FinishDrag(
++        contents, type == EndDragType::kNormal);
++  }
++
+   // Clear out drag data so we don't attempt to do anything with it.
+   drag_data_.tab_drag_data_.clear();
+   if (current_drag_target_) {
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -627,8 +627,7 @@
+       {"uiDensityStandard", IDS_SETTINGS_UI_DENSITY_STANDARD},
+       {"uiDensityComfortable", IDS_SETTINGS_UI_DENSITY_COMFORTABLE},
+       {"pinnedTabsPerRow", IDS_SETTINGS_PINNED_TABS_PER_ROW},
+-      {"pinnedTabsPerRowUncapped",
+-       IDS_SETTINGS_PINNED_TABS_PER_ROW_UNCAPPED},
++      {"pinnedTabsPerRowUncapped", IDS_SETTINGS_PINNED_TABS_PER_ROW_UNCAPPED},
+       {"customizeToolbar", IDS_SETTINGS_CUSTOMIZE_TOOLBAR},
+       {"chromeColors", IDS_SETTINGS_CHROME_COLORS},
+       {"colorSchemeMode", IDS_SETTINGS_COLOR_SCHEME_MODE},
+@@ -694,6 +693,21 @@
+       {"showTabGroupsInBookmarksBar",
+        IDS_SETTINGS_SHOW_TAB_GROUPS_IN_BOOKMARKS_BAR},
+       {"autoPinNewTabGroups", IDS_SETTINGS_AUTO_PIN_NEW_TAB_GROUPS_HELIUM},
++      {"olderTabs", IDS_OLDER_TABS},
++      {"olderTabsKeep", IDS_OLDER_TABS_KEEP},
++      {"olderTabsMoveGrouped", IDS_OLDER_TABS_MOVE_GROUPED},
++      {"olderTabsMoveGroupedDescription",
++       IDS_OLDER_TABS_MOVE_GROUPED_DESCRIPTION},
++      {"olderTabsMoveAfter", IDS_OLDER_TABS_MOVE_AFTER},
++      {"olderTabsCloseAfter", IDS_OLDER_TABS_CLOSE_AFTER},
++      {"olderTabsSixHours", IDS_OLDER_TABS_SIX_HOURS},
++      {"olderTabsDay", IDS_OLDER_TABS_DAY},
++      {"olderTabsThreeDays", IDS_OLDER_TABS_THREE_DAYS},
++      {"olderTabsWeek", IDS_OLDER_TABS_WEEK},
++      {"olderTabsTwoDays", IDS_OLDER_TABS_TWO_DAYS},
++      {"olderTabsImmediately", IDS_OLDER_TABS_IMMEDIATELY},
++      {"olderTabsNever", IDS_OLDER_TABS_NEVER},
++
+       {"hoverCardTitle", IDS_SETTINGS_HOVER_CARD_TITLE},
+       {"showHoverCardImages", IDS_SETTINGS_SHOW_HOVER_CARD_IMAGES},
+       {"showHoverCardMemoryUsage", IDS_SETTINGS_SHOW_HOVER_CARD_MEMORY_USAGE},
+--- a/components/tabs/public/tab_context_menu_command.h
++++ b/components/tabs/public/tab_context_menu_command.h
+@@ -45,6 +45,7 @@
+   CommandToggleFocusGroup,
+   CommandDiscard,
+   CommandToggleTabMuted,
++  CommandKeepTab,
+ };
+ // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/histograms.xml:TabContextMenuCommand)
+ 
+--- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
++++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
+@@ -690,9 +690,16 @@
+   return views;
+ }
+ 
++bool DraggedTabsContainer::CanReorderDraggedTabsAt(const gfx::Point&) const {
++  return true;
++}
++
+ void DraggedTabsContainer::HandleTabDragInContainer(
+     const gfx::Rect& dragged_tab_bounds,
+     const gfx::Point& point_in_container) {
++  if (!CanReorderDraggedTabsAt(point_in_container)) {
++    return;
++  }
+   // Only reorder tabs if the drag has moved beyond a minimum threshold since
+   // the last move to prevent rapid jitter and oscillation.
+   if (drag_axes_ == DragAxes::kHorizontalOnly &&
+--- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.h
++++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.h
+@@ -103,6 +103,8 @@
+     bool should_float = false;
+   };
+ 
++  virtual bool CanReorderDraggedTabsAt(const gfx::Point& point) const;
++
+   // Returns the expected visual data, relative to the host view, for a dragged
+   // view. Returns std::nullopt if the view is not being dragged.
+   std::optional<DraggedViewVisualData> GetVisualDataForDraggedView(
+--- a/chrome/browser/ui/helium/helium_command_bar_commands.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_commands.cc
+@@ -24,6 +24,7 @@
+ #include "chrome/browser/ui/helium/helium_command_symbols.h"
+ #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
+ #include "chrome/browser/ui/recently_audible_helper.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
+ #include "chrome/browser/ui/tabs/tab_utils.h"
+@@ -58,6 +59,8 @@
+      "arrow.uturn.backward"},
+     {IDC_DUPLICATE_TAB, "IDC_DUPLICATE_TAB", IDS_COMMAND_BAR_DUPLICATE_TAB,
+      "duplicate tab|clone tab|duplicate", "plus.square.on.square"},
++    {kKeepOlderTab, "kKeepOlderTab", IDS_OLDER_TABS_KEEP,
++     "keep tab|keep older tab|restore to regular tabs", "arrow.uturn.up"},
+     {IDC_CLOSE_TAB, "IDC_CLOSE_TAB", IDS_COMMAND_BAR_CLOSE_TAB,
+      "close tab|close current tab", "xmark"},
+     {IDC_NEW_WINDOW, "IDC_NEW_WINDOW", IDS_COMMAND_BAR_NEW_WINDOW,
+@@ -444,6 +447,12 @@
+     }
+   }
+   switch (command) {
++    case kKeepOlderTab:
++      if (!strip->older_tabs_controller()->IsEnabled() ||
++          !tabs::OlderTabsController::IsOlder(strip->GetActiveWebContents())) {
++        return std::nullopt;
++      }
++      break;
+     case IDC_WINDOW_GROUP_TAB:
+       if (!strip->SupportsTabGroups() ||
+           !strip->IsContextMenuCommandEnabled(
+@@ -657,6 +666,9 @@
+       }
+       return true;
+     }
++    case kKeepOlderTab:
++      strip->older_tabs_controller()->Keep(strip->GetActiveWebContents());
++      return true;
+     case IDC_WINDOW_PIN_TAB:
+       // Explicitly target the active pane, even with a multi-tab selection.
+       strip->SetTabPinned(active, !strip->IsTabPinned(active));
+--- a/chrome/browser/ui/helium/helium_command_bar_commands.h
++++ b/chrome/browser/ui/helium/helium_command_bar_commands.h
+@@ -20,6 +20,7 @@
+ inline constexpr int kMediaSeekForward = -7;
+ inline constexpr int kMediaStop = -8;
+ inline constexpr int kMediaSkipAd = -9;
++inline constexpr int kKeepOlderTab = -10;
+ 
+ // A single leading / is reserved only outside an applied engine/tab scope.
+ // A leading // remains ordinary input because it may be a URL prefix.
+--- a/chrome/browser/ui/views/tabs/common/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
+@@ -112,6 +112,7 @@
+     "//chrome/browser/ui:browser_command_controller",
+     "//chrome/browser/ui:browser_commands",
+     "//chrome/browser/ui:browser_element_identifiers",
++    "//chrome/browser/ui:chrome_pages",
+     "//chrome/browser/ui:layout_constants",
+     "//chrome/browser/ui:ui_features",
+     "//chrome/browser/ui/actions:actions_headers",
+@@ -156,6 +157,7 @@
+     "//ui/accessibility:ax_base",
+     "//ui/actions",
+     "//ui/base",
++    "//ui/menus",
+     "//ui/base:features",
+     "//ui/base/clipboard",
+     "//ui/base/dragdrop:types",
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -38,6 +38,10 @@
+                                           int size,
+                                           SkColor color);
+ 
++// Sidebar action artwork matches TabCloseButton: 11pt medium, 16px canvas.
++gfx::ImageSkia NativeSidebarSymbolForName(const char* symbol_name,
++                                          SkColor color);
++
+ // Shared artwork for native chrome and the Customize toolbar list.
+ gfx::ImageSkia NativeToolbarSymbolForIcon(const char* icon_name, int size,
+                                         SkColor color);
+@@ -45,6 +49,7 @@
+ enum class NativeGlassColorRole {
+   kLabel,
+   kToolbarLabel,
++  kSidebarSection,
+   kToolbarHover,
+   kToolbarPressed,
+   kDisabledLabel,
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -290,7 +290,9 @@
+ 
+ std::optional<SkColor> NativeGlassColor(const views::View* view,
+                                       NativeGlassColorRole role) {
+-  if (!IsNativeGlassControl(view)) {
++  if (!view || !view->GetWidget() ||
++      (!IsNativeGlassControl(view) &&
++       role != NativeGlassColorRole::kSidebarSection)) {
+     return std::nullopt;
+   }
+   NSView* native = view->GetWidget()->GetNativeView().GetNativeNSView();
+@@ -360,6 +362,7 @@
+       case NativeGlassColorRole::kLabel:
+         break;
+       case NativeGlassColorRole::kToolbarLabel:
++      case NativeGlassColorRole::kSidebarSection:
+         semantic = NSColor.secondaryLabelColor;
+         break;
+       case NativeGlassColorRole::kToolbarHover:
+@@ -695,6 +698,28 @@
+   return NativeToolbarSymbolForName(name.UTF8String, size, color);
+ }
+ 
++gfx::ImageSkia NativeSidebarSymbolForName(const char* symbol_name,
++                                          SkColor color) {
++  NSImage* symbol = [NSImage imageWithSystemSymbolName:@(symbol_name)
++                              accessibilityDescription:nil];
++  symbol = [symbol imageWithSymbolConfiguration:
++                       [NSImageSymbolConfiguration
++                           configurationWithPointSize:11
++                                               weight:NSFontWeightMedium]];
++  NSImage* image = [NSImage
++       imageWithSize:NSMakeSize(16, 16)
++             flipped:NO
++      drawingHandler:^BOOL(NSRect bounds) {
++        const NSSize size = symbol.size;
++        [symbol drawInRect:NSMakeRect((NSWidth(bounds) - size.width) / 2,
++                                      (NSHeight(bounds) - size.height) / 2,
++                                      size.width, size.height)];
++        return YES;
++      }];
++  return gfx::ImageSkiaOperations::CreateColorMask(
++      gfx::ImageSkiaFromNSImage(image), color);
++}
++
+ gfx::ImageSkia NativeToolbarSymbolForName(const char* symbol_name,
+                                           int size,
+                                           SkColor color) {
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
+@@ -4,31 +4,9 @@
+ 
+ #include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
+ 
+-#import <AppKit/AppKit.h>
+-
+-#include "ui/gfx/image/image_skia_operations.h"
+-#include "ui/gfx/image/image_skia_util_mac.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ 
+ ui::ImageModel TabCloseButton::GetSidebarIcon() const {
+-  // Close icons are smaller and slightly heavier than other chrome symbols.
+-  // Keep their size independent of the larger button target.
+-  NSImage* symbol = [NSImage imageWithSystemSymbolName:@"xmark"
+-                              accessibilityDescription:nil];
+-  symbol = [symbol imageWithSymbolConfiguration:
+-                       [NSImageSymbolConfiguration
+-                           configurationWithPointSize:11
+-                                               weight:NSFontWeightMedium]];
+-  NSImage* image = [NSImage
+-       imageWithSize:NSMakeSize(16, 16)
+-             flipped:NO
+-      drawingHandler:^BOOL(NSRect bounds) {
+-        const NSSize size = symbol.size;
+-        [symbol drawInRect:NSMakeRect((NSWidth(bounds) - size.width) / 2,
+-                                      (NSHeight(bounds) - size.height) / 2,
+-                                      size.width, size.height)];
+-        return YES;
+-      }];
+   return ui::ImageModel::FromImageSkia(
+-      gfx::ImageSkiaOperations::CreateColorMask(
+-          gfx::ImageSkiaFromNSImage(image), colors_.foreground_color));
++      helium::NativeSidebarSymbolForName("xmark", colors_.foreground_color));
+ }
