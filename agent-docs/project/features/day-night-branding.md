@@ -89,12 +89,14 @@ fallback, onboarding opening, monochrome WebUI paths, favicons and all mapped
 browser resources use the new curves. The JavaScript easing returns exact zero
 and one at the ends, avoiding residual slivers in the closed frame.
 
-The macOS app mark uses scale 3.0 rather than 3.3, a 9.1% smaller complete unit.
+The accepted macOS app mark uses scale 3.3 and source width 825, 10% larger than
+the initial glass review's scale 3.0 and width 750.
 Both app icons use two independent native glass groups, inside highlights,
-40% translucency, 60% refraction strength/height and 50% chromatic shadows. The
+40% translucency, 60% refraction strength, 30% height and 20% chromatic shadows.
+The reduced height and shadow keep the pieces closer to the icon plane. The
 lighting/material configuration is shared between Light and Dark; only the
 palette and native appearance differ. Both appearances explicitly use
-Icon Composer's generation-27 rendering; Apple's compiler supplies the mask,
+Icon Composer's generation-27 rendering; Apple's compiler supplies the mask and
 native legacy canvas dimensions. Every physical size is rendered before
 ICNS packaging. Editable `.icon` sources accompany the resource inputs. Current
 `.icns` packaging remains a fixed rendering selected by appearance, not a new
@@ -105,10 +107,19 @@ Icon Composer preview. Geometry, source resource parity and exact patch replay
 are recorded in the [artwork validation record](../builds/2026-11-12-thicker-glass-icons.json).
 The earlier sections retain their original validation and release scope.
 
-The development input is `3dbf35b2431b5e9220b4214d66f5631f9e936a39`, retained under signed
-`inputs/thicker-glass-icons-1/macos`. Both incremental builds and exact packaged/loaded
-artwork, appearance and restart smoke pass; Intel executes under Rosetta. All 73
-tooling tests, component lint, lock/Git identity checks and the website deployment
-dry run pass. No specific GitHub issue is resolved. Published browser releases
-retain their frozen artwork. The local review board remains available for the
-owner; native Intel and older-macOS visual review were not repeated.
+The owner accepted all artwork and animation on November 12, 2026. The final
+development input is `15170d0c385565cbe94cd59c282d9f89a9edd367`, retained under signed
+`inputs/glass-icon-relief-1/macos`, after the separate signed 10% scale input
+`inputs/glass-icon-scale-1/macos`. These asset-only follow-ups preserve the initial
+`3dbf35b2431b5e9220b4214d66f5631f9e936a39` artwork and animation integration.
+Both final incremental builds, all twenty icon representations, shared material
+equality, exact native bundle resources and the packaged setup animation pass.
+The earlier loaded-artwork, appearance and restart smoke passes remain applicable
+to the unchanged browser frameworks; Intel executes under Rosetta. All 73 tooling
+tests, component lint, lock/Git identity checks and the website deployment dry run
+pass. The [acceptance record](../builds/2026-11-12-accepted-icon-refinements.json)
+distinguishes these checks from the earlier smoke scope. No specific GitHub issue
+is resolved. Published browser releases retain their frozen artwork; production
+website deployment is separate. Temporary review apps, profiles, board, tabs and
+servers are cleaned up, retaining evidence and reusable build/source caches.
+Native Intel and older-macOS visual review were not repeated.

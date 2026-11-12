@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-12",
+  "status": "owner-accepted",
+  "acceptance": {
+    "quote": "These all look good, lets accept them all and commit the work",
+    "scope": [
+      "adjusted-arc logomark",
+      "Light and Dark glass app icons",
+      "website and browser assets",
+      "favicons",
+      "setup and website animations"
+    ]
+  },
+  "source": {
+    "initial_artwork": "3dbf35b2431b5e9220b4214d66f5631f9e936a39",
+    "scale_commit": "e65fc51805539145eeb935b1f567bd56da7cb33b",
+    "scale_tag": "inputs/glass-icon-scale-1/macos",
+    "final_commit": "15170d0c385565cbe94cd59c282d9f89a9edd367",
+    "final_tree": "9499dd67e7a00be33ca417ac08bfac85d706f2e1",
+    "final_tag": "inputs/glass-icon-relief-1/macos",
+    "signed_tags_verified": true,
+    "main_adoption": "this commit",
+    "remote_tag_targets_verified": true
+  },
+  "design": {
+    "geometry": "selected adjusted inner circular arcs; midpoint thickness 48.412, 33% above 36.4",
+    "app_mark_width": 825,
+    "app_mark_increase_over_initial_glass_review": "10%",
+    "design_generation": 27,
+    "shared_material": {
+      "shadow_opacity": 0.2,
+      "shadow_kind": "layer-color",
+      "translucency": 0.4,
+      "refraction_strength": 0.6,
+      "refraction_depth": 0.3,
+      "specular": "inside",
+      "separate_groups": true
+    },
+    "packaging": "fixed native ICNS representations, selected by appearance; no live layered asset-catalog integration"
+  },
+  "validation": {
+    "builds": [
+      {
+        "architecture": "arm64",
+        "exit_code": 0,
+        "seconds": 6.025541082955897,
+        "source_component": "15170d0c385565cbe94cd59c282d9f89a9edd367"
+      },
+      {
+        "architecture": "x86_64",
+        "exit_code": 0,
+        "seconds": 8.3613047497347,
+        "source_component": "15170d0c385565cbe94cd59c282d9f89a9edd367"
+      }
+    ],
+    "final_resources": "Both main apps and notification helpers match the pinned native icon resources; all twenty appearance representations decode. Shared material settings match. Website Dock images are exact packaged 256px representations.",
+    "packaged_setup_animation": "Pass: coincident radius-111 circles open to the selected inner radius 117.451309, inner shifts +/-40.863309 and outer shifts +/-14.",
+    "tooling_tests": {
+      "passed": 73,
+      "failed": 0
+    },
+    "lock_git_identity": "passed",
+    "component_checks": "passed",
+    "generator_consistency": "passed",
+    "website_check": "passed; Wrangler dry run only",
+    "smoke_reuse": {
+      "initial_record": "2026-11-12-thicker-glass-icons.json",
+      "scope": "Both architectures passed loaded artwork, appearance and restart smoke on initial artwork input 3dbf35b2. Final two component commits change native icon resources and editable sources only. Final framework SHA-256 hashes match those passing smoke reports.",
+      "x86_64_runtime": "Rosetta, not native Intel",
+      "framework_sha256": {
+        "arm64": "b2d8aa29c949de4364a852eb891c0cf751d2d6f0fe8e56978fc5c001bd136352",
+        "x86_64": "4d1b588f9ab7f88bade2a13a854bcbfc8fa361fd9afdd2940f5ee41dced99668"
+      }
+    },
+    "local_evidence": ".work/icon-update/relief-review/",
+    "limitations": [
+      "No repeated native Intel or older-macOS visual review.",
+      "No browser release or production website deployment."
+    ],
+    "source_checks_logs_sha256": {
+      "tests-accepted.log": "2426ce66c9d863825196ed9de767bba40215e09fbd6c9e7b3a98f99d8af4f2ca",
+      "component-checks-accepted.log": "942701ef0b7a1dc7883cdb8e0863dd2d5ed6784c1bd9adf7331e7352dce04b24",
+      "signatures-accepted.log": "ef9cb160bf1ab96561d15253c7b98912ff6c0614e130e65f449575342b78469b",
+      "website-check.log": "9357ba5e318949a63f0d9747c49c0147df2cc17da128a9b5eb8adffc09ecc8d6",
+      "validation.json": "83d0a0a0204966845b9d73f2f785cb171f966240142bb539c9dcb2fce910ded6"
+    }
+  },
+  "cleanup": {
+    "review_browser_and_driver_exited": true,
+    "servers_stopped": [
+      58297,
+      80154
+    ],
+    "preview_app_profile_and_board_removed": true,
+    "screenshots_and_evidence_preserved": true,
+    "build_source_and_input_caches_preserved": true,
+    "review_browser_tabs_closed": true
+  },
+  "delivery": {
+    "browser_release": "unchanged frozen 26.1111.3",
+    "website_production_deployed": false,
+    "previous_queued_website_run": "43272268379",
+    "website_workflows": "Cancel task-owned queued deployment runs; source acceptance does not authorize production deployment.",
+    "post_push_setup_check": "pending",
+    "previous_queued_website_conclusion": "cancelled"
+  },
+  "github_issues_resolved": []
+}

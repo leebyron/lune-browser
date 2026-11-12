@@ -44,14 +44,14 @@ selects the light/dark brand colors without JavaScript or separate URLs.
 The PNG and multi-resolution ICO fallbacks use the same transparent framing
 with the fixed dark palette. Apple touch artwork retains its opaque background.
 
-### Native floating-glass icons (2026-11-12)
+### Native floating-glass icons (2026-11-12, accepted)
 
-The current app mark retains the selected adjusted arcs at scale 3.0 rather than
-3.3: its complete unit is 9.1% smaller inside Apple's icon region. Each
+The current app mark retains the selected adjusted arcs at scale 3.3, with a
+source width of 825: 10% larger than the initial glass review's 750. Each
 lune occupies a separate Icon Composer group in both appearances with native glass enabled, inside
-specular highlights, 40% translucency, 60% refraction strength/height and 50%
-chromatic shadows. These controls give the pieces translucent lower edges and
-colored light spill beneath them. Light and Dark share the exact same material settings; Dark uses its native
+specular highlights, 40% translucency, 60% refraction strength, 30% refraction
+height and 20% chromatic shadows. The reduced height and shadow keep the pieces
+close to the icon plane. Light and Dark share the exact same material settings; Dark uses its native
 appearance and explicit blue background. No shading, shadows, or bevels are baked
 into the imported SVGs.
 
@@ -77,6 +77,26 @@ refraction, translucency and chromatic/ring shadows. The light source was opened
 in Icon Composer and its actual two-group, generation-27 material verified.
 See [the current feature record](../agent-docs/project/features/day-night-branding.md#thicker-adjusted-arcs-and-native-glass--november-12-2026)
 for source adoption and validation limits.
+
+### Accepted app-icon refinements (2026-11-12)
+
+The owner requested the reviewed mark 10% larger, increasing its source width
+from 750 to 825 (scale 3.0 to 3.3), then requested less shadow so the pieces sit
+closer to the icon plane. The accepted version uses 20% chromatic shadows and 30%
+refraction height; strength remains 60%, translucency 40%, and both appearances
+share one material configuration and the generation-27 renderer. The adjusted
+arcs and opening animation retain their selected geometry.
+
+Signed input `inputs/glass-icon-relief-1/macos` identifies
+`15170d0c385565cbe94cd59c282d9f89a9edd367`, following the separate 10% scale
+commit. Both app bundles rebuild, all twenty icon representations decode, and
+the owner-reviewed **Lune Icon Review** bundle matched the exact input. The
+website Dock images use the same native representations. The owner accepted all
+artwork and animation on November 12; the development lock adopts this input
+for future builds. The temporary app, profile, review board and servers are
+cleaned up; evidence is retained in `.work/icon-update/relief-review/` and the
+[acceptance record](../agent-docs/project/builds/2026-11-12-accepted-icon-refinements.json).
+Production website deployment and a browser release are separate from this acceptance.
 
 ### Native macOS icon shape candidate (2026-11-09) — historical
 
