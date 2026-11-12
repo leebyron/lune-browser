@@ -1,6 +1,6 @@
 # Native address word navigation
 
-Owner accepted the native Apple silicon preview for [issue #32](https://github.com/leebyron/lune-browser/issues/32) on November 12, 2026 and requested commit/push and inclusion in builds. Future main builds select signed input `inputs/native-word-navigation-2/macos` (`f90cd9d3c45a540b813c8d4d215f4c73159cede5`). Published releases retain their frozen inputs.
+Owner accepted the native Apple silicon preview for [issue #32](https://github.com/leebyron/lune-browser/issues/32) on November 12, 2026 and requested commit/push and inclusion in builds. Future main builds include signed input `inputs/native-word-navigation-2/macos` (`f90cd9d3c45a540b813c8d4d215f4c73159cede5`). Published releases retain their frozen inputs.
 
 ## Behavior and implementation
 
@@ -14,7 +14,7 @@ The reusable platform patch is `patches/helium/ui/native-word-navigation.patch`.
 
 ## Source and validation
 
-Signed topic commit `e4ef36463128b2e76892c12c80d983ce31dec43c` contains the standalone feature. Signed composition `f90cd9d3c45a540b813c8d4d215f4c73159cede5` preserves that ancestry and appends the refreshed feature to input `3aa1b256f8b18b802b2d076a293a953417c9697d`. The six affected files were reconstructed through the selected parent stack with zero fuzz, then the new patch was refreshed and replayed with zero offsets. The pending native focus topic is excluded from the selected component.
+Signed topic commit `e4ef36463128b2e76892c12c80d983ce31dec43c` contains the standalone feature. Signed composition `f90cd9d3c45a540b813c8d4d215f4c73159cede5` preserves that ancestry and appends the refreshed feature to input `3aa1b256f8b18b802b2d076a293a953417c9697d`. The six affected files were reconstructed through the selected parent stack with zero fuzz, then the new patch was refreshed and replayed with zero offsets. That standalone component excludes the then-pending native focus topic. The later [app-switch focus input](app-switch-focus.md) composes the accepted focus lifecycle after it.
 
 The isolated prepared review tree is `.work/word-navigation/prepared-src`. To reuse the existing development build cache, the review composition also retains the initial pending focus-retention, setup-toolbar, toolbar-visibility and extension-popup patches. `preview-composition.json` lists the exact ordered patches and production file hashes; `preview-strict-replay.log` proves its focused adaptation applies with zero fuzz/offsets. The adapter header and implementation are byte-identical to the independently tested standalone patch. The adaptation only adds the same cell/delegate wiring to the preview's existing native focus field classes. It changes no shared canonical sources or other review apps.
 

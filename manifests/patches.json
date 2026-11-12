@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "f90cd9d3c45a540b813c8d4d215f4c73159cede5",
+    "commit": "e29310e346235dce9ece48c7e283510a870ca2f6",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -829,6 +829,10 @@
       {
         "path": "patches/helium/ui/native-word-navigation.patch",
         "sha256": "3800a89bab1d4cae7246f78d91a46d3441d435624b9aa610ed22667861f59730"
+      },
+      {
+        "path": "patches/helium/ui/native-editor-focus-lifecycle.patch",
+        "sha256": "7f5a12579c4a1a32161147f22397768114e2d61229eab961d7558fc434ef1927"
       }
     ]
   },
@@ -2315,6 +2319,23 @@
       "commits": [
         "e4ef36463128b2e76892c12c80d983ce31dec43c",
         "f90cd9d3c45a540b813c8d4d215f4c73159cede5"
+      ]
+    },
+    {
+      "id": "app-switch-native-focus",
+      "depends_on": [
+        "native-glass-command-bar",
+        "native-floating-address"
+      ],
+      "patches": [
+        "patches/helium/ui/native-editor-focus-lifecycle.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Preserve native Cmd-T/address editing across temporary app deactivation while exposing focus only on the active input.",
+      "adaptation": "Prepared-source quilt topic on the accepted word-navigation input; its adapter and cell/delegate wiring are retained. Native selection and the complete editing header survive app deactivation, the inactive address ring hides, Cmd-T/Cmd-L transfer ownership, and dismissal works without renewed widget activation. The activation click preserves Cmd-T while a later click dismisses; native event/activation timestamps also handle late delivery. The owner accepted all behavior on November 12, 2026 and requested commit/push and future-build inclusion. Both builds, focus fixtures and browsing/persistence smoke pass; unchanged UI/settings, 117 word cases per architecture, GN checks and 73 tooling tests retain paired validation. Intel runs under Rosetta. Strict current-input replay has zero fuzz/offsets and export parity. See agent-docs/project/features/app-switch-focus.md.",
+      "commits": [
+        "c1b4b5f02f67386cdb793432e9e5245cd02cbb31",
+        "e29310e346235dce9ece48c7e283510a870ca2f6"
       ]
     }
   ],

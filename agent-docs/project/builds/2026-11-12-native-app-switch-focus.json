@@ -1,0 +1,238 @@
+{
+  "date": "2026-11-12",
+  "scope": "Native Cmd-T/address focus across app deactivation, explicit input ownership and activation-click semantics",
+  "source": {
+    "base": "f90cd9d3c45a540b813c8d4d215f4c73159cede5",
+    "commit": "e29310e346235dce9ece48c7e283510a870ca2f6",
+    "tree": "598d3f02083ca871b25576c1902b17f6437759c9",
+    "commits": [
+      "c1b4b5f02f67386cdb793432e9e5245cd02cbb31",
+      "e29310e346235dce9ece48c7e283510a870ca2f6"
+    ],
+    "original_topic_commits": [
+      "392137eb9127683a06b63e65a557880a42257a49",
+      "dd3c79174faa38a9acbf7c14afa3188b66f2c560",
+      "4198d0f6a37d1aac1234cb2dd1d358ec0dc1c50a",
+      "9189f98e42ddca1594bb22b19aa72c2f7dcfef6a",
+      "f33a7a7a14afc580e58b20c85524051ff0b3f675"
+    ],
+    "feature_patches": [
+      "helium/ui/native-editor-focus-lifecycle.patch"
+    ],
+    "ref": "refs/tags/inputs/app-switch-focus-7/macos",
+    "pending_owner_acceptance": false,
+    "preserved_word_adapter": true
+  },
+  "owner_acceptance": {
+    "date": "2026-11-12",
+    "component": "e29310e346235dce9ece48c7e283510a870ca2f6",
+    "activation_and_keyboard_return": "Both sequences work",
+    "full_behavior": "Behavior all looks right, lets accept and commit this focused change and push so its included in future builds",
+    "physical_device": "Apple silicon Mac",
+    "native_intel_tested": false
+  },
+  "builds": {
+    "arm64": {
+      "architecture": "arm64",
+      "exit_code": 0,
+      "seconds": 208.3607292175293,
+      "release": false
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "exit_code": 0,
+      "seconds": 233.2499029636383,
+      "release": false
+    }
+  },
+  "browsing_profile_persistence": {
+    "arm64": {
+      "architecture": "arm64",
+      "test_host_architecture": "arm64",
+      "checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "mode": "headless",
+      "executable_sha256": "d09a67c3e9abe1a8fc204245e7ec581f8cf77616a80423048aacb8c0fe01118e",
+      "framework_sha256": "1f379ad9330ddb67b11b96b3ae3219577486be7f049a5946295278d6a629ed75",
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "passed": true
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "test_host_architecture": "arm64",
+      "checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "mode": "headless",
+      "executable_sha256": "dc843f08573ed7c9f931976e17dbc3ccebefb2a3f69192683f8126c0bd38227c",
+      "framework_sha256": "901425fcaf282e6b2e3fbd081811e099f2d7b76468aae305df9997aa2dc96b5b",
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "passed": true
+    }
+  },
+  "intel_smoke_attempts": {
+    "first": "60-second session creation timeout; no smoke phase completed.",
+    "second": "60-second timeout on the initial fixture navigation after session creation.",
+    "final": "Same binary passed browsing and profile persistence with a task-only 180-second session-creation allowance, original 60-second other request limits, and unchanged functional assertions. Disposable disk-heavy cleanup had completed before this run. Cause of prior timeouts was not established.",
+    "prior_reports_retained": true,
+    "harness": {
+      "session_creation_timeout_seconds": 180,
+      "other_request_timeout_seconds": 60,
+      "functional_assertions_unchanged": true,
+      "prior_attempts": 2,
+      "concurrent_disposable_cleanup_completed": true
+    },
+    "framework_sha256": "901425fcaf282e6b2e3fbd081811e099f2d7b76468aae305df9997aa2dc96b5b"
+  },
+  "native_focus": {
+    "arm64": true,
+    "x86_64": true,
+    "x86_64_execution": "Rosetta on Apple silicon",
+    "cases": [
+      "Repeated focus and selected-range restoration",
+      "Late parent-to-popup key handoff",
+      "Inactive address ring and retained header",
+      "Explicit address/Cmd-T/Cmd-L ownership",
+      "Immediate Escape and outside-click dismissal without repaired editor activation",
+      "Activation click before notification and late delivery afterward; next click dismisses",
+      "Left/right background clicks, scope cancellation, pending-callback destruction"
+    ]
+  },
+  "negative_controls": {
+    "inactive-ring": {
+      "old_behavior_rejected": true,
+      "exit_code": 1
+    },
+    "ownership-transfer": {
+      "old_behavior_rejected": true,
+      "exit_code": 1
+    },
+    "cmd-l": {
+      "old_behavior_rejected": true,
+      "exit_code": 1
+    },
+    "inactive-click": {
+      "old_behavior_rejected": true,
+      "exit_code": 1
+    },
+    "late-activation-click": {
+      "old_behavior_rejected": true,
+      "exit_code": 1
+    }
+  },
+  "strict_replay": {
+    "passed": true,
+    "base": "f90cd9d3c45a540b813c8d4d215f4c73159cede5",
+    "candidate": "e29310e346235dce9ece48c7e283510a870ca2f6",
+    "patch": "helium/ui/native-editor-focus-lifecycle.patch",
+    "fuzz": 0,
+    "offsets": 0,
+    "export_roundtrip_clean": true,
+    "files": {
+      "chrome/browser/ui/helium/helium_command_bar_view_mac.mm": "0b24e92cfeef3f23e6c3288b657d1365b04b876f12c302b000e2f2d4cdbef664",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "b20547e7f931c95d499bbda60931c0c18c0a58c36b4d42378207e9cc17851df2",
+      "chrome/browser/ui/views/helium/BUILD.gn": "ad079019cc8870e61e976deb2804613009c27a52253a5289b8573231330a80b3",
+      "chrome/browser/ui/views/helium/native_text_field_mac.h": "44165c67de568da4956fc7915818250789afa0eab044090e628cd5b0357ada37",
+      "chrome/browser/ui/views/helium/native_text_field_mac.mm": "e9192f2a16b8156323671d7e25f21d11081b82d62e3f836f842bf9e7bf6bff3d",
+      "chrome/browser/ui/helium/native_word_navigation_mac.h": "c337b62e470c8edcd7c3fca180b9a4f2a51f9ed4bc157be7fca4d8bc2fa86aae",
+      "chrome/browser/ui/helium/native_word_navigation_mac.mm": "a01064ec747508943d467af64d2a43f813056fa2d0816c86577241e613bad545"
+    },
+    "scope": "Focus lifecycle patch against exact retained current-input preimages, after accepted word-navigation patch; not a fresh full Chromium preparation."
+  },
+  "signatures_lock_ancestry_tag_tree_gitlink_input_lint": true,
+  "unchanged_predecessor_checks": {
+    "component": "c1b4b5f02f67386cdb793432e9e5245cd02cbb31",
+    "build_and_ui_settings_smoke_passed_both_architectures": true,
+    "word_adapter_sha256": "a01064ec747508943d467af64d2a43f813056fa2d0816c86577241e613bad545",
+    "native_word_cases_per_architecture": 117,
+    "gn_dependency_checks": 8,
+    "repository_unit_tests": 73,
+    "scope": "Final refinement changes only activation-event classification and popup mouse dismissal; address implementation, word adapter/cell wiring, build dependencies, assets/settings and tooling test subjects are unchanged."
+  },
+  "preview_identity": {
+    "component": "e29310e346235dce9ece48c7e283510a870ca2f6",
+    "framework_uuid": "4C4C443A-5555-3144-A1A9-9750F9537D40",
+    "uuid_matches": true,
+    "preview_update_feed_isolated": true
+  },
+  "native_review_limits": "CUA verified active-window dismissal/shortcut handoff. Owner gestures provide actual app-switch and first-versus-next-click acceptance. Physical Intel hardware, macOS 13 and broad IME/accessibility were not tested.",
+  "cleanup": {
+    "scope": "Task-owned stopped review apps/profile, generated replay/negative fixtures, and superseded output snapshots; active source, output directories, config clones, quilt stacks, baseline preimages and compiler caches retained.",
+    "targets": [
+      "Lune Focus Review initial.app",
+      "Lune Focus Review.app",
+      "Lune Focus Review five-fix.app",
+      "Lune Focus Review input-6.app",
+      "Lune Focus Review four-fix.app",
+      "native/profile",
+      "header-source",
+      "parent-negative",
+      "parent-source",
+      "header-replay",
+      "handoff-replay",
+      "composition-replay",
+      "fixture-src",
+      "replay",
+      "activation-replay",
+      "combined-replay",
+      "dismiss-replay",
+      "negative-src",
+      "negative-cmd-l",
+      "negative-inactive-ring",
+      "negative-ownership-transfer",
+      "negative-inactive-click",
+      "negative-late-activation-click",
+      "word-final",
+      "prepared-src/out/Default-initial-cache",
+      "prepared-src/out/Default-pre-ownership",
+      "prepared-src/out/Intel-pre-ownership"
+    ],
+    "preview_processes_exited": true,
+    "removed": true
+  },
+  "specific_github_issue": null,
+  "release_published": false,
+  "future_builds_only": true,
+  "detailed_evidence": ".work/focus-retention/",
+  "evidence_sha256": {
+    "activation-click-arm64.log": "262ff51786de5c6b08219a0dc64a386220d33f967f539721da62dadd8b4459ed",
+    "activation-click-x86_64.log": "262ff51786de5c6b08219a0dc64a386220d33f967f539721da62dadd8b4459ed",
+    "activation-input-lint.log": "942701ef0b7a1dc7883cdb8e0863dd2d5ed6784c1bd9adf7331e7352dce04b24",
+    "activation-replay.json": "a2b840d3498e2942f9d140321046780d9646a5902dff96b3d2ff7cd32b2c75d9",
+    "activation-click-negative-controls.json": "02ba825cfbb746881124a167c865c1881b200c40561037f83addd04d7440cda9",
+    "activation-signatures.log": "477b536e81ad12f38349e723a5bcd52b76a77ee18eb747ef428bc6762e571555",
+    "cleanup.json": "345ce3c7a1f52e0e2cdec434cb45bcaef90686fe06638b6bea10bad12d57dcd0"
+  },
+  "source_publication": {
+    "repository": "leebyron/lune-browser",
+    "branch": "refs/heads/features/app-switch-native-focus",
+    "head": "e29310e346235dce9ece48c7e283510a870ca2f6",
+    "input_tag": "refs/tags/inputs/app-switch-focus-7/macos",
+    "peeled_tag": "e29310e346235dce9ece48c7e283510a870ca2f6"
+  }
+}
