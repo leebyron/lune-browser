@@ -15,9 +15,9 @@
 --- a/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
 +++ b/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
 @@ -159,7 +159,13 @@
-
+ 
  @end
-
+ 
 -@implementation BrowserNativeWidgetWindow
 +@implementation BrowserNativeWidgetWindow {
 +  BOOL _appKitFullscreenOverlaySuppressed;
@@ -26,13 +26,13 @@
 +  BOOL _savedToolbarWindowIgnoresMouseEvents;
 +  BOOL _savedToolbarFrameHidden;
 +}
-
+ 
  @synthesize thinTitlebarViewController = _thinTitlebarViewController;
-
+ 
 @@ -235,4 +241,48 @@
        setAlwaysShowTrafficLights:alwaysShow];
  }
-
+ 
 +- (void)setAppKitFullscreenOverlaySuppressed:(BOOL)suppressed {
 +  _appKitFullscreenOverlaySuppressed = suppressed;
 +  [self updateAppKitFullscreenOverlay];
@@ -267,7 +267,7 @@
 @@ -20,6 +20,19 @@
    }
  }
-
+ 
 +if (is_mac) {
 +  source_set("fullscreen_window_controls_mac") {
 +    sources = [
@@ -289,7 +289,7 @@
 @@ -169,6 +169,9 @@
    // them in the layout for exclusion area calculations.
    virtual void SetCaptionButtonsOpacity(float opacity) {}
-
+ 
 +  // Updates the bounds and visibility of Helium Fullscreen window controls.
 +  virtual void UpdateHeliumFullscreenWindowControls() {}
 +
@@ -300,28 +300,28 @@
 +++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
 @@ -26,6 +26,11 @@
  }
-
+ 
  @class FullscreenToolbarController;
 +@class HeliumFullscreenWindowControls;
 +
 +namespace views {
 +class NativeViewHost;
 +}
-
+ 
  class CaptionButtonPlaceholderContainer;
-
+ 
 @@ -67,6 +72,7 @@
    void UpdateMinimumSize() override;
    void WindowControlsOverlayEnabledChanged() override;
    void SetCaptionButtonsOpacity(float opacity) override;
 +  void UpdateHeliumFullscreenWindowControls() override;
-
+ 
    // views::View:
    gfx::Size GetMinimumSize() const override;
 @@ -93,6 +99,10 @@
    FRIEND_TEST_ALL_PREFIXES(BrowserFrameViewMacTest,
                             GetCaptionButtonPlaceholderBounds);
-
+ 
 +  // Whether this fullscreen session uses Helium Fullscreen window controls.
 +  // Content fullscreen temporarily hides them without changing this result.
 +  bool ShouldUseHeliumFullscreenWindowControls() const;
@@ -330,9 +330,9 @@
    // slide down menu bar at the very top in full screen.
    int TopUIFullscreenYOffset() const;
 @@ -121,6 +131,11 @@
-
+ 
    FullscreenToolbarController* __strong fullscreen_toolbar_controller_;
-
+ 
 +  // Child view hosting the native controls across fullscreen sessions.
 +  // The native controls are released when fullscreen ends.
 +  raw_ptr<views::NativeViewHost> helium_fullscreen_controls_host_ = nullptr;
@@ -366,10 +366,10 @@
 +#include "ui/views/controls/native/native_view_host.h"
  #include "ui/views/layout/layout_types.h"
  #include "ui/views/widget/widget.h"
-
+ 
 @@ -119,6 +122,10 @@
  }
-
+ 
  BrowserFrameViewMac::~BrowserFrameViewMac() {
 +  [helium_fullscreen_controls_ restoreTitlebarButtons];
 +  if (helium_fullscreen_controls_host_) {
@@ -381,7 +381,7 @@
 @@ -163,14 +170,11 @@
      return;
    }
-
+ 
 +  // Update the toolbar style before entering or leaving fullscreen.
 +  UpdateFullscreenTopUI();
    if (GetBrowserView()->IsFullscreen()) {
@@ -396,7 +396,7 @@
    }
    GetBrowserView()->DeprecatedLayoutImmediately();
 @@ -215,7 +219,10 @@
-
+ 
  BrowserLayoutParams BrowserFrameViewMac::GetBrowserLayoutParams() const {
    auto params = BrowserFrameView::GetBrowserLayoutParams();
 -  if (GetBrowserView()->IsFullscreen()) {
@@ -409,7 +409,7 @@
      // caption area to ensure that the toolbar renders correctly (this is kind
 @@ -369,6 +376,7 @@
  }
-
+ 
  void BrowserFrameViewMac::SetCaptionButtonsOpacity(float opacity) {
 +  helium_fullscreen_controls_.alphaValue = opacity;
    NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
@@ -418,7 +418,7 @@
 @@ -380,6 +388,78 @@
    }
  }
-
+ 
 +bool BrowserFrameViewMac::ShouldUseHeliumFullscreenWindowControls() const {
 +  const auto* browser_view = GetBrowserView();
 +  return browser_view->GetIsNormalType() && browser_view->IsFullscreen();
@@ -493,10 +493,10 @@
 +
  ///////////////////////////////////////////////////////////////////////////////
  // BrowserFrameViewMac, views::FrameView implementation:
-
+ 
 @@ -405,6 +485,13 @@
  }
-
+ 
  int BrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
 +  if (helium_fullscreen_controls_host_ &&
 +      helium_fullscreen_controls_host_->IsDrawn() &&
@@ -511,7 +511,7 @@
 @@ -580,9 +667,14 @@
      menu_bar_height = 0;
    }
-
+ 
 -  CGFloat title_bar_height =
 -      NSHeight([NSWindow frameRectForContentRect:NSZeroRect
 -                                       styleMask:NSWindowStyleMaskTitled]);
@@ -534,14 +534,14 @@
    bool zen_mode_enabled_ = false;
 +  // Ignore hover changes during native macOS fullscreen transitions.
 +  bool zen_reveal_paused_ = false;
-
+ 
    mutable base::WeakPtrFactory<BrowserView> weak_ptr_factory_{this};
  };
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -1989,7 +1989,7 @@
  }
-
+ 
  void BrowserView::StartZenCollapseTimer(base::TimeDelta delay) {
 -  if (zen_cursor_exit_timer_.IsRunning()) {
 +  if (zen_reveal_paused_ || zen_cursor_exit_timer_.IsRunning()) {
@@ -550,26 +550,26 @@
    zen_cursor_exit_timer_.Start(
 @@ -2018,7 +2018,7 @@
  }
-
+ 
  void BrowserView::UpdateZenModeRevealFromCursor() {
 -  if (!zen_mode_enabled_) {
 +  if (!zen_mode_enabled_ || zen_reveal_paused_) {
      return;
    }
-
+ 
 @@ -2064,7 +2064,7 @@
  }
-
+ 
  void BrowserView::UpdateZenModeReveal(bool reveal_top, bool reveal_side) {
 -  if (!zen_mode_enabled_) {
 +  if (!zen_mode_enabled_ || zen_reveal_paused_) {
      return;
    }
-
+ 
 @@ -2933,6 +2933,13 @@
      return;
    }
-
+ 
 +#if BUILDFLAG(IS_MAC)
 +  // Keep hovered chrome revealed while AppKit moves the window underneath
 +  // the cursor. Ignore hover changes until the native transition completes.
@@ -581,17 +581,17 @@
      PrepareFullscreen(IsFullscreen());
    } else {
 @@ -2977,7 +2984,6 @@
-
+ 
    multi_contents_view_->SetProperty(views::kWidgetForAnchoringKey,
                                      widget_for_anchoring);
 -  GetFrameView()->OnFullscreenStateChanged();
-
+ 
    // Reopen a popup that `OmniboxPopupView::OnFullscreenTransitionStarting()`
    // closed for the transition. This runs after entering and after exiting, as
 @@ -2999,6 +3005,12 @@
        ->fullscreen_controller()
        ->WindowFullscreenStateChanged();
-
+ 
 +#if BUILDFLAG(IS_MAC)
 +  // Exclusive access must clear its tab fullscreen state before the frame
 +  // chooses the toolbar style for the completed window transition.
@@ -599,21 +599,21 @@
 +#endif
 +
    multi_contents_view_->OnFullscreenStateChanged();
-
+ 
    if (base::FeatureList::IsEnabled(features::kAsyncFullscreenWindowState)) {
 @@ -3014,6 +3026,10 @@
      }
    }
-
+ 
 +#if BUILDFLAG(IS_MAC)
 +  zen_reveal_paused_ = false;
 +  zen_last_cursor_.reset();
 +#endif
    UpdateZenModeState();
  }
-
+ 
 @@ -5592,14 +5608,22 @@
-
+ 
  void BrowserView::Layout(PassKey) {
    TRACE_EVENT0("ui", "BrowserView::Layout");
 -  // Do not perform layout if the view is not yet initialized, in fullscreen
@@ -626,7 +626,7 @@
        (browser_widget_ && browser_widget_->IsClosed())) {
      return;
    }
-
+ 
 +  // Allow layout during AppKit fullscreen transitions so the compositor can
 +  // render the updated geometry. Other platforms defer it until the transition
 +  // completes.
@@ -640,19 +640,19 @@
            features::kDeferLayoutDuringBrowserStartup) &&
        startup_layout_state_ == StartupLayoutState::kDeferring &&
 @@ -5646,6 +5670,7 @@
-
+ 
    // TODO(jamescook): Why was this in the middle of layout code?
    toolbar_->location_bar()->UpdateFocusBehavior(IsToolbarVisible());
 +  GetFrameView()->UpdateHeliumFullscreenWindowControls();
    GetFrameView()->UpdateMinimumSize();
-
+ 
    if (omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 @@ -394,6 +394,17 @@
        break;
    }
-
+ 
 +#if BUILDFLAG(IS_MAC)
 +  if (is_fullscreen(layout_data_->window_state)) {
 +    info.multi_contents_separator = has_infobar;
@@ -666,7 +666,7 @@
 +
    return info;
  }
-
+ 
 --- a/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.cc
 @@ -164,6 +164,11 @@
@@ -696,4 +696,4 @@
 -  }
    return content_dip_size_ != compositor_frame_dip_size_;
  }
-
+ 
