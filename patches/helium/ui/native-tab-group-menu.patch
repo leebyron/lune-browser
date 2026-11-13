@@ -645,6 +645,36 @@
  bool TabGroupView::IsDragging() const {
    if (!collection_node_ || !collection_node_->GetController()) {
      return false;
+@@ -343,6 +349,16 @@
+   const bool has_collapse_state_changed =
+       tab_group_visual_data_.is_collapsed() !=
+       tab_group_data.visual_data.is_collapsed();
++  const bool has_pin_state_changed = tab_group_visual_data_.is_pinned() !=
++                                     tab_group_data.visual_data.is_pinned();
++  // Pinning can move only the section boundary, without reordering any model
++  // children. Enable animation before header updates invalidate the layout.
++  std::optional<base::AutoReset<bool>> allow_animation;
++  if (has_collapse_state_changed || has_pin_state_changed) {
++    allow_animation.emplace(
++        collection_node_->GetController()->ScopedAnimateLayout());
++  }
++
+   tab_group_visual_data_ = tab_group_data.visual_data;
+   if (unfocus_header_) {
+     unfocus_header_->SetVisible(IsGroupFocused());
+@@ -351,12 +367,6 @@
+   }
+   group_header_->OnDataChanged(tab_group_data);
+ 
+-  std::optional<base::AutoReset<bool>> allow_animation;
+-  if (has_collapse_state_changed) {
+-    allow_animation.emplace(
+-        collection_node_->GetController()->ScopedAnimateLayout());
+-  }
+-
+   // If the tab group is not collapsed (or if we are not animating the collapse)
+   // update child visibility immediately.
+   if (!tab_group_visual_data_.is_collapsed() || !ShouldAnimateLayout()) {
 --- a/chrome/browser/ui/views/tabs/common/tab_group_view.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_group_view.h
 @@ -67,6 +67,7 @@
