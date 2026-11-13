@@ -23,3 +23,13 @@ Strict patch-target replay next stopped in `helium/core/noise/core.patch`: Chrom
 ## Scoped storage exception
 
 The owner authorized a one-time 170 GiB source-preparation floor when continuing on November 13, after the approved historical cleanup left approximately 179 GiB free. This exception applies only to preparing Chromium 158.0.8127.37 for this release. The normal 200 GiB policy remains unchanged, as do the 80 GiB pre-build floor and every source/build/signing/runtime/update/publication gate. The [machine-readable exception](2026-11-13-preparation-storage-exception.json) retains the exact selected component identities.
+
+## Complete patch port and clean-generation repair
+
+All 579 ordered patches replay through quilt with `--fuzz=0` and the same whitespace matching used by upstream preparation. Every original series entry remains present. The failed initial full preparation stopped on Settings template changes before allocation; its log is retained. The subsequent quilt pass is patch validation, not a completed clean preparation. The final input must complete another fresh archive-backed pipeline before version allocation.
+
+Core commit `0200065f` refreshes seven patches: Autofill remains disabled after Chromium removed Lit cache wrappers; the search-results help link remains removed after the wrapper header changed; new Google searchbox state is removed with the existing unsupported searchbox; toolbar retrieval callbacks and new icon helpers are preserved around the existing pin/anchor/native-action behavior; the progress dependency and hide-actions flag keep their original placement and behavior.
+
+macOS commit `544cfe64` preserves the new fullscreen popup reshow and cursor-eligibility helpers while retaining the existing Lune frame/cursor behavior and native toolbar symbols. Commit `c67f2344` fixes a latent clean-preparation failure: the toolbar patch previously tried to edit absent generated `strings.ts`. The [byte-equivalence check](2026-11-13-toolbar-generated-module-equivalence.json) proves all three generated hunks exactly match regeneration from the patch's canonical XML changes. The redundant generated-output hunks are removed; source XML, types/getters, labels, preferences and UI behavior remain represented. The normal post-patch generation step creates the module. Separate Lune commit `26d570dd` refreshes only disclosure-file position/end-of-file context; the canonical feed and disclosure stay unchanged.
+
+The refreshed patches were developed in the prepared Chromium source with quilt and exported using upstream platform unmerge. No browser feature or series entry was dropped, and no fuzzy application was accepted. Both architectures and all runtime/update/publication gates remain pending.

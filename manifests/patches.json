@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "4686c6621a3123105dbe56f24f6fa35d49ed9075",
+    "commit": "26d570dd386e24948dcaf869eacaee3ce6de7c2c",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -348,7 +348,7 @@
       },
       {
         "path": "patches/helium/ui/resize-cursor-ownership.patch",
-        "sha256": "36cf148c216406942af0ffae023d78384dbb12e07eaa0e828076ea85c9b554f1"
+        "sha256": "49e8532ce3b39cfdf52e2ede793f08c467f28b328f5d8fef48d7ea4c89bc614a"
       },
       {
         "path": "patches/helium/ui/native-tracking-cursor-and-popover-clip.patch",
@@ -376,7 +376,7 @@
       },
       {
         "path": "patches/helium/ui/synchronous-native-window-resize.patch",
-        "sha256": "475e1e782a70219c58f867315db8a49ad463f7e476cdcccf8b834c40b3f0dbd6"
+        "sha256": "b68d9e04dbb75e066538a9a1f9655fbc46c34f6e1ab4f87d77ca15e2a5473151"
       },
       {
         "path": "patches/helium/ui/floating-toolbar-content-opacity.patch",
@@ -420,7 +420,7 @@
       },
       {
         "path": "patches/helium/ui/native-toolbar-symbols.patch",
-        "sha256": "300e7d1cdc9b47cd74f1a1d35e6284c4ef8e08a4ab0cd9028d4c476d7f7478d8"
+        "sha256": "348c1ec940f06a0ccc6b520dcb6a0ee43d25e9dde948ca542d7bfb26a77826ad"
       },
       {
         "path": "patches/helium/ui/floating-toolbar-layout.patch",
@@ -708,7 +708,7 @@
       },
       {
         "path": "patches/lune/canonical-update-repository.patch",
-        "sha256": "b9141d4bc20e39935d8b46f49ad589bdb6eb3b4c2dc1c25af23c738e478869f9"
+        "sha256": "12f1f6633c411686d645c72feebf14cd4ca3bcdda21e3a0ed49b167878ce0b8a"
       },
       {
         "path": "patches/helium/ui/command-bar-search-suggestions.patch",
@@ -816,7 +816,7 @@
       },
       {
         "path": "patches/helium/ui/toolbar-not-on-hover.patch",
-        "sha256": "c57d589a644e27f74fdc286a20255246c59f3fa856931952673646f45dfa0658"
+        "sha256": "f3131c3083165a91d5d8eaa5c1c0b96f33a8722be277150c11a55bf8883308d2"
       },
       {
         "path": "patches/helium/ui/remove-session-restore-notice.patch",
@@ -1121,7 +1121,7 @@
       ],
       "review_status": "reviewed-port",
       "rationale": "Use public AppKit glass for an editable omnibox and native navigation, retaining Chromium extension/menu controls in a child widget. Honor profile appearance with OS fallback, standard traffic-light spacing, 48 pt hover retention, native dragging and sidebar menus. The current macOS frame uses a 16 pt perimeter, edge-to-edge content, a flush square full-width glass sidebar, a pinned semantic separator, and a 52 pt header with 36 pt controls and 8 pt outer insets. Reveal uses 8 pt windowed bands and 4 top/1 side physical pixels fullscreen. Both sidebar modes follow the fullscreen menu bar. Native hit routing preserves window resizing; live resize retains existing header/sidebar presentation. Shut down autocomplete before profile teardown. Use the existing synchronous Chromium resize path and remove unsuccessful custom cursor tracking and sidebar-coordinate workarounds; cursor flicker remains unresolved and is deferred in GitHub issue #5. Fade trailing toolbar contents instead of NSWindow alpha, which Chromium owns for compositor visibility. Keep the sidebar toggle within its sidebar and preserve tab interactions, inner-edge resizing, theme semantics and customization panel input exclusions. Retain already revealed chrome for the native green-button menu using its owning button remote-view lifecycle and in-process menu tracking fallback.",
-      "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits. Native window-menu retention checks the remote helper running flag because AppKit can cache an idle attached helper."
+      "adaptation": "Locally authored reusable macOS feature, separate from distribution branding; see agent-docs/project/features/floating-address-bar.md for the desktop design reference and validation limits. Native window-menu retention checks the remote helper running flag because AppKit can cache an idle attached helper. Chromium 158.0.8127.37 preparation refreshes patch context with quilt; toolbar hover TypeScript is generated from its canonical XML, with exact byte-equivalence evidence in the November 13 port review."
     },
     {
       "id": "frame-thickness-label",
@@ -1245,7 +1245,7 @@
       ],
       "review_status": "reviewed-port",
       "rationale": "Honor toolbar preferences, native symbols, navigation menus, address layout and Site Information dismissal.",
-      "adaptation": "Previously reviewed platform commits retained without source changes; see agent-docs/project/features/trailing-toolbar-controls.md and reviewed-ui-integration.md.",
+      "adaptation": "Previously reviewed platform commits retained without source changes; see agent-docs/project/features/trailing-toolbar-controls.md and reviewed-ui-integration.md. Chromium 158.0.8127.37 preparation refreshes patch context with quilt; toolbar hover TypeScript is generated from its canonical XML, with exact byte-equivalence evidence in the November 13 port review.",
       "commits": [
         "dacfaa17e63af2b37c25020e72e059b2b09d0036",
         "417cf7a54d4315d9abe562fd7177a69ceff2b982",
@@ -1866,7 +1866,7 @@
       ],
       "review_status": "reviewed-port",
       "rationale": "Use canonical lune-browser GitHub Sparkle feeds and disclose GitHub browser-update delivery separately from optional Helium services.",
-      "adaptation": "Developed with quilt and refreshed/unmerged into the macOS platform. Owner accepted Lune Update Test on November 10, 2026. Both browser builds, native menu/state fixtures and UI/settings/persistence smoke checks pass (Intel under Rosetta); strict replay matches all twelve changed source files. See agent-docs/project/features/app-menu-update-check.md.",
+      "adaptation": "Developed with quilt and refreshed/unmerged into the macOS platform. Owner accepted Lune Update Test on November 10, 2026. Both browser builds, native menu/state fixtures and UI/settings/persistence smoke checks pass (Intel under Rosetta); strict replay matches all twelve changed source files. See agent-docs/project/features/app-menu-update-check.md. Chromium 158.0.8127.37 preparation refreshes patch context with quilt; toolbar hover TypeScript is generated from its canonical XML, with exact byte-equivalence evidence in the November 13 port review.",
       "commits": [
         "9ceaaad8a2f71ece40aab464c6504ee1f356312f"
       ]
@@ -2299,7 +2299,7 @@
       ],
       "review_status": "reviewed-port",
       "rationale": "Offer On hover edge and On hover sidebar, disabling only page-edge entry in the sidebar mode while preserving sidebar-header and engaged-control reveals.",
-      "adaptation": "Prepared-source quilt patch refreshed and unmerged. Native menu, Settings and setup use the exact requested labels, with the sidebar mode last. Setup still excludes experimental cover. Strict changed-file replay, both browser builds, production-expression fixtures, packaged Settings/default/persistence and setup checks pass; Intel runs under Rosetta. The final native menu labels were inspected on Apple silicon. See agent-docs/project/builds/2026-11-12-toolbar-hover-options.json for source scope and test-update isolation.",
+      "adaptation": "Prepared-source quilt patch refreshed and unmerged. Native menu, Settings and setup use the exact requested labels, with the sidebar mode last. Setup still excludes experimental cover. Strict changed-file replay, both browser builds, production-expression fixtures, packaged Settings/default/persistence and setup checks pass; Intel runs under Rosetta. The final native menu labels were inspected on Apple silicon. See agent-docs/project/builds/2026-11-12-toolbar-hover-options.json for source scope and test-update isolation. Chromium 158.0.8127.37 preparation refreshes patch context with quilt; toolbar hover TypeScript is generated from its canonical XML, with exact byte-equivalence evidence in the November 13 port review.",
       "commits": [
         "af297bc814a9dba21e27433a9e1d3794844f2d6b"
       ]
