@@ -1,6 +1,6 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -4831,6 +4831,6 @@
+@@ -4835,6 +4835,6 @@
      Allow Lune to connect to Helium-hosted services. These requests stay disabled until you consent. Browser updates are controlled separately.
    </message>
    <message name="IDS_LUNE_SERVICES_UPDATES" desc="Lune service provider and update disclosure.">
@@ -8,11 +8,10 @@
 +    Browser updates are delivered by Lune through GitHub. Keep this enabled to receive security fixes. Component updates also require Helium services to be enabled.
    </message>
  </grit-part>
-\ No newline at end of file
 --- a/components/helium_services/helium_services_helpers.cc
 +++ b/components/helium_services/helium_services_helpers.cc
 @@ -29,7 +29,7 @@
- 
+
  #if defined(UPDATES_SUPPORTED)
  constexpr std::string_view kUpdateBaseUrl =
 -    "https://raw.githubusercontent.com/leebyron/lune-downloads/main/updates/stable/";
