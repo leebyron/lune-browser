@@ -157,10 +157,7 @@ surfaces use the dark tile. Web SVGs, onboarding and default browser colors
 follow light/dark mode. Custom themes, chosen accent colors and accessibility
 palettes retain precedence. See [implementation and validation](../agent-docs/project/features/day-night-branding.md).
 
-`resources/lune_resources.txt` runs after upstream resource replacement. The
-Chromium 158 integration candidate overrides all 34 upstream browser-logo
-destinations plus onboarding's favicon and SVG. Its `lune/internal-icons.patch`
-uses that SVG in welcome, services, import, and finish screens. The main app and
+`resources/lune_resources.txt` runs after upstream resource replacement and overrides upstream browser-logo destinations plus onboarding's favicon and SVG. The browser's welcome, import and finish screens use Lune artwork. The Helium Services page deliberately retains its provider's Helium logo, as specified in the [onboarding design](../agent-docs/project/features/onboarding.md). The artwork audit permits only that provider mark and rejects upstream browser-logo references on the other onboarding pages. The main app and
 notification helpers use Lune's `.icns`; the unused Helium asset catalog is not
 bundled. The Helium partner badge keeps its upstream attribution as text, without
 claiming those partnerships support Lune.

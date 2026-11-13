@@ -14,6 +14,20 @@ def mappings(path):
                 if line.strip() and not line.lstrip().startswith('#'))
 
 
+def check_onboarding_logos(onboarding):
+    service_page = onboarding / 'pages/HeliumServices.svelte'
+    service_text = service_page.read_text()
+    if (service_text.count('HeliumLogo') != 2
+            or 'Icon={HeliumLogo}' not in service_text
+            or 'browserIcons.helium' in service_text):
+        raise SystemExit('Helium Services must retain its single provider logo')
+    for page in onboarding.rglob('*.svelte'):
+        if page == service_page:
+            continue
+        if any(token in page.read_text() for token in ('HeliumLogo', 'browserIcons.helium')):
+            raise SystemExit(f'Embedded upstream browser logo remains: {page}')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('platform', type=Path)
@@ -38,9 +52,7 @@ def main():
             raise SystemExit(f'Prepared resource differs from Lune input: {dest}')
         hashes[dest] = hashlib.sha256(expected).hexdigest()
     onboarding = args.source / 'components/helium_onboarding/src'
-    for page in onboarding.rglob('*.svelte'):
-        if any(token in page.read_text() for token in ('HeliumLogo', 'browserIcons.helium')):
-            raise SystemExit(f'Embedded upstream browser logo remains: {page}')
+    check_onboarding_logos(onboarding)
     mono = ET.parse(resources / 'lune/product_logo_mono.svg').getroot()
     webui = (args.source / 'ui/webui/resources/cr_elements/icons.html.ts').read_text()
     paths = re.findall(r'<g id="chrome-product" viewBox="0 0 300 300">\s*<path d="([^"]+)"', webui)
@@ -54,6 +66,7 @@ def main():
         raise SystemExit('Upstream macOS icon catalog is still a bundle input')
     print(json.dumps({'passed': True, 'resource_count': len(hashes),
                       'resources': hashes, 'shared_webui_icon_count': len(paths),
+                      'helium_service_provider_logo_count': 1,
                       'runtime_verified': False}, indent=2))
 
 
