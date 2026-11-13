@@ -23,3 +23,68 @@
  - (BOOL)acceptsFirstResponder {
    // Keep automatic window activation from silently starting URL editing.
    return self.userEditing;
+@@ -1602,6 +1618,48 @@
+   HeliumHeaderSymbolButton* _reload;
+ }
+ 
++- (void)resetCursorRects {
++  if (!_address.userEditing) {
++    [super resetCursorRects];
++    return;
++  }
++  const NSRect text = NSIntersectionRect(
++      self.bounds, [self convertRect:_address.bounds fromView:_address]);
++  if (NSIsEmptyRect(text)) {
++    [super resetCursorRects];
++    return;
++  }
++  // The glass owns the surrounding arrow regions. Do not cover its native
++  // editor with the inherited whole-capsule arrow during structural updates.
++  const NSRect bounds = self.bounds;
++  const NSRect arrows[] = {
++      NSMakeRect(NSMinX(bounds), NSMinY(bounds), NSWidth(bounds),
++                 NSMinY(text) - NSMinY(bounds)),
++      NSMakeRect(NSMinX(bounds), NSMaxY(text), NSWidth(bounds),
++                 NSMaxY(bounds) - NSMaxY(text)),
++      NSMakeRect(NSMinX(bounds), NSMinY(text),
++                 NSMinX(text) - NSMinX(bounds), NSHeight(text)),
++      NSMakeRect(NSMaxX(text), NSMinY(text),
++                 NSMaxX(bounds) - NSMaxX(text), NSHeight(text))};
++  for (NSRect rect : arrows) {
++    if (!NSIsEmptyRect(rect)) {
++      [self addCursorRect:rect cursor:NSCursor.arrowCursor];
++    }
++  }
++  [self addCursorRect:text cursor:NSCursor.IBeamCursor];
++}
++- (void)mouseMoved:(NSEvent*)event {
++  // NSTextView sets its cursor, then forwards mouseMoved up this responder
++  // chain. The chrome superclass would otherwise replace it with an arrow.
++  if ([_address hasActiveEditor] &&
++      NSPointInRect([_address convertPoint:event.locationInWindow fromView:nil],
++                    _address.bounds)) {
++    [NSCursor.IBeamCursor set];
++    return;
++  }
++  [super mouseMoved:event];
++}
++
+ - (instancetype)initWithBrowserView:(BrowserView*)browserView {
+   self = [super initWithFrame:NSMakeRect(0, 0, 480, 36)];
+   if (!self) {
+@@ -1880,6 +1938,7 @@
+   [self.window makeFirstResponder:_address];
+   _address.currentEditor.alignment = NSTextAlignmentLeft;
+   [_address selectText:nil];
++  [self.window invalidateCursorRectsForView:self];
+   // Animate the editor's containing layer, not NSTextField's frame. AppKit
+   // owns a separate field editor whose geometry otherwise lags behind frame
+   // animation, leaving the selection at its old position or clipping it out.
+@@ -2017,6 +2076,7 @@
+   _scopePill.hidden = YES;
+   _address.frame = _addressContainer.bounds;
+   _address.userEditing = NO;
++  [self.window invalidateCursorRectsForView:self];
+   _autocomplete->Stop(AutocompleteStopReason::kClobbered);
+   _results.clear();
+   for (NSButton* button in _suggestions) {
