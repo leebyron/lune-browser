@@ -1,0 +1,111 @@
+{
+  "date": "2026-11-13",
+  "timezone": "America/Los_Angeles",
+  "feature": "expanded-group-separator",
+  "component": {
+    "commit": "cc1132cbbe1b2edf19c1fe6b234693a466126abd",
+    "tree": "0840754c3d0cd7f03bb271bddb8919b7c0a0fe4c",
+    "base": "60d037df61f275ec2edff170da907308a0fe3c54",
+    "ref": "refs/tags/inputs/expanded-group-separator-1/macos",
+    "patch_sha256": "9445f0c694a2da96f66abe66d7d2fb66554747538cb5c919afbba2335ae2e0a0"
+  },
+  "core": "49bdc572bee38436250f9058351c8a328cd8c8ad",
+  "source_replay": {
+    "base": "60d037df61f275ec2edff170da907308a0fe3c54",
+    "ordered_parent_patches": [
+      "helium/ui/sidebar-tab-row-style.patch",
+      "helium/ui/automatic-older-tabs.patch",
+      "helium/ui/neutral-tab-groups.patch",
+      "helium/ui/older-tabs-collapse-animation.patch",
+      "helium/ui/older-tabs-weekday-headings.patch",
+      "helium/ui/sidebar-scroll-content-layout.patch",
+      "helium/ui/pinned-tab-groups.patch"
+    ],
+    "parent_offsets": [],
+    "fuzz": 0,
+    "feature_offsets": 0,
+    "patch_sha256": "9445f0c694a2da96f66abe66d7d2fb66554747538cb5c919afbba2335ae2e0a0",
+    "source_hashes": {
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h": "0225dc59b2b6fa9bd12c2e8185a2bb50bce0aa7d602f931802bbd5adc153accc",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "a31171545a12514b17795c2699b7ef864660eaf45f41539352a8c50f423c06dc",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "cef26eed65cb521c8b821dbe17d3b1a033fa5d66808f525997e764d162af9a60"
+    }
+  },
+  "architectures": {
+    "arm64": {
+      "build_passed": true,
+      "source_unchanged_during_build": true,
+      "seconds": 135.23821045737714,
+      "framework_sha256": "291bd2d47b873fa9f2d8dc642413cf7ae05a201251da8ec93866ad263e7e63d0",
+      "framework_uuid": "4C4C441B-5555-3144-A1C7-C30EE1523CFB",
+      "smoke_passed": true,
+      "smoke_report_sha256": "4df7ed4a3415e679a25a2e58ba1e0d05de360470659312e588b743fe29baac2f",
+      "ui_and_settings": true,
+      "runtime": "native arm64"
+    },
+    "x86_64": {
+      "build_passed": true,
+      "source_unchanged_during_build": true,
+      "seconds": 162.39120070822537,
+      "framework_sha256": "c0ed35eb985eb91ab18f8158736bbde1bb59a15cc542a297138e27ee316a4205",
+      "framework_uuid": "4C4C4490-5555-3144-A1DF-A9D65ADA4108",
+      "smoke_passed": true,
+      "smoke_report_sha256": "909b856bcd7de96f98ad2860f2bf9409a9d9ccf608b071bc3b5966915e4c5e9b",
+      "ui_and_settings": true,
+      "runtime": "Rosetta on arm64"
+    }
+  },
+  "owner_acceptance": {
+    "date": "2026-11-13",
+    "device": "physical Apple silicon Mac",
+    "accepted": true,
+    "scope": "Preview appearance accepted; owner requested shipment"
+  },
+  "native_observations": {
+    "rule_after_expanded_group_followed_by_ungrouped_tab": true,
+    "no_rule_between_adjacent_groups": true,
+    "initial_group_creation_did_not_crash": true,
+    "owner_is_actively_reviewing": false,
+    "collapse_removes_rule": true,
+    "expansion_restores_rule": true,
+    "closing_final_group_member_removes_rule_without_crash": true,
+    "unpin_uses_group_to_loose_tab_rule": true,
+    "pin_returns_to_single_section_rule": true
+  },
+  "preview_framework_uuid": "4C4C441B-5555-3144-A1C7-C30EE1523CFB",
+  "tooling_tests": {
+    "passed": true,
+    "count": 73
+  },
+  "cleanup": {
+    "normal_review_browser_exit": true,
+    "review_driver_exited": true,
+    "task_browser_processes_absent": true,
+    "removed": [
+      ".work/expanded-group-separator/Lune Group Separator Preview.app",
+      ".work/expanded-group-separator/native/profile",
+      ".work/expanded-group-separator/native/extension",
+      ".work/expanded-group-separator/native2/profile",
+      ".work/expanded-group-separator/native2/extension",
+      ".work/expanded-group-separator/platform",
+      ".work/expanded-group-separator/before",
+      ".work/expanded-group-separator/archive",
+      ".work/expanded-group-separator/locked-replay",
+      ".work/expanded-group-separator/native",
+      ".work/expanded-group-separator/native2"
+    ],
+    "source_and_incremental_caches_retained": true,
+    "active_quilt_stack_retained": true
+  },
+  "issue": null,
+  "release_or_deployment": false,
+  "limits": [
+    "Intel execution uses Rosetta; no physical Intel check.",
+    "No full Older Tabs/date-heading, split-row, focused/narrow/hover sidebar or detached-drag matrix is claimed."
+  ],
+  "publication": {
+    "component_ref": "refs/tags/inputs/expanded-group-separator-1/macos",
+    "component_remote_verified": true,
+    "selected_for_future_main_builds": true
+  }
+}

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "60d037df61f275ec2edff170da907308a0fe3c54",
+    "commit": "cc1132cbbe1b2edf19c1fe6b234693a466126abd",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -857,6 +857,10 @@
       {
         "path": "patches/helium/ui/native-tab-group-menu.patch",
         "sha256": "2ded742614af6732c1602e43861419cf073a276493899f1ea6f08013bc7730eb"
+      },
+      {
+        "path": "patches/helium/ui/expanded-group-separator.patch",
+        "sha256": "9445f0c694a2da96f66abe66d7d2fb66554747538cb5c919afbba2335ae2e0a0"
       }
     ]
   },
@@ -2461,6 +2465,22 @@
         "099e23626a7a3dc700b7717aebdeb9180d0229b8",
         "fd7457e7884178cbefe51b55f0c9846023f443ee",
         "60d037df61f275ec2edff170da907308a0fe3c54"
+      ]
+    },
+    {
+      "id": "expanded-group-separator",
+      "depends_on": [
+        "pinned-tab-groups",
+        "native-tab-group-menu"
+      ],
+      "patches": [
+        "patches/helium/ui/expanded-group-separator.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Separate an expanded group from an immediately following ungrouped tab with the existing pinned-divider appearance.",
+      "adaptation": "Three-file prepared-source quilt patch. The vertical container owns stable presentation rules using its inherited view observer; the layout derives adjacency from visible rows and reuses exact pinned-rule geometry. Collapsed/adjacent groups, section/date headings and the end of the list do not create rules; the pinned boundary is not duplicated. Rules are excluded from focus and event handling and do not become model or drag nodes. Owner accepted the native Apple silicon preview on November 13, 2026 and requested shipment. Strict archive-backed replay through seven parent patches, patch lint, both builds, UI/Settings/browsing/persistence smoke and 73 tooling tests pass. Intel runs under Rosetta. Native checks cover collapse/re-expand, final-member closure and pin/unpin transitions. See agent-docs/project/builds/2026-11-13-expanded-group-separator.json for scope and limits.",
+      "commits": [
+        "cc1132cbbe1b2edf19c1fe6b234693a466126abd"
       ]
     }
   ],
