@@ -40,6 +40,7 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [Reviewed UI development integration](reviewed-ui-integration.md)
 - [Sidebar footer](sidebar-footer.md)
 - [Neutral sidebar groups](sidebar-groups.md)
+- [Leading emoji in group titles](tab-group-emoji.md)
 - [Sidebar new-tab placement](sidebar-new-tab.md)
 - [Sidebar pin activation](sidebar-pin-activation.md)
 - [Startup default](startup-default.md)

@@ -1,0 +1,279 @@
+{
+  "date": "2026-11-12",
+  "timezone": "America/Los_Angeles",
+  "feature": "Single leading emoji in vertical group headers",
+  "component": {
+    "base": "99ca9faf1ae2e4b511cd952728adaa70c165faae",
+    "commit": "cdea745ea5600098e382a7a3c13dc5652b20fd39",
+    "tree": "c402d33f9c6d032a43fc39faa520d7b3702b94d6",
+    "ref": "refs/tags/inputs/tab-group-emoji-1/macos",
+    "patch_sha256": "e537bed331782bee6726e579ea035561517474912541d97bb77ee5af41aba733"
+  },
+  "behavior": {
+    "font_dip": 16,
+    "full_opacity": true,
+    "eligibility": "Name starts with an emoji and contains exactly one emoji grapheme overall; multiple emoji retain the ordinary full label.",
+    "favicon_canvas_dip": 16,
+    "favicon_leading_inset_dip": 9,
+    "title_leading_inset_dip": 32,
+    "stored_title_unchanged": true
+  },
+  "source_replay": {
+    "base": "99ca9faf1ae2e4b511cd952728adaa70c165faae",
+    "passed": true,
+    "fuzz": 0,
+    "feature_offsets": 0,
+    "ordered_parent_patches": [
+      "helium/ui/layout/vertical.patch",
+      "helium/ui/neutral-tab-groups.patch"
+    ],
+    "parent_offsets": [],
+    "files": {
+      "chrome/browser/ui/views/tabs/common/tab_group_header_view.cc": "34d95eaf628529d2cb749dedd1b3c08a18bc053d549682fda8747e62eaa55627",
+      "chrome/browser/ui/views/tabs/common/tab_group_header_view.h": "824bdb6e926ecb778d536673e02984d8a840999970a91f74eafabeb63cb52321"
+    },
+    "patch_sha256": "e537bed331782bee6726e579ea035561517474912541d97bb77ee5af41aba733",
+    "excludes": [
+      "pinned-tab-groups",
+      "caret-diagnostic-logging"
+    ]
+  },
+  "native": {
+    "passed": true,
+    "runtime": "native arm64 on physical Apple silicon Mac",
+    "revision": "main-16px-single-emoji-only-full-color-centered",
+    "observed": [
+      "Single leading emoji use the favicon column and ordinary tab title offset.",
+      "Emoji are 16 DIP and full color.",
+      "Adjacent emoji, separated emoji, and the owner-created two-flag title keep ordinary full-label rendering.",
+      "Emoji-only and a joined skin-tone sequence render as single icons.",
+      "Full original title remains exposed through accessibility."
+    ],
+    "preview_quit_normally": true,
+    "fixture": "final-fixture.json",
+    "scope": "Agent native inspection; owner accepted appearance and authorized final font/rule refinements and main adoption."
+  },
+  "architectures": {
+    "arm64": {
+      "build_passed": true,
+      "sources_unchanged_during_build": true,
+      "source_hashes": {
+        "chrome/app/generated_resources.grd": "6dcc310349f2720438c1ba2ed273952ea6978f1dfbef4016750a57198cd4bef8",
+        "chrome/browser/ui/browser_live_tab_context.cc": "08704e9ce8301e8e6d0286fa1f4ebd3683533c1bbd55f2e2fe81076008576400",
+        "chrome/browser/sessions/session_restore.cc": "2dfbeaeea9eab81bf42c701845215434b2458e530406df0b0242e2cc82e58db3",
+        "chrome/browser/ui/tabs/tab_strip_model.cc": "00472b700596a2eef01e0406795589cefb0a41fc3778b6cf7cd80260b79bc99f",
+        "chrome/browser/ui/tabs/tab_strip_model.h": "9af027a80b94016d3283882a12c086f40cedd7814f68a05b7403238c3cdeb65d",
+        "chrome/browser/ui/tabs/older_tabs_controller.cc": "52ef8e16daa23637454b58723f17cb6ede517f20eaed9a4ed848e4182aefbae3",
+        "chrome/browser/ui/views/frame/base_tab_strip_region_view.cc": "1d6bc568c0ddb662408741df04089300923af1ea8329b5c5ad2bd8e708fb5087",
+        "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.cc": "ac07a9579753a9034382b2138ce64482c32c5acf5f2a59e8187de26859225fcc",
+        "chrome/browser/ui/views/tabs/common/tab_strip_view.h": "d8b535b458d8749066868e5b3e003a9960194aa963461dc56bef941dad47a49a",
+        "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "d668e98ff1abc0656eb7d3ee7045f36f469addf0c98fe8ff76861dbe22eb87bb",
+        "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "e0d3eb8573773a33ad3344b4e204acf25715a047eef951a96bdf684a93cb714b",
+        "chrome/browser/ui/views/tabs/common/tab_group_view.cc": "76e286b70cdd62396f2df5c8079f411772d1ca3350fca949b444360fb31f3390",
+        "chrome/browser/ui/views/tabs/common/tab_drag_handler.h": "f9fef5948cb2b8874d2cefa52b5a57b4f895e4352ec3330ce78644d7b91e8977",
+        "chrome/browser/ui/views/tabs/common/tab_strip_view.cc": "ca8e343f08bb8bbd36c376b8ea82dca9163306821d89427141a860e90bb9521e",
+        "chrome/browser/ui/views/tabs/common/tab_collection_node.cc": "559d6d610792b8c3089d410465e47bf5c4a4ce669387cf266990f9c1156b1105",
+        "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h": "daaeea777a4814aa6c87e0d94d0425503a339edb64abfc49da7f8743436e5d36",
+        "chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc": "1eb9c19f065420dc2db19eae0694dec1c4e1147643cda1e85790c0c1d5e3b70d",
+        "components/tab_groups/tab_group_visual_data.h": "8e46b3f832d4a94f9a81c2ab519550fd068e785615b5cc21d6b48b22b7d02ed4",
+        "components/sessions/core/session_service_commands.cc": "3aae79e965de734673bf31c726fbd6a0db2de648b46f9d21203e86509830928e",
+        "chrome/browser/ui/views/tabs/common/tab_drag_handler.cc": "d29120e6e591a6cedb2841b0050bdf5799da3f28ff721a864d6ec22bfbca5c4a",
+        "chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc": "5205610aac2081d32516db497c8dbac529531e54cd59c7120cc6b08c9306434d",
+        "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc": "e65ab715f86f0c0e8fc2eb3090d4f428f155b6d43fcb1ed8cd6f4192b9fad87b",
+        "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.h": "16d4738abb685859bc7b3db4e667fbbd1942ee4c32d42525c57c53648973ac9f",
+        "components/sessions/core/tab_restore_service_impl.cc": "c1b5747e5431aaf54d5ff9a54276cee533e02d6f7bc2fd2620be1648ec6b0736",
+        "components/sessions/core/session_service_commands_unittest.cc": "c8eaaeddb40b85b90d02cec0cce9bda91a885ce73d2a1b4f1d1fb17c0622bc3b",
+        "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "5f2f7fc62b711b1262dd0597d01d4e79e6af0afb74d8243ea098c5283d8c57aa",
+        "chrome/browser/ui/views/tabs/groups/BUILD.gn": "bba1a7e726d1193910ef2871663c8f6de25772d58eaee76857536cef2f275b57",
+        "chrome/browser/ui/views/tabs/common/BUILD.gn": "ca830f9609a89766ca298a6bbda19a90271244692256e90dbf519ddcf92f144f",
+        "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h": "79e440289e6f25c7a9656821e934a0b3df928c18ece5f1bf07dea6cd516f023b",
+        "chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc": "0e3f00574614876915101f1400486d8dd1facb5260e3e0a25c9367f8d8af05ca",
+        "chrome/browser/ui/views/tabs/common/dragged_tabs_container.h": "eb12c41ca46531825e0e013e15193672013194e967156c50d09316c68ce1d62f",
+        "chrome/browser/ui/views/tabs/common/tab_group_view.h": "c4c31edbe851de2ae947c18e46db77d25d2a08d066253c3b41dec372abc319e3",
+        "chrome/browser/ui/views/tabs/common/tab_group_header_view.h": "824bdb6e926ecb778d536673e02984d8a840999970a91f74eafabeb63cb52321",
+        "chrome/browser/ui/views/tabs/common/tab_group_header_view.cc": "34d95eaf628529d2cb749dedd1b3c08a18bc053d549682fda8747e62eaa55627"
+      },
+      "regressions": {
+        "architecture": "arm64",
+        "execution": "native",
+        "production_helpers_sha256": "1ee3bb898abe04854367ffbcff1844a7b88b4d56a1842927a41fc26f55e05127",
+        "passed": true,
+        "exit_code": 0,
+        "output": "PASS 21 Unicode prefix cases and Unicode whitespace trimming\nPASS 10 production raster size, centering, clipping, full-color and opacity checks"
+      },
+      "smoke": {
+        "passed": true,
+        "framework_sha256": "a7d0b4ce5513bfa63ccb92f3547eeabb4ae5b2f1dfa0f9874b2c89a9090e4b9f",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "settings_and_ui": true
+      },
+      "runtime": "native arm64"
+    },
+    "x86_64": {
+      "build_passed": true,
+      "sources_unchanged_during_build": true,
+      "source_hashes": {
+        "chrome/app/generated_resources.grd": "6dcc310349f2720438c1ba2ed273952ea6978f1dfbef4016750a57198cd4bef8",
+        "chrome/browser/ui/browser_live_tab_context.cc": "08704e9ce8301e8e6d0286fa1f4ebd3683533c1bbd55f2e2fe81076008576400",
+        "chrome/browser/sessions/session_restore.cc": "2dfbeaeea9eab81bf42c701845215434b2458e530406df0b0242e2cc82e58db3",
+        "chrome/browser/ui/tabs/tab_strip_model.cc": "00472b700596a2eef01e0406795589cefb0a41fc3778b6cf7cd80260b79bc99f",
+        "chrome/browser/ui/tabs/tab_strip_model.h": "9af027a80b94016d3283882a12c086f40cedd7814f68a05b7403238c3cdeb65d",
+        "chrome/browser/ui/tabs/older_tabs_controller.cc": "52ef8e16daa23637454b58723f17cb6ede517f20eaed9a4ed848e4182aefbae3",
+        "chrome/browser/ui/views/frame/base_tab_strip_region_view.cc": "1d6bc568c0ddb662408741df04089300923af1ea8329b5c5ad2bd8e708fb5087",
+        "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.cc": "ac07a9579753a9034382b2138ce64482c32c5acf5f2a59e8187de26859225fcc",
+        "chrome/browser/ui/views/tabs/common/tab_strip_view.h": "d8b535b458d8749066868e5b3e003a9960194aa963461dc56bef941dad47a49a",
+        "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "d668e98ff1abc0656eb7d3ee7045f36f469addf0c98fe8ff76861dbe22eb87bb",
+        "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "e0d3eb8573773a33ad3344b4e204acf25715a047eef951a96bdf684a93cb714b",
+        "chrome/browser/ui/views/tabs/common/tab_group_view.cc": "76e286b70cdd62396f2df5c8079f411772d1ca3350fca949b444360fb31f3390",
+        "chrome/browser/ui/views/tabs/common/tab_drag_handler.h": "f9fef5948cb2b8874d2cefa52b5a57b4f895e4352ec3330ce78644d7b91e8977",
+        "chrome/browser/ui/views/tabs/common/tab_strip_view.cc": "ca8e343f08bb8bbd36c376b8ea82dca9163306821d89427141a860e90bb9521e",
+        "chrome/browser/ui/views/tabs/common/tab_collection_node.cc": "559d6d610792b8c3089d410465e47bf5c4a4ce669387cf266990f9c1156b1105",
+        "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h": "daaeea777a4814aa6c87e0d94d0425503a339edb64abfc49da7f8743436e5d36",
+        "chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc": "1eb9c19f065420dc2db19eae0694dec1c4e1147643cda1e85790c0c1d5e3b70d",
+        "components/tab_groups/tab_group_visual_data.h": "8e46b3f832d4a94f9a81c2ab519550fd068e785615b5cc21d6b48b22b7d02ed4",
+        "components/sessions/core/session_service_commands.cc": "3aae79e965de734673bf31c726fbd6a0db2de648b46f9d21203e86509830928e",
+        "chrome/browser/ui/views/tabs/common/tab_drag_handler.cc": "d29120e6e591a6cedb2841b0050bdf5799da3f28ff721a864d6ec22bfbca5c4a",
+        "chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc": "5205610aac2081d32516db497c8dbac529531e54cd59c7120cc6b08c9306434d",
+        "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc": "e65ab715f86f0c0e8fc2eb3090d4f428f155b6d43fcb1ed8cd6f4192b9fad87b",
+        "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.h": "16d4738abb685859bc7b3db4e667fbbd1942ee4c32d42525c57c53648973ac9f",
+        "components/sessions/core/tab_restore_service_impl.cc": "c1b5747e5431aaf54d5ff9a54276cee533e02d6f7bc2fd2620be1648ec6b0736",
+        "components/sessions/core/session_service_commands_unittest.cc": "c8eaaeddb40b85b90d02cec0cce9bda91a885ce73d2a1b4f1d1fb17c0622bc3b",
+        "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "5f2f7fc62b711b1262dd0597d01d4e79e6af0afb74d8243ea098c5283d8c57aa",
+        "chrome/browser/ui/views/tabs/groups/BUILD.gn": "bba1a7e726d1193910ef2871663c8f6de25772d58eaee76857536cef2f275b57",
+        "chrome/browser/ui/views/tabs/common/BUILD.gn": "ca830f9609a89766ca298a6bbda19a90271244692256e90dbf519ddcf92f144f",
+        "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h": "79e440289e6f25c7a9656821e934a0b3df928c18ece5f1bf07dea6cd516f023b",
+        "chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc": "0e3f00574614876915101f1400486d8dd1facb5260e3e0a25c9367f8d8af05ca",
+        "chrome/browser/ui/views/tabs/common/dragged_tabs_container.h": "eb12c41ca46531825e0e013e15193672013194e967156c50d09316c68ce1d62f",
+        "chrome/browser/ui/views/tabs/common/tab_group_view.h": "c4c31edbe851de2ae947c18e46db77d25d2a08d066253c3b41dec372abc319e3",
+        "chrome/browser/ui/views/tabs/common/tab_group_header_view.h": "824bdb6e926ecb778d536673e02984d8a840999970a91f74eafabeb63cb52321",
+        "chrome/browser/ui/views/tabs/common/tab_group_header_view.cc": "34d95eaf628529d2cb749dedd1b3c08a18bc053d549682fda8747e62eaa55627"
+      },
+      "regressions": {
+        "architecture": "x86_64",
+        "execution": "Rosetta on Apple silicon",
+        "production_helpers_sha256": "1ee3bb898abe04854367ffbcff1844a7b88b4d56a1842927a41fc26f55e05127",
+        "passed": true,
+        "exit_code": 0,
+        "output": "PASS 21 Unicode prefix cases and Unicode whitespace trimming\nPASS 10 production raster size, centering, clipping, full-color and opacity checks"
+      },
+      "smoke": {
+        "passed": true,
+        "framework_sha256": "52b338d6062c775895db4a3d8970f987c397c288f40e4864887008d2efe622ed",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "settings_and_ui": true
+      },
+      "runtime": "Rosetta on Apple silicon"
+    }
+  },
+  "tooling_tests": {
+    "passed": true,
+    "count": 73
+  },
+  "issue": "No specific GitHub issue tracks this change.",
+  "published_browser_releases": "Unchanged; this is a future-main source input.",
+  "cleanup": {
+    "workspace_removed": [
+      ".work/group-emoji/Lune Emoji Groups Preview.app",
+      ".work/group-emoji/Before Glyph Centering Preview.app",
+      ".work/group-emoji/Before Full Color Preview.app",
+      ".work/group-emoji/Before Final 16px Preview.app",
+      ".work/group-emoji/platform",
+      ".work/group-emoji/replay",
+      ".work/group-emoji/replay-glyphs",
+      ".work/group-emoji/replay-final",
+      ".work/group-emoji/replay-full-color",
+      ".work/group-emoji/main-replay",
+      ".work/group-emoji/main-replay2",
+      ".work/group-emoji/native/profile",
+      ".work/group-emoji/native/profile2",
+      ".work/group-emoji/native/pages",
+      ".work/group-emoji/native/extension",
+      ".work/group-emoji/before",
+      ".work/group-emoji/main-before",
+      ".work/group-emoji/restore-review",
+      ".work/focus-retention/prepared-src/out/Default/group_emoji_check",
+      ".work/focus-retention/prepared-src/out/Default/tab_group_emoji_check",
+      ".work/focus-retention/prepared-src/out/Intel/group_emoji_check",
+      ".work/focus-retention/prepared-src/out/Intel/tab_group_emoji_check"
+    ],
+    "native_preview_quit_normally": true,
+    "preserved": [
+      "prepared source and build outputs/caches",
+      "signed focused platform clone",
+      "main quilt and validated source snapshots",
+      "original pinned-group platform/quilt/preview/profile"
+    ],
+    "native_app_support": "Removed task-specific native crash/cache directory",
+    "passed": true
+  },
+  "shared_source_restoration": {
+    "passed": true,
+    "source": "/Users/leebyron/code/leebyron/lune-browser/.work/focus-retention/prepared-src",
+    "quilt": "/Users/leebyron/code/leebyron/lune-browser/.work/pinned-tab-groups/current-quilt-patches",
+    "files": {
+      "chrome/app/generated_resources.grd": "8d08762db2076141ef3105f5e88595e776cbf5683bccc099446bbed01a2dbb16",
+      "chrome/browser/ui/browser_live_tab_context.cc": "6e6eda9b89812abdb40c959eeb0044ca9675ce9ff1214186616680143970822a",
+      "chrome/browser/sessions/session_restore.cc": "de119f564c962d78d1a8a81f464b3a2ccca67bf149f7c4dbba7bcdf20a755b8e",
+      "chrome/browser/ui/tabs/tab_strip_model.cc": "bcec3e17ace5cb223bfadb12771e7630908d275b50ab63a3a3617c51f6da5579",
+      "chrome/browser/ui/tabs/tab_strip_model.h": "c1a67792c96739d19c2f6f7e2a6536cb86cd32e6558f6a3e638fc3107f760901",
+      "chrome/browser/ui/tabs/older_tabs_controller.cc": "7516bdbe4c800a21c49cf3d680f32e78cd1b0c508ab668617237c825f0760bda",
+      "chrome/browser/ui/views/frame/base_tab_strip_region_view.cc": "07677c52a1ef464fa898c1e4167045abdeea41828a783144bb44d4ba872a8ace",
+      "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.cc": "0b95b584a4eb6b81301f469f670da3895de1c533b69e77d0c6d41da28e9d7050",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view.h": "d8b535b458d8749066868e5b3e003a9960194aa963461dc56bef941dad47a49a",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "0a67519ba6bc5c05d1b298515eb5ed002d686d2a5cb3a26d7677f5991d736c46",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "99267b429a8a1874429dbb75666c3fcece292900bea1f1ce7811868777a66752",
+      "chrome/browser/ui/views/tabs/common/tab_group_view.cc": "8bf40bfc670534a2336dbf7dce41d86edd553aac98996dbba948a268cd8d1ebb",
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler.h": "594261925801b0c42eb23d5de854a79f1d63ae0650dac911dc3d69164d43df2f",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view.cc": "270fc610659edfa7f2e4ca3214ec1060a7faa8d3348e8db57c04d81e39c63a17",
+      "chrome/browser/ui/views/tabs/common/tab_collection_node.cc": "559d6d610792b8c3089d410465e47bf5c4a4ce669387cf266990f9c1156b1105",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h": "a69bd003020fc9bf555b471cc6a74c600ce9a6e457db6b87f5926a5c999b125e",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc": "d34d5c094ffef4b9c3fbd96f647368c621e1da60dc4172450759786c66433731",
+      "components/tab_groups/tab_group_visual_data.h": "8079e48fa12592066620c533824512b71c6a6cf83bd7dc2c1f1c3258e767bb6d",
+      "components/sessions/core/session_service_commands.cc": "1b94468963a74d0be594b9aa8b3b183fb0fb4503e53de72cf6c225b44c4405b6",
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler.cc": "511eb4b0e0a376620b4b996c869b6d1884d0012386b40d9f8a055f987c7abe76",
+      "chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc": "d905aa98f5ede85843f8d8b2039348e7f2b6e44c0a3db6d14680337fac0f5493",
+      "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc": "8331c04a2473f34b6c69176d8a884aea73413702c8394611c40e900f498014f5",
+      "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.h": "6b85b3db8f466ac34a5a5d902c1a2d10345c7ac743bb61eb346ce64e8ed27258",
+      "components/sessions/core/tab_restore_service_impl.cc": "7a8cbeb2270be828754dfcf5496f31933587ac49de69a952b785e9a6f8f3624c",
+      "components/sessions/core/session_service_commands_unittest.cc": "e3c2873379bd5a4c918b1b4238cebc4651fd264f2d468d445a0263a92d867334",
+      "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "e543567c4f15d954a8cf029302f395cd668cc262723132e6d0378e8d607c192c",
+      "chrome/browser/ui/views/tabs/groups/BUILD.gn": "2320d2317e13e38e2054876158f760f644a0383e2271b31f7a7518bda154fcb9",
+      "chrome/browser/ui/views/tabs/common/BUILD.gn": "0e844152fd1b1e65d44a5abe4febb97f0fcf41bcefcdde22f842ac9a221643f4",
+      "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h": "c1f47f726986787c3df45a4beacc7628b4767969794ec88bc5da9475d4fbd901",
+      "chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc": "db62b89a0d3269c278304b682ff267155d32b6bf1f9513712fc0caf57fcf0766",
+      "chrome/browser/ui/views/tabs/common/dragged_tabs_container.h": "b198192aac6a3a6a86759c8eb7c3f94ec23495c4f0d79689c9a14b4f9c9dd350",
+      "chrome/browser/ui/views/tabs/common/tab_group_view.h": "32b0f415239c5842266f296d8d77415f33181a4bd39a3ff536efd04fe3f7b59e",
+      "chrome/browser/ui/views/tabs/common/tab_group_header_view.h": "413d3ce4ed77ed0ca721521c7edea93ee3ad8d0076360f73698922ebcf880d8d",
+      "chrome/browser/ui/views/tabs/common/tab_group_header_view.cc": "9a6ba518ab7c791d60fc590ac3c960067d7ab98a397b5e0b6a2f9bbce21a09d9"
+    },
+    "top_patch": "helium/ui/tab-group-leading-emoji.patch",
+    "build_outputs": "Validated main composition; rebuild before a pending-pin preview",
+    "validated_main_source": "validated-main-source"
+  }
+}

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "99ca9faf1ae2e4b511cd952728adaa70c165faae",
+    "commit": "cdea745ea5600098e382a7a3c13dc5652b20fd39",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -841,6 +841,10 @@
       {
         "path": "patches/helium/ui/native-selected-tab-background.patch",
         "sha256": "f922f5b73e5898aa6784e11e3888e50ec738859576f17b7fb1ba00abe05d4b0d"
+      },
+      {
+        "path": "patches/helium/ui/tab-group-leading-emoji.patch",
+        "sha256": "e537bed331782bee6726e579ea035561517474912541d97bb77ee5af41aba733"
       }
     ]
   },
@@ -2377,6 +2381,21 @@
       "adaptation": "Four aliases in the existing macOS Native color mixer cover hovered/unhovered selection in active/inactive windows. Other themes and forced colors retain the existing exclusions. Prepared-source quilt export and complete affected-file replay have zero fuzz/offsets and byte parity. Production mixer fixtures pass in both architectures, including light/dark, normal/high contrast and exclusions; the original mixer fails the same background equality assertion. Native Apple silicon inspection confirms readable matching backgrounds for three selected tabs in active/inactive windows. See agent-docs/project/features/themed-unpinned-sidebar.md#native-selected-tab-background--november-12-2026 for build and smoke scope.",
       "commits": [
         "99ca9faf1ae2e4b511cd952728adaa70c165faae"
+      ]
+    },
+    {
+      "id": "tab-group-leading-emoji",
+      "depends_on": [
+        "neutral-tab-groups"
+      ],
+      "patches": [
+        "patches/helium/ui/tab-group-leading-emoji.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Render a single leading emoji in the sidebar favicon slot and align the remaining group title with ordinary tab labels.",
+      "adaptation": "Owner accepted the native appearance and requested a 16 DIP font, full opacity, and ordinary rendering for names containing multiple emoji. Unicode grapheme boundaries preserve flags, modifiers and joined sequences as one emoji. Painted glyph bounds are centered at each display scale; the remaining display label is whitespace-trimmed while the stored/accessibility title stays intact. Ported only the emoji renderer onto current main, excluding pending pinned-group hooks and caret diagnostics. Complete affected-file replay has zero fuzz/feature offsets and exact source parity. Both browser builds, 21 Unicode cases, 10 raster checks per architecture and browsing/persistence checks are recorded in agent-docs/project/builds/2026-11-12-tab-group-emoji.json. Intel runtime uses Rosetta.",
+      "commits": [
+        "cdea745ea5600098e382a7a3c13dc5652b20fd39"
       ]
     }
   ],
