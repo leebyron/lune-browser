@@ -1,0 +1,15 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
+@@ -741,10 +741,8 @@
+   }
+ 
+   if (collapse_icon_) {
+-    const auto icon_color = helium::NativeGlassControlColor(this).value_or(
+-        TabStyle::Get()->GetTabForegroundColor(
+-            /*apparently_active=*/true, /*hovered=*/true,
+-            GetWidget()->ShouldPaintAsActive(), GetColorProvider()));
++    const auto icon_color =
++        helium::NativeGlassControlColor(this).value_or(foreground_color);
+     collapse_icon_->SetImage(
+         ui::ImageModel::FromImageSkia(helium::NativeSidebarSymbolForName(
+             tab_group_visual_data_.is_collapsed() ? "chevron.forward"
