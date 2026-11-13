@@ -1,0 +1,316 @@
+{
+  "date": "2026-11-12",
+  "timezone": "America/Los_Angeles",
+  "feature": "pinned-tab-groups",
+  "component": {
+    "commit": "40b750326568d91254f3834e0f665a287314a2bc",
+    "tree": "07a2d0b307b36a2482732537596b7a9997ea9720",
+    "base": "3ecb4edf287669aec98c4f2f34edeef5388fb86e",
+    "ref": "refs/tags/inputs/pinned-tab-groups-1/macos",
+    "patch_sha256": "c483be1e83ad2f03e835f2fa4f8102b33397ec3030a83d15c72ef9c7f178015c"
+  },
+  "tested_composition": {
+    "base": "cdea745ea5600098e382a7a3c13dc5652b20fd39",
+    "caret": "3ecb4edf287669aec98c4f2f34edeef5388fb86e",
+    "pinned_groups": "40b750326568d91254f3834e0f665a287314a2bc",
+    "source_unchanged_after_topic_split": true
+  },
+  "architectures": {
+    "arm64": {
+      "build_passed": true,
+      "seconds": 253.85,
+      "sources_unchanged_during_build": true,
+      "runtime": "native arm64",
+      "smoke": {
+        "passed": true,
+        "framework_sha256": "15d8460e3b2ba46bd33eb63f516f98023fcc336070582b5a8de4dd654f49a804",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "ui_and_settings": true
+      }
+    },
+    "x86_64": {
+      "build_passed": true,
+      "seconds": 285.56,
+      "sources_unchanged_during_build": true,
+      "runtime": "Rosetta",
+      "smoke": {
+        "passed": true,
+        "framework_sha256": "67f61da294eea23083dec217b332633373decedc65050e9df57815feb1693496",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "ui_and_settings": true
+      }
+    }
+  },
+  "owner_acceptance": {
+    "passed": true,
+    "device": "physical Apple silicon Mac",
+    "scope": "Final Native hover/drag caret behavior and complete feature accepted; owner requested focused main commits and push."
+  },
+  "tooling_tests": {
+    "passed": true,
+    "count": 73
+  },
+  "release_or_deployment": false,
+  "issue": 31,
+  "source_replay": {
+    "passed": true,
+    "base": "cdea745ea5600098e382a7a3c13dc5652b20fd39",
+    "fuzz": 0,
+    "feature_offsets": 0,
+    "file_count": 36,
+    "archive_backed_parent_patch_count": 133,
+    "topics": [
+      {
+        "path": "patches/helium/ui/native-tab-group-caret.patch",
+        "sha256": "64cea94f85a3346f9b692d94fdf5a36a7f13e272bba6b474c852c66a0fa333c2",
+        "fuzz": 0,
+        "offsets": 0
+      },
+      {
+        "path": "patches/helium/ui/pinned-tab-groups.patch",
+        "sha256": "c483be1e83ad2f03e835f2fa4f8102b33397ec3030a83d15c72ef9c7f178015c",
+        "fuzz": 0,
+        "offsets": 0
+      }
+    ],
+    "final_source_hashes": {
+      "chrome/app/generated_resources.grd": "8d08762db2076141ef3105f5e88595e776cbf5683bccc099446bbed01a2dbb16",
+      "chrome/browser/ui/browser_live_tab_context.cc": "6e6eda9b89812abdb40c959eeb0044ca9675ce9ff1214186616680143970822a",
+      "chrome/browser/sessions/session_restore.cc": "de119f564c962d78d1a8a81f464b3a2ccca67bf149f7c4dbba7bcdf20a755b8e",
+      "chrome/browser/ui/tabs/tab_strip_model.cc": "bcec3e17ace5cb223bfadb12771e7630908d275b50ab63a3a3617c51f6da5579",
+      "chrome/browser/ui/tabs/tab_strip_model.h": "c1a67792c96739d19c2f6f7e2a6536cb86cd32e6558f6a3e638fc3107f760901",
+      "chrome/browser/ui/tabs/older_tabs_controller.cc": "7516bdbe4c800a21c49cf3d680f32e78cd1b0c508ab668617237c825f0760bda",
+      "chrome/browser/ui/views/frame/base_tab_strip_region_view.cc": "07677c52a1ef464fa898c1e4167045abdeea41828a783144bb44d4ba872a8ace",
+      "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.cc": "0b95b584a4eb6b81301f469f670da3895de1c533b69e77d0c6d41da28e9d7050",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view.h": "d8b535b458d8749066868e5b3e003a9960194aa963461dc56bef941dad47a49a",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "0a67519ba6bc5c05d1b298515eb5ed002d686d2a5cb3a26d7677f5991d736c46",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "99267b429a8a1874429dbb75666c3fcece292900bea1f1ce7811868777a66752",
+      "chrome/browser/ui/views/tabs/common/tab_group_view.cc": "8bf40bfc670534a2336dbf7dce41d86edd553aac98996dbba948a268cd8d1ebb",
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler.h": "594261925801b0c42eb23d5de854a79f1d63ae0650dac911dc3d69164d43df2f",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view.cc": "270fc610659edfa7f2e4ca3214ec1060a7faa8d3348e8db57c04d81e39c63a17",
+      "chrome/browser/ui/views/tabs/common/tab_collection_node.cc": "559d6d610792b8c3089d410465e47bf5c4a4ce669387cf266990f9c1156b1105",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h": "a69bd003020fc9bf555b471cc6a74c600ce9a6e457db6b87f5926a5c999b125e",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc": "d34d5c094ffef4b9c3fbd96f647368c621e1da60dc4172450759786c66433731",
+      "components/tab_groups/tab_group_visual_data.h": "8079e48fa12592066620c533824512b71c6a6cf83bd7dc2c1f1c3258e767bb6d",
+      "components/sessions/core/session_service_commands.cc": "1b94468963a74d0be594b9aa8b3b183fb0fb4503e53de72cf6c225b44c4405b6",
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler.cc": "511eb4b0e0a376620b4b996c869b6d1884d0012386b40d9f8a055f987c7abe76",
+      "chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc": "d905aa98f5ede85843f8d8b2039348e7f2b6e44c0a3db6d14680337fac0f5493",
+      "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc": "8331c04a2473f34b6c69176d8a884aea73413702c8394611c40e900f498014f5",
+      "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.h": "6b85b3db8f466ac34a5a5d902c1a2d10345c7ac743bb61eb346ce64e8ed27258",
+      "components/sessions/core/tab_restore_service_impl.cc": "7a8cbeb2270be828754dfcf5496f31933587ac49de69a952b785e9a6f8f3624c",
+      "components/sessions/core/session_service_commands_unittest.cc": "e3c2873379bd5a4c918b1b4238cebc4651fd264f2d468d445a0263a92d867334",
+      "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "e543567c4f15d954a8cf029302f395cd668cc262723132e6d0378e8d607c192c",
+      "chrome/browser/ui/views/tabs/groups/BUILD.gn": "2320d2317e13e38e2054876158f760f644a0383e2271b31f7a7518bda154fcb9",
+      "chrome/browser/ui/views/tabs/common/BUILD.gn": "0e844152fd1b1e65d44a5abe4febb97f0fcf41bcefcdde22f842ac9a221643f4",
+      "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h": "c1f47f726986787c3df45a4beacc7628b4767969794ec88bc5da9475d4fbd901",
+      "chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc": "db62b89a0d3269c278304b682ff267155d32b6bf1f9513712fc0caf57fcf0766",
+      "chrome/browser/ui/views/tabs/common/dragged_tabs_container.h": "b198192aac6a3a6a86759c8eb7c3f94ec23495c4f0d79689c9a14b4f9c9dd350",
+      "chrome/browser/ui/views/tabs/common/tab_group_view.h": "32b0f415239c5842266f296d8d77415f33181a4bd39a3ff536efd04fe3f7b59e",
+      "chrome/browser/ui/views/tabs/common/tab_group_header_view.h": "413d3ce4ed77ed0ca721521c7edea93ee3ad8d0076360f73698922ebcf880d8d",
+      "chrome/browser/ui/views/tabs/common/tab_group_header_view.cc": "e59e592fb5a5def8f0a816cae9fac3aa2ec6634127e6832af1be1167cdb15253",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "fc5de16a13faf64032edcc1ac52e2924e35815c7c887726c8195ceb8787c11c8",
+      "chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm": "9c095458f520f9c3972c253b758b273ece8451cabe122ac4cf58fb9a078a653f"
+    }
+  },
+  "preview_identity": {
+    "revision": "current-main-emoji-native-caret-contrast",
+    "framework_uuid": "4C4C4487-5555-3144-A1BA-B2F6B00532FA"
+  },
+  "earlier_regressions": {
+    "session_commands": {
+      "passed": true,
+      "tests_per_architecture": 10,
+      "source_identity_unchanged": true
+    },
+    "aging": {
+      "runtime": "native arm64",
+      "scope": "Saved overdue pinned group stays regular; unpinned group ages with grouped cleanup enabled.",
+      "report_sha256": "c3c7f3f75d67584b1f0ee96d180ff9d6f68b6c28d70966ab43d1d14484599458"
+    },
+    "headed_window_lifecycle": {
+      "arm64": {
+        "passed": true,
+        "source_output": "/Users/leebyron/code/leebyron/lune-browser/.work/focus-retention/prepared-src/out/Default",
+        "group_move_and_window_close": {
+          "group": {
+            "collapsed": false,
+            "color": "blue",
+            "id": 741797164,
+            "shared": false,
+            "title": "Moved group",
+            "windowId": 658970032
+          },
+          "sourceClosed": true
+        },
+        "orientation_switches": [
+          0,
+          2,
+          0,
+          2
+        ],
+        "browser_exit_before_cleanup": null
+      },
+      "x86_64": {
+        "passed": true,
+        "source_output": "/Users/leebyron/code/leebyron/lune-browser/.work/focus-retention/prepared-src/out/Intel",
+        "group_move_and_window_close": {
+          "group": {
+            "collapsed": false,
+            "color": "blue",
+            "id": 1995598585,
+            "shared": false,
+            "title": "Moved group",
+            "windowId": 2040902313
+          },
+          "sourceClosed": true
+        },
+        "orientation_switches": [
+          0,
+          2,
+          0,
+          2
+        ],
+        "browser_exit_before_cleanup": null
+      }
+    }
+  },
+  "limits": [
+    "Standard Chromium model-test executable blocked by missing pruned WebUI Chai input; added model tests not executed.",
+    "No physical Intel test or full sidebar-side/focus-mode/detached/narrow-hover/split-child native gesture matrix claimed.",
+    "Native automation without an established tab move is not counted as successful gesture coverage."
+  ],
+  "cleanup": {
+    "passed": true,
+    "preview_quit_normally": true,
+    "preview_and_driver_exited": true,
+    "removed": [
+      "Lune Tab Groups Preview.app",
+      "before",
+      "before-collapsed-drop-final",
+      "before-collapsed-drop2",
+      "before-current",
+      "before-current-caret",
+      "before-destination-gaps",
+      "before-drag-attachment",
+      "before-drop-pill",
+      "before-drop-pill2",
+      "before-drop-pill3",
+      "before-drop-pill4",
+      "before-explicit-tearoff",
+      "before-final-drag",
+      "before-gesture-modes-final",
+      "before-gesture-modes2",
+      "before-gesture-modes3",
+      "before-hairline",
+      "before-refined",
+      "before-single-gap",
+      "before-stable",
+      "final-topic-replay",
+      "formatted-replay",
+      "locked-source",
+      "locked-source-collapsed-drop",
+      "locked-source-collapsed-drop-final",
+      "locked-source-collapsed-drop2",
+      "locked-source-current",
+      "locked-source-current-caret",
+      "locked-source-current-final",
+      "locked-source-destination-gaps",
+      "locked-source-drag-attachment",
+      "locked-source-drop-pill",
+      "locked-source-drop-pill2",
+      "locked-source-drop-pill3",
+      "locked-source-drop-pill4",
+      "locked-source-explicit-tearoff",
+      "locked-source-final-drag",
+      "locked-source-gesture-modes",
+      "locked-source-gesture-modes-final",
+      "locked-source-gesture-modes2",
+      "locked-source-gesture-modes3",
+      "locked-source-hairline",
+      "locked-source-refined",
+      "locked-source-single-gap",
+      "locked-source-stable",
+      "single-gap-prototype-source",
+      "stale-preimage-replay",
+      "corrected-teardown-arm64/extension",
+      "corrected-teardown-arm64/profile",
+      "corrected-teardown-x86_64/extension",
+      "corrected-teardown-x86_64/profile",
+      "current-teardown-arm64/extension",
+      "current-teardown-arm64/profile",
+      "current-teardown-x86_64/extension",
+      "current-teardown-x86_64/profile",
+      "lifecycle-final/extension",
+      "lifecycle-final/profile",
+      "lifecycle-known/extension",
+      "lifecycle-known/profile",
+      "lifecycle/profile",
+      "native/extension",
+      "native/pages",
+      "native/profile",
+      "teardown-arm64-fixed-fixture/extension",
+      "teardown-arm64-fixed-fixture/profile",
+      "teardown-arm64/extension",
+      "teardown-arm64/profile",
+      "native/live/extension",
+      "native/live/pages",
+      "native/live/profile",
+      "native/live2/extension",
+      "native/live2/pages",
+      "native/live2/profile",
+      "native/live3/extension",
+      "native/live3/pages",
+      "native/live3/profile"
+    ],
+    "preserved": [
+      "shared prepared source, current outputs and compiler caches",
+      "original signed platform checkout and earlier draft/stash",
+      "active quilt stack and original source archive",
+      "JSON/log validation reports and crash investigation evidence",
+      "losslessly archived crash/diagnostic symbols"
+    ]
+  },
+  "crash_symbols": {
+    "retained_losslessly": true,
+    "archives": [
+      {
+        "archive": "combined-crash.dSYM.tar.zst",
+        "verified_lossless": true
+      },
+      {
+        "archive": "symbols/destination-rebuilt.dSYM.tar.zst",
+        "verified_lossless": true
+      },
+      {
+        "archive": "symbols/caret-diagnostic.dSYM.tar.zst",
+        "verified_lossless": true
+      }
+    ]
+  }
+}

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "3ecb4edf287669aec98c4f2f34edeef5388fb86e",
+    "commit": "40b750326568d91254f3834e0f665a287314a2bc",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -849,6 +849,10 @@
       {
         "path": "patches/helium/ui/native-tab-group-caret.patch",
         "sha256": "64cea94f85a3346f9b692d94fdf5a36a7f13e272bba6b474c852c66a0fa333c2"
+      },
+      {
+        "path": "patches/helium/ui/pinned-tab-groups.patch",
+        "sha256": "c483be1e83ad2f03e835f2fa4f8102b33397ec3030a83d15c72ef9c7f178015c"
       }
     ]
   },
@@ -2415,6 +2419,25 @@
       "adaptation": "The owner observed the missing caret in released Native theme, while other themes worked. Live hover tracing showed a visible caret painted with white active-tab text; reuse of the header foreground fixes contrast. Diagnostics are removed. Tested in the final pinned-group composition, with paired browser/UI/Settings/browsing/persistence checks and physical Apple silicon acceptance. The isolated caret patch excludes all pin state and drag styling. See agent-docs/project/builds/2026-11-12-native-tab-group-caret.json.",
       "commits": [
         "3ecb4edf287669aec98c4f2f34edeef5388fb86e"
+      ]
+    },
+    {
+      "id": "pinned-tab-groups",
+      "depends_on": [
+        "native-tab-group-caret",
+        "tab-group-leading-emoji",
+        "automatic-older-tabs",
+        "sidebar-scroll-content-layout",
+        "sidebar-scroll-edge-lines"
+      ],
+      "patches": [
+        "patches/helium/ui/pinned-tab-groups.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Pin whole tab groups above regular tabs with durable local state, shared scrolling, coherent drag destinations and Older Tabs protection.",
+      "adaptation": "The accepted vertical implementation keeps groups in a leading unpinned collection prefix, with separate persistent pin state, pin/unpin menu symbols, a shared scrolling contents and stable destination-only gaps. Collapsed group tab drops append while retaining collapse and show an active-tab pill without padding changes. Whole-window drags retain Chromium behavior; partial drags detach only outside the window. Includes teardown and optional-animation crash fixes. Excludes already-adopted emoji rendering and the separate Native caret contrast correction. Strict final replay and both browser builds match the accepted source; Intel runtime is Rosetta. See agent-docs/project/builds/2026-11-12-pinned-tab-groups.json.",
+      "commits": [
+        "40b750326568d91254f3834e0f665a287314a2bc"
       ]
     }
   ],
