@@ -3,7 +3,7 @@
 @@ -654,6 +654,11 @@
  inline constexpr char kHeliumMinimalLocationBar[] =
      "helium.browser.minimal_location_bar";
-
+ 
 +// A boolean pref set to true if loading progress should be shown in the
 +// location bar.
 +inline constexpr char kHeliumShowProgressBar[] =
@@ -15,9 +15,9 @@
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
 @@ -141,6 +141,8 @@
-
+ 
    registry->RegisterBooleanPref(prefs::kHeliumMinimalLocationBar, false);
-
+ 
 +  registry->RegisterBooleanPref(prefs::kHeliumShowProgressBar, true);
 +
    registry->RegisterBooleanPref(prefs::kHomePageIsNewTabPage, true,
@@ -565,7 +565,7 @@
        "location_icon_view.cc",
 @@ -107,6 +109,7 @@
      ]
-
+ 
      deps += [
 +      "//cc/paint",
        "//chrome/app:generated_resources",
@@ -608,13 +608,13 @@
 @@ -617,6 +618,9 @@
    // A label to show the AI Mode hint text.
    raw_ptr<views::Label> ai_mode_hint_label_ = nullptr;
-
+ 
 +  // Progress bar painted over the bottom of the location bar.
 +  raw_ptr<LocationBarProgressView> loading_progress_view_ = nullptr;
 +
    // Animation to change whole location bar background color on hover.
    gfx::SlideAnimation hover_animation_{this};
-
+ 
 --- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
 @@ -65,6 +65,7 @@
@@ -628,7 +628,7 @@
 @@ -549,6 +550,10 @@
              *profile_, this, omnibox_chip_font_list));
    }
-
+ 
 +  loading_progress_view_ = AddChildView(
 +      std::make_unique<LocationBarProgressView>(profile_->GetPrefs()));
 +  loading_progress_view_->SetLocationBarFocused(IsFocusWithin());
@@ -638,7 +638,7 @@
    Update(nullptr);
 @@ -701,10 +706,13 @@
  }
-
+ 
  void LocationBarView::AddedToWidget() {
 -  if (browser_ && GetFocusManager()) {
 +  if (GetFocusManager()) {
@@ -650,10 +650,10 @@
 +    }
    }
  }
-
+ 
 @@ -717,13 +725,17 @@
  }
-
+ 
  void LocationBarView::OnDidChangeFocus(views::View* before, views::View* now) {
 +  if (loading_progress_view_) {
 +    loading_progress_view_->SetLocationBarFocused(now && Contains(now));
@@ -662,34 +662,34 @@
    if (Contains(before) != Contains(now)) {
      NotifyFocusChanged();
    }
-
+ 
    // TODO(crbug.com/376283383): Remove things below once Lens Overlay is
    // migrated to the new page actions design.
 -  if (!lens::features::IsOmniboxEntryPointEnabled()) {
 +  if (!lens::features::IsOmniboxEntryPointEnabled() || !browser_) {
      return;
    }
-
+ 
 @@ -1073,6 +1085,8 @@
      position_view(omnibox_additional_text_view_, omnibox_additional_text_width);
    }
-
+ 
 +  loading_progress_view_->SetBoundsRect(GetLocalBounds());
 +
    LayoutSuperclass<View>(this);
  }
-
+ 
 @@ -1105,6 +1119,7 @@
-
+ 
  void LocationBarView::Update(WebContents* contents) {
    TRACE_EVENT("omnibox", "LocationBarView::Update");
 +  loading_progress_view_->SetWebContents(GetWebContents());
-
+ 
    RefreshContentSettingViews();
    RefreshPageActionIconViews();
 @@ -2190,6 +2205,8 @@
  }
-
+ 
  void LocationBarView::OnOmniboxFocused() {
 +  loading_progress_view_->SetLocationBarFocused(true);
 +
@@ -698,7 +698,7 @@
    }
 @@ -2214,6 +2231,8 @@
  }
-
+ 
  void LocationBarView::OnOmniboxBlurred() {
 +  loading_progress_view_->SetLocationBarFocused(IsFocusWithin());
 +

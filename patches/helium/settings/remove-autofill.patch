@@ -20,7 +20,7 @@
 @@ -215,29 +215,6 @@
      r.FONTS = r.APPEARANCE.createChild('/fonts');
    }
-
+ 
 -  if (visibility.yourSavedInfo !== false) {
 -    r.AUTOFILL = r.BASIC.createSection(
 -        '/autofill', 'yourSavedInfo',
@@ -52,7 +52,7 @@
 @@ -30,7 +30,7 @@
      </div>
    ` : ''}
-
+ 
 -  ${this.showPage_(this.pageVisibility_?.yourSavedInfo) ? html`
 +  ${false ? html`
      <div slot="view" id="yourSavedInfo">
@@ -61,7 +61,7 @@
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.ts
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.ts
 @@ -33,7 +33,6 @@
-
+ 
  export interface SettingsMenuElement {
    $: {
 -    autofill: HTMLLinkElement,

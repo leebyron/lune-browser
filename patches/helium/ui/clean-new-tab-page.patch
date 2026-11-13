@@ -273,12 +273,12 @@
 +  padding-inline-end: 0;
 +  padding-inline-start: 8px;
  }
-
+ 
  :host(:not([show-shadow])) .customize-button {
 @@ -82,15 +81,8 @@
    --iron-icon-height: 16px;
  }
-
+ 
 -@media (max-width: 550px) {
 -  .customize-button {
 -    padding-inline-end: 0;
@@ -291,7 +291,7 @@
 +.customize-text {
 +  display: none;
  }
-
+ 
  @media (max-width: 1110px) {
 --- a/chrome/browser/resources/new_tab_shared/customize_buttons/customize_buttons.html.ts
 +++ b/chrome/browser/resources/new_tab_shared/customize_buttons/customize_buttons.html.ts
@@ -329,12 +329,12 @@
 @@ -2,9 +2,6 @@
  // Use of this source code is governed by a BSD-style license that can be
  // found in the LICENSE file.
-
+ 
 -import './logo.js';
 -import './ntp_searchbox.js';
 -import './left_hand_side.js';
  import '/strings.m.js';
-
+ 
  import {SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
 @@ -16,9 +13,6 @@
  import type {SearchAnimatedGlowElement} from 'chrome://resources/cr_components/search/animated_glow.js';
@@ -361,11 +361,11 @@
 -import type {NtpSearchboxElement} from './ntp_searchbox.js';
  import {$$} from './utils.js';
  import {WindowProxy} from './window_proxy.js';
-
+ 
 @@ -58,17 +49,6 @@
    MODULE_LOAD_COMPLETE = 2,
  }
-
+ 
 -interface ExecutePromoBrowserCommandData {
 -  commandId: Command;
 -  clickInfo: ClickInfo;
@@ -382,23 +382,23 @@
   * enums.xml. These values are persisted to logs. Entries should not be
 @@ -117,7 +97,6 @@
  }
-
+ 
  const CUSTOMIZE_URL_PARAM: string = 'customize';
 -const OGB_IFRAME_ORIGIN = 'chrome-untrusted://new-tab-page';
  const MSAL_IFRAME_ORIGIN = 'chrome-untrusted://ntp-microsoft-auth';
  const VOICE_QUERY_LENGTH_LIMIT = 120;
  const VOICE_AUTO_SUBMIT_IDLE_TIMEOUT_MS = 3000;
 @@ -130,8 +109,6 @@
-
+ 
  export const CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID =
      'CustomizeButtonsHandler::kCustomizeChromeButtonElementId';
 -export const CONTEXTUAL_ENTRYPOINT_ELEMENT_ID =
 -    'NewTabPageUI::kRealboxContextualEntrypointElementId';
-
+ 
  // The minimum width for the realbox to show its secondary side.
  // 900px ~= 561px (max value for --ntp-search-box-width) * 1.5 + some margin.
 @@ -162,9 +139,6 @@
-
+ 
  export interface AppElement {
    $: {
 -    oneGoogleBarClipPath: HTMLElement,
@@ -410,7 +410,7 @@
 @@ -207,8 +181,6 @@
        // Protected properties
        // =======================================================================
-
+ 
 -      oneGoogleBarIframePath_: {type: String},
 -      oneGoogleBarLoaded_: {type: Boolean},
        theme_: {type: Object},
@@ -419,7 +419,7 @@
 @@ -373,8 +345,6 @@
    accessor composeboxEnabled: boolean =
        loadTimeData.getBoolean('searchboxShowComposebox');
-
+ 
 -  protected accessor oneGoogleBarIframePath_: string|undefined;
 -  protected accessor oneGoogleBarLoaded_: boolean = false;
    protected accessor theme_: Theme|null = null;
@@ -428,7 +428,7 @@
 @@ -499,7 +469,6 @@
    protected accessor searchboxCallbackRouter_: SearchboxPageCallbackRouter;
    protected accessor rhsWidth_: number|null = null;
-
+ 
 -  private voiceSearchActivatedByKeyboard_: boolean = false;
    private accessor selectedCustomizeDialogPage_: string|null = null;
    private accessor modulesLoadedStatus_: ModuleLoadStatus =
@@ -436,7 +436,7 @@
 @@ -538,13 +507,6 @@
      this.shouldPrintPerformance_ =
          new URLSearchParams(location.search).has('print_perf');
-
+ 
 -    this.oneGoogleBarIframePath_ = (() => {
 -      const params = new URLSearchParams();
 -      params.set(
@@ -446,7 +446,7 @@
 -
      this.showCustomize_ =
          WindowProxy.getInstance().url.searchParams.has(CUSTOMIZE_URL_PARAM);
-
+ 
 @@ -651,28 +613,9 @@
        this.setCustomizeChromeSidePanelVisible_(this.showCustomize_);
        recordCustomizeChromeOpen(NtpCustomizeChromeEntryPoint.URL);
@@ -479,7 +479,7 @@
 @@ -840,13 +783,6 @@
        this.recordBrowserPromoMetrics_();
      }
-
+ 
 -    if (this.ntpRealboxNextEnabled_) {
 -      this.registerHelpBubble(
 -          CONTEXTUAL_ENTRYPOINT_ELEMENT_ID,
@@ -493,7 +493,7 @@
 @@ -889,33 +825,7 @@
        this.onShowComposeboxChange_();
      }
-
+ 
 -    if (changedPrivateProperties.has('oneGoogleBarLoaded_') ||
 -        changedPrivateProperties.has('theme_') ||
 -        changedPrivateProperties.has('showComposebox_')) {
@@ -523,12 +523,12 @@
 -    }
 +
    }
-
+ 
    // For voice coherence: when error event is fired, this will run.
 @@ -933,19 +843,6 @@
      this.voiceSearchTranscript_ = '';
    }
-
+ 
 -  // Called to update the OGB of relevant NTP state changes.
 -  private updateOneGoogleBarAppearance_() {
 -    if (this.oneGoogleBarLoaded_) {
@@ -567,11 +567,11 @@
 +      this.onCloseComposebox_();
      }
    }
-
+ 
    protected onComposeboxContextMenuOpened_() {
 -    this.$.searchbox.closeContextMenu();
    }
-
+ 
 -  protected onCloseComposebox_(
 -      e: CustomEvent<{composeboxText?: string, afterSubmit?: boolean}>) {
 +  protected onCloseComposebox_() {
@@ -599,7 +599,7 @@
      this.singleColoredLogo_ = this.computeSingleColoredLogo_();
 -    this.updateOneGoogleBarAppearance_();
    }
-
+ 
    protected onOpenVoiceSearch_() {
 -    this.openVoiceSearch_(/*activatedByKeyboard=*/ false);
 +    this.showVoiceSearchOverlay_ = true;
@@ -609,7 +609,7 @@
 @@ -1186,15 +1061,6 @@
      }
    }
-
+ 
 -  private async openVoiceSearch_(activatedByKeyboard: boolean) {
 -    // <ntp-voice-search-overlay> and <cr-composebox-voice-search> may be
 -    // defined in lazy_load.js, which may not have been loaded yet if voice
@@ -625,7 +625,7 @@
 @@ -1367,33 +1233,10 @@
      WindowProxy.getInstance().navigate(queryUrl.href);
    }
-
+ 
 -  protected onVoiceSearchRecordingStopped_(e: CustomEvent<string>) {
 -    const query = e.detail;
 -    const dialog = this.shadowRoot.querySelector<HTMLDialogElement>(
@@ -667,12 +667,12 @@
 -      }
 -    }
    }
-
+ 
    private rgbaOrInherit_(skColor: SkColor|null): string {
 @@ -1504,103 +1341,6 @@
      return !!this.theme_ && (!!this.theme_.logoColor || this.theme_.isDark);
    }
-
+ 
 -  /**
 -   * Sends the command received from the given source and origin to the browser.
 -   * Relays the browser response to whether or not a promo containing the given
@@ -775,7 +775,7 @@
          ModuleLoadStatus.MODULE_LOAD_COMPLETE :
 @@ -1710,17 +1450,6 @@
    }
-
+ 
    private onWindowClick_(e: Event) {
 -    if (this.ntpRealboxNextEnabled_) {
 -      const searchbox = this.shadowRoot.querySelector('ntp-searchbox');
@@ -812,7 +812,7 @@
 -    undoToast.show();
 -  }
 +  private processPendingUndoToasts_() {}
-
+ 
    /**
     * Processes an auto-removal undo click. It will hide the toast, call the
     * undo callback, and call the processing function to handle the next queued
@@ -826,7 +826,7 @@
 -    this.processPendingUndoToasts_();
 -  }
 +  protected onUndoButtonClick_() {}
-
+ 
    private onShowComposeboxChange_() {
      const notSelector = (this.composeboxOutsideClickEnabled_ ?
 --- a/chrome/browser/resources/new_tab_page/new_tab_page.ts
