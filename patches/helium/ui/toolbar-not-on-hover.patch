@@ -5,12 +5,12 @@
  #define IDC_TOP_CONTROLS_ALWAYS           34094
  #define IDC_TOP_CONTROLS_OVERLAY          34095
 +#define IDC_TOP_CONTROLS_NO_HOVER         34096
- 
+
  // Tab group Commands
  #define IDC_ADD_NEW_TAB_TO_GROUP      34100
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -10391,7 +10391,10 @@
+@@ -10747,7 +10747,10 @@
          Show toolbar
        </message>
        <message name="IDS_TOP_CONTROLS_HOVER" desc="Show browser controls only when the pointer approaches them.">
@@ -55,14 +55,14 @@
      {value: 'cover', name: loadTimeData.getString('showToolbarCover')},
 +    {value: 'no-hover', name: loadTimeData.getString('showToolbarNoHover')},
    ];
- 
+
    protected getToolbarMode_(): string {
 -    return !this.toolbarPinnedPref_?.value ? 'hover' :
 +    return !this.toolbarPinnedPref_?.value ?
 +        (this.toolbarHoverDisabledPref_?.value ? 'no-hover' : 'hover') :
          this.toolbarOverlayPref_?.value ? 'cover' : 'always';
    }
- 
+
    protected onToolbarModeSettingsControlChange_(event: Event) {
      const mode = (event.target as SettingsDropdownMenuElement).getSelectedValue();
      const prefs = PrefService.getInstance();
@@ -73,7 +73,7 @@
 +    prefs.setPrefValue('helium.browser.zen_mode_top_chrome_pinned', mode === 'always' || mode === 'cover');
    }
    // </if>
- 
+
 @@ -398,6 +405,7 @@
        // <if expr="is_macosx">
        'helium.browser.zen_mode_top_chrome_pinned': 'toolbarPinnedPref_',
@@ -94,7 +94,7 @@
  }
 --- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
-@@ -3181,6 +3181,7 @@
+@@ -3177,6 +3177,7 @@
    views::View::ConvertPointFromWidget(browser_view, &cursor);
    const bool in_hover_area = browser_view->IsPointInTopChromeHoverArea(cursor);
    const bool in_rail = in_hover_area &&
@@ -118,7 +118,7 @@
 @@ -2497,6 +2501,11 @@
    }
  }
- 
+
 +bool BrowserView::IsTopChromeHoverEnabled() const {
 +  return !GetProfile()->GetPrefs()->GetBoolean(
 +      prefs::kHeliumTopControlsHoverDisabled);
@@ -129,7 +129,7 @@
    if (auto* sidebar = GetSidebarView(); sidebar && sidebar->IsDrawn() &&
 @@ -2530,6 +2539,9 @@
  }
- 
+
  bool BrowserView::IsPointInZenTopTrigger(const gfx::Point& point) const {
 +  if (!IsTopChromeHoverEnabled()) {
 +    return false;
@@ -162,7 +162,7 @@
 +++ b/chrome/browser/ui/views/frame/system_menu_model_delegate.cc
 @@ -87,11 +87,13 @@
    }
- 
+
    if (command_id >= IDC_TOP_CONTROLS_HOVER &&
 -      command_id <= IDC_TOP_CONTROLS_OVERLAY) {
 +      command_id <= IDC_TOP_CONTROLS_NO_HOVER) {
@@ -177,7 +177,7 @@
                                            : IDC_TOP_CONTROLS_ALWAYS;
      return command_id == selected;
 @@ -107,7 +109,7 @@
- 
+
  bool SystemMenuModelDelegate::IsCommandIdEnabled(int command_id) const {
    if (command_id >= IDC_TOP_CONTROLS_MENU &&
 -      command_id <= IDC_TOP_CONTROLS_OVERLAY) {
@@ -186,7 +186,7 @@
    }
  #if BUILDFLAG(IS_CHROMEOS)
 @@ -306,15 +308,18 @@
- 
+
  void SystemMenuModelDelegate::ExecuteCommand(int command_id, int event_flags) {
    if (command_id >= IDC_TOP_CONTROLS_HOVER &&
 -      command_id <= IDC_TOP_CONTROLS_OVERLAY) {
@@ -221,7 +221,7 @@
 @@ -660,6 +660,10 @@
  inline constexpr char kHeliumZenModeTopChromePinned[] =
      "helium.browser.zen_mode_top_chrome_pinned";
- 
+
 +// Disable only the page-edge toolbar reveal rail; sidebar and engagement remain.
 +inline constexpr char kHeliumTopControlsHoverDisabled[] =
 +    "helium.browser.top_controls_hover_disabled";
@@ -231,7 +231,7 @@
  inline constexpr char kHeliumTopControlsOverlay[] =
 --- a/components/helium_onboarding/helium_onboarding_strings.grdp
 +++ b/components/helium_onboarding/helium_onboarding_strings.grdp
-@@ -280,7 +280,8 @@
+@@ -279,7 +279,8 @@
  <message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_GRAYSCALE" desc="Onboarding appearance choice.">Grayscale</message>
  <message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_CUSTOM" desc="Onboarding appearance choice.">Custom</message>
  <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER" desc="Onboarding appearance choice.">Show toolbar</message>
@@ -261,34 +261,6 @@
      'services.ext_proxy': true,
      'services.origin_override': '',
      'services.user_consented': false,
---- a/components/helium_onboarding/src/lib/strings.ts
-+++ b/components/helium_onboarding/src/lib/strings.ts
-@@ -104,6 +104,7 @@
-  | "finishThemeGrayscale"
-  | "finishThemeCustom"
-  | "finishHeader"
-+ | "finishHeaderNoHover"
-  | "finishHeaderHover"
-  | "finishHeaderCover"
-  | "finishHeaderAlways"
-@@ -267,7 +268,8 @@
-     "finishThemeGrayscale": "Grayscale",
-     "finishThemeCustom": "Custom",
-     "finishHeader": "Show toolbar",
--    "finishHeaderHover": "On hover",
-+    "finishHeaderNoHover": "On hover sidebar",
-+    "finishHeaderHover": "On hover edge",
-     "finishHeaderCover": "Always cover (experimental)",
-     "finishHeaderAlways": "Always",
-     "searchSuggestionsTitle": "Search suggestions",
-@@ -355,6 +357,7 @@
-         get themeGrayscale() { return getString('finishThemeGrayscale'); },
-         get themeCustom() { return getString('finishThemeCustom'); },
-         get header() { return getString('finishHeader'); },
-+        get headerNoHover() { return getString('finishHeaderNoHover'); },
-         get headerHover() { return getString('finishHeaderHover'); },
-         get headerCover() { return getString('finishHeaderCover'); },
-         get headerAlways() { return getString('finishHeaderAlways'); },
 --- a/components/helium_onboarding/src/pages/Finish.svelte
 +++ b/components/helium_onboarding/src/pages/Finish.svelte
 @@ -14,8 +14,9 @@
