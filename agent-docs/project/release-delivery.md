@@ -69,6 +69,12 @@ compiler/build/PGO tool hashes, and Xcode, SDK, Metal, Python and sccache identi
 Signing credentials stay in Keychain. Builds use the existing local Mac at no
 additional CI cost; this work does not activate scheduled release jobs.
 
+## Preflight before a long build
+
+Check Chromium freshness, available disk space, the frozen Python/toolchain requirements and access to the existing signing/notarization credentials before starting hours of compilation. A changed PGO profile can require extensive recompilation even when compiler bytes and most source files match the cache. Follow the [build environment and storage policy](building.md#prepare-this-mac); an explicitly approved lower preparation floor is scoped to that preparation and must be recorded with its measured free space and selected inputs. It does not change the normal policy or the pre-build floor.
+
+Test notarization access with `xcrun notarytool history --keychain-profile lune-notary`. If it reports that the item cannot be found, follow [Keychain recovery](building.md#signing-readiness) before requesting credential re-entry. The default profile lives in the data-protection Keychain, shown as iCloud or Local Items in Keychain Access. An unlocked file-based login Keychain, a failed `security find-generic-password` lookup or an explicit `--keychain login.keychain-db` query does not establish that this profile is absent. Inspect the existing `com.apple.gke.notary.tool` item and retry the default profile; keep passwords hidden and credentials in Keychain.
+
 ## Commands and gates
 
 1. Integrate source changes, review and retain component input tags, verify the
@@ -136,6 +142,16 @@ additional CI cost; this work does not activate scheduled release jobs.
 
 Release tags now belong to the source repository and identify the frozen source
 commit directly; release.json records its full SHA. Keep builds 1 and 2 and their source unchanged.
+
+## Recovering from preparation failures
+
+Stop the failing pipeline and retain its log and rejected hunks. Inspect the upstream change and make a focused, reviewed adaptation in the prepared source with quilt; refresh and unmerge it into the owning component. Preserve each feature's intended behavior and the complete ordered series. Record context/API adaptations and new component identities, run component patch/translation lint, then repeat complete preparation in a new source tree. A repaired partial replay is useful evidence but does not satisfy the fresh-preparation gate or permit version allocation.
+
+Use zero fuzz and the same whitespace matching as upstream preparation (`--fuzz=0 --ignore-whitespace`) when replaying with quilt. Unified-diff blank context lines require their leading space; globally stripping trailing whitespace from patch files can make the inherited parser reject otherwise applicable patches. Use the inherited patch lint for patch-content whitespace and syntax, and ordinary whitespace checks for the other changed files.
+
+Generated files must be available at the phase where a patch expects them. Onboarding's `src/lib/strings.ts` is generated from `helium_onboarding_strings.grdp` after the patch/substitution/resource pipeline. Prefer changing the canonical XML and letting that generation step produce the module. When repairing a patch that also edits generated output, first prove byte-for-byte equivalence between its generated-output edits and regeneration from its canonical inputs; retain that proof before removing redundant generated hunks. Verify another complete clean preparation without a pre-existing generated module.
+
+Once a release is frozen, make operational documentation updates on main rather than editing its hash-locked checkout. Continue builds and packaging from the frozen commit and pass that checkout through `--source-checkout` to the publisher. Changes to frozen build inputs or recipes require a new allocation; later runbook clarification does not rewrite the existing release record.
 
 ## Optional manual Intel compatibility checklist
 

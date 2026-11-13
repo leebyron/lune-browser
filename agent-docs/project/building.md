@@ -47,6 +47,8 @@ The 200 GiB threshold applies before source preparation; compilation/resume
 requires 80 GiB free after sources are present. Both are conservative safeguards,
 not measured peak usage. The two architectures are built sequentially.
 
+Measure actual filesystem free space before and after cleanup. APFS clones share extents, so summing `du` sizes does not predict the space deletion will recover. Follow the [completion process](committing.md#quit-temporary-builds-and-remove-their-artifacts): inventory exact targets, check active dependencies and unpublished changes, retain concise source-difference evidence, and obtain explicit cleanup authorization before removing preserved source/build caches. Keep the current development and required release caches unless their removal is covered. Record any owner-approved preparation-floor exception with its scope, input identities and measured free space; retain the 80 GiB pre-build check and all technical release gates.
+
 Small build dependencies are already installed on this Mac. On another Mac:
 
 ```sh
@@ -307,9 +309,11 @@ Notarization uses Keychain profile `lune-notary` for team `RBC9EP7948`. The owne
 
 The setup script omits `--keychain`, so notarytool stores this profile in the data protection Keychain, displayed as iCloud or Local Items in Keychain Access. This is distinct from the file-based login Keychain. Apple documents this [notarytool default](https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool#Save-credentials-in-the-keychain) and [item accessibility](https://developer.apple.com/documentation/security/restricting-keychain-item-accessibility): the default accessibility requires the device to be unlocked. A failed lookup while the Mac is locked does not establish that a saved profile was deleted. Unlock the Mac and retry the existing profile before requesting credential re-entry. An explicit `--keychain ~/Library/Keychains/login.keychain-db` query searches a different store and cannot confirm the absence of the default profile. The `security` CLI primarily inspects file-based Keychains.
 
+If the Mac is already unlocked and the default lookup still fails, open Keychain Access, select iCloud or Local Items, and search for `com.apple.gke.notary.tool`. The existing profile's Account is `com.apple.gke.notary.tool.saved-creds.lune-notary`. Inspect metadata with the password hidden, then retry `xcrun notarytool history --keychain-profile lune-notary`. On November 13 the item was visible there and the retry succeeded after opening that store, despite earlier default and login-file lookup failures; this observation does not establish the underlying cause. Do not delete, move, duplicate or recreate a visibly existing profile merely to address a failed lookup.
+
 On November 11, default and explicit login-file lookups failed while the console was locked, with the lock timestamp preceding the first failure. After the owner unlocked the Mac, the existing default profile immediately authenticated successfully, without credential re-entry or changes. This confirms a lock-state retrieval failure for that incident; the credential persisted. Do not describe a locked-state lookup failure as credential expiration or loss.
 
-Only if the existing profile remains unavailable after an unlocked retry, provision or restore it using an app-specific password from
+Only if the existing profile remains unavailable after an unlocked retry and inspection of its actual store, confirm the need to provision or restore it using an app-specific password from
 [Apple Account](https://account.apple.com/), then run this in an interactive terminal:
 
 ```sh
