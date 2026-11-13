@@ -11,3 +11,7 @@ Published archive checksums and both metadata ZIPs were verified. The normalized
 The official early-Stable announcement is <https://chromereleases.googleblog.com/2026/11/early-stable-update-for-desktop_0520415684.html>. This is an early Stable rollout, not a claim of full rollout. No CVE count is inferred from this announcement. Source fixes overlap with selected backports in Chromium 157.0.8103.78, but the release target remains the newer Chromium 158 branch.
 
 Storage cleanup is limited to the owner's four explicitly approved older generated build trees. Signed releases, frozen source records, concise evidence, component checkouts, download caches and current development/latest-release build caches are retained.
+
+## Approved translation-helper adaptation
+
+The archive-backed strict patch-target replay stopped at core patch 145, `helium/core/degoogle-context-menu.patch`: Chromium renamed `CanPartiallyTranslateTargetLanguage` to `CanPartiallyTranslate` while restoring partial translation for PDFs. The owner approved the exact two-name patch adaptation on November 13. Core commit `e5049134` changes only the function name in the context and the removed upstream call; both full-page and partial-translation eligibility still return false. No hunk is dropped or fuzz-applied. Restarted strict replay and complete preparation remain required.
