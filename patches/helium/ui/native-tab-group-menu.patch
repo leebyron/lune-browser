@@ -1,0 +1,647 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -20869,6 +20869,15 @@
+     <message name="IDS_COMMAND_BAR_REMOVE_TAB_FROM_GROUP" desc="Command palette action: Remove Tab from Group.">
+       Remove Tab from Group
+     </message>
++    <message name="IDS_TAB_GROUP_MENU_RENAME" desc="Rename the tab group inline.">Rename</message>
++    <message name="IDS_TAB_GROUP_MENU_NAME_PLACEHOLDER" desc="Placeholder in a new tab group name field.">Name Group</message>
++    <message name="IDS_TAB_GROUP_MENU_CLOSE_TABS" desc="Close member tabs and delete the saved tab group.">Close Tabs in Group</message>
++    <message name="IDS_TAB_GROUP_MENU_PIN" desc="Pin this group above New Tab.">Pin Tab Group</message>
++    <message name="IDS_TAB_GROUP_MENU_UNPIN" desc="Unpin this group from above New Tab.">Unpin Tab Group</message>
++    <message name="IDS_TAB_GROUP_MENU_NEW_TAB" desc="Create a tab in this group.">New Tab in Group</message>
++    <message name="IDS_TAB_GROUP_MENU_MOVE_WINDOW" desc="Move this group into a new window.">Move Group to New Window</message>
++    <message name="IDS_TAB_GROUP_MENU_FOCUS" desc="Focus the browser on this group.">Focus on Group</message>
++    <message name="IDS_TAB_GROUP_MENU_UNFOCUS" desc="Exit group focus mode.">Unfocus Group</message>
+   </messages>
+ </release>
+-</grit>
+\ No newline at end of file
++</grit>
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
+@@ -15,14 +15,25 @@
+ #include "build/build_config.h"
+ #include "build/buildflag.h"
+ #include "chrome/app/vector_icons/vector_icons.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
++#include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
++#include "chrome/browser/ui/browser_tabstrip.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/tabs/features.h"
++#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+ #include "chrome/browser/ui/tabs/tab_group_data.h"
++#include "chrome/browser/ui/tabs/tab_group_model.h"
+ #include "chrome/browser/ui/tabs/tab_group_theme.h"
++#include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/event_utils.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_style.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+@@ -32,6 +43,8 @@
+ #include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_controller.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/data_sharing/public/features.h"
++#include "components/saved_tab_groups/public/features.h"
++#include "components/saved_tab_groups/public/tab_group_sync_service.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "components/tab_groups/tab_group_id.h"
+ #include "components/tab_groups/tab_group_visual_data.h"
+@@ -50,6 +63,7 @@
+ #include "ui/gfx/image/image_skia.h"
+ #include "ui/gfx/image/image_skia_rep.h"
+ #include "ui/gfx/image/image_skia_source.h"
++#include "ui/gfx/text_utils.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/animation/ink_drop.h"
+ #include "ui/views/background.h"
+@@ -60,7 +74,9 @@
+ #include "ui/views/controls/highlight_path_generator.h"
+ #include "ui/views/controls/image_view.h"
+ #include "ui/views/controls/label.h"
++#include "ui/views/controls/menu/menu_runner.h"
+ #include "ui/views/controls/scroll_view.h"
++#include "ui/views/controls/textfield/textfield.h"
+ #include "ui/views/interaction/element_tracker_views.h"
+ #include "ui/views/layout/layout_types.h"
+ #include "ui/views/layout/proposed_layout.h"
+@@ -69,6 +85,17 @@
+ #include "ui/views/widget/widget.h"
+ 
+ namespace {
++enum GroupMenuCommand {
++  kRenameGroup = 1,
++  kToggleGroupPinned,
++  kNewTabInGroup,
++  kMoveGroupToWindow,
++  kToggleGroupFocus,
++  kUngroupTabs,
++  kCloseTabsInGroup,
++  kGroupHome,
++};
++
+ constexpr int kIconSize = 16;
+ constexpr int kFocusRingInset = 2;
+ constexpr int kAttentionIndicatorWidth = 8;
+@@ -83,8 +110,8 @@
+ class TabGroupEmojiImageSource : public gfx::ImageSkiaSource {
+  public:
+   TabGroupEmojiImageSource(std::u16string text,
+-                          const gfx::FontList& font,
+-                          SkColor color)
++                           const gfx::FontList& font,
++                           SkColor color)
+       : text_(std::move(text)),
+         font_(font.DeriveWithSizeDelta(kEmojiFontSize - font.GetFontSize())),
+         color_(SkColorSetA(color, SK_AlphaOPAQUE)) {}
+@@ -234,6 +261,18 @@
+     emoji_icon_->GetViewAccessibility().SetIsIgnored(true);
+     emoji_icon_->SetVisible(false);
+   }
++  if (UsesNativeGroupMenu()) {
++    set_context_menu_controller(this);
++    title_editor_ = AddChildView(std::make_unique<views::Textfield>());
++    title_editor_->SetProperty(views::kViewIgnoredByLayoutKey, true);
++    title_editor_->set_controller(this);
++    title_editor_->SetFontList(group_header_label_->font_list());
++    title_editor_->SetPlaceholderText(
++        l10n_util::GetStringUTF16(IDS_TAB_GROUP_MENU_NAME_PLACEHOLDER));
++    title_editor_->GetViewAccessibility().SetName(
++        l10n_util::GetStringUTF16(IDS_TAB_GROUP_MENU_NAME_PLACEHOLDER));
++    title_editor_->SetVisible(false);
++  }
+   SetNotifyEnterExitOnChild(true);
+ 
+   editor_bubble_opened_subscription_ =
+@@ -385,6 +424,10 @@
+   // Hide the group hovercard if it is currently showing.
+   delegate_->HideHoverCard(TabSlotController::HoverCardUpdateType::kEvent);
+ 
++  if (UsesNativeGroupMenu() && event.IsOnlyRightMouseButton()) {
++    return true;
++  }
++
+   // Potentially start the drag for the mouse press.
+   // Follow-up mouse-movement events will update the drag controller and
+   // eventually kick off the drag-loop.
+@@ -401,6 +444,11 @@
+ void TabGroupHeaderView::OnMouseReleased(const ui::MouseEvent& event) {
+   delegate_->CancelHeaderDrag();
+ 
++  // macOS sends the context-menu event on mouse-down. Do not reopen the
++  // menu (or rename) on mouse-up after native tracking ends.
++  if (UsesNativeGroupMenu() && (event.IsRightMouseButton() || IsRenaming())) {
++    return;
++  }
+   bool open_editor_bubble =
+       event.IsRightMouseButton() && !editor_bubble_tracker_.is_open();
+   bool toggle_collapse =
+@@ -508,7 +556,13 @@
+ 
+ void TabGroupHeaderView::OnWillChangeFocus(views::View* focused_before,
+                                            views::View* focused_now) {
+-  // The section header itself is the focus target; there is no editor button.
++  if (focused_before == title_editor_ && focused_now != title_editor_ &&
++      IsRenaming()) {
++    // Focus notifications are reentrant; commit after focus has settled.
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&TabGroupHeaderView::FinishRename,
++                                  weak_ptr_factory_.GetWeakPtr(), true, false));
++  }
+ }
+ 
+ void TabGroupHeaderView::OnDidChangeFocus(views::View* focused_before,
+@@ -522,6 +576,10 @@
+     views::View* source,
+     const gfx::Point& point,
+     ui::mojom::MenuSourceType source_type) {
++  if (UsesNativeGroupMenu()) {
++    ShowNativeGroupMenu(point, source_type);
++    return;
++  }
+   // When the context menu is triggered via keyboard, the keyboard event
+   // propagates to the textfield inside the Editor Bubble. In those cases, we
+   // want to tell the Editor Bubble to stop the event by setting
+@@ -808,8 +866,8 @@
+     const int inset =
+         GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
+     emoji_icon_->SetBounds(inset + (kIconSize - kEmojiCanvasSize) / 2,
+-                           (height() - kEmojiCanvasSize) / 2,
+-                           kEmojiCanvasSize, kEmojiCanvasSize);
++                           (height() - kEmojiCanvasSize) / 2, kEmojiCanvasSize,
++                           kEmojiCanvasSize);
+   }
+   if (collapse_icon_) {
+     collapse_icon_->SetVisible(!tab_drag_in_progress_ &&
+@@ -828,6 +886,36 @@
+       child.child_view->SetBoundsRect(child.bounds);
+     }
+   }
++  if (IsRenaming()) {
++    group_header_label_->SetVisible(false);
++    if (emoji_icon_) {
++      emoji_icon_->SetVisible(false);
++    }
++    if (collapse_icon_) {
++      collapse_icon_->SetVisible(false);
++    }
++    // Match the label's text origin, accounting for the field's own border
++    // and content insets rather than positioning its outer edge like a tab.
++    int text_x = group_header_label_->x();
++    if (!leading_emoji_.empty()) {
++      // The label omits the separately rendered emoji, but the editor retains
++      // the full stored name. Align the following words in both presentations.
++      const auto& title = tab_group_visual_data_.title();
++      size_t prefix_length = leading_emoji_.size();
++      while (prefix_length < title.size() &&
++             base::IsUnicodeWhitespace(title[prefix_length])) {
++        ++prefix_length;
++      }
++      text_x -= gfx::GetStringWidth(
++          std::u16string_view(title).substr(0, prefix_length),
++          group_header_label_->font_list());
++    }
++    const int field_x = std::max(0, text_x - title_editor_->GetInsets().left());
++    const int trailing =
++        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding);
++    title_editor_->SetBounds(
++        field_x, 0, std::max(0, width() - trailing - field_x), height());
++  }
+ }
+ 
+ void TabGroupHeaderView::OnThemeChanged() {
+@@ -851,6 +939,9 @@
+ }
+ 
+ void TabGroupHeaderView::OnBubbleClosed() {
++  if (IsRenaming()) {
++    return;
++  }
+   expand_on_hover_lock_.reset();
+   hover_card_hide_lock_.reset();
+   if (auto* closing_helper = delegate_->GetTabClosingHelper()) {
+@@ -861,6 +952,11 @@
+ }
+ 
+ void TabGroupHeaderView::ShowEditorBubble() {
++  if (UsesNativeGroupMenu()) {
++    ShowNativeGroupMenu(GetBoundsInScreen().origin(),
++                        ui::mojom::MenuSourceType::kKeyboard);
++    return;
++  }
+   if (editor_bubble_tracker_.is_open()) {
+     return;
+   }
+@@ -872,6 +968,223 @@
+       /*stop_context_menu_propagation=*/false));
+ }
+ 
++bool TabGroupHeaderView::UsesNativeGroupMenu() const {
++#if BUILDFLAG(IS_MAC)
++  return orientation_ == TabStripOrientation::kVertical;
++#else
++  return false;
++#endif
++}
++
++bool TabGroupHeaderView::IsRenaming() const {
++  return title_editor_ && title_editor_->GetVisible();
++}
++
++void TabGroupHeaderView::BeginRename() {
++  if (!title_editor_ || !delegate_->IsValid()) {
++    return;
++  }
++  if (delegate_->GetTabGroup().is_ephemeral()) {
++    editor_bubble_tracker_.Opened(delegate_->ShowGroupEditorBubble(false));
++    return;
++  }
++  delegate_->HideHoverCard(TabSlotController::HoverCardUpdateType::kEvent);
++  delegate_->CancelHeaderDrag();
++  title_editor_->SetText(tab_group_visual_data_.title());
++  title_editor_->SetVisible(true);
++  OnBubbleOpened();
++  InvalidateLayout();
++  ScrollViewToVisible();
++  title_editor_->RequestFocus();
++  title_editor_->SelectAll(false);
++}
++
++void TabGroupHeaderView::FinishRename(bool commit, bool restore_focus) {
++  if (!IsRenaming()) {
++    return;
++  }
++  const std::u16string title(title_editor_->GetText());
++  title_editor_->SetVisible(false);
++  auto weak_this = weak_ptr_factory_.GetWeakPtr();
++  if (commit && delegate_->IsValid()) {
++    if (auto* browser = delegate_->GetBrowserWindowInterface()) {
++      auto* model = browser->GetTabStripModel();
++      const auto* tab_group = model->group_model()->GetTabGroup(group());
++      const auto* visuals = tab_group->visual_data();
++      model->ChangeTabGroupVisuals(
++          group(),
++          tab_groups::TabGroupVisualData(title, visuals->color(),
++                                         visuals->is_collapsed()),
++          /*is_customized=*/true);
++    }
++  }
++  if (!weak_this || !delegate_->IsValid()) {
++    return;
++  }
++  OnDataChanged(delegate_->GetTabGroupData());
++  OnBubbleClosed();
++  InvalidateLayout();
++  if (restore_focus) {
++    RequestFocus();
++  }
++}
++
++bool TabGroupHeaderView::HandleKeyEvent(views::Textfield* sender,
++                                        const ui::KeyEvent& event) {
++  if (!IsRenaming() || event.type() != ui::EventType::kKeyPressed ||
++      title_editor_->IsIMEComposing()) {
++    return false;
++  }
++  if (event.key_code() == ui::VKEY_RETURN ||
++      event.key_code() == ui::VKEY_ESCAPE) {
++    // Keep the field focused until dispatch finishes so Enter cannot reach
++    // the header's collapse shortcut after committing the name.
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&TabGroupHeaderView::FinishRename,
++                                  weak_ptr_factory_.GetWeakPtr(),
++                                  event.key_code() == ui::VKEY_RETURN, true));
++    return true;
++  }
++  return false;
++}
++
++void TabGroupHeaderView::ShowNativeGroupMenu(
++    const gfx::Point& point,
++    ui::mojom::MenuSourceType source_type) {
++  auto* browser = delegate_->GetBrowserWindowInterface();
++  if (!browser || !delegate_->IsValid() ||
++      (group_menu_runner_ && group_menu_runner_->IsRunning())) {
++    return;
++  }
++  if (delegate_->GetTabGroup().is_ephemeral()) {
++    editor_bubble_tracker_.Opened(delegate_->ShowGroupEditorBubble(false));
++    return;
++  }
++  FinishRename(true, false);
++  auto* model = browser->GetTabStripModel();
++  group_menu_runner_.reset();
++  group_menu_.Clear();
++  group_menu_.AddItemWithStringId(kRenameGroup, IDS_TAB_GROUP_MENU_RENAME);
++  group_menu_.AddItemWithStringId(kToggleGroupPinned,
++                                  model->IsTabGroupPinned(group())
++                                      ? IDS_TAB_GROUP_MENU_UNPIN
++                                      : IDS_TAB_GROUP_MENU_PIN);
++  group_menu_.AddSeparator(ui::NORMAL_SEPARATOR);
++  group_menu_.AddItemWithStringId(kNewTabInGroup, IDS_TAB_GROUP_MENU_NEW_TAB);
++  if (base::FeatureList::IsEnabled(tabs::kTabGroupHome)) {
++    group_menu_.AddItemWithStringId(kGroupHome,
++                                    IDS_TAB_GROUP_HEADER_CXMENU_HOME);
++  }
++  group_menu_.AddItemWithStringId(kMoveGroupToWindow,
++                                  IDS_TAB_GROUP_MENU_MOVE_WINDOW);
++  if (base::FeatureList::IsEnabled(features::kTabGroupsFocusing)) {
++    group_menu_.AddItemWithStringId(kToggleGroupFocus,
++                                    delegate_->IsGroupFocused()
++                                        ? IDS_TAB_GROUP_MENU_UNFOCUS
++                                        : IDS_TAB_GROUP_MENU_FOCUS);
++  }
++  group_menu_.AddSeparator(ui::NORMAL_SEPARATOR);
++  group_menu_.AddItemWithStringId(kUngroupTabs,
++                                  IDS_TAB_GROUP_HEADER_CXMENU_UNGROUP);
++  group_menu_.AddItemWithStringId(kCloseTabsInGroup,
++                                  IDS_TAB_GROUP_MENU_CLOSE_TABS);
++  OnBubbleOpened();
++  menu_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(GetWidget());
++  group_menu_runner_ = std::make_unique<views::MenuRunner>(
++      &group_menu_, views::MenuRunner::CONTEXT_MENU,
++      base::BindRepeating(&TabGroupHeaderView::OnNativeMenuClosed,
++                          weak_ptr_factory_.GetWeakPtr()));
++  group_menu_runner_->RunMenuAt(
++      GetWidget(), nullptr,
++      gfx::Rect(source_type == ui::mojom::MenuSourceType::kMouse
++                    ? point
++                    : GetBoundsInScreen().origin(),
++                gfx::Size()),
++      views::MenuAnchorPosition::kTopLeft, source_type);
++}
++
++void TabGroupHeaderView::OnNativeMenuClosed() {
++  menu_reveal_hold_.RunAndReset();
++  OnBubbleClosed();
++}
++
++bool TabGroupHeaderView::IsCommandIdEnabled(int command_id) const {
++  auto* browser = delegate_->GetBrowserWindowInterface();
++  if (!browser || !delegate_->IsValid()) {
++    return false;
++  }
++  auto* model = browser->GetTabStripModel();
++  return command_id != kMoveGroupToWindow ||
++         model->count() !=
++             model->group_model()->GetTabGroup(group())->tab_count();
++}
++
++void TabGroupHeaderView::ExecuteCommand(int command_id, int event_flags) {
++  auto* browser = delegate_->GetBrowserWindowInterface();
++  if (!browser || !delegate_->IsValid()) {
++    return;
++  }
++  auto* model = browser->GetTabStripModel();
++  const auto id = group();
++  switch (command_id) {
++    case kRenameGroup:
++      BeginRename();
++      return;
++    case kToggleGroupPinned:
++      model->SetTabGroupPinned(id, !model->IsTabGroupPinned(id));
++      return;
++    case kNewTabInGroup:
++      model->delegate()->AddTabAt(
++          GURL(), model->group_model()->GetTabGroup(id)->ListTabs().end(), true,
++          id);
++      return;
++    case kMoveGroupToWindow:
++      model->delegate()->MoveGroupToNewWindow(id);
++      return;
++    case kToggleGroupFocus:
++      if (model->GetFocusedGroup() == id) {
++        model->ExitFocusMode(TabGroupFocusExitReason::kEditorBubble);
++      } else {
++        model->EnterFocusMode(id);
++      }
++      return;
++    case kGroupHome:
++      chrome::AddSelectedTabWithURL(browser, GURL("chrome://tab-group-home/"),
++                                    ui::PAGE_TRANSITION_TYPED);
++      return;
++    case kUngroupTabs: {
++      if (auto* service = tab_groups::TabGroupSyncServiceFactory::GetForProfile(
++              browser->GetProfile())) {
++        if (const auto saved = service->GetGroup(id)) {
++          tab_groups::SavedTabGroupUtils::UngroupSavedGroup(
++              browser, saved->saved_guid());
++          return;
++        }
++      }
++      const auto range = model->group_model()->GetTabGroup(id)->ListTabs();
++      std::vector<int> tabs;
++      for (auto index = range.start(); index < range.end(); ++index) {
++        tabs.push_back(index);
++      }
++      model->RemoveFromGroup(tabs);
++      return;
++    }
++    case kCloseTabsInGroup: {
++      auto* service = tab_groups::TabGroupSyncServiceFactory::GetForProfile(
++          browser->GetProfile());
++      if (service) {
++        if (const auto saved = service->GetGroup(id)) {
++          tab_groups::SavedTabGroupUtils::DeleteSavedGroup(browser,
++                                                           saved->saved_guid());
++          return;
++        }
++      }
++      model->CloseAllTabsInGroup(id);
++      return;
++    }
++  }
++}
++
+ int TabGroupHeaderView::GetCornerRadius() const {
+   return delegate_->IsGroupFocused()
+              ? TabGroupStyle::GetFocusedChipCornerRadius(orientation_)
+@@ -911,8 +1224,8 @@
+     return gfx::Insets::TLBR(
+         0,
+         inset + (emoji_icon_ && emoji_icon_->GetVisible()
+-                     ? kIconSize +
+-                           GetLayoutConstant(LayoutConstant::kTabHorizontalPadding)
++                     ? kIconSize + GetLayoutConstant(
++                                       LayoutConstant::kTabHorizontalPadding)
+                      : 0),
+         0, GetLayoutConstant(LayoutConstant::kVerticalTabHeight));
+   }
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view.h
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view.h
+@@ -9,6 +9,7 @@
+ #include <string>
+ 
+ #include "base/callback_list.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/weak_ptr.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+@@ -21,10 +22,13 @@
+ #include "components/tab_groups/tab_group_visual_data.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ #include "ui/gfx/geometry/rounded_corners_f.h"
++#include "ui/menus/simple_menu_model.h"
+ #include "ui/views/context_menu_controller.h"
++#include "ui/views/controls/textfield/textfield_controller.h"
+ #include "ui/views/focus/focus_manager.h"
+ #include "ui/views/layout/flex_layout_view.h"
+ 
++class BrowserWindowInterface;
+ class HorizontalTabClosingHelper;
+ class TabGroup;
+ 
+@@ -37,6 +41,8 @@
+ class LabelButton;
+ class ImageView;
+ class Label;
++class MenuRunner;
++class Textfield;
+ }  // namespace views
+ 
+ // The view for the tab group header. It displays the tab group
+@@ -44,7 +50,9 @@
+ class TabGroupHeaderView : public views::FlexLayoutView,
+                            public views::ContextMenuController,
+                            public views::FocusChangeListener,
+-                           public HoverCardAnchorTarget {
++                           public HoverCardAnchorTarget,
++                           public ui::SimpleMenuModel::Delegate,
++                           public views::TextfieldController {
+   METADATA_HEADER(TabGroupHeaderView, views::FlexLayoutView)
+ 
+  public:
+@@ -56,6 +64,9 @@
+     virtual std::unique_ptr<views::Widget> ShowGroupEditorBubble(
+         bool stop_context_menu_propagation) = 0;
+ 
++    virtual BrowserWindowInterface* GetBrowserWindowInterface() const {
++      return nullptr;
++    }
+     virtual bool IsValid() const = 0;
+     virtual void InitHeaderDrag(const ui::LocatedEvent& event) = 0;
+     virtual bool ContinueHeaderDrag(const ui::LocatedEvent& event) = 0;
+@@ -129,6 +140,18 @@
+   void SetIsDropTarget(bool is_drop_target);
+   void OnTabDragStateChanged(bool in_progress);
+ 
++  // Start the inline editor without changing the group's collapse or pin state.
++  void BeginRename();
++  bool IsRenaming() const;
++
++  // ui::SimpleMenuModel::Delegate:
++  bool IsCommandIdEnabled(int command_id) const override;
++  void ExecuteCommand(int command_id, int event_flags) override;
++
++  // views::TextfieldController:
++  bool HandleKeyEvent(views::Textfield* sender,
++                      const ui::KeyEvent& event) override;
++
+   tab_groups::TabGroupId group() const;
+ 
+   views::LabelButton* editor_bubble_button() { return editor_bubble_button_; }
+@@ -139,6 +162,11 @@
+   views::Label* title_label_for_testing() { return group_header_label_; }
+ 
+  private:
++  bool UsesNativeGroupMenu() const;
++  void ShowNativeGroupMenu(const gfx::Point& point,
++                           ui::mojom::MenuSourceType source_type);
++  void FinishRename(bool commit, bool restore_focus);
++  void OnNativeMenuClosed();
+   void UpdateDisclosureVisibility(std::optional<bool> hovered = std::nullopt);
+   void OnBubbleOpened();
+   void OnBubbleClosed();
+@@ -177,6 +205,11 @@
+   const raw_ptr<views::LabelButton> editor_bubble_button_ = nullptr;
+   const raw_ptr<views::ImageView> collapse_icon_ = nullptr;
+ 
++  raw_ptr<views::Textfield> title_editor_ = nullptr;
++  ui::SimpleMenuModel group_menu_{this};
++  std::unique_ptr<views::MenuRunner> group_menu_runner_;
++  base::ScopedClosureRunner menu_reveal_hold_;
++
+   std::unique_ptr<ExpandOnHoverLock> expand_on_hover_lock_;
+   std::unique_ptr<TabHoverCardController::ScopedHideHoverCardLock>
+       hover_card_hide_lock_;
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view.cc
+@@ -239,6 +239,12 @@
+       stop_context_menu_propagation);
+ }
+ 
++BrowserWindowInterface* TabGroupView::GetBrowserWindowInterface() const {
++  return collection_node_
++             ? collection_node_->GetController()->GetBrowserView()->browser()
++             : nullptr;
++}
++
+ bool TabGroupView::IsDragging() const {
+   if (!collection_node_ || !collection_node_->GetController()) {
+     return false;
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view.h
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view.h
+@@ -67,6 +67,7 @@
+   void ToggleCollapsedState(ToggleTabGroupCollapsedStateOrigin origin) override;
+   std::unique_ptr<views::Widget> ShowGroupEditorBubble(
+       bool stop_context_menu_propagation) override;
++  BrowserWindowInterface* GetBrowserWindowInterface() const override;
+   bool IsValid() const override;
+   void InitHeaderDrag(const ui::LocatedEvent& event) override;
+   bool ContinueHeaderDrag(const ui::LocatedEvent& event) override;
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.cc
+@@ -504,6 +504,12 @@
+     const TabCollectionNode* group_node) {
+   auto* group_header_view =
+       views::AsViewClass<TabGroupView>(group_node->view())->group_header();
++#if BUILDFLAG(IS_MAC)
++  if (group_node->orientation() == TabStripOrientation::kVertical) {
++    group_header_view->BeginRename();
++    return;
++  }
++#endif
+   group_header_view->ShowContextMenuForViewImpl(
+       group_header_view, gfx::Point(), ui::mojom::MenuSourceType::kNone);
+ }
+--- a/chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.cc
++++ b/chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.cc
+@@ -11,6 +11,7 @@
+ #include "base/functional/callback.h"
+ #include "base/i18n/message_formatter.h"
+ #include "base/strings/utf_string_conversions.h"
++#include "build/build_config.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/signin/identity_manager_factory.h"
+ #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
+@@ -417,6 +418,22 @@
+     return false;
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // Local tab groups close and delete immediately. This also covers closing
++  // their final tab, ungrouping and removing their last member, rather than
++  // depending on which menu or keyboard command initiated the operation.
++  switch (metadata.type) {
++    case DialogType::DeleteSingle:
++    case DialogType::UngroupSingle:
++    case DialogType::RemoveTabAndDelete:
++    case DialogType::CloseTabAndDelete:
++      std::move(callback).Run(DeletionDialogTiming::Synchronous);
++      return false;
++    default:
++      break;
++  }
++#endif
++
+   if (IsDialogSkippedByUserSettings(GetProfile(), metadata.type)) {
+     std::move(callback).Run(DeletionDialogTiming::Synchronous);
+     return false;
