@@ -55,25 +55,24 @@
  #include "components/strings/grit/components_strings.h"
  #include "components/tab_groups/tab_group_id.h"
  #include "components/tab_groups/tab_group_visual_data.h"
-@@ -50,6 +63,7 @@
- #include "ui/gfx/image/image_skia.h"
- #include "ui/gfx/image/image_skia_rep.h"
- #include "ui/gfx/image/image_skia_source.h"
-+#include "ui/gfx/text_utils.h"
- #include "ui/views/accessibility/view_accessibility.h"
- #include "ui/views/animation/ink_drop.h"
- #include "ui/views/background.h"
-@@ -60,7 +74,9 @@
+@@ -57,11 +70,16 @@
+ #include "ui/views/controls/button/button_controller.h"
+ #include "ui/views/controls/button/label_button.h"
+ #include "ui/views/controls/button/label_button_border.h"
++#include "ui/views/controls/focus_ring.h"
  #include "ui/views/controls/highlight_path_generator.h"
  #include "ui/views/controls/image_view.h"
  #include "ui/views/controls/label.h"
 +#include "ui/views/controls/menu/menu_runner.h"
  #include "ui/views/controls/scroll_view.h"
 +#include "ui/views/controls/textfield/textfield.h"
++#include "ui/views/event_monitor.h"
  #include "ui/views/interaction/element_tracker_views.h"
++#include "ui/views/layout/layout_provider.h"
  #include "ui/views/layout/layout_types.h"
  #include "ui/views/layout/proposed_layout.h"
-@@ -69,6 +85,17 @@
+ #include "ui/views/view.h"
+@@ -69,6 +87,17 @@
  #include "ui/views/widget/widget.h"
  
  namespace {
@@ -91,7 +90,7 @@
  constexpr int kIconSize = 16;
  constexpr int kFocusRingInset = 2;
  constexpr int kAttentionIndicatorWidth = 8;
-@@ -83,8 +110,8 @@
+@@ -83,8 +112,8 @@
  class TabGroupEmojiImageSource : public gfx::ImageSkiaSource {
   public:
    TabGroupEmojiImageSource(std::u16string text,
@@ -102,7 +101,7 @@
        : text_(std::move(text)),
          font_(font.DeriveWithSizeDelta(kEmojiFontSize - font.GetFontSize())),
          color_(SkColorSetA(color, SK_AlphaOPAQUE)) {}
-@@ -234,6 +261,18 @@
+@@ -234,6 +263,22 @@
      emoji_icon_->GetViewAccessibility().SetIsIgnored(true);
      emoji_icon_->SetVisible(false);
    }
@@ -111,9 +110,13 @@
 +    title_editor_ = AddChildView(std::make_unique<views::Textfield>());
 +    title_editor_->SetProperty(views::kViewIgnoredByLayoutKey, true);
 +    title_editor_->set_controller(this);
++    // The first pinned header can be flush with the scroll viewport. Draw
++    // the ring inside the field so that its top edge cannot be clipped.
++    views::FocusRing::Get(title_editor_)->SetHaloInset(0.0f);
 +    title_editor_->SetFontList(group_header_label_->font_list());
 +    title_editor_->SetPlaceholderText(
 +        l10n_util::GetStringUTF16(IDS_TAB_GROUP_MENU_NAME_PLACEHOLDER));
++    title_editor_->SetPlaceholderTextColorId(kColorTabGroupNamePlaceholder);
 +    title_editor_->GetViewAccessibility().SetName(
 +        l10n_util::GetStringUTF16(IDS_TAB_GROUP_MENU_NAME_PLACEHOLDER));
 +    title_editor_->SetVisible(false);
@@ -121,7 +124,19 @@
    SetNotifyEnterExitOnChild(true);
  
    editor_bubble_opened_subscription_ =
-@@ -385,6 +424,10 @@
+@@ -339,6 +384,11 @@
+ }
+ 
+ bool TabGroupHeaderView::OnKeyPressed(const ui::KeyEvent& event) {
++  // Printable keys and editing shortcuts belong to the inline field. In
++  // particular, Space must not bubble into the header's collapse command.
++  if (IsRenaming()) {
++    return false;
++  }
+   if ((event.key_code() == ui::VKEY_SPACE ||
+        event.key_code() == ui::VKEY_RETURN) &&
+       !delegate_->IsGroupFocused()) {
+@@ -385,6 +435,10 @@
    // Hide the group hovercard if it is currently showing.
    delegate_->HideHoverCard(TabSlotController::HoverCardUpdateType::kEvent);
  
@@ -132,7 +147,7 @@
    // Potentially start the drag for the mouse press.
    // Follow-up mouse-movement events will update the drag controller and
    // eventually kick off the drag-loop.
-@@ -401,6 +444,11 @@
+@@ -401,6 +455,11 @@
  void TabGroupHeaderView::OnMouseReleased(const ui::MouseEvent& event) {
    delegate_->CancelHeaderDrag();
  
@@ -144,7 +159,14 @@
    bool open_editor_bubble =
        event.IsRightMouseButton() && !editor_bubble_tracker_.is_open();
    bool toggle_collapse =
-@@ -508,7 +556,13 @@
+@@ -502,13 +561,20 @@
+ }
+ 
+ void TabGroupHeaderView::RemovedFromWidget() {
++  rename_event_monitor_.reset();
+   GetFocusManager()->RemoveFocusChangeListener(this);
+   views::FlexLayoutView::RemovedFromWidget();
+ }
  
  void TabGroupHeaderView::OnWillChangeFocus(views::View* focused_before,
                                             views::View* focused_now) {
@@ -159,7 +181,7 @@
  }
  
  void TabGroupHeaderView::OnDidChangeFocus(views::View* focused_before,
-@@ -522,6 +576,10 @@
+@@ -522,6 +588,10 @@
      views::View* source,
      const gfx::Point& point,
      ui::mojom::MenuSourceType source_type) {
@@ -170,7 +192,7 @@
    // When the context menu is triggered via keyboard, the keyboard event
    // propagates to the textfield inside the Editor Bubble. In those cases, we
    // want to tell the Editor Bubble to stop the event by setting
-@@ -808,8 +866,8 @@
+@@ -808,8 +878,8 @@
      const int inset =
          GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
      emoji_icon_->SetBounds(inset + (kIconSize - kEmojiCanvasSize) / 2,
@@ -181,7 +203,7 @@
    }
    if (collapse_icon_) {
      collapse_icon_->SetVisible(!tab_drag_in_progress_ &&
-@@ -828,6 +886,36 @@
+@@ -828,6 +898,36 @@
        child.child_view->SetBoundsRect(child.bounds);
      }
    }
@@ -193,32 +215,32 @@
 +    if (collapse_icon_) {
 +      collapse_icon_->SetVisible(false);
 +    }
-+    // Match the label's text origin, accounting for the field's own border
-+    // and content insets rather than positioning its outer edge like a tab.
-+    int text_x = group_header_label_->x();
-+    if (!leading_emoji_.empty()) {
-+      // The label omits the separately rendered emoji, but the editor retains
-+      // the full stored name. Align the following words in both presentations.
-+      const auto& title = tab_group_visual_data_.title();
-+      size_t prefix_length = leading_emoji_.size();
-+      while (prefix_length < title.size() &&
-+             base::IsUnicodeWhitespace(title[prefix_length])) {
-+        ++prefix_length;
-+      }
-+      text_x -= gfx::GetStringWidth(
-+          std::u16string_view(title).substr(0, prefix_length),
-+          group_header_label_->font_list());
-+    }
-+    const int field_x = std::max(0, text_x - title_editor_->GetInsets().left());
++    // Editing always uses ordinary tab content padding. The full stored
++    // title, including any leading emoji, belongs inside that same inset.
++    const int text_x =
++        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
 +    const int trailing =
 +        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding);
-+    title_editor_->SetBounds(
-+        field_x, 0, std::max(0, width() - trailing - field_x), height());
++    // Header and member tabs share the same row bounds. Keep the field at
++    // those full bounds and place text with content insets, so neither an
++    // aligned title nor an emoji prefix narrows or indents the editing view.
++    if (title_editor_->GetInsets().left() != text_x ||
++        title_editor_->GetInsets().right() != trailing) {
++      const int default_padding =
++          views::LayoutProvider::Get()->GetDistanceMetric(
++              views::DISTANCE_TEXTFIELD_HORIZONTAL_TEXT_PADDING);
++      title_editor_->SetExtraInsets(gfx::Insets::TLBR(
++          0, text_x - default_padding, 0, trailing - default_padding));
++      // Insets update the border, but unchanged bounds do not refresh the
++      // RenderText display rect. Do so even when the row has not resized.
++      title_editor_->FitToLocalBounds();
++    }
++    title_editor_->SetBoundsRect(GetLocalBounds());
 +  }
  }
  
  void TabGroupHeaderView::OnThemeChanged() {
-@@ -851,6 +939,9 @@
+@@ -851,6 +951,9 @@
  }
  
  void TabGroupHeaderView::OnBubbleClosed() {
@@ -228,7 +250,7 @@
    expand_on_hover_lock_.reset();
    hover_card_hide_lock_.reset();
    if (auto* closing_helper = delegate_->GetTabClosingHelper()) {
-@@ -861,6 +952,11 @@
+@@ -861,6 +964,11 @@
  }
  
  void TabGroupHeaderView::ShowEditorBubble() {
@@ -240,7 +262,7 @@
    if (editor_bubble_tracker_.is_open()) {
      return;
    }
-@@ -872,6 +968,223 @@
+@@ -872,6 +980,245 @@
        /*stop_context_menu_propagation=*/false));
  }
  
@@ -266,8 +288,10 @@
 +  }
 +  delegate_->HideHoverCard(TabSlotController::HoverCardUpdateType::kEvent);
 +  delegate_->CancelHeaderDrag();
-+  title_editor_->SetText(tab_group_visual_data_.title());
++  title_editor_->SetText(delegate_->GetTabGroup().visual_data()->title());
 +  title_editor_->SetVisible(true);
++  rename_event_monitor_ = views::EventMonitor::CreateWindowMonitor(
++      this, GetWidget()->GetNativeWindow(), {ui::EventType::kMousePressed});
 +  OnBubbleOpened();
 +  InvalidateLayout();
 +  ScrollViewToVisible();
@@ -280,6 +304,7 @@
 +    return;
 +  }
 +  const std::u16string title(title_editor_->GetText());
++  rename_event_monitor_.reset();
 +  title_editor_->SetVisible(false);
 +  auto weak_this = weak_ptr_factory_.GetWeakPtr();
 +  if (commit && delegate_->IsValid()) {
@@ -303,6 +328,25 @@
 +  if (restore_focus) {
 +    RequestFocus();
 +  }
++}
++
++void TabGroupHeaderView::OnEvent(const ui::Event& event) {
++  if (event.type() != ui::EventType::kMousePressed || !IsRenaming()) {
++    return;
++  }
++  auto point_in_screen = event.AsLocatedEvent()->root_location();
++#if BUILDFLAG(IS_MAC)
++  // Mac event roots use window coordinates rather than screen coordinates.
++  point_in_screen += GetWidget()->GetWindowBoundsInScreen().OffsetFromOrigin();
++#endif
++  if (title_editor_->GetBoundsInScreen().Contains(point_in_screen)) {
++    return;
++  }
++  // Empty sidebar space need not take focus. Commit after dispatch so the
++  // original click still reaches its target and may safely remove this group.
++  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++      FROM_HERE, base::BindOnce(&TabGroupHeaderView::FinishRename,
++                                weak_ptr_factory_.GetWeakPtr(), true, false));
 +}
 +
 +bool TabGroupHeaderView::HandleKeyEvent(views::Textfield* sender,
@@ -464,7 +508,7 @@
  int TabGroupHeaderView::GetCornerRadius() const {
    return delegate_->IsGroupFocused()
               ? TabGroupStyle::GetFocusedChipCornerRadius(orientation_)
-@@ -911,8 +1224,8 @@
+@@ -911,8 +1258,8 @@
      return gfx::Insets::TLBR(
          0,
          inset + (emoji_icon_ && emoji_icon_->GetVisible()
@@ -485,9 +529,11 @@
  #include "base/memory/raw_ptr.h"
  #include "base/memory/weak_ptr.h"
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
-@@ -21,10 +22,13 @@
+@@ -20,11 +21,15 @@
+ #include "components/tab_groups/tab_group_id.h"
  #include "components/tab_groups/tab_group_visual_data.h"
  #include "ui/base/metadata/metadata_header_macros.h"
++#include "ui/events/event_observer.h"
  #include "ui/gfx/geometry/rounded_corners_f.h"
 +#include "ui/menus/simple_menu_model.h"
  #include "ui/views/context_menu_controller.h"
@@ -499,7 +545,11 @@
  class HorizontalTabClosingHelper;
  class TabGroup;
  
-@@ -37,6 +41,8 @@
+@@ -34,9 +39,12 @@
+ }  // namespace tabs
+ 
+ namespace views {
++class EventMonitor;
  class LabelButton;
  class ImageView;
  class Label;
@@ -508,18 +558,19 @@
  }  // namespace views
  
  // The view for the tab group header. It displays the tab group
-@@ -44,7 +50,9 @@
+@@ -44,7 +52,10 @@
  class TabGroupHeaderView : public views::FlexLayoutView,
                             public views::ContextMenuController,
                             public views::FocusChangeListener,
 -                           public HoverCardAnchorTarget {
 +                           public HoverCardAnchorTarget,
 +                           public ui::SimpleMenuModel::Delegate,
-+                           public views::TextfieldController {
++                           public views::TextfieldController,
++                           public ui::EventObserver {
    METADATA_HEADER(TabGroupHeaderView, views::FlexLayoutView)
  
   public:
-@@ -56,6 +64,9 @@
+@@ -56,6 +67,9 @@
      virtual std::unique_ptr<views::Widget> ShowGroupEditorBubble(
          bool stop_context_menu_propagation) = 0;
  
@@ -529,7 +580,7 @@
      virtual bool IsValid() const = 0;
      virtual void InitHeaderDrag(const ui::LocatedEvent& event) = 0;
      virtual bool ContinueHeaderDrag(const ui::LocatedEvent& event) = 0;
-@@ -129,6 +140,18 @@
+@@ -129,6 +143,24 @@
    void SetIsDropTarget(bool is_drop_target);
    void OnTabDragStateChanged(bool in_progress);
  
@@ -545,10 +596,16 @@
 +  bool HandleKeyEvent(views::Textfield* sender,
 +                      const ui::KeyEvent& event) override;
 +
++  // Keep the views event-dispatch overload visible alongside the observer.
++  using views::FlexLayoutView::OnEvent;
++
++  // ui::EventObserver:
++  void OnEvent(const ui::Event& event) override;
++
    tab_groups::TabGroupId group() const;
  
    views::LabelButton* editor_bubble_button() { return editor_bubble_button_; }
-@@ -139,6 +162,11 @@
+@@ -139,6 +171,11 @@
    views::Label* title_label_for_testing() { return group_header_label_; }
  
   private:
@@ -560,11 +617,12 @@
    void UpdateDisclosureVisibility(std::optional<bool> hovered = std::nullopt);
    void OnBubbleOpened();
    void OnBubbleClosed();
-@@ -177,6 +205,11 @@
+@@ -177,6 +214,12 @@
    const raw_ptr<views::LabelButton> editor_bubble_button_ = nullptr;
    const raw_ptr<views::ImageView> collapse_icon_ = nullptr;
  
 +  raw_ptr<views::Textfield> title_editor_ = nullptr;
++  std::unique_ptr<views::EventMonitor> rename_event_monitor_;
 +  ui::SimpleMenuModel group_menu_{this};
 +  std::unique_ptr<views::MenuRunner> group_menu_runner_;
 +  base::ScopedClosureRunner menu_reveal_hold_;
@@ -645,3 +703,26 @@
    if (IsDialogSkippedByUserSettings(GetProfile(), metadata.type)) {
      std::move(callback).Run(DeletionDialogTiming::Synchronous);
      return false;
+--- a/chrome/browser/ui/color/chrome_color_id.h
++++ b/chrome/browser/ui/color/chrome_color_id.h
+@@ -1195,6 +1195,8 @@
+   /* Window control button background colors. */ \
+   E_CPONLY(kColorWindowControlButtonBackgroundActive) \
+   E_CPONLY(kColorWindowControlButtonBackgroundInactive) \
++  /* Inline tab-group naming. */ \
++  E_CPONLY(kColorTabGroupNamePlaceholder) \
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+ #define CHROME_PLATFORM_SPECIFIC_COLOR_IDS \
+--- a/chrome/browser/ui/color/chrome_color_mixer.cc
++++ b/chrome/browser/ui/color/chrome_color_mixer.cc
+@@ -215,6 +215,9 @@
+   const bool dark_mode =
+       key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
+   ui::ColorMixer& mixer = provider->AddMixer();
++  // Keep the placeholder at 30% opacity without dimming the name or cursor.
++  mixer[kColorTabGroupNamePlaceholder] =
++      ui::SetAlpha(ui::kColorTextfieldForeground, 0x4D);
+ 
+   const bool use_alternate_palette = features::IsTabGroupColorRefreshEnabled();
+ 
