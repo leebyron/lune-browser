@@ -1,0 +1,22 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1312,6 +1312,19 @@
+ @synthesize focusSurface = _focusSurface;
+ @synthesize userEditing = _userEditing;
+ @synthesize onInitialFocus = _onInitialFocus;
++- (void)setUserEditing:(BOOL)userEditing {
++  if (_userEditing == userEditing) {
++    return;
++  }
++  _userEditing = userEditing;
++  [self.window invalidateCursorRectsForView:self];
++}
++- (void)resetCursorRects {
++  // The idle capsule is a navigation control; only its focused editor is text.
++  [self addCursorRect:self.bounds
++               cursor:self.userEditing ? NSCursor.IBeamCursor
++                                       : NSCursor.arrowCursor];
++}
+ - (BOOL)acceptsFirstResponder {
+   // Keep automatic window activation from silently starting URL editing.
+   return self.userEditing;
