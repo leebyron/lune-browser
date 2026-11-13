@@ -1,0 +1,217 @@
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -137,11 +137,10 @@
+   views::ProposedLayout CalculateProposedLayout(
+       const views::SizeBounds& size_bounds) const override {
+     auto layout = views::LabelButton::CalculateProposedLayout(size_bounds);
+-    LayoutSidebarSectionHeader(
+-        layout, label(), chevron_,
+-        gfx::Size(size_bounds.width().value_or(0),
+-                  size_bounds.height().value_or(0)),
+-        IsMouseHovered());
++    LayoutSidebarSectionHeader(layout, label(), chevron_,
++                               gfx::Size(size_bounds.width().value_or(0),
++                                         size_bounds.height().value_or(0)),
++                               IsMouseHovered());
+     return layout;
+   }
+ 
+@@ -294,6 +293,40 @@
+ 
+ UnpinnedTabContainerView::~UnpinnedTabContainerView() = default;
+ 
++void UnpinnedTabContainerView::OnChildViewAdded(views::View* observed_view,
++                                                views::View* child) {
++  if (observed_view != this ||
++      orientation_ != TabStripOrientation::kVertical || !collection_node_ ||
++      !views::IsViewClass<TabGroupView>(child)) {
++    return;
++  }
++  auto* separator = AddChildView(
++      std::make_unique<SidebarScrollSeparator>(collection_node_->GetController()
++                                                   ->GetDragHandler()
++                                                   .GetTabStripModel()
++                                                   ->profile()));
++  separator->SetCanProcessEventsWithinSubtree(false);
++  separator->GetViewAccessibility().SetIsIgnored(true);
++  separator->SetVisible(false);
++  expanded_group_separators_.emplace(child, separator);
++  InvalidateLayout();
++}
++
++void UnpinnedTabContainerView::OnChildViewRemoved(views::View* observed_view,
++                                                  views::View* child) {
++  if (observed_view != this) {
++    return;
++  }
++  auto it = expanded_group_separators_.find(child);
++  if (it == expanded_group_separators_.end()) {
++    return;
++  }
++  auto* separator = it->second.get();
++  expanded_group_separators_.erase(it);
++  RemoveChildViewT(separator);
++  InvalidateLayout();
++}
++
+ views::View* UnpinnedTabContainerView::SetNewTabButtonContainer(
+     std::unique_ptr<views::View> view) {
+   CHECK(!new_tab_button_container_);
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
+@@ -126,6 +126,12 @@
+                                const gfx::Rect& proposed_group_bounds,
+                                const gfx::Point& point_in_screen) const;
+ 
++  // views::ViewObserver: separators follow the lifetime of direct groups.
++  void OnChildViewAdded(views::View* observed_view,
++                        views::View* child) override;
++  void OnChildViewRemoved(views::View* observed_view,
++                          views::View* child) override;
++
+   void UpdateOlderTabs();
+   void ToggleOlderTabs();
+   void ExecuteOlderTabsMenuCommand(int command);
+@@ -134,6 +140,7 @@
+ 
+   raw_ptr<views::View> new_tab_button_container_ = nullptr;
+   raw_ptr<views::View> pinned_groups_separator_ = nullptr;
++  std::map<const views::View*, raw_ptr<views::View>> expanded_group_separators_;
+   bool pin_group_drag_destination_ = false;
+   bool has_older_tabs_ = false;
+   std::optional<bool> last_older_collapsed_;
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -10,11 +10,13 @@
+ #include "base/numerics/safe_conversions.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/views/tabs/common/split_tab_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_drag_handler.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
++#include "chrome/browser/ui/views/tabs/common/tab_view.h"
+ #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
+ #include "components/tab_groups/tab_group_id.h"
+ #include "ui/gfx/geometry/rect.h"
+@@ -78,14 +80,39 @@
+   int height = 0;
+   auto collapse_state = UnpinnedTabContainerView().GetTabStripCollapseState();
+ 
+-  const int content_padding = GetSidebarContentPadding(
+-      UnpinnedTabContainerView().collection_node_->GetController()
+-          ->GetBrowserView());
++  const int content_padding =
++      GetSidebarContentPadding(UnpinnedTabContainerView()
++                                   .collection_node_->GetController()
++                                   ->GetBrowserView());
+   const int horizontal_padding =
+       GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding) +
+       content_padding;
+ 
+   const auto& container = UnpinnedTabContainerView();
++  for (const auto& [group, separator] : container.expanded_group_separators_) {
++    layouts.child_layouts.emplace_back(separator.get(), false, gfx::Rect());
++  }
++  // Both section rules use the exact tab-content bounds and bottom clearance.
++  auto layout_separator = [&](views::View* separator) {
++    const int inner_padding =
++        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding);
++    const int left = horizontal_padding + inner_padding + 2;
++    const int right = horizontal_padding + inner_padding;
++    const gfx::Rect bounds(
++        left, height,
++        size_bounds.width().is_bounded()
++            ? std::max(0, size_bounds.width().value() - left - right)
++            : 200,
++        1);
++    if (auto* child_layout = layouts.GetLayoutFor(separator)) {
++      child_layout->visible = true;
++      child_layout->bounds = bounds;
++    } else {
++      layouts.child_layouts.emplace_back(separator, true, bounds);
++    }
++    height += 1 + 8;
++  };
++  const TabGroupView* previous_expanded_group = nullptr;
+   auto* header = container.older_header();
+   const auto older = container.has_older_tabs_
+                          ? container.OlderViewsInDateOrder()
+@@ -122,6 +149,7 @@
+     }
+     if (older_slot) {
+       if (auto* heading = container.OlderDateHeading(child)) {
++        previous_expanded_group = nullptr;
+         // Consume the preceding tab's 2px row gap, preserving the label's
+         // clearance to its following tab and the first section heading.
+         if (layout_older && previous_older_tab) {
+@@ -148,7 +176,17 @@
+     const auto drag_data = container.GetVisualDataForDraggedView(*child);
+     const bool visible = IsChildVisibleInContainer(focused_group_id, child) &&
+                          (!older_slot || show_older);
+-    const bool is_group = views::AsViewClass<TabGroupView>(child) != nullptr;
++    const auto* group = views::AsViewClass<TabGroupView>(child);
++    const bool is_group = group != nullptr;
++    const bool is_ungrouped_tab = views::IsViewClass<TabView>(child) ||
++                                  views::IsViewClass<SplitTabView>(child);
++    if (visible && is_ungrouped_tab && previous_expanded_group) {
++      auto it =
++          container.expanded_group_separators_.find(previous_expanded_group);
++      if (it != container.expanded_group_separators_.end()) {
++        layout_separator(it->second.get());
++      }
++    }
+     // Give each group 6px of leading space, collapsing that added margin
+     // against a preceding group's existing trailing separation.
+     if (visible && is_group && !previous_visible_group) {
+@@ -161,6 +199,10 @@
+     layouts.child_layouts.emplace_back(child, visible, bounds);
+     if (visible || (older_slot && layout_older)) {
+       previous_visible_group = is_group;
++      if (visible) {
++        previous_expanded_group =
++            group && !group->IsCollapsed() ? group : nullptr;
++      }
+       previous_older_tab = older_slot;
+       height += bounds.height() + kTabVerticalPadding;
+       width = std::max(width, bounds.right());
+@@ -192,24 +234,15 @@
+       // visible during a header drag without reserving a second empty row.
+       // Keep the last group's existing bottom margin and align the rule with
+       // the contents inside a normal tab's left and right padding.
+-      const int inner_padding =
+-          GetLayoutConstant(LayoutConstant::kTabHorizontalPadding);
+-      const int separator_left = horizontal_padding + inner_padding + 2;
+-      const int separator_right = horizontal_padding + inner_padding;
+-      layouts.child_layouts.emplace_back(
+-          separator, true,
+-          gfx::Rect(separator_left, height,
+-                    size_bounds.width().is_bounded()
+-                        ? std::max(0, size_bounds.width().value() -
+-                                          separator_left - separator_right)
+-                        : 200,
+-                    1));
+-      height += 1 + 8;
++      layout_separator(separator);
+       previous_visible_group = true;
+     } else {
+       layouts.child_layouts.emplace_back(separator, false, gfx::Rect());
+     }
+   }
++  // The pinned-section rule (and optional New Tab row) already separates
++  // pinned groups from regular tabs. Never create a second rule there.
++  previous_expanded_group = nullptr;
+   if (show_new_tab) {
+     const int button_height = new_tab->GetPreferredSize(size_bounds).height();
+     layouts.child_layouts.emplace_back(
+@@ -229,6 +262,8 @@
+       layout_tab(child, false);
+     }
+   }
++  // Older Tabs is a separate section, even when its heading is hidden.
++  previous_expanded_group = nullptr;
+   if (header && !older.empty() && !focused_group_id) {
+     // Keep two thirds of the previous blank tab-row separation.
+     height += (row_height + kTabVerticalPadding) * 2 / 3;
