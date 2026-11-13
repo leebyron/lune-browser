@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-12",
+  "timezone": "America/Los_Angeles",
+  "feature": "native-tab-group-caret",
+  "component": {
+    "commit": "3ecb4edf287669aec98c4f2f34edeef5388fb86e",
+    "tree": "acf9301fc79f844d28309fe720cedc16367f7301",
+    "base": "cdea745ea5600098e382a7a3c13dc5652b20fd39",
+    "ref": "refs/tags/inputs/native-tab-group-caret-1/macos",
+    "patch_sha256": "64cea94f85a3346f9b692d94fdf5a36a7f13e272bba6b474c852c66a0fa333c2"
+  },
+  "tested_composition": {
+    "base": "cdea745ea5600098e382a7a3c13dc5652b20fd39",
+    "caret": "3ecb4edf287669aec98c4f2f34edeef5388fb86e",
+    "pinned_groups": "40b750326568d91254f3834e0f665a287314a2bc",
+    "source_unchanged_after_topic_split": true
+  },
+  "architectures": {
+    "arm64": {
+      "build_passed": true,
+      "seconds": 253.85,
+      "sources_unchanged_during_build": true,
+      "runtime": "native arm64",
+      "smoke": {
+        "passed": true,
+        "framework_sha256": "15d8460e3b2ba46bd33eb63f516f98023fcc336070582b5a8de4dd654f49a804",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "ui_and_settings": true
+      }
+    },
+    "x86_64": {
+      "build_passed": true,
+      "seconds": 285.56,
+      "sources_unchanged_during_build": true,
+      "runtime": "Rosetta",
+      "smoke": {
+        "passed": true,
+        "framework_sha256": "67f61da294eea23083dec217b332633373decedc65050e9df57815feb1693496",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "ui_and_settings": true
+      }
+    }
+  },
+  "owner_acceptance": {
+    "passed": true,
+    "device": "physical Apple silicon Mac",
+    "scope": "Final Native hover/drag caret behavior and complete feature accepted; owner requested focused main commits and push."
+  },
+  "tooling_tests": {
+    "passed": true,
+    "count": 73
+  },
+  "release_or_deployment": false,
+  "scope": "Independent one-header caret-color fallback, strictly replayed before the pin patch; paired builds and native acceptance use the final combined composition. No separate standalone-caret browser build is claimed.",
+  "replay": {
+    "passed": true,
+    "base": "cdea745ea5600098e382a7a3c13dc5652b20fd39",
+    "fuzz": 0,
+    "offsets": 0,
+    "patch": {
+      "path": "patches/helium/ui/native-tab-group-caret.patch",
+      "sha256": "64cea94f85a3346f9b692d94fdf5a36a7f13e272bba6b474c852c66a0fa333c2",
+      "fuzz": 0,
+      "offsets": 0
+    }
+  }
+}

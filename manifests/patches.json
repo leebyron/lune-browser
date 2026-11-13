@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "cdea745ea5600098e382a7a3c13dc5652b20fd39",
+    "commit": "3ecb4edf287669aec98c4f2f34edeef5388fb86e",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -845,6 +845,10 @@
       {
         "path": "patches/helium/ui/tab-group-leading-emoji.patch",
         "sha256": "e537bed331782bee6726e579ea035561517474912541d97bb77ee5af41aba733"
+      },
+      {
+        "path": "patches/helium/ui/native-tab-group-caret.patch",
+        "sha256": "64cea94f85a3346f9b692d94fdf5a36a7f13e272bba6b474c852c66a0fa333c2"
       }
     ]
   },
@@ -2396,6 +2400,21 @@
       "adaptation": "Owner accepted the native appearance and requested a 16 DIP font, full opacity, and ordinary rendering for names containing multiple emoji. Unicode grapheme boundaries preserve flags, modifiers and joined sequences as one emoji. Painted glyph bounds are centered at each display scale; the remaining display label is whitespace-trimmed while the stored/accessibility title stays intact. Ported only the emoji renderer onto current main, excluding pending pinned-group hooks and caret diagnostics. Complete affected-file replay has zero fuzz/feature offsets and exact source parity. Both browser builds, 21 Unicode cases, 10 raster checks per architecture and browsing/persistence checks are recorded in agent-docs/project/builds/2026-11-12-tab-group-emoji.json. Intel runtime uses Rosetta.",
       "commits": [
         "cdea745ea5600098e382a7a3c13dc5652b20fd39"
+      ]
+    },
+    {
+      "id": "native-tab-group-caret",
+      "depends_on": [
+        "neutral-tab-groups"
+      ],
+      "patches": [
+        "patches/helium/ui/native-tab-group-caret.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the actual group-header foreground for Native caret contrast, preserving the native glass override.",
+      "adaptation": "The owner observed the missing caret in released Native theme, while other themes worked. Live hover tracing showed a visible caret painted with white active-tab text; reuse of the header foreground fixes contrast. Diagnostics are removed. Tested in the final pinned-group composition, with paired browser/UI/Settings/browsing/persistence checks and physical Apple silicon acceptance. The isolated caret patch excludes all pin state and drag styling. See agent-docs/project/builds/2026-11-12-native-tab-group-caret.json.",
+      "commits": [
+        "3ecb4edf287669aec98c4f2f34edeef5388fb86e"
       ]
     }
   ],
