@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "21a79057a6fd6b60ba268fd0d719b510da94053e",
+    "commit": "99ca9faf1ae2e4b511cd952728adaa70c165faae",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -837,6 +837,10 @@
       {
         "path": "patches/helium/ui/address-field-focus-cursor.patch",
         "sha256": "7fe0f9100cbf81860b15f7f78ce82780a6e0bab31dc9031a58e738d55061a6de"
+      },
+      {
+        "path": "patches/helium/ui/native-selected-tab-background.patch",
+        "sha256": "f922f5b73e5898aa6784e11e3888e50ec738859576f17b7fb1ba00abe05d4b0d"
       }
     ]
   },
@@ -2358,6 +2362,21 @@
         "5225a578239500fadbd2357a2d1c8d39865cefa3",
         "75f7512497712fdda205e324c3817e21173b2341",
         "21a79057a6fd6b60ba268fd0d719b510da94053e"
+      ]
+    },
+    {
+      "id": "native-selected-tab-background",
+      "depends_on": [
+        "onboarding-reviewed-7"
+      ],
+      "patches": [
+        "patches/helium/ui/native-selected-tab-background.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep selected-but-not-active tabs readable in the Native theme by sharing the active tab background, including hover.",
+      "adaptation": "Four aliases in the existing macOS Native color mixer cover hovered/unhovered selection in active/inactive windows. Other themes and forced colors retain the existing exclusions. Prepared-source quilt export and complete affected-file replay have zero fuzz/offsets and byte parity. Production mixer fixtures pass in both architectures, including light/dark, normal/high contrast and exclusions; the original mixer fails the same background equality assertion. Native Apple silicon inspection confirms readable matching backgrounds for three selected tabs in active/inactive windows. See agent-docs/project/features/themed-unpinned-sidebar.md#native-selected-tab-background--november-12-2026 for build and smoke scope.",
+      "commits": [
+        "99ca9faf1ae2e4b511cd952728adaa70c165faae"
       ]
     }
   ],

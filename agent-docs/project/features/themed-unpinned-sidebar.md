@@ -95,3 +95,18 @@ python3 scripts/check-sidebar-default-width.py BUILD --saved-width 260 --report 
 ```
 
 Repeat native fixtures with `--arch x86_64`. Run browser checks sequentially.
+
+## Native selected-tab background — November 12, 2026
+
+Native color scheme now uses the active tab's background for selected-but-not-active tabs, including hover. Both selected background roles alias the corresponding active background for active and inactive windows. Selected text already used the active foreground; inherited Chromium selected backgrounds could leave that text unreadable. The change is four aliases and a comment in the existing macOS Native color mixer. Its theme, app-controller and forced-color exclusions remain intact.
+
+Signed platform input `inputs/native-tab-selection-1/macos` at `99ca9faf1ae2e4b511cd952728adaa70c165faae` is selected for future main builds. The focused reusable patch is `helium/ui/native-selected-tab-background.patch`; it follows the accepted address-cursor input and excludes the pending pinned-tab-groups topic. Published browser releases retain their frozen inputs. No specific GitHub issue tracks this request.
+
+Production AppKit mixer checks pass for both architectures across light/dark, normal/high contrast, hovered/unhovered selection and active/inactive window roles, with Intel under Rosetta. Non-native/custom/app/forced-color exclusions pass, and the original source fails the same selection equality assertion. Complete affected-file reconstruction from the platform series matches the built mixer with zero fuzz or offsets. Patch lint and lock identities pass. Native Apple silicon inspection shows three selected tabs with identical readable backgrounds in both active and inactive windows; dark/high-contrast visual inspection and physical Intel are not claimed.
+
+Both incremental browser/ChromeDriver/installer builds and UI/settings/browsing/profile-persistence checks pass. The reused review workspace includes the separately pending pinned-tab-groups source; that topic is excluded from this input, and all three patches affecting the mixer independently replay to identical bytes. The isolated preview, test driver and seven disposable artifact trees have been removed; prepared source and incremental outputs remain. The [completion record](../builds/2026-11-12-native-tab-selection.json) retains exact source and validation scope.
+
+```sh
+python3 scripts/check-native-tab-selection.py SOURCE --arch arm64
+python3 scripts/check-native-tab-selection.py SOURCE --arch x86_64
+```

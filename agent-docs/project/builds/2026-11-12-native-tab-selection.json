@@ -1,0 +1,143 @@
+{
+  "feature": "Native selected-tab background, including hover",
+  "date": "2026-11-12",
+  "base_platform_commit": "21a79057a6fd6b60ba268fd0d719b510da94053e",
+  "platform_commit": "99ca9faf1ae2e4b511cd952728adaa70c165faae",
+  "input_tag": "inputs/native-tab-selection-1/macos",
+  "patch": "patches/helium/ui/native-selected-tab-background.patch",
+  "patch_sha256": "f922f5b73e5898aa6784e11e3888e50ec738859576f17b7fb1ba00abe05d4b0d",
+  "source_sha256": "9c095458f520f9c3972c253b758b273ece8451cabe122ac4cf58fb9a078a653f",
+  "implementation": "Four selected background color aliases to corresponding active backgrounds, covering hovered/unhovered and active/inactive windows. Existing native mixer guards retained.",
+  "replay": {
+    "base": "21a79057a6fd6b60ba268fd0d719b510da94053e",
+    "feature_commit": "99ca9faf1ae2e4b511cd952728adaa70c165faae",
+    "passed": true,
+    "fuzz": 0,
+    "offsets": 0,
+    "exact_source_parity": true,
+    "source_sha256": "9c095458f520f9c3972c253b758b273ece8451cabe122ac4cf58fb9a078a653f",
+    "patches": [
+      {
+        "patch": "lune/theme-choices.patch",
+        "sha256": "0052f090bc52da7f3a4549ad0f3e7f0bbb6a7be728f3e2dba1660958f5f7e615",
+        "output": "patching file chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm"
+      },
+      {
+        "patch": "lune/system-tab-selection.patch",
+        "sha256": "87181488bb8b99aadd501195aaa622cef08c1d7f2594ffbc639f618d76d0354a",
+        "output": "patching file chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm"
+      },
+      {
+        "patch": "helium/ui/native-selected-tab-background.patch",
+        "sha256": "f922f5b73e5898aa6784e11e3888e50ec738859576f17b7fb1ba00abe05d4b0d",
+        "output": "patching file chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm"
+      }
+    ]
+  },
+  "architectures": {
+    "arm64": {
+      "build": {
+        "architecture": "arm64",
+        "exit_code": 0,
+        "seconds": 169.00899815559387,
+        "release": false
+      },
+      "smoke_passed": true,
+      "smoke_report_sha256": "e9a5beeda21c31711f2566c18117e33221ceeff3f90c0266c549e4ba346b2c21",
+      "framework_sha256": "a5213553ad6ea1e3a3d3b47be53e93d7062977d56ee2c936c33e964e7558ebb9",
+      "test_host_architecture": "arm64",
+      "execution": "native Apple silicon",
+      "native_mixer_fixture": "PASS: native selected and active backgrounds match in light/dark, normal/high contrast, hover and window activation; theme/app/forced-color exclusions preserved"
+    },
+    "x86_64": {
+      "build": {
+        "architecture": "x86_64",
+        "exit_code": 0,
+        "seconds": 175.4358389377594,
+        "release": false
+      },
+      "smoke_passed": true,
+      "smoke_report_sha256": "2bf3c4fca2a5c80ed9b8676a41572f3a33e89286494be8a0debaefa1572d63a7",
+      "framework_sha256": "b767fcca53ef52fc1c67090ace375074db033bf355f686cbe109caa97a941a95",
+      "test_host_architecture": "arm64",
+      "execution": "Rosetta on Apple silicon",
+      "native_mixer_fixture": "PASS: native selected and active backgrounds match in light/dark, normal/high contrast, hover and window activation; theme/app/forced-color exclusions preserved"
+    }
+  },
+  "negative_control": "Original production mixer fails selected-background equality assertion; negative-control.log retained.",
+  "native_visual_inspection": {
+    "method": "CUA screenshot and AX inspection of isolated Apple silicon preview",
+    "passed": true,
+    "appearance": "Native light",
+    "selected_tab_count": 3,
+    "active_selected_tab_count": 1,
+    "observed": "All three selected rows share active background and readable matching text in active and inactive window states.",
+    "preview_and_build_framework_uuid": "4C4C4446-5555-3144-A1A9-392E9CAA76C0",
+    "hover_scope": "Hovered selected background roles are covered by the production mixer fixture; physical pointer hover not separately claimed."
+  },
+  "composition": {
+    "prepared_source": ".work/address-cursor/prepared-src",
+    "pending_topic": "helium/ui/pinned-tab-groups.patch",
+    "pending_topic_sha256": "15341bd0df3b7c65e3983c43482dce9804f5bee8eeea7d80b8375598a2bab3ec",
+    "pending_topic_in_selected_input": false,
+    "mixer_independent_reconstruction_matches_built_source": true
+  },
+  "checks": {
+    "patch_lint": true,
+    "lock_ancestry_tags_trees_gitlink": true,
+    "whitespace": true,
+    "tooling_tests": 73,
+    "tooling_tests_sha256": "aa6bf05889fd5b7035df4e9304d1157a39b51ff0862b985874d4390323469e77",
+    "documentation_links": true
+  },
+  "issues": "No specific GitHub issue tracks this request.",
+  "limits": [
+    "Intel executes under Rosetta; physical Intel and macOS 13 runtime not tested.",
+    "Dark/high-contrast rendering covered by native mixer tests, not browser visual inspection.",
+    "No new browser release or deployment."
+  ],
+  "cleanup": {
+    "active_preview_processes": [],
+    "recorded_preview_pids_exited": true,
+    "removed": [
+      {
+        "path": ".work/native-tab-selection/Lune Native Selection Review.app",
+        "kind": "directory"
+      },
+      {
+        "path": ".work/native-tab-selection/native/profile",
+        "kind": "directory"
+      },
+      {
+        "path": ".work/native-tab-selection/native/extension",
+        "kind": "directory"
+      },
+      {
+        "path": ".work/native-tab-selection/native/pages",
+        "kind": "directory"
+      },
+      {
+        "path": ".work/native-tab-selection/negative-source",
+        "kind": "directory"
+      },
+      {
+        "path": ".work/native-tab-selection/replay",
+        "kind": "directory"
+      },
+      {
+        "path": ".work/native-tab-selection/locked-replay",
+        "kind": "directory"
+      }
+    ],
+    "retained": [
+      "prepared source and current incremental build outputs",
+      "standalone platform source and quilt patches",
+      "native session fixture metadata and check logs",
+      "build/smoke/replay reports"
+    ]
+  },
+  "publication": {
+    "component_branch": "fix/native-selected-tab-background",
+    "component_and_signed_tag_remote_verified": true
+  }
+}
