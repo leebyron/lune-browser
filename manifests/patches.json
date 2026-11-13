@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "e29310e346235dce9ece48c7e283510a870ca2f6",
+    "commit": "21a79057a6fd6b60ba268fd0d719b510da94053e",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -833,6 +833,10 @@
       {
         "path": "patches/helium/ui/native-editor-focus-lifecycle.patch",
         "sha256": "7f5a12579c4a1a32161147f22397768114e2d61229eab961d7558fc434ef1927"
+      },
+      {
+        "path": "patches/helium/ui/address-field-focus-cursor.patch",
+        "sha256": "7fe0f9100cbf81860b15f7f78ce82780a6e0bab31dc9031a58e738d55061a6de"
       }
     ]
   },
@@ -2336,6 +2340,24 @@
       "commits": [
         "c1b4b5f02f67386cdb793432e9e5245cd02cbb31",
         "e29310e346235dce9ece48c7e283510a870ca2f6"
+      ]
+    },
+    {
+      "id": "address-field-focus-cursor",
+      "depends_on": [
+        "native-floating-address",
+        "app-switch-native-focus"
+      ],
+      "patches": [
+        "patches/helium/ui/address-field-focus-cursor.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use a normal arrow over the idle address capsule and a text I-beam only while editing.",
+      "adaptation": "Prepared-source quilt fix against the accepted native focus input. The idle field supplies an arrow; focused native editing retains an I-beam through the glass ancestor. Its forwarded mouse-move handler preserves the native text cursor, and its non-overlapping cursor rectangles distinguish text from surrounding chrome during structural updates. Both native cursor fixtures pass; independent controls reject the inherited glass arrow regions and event-forwarding override. Strict replay has zero fuzz/offsets and exact source parity. Intel executes under Rosetta. See agent-docs/project/features/address-bar-cursor.md for browser verification scope. Both final browser builds and UI/settings/browsing/persistence checks pass. The owner accepted the plain Apple silicon preview on November 12, 2026.",
+      "commits": [
+        "5225a578239500fadbd2357a2d1c8d39865cefa3",
+        "75f7512497712fdda205e324c3817e21173b2341",
+        "21a79057a6fd6b60ba268fd0d719b510da94053e"
       ]
     }
   ],

@@ -1,0 +1,195 @@
+{
+  "date": "2026-11-12",
+  "request": "Normal arrow over the idle address bar; text I-beam only while focused.",
+  "source": {
+    "base": "e29310e346235dce9ece48c7e283510a870ca2f6",
+    "macos_commit": "21a79057a6fd6b60ba268fd0d719b510da94053e",
+    "commits": [
+      "5225a578239500fadbd2357a2d1c8d39865cefa3",
+      "75f7512497712fdda205e324c3817e21173b2341",
+      "21a79057a6fd6b60ba268fd0d719b510da94053e"
+    ],
+    "input_ref": "refs/tags/inputs/address-field-cursor-3/macos",
+    "patch": "patches/helium/ui/address-field-focus-cursor.patch",
+    "patch_sha256": "7fe0f9100cbf81860b15f7f78ce82780a6e0bab31dc9031a58e738d55061a6de"
+  },
+  "implementation": "The idle field supplies an arrow. The glass ancestor preserves the focused editor I-beam during forwarded mouse movement and partitions cursor rectangles into text and surrounding arrow regions. Editing transitions invalidate both surfaces.",
+  "replay": {
+    "passed": true,
+    "fuzz": 0,
+    "offsets": 0,
+    "source_sha256": "fc5de16a13faf64032edcc1ac52e2924e35815c7c887726c8195ceb8787c11c8",
+    "patch_sha256": "7fe0f9100cbf81860b15f7f78ce82780a6e0bab31dc9031a58e738d55061a6de",
+    "base": "e29310e346235dce9ece48c7e283510a870ca2f6"
+  },
+  "review_composition": {
+    "base": "e29310e346235dce9ece48c7e283510a870ca2f6",
+    "feature": "21a79057a6fd6b60ba268fd0d719b510da94053e",
+    "surrounding_pending_topic": "helium/ui/pinned-tab-groups.patch",
+    "pending_topic_sha256": "15341bd0df3b7c65e3983c43482dce9804f5bee8eeea7d80b8375598a2bab3ec",
+    "address_source_identical_to_standalone_replay": true,
+    "adoption_excludes_pending_topic": true,
+    "address_source_sha256": "fc5de16a13faf64032edcc1ac52e2924e35815c7c887726c8195ceb8787c11c8"
+  },
+  "preview": {
+    "framework_uuids": {
+      "source": "4C4C448F-5555-3144-A106-6639E5AFF5FB",
+      "preview": "4C4C448F-5555-3144-A106-6639E5AFF5FB"
+    },
+    "source_component": "21a79057a6fd6b60ba268fd0d719b510da94053e",
+    "matches": true,
+    "diagnostic_injection": false
+  },
+  "builds": {
+    "arm64": {
+      "architecture": "arm64",
+      "exit_code": 0,
+      "seconds": 154.51552724838257,
+      "release": false
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "exit_code": 0,
+      "seconds": 185.57637572288513,
+      "release": false
+    }
+  },
+  "smoke": {
+    "arm64": {
+      "architecture": "arm64",
+      "test_host_architecture": "arm64",
+      "passed": true,
+      "executable_sha256": "d09a67c3e9abe1a8fc204245e7ec581f8cf77616a80423048aacb8c0fe01118e",
+      "framework_sha256": "b22bc72c39c6018eb9bd73609d1922da0d49a87f6c9c286b02c75a6bcb961928",
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "checks": [
+        "browsing",
+        "profile persistence",
+        "packaged UI",
+        "settings"
+      ],
+      "local_report": ".work/address-cursor/smoke-arm64.json",
+      "report_sha256": "a98926e45e88a5a946448598ad3c8c7c78ab55538eef22f799ade81a934493d4"
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "test_host_architecture": "arm64",
+      "passed": true,
+      "executable_sha256": "dc843f08573ed7c9f931976e17dbc3ccebefb2a3f69192683f8126c0bd38227c",
+      "framework_sha256": "49e6e3a6a6b32f5fd2cb0daa74d40e4333a5b608e0651fc2d0b348e92a1a06ce",
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "checks": [
+        "browsing",
+        "profile persistence",
+        "packaged UI",
+        "settings"
+      ],
+      "local_report": ".work/address-cursor/smoke-x86_64.json",
+      "report_sha256": "4855a10739d4f46554c720eb2ea903f2a80dbf984727714d6677fac0dde3e393"
+    }
+  },
+  "native_checks": {
+    "cursor_both_architectures": true,
+    "focus_retention_both_architectures": true,
+    "negative_original": {
+      "baseline_rejected": true,
+      "exit_code": 1,
+      "reason": "subprocess.CalledProcessError: Command '['/usr/bin/arch', '-arm64', '/var/folders/r8/62t_j5852m93qj1c9_2dz3ym0000gn/T/lune-address-cursor-lmzsy0gg/check']' died with <Signals.SIGABRT: 6>."
+    },
+    "negative_glass_controls": {
+      "structural": {
+        "rejected": true,
+        "exit_code": 1
+      },
+      "forwarding": {
+        "rejected": true,
+        "exit_code": 1
+      }
+    },
+    "arm64": "native Apple silicon",
+    "x86_64": "Rosetta on Apple silicon"
+  },
+  "checks": {
+    "strict_focused_replay": "zero fuzz, zero offsets, exact address source parity",
+    "component_patch_and_translation_lint": true,
+    "lock_ancestry_tag_tree_gitlink": true,
+    "tooling_tests": 73,
+    "actions_policy": true
+  },
+  "owner_review": {
+    "initial_preview": "Rejected: arrow remained while focused.",
+    "second_preview": "Rejected: native field cursor was still overwritten by the glass responder.",
+    "root_cause": "Owner-assisted NSCursor trace captured native NSTextView IBEAM then glass ancestor ARROW in forwarded mouseMoved. CUA synthetic input did not move the global pointer and cannot establish actual hover.",
+    "final_preview": {
+      "accepted": true,
+      "statement": "Both cursor states now work",
+      "date": "2026-11-12",
+      "diagnostic_injection": false
+    }
+  },
+  "limitations": [
+    "Review browsers also contain the independently pending pinned-tab-groups topic; it does not change the address source and is excluded from the selected platform commit.",
+    "Focused replay rather than fresh full Chromium source preparation.",
+    "No physical Intel or macOS 13 runtime check."
+  ],
+  "issue": null,
+  "release_published": false,
+  "future_builds_only": true,
+  "hover_diagnosis": {
+    "owner_assisted_natural_hover": true,
+    "trace": ".work/address-cursor/cursor-trace.log",
+    "editor_sets_ibeam": true,
+    "subsequent_arrow_from_forwarded_responder": true,
+    "synthetic_cua_clicks_do_not_move_global_pointer": true,
+    "diagnostic_probe_not_part_of_platform_input": true
+  },
+  "simplicity_review": {
+    "runtime_source_files_changed": 1,
+    "runtime_lines_added": 60,
+    "new_build_targets": 0,
+    "new_dependencies": 0,
+    "new_timers_or_event_monitors": 0,
+    "additional_runtime_state": false,
+    "decision": "Keep the owner-accepted local AppKit fix; no further behavior rewrite for cosmetic line reduction.",
+    "process_assessment": "Investigation/build work was more complicated than necessary; initial field-only tests missed responder forwarding through the glass ancestor."
+  },
+  "cleanup": {
+    "accepted": true,
+    "active_preview_processes": [],
+    "removed": [
+      ".work/address-cursor/Lune Cursor Review.app",
+      ".work/address-cursor/Lune Cursor Review initial.app",
+      ".work/address-cursor/Lune Cursor Review rectangles.app",
+      ".work/address-cursor/native/profile",
+      ".work/address-cursor/native/profile-rectangles",
+      ".work/address-cursor/fixture-source",
+      ".work/address-cursor/negative-source",
+      ".work/address-cursor/negative-structural-source",
+      ".work/address-cursor/negative-forwarding-source",
+      ".work/address-cursor/replay",
+      ".work/address-cursor/cache-Default.json",
+      ".work/address-cursor/cache-Intel.json",
+      ".work/address-cursor/cursor-probe.dylib",
+      ".work/address-cursor/cursor-probe.mm",
+      ".work/address-cursor/preview-probe.py"
+    ],
+    "all_targets_absent": true,
+    "preserved": [
+      "prepared-src",
+      "quilt-patches",
+      "platform",
+      "before",
+      "current build outputs and compiler caches",
+      "concise logs and trace evidence",
+      "all other task artifacts"
+    ]
+  },
+  "source_publication": {
+    "branch": "features/address-field-focus-cursor",
+    "commit": "21a79057a6fd6b60ba268fd0d719b510da94053e",
+    "signed_tag": "inputs/address-field-cursor-3/macos",
+    "remote_refs_verified": true
+  }
+}
