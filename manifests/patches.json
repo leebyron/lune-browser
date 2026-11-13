@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "40b750326568d91254f3834e0f665a287314a2bc",
+    "commit": "60d037df61f275ec2edff170da907308a0fe3c54",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -853,6 +853,10 @@
       {
         "path": "patches/helium/ui/pinned-tab-groups.patch",
         "sha256": "c483be1e83ad2f03e835f2fa4f8102b33397ec3030a83d15c72ef9c7f178015c"
+      },
+      {
+        "path": "patches/helium/ui/native-tab-group-menu.patch",
+        "sha256": "2ded742614af6732c1602e43861419cf073a276493899f1ea6f08013bc7730eb"
       }
     ]
   },
@@ -2438,6 +2442,25 @@
       "adaptation": "The accepted vertical implementation keeps groups in a leading unpinned collection prefix, with separate persistent pin state, pin/unpin menu symbols, a shared scrolling contents and stable destination-only gaps. Collapsed group tab drops append while retaining collapse and show an active-tab pill without padding changes. Whole-window drags retain Chromium behavior; partial drags detach only outside the window. Includes teardown and optional-animation crash fixes. Excludes already-adopted emoji rendering and the separate Native caret contrast correction. Strict final replay and both browser builds match the accepted source; Intel runtime is Rosetta. See agent-docs/project/builds/2026-11-12-pinned-tab-groups.json.",
       "commits": [
         "40b750326568d91254f3834e0f665a287314a2bc"
+      ]
+    },
+    {
+      "id": "native-tab-group-menu",
+      "depends_on": [
+        "pinned-tab-groups",
+        "tab-group-leading-emoji"
+      ],
+      "patches": [
+        "patches/helium/ui/native-tab-group-menu.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Simplify group closing and naming with a native macOS menu, consistent inline editing and animated pin transitions.",
+      "adaptation": "Prepared-source quilt implementation on the accepted pinned-group input. Close Tabs in Group removes tabs and the saved record without local group confirmation, preserving History recovery. Rename is menu-only for existing groups; new groups start empty with Name Group. Fixed tab-row insets apply to full plain/emoji titles, Space belongs to the editor, outside clicks commit, the top focus ring is contained, and the placeholder is 30 percent opaque. Pin and Unpin are short labels; pin-state changes animate without requiring a model reorder. The owner accepted the final Apple silicon preview on November 13, 2026 and requested focused signed commits and main-build inclusion. Strict nine-file/39-parent replay, patch lint, both browser builds and UI/Settings/browsing/persistence checks pass; Intel runtime uses Rosetta. See agent-docs/project/builds/2026-11-13-tab-group-menu-review.json.",
+      "commits": [
+        "ce19e18938d51145f128416b0dcbf94b65d34132",
+        "099e23626a7a3dc700b7717aebdeb9180d0229b8",
+        "fd7457e7884178cbefe51b55f0c9846023f443ee",
+        "60d037df61f275ec2edff170da907308a0fe3c54"
       ]
     }
   ],

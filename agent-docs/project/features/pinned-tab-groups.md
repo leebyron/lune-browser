@@ -6,7 +6,7 @@ Issue [#31](https://github.com/leebyron/lune-browser/issues/31), requested Novem
 
 The vertical sidebar orders pinned tab tiles, pinned tab groups, a separator, New Tab when enabled, regular tabs/groups, then Older Tabs. Pinned groups and everything below them share one scrolling contents and scrollbar. The pinned tiles retain their existing viewport.
 
-Drag a group header across the separator to pin or unpin the whole group; drag within the pinned portion to reorder groups. The group's menu offers **Pin tab group** or **Unpin tab group**, with the native `pin` or `pin.slash` SF Symbol. Pinning keeps the group's identity, title, collapse state, member tabs and split children. It is separate from individual tab pinning.
+Drag a group header across the separator to pin or unpin the whole group; drag within the pinned portion to reorder groups. The original accepted menu used **Pin tab group** / **Unpin tab group** with symbols; the subsequently accepted [native group menu](tab-group-menu.md) uses **Pin** / **Unpin** without icons and animates section transitions even when the model index stays unchanged. Pinning keeps the group's identity, title, collapse state, member tabs and split children. It is separate from individual tab pinning.
 
 Ordinary default-position new tabs open at the beginning of the regular list, below all pinned groups. Group-specific creation, opener-relative links and explicit insertion constraints retain their existing paths. Loose tabs and external URLs cannot become standalone rows in the pinned-groups portion; deliberate drops into an existing group remain membership operations.
 

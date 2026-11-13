@@ -41,6 +41,7 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [Sidebar footer](sidebar-footer.md)
 - [Neutral sidebar groups](sidebar-groups.md)
 - [Leading emoji in group titles](tab-group-emoji.md)
+- [Native tab-group menu and inline naming](tab-group-menu.md)
 - [Pinned tab groups](pinned-tab-groups.md)
 - [Sidebar new-tab placement](sidebar-new-tab.md)
 - [Sidebar pin activation](sidebar-pin-activation.md)

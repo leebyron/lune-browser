@@ -1,6 +1,6 @@
 # Current project status
 
-Updated November 12, 2026. This page summarizes operational state. Exact source and artifact identities live in the linked machine-readable records; dated feature reports retain their original validation scope.
+Updated November 13, 2026. This page summarizes operational state. Exact source and artifact identities live in the linked machine-readable records; dated feature reports retain their original validation scope.
 
 ## Release delivery
 
@@ -93,3 +93,5 @@ The owner-accepted [single-emoji group headers](features/tab-group-emoji.md) are
 The development lock includes the owner-accepted [Native group caret contrast fix](features/sidebar-groups.md#native-disclosure-contrast--november-12-2026) through signed input `inputs/native-tab-group-caret-1/macos`. Carets use the header foreground in Native theme while preserving native glass colors. Strict replay, both composed preview builds and UI/Settings/browsing/persistence checks pass; physical Apple silicon hover/drag behavior is accepted, with Intel runtime under Rosetta. Published releases retain their frozen inputs.
 
 The development lock includes owner-accepted [pinned tab groups](features/pinned-tab-groups.md) through signed input `inputs/pinned-tab-groups-1/macos`. Groups pin/unpin through dragging or their menu, share scrolling with regular tabs, persist pin state/order and remain protected from Older Tabs cleanup. The final preview includes stable separator/drop feedback, collapsed-group membership/pill styling and exclusive whole-window drag behavior. Strict 36-file replay, both builds and UI/Settings/browsing/persistence checks pass; native Apple silicon review is accepted, with Intel runtime under Rosetta. The [completion record](builds/2026-11-12-pinned-tab-groups.json) states the remaining test limits and cleanup. Issue #31 is resolved by this adoption; published releases retain their frozen inputs.
+
+The owner-accepted [native tab-group menu and inline naming](features/tab-group-menu.md) is selected for future main builds through signed input `inputs/tab-group-menu-1/macos`. The icon-free native menu uses short Pin/Unpin labels and Close Tabs in Group without local group confirmations, with History recovery retained. Menu-only inline renaming uses fixed tab-row padding for plain and emoji titles, literal Space, a 30% placeholder, outside-click commit and an unclipped top focus ring. Pin/unpin transitions animate even without a model reorder. Strict replay, both builds, UI/Settings/browsing/persistence checks and 73 tooling tests pass; Intel executes under Rosetta. The owner accepted the final preview on November 13. Published releases retain their frozen inputs.
