@@ -20,7 +20,7 @@
 @@ -215,29 +215,6 @@
      r.FONTS = r.APPEARANCE.createChild('/fonts');
    }
- 
+
 -  if (visibility.yourSavedInfo !== false) {
 -    r.AUTOFILL = r.BASIC.createSection(
 -        '/autofill', 'yourSavedInfo',
@@ -49,19 +49,19 @@
          '/privacy', 'privacy', loadTimeData.getString('privacyPageTitle'));
 --- a/chrome/browser/resources/settings/settings_main/settings_main.html
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.html
-@@ -33,7 +33,7 @@
+@@ -30,7 +30,7 @@
      </div>
-   ` : '')}
- 
--  ${cache(this.showPage_(this.pageVisibility_?.yourSavedInfo) ? html`
-+  ${cache(false ? html`
+   ` : ''}
+
+-  ${this.showPage_(this.pageVisibility_?.yourSavedInfo) ? html`
++  ${false ? html`
      <div slot="view" id="yourSavedInfo">
-       ${cache(this.renderPlugin_(this.routes_.AUTOFILL) ? html`
+       ${this.renderPlugin_(this.routes_.AUTOFILL) ? html`
          <settings-autofill-page-index ?in-search-mode="${this.inSearchMode_}">
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.ts
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.ts
 @@ -33,7 +33,6 @@
- 
+
  export interface SettingsMenuElement {
    $: {
 -    autofill: HTMLLinkElement,

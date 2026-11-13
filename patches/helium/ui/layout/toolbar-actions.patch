@@ -3,7 +3,7 @@
 @@ -721,6 +721,16 @@
  // the toolbar.
  inline constexpr char kShowMediaButton[] = "helium.browser.show_media_button";
- 
+
 +// A boolean pref set to true if the Vertical Tabs collapse button should be
 +// visible on the toolbar when the vertical Helium layout is active.
 +inline constexpr char kShowVerticalTabsCollapseButton[] =
@@ -25,7 +25,7 @@
    registry->RegisterBooleanPref(prefs::kShowMediaButton, true);
 +  registry->RegisterBooleanPref(prefs::kShowVerticalTabsCollapseButton, true);
 +  registry->RegisterBooleanPref(prefs::kShowDynamicNewTabButton, true);
- 
+
    registry->RegisterBooleanPref(prefs::kWebAppCreateOnDesktop, true);
    registry->RegisterBooleanPref(prefs::kWebAppCreateInAppsMenu, true);
 --- a/chrome/browser/ui/browser_element_identifiers.cc
@@ -72,7 +72,7 @@
    pref_service_->ClearPref(prefs::kShowMediaButton);
 +  pref_service_->ClearPref(prefs::kShowVerticalTabsCollapseButton);
 +  pref_service_->ClearPref(prefs::kShowDynamicNewTabButton);
- 
+
    pref_service_->ClearPref(prefs::kShowHomeButton);
    pref_service_->ClearPref(prefs::kShowForwardButton);
 @@ -243,7 +245,9 @@
@@ -85,11 +85,11 @@
 +                            prefs::kShowDynamicNewTabButton},
        is_default_pref_value);
  }
- 
+
 --- a/chrome/browser/ui/view_ids.h
 +++ b/chrome/browser/ui/view_ids.h
 @@ -120,6 +120,10 @@
- 
+
    // Media Picker screen scroll view.
    VIEW_ID_MEDIA_PICKER_SCREEN_SCROLL_VIEW,
 +
@@ -97,7 +97,7 @@
 +  VIEW_ID_DYNAMIC_NEW_TAB_BUTTON,
 +  VIEW_ID_COLLAPSE_VERTICAL_TABS_BUTTON,
  };
- 
+
  #endif  // CHROME_BROWSER_UI_VIEW_IDS_H_
 --- a/ui/views/BUILD.gn
 +++ b/ui/views/BUILD.gn
@@ -201,7 +201,7 @@
 @@ -206,6 +208,18 @@
  constexpr int kExtensionsFlexOrder = kToolbarFlexOrderOffset + 3;
  constexpr int kTabStripFlexOrder = kToolbarFlexOrderOffset + 4;
- 
+
 +constexpr int kDynamicNewTabButtonIconSize = 16;
 +
 +class DynamicNewTabToolbarButton : public ToolbarButton {
@@ -227,10 +227,10 @@
 +       {VIEW_ID_COLLAPSE_VERTICAL_TABS_BUTTON, IDC_TOGGLE_VERTICAL_TABS}});
    return kViewCommandMap;
  }
- 
+
 @@ -522,6 +538,16 @@
  #endif
- 
+
    // Always add children in order from left to right, for accessibility.
 +
 +  vertical_tabs_collapse_button_ = AddChildView(std::make_unique<ToolbarButton>(
@@ -248,7 +248,7 @@
 @@ -574,6 +600,21 @@
      location_bar_ = toolbar_webview_->GetLocationBar();
    }
- 
+
 +  if (auto* vertical_tab_strip_state_controller =
 +          tabs::VerticalTabStripStateController::From(
 +              browser_view_->browser())) {
@@ -270,7 +270,7 @@
 @@ -598,6 +639,25 @@
      }
    }
- 
+
 +  std::unique_ptr<ToolbarButton> dynamic_new_tab_button =
 +      std::make_unique<DynamicNewTabToolbarButton>(base::BindRepeating(
 +          &ToolbarView::NewTabButtonPressed, base::Unretained(this)));
@@ -296,7 +296,7 @@
 @@ -775,16 +835,6 @@
      home_->SetVisible(show_home_button_.GetValue());
    }
- 
+
 -  auto* vertical_tab_strip_state_controller =
 -      tabs::VerticalTabStripStateController::From(browser_view_->browser());
 -  if (vertical_tab_strip_state_controller) {
@@ -311,9 +311,9 @@
      UpdateGlicButtonVisibility();
    }
 @@ -803,6 +853,16 @@
- 
+
    reload_->SetVisible(show_reload_button_.GetValue());
- 
+
 +  show_vertical_tabs_collapse_button_.Init(
 +      prefs::kShowVerticalTabsCollapseButton, prefs,
 +      base::BindRepeating(&ToolbarView::UpdateToolbarLayout,
@@ -330,7 +330,7 @@
 @@ -853,8 +913,9 @@
        views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
                                 views::MaximumFlexSizeRule::kPreferred);
- 
+
 -  for (auto* button : std::array<views::Button*, 5>{back_, forward_, reload_,
 -                                                    home_, avatar_}) {
 +  for (auto* button : std::array<views::Button*, 7>{
@@ -349,7 +349,7 @@
    // out any zeroed out state from intermediate layout passes.
    InvalidateLayout();
  }
- 
+
 +void ToolbarView::OnVerticalTabStripCollapseChanged(
 +    tabs::VerticalTabStripCollapseState) {
 +  UpdateVerticalTabsCollapseButton();
@@ -361,7 +361,7 @@
 @@ -1743,6 +1810,20 @@
    SchedulePaint();
  }
- 
+
 +void ToolbarView::NewTabButtonPressed(const ui::Event& event) {
 +  chrome::NewTab(browser_);
 +}
@@ -382,7 +382,7 @@
 @@ -2008,7 +2089,32 @@
        browser_->GetWindow() && (browser_->GetWindow()->IsMaximized() ||
                                  browser_->GetWindow()->IsFullscreen());
- 
+
 -  const int margin = is_maximized_or_fullscreen ? leading_interior_margin : 0;
 +  const bool collapse_button_on_trailing_edge =
 +      vertical_tabs_collapse_button_ &&
@@ -410,23 +410,23 @@
 +      is_maximized_or_fullscreen && !collapse_button_on_leading_edge
 +          ? leading_interior_margin
 +          : 0;
- 
+
    if (features::IsWebUIBackForwardButtonEnabled()) {
      if (toolbar_webview_) {
 @@ -2028,7 +2134,8 @@
    }
- 
+
    GetAppMenuControl()->SetIsMaximizedOrFullscreen(
 -      ShouldAppMenuApplyFittsLaw(is_maximized_or_fullscreen));
 +      ShouldAppMenuApplyFittsLaw(is_maximized_or_fullscreen) &&
 +      !collapse_button_on_trailing_edge);
- 
+
    // Cast button visibility is controlled externally.
  }
 @@ -2141,6 +2248,19 @@
      return;
    }
- 
+
 +  UpdateVerticalTabsCollapseButton();
 +  UpdateDynamicNewTabButton();
 +
@@ -446,7 +446,7 @@
 @@ -2180,6 +2300,71 @@
    return controller && controller->IsCompactLayout();
  }
- 
+
 +bool ToolbarView::IsDynamicLayout() const {
 +  auto* controller =
 +      HeliumLayoutStateController::From(browser_view_->browser());
@@ -526,7 +526,7 @@
  #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
  #include "chrome/browser/ui/views/frame/browser_root_view.h"
 @@ -338,6 +339,12 @@
- 
+
    // Returns whether the Helium layout is Compact.
    bool IsCompactLayout() const;
 +  bool IsDynamicLayout() const;
@@ -535,25 +535,25 @@
 +  bool ShouldShowToolbarNewTabButton() const;
 +  void UpdateVerticalTabsCollapseButton();
 +  void UpdateDynamicNewTabButton();
- 
+
    // AppMenuIconController::Delegate:
    void UpdateTypeAndSeverity(
 @@ -404,10 +411,15 @@
- 
+
    void OnTouchUiChanged();
- 
+
 +  void NewTabButtonPressed(const ui::Event& event);
 +  void VerticalTabsCollapseButtonPressed(const ui::Event& event);
 +
    void InitGlicContainer();
- 
+
    void OnVerticalTabStripModeChanged(
        tabs::VerticalTabStripStateController* controller);
 +  void OnVerticalTabStripCollapseChanged(
 +      tabs::VerticalTabStripCollapseState);
- 
+
    void SetForwardButtonVisibility(bool visible);
- 
+
 @@ -443,6 +455,7 @@
    // Controls. Most of these can be null, e.g. in popup windows. Only
    // |location_bar_| is guaranteed to exist. These pointers are owned by the
@@ -571,25 +571,25 @@
    raw_ptr<BrowserAppMenuButton> app_menu_button_ = nullptr;
    raw_ptr<TabStripRegionView> tab_strip_region_view_ = nullptr;
 @@ -518,6 +532,10 @@
- 
+
    BooleanPrefMember show_reload_button_;
- 
+
 +  BooleanPrefMember show_vertical_tabs_collapse_button_;
 +
 +  BooleanPrefMember show_dynamic_new_tab_button_;
 +
    BooleanPrefMember show_avatar_button_;
- 
+
    BooleanPrefMember show_extensions_button_;
 @@ -548,8 +566,8 @@
    // `toolbar_controller_`.
    raw_ptr<OverflowButton> overflow_button_ = nullptr;
- 
+
 -  // Subscription for when tab strip mode changes
 -  base::CallbackListSubscription vertical_tab_subscription_;
 +  base::CallbackListSubscription vertical_tab_mode_subscription_;
 +  base::CallbackListSubscription vertical_tab_collapse_subscription_;
- 
+
    // Subscription for when contextual tasks button position should update.
    base::CallbackListSubscription
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
@@ -602,7 +602,7 @@
 +      settings_api::PrefType::kBoolean;
 +  (*s_allowlist)[::prefs::kShowDynamicNewTabButton] =
 +      settings_api::PrefType::kBoolean;
- 
+
    // Appearance settings.
    (*s_allowlist)[::prefs::kCtrlTabMru] = settings_api::PrefType::kBoolean;
 --- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar.mojom
@@ -618,23 +618,23 @@
    kMenu,
 --- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
 +++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
-@@ -9,6 +9,7 @@
- #include "base/strings/strcat.h"
+@@ -10,6 +10,7 @@
+ #include "build/branding_buildflags.h"
  #include "chrome/app/vector_icons/vector_icons.h"
  #include "chrome/browser/profiles/profile.h"
 +#include "chrome/browser/ui/actions/actions_util.h"
  #include "chrome/browser/ui/actions/chrome_action_id.h"
  #include "chrome/browser/ui/browser_actions.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-@@ -36,6 +37,7 @@
- #include "ui/base/ui_base_features.h"
- #include "ui/display/screen.h"
+@@ -43,6 +44,7 @@
+ #include "ui/gfx/image/image_skia.h"
+ #include "ui/gfx/image/image_skia_operations.h"
  #include "ui/gfx/vector_icon_types.h"
 +#include "ui/views/vector_icons.h"
- 
+
  namespace {
- std::optional<side_panel::customize_chrome::mojom::ActionId>
-@@ -53,6 +55,11 @@
+
+@@ -109,6 +111,11 @@
        return side_panel::customize_chrome::mojom::ActionId::kBack;
      case kActionReload:
        return side_panel::customize_chrome::mojom::ActionId::kReload;
@@ -646,7 +646,7 @@
      case kActionAvatar:
        return side_panel::customize_chrome::mojom::ActionId::kAvatar;
      case kActionExtensions:
-@@ -119,6 +126,10 @@
+@@ -175,6 +182,10 @@
        return kActionBack;
      case side_panel::customize_chrome::mojom::ActionId::kReload:
        return kActionReload;
@@ -657,7 +657,7 @@
      case side_panel::customize_chrome::mojom::ActionId::kAvatar:
        return kActionAvatar;
      case side_panel::customize_chrome::mojom::ActionId::kExtensions:
-@@ -205,6 +216,16 @@
+@@ -261,6 +272,16 @@
                            base::Unretained(this), kActionReload,
                            prefs::kShowReloadButton));
    pref_change_registrar_.Add(
@@ -674,10 +674,10 @@
        prefs::kShowAvatarButton,
        base::BindRepeating(&CustomizeToolbarHandler::OnActionPinnedChanged,
                            base::Unretained(this), kActionAvatar,
-@@ -300,6 +321,33 @@
+@@ -356,6 +377,33 @@
                .Rasterize(&provider),
            scale_factor)));
- 
+
 +  auto vertical_tabs_collapse_action =
 +      side_panel::customize_chrome::mojom::Action::New(
 +          MojoActionForChromeAction(kActionToggleCollapseVertical).value(),
@@ -708,17 +708,17 @@
    auto avatar_action = side_panel::customize_chrome::mojom::Action::New(
        MojoActionForChromeAction(kActionAvatar).value(),
        base::UTF16ToUTF8(l10n_util::GetStringUTF16(IDS_PROFILES_MENU_NAME)),
-@@ -376,6 +424,9 @@
- 
+@@ -432,6 +480,9 @@
+
    actions.push_back(std::move(split_tab_action));
- 
+
 +  actions.push_back(std::move(vertical_tabs_collapse_action));
 +  actions.push_back(std::move(dynamic_new_tab_action));
 +
    actions.push_back(std::move(extensions_action));
    actions.push_back(std::move(media_controls_action));
    actions.push_back(std::move(avatar_action));
-@@ -524,6 +575,12 @@
+@@ -586,6 +637,12 @@
      case kActionReload:
        prefs()->SetBoolean(prefs::kShowReloadButton, pin);
        break;
@@ -738,9 +738,9 @@
  #include "ui/views/controls/menu/menu_model_adapter.h"
  #include "ui/views/controls/menu/submenu_view.h"
 +#include "ui/views/vector_icons.h"
- 
+
  namespace {
- 
+
 @@ -103,6 +104,11 @@
    // Order matters because it should match overflow menu order top to bottom.
    std::vector<ResponsiveElementInfo> elements = {

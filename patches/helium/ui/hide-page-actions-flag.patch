@@ -1,13 +1,13 @@
 --- a/chrome/browser/helium_flag_choices.h
 +++ b/chrome/browser/helium_flag_choices.h
-@@ -44,6 +44,8 @@ constexpr const char kHeliumSplitClientH
- 
+@@ -44,6 +44,8 @@
+
  constexpr const char kHeliumNativeFrameMaterialsCommandLine[] =
      "helium-native-frame-materials";
 +constexpr const char kHeliumHidePageActionsCommandLine[] =
 +    "helium-hide-page-actions";
  }  // namespace helium
- 
+
  #endif /* CHROME_BROWSER_HELIUM_FLAG_CHOICES_H_ */
 --- a/chrome/browser/helium_flag_entries.h
 +++ b/chrome/browser/helium_flag_entries.h
@@ -24,10 +24,10 @@
  #endif  // CHROME_BROWSER_HELIUM_FLAG_ENTRIES_H_
 --- a/chrome/browser/ui/ui_features.cc
 +++ b/chrome/browser/ui/ui_features.cc
-@@ -28,6 +28,8 @@ BASE_FEATURE(kUseActionsForBrowserComman
- 
+@@ -28,6 +28,8 @@
+
  BASE_FEATURE(kHeliumNativeFrameMaterials, base::FEATURE_DISABLED_BY_DEFAULT);
- 
+
 +BASE_FEATURE(kHeliumHidePageActions, base::FEATURE_DISABLED_BY_DEFAULT);
 +
  bool HeliumNativeFrameAvailable() {
@@ -35,23 +35,23 @@
    return base::FeatureList::IsEnabled(kHeliumNativeFrameMaterials);
 --- a/chrome/browser/ui/ui_features.h
 +++ b/chrome/browser/ui/ui_features.h
-@@ -27,6 +27,8 @@ bool ShouldUseActionsForBrowserCommands(
+@@ -27,6 +27,8 @@
  BASE_DECLARE_FEATURE(kHeliumNativeFrameMaterials);
  bool HeliumNativeFrameAvailable();
- 
+
 +BASE_DECLARE_FEATURE(kHeliumHidePageActions);
 +
  BASE_DECLARE_FEATURE(kAllowEyeDropperWGCScreenCapture);
- 
+
  BASE_DECLARE_FEATURE(kCtrlTabMru);
 --- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
-@@ -533,6 +533,8 @@ void LocationBarView::Init() {
+@@ -521,6 +521,8 @@
        AddChildView(std::make_unique<page_actions::PageActionContainerView>(
            page_action_items, page_actions::PageActionPropertiesProvider(),
            page_action_params));
 +  page_action_container_->SetVisible(
 +      !base::FeatureList::IsEnabled(features::kHeliumHidePageActions));
- 
-   auto clear_all_button = views::CreateVectorImageButton(base::BindRepeating(
-       static_cast<void (OmniboxView::*)(const std::u16string&)>(
+   if (base::FeatureList::IsEnabled(
+           omnibox::kComposeboxPersistentAimButtonOmnibox)) {
+     if (auto* ai_mode_page_action_view =

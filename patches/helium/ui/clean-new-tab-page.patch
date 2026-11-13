@@ -1,6 +1,6 @@
 --- a/chrome/browser/resources/new_tab_page/app.css
 +++ b/chrome/browser/resources/new_tab_page/app.css
-@@ -558,6 +558,7 @@
+@@ -567,6 +567,7 @@
    display: flex;
    flex-direction: column;
    height: 100%;
@@ -273,12 +273,12 @@
 +  padding-inline-end: 0;
 +  padding-inline-start: 8px;
  }
- 
+
  :host(:not([show-shadow])) .customize-button {
 @@ -82,15 +81,8 @@
    --iron-icon-height: 16px;
  }
- 
+
 -@media (max-width: 550px) {
 -  .customize-button {
 -    padding-inline-end: 0;
@@ -291,7 +291,7 @@
 +.customize-text {
 +  display: none;
  }
- 
+
  @media (max-width: 1110px) {
 --- a/chrome/browser/resources/new_tab_shared/customize_buttons/customize_buttons.html.ts
 +++ b/chrome/browser/resources/new_tab_shared/customize_buttons/customize_buttons.html.ts
@@ -329,12 +329,12 @@
 @@ -2,9 +2,6 @@
  // Use of this source code is governed by a BSD-style license that can be
  // found in the LICENSE file.
- 
+
 -import './logo.js';
 -import './ntp_searchbox.js';
 -import './left_hand_side.js';
  import '/strings.m.js';
- 
+
  import {SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
 @@ -16,9 +13,6 @@
  import type {SearchAnimatedGlowElement} from 'chrome://resources/cr_components/search/animated_glow.js';
@@ -361,11 +361,11 @@
 -import type {NtpSearchboxElement} from './ntp_searchbox.js';
  import {$$} from './utils.js';
  import {WindowProxy} from './window_proxy.js';
- 
+
 @@ -58,17 +49,6 @@
    MODULE_LOAD_COMPLETE = 2,
  }
- 
+
 -interface ExecutePromoBrowserCommandData {
 -  commandId: Command;
 -  clickInfo: ClickInfo;
@@ -382,23 +382,23 @@
   * enums.xml. These values are persisted to logs. Entries should not be
 @@ -117,7 +97,6 @@
  }
- 
+
  const CUSTOMIZE_URL_PARAM: string = 'customize';
 -const OGB_IFRAME_ORIGIN = 'chrome-untrusted://new-tab-page';
  const MSAL_IFRAME_ORIGIN = 'chrome-untrusted://ntp-microsoft-auth';
  const VOICE_QUERY_LENGTH_LIMIT = 120;
  const VOICE_AUTO_SUBMIT_IDLE_TIMEOUT_MS = 3000;
 @@ -130,8 +109,6 @@
- 
+
  export const CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID =
      'CustomizeButtonsHandler::kCustomizeChromeButtonElementId';
 -export const CONTEXTUAL_ENTRYPOINT_ELEMENT_ID =
 -    'NewTabPageUI::kRealboxContextualEntrypointElementId';
- 
+
  // The minimum width for the realbox to show its secondary side.
  // 900px ~= 561px (max value for --ntp-search-box-width) * 1.5 + some margin.
 @@ -162,9 +139,6 @@
- 
+
  export interface AppElement {
    $: {
 -    oneGoogleBarClipPath: HTMLElement,
@@ -410,33 +410,33 @@
 @@ -207,8 +181,6 @@
        // Protected properties
        // =======================================================================
- 
+
 -      oneGoogleBarIframePath_: {type: String},
 -      oneGoogleBarLoaded_: {type: Boolean},
        theme_: {type: Object},
        showCustomize_: {type: Boolean},
        showCustomizeChromeText_: {type: Boolean},
-@@ -370,8 +342,6 @@
+@@ -373,8 +345,6 @@
    accessor composeboxEnabled: boolean =
        loadTimeData.getBoolean('searchboxShowComposebox');
- 
+
 -  protected accessor oneGoogleBarIframePath_: string|undefined;
 -  protected accessor oneGoogleBarLoaded_: boolean = false;
    protected accessor theme_: Theme|null = null;
    protected accessor showCustomize_: boolean = false;
    protected accessor showCustomizeChromeText_: boolean = false;
-@@ -496,7 +466,6 @@
+@@ -499,7 +469,6 @@
    protected accessor searchboxCallbackRouter_: SearchboxPageCallbackRouter;
    protected accessor rhsWidth_: number|null = null;
- 
+
 -  private voiceSearchActivatedByKeyboard_: boolean = false;
    private accessor selectedCustomizeDialogPage_: string|null = null;
    private accessor modulesLoadedStatus_: ModuleLoadStatus =
        ModuleLoadStatus.MODULE_LOAD_IN_PROGRESS;
-@@ -535,13 +504,6 @@
+@@ -538,13 +507,6 @@
      this.shouldPrintPerformance_ =
          new URLSearchParams(location.search).has('print_perf');
- 
+
 -    this.oneGoogleBarIframePath_ = (() => {
 -      const params = new URLSearchParams();
 -      params.set(
@@ -446,8 +446,8 @@
 -
      this.showCustomize_ =
          WindowProxy.getInstance().url.searchParams.has(CUSTOMIZE_URL_PARAM);
- 
-@@ -648,28 +610,9 @@
+
+@@ -651,28 +613,9 @@
        this.setCustomizeChromeSidePanelVisible_(this.showCustomize_);
        recordCustomizeChromeOpen(NtpCustomizeChromeEntryPoint.URL);
      }
@@ -476,10 +476,10 @@
      if (loadTimeData.getString('backgroundImageUrl')) {
        this.backgroundManager_.getBackgroundImageLoadTime().then(
            time => {
-@@ -837,13 +780,6 @@
+@@ -840,13 +783,6 @@
        this.recordBrowserPromoMetrics_();
      }
- 
+
 -    if (this.ntpRealboxNextEnabled_) {
 -      this.registerHelpBubble(
 -          CONTEXTUAL_ENTRYPOINT_ELEMENT_ID,
@@ -490,10 +490,10 @@
      if (this.enableThreadsRail_) {
        this.observeRhsWrapperWidth_();
      }
-@@ -886,33 +822,7 @@
+@@ -889,33 +825,7 @@
        this.onShowComposeboxChange_();
      }
- 
+
 -    if (changedPrivateProperties.has('oneGoogleBarLoaded_') ||
 -        changedPrivateProperties.has('theme_') ||
 -        changedPrivateProperties.has('showComposebox_')) {
@@ -523,12 +523,12 @@
 -    }
 +
    }
- 
+
    // For voice coherence: when error event is fired, this will run.
-@@ -930,19 +840,6 @@
+@@ -933,19 +843,6 @@
      this.voiceSearchTranscript_ = '';
    }
- 
+
 -  // Called to update the OGB of relevant NTP state changes.
 -  private updateOneGoogleBarAppearance_() {
 -    if (this.oneGoogleBarLoaded_) {
@@ -545,7 +545,7 @@
    private computeShowCustomizeChromeText_(): boolean {
      if (this.showWallpaperSearchButton_) {
        return false;
-@@ -1026,7 +923,6 @@
+@@ -1029,7 +926,6 @@
      }
      this.pageHandler_.onContextualSearchIPHEngaged();
      if (this.hasRealboxOverride(detail.fuseboxAction)) {
@@ -553,7 +553,7 @@
        return;
      }
      this.openComposeboxForActionChip_(detail);
-@@ -1129,30 +1025,17 @@
+@@ -1132,37 +1028,17 @@
        const composebox =
            this.shadowRoot.querySelector<NtpComposeboxElement>('#composebox');
        assert(composebox);
@@ -567,12 +567,13 @@
 +      this.onCloseComposebox_();
      }
    }
- 
+
    protected onComposeboxContextMenuOpened_() {
 -    this.$.searchbox.closeContextMenu();
    }
- 
--  protected onCloseComposebox_(e: CustomEvent<{composeboxText?: string}>) {
+
+-  protected onCloseComposebox_(
+-      e: CustomEvent<{composeboxText?: string, afterSubmit?: boolean}>) {
 +  protected onCloseComposebox_() {
      if (!this.showComposebox_) {
        return;
@@ -580,29 +581,35 @@
 -    this.$.searchbox.closeContextMenu();
 -    const composeboxText = e.detail.composeboxText;
 -
+-    if (!e.detail.afterSubmit) {
+-      // Composebox initiates the backend reset on close via ComposeboxProxy;
+-      // this only updates the searchbox's local UI state.
+-      this.$.searchbox.resetSmartTabSharing();
+-    }
+-
 -    if (composeboxText && composeboxText.trim()) {
 -      this.$.searchbox.setInputText(composeboxText);
 -    }
      const composebox =
          this.shadowRoot.querySelector<NtpComposeboxElement>('#composebox');
      assert(composebox);
-@@ -1164,11 +1047,10 @@
+@@ -1174,11 +1050,10 @@
      this.closeComposebox_();
      this.logoColor_ = this.computeLogoColor_();
      this.singleColoredLogo_ = this.computeSingleColoredLogo_();
 -    this.updateOneGoogleBarAppearance_();
    }
- 
+
    protected onOpenVoiceSearch_() {
 -    this.openVoiceSearch_(/*activatedByKeyboard=*/ false);
 +    this.showVoiceSearchOverlay_ = true;
      // When the experiment is enabled, voice search metrics are logged directly
      // by the shared component instead of NTP to prevent duplicate emissions.
      if (!this.voiceSearchCoherenceAnySearchboxExperimentEnabled_) {
-@@ -1176,15 +1058,6 @@
+@@ -1186,15 +1061,6 @@
      }
    }
- 
+
 -  private async openVoiceSearch_(activatedByKeyboard: boolean) {
 -    // <ntp-voice-search-overlay> and <cr-composebox-voice-search> may be
 -    // defined in lazy_load.js, which may not have been loaded yet if voice
@@ -615,10 +622,10 @@
    protected onComposeVoiceSearchAction_(
        e: CustomEvent<{value: ComposeVoiceSearchAction}>) {
      if (this.voiceSearchCoherenceAnySearchboxExperimentEnabled_) {
-@@ -1357,33 +1230,10 @@
+@@ -1367,33 +1233,10 @@
      WindowProxy.getInstance().navigate(queryUrl.href);
    }
- 
+
 -  protected onVoiceSearchRecordingStopped_(e: CustomEvent<string>) {
 -    const query = e.detail;
 -    const dialog = this.shadowRoot.querySelector<HTMLDialogElement>(
@@ -649,7 +656,7 @@
      if (e.key === 'Escape' &&
          (this.composeboxOutsideClickEnabled_ ? this.composeboxFocused_ :
                                                 this.showComposebox_)) {
-@@ -1395,12 +1245,6 @@
+@@ -1405,12 +1248,6 @@
          return;
        }
      }
@@ -660,12 +667,12 @@
 -      }
 -    }
    }
- 
+
    private rgbaOrInherit_(skColor: SkColor|null): string {
-@@ -1494,103 +1338,6 @@
+@@ -1504,103 +1341,6 @@
      return !!this.theme_ && (!!this.theme_.logoColor || this.theme_.isDark);
    }
- 
+
 -  /**
 -   * Sends the command received from the given source and origin to the browser.
 -   * Relays the browser response to whether or not a promo containing the given
@@ -766,9 +773,9 @@
    protected onModulesLoaded_(e: CustomEvent<number|null>) {
      this.modulesLoadedStatus_ = e.detail ?
          ModuleLoadStatus.MODULE_LOAD_COMPLETE :
-@@ -1700,17 +1447,6 @@
+@@ -1710,17 +1450,6 @@
    }
- 
+
    private onWindowClick_(e: Event) {
 -    if (this.ntpRealboxNextEnabled_) {
 -      const searchbox = this.shadowRoot.querySelector('ntp-searchbox');
@@ -784,7 +791,7 @@
      if (e.composedPath()[0] === $$(this, '#rhsContent')) {
        recordClick(NtpElement.BACKGROUND);
        return;
-@@ -1900,35 +1636,14 @@
+@@ -1910,35 +1639,14 @@
     * multiple toasts at the same time. Otherwise, the first pending toast is
     * popped and shown.
     */
@@ -805,7 +812,7 @@
 -    undoToast.show();
 -  }
 +  private processPendingUndoToasts_() {}
- 
+
    /**
     * Processes an auto-removal undo click. It will hide the toast, call the
     * undo callback, and call the processing function to handle the next queued
@@ -819,7 +826,7 @@
 -    this.processPendingUndoToasts_();
 -  }
 +  protected onUndoButtonClick_() {}
- 
+
    private onShowComposeboxChange_() {
      const notSelector = (this.composeboxOutsideClickEnabled_ ?
 --- a/chrome/browser/resources/new_tab_page/new_tab_page.ts
