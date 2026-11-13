@@ -1128,7 +1128,7 @@
 +
    bool is_srcdoc = common_params->url.IsAboutSrcdoc();
    if (is_srcdoc) {
-     // TODO(wjmaclean): initialize this in NavigationRequest's constructor
+     // Main frame srcdoc navigation are meaningless. They are blocked whenever a
 @@ -17004,6 +17021,15 @@
      document_associated_data_->owned_page()->set_last_main_document_source_id(
          ukm::ConvertToSourceId(navigation_request->GetNavigationId(),
