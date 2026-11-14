@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+    "commit": "18709b036de7550323bc4d5e63d61d9e3aa05d94",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -885,6 +885,10 @@
       {
         "path": "patches/helium/ui/address-overflow-padding.patch",
         "sha256": "1d4cdbd0f89e5a17ed56cb21ebb5791c243b85e20d453ad6f5a8f5d52601fb40"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-bottom-inset.patch",
+        "sha256": "2d72e75a5e134229f8510c547df76da21dd55a7673e0ea0937d818b693c9d52b"
       }
     ]
   },
@@ -2602,6 +2606,19 @@
       "adaptation": "Reserve AppKit's existing two-point editing margin outside the scrolling field editor and remove the duplicate line-fragment padding only in the address cell. Ordinary relayout, initial focus and bang scopes share the frame helper. Idle centering and other native fields retain their padding. The owner accepted the native Apple silicon preview on November 13, 2026. Both native geometry fixtures pass, the baseline fails, and final source parity has zero fuzz/offsets. See agent-docs/project/features/address-overflow-padding.md for paired build and smoke evidence. Intel runtime is under Rosetta.",
       "commits": [
         "d7c555a12b3753694f9cd97427a41cbea68e9c41"
+      ]
+    },
+    {
+      "id": "sidebar-bottom-inset",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/sidebar-bottom-inset.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match the final sidebar row bottom clearance to its horizontal inset.",
+      "adaptation": "Reuse the computed horizontal padding in scroll-content height instead of a fixed 8 DIP bottom inset. Floating/sidebar-address mode becomes 9 DIP, matching its sides and footer; other layouts follow their own side inset. The scroll viewport remains full height. Both builds and browsing/settings/profile-persistence smoke pass, Intel under Rosetta. The owner accepted the visual fix. Automated native preview verification was limited to startup. See agent-docs/project/builds/2026-11-13-sidebar-bottom-inset.json.",
+      "commits": [
+        "18709b036de7550323bc4d5e63d61d9e3aa05d94"
       ]
     }
   ],

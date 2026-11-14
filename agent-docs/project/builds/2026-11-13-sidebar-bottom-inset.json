@@ -1,0 +1,329 @@
+{
+  "date": "2026-11-13",
+  "status": "Validated and selected for future main builds",
+  "base_platform": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+  "platform_commit": "18709b036de7550323bc4d5e63d61d9e3aa05d94",
+  "platform_tree": "cfe35f9dc9504ad7cb6863f84ee804a9a2014430",
+  "platform_ref": "refs/tags/inputs/sidebar-bottom-inset-1/macos",
+  "core_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+  "chromium_version": "158.0.8127.37",
+  "behavior": "The final scrolling sidebar row uses the same bottom clearance as its side inset: 9 DIP in the pictured floating/sidebar-address mode, replacing 8 DIP. This adds 2 physical pixels at Retina scale. Footer rows already use the matching inset.",
+  "source_replay": {
+    "passed": true,
+    "base_platform": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+    "file": "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc",
+    "preimage_sha256": "b21d20375b23043d188b6b594c02ce9cd00c7551320094951c263d363525aa8e",
+    "source_sha256": "a79cf7a5f6bfbd9155f291752846bfb80ce1bb6806b3392a006d8af0cc9bc15e",
+    "patch_sha256": "2d72e75a5e134229f8510c547df76da21dd55a7673e0ea0937d818b693c9d52b",
+    "fuzz": 0,
+    "offsets": 0,
+    "merge_unmerge": true,
+    "fresh_full_preparation": false,
+    "original_base_platform": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
+    "accepted_dependency": {
+      "patch": "helium/ui/address-overflow-padding.patch",
+      "source_file": "chrome/browser/ui/views/frame/browser_frame_view_mac.mm",
+      "source_sha256": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+      "strict_quilt_push": true,
+      "source_overlap": false
+    },
+    "combined_source_hashes": {
+      "chrome/browser/ui/tabs/older_tabs_controller.cc": "1aa04e7c893e660f11126c26576df5f5f074f6353bcdc5b0917e84fd99520036",
+      "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "69464639434ca12facc828ef810d8c08cc6d963c068d2440c25e54ad489a7fef",
+      "chrome/app/settings_strings.grdp": "7f6f2187fcd6afd124cc70f05cf8a624e65e4c8169c57a58363568752b0e7b23",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "6f300fad89745a3cbf9c8fe9629cf744183baf1ec247d83809bee6924df22fd5",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "a79cf7a5f6bfbd9155f291752846bfb80ce1bb6806b3392a006d8af0cc9bc15e",
+      "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc": "eb1605832c6021c725e49215ca9f06266dffda5b39090a3da8ff0a47ef7b69d5",
+      "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h": "8b78e66ad90cefac81958e52afb1d6d7d03e4ebd3b0fe4869e6bad3b63b52a2b",
+      "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager_unittest.cc": "058dced9f1fc45c3d6a119f81e83bb4fd8258591dbd703fa9f862f62e40f0a2c",
+      "chrome/app/generated_resources.grd": "7c5a2538f9c6169660f10d09bfe6b72a62694f8d1182ad2ce2d5b254502bab14",
+      "chrome/browser/mac/sparkle_glue.h": "611c709095f9d701d534f6388f19f606ecc29f6f1b9c3b34b5b8430f0ba54acd",
+      "chrome/browser/mac/sparkle_glue.mm": "8fda9abf61e90cda62e1485303d0903c9c82a771c584b9e69269cda444e5aa49",
+      "chrome/browser/ui/views/frame/sidebar_footer_view.cc": "1b49c448bf5eb12d68f986e8d2a8dd93252bd8b3d4ca2e3acd0d0bb8cf44e639",
+      "chrome/browser/ui/views/frame/sidebar_footer_view.h": "dba1955dd26c84d98c820053158f690e7c4d77528eeca1ea6d80b382de8461f7",
+      "chrome/browser/resources/settings/about_page/about_page.html.ts": "dc4de6a0f73c65e79c66852afdf988eb7a96af5fbe3349ea2fa50b122e2b7d88",
+      "chrome/browser/resources/settings/about_page/about_page.css": "355540c1b8b85d26baf95e15e059ab1dc15faf164ab4da43cbdf3dd76bd5791d",
+      "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "b8ce6594569be59cdd9a3e9f19b4fe5db0990cdd2b4bbbeb89c35b4ca694779a",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1"
+    },
+    "final_merge_unmerge": true
+  },
+  "builds": {
+    "arm64": {
+      "dependency_sha256": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+      "arch": "arm64",
+      "exit_code": 0,
+      "seconds": 164.91391970869154,
+      "source_sha256": "a79cf7a5f6bfbd9155f291752846bfb80ce1bb6806b3392a006d8af0cc9bc15e",
+      "source_unchanged": true
+    },
+    "x86_64": {
+      "dependency_sha256": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+      "arch": "x86_64",
+      "exit_code": 0,
+      "seconds": 215.45138058252633,
+      "source_sha256": "a79cf7a5f6bfbd9155f291752846bfb80ce1bb6806b3392a006d8af0cc9bc15e",
+      "source_unchanged": true
+    }
+  },
+  "smoke": {
+    "arm64": {
+      "architecture": "arm64",
+      "test_host_architecture": "arm64",
+      "chromium_version": "158.0.8127.37",
+      "framework_sha256": "ae17445563488bc213f2af52289953645d8b4bb069b4370a3d31540d75524caf",
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "passed": true,
+      "report_sha256": "969fe927650a141d0ddeed74845c7747e2e784cefb4f7b75f457100158fb5401"
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "test_host_architecture": "arm64",
+      "chromium_version": "158.0.8127.37",
+      "framework_sha256": "6685fd1f5950f44fae338a92dd87e07e916ee5b4f5926c4a16909159d050876d",
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "passed": true,
+      "report_sha256": "f09d61ab6f25d30e790e9023e18365357aff5f9240948d7ab973ec0690893d73"
+    }
+  },
+  "native_review": {
+    "passed": true,
+    "owner_acceptance": "yeah fix looks right",
+    "scope": "Owner accepted the sidebar spacing correction and explicitly requested committing it.",
+    "automated_native_inspection": "Preview launch confirmed, but automation encountered setup rather than the intended scroll-limit scenario; no automated screenshot or bottom-edge measurement is claimed.",
+    "source_geometry": "The nonempty scroll-content tail now uses the exact horizontal_padding value; floating/sidebar-address mode is 9 DIP instead of 8 DIP, and the footer already uses 9 DIP."
+  },
+  "owner_instruction": "great, go ahead and commit that fix",
+  "repository_checks": {
+    "patch_lint": "passed",
+    "unit_tests": 78,
+    "locked_inputs": "passed including Git objects, ancestry, permanent tag, tree and core gitlink",
+    "component_patch_i18n": "passed",
+    "documentation_links_checked": 65,
+    "whitespace": "passed"
+  },
+  "workspace": {
+    "owner": "01a1d90a-0dcf-7060-80b8-f3e750ed1399",
+    "task": "Match sidebar bottom spacing to tab side inset",
+    "source": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/platform/build/src",
+    "base_core_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+    "base_platform_commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+    "chromium_version": "158.0.8127.37",
+    "outputs": {
+      "arm64": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/platform/build/src/out/Default",
+      "x86_64": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/platform/build/src/out/Intel"
+    },
+    "active_patches": [
+      "helium/ui/older-tabs-disclosure.patch (accepted input)",
+      "helium/ui/update-release-notes.patch (accepted input)",
+      "lune/github-release-notes.patch (accepted input)",
+      "helium/ui/older-tabs-entry-clock.patch",
+      "helium/ui/sidebar-bottom-inset.patch",
+      "address-overflow-padding.patch (accepted dependency)"
+    ],
+    "command_in_progress": null,
+    "selected_platform_commit": null,
+    "state": "Final paired validation with accepted address overflow input"
+  },
+  "timings": [
+    {
+      "iteration": "preview-1",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/build.py",
+        "arm64"
+      ],
+      "started_at": "2026-11-14T07:52:42.831590+00:00",
+      "finished_at": "2026-11-14T07:52:56.726937+00:00",
+      "seconds": 13.894966,
+      "returncode": 1,
+      "exit_code": 1
+    },
+    {
+      "iteration": "final-1",
+      "arch": "arm64",
+      "phase": "export",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/export.py"
+      ],
+      "started_at": "2026-11-14T07:54:20.614058+00:00",
+      "finished_at": "2026-11-14T07:54:21.372584+00:00",
+      "seconds": 0.758285,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "preview-1",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/build.py",
+        "arm64"
+      ],
+      "started_at": "2026-11-14T07:53:18.816117+00:00",
+      "finished_at": "2026-11-14T07:56:39.044324+00:00",
+      "seconds": 200.227665,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "preview-1",
+      "arch": "arm64",
+      "phase": "preview",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/preview.py"
+      ],
+      "started_at": "2026-11-14T07:57:01.001537+00:00",
+      "finished_at": "2026-11-14T07:57:05.882631+00:00",
+      "seconds": 4.880145,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "final-1",
+      "arch": "x86_64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/build.py",
+        "x86_64"
+      ],
+      "started_at": "2026-11-14T07:56:57.079667+00:00",
+      "finished_at": "2026-11-14T08:00:11.236317+00:00",
+      "seconds": 194.155912,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "final-1",
+      "arch": "arm64",
+      "phase": "checks",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/smoke.py",
+        "arm64"
+      ],
+      "started_at": "2026-11-14T08:00:25.375023+00:00",
+      "finished_at": "2026-11-14T08:00:34.232247+00:00",
+      "seconds": 8.8571,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "final-1",
+      "arch": "x86_64",
+      "phase": "checks",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/smoke.py",
+        "x86_64"
+      ],
+      "started_at": "2026-11-14T08:01:07.711450+00:00",
+      "finished_at": "2026-11-14T08:02:10.590901+00:00",
+      "seconds": 62.87906,
+      "returncode": 1,
+      "exit_code": 1
+    },
+    {
+      "iteration": "final-composition",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/build.py",
+        "arm64"
+      ],
+      "started_at": "2026-11-14T08:03:03.556825+00:00",
+      "finished_at": "2026-11-14T08:05:48.540450+00:00",
+      "seconds": 164.983138,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "final-composition",
+      "arch": "arm64",
+      "phase": "checks",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/smoke.py",
+        "arm64"
+      ],
+      "started_at": "2026-11-14T08:06:04.935899+00:00",
+      "finished_at": "2026-11-14T08:06:12.835517+00:00",
+      "seconds": 7.899335,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "final-composition",
+      "arch": "x86_64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/build.py",
+        "x86_64"
+      ],
+      "started_at": "2026-11-14T08:06:01.948781+00:00",
+      "finished_at": "2026-11-14T08:09:37.465192+00:00",
+      "seconds": 215.515588,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "final-composition",
+      "arch": "x86_64",
+      "phase": "checks",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/sidebar-bottom-inset/smoke.py",
+        "x86_64"
+      ],
+      "started_at": "2026-11-14T08:10:03.497000+00:00",
+      "finished_at": "2026-11-14T08:13:01.999829+00:00",
+      "seconds": 178.502273,
+      "returncode": 0,
+      "exit_code": 0
+    }
+  ],
+  "limits": [
+    "Incremental builds using the accepted prepared source; no fresh full source preparation or full Chromium unit-test executable.",
+    "Intel execution is under Rosetta on Apple silicon.",
+    "No measured comparison of end-to-end preview latency with the previous workflow."
+  ],
+  "issue": "No specific GitHub issue tracks this request.",
+  "release": "Published 26.1113.1 remains unchanged; no release or deployment performed.",
+  "cleanup": {
+    "preview_process_exited": true,
+    "removed": [
+      ".work/sidebar-bottom-inset/Lune Sidebar Preview.app",
+      ".work/sidebar-bottom-inset/preview-profile"
+    ],
+    "retained": "Source, incremental outputs, component inputs, quilt patches and compact validation evidence"
+  },
+  "publication": {
+    "pending": true
+  },
+  "composition_update": "The accepted address-overflow input entered main during validation. The identical sidebar patch was composed on that input, verified against 17 final source hashes, rebuilt for both architectures, and rechecked. Original candidate evidence remains under candidate-1.",
+  "earlier_attempts": {
+    "sandbox_build": "The compiler cache could not run in the sandbox; the authorized native build passed outside it.",
+    "intel_smoke": "An earlier composition timed out during a local ChromeDriver request. Its failure report remains in candidate-1; final composed artifacts are checked separately."
+  }
+}
