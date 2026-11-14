@@ -6,6 +6,12 @@ Main includes the accepted update menu and canonical Sparkle endpoint, preservin
 
 Use this runbook for development builds. For a production release, follow [release delivery](release-delivery.md), run commands from its frozen checkout and retain its preparation/build reports. Never edit an existing frozen source workspace to pick up a main-branch change.
 
+## Feature and bug-fix iteration
+
+Use the [development loop](development.md) for the three validation stages, check selection, shared-workspace record and phase timing commands. Default to incremental **arm64 only** while editing and reviewing a browser feature. Validate Intel after acceptance, before adopting the final browser input on main; run it earlier for architecture-specific work. Both-architecture support does not require rebuilding Intel for every preview revision.
+
+The CLI/CI commands below remain the full locked-input validation/build path. They are useful for final integration and engine/toolchain changes; do not repeat the entire path before each focused preview. The manual browser workflow already defaults to arm64. Its broad checks and the production build configuration remain intact.
+
 ## Completing development work
 
 Follow the [commit and completion process](committing.md) after validation and acceptance. Close the specific issues the adopted change resolves, quit previews and their fixture/driver processes, and delete disposable preview/package/profile artifacts. Retain the prepared source and reusable incremental build caches needed for future work, plus concise validation evidence.

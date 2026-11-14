@@ -66,6 +66,17 @@ Lune is a macOS Chromium distribution assembled from ungoogled-chromium, Helium,
   implemented behavior, source inspection, and runtime verification.
 - Run checks appropriate to the actual change. Documentation changes need link,
   consistency, and whitespace checks, not a Chromium build.
+- Iterate on browser features and fixes with incremental arm64 builds, relevant
+  regressions and native review. Run Intel early for architecture-specific work;
+  otherwise defer it until acceptance. Before browser input adoption on main,
+  verify the final quilt/export/replay and source parity, then build and smoke-test
+  both architectures. Release gates remain separate and unchanged.
+- Choose intermediate checks from the affected behavior; run broader integration
+  checks once the candidate settles. Reuse evidence only while its relevant
+  source, configuration, toolchain and artifact identities remain unchanged.
+- Preserve incremental sources/outputs and caches. Record workspace ownership,
+  base inputs and active patches, and serialize edits/builds in shared sources.
+  Record phase timings using the [development loop](agent-docs/project/development.md).
 - Browser patches should be developed in the prepared source tree, refreshed
   with quilt, unmerged into the correct core/platform repository, then committed.
 - Preserve imported licenses and attribution. Check current upstream guidance

@@ -12,6 +12,8 @@ Updated November 13, 2026. This page summarizes operational state. Exact source 
 
 ## Inputs and validation
 
+Feature and bug-fix work now follows the [three-stage development loop](development.md): incremental arm64 previews with relevant checks, final paired validation before browser input adoption on main, then the existing separate release gates. Shared sources retain ownership/input/patch records and incremental caches; a lightweight command timer records phase durations. Real before/after sidebar and native-editor feedback-loop baselines remain pending in [issue #36](https://github.com/leebyron/lune-browser/issues/36). Component builds and the other experiments remain deferred.
+
 The [development lock](../../manifests/browser.lock.json) is authoritative for current component commits and permanent input tags. The [patch manifest](../../manifests/patches.json) records feature provenance, order and hashes. Frozen release records and their source tags are authoritative for each released or reserved version; later main-branch changes do not alter them.
 
 The current browser inputs match frozen 26.1113.1, including the accepted November 12–13 browser changes described below. See its [release notes](releases/26.1113.1.md) for changes since 26.1111.3. Later process and publisher improvements are adopted separately on main.
