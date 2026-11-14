@@ -1,0 +1,539 @@
+{
+  "date": "2026-11-13",
+  "status": "implemented and validated; selected for future main builds",
+  "base_platform": "291f4e9ccb31d5f3c8e2375cea72cbdc7e770ed3",
+  "platform_commit": "3543de9e3f4030a7c221e9d70792b52b2f38d394",
+  "platform_tree": "639af53486558ddf3a2148fd4a427276476f00bd",
+  "platform_ref": "refs/tags/inputs/older-tabs-arrangement-1/macos",
+  "core_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+  "chromium_version": "158.0.8127.37",
+  "published_release_unchanged": "26.1113.1",
+  "behavior": {
+    "arrangement_only": "Preserve regular age, last use and Older close clocks, including no-op/batch/window drags and extension/model reorders.",
+    "actual_use": "Normal activation and trusted page input retain their activity clocks.",
+    "explicit_keep": "Keep and deliberate Older-to-regular drops retain fresh regular residency.",
+    "cancel_or_older_placement": "Cancellation and remaining within Older preserve existing residency and clocks."
+  },
+  "source_validation": {
+    "passed": true,
+    "fuzz": 0,
+    "offsets": 0,
+    "base": "Exact frozen 26.1113.1 prepared preimages, verified against its complete source inventory",
+    "base_platform": "291f4e9ccb31d5f3c8e2375cea72cbdc7e770ed3",
+    "source_hashes": {
+      "chrome/browser/ui/tabs/older_tabs_controller.cc": "0502026a9059f92845e98fd74ca63e4ee75b67796ed2c431eaa7c62d7ae9cc12",
+      "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "3c4dc17f80840d3d5d6f4deb6eac0a86ad338dda2e1c42074c999ed96705c4c9"
+    },
+    "patch_sha256": "a88828a4d2c283d0b3ecaf3fe7ab8ef37255d41db4eb5f53f95f53ce349a07f5",
+    "platform_merge_unmerge": true,
+    "fresh_full_preparation": false
+  },
+  "builds": {
+    "arm64": {
+      "architecture": "arm64",
+      "exit_code": 0,
+      "seconds": 208.26817291695625,
+      "source_hashes": {
+        "chrome/browser/ui/tabs/older_tabs_controller.cc": "0502026a9059f92845e98fd74ca63e4ee75b67796ed2c431eaa7c62d7ae9cc12",
+        "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "3c4dc17f80840d3d5d6f4deb6eac0a86ad338dda2e1c42074c999ed96705c4c9"
+      },
+      "source_unchanged_during_build": true
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "exit_code": 0,
+      "seconds": 223.95761683303863,
+      "source_hashes": {
+        "chrome/browser/ui/tabs/older_tabs_controller.cc": "0502026a9059f92845e98fd74ca63e4ee75b67796ed2c431eaa7c62d7ae9cc12",
+        "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "3c4dc17f80840d3d5d6f4deb6eac0a86ad338dda2e1c42074c999ed96705c4c9"
+      },
+      "source_unchanged_during_build": true
+    }
+  },
+  "checks": {
+    "arm64": {
+      "clock_methods": {
+        "passed": true,
+        "expected_regression": false,
+        "architecture": "arm64",
+        "execution": "native",
+        "production_methods_sha256": "2198a8374a09e4da99217e45802b18766a135346f4a5a7f2904fd5d0501bba8d",
+        "exit_code": 0,
+        "output": "PASS: 13-tab no-op/reordered/cancelled drags preserve clocks; Older placement/cancel/Keep and real interaction rules pass",
+        "scope": "Actual production clock methods with isolated model/order/persistence stubs; no native pointer gesture claim"
+      },
+      "chromium_model_compilation": {
+        "architecture": "arm64",
+        "compiled": true,
+        "exit_code": 0,
+        "seconds": 7.708137959241867,
+        "test_source_sha256": "3c4dc17f80840d3d5d6f4deb6eac0a86ad338dda2e1c42074c999ed96705c4c9",
+        "full_unit_test_executable_linked_or_run": false
+      },
+      "browser_app_guard": {
+        "architecture": "arm64",
+        "app_hashes": {
+          "Contents/MacOS/Lune": "fd726c9a1c0752410949b21c96a223b3b0dc0005c3996b143d0adc633269e494",
+          "Contents/Info.plist": "030da769dda3a310fb006b3be473e4020c92fdfd29f1472c0cd429678694f22a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Lune Framework": "010c5d19b5d386e09bb324b44be440bfb9d12d4bd6a578ba17f9601feec768c8"
+        },
+        "unchanged": true,
+        "results": {
+          "smoke": 0,
+          "arrangement": 0
+        }
+      },
+      "smoke": {
+        "bundle_id": "computer.lune.browser",
+        "architecture": "arm64",
+        "test_host_architecture": "arm64",
+        "chromium_version": "158.0.8127.37",
+        "executable_sha256": "fd726c9a1c0752410949b21c96a223b3b0dc0005c3996b143d0adc633269e494",
+        "framework_sha256": "010c5d19b5d386e09bb324b44be440bfb9d12d4bd6a578ba17f9601feec768c8",
+        "driver_version": "ChromeDriver 158.0.8127.37 (b8c2be851f62f6a394ec57955d7f31335d7cb6d4-refs/branch-heads/8127@{#1692})",
+        "app_version": "0.22.1.1",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "mode": "headless",
+        "release_validated": false,
+        "artwork_component_commit": "291f4e9ccb31d5f3c8e2375cea72cbdc7e770ed3",
+        "icon_sha256": "ee0d54a595137cf6f2444731120f39c0f238ef429b2ca0add865d12215fdfaa7",
+        "ui": {
+          "defaults": {
+            "helium.browser.centered_location_bar": true,
+            "helium.browser.layout": 2,
+            "helium.browser.mru_tab_cycling": true,
+            "helium.browser.rounded_frame_thickness": 4,
+            "helium.browser.show_avatar_button": false,
+            "helium.browser.ui_density": 0,
+            "helium.browser.vertical_address_bar_in_sidebar": true,
+            "helium.browser.vertical_pinned_tabs_per_row": 4,
+            "helium.browser.vertical_right_aligned": false,
+            "helium.browser.visual_tab_switcher": true,
+            "helium.browser.zen_mode": true,
+            "helium.browser.zen_mode_sidebar_pinned": true,
+            "helium.browser.zen_mode_top_chrome_pinned": false,
+            "helium.command_bar.enabled": true,
+            "helium.link_peek.enabled": false,
+            "vertical_tabs.expand_on_hover": true,
+            "vertical_tabs.uncollapsed_width": 216,
+            "vertical_tabs.collapsed_state": false
+          },
+          "about_credit": {
+            "href": "https://helium.computer/",
+            "text": "Built on Helium, with thanks to its authors and contributors.\n        helium.computer"
+          },
+          "onboarding_credit": "Built on Helium browser, with thanks to its authors and contributors.",
+          "search_engines": [
+            {
+              "name": "Startpage",
+              "selected": "true",
+              "text": "A privacy-first search engine which doesn't profile or track you. Startpage Privacy-focused. Relies on Google and Bing for results. Promises not to track or profile you."
+            },
+            {
+              "name": "Kagi",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. Kagi Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine."
+            },
+            {
+              "name": "DuckDuckGo",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. DuckDuckGo Privacy-focused. Relies on Bing for results. Promises not to track or profile you."
+            },
+            {
+              "name": "Brave Search",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. Brave Search Privacy-focused. Doesn't use Google or Bing. Promises not to track or profile you. May show promotions related to Brave services."
+            },
+            {
+              "name": "Ecosia",
+              "selected": "false",
+              "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Ecosia May plant trees for clicking ads. Relies on Google and Bing for results. Sends tracking data to Google and Microsoft."
+            },
+            {
+              "name": "Qwant",
+              "selected": "false",
+              "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Qwant Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft."
+            },
+            {
+              "name": "Google",
+              "selected": "false",
+              "text": "A mainstream search engine which collects extensive personal data. Google It's Google. It dominates the search market, collects extensive personal data, and profiles you."
+            },
+            {
+              "name": "Microsoft Bing",
+              "selected": "false",
+              "text": "A mainstream search engine which collects extensive personal data. Microsoft Bing Collects extensive personal data. Privacy controls are buried and limited. Subjectively overwhelming UI."
+            }
+          ],
+          "internal_icons": {},
+          "services_provider_disclosure": "Helium services\n\nLune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.\n\nAllow connecting to Helium services\n\nAllow Lune to connect to Helium-hosted services. These requests stay disabled until you consent.\n\nAllow automatic Helium services updates\n\nAutomatically download and install updates to Lune-provided browser components.\n\nProxy extension downloads and updates\n\nWhen enabled, Lune will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.\n\nAllow downloading the !bangs list\n\nLune will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.\n\nAllow downloading filter lists for uBlock Origin\n\nLune will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with Lune. Optional filter lists will be requested without proxying.\n\nUse your own instance of Helium services\n\nYou can host your own Helium services instance and select it in Lune settings.",
+          "native_controls_tested": false,
+          "service_provider": {
+            "host": "Helium",
+            "browser_updates": "Lune",
+            "disclosure": "When enabled, Lune will be able to connect to anonymous web services to provide additional functionality. When disabled, additional features will not work."
+          },
+          "settings_port": {
+            "noise_toggle_persisted_and_observed": true,
+            "consent_observed": true,
+            "services_remained_disabled": true,
+            "service_controls": [
+              {
+                "checked": false,
+                "id": "servicesToggleButton",
+                "key": "helium.services.enabled"
+              },
+              {
+                "checked": true,
+                "id": "extProxyToggleButton",
+                "key": "helium.services.ext_proxy"
+              },
+              {
+                "checked": true,
+                "id": "bangToggleButton",
+                "key": "helium.services.bangs"
+              },
+              {
+                "checked": true,
+                "id": "servicesUpdatesToggleButton",
+                "key": "helium.services.component_updates"
+              },
+              {
+                "checked": true,
+                "id": "filterlistToggleButton",
+                "key": "helium.services.ublock_assets"
+              }
+            ],
+            "browser_update_control_on_privacy_root": true,
+            "services_entry": {
+              "description": "Manage what Helium services are allowed in your browser",
+              "icon": "helium-services:logo"
+            },
+            "origin_normalized_persisted_and_observed": true
+          },
+          "flags_initialization": {
+            "feature_count": 409,
+            "sample_exclusions_verified": [
+              "vertical-tabs-expand-on-hover",
+              "webui-omnibox-popup",
+              "webui-toolbar"
+            ]
+          }
+        },
+        "update_feed_isolated": true,
+        "framework_unchanged": true,
+        "passed": true
+      },
+      "saved_browser_clocks": {
+        "reorder_preserves_clocks": true,
+        "batch_reorder_preserves_clocks": true,
+        "activation_resets_inactivity": true,
+        "arrangement_passed": true
+      }
+    },
+    "x86_64": {
+      "clock_methods": {
+        "passed": true,
+        "expected_regression": false,
+        "architecture": "x86_64",
+        "execution": "Rosetta",
+        "production_methods_sha256": "2198a8374a09e4da99217e45802b18766a135346f4a5a7f2904fd5d0501bba8d",
+        "exit_code": 0,
+        "output": "PASS: 13-tab no-op/reordered/cancelled drags preserve clocks; Older placement/cancel/Keep and real interaction rules pass",
+        "scope": "Actual production clock methods with isolated model/order/persistence stubs; no native pointer gesture claim"
+      },
+      "chromium_model_compilation": {
+        "architecture": "x86_64",
+        "compiled": true,
+        "exit_code": 0,
+        "seconds": 6.961327042430639,
+        "test_source_sha256": "3c4dc17f80840d3d5d6f4deb6eac0a86ad338dda2e1c42074c999ed96705c4c9",
+        "full_unit_test_executable_linked_or_run": false
+      },
+      "browser_app_guard": {
+        "architecture": "x86_64",
+        "app_hashes": {
+          "Contents/MacOS/Lune": "8829c8540feea6794f55430cc00690ea9677f6ed7c430faf9b4cf5a042f3196f",
+          "Contents/Info.plist": "90ce03aeb1087e0f017d3653b370aa9037335a505e11a55f1d87ca6a70b6a322",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Lune Framework": "0261be061218c80ad1a26c839a50ec1a8a23a911290267bea2cf2f4e2bf966b3"
+        },
+        "unchanged": true,
+        "results": {
+          "smoke": 0,
+          "arrangement": 0
+        }
+      },
+      "smoke": {
+        "bundle_id": "computer.lune.browser",
+        "architecture": "x86_64",
+        "test_host_architecture": "arm64",
+        "chromium_version": "158.0.8127.37",
+        "executable_sha256": "8829c8540feea6794f55430cc00690ea9677f6ed7c430faf9b4cf5a042f3196f",
+        "framework_sha256": "0261be061218c80ad1a26c839a50ec1a8a23a911290267bea2cf2f4e2bf966b3",
+        "driver_version": "ChromeDriver 158.0.8127.37 (b8c2be851f62f6a394ec57955d7f31335d7cb6d4-refs/branch-heads/8127@{#1692})",
+        "app_version": "0.22.1.1",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "mode": "headless",
+        "release_validated": false,
+        "artwork_component_commit": "291f4e9ccb31d5f3c8e2375cea72cbdc7e770ed3",
+        "icon_sha256": "ee0d54a595137cf6f2444731120f39c0f238ef429b2ca0add865d12215fdfaa7",
+        "ui": {
+          "defaults": {
+            "helium.browser.centered_location_bar": true,
+            "helium.browser.layout": 2,
+            "helium.browser.mru_tab_cycling": true,
+            "helium.browser.rounded_frame_thickness": 4,
+            "helium.browser.show_avatar_button": false,
+            "helium.browser.ui_density": 0,
+            "helium.browser.vertical_address_bar_in_sidebar": true,
+            "helium.browser.vertical_pinned_tabs_per_row": 4,
+            "helium.browser.vertical_right_aligned": false,
+            "helium.browser.visual_tab_switcher": true,
+            "helium.browser.zen_mode": true,
+            "helium.browser.zen_mode_sidebar_pinned": true,
+            "helium.browser.zen_mode_top_chrome_pinned": false,
+            "helium.command_bar.enabled": true,
+            "helium.link_peek.enabled": false,
+            "vertical_tabs.expand_on_hover": true,
+            "vertical_tabs.uncollapsed_width": 216,
+            "vertical_tabs.collapsed_state": false
+          },
+          "about_credit": {
+            "href": "https://helium.computer/",
+            "text": "Built on Helium, with thanks to its authors and contributors.\n        helium.computer"
+          },
+          "onboarding_credit": "Built on Helium browser, with thanks to its authors and contributors.",
+          "search_engines": [
+            {
+              "name": "Startpage",
+              "selected": "true",
+              "text": "A privacy-first search engine which doesn't profile or track you. Startpage Privacy-focused. Relies on Google and Bing for results. Promises not to track or profile you."
+            },
+            {
+              "name": "Kagi",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. Kagi Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine."
+            },
+            {
+              "name": "DuckDuckGo",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. DuckDuckGo Privacy-focused. Relies on Bing for results. Promises not to track or profile you."
+            },
+            {
+              "name": "Brave Search",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. Brave Search Privacy-focused. Doesn't use Google or Bing. Promises not to track or profile you. May show promotions related to Brave services."
+            },
+            {
+              "name": "Ecosia",
+              "selected": "false",
+              "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Ecosia May plant trees for clicking ads. Relies on Google and Bing for results. Sends tracking data to Google and Microsoft."
+            },
+            {
+              "name": "Qwant",
+              "selected": "false",
+              "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Qwant Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft."
+            },
+            {
+              "name": "Google",
+              "selected": "false",
+              "text": "A mainstream search engine which collects extensive personal data. Google It's Google. It dominates the search market, collects extensive personal data, and profiles you."
+            },
+            {
+              "name": "Microsoft Bing",
+              "selected": "false",
+              "text": "A mainstream search engine which collects extensive personal data. Microsoft Bing Collects extensive personal data. Privacy controls are buried and limited. Subjectively overwhelming UI."
+            }
+          ],
+          "internal_icons": {},
+          "services_provider_disclosure": "Helium services\n\nLune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.\n\nAllow connecting to Helium services\n\nAllow Lune to connect to Helium-hosted services. These requests stay disabled until you consent.\n\nAllow automatic Helium services updates\n\nAutomatically download and install updates to Lune-provided browser components.\n\nProxy extension downloads and updates\n\nWhen enabled, Lune will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.\n\nAllow downloading the !bangs list\n\nLune will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.\n\nAllow downloading filter lists for uBlock Origin\n\nLune will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with Lune. Optional filter lists will be requested without proxying.\n\nUse your own instance of Helium services\n\nYou can host your own Helium services instance and select it in Lune settings.",
+          "native_controls_tested": false,
+          "service_provider": {
+            "host": "Helium",
+            "browser_updates": "Lune",
+            "disclosure": "When enabled, Lune will be able to connect to anonymous web services to provide additional functionality. When disabled, additional features will not work."
+          },
+          "settings_port": {
+            "noise_toggle_persisted_and_observed": true,
+            "consent_observed": true,
+            "services_remained_disabled": true,
+            "service_controls": [
+              {
+                "checked": false,
+                "id": "servicesToggleButton",
+                "key": "helium.services.enabled"
+              },
+              {
+                "checked": true,
+                "id": "extProxyToggleButton",
+                "key": "helium.services.ext_proxy"
+              },
+              {
+                "checked": true,
+                "id": "bangToggleButton",
+                "key": "helium.services.bangs"
+              },
+              {
+                "checked": true,
+                "id": "servicesUpdatesToggleButton",
+                "key": "helium.services.component_updates"
+              },
+              {
+                "checked": true,
+                "id": "filterlistToggleButton",
+                "key": "helium.services.ublock_assets"
+              }
+            ],
+            "browser_update_control_on_privacy_root": true,
+            "services_entry": {
+              "description": "Manage what Helium services are allowed in your browser",
+              "icon": "helium-services:logo"
+            },
+            "origin_normalized_persisted_and_observed": true
+          },
+          "flags_initialization": {
+            "feature_count": 409,
+            "sample_exclusions_verified": [
+              "vertical-tabs-expand-on-hover",
+              "webui-omnibox-popup",
+              "webui-toolbar"
+            ]
+          }
+        },
+        "update_feed_isolated": true,
+        "framework_unchanged": true,
+        "passed": true
+      },
+      "saved_browser_clocks": {
+        "reorder_preserves_clocks": true,
+        "batch_reorder_preserves_clocks": true,
+        "activation_resets_inactivity": true,
+        "arrangement_passed": true
+      }
+    }
+  },
+  "baseline_regression": {
+    "passed": true,
+    "expected_regression": true,
+    "architecture": "arm64",
+    "execution": "native",
+    "production_methods_sha256": "db675ae65c877f6907134b82e38ad36402caa1c96b4849a96d903b91930ee998",
+    "exit_code": 1,
+    "output": "FAIL: completed no-op/batch drag refreshed a regular tab",
+    "scope": "Actual production clock methods with isolated model/order/persistence stubs; no native pointer gesture claim"
+  },
+  "baseline_browser_reorder_regression": "Released 26.1113.1 fails the saved-clock comparison after a real chrome.tabs.move; the same case passes in both changed browsers.",
+  "baseline_browser_log_sha256": "b16bf34167a76252a8217342983057f50074384f0cf61b0d12f3739fbbe892b4",
+  "limits": [
+    "Prepared source/output caches were cloned from the frozen release; a fresh full preparation was not run for this input.",
+    "The complete Chromium unit-test executable was not linked or executed.",
+    "Clock fixtures execute production methods with isolated model/order/persistence stubs. Actual saved-state reorders and activation run in both browsers; native pointer delivery and actual window/batch drag gestures have no independent successful automation matrix.",
+    "Intel runtime uses Rosetta on Apple silicon; no physical Intel validation."
+  ],
+  "issue": "No specific open GitHub issue; original Older Tabs issue #20 was already closed.",
+  "release": "No new release or deployment requested or performed.",
+  "cleanup": {
+    "passed": true,
+    "temporary_processes_exited": true,
+    "removed": [
+      ".work/older-tabs-arrangement/baseline-model/profile",
+      ".work/older-tabs-arrangement/baseline-model/extension",
+      ".work/older-tabs-arrangement/arrangement-arm64/profile",
+      ".work/older-tabs-arrangement/arrangement-arm64/extension",
+      ".work/older-tabs-arrangement/arrangement-x86_64/profile",
+      ".work/older-tabs-arrangement/arrangement-x86_64/extension",
+      ".work/older-tabs-arrangement/replay"
+    ],
+    "retained": [
+      "Exact validation logs, compact reports and clock snapshots",
+      "Isolated prepared source, component input checkout and current build outputs as reusable development cache",
+      "Published release source/artifacts and personal app/profile untouched"
+    ]
+  },
+  "repository_tests": {
+    "passed": true,
+    "count": 78,
+    "log": ".work/older-tabs-arrangement/repository-tests-unrestricted.log",
+    "initial_sandbox_limit": "Two existing localhost update-fixture cases could not bind sockets in the sandbox; all tests pass with loopback access."
+  },
+  "documentation_checks": {
+    "passed": true,
+    "links_checked": 59
+  },
+  "publication": {
+    "component_ref": "refs/heads/component/macos",
+    "input_tag": "refs/tags/inputs/older-tabs-arrangement-1/macos",
+    "main_integration": "Git history identifies the integration commit; no release or feed change.",
+    "component_refs_verified": true,
+    "component_commit": "3543de9e3f4030a7c221e9d70792b52b2f38d394",
+    "signed_tag_object": "4845a9c2c04217fe03e570a547a54bc492fd7f4a"
+  },
+  "development_workspace": ".work/older-tabs-arrangement/platform/build/src",
+  "patch_and_core_lint": true,
+  "locked_ancestry_tree_gitlink_and_tag_validation": true,
+  "actions_registry_guard_audit": true,
+  "workspace_identity": {
+    "owner": "01a1d6f4-57f2-7150-9d62-d699842f2131",
+    "task": "Preserve Older Tabs inactivity during arrangement",
+    "source": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-arrangement/platform/build/src",
+    "base_core_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+    "base_platform_commit": "291f4e9ccb31d5f3c8e2375cea72cbdc7e770ed3",
+    "selected_platform_commit": "3543de9e3f4030a7c221e9d70792b52b2f38d394",
+    "chromium_version": "158.0.8127.37",
+    "outputs": {
+      "arm64": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-arrangement/platform/build/src/out/Default",
+      "x86_64": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-arrangement/platform/build/src/out/Intel"
+    },
+    "active_patches": [
+      "helium/ui/older-tabs-arrangement-aging.patch"
+    ],
+    "quilt_patches": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-arrangement/quilt-patches",
+    "command_in_progress": null,
+    "state": "Validated final source; isolated reusable development cache, not a frozen release workspace"
+  },
+  "timings": {
+    "combined_build_seconds": {
+      "arm64": 208.26817291695625,
+      "x86_64": 223.95761683303863
+    },
+    "model_compile_seconds": {
+      "arm64": 7.708137959241867,
+      "x86_64": 6.961327042430639
+    },
+    "scope": "Measured with monotonic timers in the retained build/model drivers. Compile and link were not independently timed. One-time source/cache clone, fixture setup and edit-to-preview intervals were not measured; no comparative speedup claimed. Subsequent post-push check timing uses scripts/time-development.py, adopted while this candidate was already validated."
+  },
+  "validation_scripts_sha256": {
+    "scripts/check-older-tabs.py": "0026a70570ea4a9a0c543333020bfd8fc27fb801f4f4c974c7bc3e4084f6b8a8",
+    "scripts/check-older-tabs-arrangement.py": "b5924cffcee8afa1537fa8c51aa6f25ed140ef3301ebc71f60097669379a1968"
+  },
+  "gn_args_sha256": {
+    "arm64": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
+    "x86_64": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4"
+  }
+}

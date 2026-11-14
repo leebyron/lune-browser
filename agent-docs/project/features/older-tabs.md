@@ -1,6 +1,6 @@
 # Automatic Older Tabs
 
-Issue [#20](https://github.com/leebyron/lune-browser/issues/20). The owner accepted the native preview on November 11, 2026 and requested a focused commit for future main builds. The development lock selects signed platform commit `a7fef19376b799585e4a62bfd9bfe25ba6d26d47` through `inputs/older-tabs-1/macos`. Published 26.1111.2 and its frozen inputs are unchanged.
+Issue [#20](https://github.com/leebyron/lune-browser/issues/20). The owner accepted the native preview on November 11, 2026 and requested a focused commit for future main builds. The original adoption selected signed platform commit `a7fef19376b799585e4a62bfd9bfe25ba6d26d47` through `inputs/older-tabs-1/macos`. Published 26.1111.2 and its frozen inputs are unchanged. Later changes and input selections are recorded below.
 
 ## Lifecycle and ordering
 
@@ -9,6 +9,7 @@ Older Tabs remain live WebContents in their original browser window. A browser-o
 | Action | Regular age baseline | Older close clock | Placement |
 | --- | --- | --- | --- |
 | Activate or send trusted page input to a regular tab | Reset | None | Regular |
+| Reorder regular tabs or complete a batch/no-op drag | Preserve | None | Use the chosen regular placement |
 | Reach the move threshold | Preserve | Start at transition | Older, sorted by frozen last use |
 | Interact with an Older tab | Preserve | Reset | Stay in its frozen date bucket |
 | Keep Tab | Reset | Clear | Restore its logical regular-stack position |
@@ -16,7 +17,7 @@ Older Tabs remain live WebContents in their original browser window. A browser-o
 | Cancel drag or return to the Older region | Preserve | Ordinary interaction may extend it | Retain the original Older position |
 | Reopen a recently closed tab | Fresh | Clear | New regular residency and identity |
 
-Qualifying input is activation or Chromium's browser-side trusted pointer, key, touch or scroll-start event. Background navigation, network traffic, title changes, animation and hover do not count. Deliberate tab movement counts as interaction. Persisted state includes a stable random identity, last use, independent regular age and close baselines, frozen pre-entry last use and a logical ordering key. Keep preserves relative order even when several tabs age out and are kept in reverse order. Missing neighbors use surviving logical order; a newly formed group uses its leading boundary. Explicit drag establishes the new position.
+Qualifying input is activation or Chromium's browser-side trusted pointer, key, touch or scroll-start event. Background navigation, network traffic, title changes, animation and hover do not count. Arrangement-only movement preserves last use and the regular aging baseline, including regular-tab and group reorders, extension/model moves, window transfers and completed drags that end at the original positions or only move a window. Normal activation still counts if the gesture selects a different tab. Deliberately dragging an Older tab into the regular stack retains its Keep semantics. Persisted state includes a stable random identity, last use, independent regular age and close baselines, frozen pre-entry last use and a logical ordering key. Keep preserves relative order even when several tabs age out and are kept in reverse order. Missing neighbors use surviving logical order; a newly formed group uses its leading boundary. Explicit drag establishes the new position.
 
 Lifecycle metadata follows window transfer and replacement/discard. Recently-closed recovery clears residency and receives fresh aging grace. Missing, malformed or future metadata is treated conservatively. Existing tabs receive a first-observed last-use fallback and a fresh regular age baseline. One sweep performs at most one transition per tab; downtime cannot move and immediately close the same regular tab.
 
@@ -67,3 +68,13 @@ Older Tabs now expands and collapses through the existing tab-collection animati
 Weekday headings cover tabs from the preceding six calendar days, with the existing unheaded Today/Yesterday treatment retained. Tabs seven or more calendar days old share Older. The date-label text and bucket key use the same boundary. Aging, automatic closing, Keep actions, saved tab order and protected-tab rules are unchanged.
 
 These are three focused patches: `helium/ui/older-tabs-collapse-animation.patch`, `helium/ui/older-tabs-weekday-headings.patch` and `helium/ui/sidebar-disclosure-alignment.patch`. The [adoption record](../builds/2026-11-11-sidebar-reviewed-adoption.json) records builds, compiled test files, visibility/extent and reversal fixtures, date-boundary checks, exact archive replay and owner acceptance. Intel runtime uses Rosetta. The review apps and test profiles are cleaned up after acceptance; prepared source and build caches are retained.
+
+## Arrangement preserves inactivity — November 13, 2026
+
+Signed platform input `inputs/older-tabs-arrangement-1/macos` at `3543de9e3f4030a7c221e9d70792b52b2f38d394` selects the arrangement fix for future main builds. Published 26.1113.1 and its frozen source and artifacts remain unchanged.
+
+Completing a regular-tab drag previously reset its independent aging baseline even when the tab returned to the same position. A select-all drag could therefore give every regular tab another 24 hours without updating its last-use date. Ordinary model reorders also synthesized interaction. The focused `helium/ui/older-tabs-arrangement-aging.patch` removes those activity writes while retaining logical placement updates, ordinary activation/page input and deliberate Keep/Older-to-regular behavior.
+
+Both architecture browser builds pass. Production clock methods pass a 13-tab no-op, reordered and cancelled-drag fixture, including Older placement/cancellation/Keep and genuine interaction; the released code fails the no-op case. Four added Chromium model regressions compile for both targets. Real isolated browsers pass saved-state single and batch reorders, activation and browsing/settings/persistence smoke; the released arm64 browser fails the saved-clock reorder case. Intel executes under Rosetta. App/framework hashes stay unchanged throughout browser checks.
+
+The patch was developed in a separate APFS clone of the retained release preparation and outputs, refreshed with quilt and exported through platform merge/unmerge. Two-file replay against preimages verified by the frozen complete-source inventory has zero fuzz, zero offsets and exact final parity. This is focused replay, not another fresh full preparation. The full Chromium unit-test executable was not linked or run, and native pointer automation did not independently establish a batch/window drag. The [completion record](../builds/2026-11-13-older-tabs-arrangement.json) records exact identities, checks and cleanup. No specific open GitHub issue tracks this change.

@@ -14,6 +14,7 @@ profile, a remote test page, or real Keychain credentials.
 from pathlib import Path
 import argparse, base64, hashlib, http.server, json, socket, subprocess, threading, time
 import requests
+import struct
 from older_tabs_session_fixture import seed, states
 
 p = argparse.ArgumentParser()
@@ -21,6 +22,11 @@ p.add_argument("output", type=Path)
 p.add_argument("evidence", type=Path)
 p.add_argument("--interactive", action="store_true")
 p.add_argument("--review", action="store_true")
+p.add_argument(
+    "--arrangement-check",
+    action="store_true",
+    help="Check that real model reorders preserve inactivity while activation resets it",
+)
 p.add_argument(
     "--group-check",
     action="store_true",
@@ -58,6 +64,7 @@ p.add_argument(
 )
 a = p.parse_args()
 automatic_cases = [
+    a.arrangement_check,
     a.settings_check,
     a.group_check,
     a.immediate_check,
@@ -215,6 +222,7 @@ def launch(phase, startup_mode=None):
                     or a.pinned_check
                     or a.startup_check
                     or a.never_check
+                    or a.arrangement_check
                 )
                 else []
             ),
@@ -322,6 +330,71 @@ def dump(name, data):
     if isinstance(data, list):
         summary = f"{len(data)} entries"
     print(f"{name}: {summary}", flush=True)
+
+
+def check_arrangement(mapping):
+    def saved_when(predicate):
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            try:
+                saved = {state["id"]: state for state in states(profile).values()}
+                if all(mapping[role] in saved for role in "AD") and predicate(saved):
+                    return saved
+            except (AssertionError, ValueError, IndexError, struct.error):
+                # Session commands may be between writes; retry a complete read.
+                pass
+            time.sleep(0.2)
+        raise AssertionError("Timed out waiting for saved arrangement state")
+
+    clocks = ("id", "age", "last_use", "close_clock", "frozen")
+    saved = saved_when(lambda value: all(mapping[role] in value for role in "AD"))
+    before = {role: saved[mapping[role]].copy() for role in "AD"}
+    assert all(before[role]["close_clock"] == "0" for role in "AD")
+    live = {
+        t["url"].rsplit("/", 1)[-1]: t
+        for t in tabs()
+        if t["url"].startswith("http:")
+    }
+    assert not live["A"]["active"] and not live["D"]["active"]
+
+    moved = asyncjs(
+        "chrome.tabs.move(arguments[0],{index:arguments[1]},arguments[arguments.length-1]);",
+        live["A"]["id"],
+        live["D"]["index"],
+    )
+    assert moved["index"] == live["D"]["index"], moved
+    after = saved_when(
+        lambda value: value[mapping["A"]]["order"] != before["A"]["order"]
+    )
+    for role in "AD":
+        assert all(
+            after[mapping[role]][key] == before[role][key] for key in clocks
+        ), (role, before[role], after[mapping[role]])
+    dump("reorder_preserves_clocks", True)
+
+    # Arrange both tabs back together through the extension/model path.
+    asyncjs(
+        "chrome.tabs.move(arguments[0],{index:1},arguments[arguments.length-1]);",
+        [live["A"]["id"], live["D"]["id"]],
+    )
+    previous_order = after[mapping["A"]]["order"]
+    after = saved_when(lambda value: value[mapping["A"]]["order"] != previous_order)
+    for role in "AD":
+        assert all(
+            after[mapping[role]][key] == before[role][key] for key in clocks
+        ), (role, before[role], after[mapping[role]])
+    dump("batch_reorder_preserves_clocks", True)
+
+    asyncjs(
+        "chrome.tabs.update(arguments[0],{active:true},arguments[arguments.length-1]);",
+        live["A"]["id"],
+    )
+    after = saved_when(lambda value: value[mapping["A"]]["age"] != before["A"]["age"])
+    assert after[mapping["A"]]["last_use"] != before["A"]["last_use"]
+    assert after[mapping["A"]]["age"] == after[mapping["A"]]["last_use"]
+    assert all(after[mapping["D"]][key] == before["D"][key] for key in clocks)
+    dump("activation_resets_inactivity", True)
+    dump("arrangement_passed", True)
 
 
 def check_startup(mapping):
@@ -564,6 +637,7 @@ try:
                 or a.pinned_check
                 or a.startup_check
                 or a.never_check
+                or a.arrangement_check
             )
             else ids["A"]
         ),
@@ -640,6 +714,11 @@ try:
         )
     )
     dump("ready", {"debug_port": debug, "driver_port": port})
+    if a.arrangement_check:
+        check_arrangement(mapping)
+        quit_browser()
+        dump("persisted_states", states(profile))
+        raise SystemExit(0)
     if a.startup_check or a.never_check:
         check_startup(mapping)
         raise SystemExit(0)

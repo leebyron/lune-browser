@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "291f4e9ccb31d5f3c8e2375cea72cbdc7e770ed3",
+    "commit": "3543de9e3f4030a7c221e9d70792b52b2f38d394",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -861,6 +861,10 @@
       {
         "path": "patches/helium/ui/expanded-group-separator.patch",
         "sha256": "9445f0c694a2da96f66abe66d7d2fb66554747538cb5c919afbba2335ae2e0a0"
+      },
+      {
+        "path": "patches/helium/ui/older-tabs-arrangement-aging.patch",
+        "sha256": "a88828a4d2c283d0b3ecaf3fe7ab8ef37255d41db4eb5f53f95f53ce349a07f5"
       }
     ]
   },
@@ -2481,6 +2485,21 @@
       "adaptation": "Three-file prepared-source quilt patch. The vertical container owns stable presentation rules using its inherited view observer; the layout derives adjacency from visible rows and reuses exact pinned-rule geometry. Collapsed/adjacent groups, section/date headings and the end of the list do not create rules; the pinned boundary is not duplicated. Rules are excluded from focus and event handling and do not become model or drag nodes. Owner accepted the native Apple silicon preview on November 13, 2026 and requested shipment. Strict archive-backed replay through seven parent patches, patch lint, both builds, UI/Settings/browsing/persistence smoke and 73 tooling tests pass. Intel runs under Rosetta. Native checks cover collapse/re-expand, final-member closure and pin/unpin transitions. See agent-docs/project/builds/2026-11-13-expanded-group-separator.json for scope and limits.",
       "commits": [
         "cc1132cbbe1b2edf19c1fe6b234693a466126abd"
+      ]
+    },
+    {
+      "id": "older-tabs-arrangement-aging",
+      "depends_on": [
+        "automatic-older-tabs"
+      ],
+      "patches": [
+        "patches/helium/ui/older-tabs-arrangement-aging.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Preserve inactivity clocks when regular tabs are arranged, including completed batch drags that leave every tab in its original position.",
+      "adaptation": "Completed regular-tab drags update placement without granting a fresh countdown; non-drag model reorders no longer synthesize page use. Activation and trusted page input retain normal activity semantics, while deliberate Older-to-regular drops retain Keep behavior. Four Chromium model regressions compile on both targets. Production clock methods pass isolated native/Rosetta fixtures, and both real browsers pass saved-state single/batch reorder and activation regressions plus browsing/settings/persistence smoke. Exact frozen-preimage replay has zero fuzz or offsets. Full Chromium unit-test executables and native pointer gestures were not executed; see agent-docs/project/builds/2026-11-13-older-tabs-arrangement.json.",
+      "commits": [
+        "3543de9e3f4030a7c221e9d70792b52b2f38d394"
       ]
     }
   ],
