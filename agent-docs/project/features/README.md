@@ -6,6 +6,7 @@ After a feature is validated and accepted, follow the [completion process](../co
 
 - [Automatic Older Tabs](older-tabs.md)
 - [Selected address-bar suggestions](address-suggestion-selection.md)
+- [Address text padding while scrolling](address-overflow-padding.md)
 - [Search-engine suggestions and top hits](search-suggestions.md)
 - [Application-menu update check](app-menu-update-check.md)
 - [Update release notes and inline About links](update-release-notes.md)

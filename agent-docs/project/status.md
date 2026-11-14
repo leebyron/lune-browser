@@ -1,6 +1,6 @@
 # Current project status
 
-Updated November 13, 2026. This page summarizes operational state. Exact source and artifact identities live in the linked machine-readable records; dated feature reports retain their original validation scope.
+Updated November 14, 2026. This page summarizes operational state. Exact source and artifact identities live in the linked machine-readable records; dated feature reports retain their original validation scope.
 
 ## Release delivery
 
@@ -11,6 +11,8 @@ Updated November 13, 2026. This page summarizes operational state. Exact source 
 - **Process:** allocations require completed clean preparation; notes and installed-update tests use the latest actually published baseline. Preflight measures filesystem space and verifies authenticated notarization access on an unlocked Mac. Ordinary browser fixtures isolate native Sparkle networking and check app identity. Frozen browser inputs remain separate from later runbook/validator corrections. The publisher preserves configured Git/GitHub authentication and explicitly constrains its Git push. Promotion of 26.1113.1 also published thirteen historical local input tags through inherited tag following; their targets are preserved and the publisher regression is fixed. See the delivery record for exact scope and the passing 74-test follow-up.
 
 ## Inputs and validation
+
+The owner-accepted [address text padding fix](features/address-overflow-padding.md) is selected for future main builds through signed input `inputs/address-overflow-padding-1/macos` at `d7c555a12b3753694f9cd97427a41cbea68e9c41`. Cmd-L keeps its text margins and completion-column alignment when long URLs scroll. Strict source replay, both native geometry fixtures, both final browser builds and browsing/UI/Settings/persistence checks pass; Intel executes under Rosetta. This input preserves the accepted Older Tabs and release-notes changes. Issue #34 is resolved; published releases retain their frozen inputs.
 
 Feature and bug-fix work now follows the [three-stage development loop](development.md): incremental arm64 previews with relevant checks, final paired validation before browser input adoption on main, then the existing separate release gates. Shared sources retain ownership/input/patch records and incremental caches; a lightweight command timer records phase durations. Real before/after sidebar and native-editor feedback-loop baselines remain pending in [issue #36](https://github.com/leebyron/lune-browser/issues/36). Component builds and the other experiments remain deferred.
 

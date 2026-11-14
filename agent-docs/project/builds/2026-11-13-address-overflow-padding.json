@@ -1,0 +1,505 @@
+{
+  "date": "2026-11-13",
+  "status": "Implemented, owner accepted and validated for future main builds",
+  "issue": "https://github.com/leebyron/lune-browser/issues/34",
+  "platform_base": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
+  "platform_commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+  "platform_tree": "9c9fb616c769970dd53c7c30c15ea2cb7027d425",
+  "core_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+  "chromium_version": "158.0.8127.37",
+  "patch": "patches/helium/ui/address-overflow-padding.patch",
+  "implementation": "Reserve the native two-point editing margin outside the scrolling field editor; reset internal line-fragment padding only for the address cell. Ordinary relayout and bang scopes use the same frame helper.",
+  "owner_acceptance": {
+    "statement": "Fix looks correct",
+    "date": "2026-11-13",
+    "device": "physical Apple silicon Mac",
+    "scope": "Short/overflowing and horizontally scrolled address columns; accepted address source is byte-identical in the final composition."
+  },
+  "source_validation": {
+    "passed": true,
+    "base_platform": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
+    "platform_commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+    "fuzz": 0,
+    "offsets": 0,
+    "patch_sha256": "1d4cdbd0f89e5a17ed56cb21ebb5791c243b85e20d453ad6f5a8f5d52601fb40",
+    "base_prepared_source_sha256": "fc5de16a13faf64032edcc1ac52e2924e35815c7c887726c8195ceb8787c11c8",
+    "result_sha256": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+    "scope": "Focused replay against the final accepted parent; other newly adopted source files match the validated parent byte for byte. No fresh full preparation."
+  },
+  "composed_base_validation": {
+    "source_files": 16,
+    "parity": "All newly adopted parent source files match the validated current input byte for byte."
+  },
+  "native_checks": {
+    "arm64": {
+      "architecture": "arm64",
+      "baseline": false,
+      "passed": true,
+      "exit_code": 0,
+      "output": "PASS: short-text origin; fixed clipping at start/middle/end; empty input; reload/scoped widths; resize; shared-editor reset\n"
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "baseline": false,
+      "passed": true,
+      "exit_code": 0,
+      "output": "PASS: short-text origin; fixed clipping at start/middle/end; empty input; reload/scoped widths; resize; shared-editor reset\n"
+    },
+    "intel_execution": "Rosetta on Apple silicon",
+    "host_architecture": "arm64",
+    "negative_baseline": {
+      "architecture": "arm64",
+      "baseline": true,
+      "passed": false,
+      "exit_code": -6,
+      "output": "geometry: actual 40, expected 42\n"
+    },
+    "baseline_rejected": true
+  },
+  "initial_builds": {
+    "arm64": {
+      "architecture": "arm64",
+      "exit_code": 0,
+      "seconds": 368.20674350019544,
+      "source_sha256": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+      "source_unchanged": true
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "exit_code": 0,
+      "seconds": 264.5396784581244,
+      "source_sha256": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+      "source_unchanged": true
+    }
+  },
+  "initial_preview": {
+    "app": "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/Lune Address Preview.app",
+    "profile": "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/preview-profile",
+    "browser_pid": 84322,
+    "server_pid": 84320,
+    "port": 53423,
+    "url": "http://127.0.0.1:53423/alignment",
+    "long_url": "http://127.0.0.1:53423/alignment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/long-path-segment/",
+    "ready_at": "2026-11-14T05:55:41.075950+00:00",
+    "seconds": 5.088360582478344,
+    "framework_sha256": "c234aff1a2143ae025bb2a2375acb3cbe42afcc5cf9cbfca84bfae8fa10ad4b7"
+  },
+  "repository_checks": {
+    "unit_tests": 78,
+    "unit_tests_passed": true,
+    "lints": [
+      {
+        "script": "lint.py",
+        "args": [],
+        "exit_code": 0,
+        "output": "[OK] a_all_patches_in_series_exist\n[OK] a_all_patches_in_tree_are_in_series\n[OK] b_all_patches_have_meaningful_contents\n[OK] b_all_patches_have_no_trailing_whitespace\n[OK] c_all_new_files_have_license_header\n[OK] c_all_new_headers_have_correct_guard\n[OK] d_no_whitespace_only_changes\n"
+      },
+      {
+        "script": "lint.py",
+        "args": [
+          "-t",
+          "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/platform"
+        ],
+        "exit_code": 0,
+        "output": "[OK] a_all_patches_in_series_exist\n[OK] a_all_patches_in_tree_are_in_series\n[OK] b_all_patches_have_meaningful_contents\n[OK] b_all_patches_have_no_trailing_whitespace\n[OK] c_all_new_files_have_license_header\n[OK] c_all_new_headers_have_correct_guard\n[OK] d_no_whitespace_only_changes\n"
+      },
+      {
+        "script": "i18n_lint.py",
+        "args": [],
+        "exit_code": 0,
+        "output": ""
+      }
+    ],
+    "unit_log_sha256": "24b1d297fc227e6259fe14781ba69bbad006700e4545764b373b6bf07e8cfb96",
+    "documentation_links_checked": 114,
+    "actions_registry_guard": true,
+    "locked_ancestry_tree_gitlink_tag_and_checkout": true
+  },
+  "timings": {
+    "scope": "Build/fixture commands use monotonic timers. The source clone and cache relocation were one-time setup, not measured edit-to-preview improvement. Failed cache-service/relocation attempts are retained in the JSONL timing report. An external native-control call stalled for approximately 103 minutes; it is not compiler time.",
+    "report": ".work/address-overflow/timings.jsonl"
+  },
+  "limitations": [
+    "Focused strict replay, not fresh full Chromium source preparation.",
+    "No physical Intel or macOS 13 runtime check.",
+    "Native address inspection used a loopback network-error page after the disposable fixture server exited; page loading and persistence are checked separately by the final smoke test."
+  ],
+  "published_release_unchanged": "26.1113.1",
+  "release_performed": false,
+  "cleanup": {
+    "inventoried_targets": [
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/Lune Address Preview.app",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/preview-profile",
+      "/Users/leebyron/Library/Application Support/computer.lune.browser.addressoverflow",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/probe",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/probe.mm",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/cache-export-Default.json",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/cache-export-Intel.json",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/replay",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/final-replay",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/fixture-source",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/server-port.txt"
+    ],
+    "preview_processes": [],
+    "removed": [
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/Lune Address Preview.app",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/preview-profile",
+      "/Users/leebyron/Library/Application Support/computer.lune.browser.addressoverflow",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/probe",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/probe.mm",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/cache-export-Default.json",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/cache-export-Intel.json",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/replay",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/final-replay",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/fixture-source",
+      "/Users/leebyron/code/leebyron/lune-browser/.work/address-overflow/server-port.txt"
+    ],
+    "preserved": [
+      "prepared-src",
+      "platform",
+      "before",
+      "native/replay/build/smoke/timing reports",
+      "input identities and reproducible fixture code"
+    ],
+    "all_targets_absent": true
+  },
+  "initial_base_platform": "291f4e9ccb31d5f3c8e2375cea72cbdc7e770ed3",
+  "builds": {
+    "arm64": {
+      "platform_base": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
+      "architecture": "arm64",
+      "exit_code": 0,
+      "seconds": 571.2317082500085,
+      "source_sha256": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+      "source_unchanged": true
+    },
+    "x86_64": {
+      "platform_base": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
+      "architecture": "x86_64",
+      "exit_code": 0,
+      "seconds": 675.6681174170226,
+      "source_sha256": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+      "source_unchanged": true
+    }
+  },
+  "smoke": {
+    "arm64": {
+      "bundle_id": "computer.lune.browser",
+      "architecture": "arm64",
+      "test_host_architecture": "arm64",
+      "chromium_version": "158.0.8127.37",
+      "executable_sha256": "fd726c9a1c0752410949b21c96a223b3b0dc0005c3996b143d0adc633269e494",
+      "framework_sha256": "58ffaa0b43f912203720f36eaff68d22523d9209a05f3822404a87d28f68365c",
+      "driver_version": "ChromeDriver 158.0.8127.37 (b8c2be851f62f6a394ec57955d7f31335d7cb6d4-refs/branch-heads/8127@{#1692})",
+      "app_version": "0.22.1.1",
+      "checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "mode": "headless",
+      "release_validated": false,
+      "artwork_component_commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+      "icon_sha256": "ee0d54a595137cf6f2444731120f39c0f238ef429b2ca0add865d12215fdfaa7",
+      "ui": {
+        "defaults": {
+          "helium.browser.centered_location_bar": true,
+          "helium.browser.layout": 2,
+          "helium.browser.mru_tab_cycling": true,
+          "helium.browser.rounded_frame_thickness": 4,
+          "helium.browser.show_avatar_button": false,
+          "helium.browser.ui_density": 0,
+          "helium.browser.vertical_address_bar_in_sidebar": true,
+          "helium.browser.vertical_pinned_tabs_per_row": 4,
+          "helium.browser.vertical_right_aligned": false,
+          "helium.browser.visual_tab_switcher": true,
+          "helium.browser.zen_mode": true,
+          "helium.browser.zen_mode_sidebar_pinned": true,
+          "helium.browser.zen_mode_top_chrome_pinned": false,
+          "helium.command_bar.enabled": true,
+          "helium.link_peek.enabled": false,
+          "vertical_tabs.expand_on_hover": true,
+          "vertical_tabs.uncollapsed_width": 216,
+          "vertical_tabs.collapsed_state": false
+        },
+        "about_credit": {
+          "href": "https://helium.computer/",
+          "text": "Built on Helium, with thanks to its authors and contributors.\n        helium.computer"
+        },
+        "onboarding_credit": "Built on Helium browser, with thanks to its authors and contributors.",
+        "search_engines": [
+          {
+            "name": "Startpage",
+            "selected": "true",
+            "text": "A privacy-first search engine which doesn't profile or track you. Startpage Privacy-focused. Relies on Google and Bing for results. Promises not to track or profile you."
+          },
+          {
+            "name": "Kagi",
+            "selected": "false",
+            "text": "A privacy-first search engine which doesn't profile or track you. Kagi Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine."
+          },
+          {
+            "name": "DuckDuckGo",
+            "selected": "false",
+            "text": "A privacy-first search engine which doesn't profile or track you. DuckDuckGo Privacy-focused. Relies on Bing for results. Promises not to track or profile you."
+          },
+          {
+            "name": "Brave Search",
+            "selected": "false",
+            "text": "A privacy-first search engine which doesn't profile or track you. Brave Search Privacy-focused. Doesn't use Google or Bing. Promises not to track or profile you. May show promotions related to Brave services."
+          },
+          {
+            "name": "Ecosia",
+            "selected": "false",
+            "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Ecosia May plant trees for clicking ads. Relies on Google and Bing for results. Sends tracking data to Google and Microsoft."
+          },
+          {
+            "name": "Qwant",
+            "selected": "false",
+            "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Qwant Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft."
+          },
+          {
+            "name": "Google",
+            "selected": "false",
+            "text": "A mainstream search engine which collects extensive personal data. Google It's Google. It dominates the search market, collects extensive personal data, and profiles you."
+          },
+          {
+            "name": "Microsoft Bing",
+            "selected": "false",
+            "text": "A mainstream search engine which collects extensive personal data. Microsoft Bing Collects extensive personal data. Privacy controls are buried and limited. Subjectively overwhelming UI."
+          }
+        ],
+        "internal_icons": {},
+        "services_provider_disclosure": "Helium services\n\nLune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.\n\nAllow connecting to Helium services\n\nAllow Lune to connect to Helium-hosted services. These requests stay disabled until you consent.\n\nAllow automatic Helium services updates\n\nAutomatically download and install updates to Lune-provided browser components.\n\nProxy extension downloads and updates\n\nWhen enabled, Lune will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.\n\nAllow downloading the !bangs list\n\nLune will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.\n\nAllow downloading filter lists for uBlock Origin\n\nLune will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with Lune. Optional filter lists will be requested without proxying.\n\nUse your own instance of Helium services\n\nYou can host your own Helium services instance and select it in Lune settings.",
+        "native_controls_tested": false,
+        "service_provider": {
+          "host": "Helium",
+          "browser_updates": "Lune",
+          "disclosure": "When enabled, Lune will be able to connect to anonymous web services to provide additional functionality. When disabled, additional features will not work."
+        },
+        "settings_port": {
+          "noise_toggle_persisted_and_observed": true,
+          "consent_observed": true,
+          "services_remained_disabled": true,
+          "service_controls": [
+            {
+              "checked": false,
+              "id": "servicesToggleButton",
+              "key": "helium.services.enabled"
+            },
+            {
+              "checked": true,
+              "id": "extProxyToggleButton",
+              "key": "helium.services.ext_proxy"
+            },
+            {
+              "checked": true,
+              "id": "bangToggleButton",
+              "key": "helium.services.bangs"
+            },
+            {
+              "checked": true,
+              "id": "servicesUpdatesToggleButton",
+              "key": "helium.services.component_updates"
+            },
+            {
+              "checked": true,
+              "id": "filterlistToggleButton",
+              "key": "helium.services.ublock_assets"
+            }
+          ],
+          "browser_update_control_on_privacy_root": true,
+          "services_entry": {
+            "description": "Manage what Helium services are allowed in your browser",
+            "icon": "helium-services:logo"
+          },
+          "origin_normalized_persisted_and_observed": true
+        },
+        "flags_initialization": {
+          "feature_count": 409,
+          "sample_exclusions_verified": [
+            "vertical-tabs-expand-on-hover",
+            "webui-omnibox-popup",
+            "webui-toolbar"
+          ]
+        }
+      },
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "passed": true
+    },
+    "x86_64": {
+      "bundle_id": "computer.lune.browser",
+      "architecture": "x86_64",
+      "test_host_architecture": "arm64",
+      "chromium_version": "158.0.8127.37",
+      "executable_sha256": "8829c8540feea6794f55430cc00690ea9677f6ed7c430faf9b4cf5a042f3196f",
+      "framework_sha256": "bc0929b8feee3d52014094854309d52cd7438fd10a6f44dcffc1b8b92bb5ea29",
+      "driver_version": "ChromeDriver 158.0.8127.37 (b8c2be851f62f6a394ec57955d7f31335d7cb6d4-refs/branch-heads/8127@{#1692})",
+      "app_version": "0.22.1.1",
+      "checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "mode": "headless",
+      "release_validated": false,
+      "artwork_component_commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+      "icon_sha256": "ee0d54a595137cf6f2444731120f39c0f238ef429b2ca0add865d12215fdfaa7",
+      "ui": {
+        "defaults": {
+          "helium.browser.centered_location_bar": true,
+          "helium.browser.layout": 2,
+          "helium.browser.mru_tab_cycling": true,
+          "helium.browser.rounded_frame_thickness": 4,
+          "helium.browser.show_avatar_button": false,
+          "helium.browser.ui_density": 0,
+          "helium.browser.vertical_address_bar_in_sidebar": true,
+          "helium.browser.vertical_pinned_tabs_per_row": 4,
+          "helium.browser.vertical_right_aligned": false,
+          "helium.browser.visual_tab_switcher": true,
+          "helium.browser.zen_mode": true,
+          "helium.browser.zen_mode_sidebar_pinned": true,
+          "helium.browser.zen_mode_top_chrome_pinned": false,
+          "helium.command_bar.enabled": true,
+          "helium.link_peek.enabled": false,
+          "vertical_tabs.expand_on_hover": true,
+          "vertical_tabs.uncollapsed_width": 216,
+          "vertical_tabs.collapsed_state": false
+        },
+        "about_credit": {
+          "href": "https://helium.computer/",
+          "text": "Built on Helium, with thanks to its authors and contributors.\n        helium.computer"
+        },
+        "onboarding_credit": "Built on Helium browser, with thanks to its authors and contributors.",
+        "search_engines": [
+          {
+            "name": "Startpage",
+            "selected": "true",
+            "text": "A privacy-first search engine which doesn't profile or track you. Startpage Privacy-focused. Relies on Google and Bing for results. Promises not to track or profile you."
+          },
+          {
+            "name": "Kagi",
+            "selected": "false",
+            "text": "A privacy-first search engine which doesn't profile or track you. Kagi Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine."
+          },
+          {
+            "name": "DuckDuckGo",
+            "selected": "false",
+            "text": "A privacy-first search engine which doesn't profile or track you. DuckDuckGo Privacy-focused. Relies on Bing for results. Promises not to track or profile you."
+          },
+          {
+            "name": "Brave Search",
+            "selected": "false",
+            "text": "A privacy-first search engine which doesn't profile or track you. Brave Search Privacy-focused. Doesn't use Google or Bing. Promises not to track or profile you. May show promotions related to Brave services."
+          },
+          {
+            "name": "Ecosia",
+            "selected": "false",
+            "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Ecosia May plant trees for clicking ads. Relies on Google and Bing for results. Sends tracking data to Google and Microsoft."
+          },
+          {
+            "name": "Qwant",
+            "selected": "false",
+            "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Qwant Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft."
+          },
+          {
+            "name": "Google",
+            "selected": "false",
+            "text": "A mainstream search engine which collects extensive personal data. Google It's Google. It dominates the search market, collects extensive personal data, and profiles you."
+          },
+          {
+            "name": "Microsoft Bing",
+            "selected": "false",
+            "text": "A mainstream search engine which collects extensive personal data. Microsoft Bing Collects extensive personal data. Privacy controls are buried and limited. Subjectively overwhelming UI."
+          }
+        ],
+        "internal_icons": {},
+        "services_provider_disclosure": "Helium services\n\nLune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.\n\nAllow connecting to Helium services\n\nAllow Lune to connect to Helium-hosted services. These requests stay disabled until you consent.\n\nAllow automatic Helium services updates\n\nAutomatically download and install updates to Lune-provided browser components.\n\nProxy extension downloads and updates\n\nWhen enabled, Lune will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.\n\nAllow downloading the !bangs list\n\nLune will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.\n\nAllow downloading filter lists for uBlock Origin\n\nLune will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with Lune. Optional filter lists will be requested without proxying.\n\nUse your own instance of Helium services\n\nYou can host your own Helium services instance and select it in Lune settings.",
+        "native_controls_tested": false,
+        "service_provider": {
+          "host": "Helium",
+          "browser_updates": "Lune",
+          "disclosure": "When enabled, Lune will be able to connect to anonymous web services to provide additional functionality. When disabled, additional features will not work."
+        },
+        "settings_port": {
+          "noise_toggle_persisted_and_observed": true,
+          "consent_observed": true,
+          "services_remained_disabled": true,
+          "service_controls": [
+            {
+              "checked": false,
+              "id": "servicesToggleButton",
+              "key": "helium.services.enabled"
+            },
+            {
+              "checked": true,
+              "id": "extProxyToggleButton",
+              "key": "helium.services.ext_proxy"
+            },
+            {
+              "checked": true,
+              "id": "bangToggleButton",
+              "key": "helium.services.bangs"
+            },
+            {
+              "checked": true,
+              "id": "servicesUpdatesToggleButton",
+              "key": "helium.services.component_updates"
+            },
+            {
+              "checked": true,
+              "id": "filterlistToggleButton",
+              "key": "helium.services.ublock_assets"
+            }
+          ],
+          "browser_update_control_on_privacy_root": true,
+          "services_entry": {
+            "description": "Manage what Helium services are allowed in your browser",
+            "icon": "helium-services:logo"
+          },
+          "origin_normalized_persisted_and_observed": true
+        },
+        "flags_initialization": {
+          "feature_count": 409,
+          "sample_exclusions_verified": [
+            "vertical-tabs-expand-on-hover",
+            "webui-omnibox-popup",
+            "webui-toolbar"
+          ]
+        }
+      },
+      "update_feed_isolated": true,
+      "framework_unchanged": true,
+      "passed": true
+    }
+  },
+  "input_ref": "refs/tags/inputs/address-overflow-padding-1/macos",
+  "completed_validation_at": "2026-11-14T08:08:02.405347+00:00",
+  "completion_date": "2026-11-14",
+  "source_publication": {
+    "branch": "features/address-overflow-padding",
+    "commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+    "signed_tag": "inputs/address-overflow-padding-1/macos",
+    "tag_object": "643b774da73a0411b360bca6c652adc05efe83cb",
+    "remote_refs_verified": true
+  }
+}

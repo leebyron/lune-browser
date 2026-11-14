@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
+    "commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -881,6 +881,10 @@
       {
         "path": "patches/helium/ui/older-tabs-entry-clock.patch",
         "sha256": "febd14c620596c8197055bdb14a37e01bfc48dee32f819822beab579b0207b10"
+      },
+      {
+        "path": "patches/helium/ui/address-overflow-padding.patch",
+        "sha256": "1d4cdbd0f89e5a17ed56cb21ebb5791c243b85e20d453ad6f5a8f5d52601fb40"
       }
     ]
   },
@@ -2582,6 +2586,22 @@
       "adaptation": "Keep the persisted close_clock fixed during Older residency while updating last-use history. Regular inactivity and Keep/drag-out/recovery retain their behavior; existing close protections still defer closure. Rename Settings to Close Older Tabs after. Existing profiles retain saved baselines because original entry times overwritten by older versions are unavailable. Both architecture builds, production clock methods, compiled model regressions, real trusted input/restart/deadline/protection/recovery checks and browsing/settings/persistence smoke pass; Intel runs under Rosetta. Exact adopted-preimage replay has zero fuzz/offsets; no fresh complete preparation or full Chromium unit-test execution. See agent-docs/project/builds/2026-11-13-older-tabs-entry-clock.json.",
       "commits": [
         "6712c22a87c728c19d7cb43dc7c794906cbe3ea3"
+      ]
+    },
+    {
+      "id": "address-overflow-padding",
+      "depends_on": [
+        "native-floating-address",
+        "native-word-navigation"
+      ],
+      "patches": [
+        "patches/helium/ui/address-overflow-padding.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep Cmd-L address text aligned with completion rows when long URLs scroll.",
+      "adaptation": "Reserve AppKit's existing two-point editing margin outside the scrolling field editor and remove the duplicate line-fragment padding only in the address cell. Ordinary relayout, initial focus and bang scopes share the frame helper. Idle centering and other native fields retain their padding. The owner accepted the native Apple silicon preview on November 13, 2026. Both native geometry fixtures pass, the baseline fails, and final source parity has zero fuzz/offsets. See agent-docs/project/features/address-overflow-padding.md for paired build and smoke evidence. Intel runtime is under Rosetta.",
+      "commits": [
+        "d7c555a12b3753694f9cd97427a41cbea68e9c41"
       ]
     }
   ],
