@@ -122,6 +122,11 @@ def upload(a):
     print('Verified draft uploaded. It remains unpublished until production acceptance passes.')
 
 
+def push_feed_commit(repo):
+    subprocess.run(['git', '-C', repo, '-c', 'push.followTags=false',
+                    'push', 'origin', 'HEAD:refs/heads/main'], check=True)
+
+
 def promote(a):
     data=manifest(a.directory, a.source_checkout);remote=release(data['tag'])
     check_assets(data,remote)
@@ -177,7 +182,7 @@ def promote(a):
     subprocess.run(['git','-C',repo,'add',f'updates/{a.channel}'],check=True)
     if git(repo,'diff','--cached','--name-only'):
         subprocess.run(['git','-C',repo,'commit','-m',f"Promote Lune {data['version']} to {a.channel}"],check=True)
-    subprocess.run(['git','-C',repo,'push','origin','main'],check=True)
+    push_feed_commit(repo)
     if a.channel=='stable':
         gh('release','edit',data['tag'],'--repo',REPOSITORY,'--prerelease=false','--latest=true')
     print('Feeds published; verify raw feed and latest-link readback before deploying the website.')

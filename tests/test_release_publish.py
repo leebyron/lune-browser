@@ -2,6 +2,7 @@
 import copy
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
@@ -14,6 +15,32 @@ import publish
 
 
 class PublicationBoundaryTests(unittest.TestCase):
+    def test_feed_push_excludes_reachable_local_tags(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote = root / 'origin.git'
+            checkout = root / 'checkout'
+            def command(*arguments):
+                return subprocess.check_output(['git', *map(str, arguments)],
+                                               text=True, stderr=subprocess.PIPE).strip()
+            command('init', '--bare', remote)
+            command('init', '-b', 'main', checkout)
+            for key, value in [('user.name', 'Release test'),
+                               ('user.email', 'release-test@example.invalid'),
+                               ('commit.gpgsign', 'false'), ('tag.gpgsign', 'false'),
+                               ('push.followTags', 'true')]:
+                command('-C', checkout, 'config', key, value)
+            (checkout / 'feed').write_text('accepted feed\n')
+            command('-C', checkout, 'add', 'feed')
+            command('-C', checkout, 'commit', '-m', 'Accepted feed')
+            command('-C', checkout, 'tag', '-a', 'unrelated-input-checkpoint', '-m', 'Local checkpoint')
+            command('-C', checkout, 'remote', 'add', 'origin', remote)
+            publish.push_feed_commit(checkout)
+            self.assertEqual(command('--git-dir', remote, 'for-each-ref', '--format=%(refname)'),
+                             'refs/heads/main')
+            self.assertEqual(command('--git-dir', remote, 'rev-parse', 'refs/heads/main'),
+                             command('-C', checkout, 'rev-parse', 'HEAD'))
+
     def inputs(self, root):
         assets = {'source-kit.tar.gz': {'sha256': 'a' * 64, 'size': 12}}
         data = dict(version='26.1109.1', tag='v26.1109.1', source_commit='b' * 40,

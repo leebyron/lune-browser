@@ -43,6 +43,8 @@ rejects regressions and permits resuming the same release only with identical
 metadata. GitHub's raw CDN can cache feed responses; verify readback before
 announcing completion. Previous release assets remain available.
 
+Constrain every publication push explicitly, including pushes inside the publisher. Use `git -c push.followTags=false push origin HEAD:refs/heads/main` for the feed commit. Publish each selected input/source tag with `-c push.followTags=false` and its exact `refs/tags/NAME:refs/tags/NAME` refspec, in core, platform, then source-tag order. A configured `push.followTags=true` can otherwise publish historical annotated local tags reachable through the new main history. Inspect the remote-ref delta after publication and record any unexpected refs; preserve published source and input tag targets.
+
 The owner retired the separate distribution repository and requested no legacy
 URL compatibility. Do not create redirects or maintain its old feeds. Remove
 legacy website feed redirects and historical staging assets from the current
