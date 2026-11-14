@@ -156,7 +156,8 @@ int main() {
   ++base::now;
   controller.Interact(older);
   Check(Get(older).age == saved_age, "Older interaction reset its regular-age baseline");
-  Check(Get(older).close_clock == base::Time::Now(), "Older interaction did not extend retention");
+  Check(Get(older).close_clock.value == 200, "Older interaction extended the entry-based deadline");
+  Check(Get(older).last_use == base::Time::Now(), "Older interaction did not record actual use");
   Check(Get(older).frozen.value == 90, "Older interaction changed its date bucket");
 
   content::WebContents detached;

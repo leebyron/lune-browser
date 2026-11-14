@@ -6,6 +6,8 @@ because it observes the real launch grace and minute sweep. --interactive holds
 the browser open until EVIDENCE_DIR/finish is created. --review gives seeded
 Older tabs fresh retention clocks so a manual preview remains available.
 --group-check instead runs a short expanded/collapsed group exclusion case.
+--entry-clock-check verifies fixed entry-based retention through actual trusted
+input, restart, active-tab protection, automatic closing and explicit recovery.
 --startup-check tests a clean quit with Continue, New Tab, or specified pages;
 it relaunches without a command-line page that could override startup policy.
 Requires requests and the bundled build's ChromeDriver; never uses a personal
@@ -22,6 +24,11 @@ p.add_argument("output", type=Path)
 p.add_argument("evidence", type=Path)
 p.add_argument("--interactive", action="store_true")
 p.add_argument("--review", action="store_true")
+p.add_argument(
+    "--entry-clock-check",
+    action="store_true",
+    help="Verify activation/input/restart preserve the entry deadline and active-tab protection",
+)
 p.add_argument(
     "--arrangement-check",
     action="store_true",
@@ -64,6 +71,7 @@ p.add_argument(
 )
 a = p.parse_args()
 automatic_cases = [
+    a.entry_clock_check,
     a.arrangement_check,
     a.settings_check,
     a.group_check,
@@ -216,7 +224,8 @@ def launch(phase, startup_mode=None):
             *(
                 ["--headless=new", "--window-size=1200,850"]
                 if (
-                    a.group_check
+                    a.entry_clock_check
+                    or a.group_check
                     or a.immediate_check
                     or a.settings_check
                     or a.pinned_check
@@ -397,6 +406,96 @@ def check_arrangement(mapping):
     dump("arrangement_passed", True)
 
 
+def check_entry_clock(mapping):
+    before = {v["id"]: v.copy() for v in states(profile).values()}
+    older = next(t for t in tabs() if t["url"].endswith("/E"))
+    targets = requests.get(
+        f"http://127.0.0.1:{debug}/json/list", timeout=10
+    ).json()
+    target = next(t["id"] for t in targets if t.get("url", "").endswith("/E"))
+    handle = next(h for h in wd("GET", sid + "/window/handles") if h.endswith(target))
+    asyncjs(
+        "chrome.tabs.update(arguments[0],{active:true},arguments[arguments.length-1]);",
+        older["id"],
+    )
+    wd("POST", sid + "/window", {"handle": handle})
+    execute("window.fixtureInput=[];for(const type of ['pointerdown','keydown','wheel'])document.addEventListener(type,e=>fixtureInput.push({type:e.type,trusted:e.isTrusted}),{passive:false});")
+    element = wd("POST", sid + "/element", {"using": "css selector", "value": "input"})
+    element_id = element["element-6066-11e4-a52e-4f735466cecf"]
+    wd("POST", sid + f"/element/{element_id}/click", {})
+    wd("POST", sid + f"/element/{element_id}/value", {"text": "deadline stays fixed"})
+    wd("POST", sid + "/goog/cdp/execute", {"cmd": "Input.dispatchMouseEvent", "params": {
+        "type": "mouseWheel", "x": 300, "y": 300, "deltaX": 0, "deltaY": 200,
+    }})
+    assert execute("return document.querySelector('input').value") == "deadline stays fixed"
+    # Wheel dispatch crosses the compositor/main-thread boundary asynchronously.
+    for _ in range(50):
+        events = execute("return window.fixtureInput")
+        if any(e["type"] == "wheel" for e in events):
+            break
+        time.sleep(0.1)
+    assert all(any(e["type"] == kind and e["trusted"] for e in events)
+               for kind in ("pointerdown", "keydown", "wheel")), events
+    dump("trusted_input_events", events)
+    quit_browser()
+    after = {v["id"]: v for v in states(profile).values()}
+    e = mapping["E"]
+    assert after[e]["last_use"] != before[e]["last_use"], (before[e], after[e])
+    for key in ("close_clock", "age", "frozen", "order"):
+        assert after[e][key] == before[e][key], (key, before[e], after[e])
+    dump("activation_and_trusted_input_preserve_entry", True)
+    dump("before_restart", after[e])
+
+    launch("entry-restart")
+    older = next(t for t in tabs() if t["url"].endswith("/E"))
+    asyncjs(
+        "chrome.tabs.update(arguments[0],{active:true},arguments[arguments.length-1]);",
+        older["id"],
+    )
+    # Keep the expired Older tab active beyond the unmodified five-minute launch
+    # grace and minute sweep. The other overdue tab G proves cleanup is running.
+    start = time.monotonic()
+    while time.monotonic() - start < 330:
+        if browser.poll() is not None:
+            raise RuntimeError("Browser exited during entry deadline test")
+        time.sleep(5)
+    remaining = tabs()
+    roles = {t["url"].rsplit("/", 1)[-1] for t in remaining}
+    assert "E" in roles and "G" not in roles and "F" in roles, remaining
+    assert next(t for t in remaining if t["id"] == older["id"])["active"]
+    current = {v["id"]: v for v in states(profile).values()}
+    assert current[e]["close_clock"] == before[e]["close_clock"]
+    dump("restart_preserves_entry_and_active_tab_protection", True)
+    control = next(t for t in remaining if t["url"].startswith("chrome-extension:"))
+    asyncjs(
+        "chrome.tabs.update(arguments[0],{active:true},arguments[arguments.length-1]);",
+        control["id"],
+    )
+    deadline = time.monotonic() + 75
+    while time.monotonic() < deadline:
+        if not any(t["id"] == older["id"] for t in tabs()):
+            break
+        time.sleep(1)
+    else:
+        raise AssertionError("Expired Older tab survived after leaving it")
+    recent = asyncjs("chrome.sessions.getRecentlyClosed({},arguments[arguments.length-1]);")
+    assert all(any(x.get("tab", {}).get("url", "").endswith("/" + role) for x in recent)
+               for role in "EG"), recent
+    assert any(t["url"].endswith("/F") for t in tabs())
+    dump("original_deadline_closes_after_leaving_tab", True)
+    dump("recently_closed", recent)
+    asyncjs(
+        'const done=arguments[arguments.length-1];chrome.sessions.getRecentlyClosed({},items=>{const item=items.find(x=>x.tab&&x.tab.url.endsWith("/E"));chrome.sessions.restore(item.tab.sessionId,result=>done(result));});'
+    )
+    quit_browser()
+    final = {v["id"]: v for v in states(profile).values()}
+    assert e not in final
+    assert any(v["id"] not in mapping.values() and v["close_clock"] == "0"
+               for v in final.values())
+    dump("recovery_starts_regular_residency", True)
+    dump("passed", True)
+
+
 def check_startup(mapping):
     mode = a.startup_check or "continue"
     choice = {"continue": 1, "new-tab": 5, "urls": 4}[mode]
@@ -530,6 +629,7 @@ function find(selector, root=document) {
     ], options
     assert js("return find('#olderTabsEnabled') === null;")
     assert pref("helium.tabs.cleanup_move_grouped") is False
+    assert js("return find('#olderTabsCloseAfter').label;") == "Close Older Tabs after"
     assert pref("helium.tabs.cleanup_close_hours") == 72
     choose("olderTabsMoveAfter", 0)
     wait(
@@ -714,6 +814,9 @@ try:
         )
     )
     dump("ready", {"debug_port": debug, "driver_port": port})
+    if a.entry_clock_check:
+        check_entry_clock(mapping)
+        raise SystemExit(0)
     if a.arrangement_check:
         check_arrangement(mapping)
         quit_browser()

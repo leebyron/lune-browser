@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "947e456532c78d60f0fc606a2ac9ed5c21d85971",
+    "commit": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -877,6 +877,10 @@
       {
         "path": "patches/lune/github-release-notes.patch",
         "sha256": "679127082d04eda4a24f016fa616116edeeeb5ab6b0e623e3551ba45e348ea6f"
+      },
+      {
+        "path": "patches/helium/ui/older-tabs-entry-clock.patch",
+        "sha256": "febd14c620596c8197055bdb14a37e01bfc48dee32f819822beab579b0207b10"
       }
     ]
   },
@@ -2562,6 +2566,22 @@
       "adaptation": "Distribution-only fallback uses the validated downloaded version for the GitHub release tag when an appcast omits releaseNotesLink. About links to GitHub releases/latest at the end of its version line; the link text stays together when wrapping is necessary. Published releases and feeds are unchanged. Owner accepted the final preview; validation is recorded with the reusable action.",
       "commits": [
         "947e456532c78d60f0fc606a2ac9ed5c21d85971"
+      ]
+    },
+    {
+      "id": "older-tabs-entry-clock",
+      "depends_on": [
+        "automatic-older-tabs",
+        "older-tabs-arrangement-aging"
+      ],
+      "patches": [
+        "patches/helium/ui/older-tabs-entry-clock.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Close Older Tabs based exclusively on elapsed time since entering the section, without extending retention when they are activated or used.",
+      "adaptation": "Keep the persisted close_clock fixed during Older residency while updating last-use history. Regular inactivity and Keep/drag-out/recovery retain their behavior; existing close protections still defer closure. Rename Settings to Close Older Tabs after. Existing profiles retain saved baselines because original entry times overwritten by older versions are unavailable. Both architecture builds, production clock methods, compiled model regressions, real trusted input/restart/deadline/protection/recovery checks and browsing/settings/persistence smoke pass; Intel runs under Rosetta. Exact adopted-preimage replay has zero fuzz/offsets; no fresh complete preparation or full Chromium unit-test execution. See agent-docs/project/builds/2026-11-13-older-tabs-entry-clock.json.",
+      "commits": [
+        "6712c22a87c728c19d7cb43dc7c794906cbe3ea3"
       ]
     }
   ],
