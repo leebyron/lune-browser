@@ -1,0 +1,16 @@
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -288,10 +288,9 @@ UnpinnedTabContainerViewVerticalLayout::
+   }
+   if (height > 0) {
+     height -= kTabVerticalPadding;
+-    // Keep the last row's breathing room inside the scrolling content so the
+-    // viewport and scrollbar extend to the sidebar or footer boundary.
+-    height += GetLayoutConstant(
+-        LayoutConstant::kVerticalTabStripUncollapsedVerticalPadding) + 2;
++    // Match the last row's bottom clearance to its side inset. Keep this
++    // padding inside the content so the viewport and scrollbar stay full height.
++    height += horizontal_padding;
+   }
+ 
+   // Dragged bounds do not contribute to content height. This keeps the
