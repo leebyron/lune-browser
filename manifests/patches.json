@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "3543de9e3f4030a7c221e9d70792b52b2f38d394",
+    "commit": "dda1bdf0de0c3e04532adbc16f2aebcd6a1d8d63",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -865,6 +865,10 @@
       {
         "path": "patches/helium/ui/older-tabs-arrangement-aging.patch",
         "sha256": "a88828a4d2c283d0b3ecaf3fe7ab8ef37255d41db4eb5f53f95f53ce349a07f5"
+      },
+      {
+        "path": "patches/helium/ui/older-tabs-disclosure.patch",
+        "sha256": "0d6ceffcc107e834cbd07c0ba171b80b33c53926d82cf7f0844ef7134ca12d18"
       }
     ]
   },
@@ -2500,6 +2504,23 @@
       "adaptation": "Completed regular-tab drags update placement without granting a fresh countdown; non-drag model reorders no longer synthesize page use. Activation and trusted page input retain normal activity semantics, while deliberate Older-to-regular drops retain Keep behavior. Four Chromium model regressions compile on both targets. Production clock methods pass isolated native/Rosetta fixtures, and both real browsers pass saved-state single/batch reorder and activation regressions plus browsing/settings/persistence smoke. Exact frozen-preimage replay has zero fuzz or offsets. Full Chromium unit-test executables and native pointer gestures were not executed; see agent-docs/project/builds/2026-11-13-older-tabs-arrangement.json.",
       "commits": [
         "3543de9e3f4030a7c221e9d70792b52b2f38d394"
+      ]
+    },
+    {
+      "id": "older-tabs-disclosure",
+      "depends_on": [
+        "older-tabs-collapse-animation",
+        "native-tab-group-caret",
+        "pinned-tab-groups"
+      ],
+      "patches": [
+        "patches/helium/ui/older-tabs-disclosure.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep the Older Tabs Native disclosure visible, animate the section through the viewport, omit its header from Tab focus and close outgoing drag slots.",
+      "adaptation": "The section foreground supplies the Native chevron fallback. A temporary host layer clip follows animated content height even when scrolling contents fill the viewport; individual tab layers retain no viewport-dependent clip, avoiding cropped drag images. Outgoing tabs and empty date headings stop reserving their old slots while the regular stack is targeted. The owner accepted the chevron, animation and final drag correction on physical Apple silicon. Both browser builds and UI/Settings/browsing/persistence smoke pass; Intel uses Rosetta. The added Views regression compiles on both targets, but the full Chromium unit-test executable was not linked or run. Five-file quilt/export/replay has zero fuzz/offsets and exact source parity. See agent-docs/project/builds/2026-11-13-older-tabs-disclosure.json.",
+      "commits": [
+        "dda1bdf0de0c3e04532adbc16f2aebcd6a1d8d63"
       ]
     }
   ],
