@@ -117,7 +117,12 @@
   },
   "timings": {
     "scope": "Build/fixture commands use monotonic timers. The source clone and cache relocation were one-time setup, not measured edit-to-preview improvement. Failed cache-service/relocation attempts are retained in the JSONL timing report. An external native-control call stalled for approximately 103 minutes; it is not compiler time.",
-    "report": ".work/address-overflow/timings.jsonl"
+    "report": ".work/address-overflow/timings.jsonl",
+    "final_combined_build_seconds": {
+      "arm64": 571.2317082500085,
+      "x86_64": 675.6681174170226
+    },
+    "aggregate_timer_note": "The timer defaulted to an arm64 metadata label for the two-architecture command; individual build records give the actual architecture durations."
   },
   "limitations": [
     "Focused strict replay, not fresh full Chromium source preparation.",
@@ -500,6 +505,19 @@
     "commit": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
     "signed_tag": "inputs/address-overflow-padding-1/macos",
     "tag_object": "643b774da73a0411b360bca6c652adc05efe83cb",
-    "remote_refs_verified": true
-  }
+    "remote_refs_verified": true,
+    "main_adoption_commit": "46b10b791bb1871f8384cd9e369374f350bc8b9e"
+  },
+  "issue_state": "closed",
+  "issue_closed_at": "2026-11-14T08:09:53Z",
+  "post_push_setup": {
+    "attempt": 3,
+    "conclusion": "success",
+    "headSha": "46b10b791bb1871f8384cd9e369374f350bc8b9e",
+    "status": "completed",
+    "url": "https://github.com/leebyron/lune-browser/actions/runs/43574482625",
+    "scope": "78 repository tests, locked inputs, Actions guards, fresh GitHub reconstruction, and exact component patch/translation lint.",
+    "environment_recovery": "Attempt 1 selected macOS Python without hashlib.file_digest; attempt 2 passed tests but lacked gh. Restored pinned Python 3.13 and the shared runner GitHub CLI path. Attempt 3 passed on the unchanged adoption commit."
+  },
+  "completed_at": "2026-11-14T08:20:50.628543+00:00"
 }
