@@ -15,6 +15,8 @@ parser.add_argument('source', type=Path)
 parser.add_argument('--arch', required=True, choices=('arm64', 'x86_64'))
 args = parser.parse_args()
 source = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
+frame_start = source.index('static NSRect HeliumAddressEditingFrame(')
+editing_frame = source[frame_start:source.index('\n}', frame_start) + 2]
 source = source[source.index('@implementation HeliumFloatingAddressBar'):]
 
 
@@ -35,6 +37,7 @@ program = r'''
 #include <optional>
 #include <string>
 #include <vector>
+''' + editing_frame + r'''
 // This fixture sends scope commands only. The production word adapter is
 // exercised with real Chromium ICU by check-native-word-navigation.py.
 namespace helium {
