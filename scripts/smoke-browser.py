@@ -188,7 +188,8 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
     if ('Built on Helium, with thanks to its authors and contributors.' not in about['text']
             or about['href'] != 'https://helium.computer/'):
         raise RuntimeError(f'About attribution is incorrect: {about}')
-    if onboarding != 'Built on Helium browser, with thanks to its authors and contributors.':
+    if onboarding != ('Built on Helium browser and ungoogled-chromium '
+                      'with thanks to their authors and contributors'):
         raise RuntimeError(f'Onboarding attribution is incorrect: {onboarding}')
     if js('return document.title;') != 'Welcome to Lune':
         raise RuntimeError('Incorrect setup tab title')
@@ -197,7 +198,7 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
         icons['welcome'] = js("return !!document.querySelector('#welcome-page svg');")
         if not icons['welcome']:
             raise RuntimeError('Missing welcome logo')
-    js('document.querySelector(".welcome-actions button:first-child").click();')
+    js('document.querySelector(".welcome-actions .primary").click();')
     wait_for('return !!document.querySelector("#services-page.visible");')
     service_disclosure = js('return document.querySelector("#services-page").innerText;')
     if ('Helium services' not in service_disclosure or

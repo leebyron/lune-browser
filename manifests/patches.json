@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "d819cd5a5adf9ed6ceb162b1edb063c6e3861ef4",
+    "commit": "cefc2023103979f8d88267d5c8ac78972911f603",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -905,6 +905,10 @@
       {
         "path": "patches/lune/onboarding-preferred-defaults-copy.patch",
         "sha256": "be6ca689f154b23328dbacbabc38c20f91433058b49a8413e744ae4cf03cea60"
+      },
+      {
+        "path": "patches/lune/onboarding-welcome-refinements.patch",
+        "sha256": "8758aa8be6b5e278f3f2cd6545674c9b96e3e2796c734e7c7ba1dfd3504455d7"
       }
     ]
   },
@@ -2699,6 +2703,22 @@
       "adaptation": "Retains Lune/provider identity separately from reusable behavior. Removes the extra Welcome Defaults include sentence at owner request. Privacy-policy revisions remain deferred.",
       "commits": [
         "d819cd5a5adf9ed6ceb162b1edb063c6e3861ef4"
+      ]
+    },
+    {
+      "id": "lune-onboarding-welcome-refinements",
+      "depends_on": [
+        "lune-onboarding-defaults-copy",
+        "setup-safe-area-progress"
+      ],
+      "patches": [
+        "patches/lune/onboarding-welcome-refinements.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Clarify Welcome actions and automatic-update control, anchor project credits above setup progress, and soften link underlines.",
+      "adaptation": "Lune-specific Welcome copy and linked Helium/ungoogled attribution stay in the distribution patch. Measured footer height preserves scroll clearance at small window sizes. Setup links restore the browser-default underline offset and use half-opacity underlines until hovered. Privacy policy work remains deferred.",
+      "commits": [
+        "cefc2023103979f8d88267d5c8ac78972911f603"
       ]
     }
   ],

@@ -50,7 +50,7 @@ try:
  report['rootBackground']=js('return [document.documentElement,document.body,document.querySelector("main")].map(e=>getComputedStyle(e).backgroundColor)'); assert len(set(report['rootBackground']))==1
  report['tabTitle']=js('return document.title'); assert report['tabTitle']=='Welcome to Lune'
  report['welcome']=js("return {title:document.querySelector('h1').innerText,body:document.querySelector('.description').innerText,buttons:[...document.querySelectorAll('.welcome-actions button')].map(b=>b.innerText),updates:document.querySelector('input').checked,font:getComputedStyle(document.querySelector('h1')).fontFamily};")
- assert report['welcome']['title']=='setup lune'; assert report['welcome']['buttons']==['Setup','Use defaults']
+ assert report['welcome']['title']=='setup lune'; assert report['welcome']['buttons']==['Use Defaults','Setup']
  report['welcomeStyle']=js("return {background:getComputedStyle(document.querySelector('.setup-wallpaper'),'::before').backgroundImage,animation:getComputedStyle(document.querySelector('.setup-wallpaper'),'::before').animationName,policyLineHeight:getComputedStyle(document.querySelector('.policy')).lineHeight,weight:getComputedStyle(document.querySelector('.primary')).fontWeight,padding:[getComputedStyle(document.querySelector('.primary')).paddingLeft,getComputedStyle(document.querySelector('.primary')).paddingRight],synthesis:getComputedStyle(document.querySelector('.primary')).fontSynthesis,color:getComputedStyle(document.querySelector('.primary')).backgroundColor,credit:getComputedStyle(document.querySelector('.upstream-credit')).fontSize,security:document.querySelector('.updates p')!==null,remoteAssets:performance.getEntriesByType('resource').filter(r=>/^https?:/.test(r.name)).map(r=>r.name)}")
  report['wallpaperScheme']=js("return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'")
  assert f"chrome://setup/wallpaper-{report['wallpaperScheme']}.jpg" in report['welcomeStyle']['background']
@@ -69,10 +69,10 @@ try:
  assert next(a for a in report['introTiming'] if a['name']=='wallpaper-in')['duration']==1600
  assert next(a for a in report['introTiming'] if a['name']=='wallpaper-in')['delay']==1300
  report['introMotion']=js("const a=document.getAnimations().find(a=>a.animationName.includes('welcome-rise'));const scale=document.getAnimations().find(a=>a.animationName.includes('logo-settle'));a.pause();scale.pause();a.currentTime=0;scale.currentTime=0;const logo=document.querySelector('#welcome-page-container svg[aria-label=Lune]');const start=logo.getBoundingClientRect();a.currentTime=3500;scale.currentTime=3500;const end=logo.getBoundingClientRect();return {startCenter:start.y+start.height/2,endCenter:end.y+end.height/2,height:innerHeight,duration:a.effect.getTiming().duration,delay:a.effect.getTiming().delay}")
- # Shorter Welcome copy can select the content-relative animation offset.
- # Keep the logo above center in the upper-middle region, without pinning the
- # regression to the removed defaults note's exact content height.
- assert .3*report['introMotion']['height'] < report['introMotion']['startCenter'] < .5*report['introMotion']['height'],report['introMotion']
+ # Welcome copy and its separately anchored footer change content height.
+ # Verify the logo begins visible above center and rises, without pinning
+ # its content-relative offset to a particular collection of footer lines.
+ assert 0 < report['introMotion']['startCenter'] < .5*report['introMotion']['height'],report['introMotion']
  assert report['introMotion']['endCenter']<report['introMotion']['startCenter']
  assert report['introMotion']['duration']==3300 and report['introMotion']['delay']==200
  screenshot('welcome')
