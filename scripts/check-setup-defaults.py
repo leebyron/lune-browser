@@ -55,7 +55,7 @@ def nav_setup():
 def click(selector):js('document.querySelector('+json.dumps(selector)+').click()')
 def step(name):wait('return !!document.querySelector('+json.dumps('#'+name+'-page.visible')+')')
 def next_():click('#setup-buttons button:last-child')
-def checked(selector):return js('return document.querySelector('+json.dumps(selector)+').getAttribute("aria-checked")')=='true'
+def checked(selector):return js('const e=document.querySelector('+json.dumps(selector)+');return e instanceof HTMLInputElement ? e.checked : e.getAttribute("aria-checked")=="true"')
 def prefs():
  wd('POST',p+'/window',{'handle':inspector_handle})
  value=js('const done=arguments[arguments.length-1];chrome.settingsPrivate.getAllPrefs(p=>done(Object.fromEntries(p.filter(p=>'+json.dumps(keys)+'.includes(p.key)).map(p=>[p.key,p.value]))));',True)
@@ -89,12 +89,12 @@ try:
  before=prefs();assert before['helium.services.user_consented'] is False and before['search.suggest_enabled'] is False
  report['servicesBeforeNext']=before
  report['descriptionStyle']=js("return {description:getComputedStyle(document.querySelector('#services-page .toggle-text p')).fontSize,subtitle:getComputedStyle(document.querySelector('#services-page .page-header p')).fontSize}")
- assert report['descriptionStyle']=={'description':'14px','subtitle':'16px'}
+ assert report['descriptionStyle']=={'description':'12px','subtitle':'16px'}
  shot('services-defaults')
- next_();step('search-engines');assert checked('#search-engines-page button[role=switch]')
+ next_();step('search-engines');assert checked('#search-engines-page input[role=switch]')
  before=prefs();assert before['helium.services.user_consented'] is True and before['search.suggest_enabled'] is False
  report['suggestionsBeforeNext']=before
- assert js("return getComputedStyle(document.querySelector('.engine-text p')).fontSize")=='14px'
+ assert js("return getComputedStyle(document.querySelector('.engine-text p')).fontSize")=='12px'
  shot('search-defaults')
  finish_from_search(True);report['unchangedCustom']=prefs()
  assert report['useDefaults']==report['unchangedCustom'],(report['useDefaults'],report['unchangedCustom']);close()
@@ -108,14 +108,14 @@ try:
  click('#setup-buttons button:first-child');step('welcome');click('.welcome-actions .primary');step('services')
  assert not checked('#services-page button[role=switch]')
  nav_setup();click('.welcome-actions .primary');step('services');assert not checked('#services-page button[role=switch]')
- next_();step('search-engines');assert checked('#search-engines-page button[role=switch]')
- click('#search-engines-page button[role=switch]');wait("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')==='false'")
+ next_();step('search-engines');assert checked('#search-engines-page input[role=switch]')
+ click('#search-engines-page input[role=switch]');wait("return document.querySelector('#search-engines-page input[role=switch]').checked===false")
  assert prefs()['search.suggest_enabled'] is False
  close();start('opt-outs-resumed',profile)
  assert js("return document.querySelector('#welcome-page input').checked") is False
  click('.welcome-actions .primary');step('services');assert not checked('#services-page button[role=switch]')
  assert not checked('#services-page button[role=switch]:nth-child(2)')
- next_();step('search-engines');assert not checked('#search-engines-page button[role=switch]')
+ next_();step('search-engines');assert not checked('#search-engines-page input[role=switch]')
  finish_from_search(False);report['retainedOptOuts']=prefs()
  for k in ['search.suggest_enabled','helium.services.enabled','helium.services.component_updates','helium.services.browser_updates']:assert report['retainedOptOuts'][k] is False
  report['backReloadAndRestartPreserveChoices']=True;close()

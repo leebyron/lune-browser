@@ -96,12 +96,12 @@ try:
  next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['defaultSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['defaultSearch'].startswith('Startpage')
- report['searchSuggestionsInitiallyOn']=js("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')")
+ report['searchSuggestionsInitiallyOn']=js("return String(document.querySelector('#search-engines-page input[role=switch]').checked)")
  assert report['searchSuggestionsInitiallyOn']=='true'
  wait("return getComputedStyle(document.querySelector('#search-engines-page')).opacity==='1' && !document.querySelector('#welcome-page') && !document.querySelector('#services-page')")
  screenshot('search')
- js("document.querySelector('#search-engines-page button[role=switch]').click()")
- wait("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')==='false'")
+ js("document.querySelector('#search-engines-page input[role=switch]').click()")
+ wait("return String(document.querySelector('#search-engines-page input[role=switch]').checked)==='false'")
  report['searchOrder']=js("return [...document.querySelectorAll('#search-engines-page button[aria-pressed]')].slice(0,3).map(b=>b.innerText.split('\\n')[0])")
  assert report['searchOrder']==['Startpage','Kagi','DuckDuckGo']
  js("[...document.querySelectorAll('#search-engines-page button')].find(b=>b.innerText.startsWith('DuckDuckGo')).click()")
@@ -172,7 +172,7 @@ try:
  wait("return document.querySelector('#services-page.visible')");next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['retainedSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['retainedSearch'].startswith('DuckDuckGo')
- assert js("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')") == 'false'
+ assert js("return String(document.querySelector('#search-engines-page input[role=switch]').checked)") == 'false'
  if not args.skip_use_defaults:
   nav('chrome://setup/');wait("return document.querySelector('#welcome-page input') && !document.querySelector('#welcome-page input').checked")
   js("document.querySelector('input').click(); document.querySelector('.welcome-actions .ghost').click()")

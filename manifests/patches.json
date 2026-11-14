@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "cefc2023103979f8d88267d5c8ac78972911f603",
+    "commit": "a3b3fda9af9a1ed014127e7525d3fcc992ca9b6e",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -909,6 +909,10 @@
       {
         "path": "patches/lune/onboarding-welcome-refinements.patch",
         "sha256": "8758aa8be6b5e278f3f2cd6545674c9b96e3e2796c734e7c7ba1dfd3504455d7"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-search-layout.patch",
+        "sha256": "e3c03256b58b51b49d6307ff6ba9508afa3abb9ebdef26bdcdc1498628fc530b"
       }
     ]
   },
@@ -2719,6 +2723,23 @@
       "adaptation": "Lune-specific Welcome copy and linked Helium/ungoogled attribution stay in the distribution patch. Measured footer height preserves scroll clearance at small window sizes. Setup links restore the browser-default underline offset and use half-opacity underlines until hovered. Privacy policy work remains deferred.",
       "commits": [
         "cefc2023103979f8d88267d5c8ac78972911f603"
+      ]
+    },
+    {
+      "id": "onboarding-search-layout",
+      "depends_on": [
+        "onboarding-preferred-defaults",
+        "setup-safe-area-progress",
+        "lune-onboarding-welcome-refinements"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-search-layout.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Make search choices easier to compare and align setup card typography, spacing and background treatment.",
+      "adaptation": "Two-column four-row search grid; compact search-suggestion disclosure; 48px logos with white privacy shields on category-colored circular badges; selected-engine check; shared 14px titles, 12px descriptions, 2px pair gaps, 4px backdrop blur and 12px navigation gap. Shortened Kagi and Brave descriptions. Native checkbox retains preference boundaries. Explicit GN inputs cover search/password-manager components.",
+      "commits": [
+        "a3b3fda9af9a1ed014127e7525d3fcc992ca9b6e"
       ]
     }
   ],
