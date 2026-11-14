@@ -231,21 +231,12 @@
     },
     "failure_log_sha256": "7cd63160de75d82a3dd39f1c16832ed8f750f5195437735f6592e3cce2e5cf3e",
     "failed_report": {
-      "bundle_id": "computer.lune.browser",
+      "passed": false,
+      "error": "timed out",
       "architecture": "x86_64",
       "test_host_architecture": "arm64",
       "chromium_version": "158.0.8127.37",
-      "executable_sha256": "8829c8540feea6794f55430cc00690ea9677f6ed7c430faf9b4cf5a042f3196f",
-      "framework_sha256": "3a48ce3d565f14f70fa0234e503ae0552733afa8e025f4213bfa904fefdb6758",
-      "driver_version": "ChromeDriver 158.0.8127.37 (b8c2be851f62f6a394ec57955d7f31335d7cb6d4-refs/branch-heads/8127@{#1692})",
-      "app_version": "0.22.1.1",
-      "checks": [],
-      "mode": "headless",
-      "release_validated": false,
-      "artwork_component_commit": "dda1bdf0de0c3e04532adbc16f2aebcd6a1d8d63",
-      "icon_sha256": "ee0d54a595137cf6f2444731120f39c0f238ef429b2ca0add865d12215fdfaa7",
-      "passed": false,
-      "error": "timed out"
+      "framework_sha256": "3a48ce3d565f14f70fa0234e503ae0552733afa8e025f4213bfa904fefdb6758"
     }
   },
   "fixture_retry": {
@@ -269,7 +260,8 @@
       "01a1d71b-7378-7332-bc91-dffb5e060b12",
       "01a1d737-9457-7f91-a947-446622f98e21"
     ],
-    "scope": "Coordinate browser input adoption; hold new input movement while this candidate settles, then notify completion."
+    "scope": "Coordinate browser input adoption; hold new input movement while this candidate settles, then notify completion.",
+    "completed": true
   },
   "composition_update": {
     "reason": "Accepted disclosure and then update-release-notes inputs entered main during validation. Replayed the identical timer patch after each accepted base, verified the combined source, rebuilt both targets and repeated app-bound checks. Earlier candidate reports remain separately archived.",
@@ -297,7 +289,9 @@
       "lune/github-release-notes.patch (accepted input)",
       "helium/ui/older-tabs-entry-clock.patch"
     ],
-    "command_in_progress": null
+    "command_in_progress": null,
+    "selected_platform_commit": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
+    "state": "Complete: input adopted and pushed on main; post-push setup passed; reusable sources and caches retained, temporary fixtures cleaned"
   },
   "intel_cache_reuse": {
     "seconds": 115.34537754114717,
@@ -326,203 +320,27 @@
     "corrected_framework_sha256": "ac4c81e541f74bf87720b38e75187d1eb751921845b08038c47143b9c0667f11"
   },
   "stale_cache_regression": {
-    "failed_report": {
-      "initial_tabs": [
-        {
-          "title": "Older tabs fixture",
-          "index": 0,
-          "pinned": true
-        },
-        {
-          "title": "Today\u2019s work",
-          "index": 1,
-          "pinned": false
-        },
-        {
-          "title": "Release notes",
-          "index": 2,
-          "pinned": false
-        },
-        {
-          "title": "Weekend reading",
-          "index": 3,
-          "pinned": false
-        },
-        {
-          "title": "Project plan",
-          "index": 4,
-          "pinned": false
-        },
-        {
-          "title": "Saved research",
-          "index": 5,
-          "pinned": false
-        },
-        {
-          "title": "Design references",
-          "index": 6,
-          "pinned": false
-        },
-        {
-          "title": "Protected draft",
-          "index": 7,
-          "pinned": false
-        }
-      ],
-      "seeded_ids": {
-        "dashboard": "25063f8c-0558-4abd-adf9-55bd2629de14",
-        "A": "9deda85b-437f-4dd0-95fb-54fa7afbbd29",
-        "B": "0f882963-72b3-46da-91ad-5d65b0cb312e",
-        "C": "7430540e-23ed-4d61-b104-0ce8ec9635b3",
-        "D": "bbd22f4b-77f0-4936-bab8-c63950c3383d",
-        "E": "dea04c94-632c-40fd-b281-ac19fb45a70c",
-        "F": "7ebb24eb-6831-4360-9e9a-8030bae77bea",
-        "G": "bfd5c33b-8695-465a-84d4-983c746c6004"
-      },
-      "restored_tabs": [
-        {
-          "title": "Older tabs fixture",
-          "url": "chrome-extension://eoifigeehdlddaboafegdidgdjghpmnh/fixture.html",
-          "index": 0
-        },
-        {
-          "title": "Older tabs fixture",
-          "url": "chrome-extension://eoifigeehdlddaboafegdidgdjghpmnh/fixture.html",
-          "index": 1
-        },
-        {
-          "title": "Today\u2019s work",
-          "url": "http://127.0.0.1:62188/A",
-          "index": 2
-        },
-        {
-          "title": "Project plan",
-          "url": "http://127.0.0.1:62188/D",
-          "index": 3
-        },
-        {
-          "title": "Design references",
-          "url": "http://127.0.0.1:62188/F",
-          "index": 4
-        },
-        {
-          "title": "Release notes",
-          "url": "http://127.0.0.1:62188/B",
-          "index": 5
-        },
-        {
-          "title": "Weekend reading",
-          "url": "http://127.0.0.1:62188/C",
-          "index": 6
-        },
-        {
-          "title": "Saved research",
-          "url": "http://127.0.0.1:62188/E",
-          "index": 7
-        },
-        {
-          "title": "Protected draft",
-          "url": "http://127.0.0.1:62188/G",
-          "index": 8
-        }
-      ],
-      "ready": {
-        "debug_port": 62234,
-        "driver_port": 62189
-      },
-      "trusted_input_events": [
-        {
-          "trusted": true,
-          "type": "pointerdown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "keydown"
-        },
-        {
-          "trusted": true,
-          "type": "wheel"
-        }
-      ]
-    },
     "log_sha256": "777f87fc1d32c18be9c3d21f782f69863466a64b2b2265eb87c8c7f4dd3bb839",
-    "resolution": "The real browser rejected the imported stale controller. Refreshed all three changed input mtimes after cache import, removed its object from hashfs state, rebuilt and reran final browser checks."
+    "resolution": "The real browser rejected the imported stale controller. Refreshed all three changed input mtimes after cache import, removed its object from hashfs state, rebuilt and reran final browser checks.",
+    "field": "close_clock",
+    "before": {
+      "age": "13438249713427110",
+      "close_clock": "13438422513427112",
+      "frozen": "13438249713427110",
+      "id": "dea04c94-632c-40fd-b281-ac19fb45a70c",
+      "last_use": "13438249713427110",
+      "order": 6144.0,
+      "version": 1
+    },
+    "after": {
+      "age": "13438249713427110",
+      "close_clock": "13439113762471579",
+      "frozen": "13438249713427110",
+      "id": "dea04c94-632c-40fd-b281-ac19fb45a70c",
+      "last_use": "13439113762471579",
+      "order": 6144.0,
+      "version": 1
+    }
   },
   "toolchain": {
     "xcode": "27.2 (27B52)",
@@ -531,7 +349,18 @@
     "gn_args_sha256": {
       "arm64": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
       "x86_64": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4"
-    }
+    },
+    "incremental_build_command": [
+      "siso",
+      "ninja",
+      "--fast_local",
+      "-C",
+      "out/Default or out/Intel",
+      "-local_jobs=8",
+      "chrome",
+      "chromedriver",
+      "chrome/installer/mac"
+    ]
   },
   "timings": {
     "phase_report": ".work/older-tabs-entry-clock/timings.jsonl",
@@ -540,241 +369,144 @@
         "iteration": "entry-clock-1",
         "arch": "arm64",
         "phase": "build",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/build.py",
-          "arm64"
-        ],
         "started_at": "2026-11-14T05:58:40.248753+00:00",
         "finished_at": "2026-11-14T06:02:36.768051+00:00",
         "seconds": 236.518432,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "entry-clock-final",
         "arch": "x86_64",
         "phase": "build",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          ".work/older-tabs-entry-clock/build.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T06:09:59.004141+00:00",
         "finished_at": "2026-11-14T06:13:00.737340+00:00",
         "seconds": 181.720333,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "entry-clock-2",
         "arch": "arm64",
         "phase": "checks",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          ".work/older-tabs-entry-clock/check-browser.py",
-          "arm64",
-          "--reuse-smoke"
-        ],
         "started_at": "2026-11-14T06:11:15.259748+00:00",
         "finished_at": "2026-11-14T06:17:09.783130+00:00",
         "seconds": 354.520444,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "entry-clock-final",
         "arch": "x86_64",
         "phase": "checks",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          ".work/older-tabs-entry-clock/check-browser.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T06:13:50.341946+00:00",
         "finished_at": "2026-11-14T06:24:09.889029+00:00",
         "seconds": 619.542482,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "combined",
         "arch": "arm64",
         "phase": "build",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/build.py",
-          "arm64"
-        ],
         "started_at": "2026-11-14T06:26:36.114435+00:00",
         "finished_at": "2026-11-14T06:29:44.991257+00:00",
         "seconds": 188.875427,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "combined",
         "arch": "x86_64",
         "phase": "build",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/build.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T06:29:48.290654+00:00",
         "finished_at": "2026-11-14T06:33:58.413257+00:00",
         "seconds": 250.12067,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "combined",
         "arch": "arm64",
         "phase": "checks",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/check-browser.py",
-          "arm64"
-        ],
         "started_at": "2026-11-14T06:29:48.291000+00:00",
         "finished_at": "2026-11-14T06:35:56.507838+00:00",
         "seconds": 368.214143,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "combined",
         "arch": "x86_64",
         "phase": "checks",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/check-browser.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T06:34:02.187661+00:00",
         "finished_at": "2026-11-14T06:36:15.209119+00:00",
         "seconds": 133.020024,
-        "returncode": 1,
         "exit_code": 1
       },
       {
         "iteration": "combined-retry",
         "arch": "x86_64",
         "phase": "checks",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          ".work/older-tabs-entry-clock/check-browser.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T06:37:35.638706+00:00",
         "finished_at": "2026-11-14T06:47:34.772992+00:00",
         "seconds": 599.150745,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "latest",
         "arch": "arm64",
         "phase": "build",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/build.py",
-          "arm64"
-        ],
         "started_at": "2026-11-14T06:50:02.083169+00:00",
         "finished_at": "2026-11-14T07:01:45.569564+00:00",
         "seconds": 703.485742,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "latest",
         "arch": "x86_64",
         "phase": "build",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/build.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T07:01:48.608282+00:00",
         "finished_at": "2026-11-14T07:06:10.031069+00:00",
         "seconds": 261.422406,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "latest",
         "arch": "arm64",
         "phase": "checks",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/check-browser.py",
-          "arm64"
-        ],
         "started_at": "2026-11-14T07:01:48.608383+00:00",
         "finished_at": "2026-11-14T07:07:52.838303+00:00",
         "seconds": 364.229535,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "latest",
         "arch": "x86_64",
         "phase": "checks",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/check-browser.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T07:06:13.080245+00:00",
         "finished_at": "2026-11-14T07:09:24.058047+00:00",
         "seconds": 190.977388,
-        "returncode": 1,
         "exit_code": 1
       },
       {
         "iteration": "intel-cache-corrected",
         "arch": "x86_64",
         "phase": "build",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          ".work/older-tabs-entry-clock/build.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T07:13:09.753686+00:00",
         "finished_at": "2026-11-14T07:15:50.219628+00:00",
         "seconds": 160.465618,
-        "returncode": 0,
         "exit_code": 0
       },
       {
         "iteration": "intel-cache-corrected",
         "arch": "x86_64",
         "phase": "checks",
-        "cwd": "/Users/leebyron/code/leebyron/lune-browser",
-        "command": [
-          "python3",
-          "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-entry-clock/check-browser.py",
-          "x86_64"
-        ],
         "started_at": "2026-11-14T07:16:46.947565+00:00",
         "finished_at": "2026-11-14T07:26:20.057185+00:00",
         "seconds": 573.123306,
-        "returncode": 0,
+        "exit_code": 0
+      },
+      {
+        "iteration": "post-push",
+        "arch": "arm64",
+        "phase": "checks",
+        "started_at": "2026-11-14T07:28:48.525183+00:00",
+        "finished_at": "2026-11-14T07:34:17.812131+00:00",
+        "seconds": 329.288368,
         "exit_code": 0
       }
     ],
@@ -822,7 +554,8 @@
       "Source and incremental outputs, component checkout, quilt patch and preimages",
       "Compact reports, failed fixture logs and phase timing evidence",
       "Personal app/profile and published release artifacts untouched"
-    ]
+    ],
+    "local_runner_exited_after_post_push": true
   },
   "repository_checks": {
     "passed": true,
@@ -843,7 +576,17 @@
     "component_commit": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
     "signed_tag_object": "88b9446a6392a4ce3529ee2bce9fababfe6ed163",
     "component_refs_verified": true,
-    "main_integration": "Git history identifies the adoption commit; no release or feed change. Post-push setup is recorded after it runs."
+    "main_integration": "Main adoption 6e600e9826ed4e42c2b87f7d1b2d5d12b3aaf900 is published and its setup checks pass; this later evidence-only update changes no browser inputs.",
+    "main_adoption_commit": "6e600e9826ed4e42c2b87f7d1b2d5d12b3aaf900",
+    "main_refs_verified": true,
+    "post_push_setup": {
+      "passed": true,
+      "run_id": 43571255256,
+      "url": "https://github.com/leebyron/lune-browser/actions/runs/43571255256",
+      "tested_commit": "6e600e9826ed4e42c2b87f7d1b2d5d12b3aaf900",
+      "conclusion": "success",
+      "scope": "78 repository tests, pinned configuration, workflow guards, permanent input fetch, ancestry/gitlink validation, fresh recursive GitHub reconstruction and locked core/platform lint."
+    }
   },
   "validation_scripts_sha256": {
     "scripts/check-older-tabs.py": "983d0316323247476ab7b69be0dd4568a31d018d76a334720f52689747ed2f1e",
