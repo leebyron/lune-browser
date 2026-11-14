@@ -5,6 +5,7 @@ Requires the matching ChromeDriver and prepared source. No system language or
 normal browser profile is changed; external DNS and real Keychain use are disabled.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -47,6 +48,16 @@ def main():
     report = {'locale_requested': args.locale, 'test_host_architecture': platform.machine(),
               'expected_version': expected_version, 'expected_translations': expected,
               'release_validated': False}
+    def app_identity():
+        app = output / 'Lune.app'
+        paths = [binary, app / 'Contents/Info.plist',
+                 app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework']
+        result = {}
+        for path in paths:
+            with path.open('rb') as stream:
+                result[str(path.relative_to(app))] = hashlib.file_digest(stream, 'sha256').hexdigest()
+        return result
+    report['app_identity_before'] = app_identity()
     opener = build_opener(ProxyHandler({}))
 
     def request(port, method, path, data=None, timeout=30):
@@ -72,6 +83,7 @@ def main():
                 '--headless=new', '--no-first-run', '--no-default-browser-check',
                 '--enable-automation', '--test-type=webdriver',
                 '--password-store=basic', '--use-mock-keychain',
+                '--custom-update-server-url=http://127.0.0.1:1/',
                 '--disable-background-networking', '--remote-debugging-port=0',
                 '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1',
                 f'--user-data-dir={profile}'], env=env,
@@ -117,12 +129,12 @@ def main():
                 for _ in range(60):
                     result = request(port, 'POST', session + '/execute/sync', {
                         'script': '''return globalThis.loadTimeData?.data?.partnerTitle &&
-                            document.querySelector('#upstream-credit') ? {
+                            document.querySelector('#welcome-page .upstream-credit') ? {
                             locale: loadTimeData.getString('language'),
                             title: loadTimeData.getString('partnerTitle'),
                             tooltip: loadTimeData.getString('partnerTooltip'),
                             welcome: loadTimeData.getString('welcomeGreeting'),
-                            credit: document.querySelector('#upstream-credit').textContent.trim()
+                            credit: document.querySelector('#welcome-page .upstream-credit').textContent.trim()
                         } : null;''', 'args': []})
                     if result:
                         break
@@ -137,8 +149,11 @@ def main():
                 for key in ('title', 'tooltip', 'credit'):
                     if 'Helium' not in result[key] or 'Lune' in result[key]:
                         raise RuntimeError(f'Incorrect upstream attribution: {result}')
-                if 'Lune' not in result['welcome']:
+                if 'lune' not in result['welcome'].casefold() or 'helium' in result['welcome'].casefold():
                     raise RuntimeError(f'Localized product greeting lost Lune branding: {result}')
+                report['app_identity_after'] = app_identity()
+                if report['app_identity_after'] != report['app_identity_before']:
+                    raise RuntimeError('Test app changed during localized validation')
                 report['passed'] = True
             except Exception as error:
                 report.update(passed=False, error=str(error))
