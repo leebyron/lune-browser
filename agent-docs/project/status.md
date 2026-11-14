@@ -16,7 +16,7 @@ Feature and bug-fix work now follows the [three-stage development loop](developm
 
 The [development lock](../../manifests/browser.lock.json) is authoritative for current component commits and permanent input tags. The [patch manifest](../../manifests/patches.json) records feature provenance, order and hashes. Frozen release records and their source tags are authoritative for each released or reserved version; later main-branch changes do not alter them.
 
-The current development inputs include frozen 26.1113.1's accepted November 12–13 changes and the subsequent Older Tabs arrangement fix described below. See the published [release notes](releases/26.1113.1.md) for changes since 26.1111.3. Later process and publisher improvements are adopted separately on main.
+The current development inputs include frozen 26.1113.1's accepted November 12–13 changes and the subsequent Older Tabs arrangement/disclosure fixes and update release-notes actions described below. See the published [release notes](releases/26.1113.1.md) for changes since 26.1111.3. Later process and publisher improvements are adopted separately on main.
 
 26.1111.3 delivers the accepted Older Tabs, address-bar bangs, stable command-menu glass, startup restore-notice fix, New Tab button behavior, header/sidebar customization scope, two-option setup toolbar control and sidebar group/animation/scroll refinements. See the [release notes](releases/26.1111.3.md) and [artifact-bound validation](builds/2026-11-11-release-26.1111.3.md). The isolated release Python environment matches the frozen recipe; the shared development environment remains intact.
 
