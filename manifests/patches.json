@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "a3b3fda9af9a1ed014127e7525d3fcc992ca9b6e",
+    "commit": "0acd40ed5d8f40d7dfe2445cff7ca5578b510a05",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -913,6 +913,10 @@
       {
         "path": "patches/helium/ui/onboarding-search-layout.patch",
         "sha256": "e3c03256b58b51b49d6307ff6ba9508afa3abb9ebdef26bdcdc1498628fc530b"
+      },
+      {
+        "path": "patches/helium/ui/older-tabs-dates.patch",
+        "sha256": "acea6713dbedfc69ac5125d2cb8af3a6a45fdd753083475e807a0898b0579a45"
       }
     ]
   },
@@ -2740,6 +2744,24 @@
       "adaptation": "Two-column four-row search grid; compact search-suggestion disclosure; 48px logos with white privacy shields on category-colored circular badges; selected-engine check; shared 14px titles, 12px descriptions, 2px pair gaps, 4px backdrop blur and 12px navigation gap. Shortened Kagi and Brave descriptions. Native checkbox retains preference boundaries. Explicit GN inputs cover search/password-manager components.",
       "commits": [
         "a3b3fda9af9a1ed014127e7525d3fcc992ca9b6e"
+      ]
+    },
+    {
+      "id": "older-tabs-dates",
+      "depends_on": [
+        "automatic-older-tabs",
+        "older-tabs-weekday-headings",
+        "older-tabs-disclosure",
+        "older-tabs-entry-clock"
+      ],
+      "patches": [
+        "patches/helium/ui/older-tabs-dates.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Show date headings only between Older tabs and provide readable last-use details with matching footer rows.",
+      "adaptation": "Shared civil-date formatting: Today, Yesterday, weekdays at 2\u20134 days, abbreviated month and ordinal day thereafter without a comma or old-date bucket. Suppress the first visible date heading and raise label text one point. Hover footer shows native SF eye and compact date/time, matching memory icon spacing and shared outer padding; fade masks follow footer color and preserve opacity. Actual last-use history remains independent of frozen sidebar dates and entry retention.",
+      "commits": [
+        "0acd40ed5d8f40d7dfe2445cff7ca5578b510a05"
       ]
     }
   ],

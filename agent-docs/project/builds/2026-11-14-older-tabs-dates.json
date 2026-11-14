@@ -1,0 +1,271 @@
+{
+  "date": "2026-11-14",
+  "status": "owner accepted and selected for future main builds",
+  "owner_acceptance": "looks great ship it",
+  "platform_commit": "0acd40ed5d8f40d7dfe2445cff7ca5578b510a05",
+  "platform_tree": "9062fef0c7a68220c6af4c4812fe16454972b512",
+  "platform_ref": "refs/tags/inputs/older-tabs-dates-1/macos",
+  "core_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+  "chromium_version": "158.0.8127.37",
+  "published_release_unchanged": "26.1114.1",
+  "issue": "No specific open issue is being resolved by these refinements.",
+  "source_replay": {
+    "passed": true,
+    "fuzz": 0,
+    "offsets": 0,
+    "base_platform": "a3b3fda9af9a1ed014127e7525d3fcc992ca9b6e",
+    "source_hashes": {
+      "chrome/browser/ui/tabs/older_tabs_controller.h": "2e3fd8a4093a249618d5c909602bb69e5add333472f8a31c9ef88006a20849e8",
+      "chrome/browser/ui/tabs/older_tabs_controller.cc": "4a4d33c30a9cf576a4df95d5db40b6b0ec4caff8259d5339c2b89da26819f128",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "8ed3fcd2311a67b83ae10d21e383ba1d015619a5685a2cf5d6826e17a76a50dd",
+      "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc": "ae7d70f04a726e39d2a8a393c29888233627f18f427366d9feec1b5849953d07",
+      "chrome/app/settings_strings.grdp": "5d7fcd9e76bc7268269be4a7c8deb5feb49caadb44502b71c51ae14c55f9dbc3",
+      "chrome/browser/ui/views/tabs/hovercard/fade_label_view.h": "767865b3466fa16e72df046484dff078b6d96318f917b731d52e5d5d8c3f44fe",
+      "chrome/browser/ui/views/tabs/hovercard/fade_label_view.cc": "989ec399522a7b65a4f05229e90a95e80bb5bd4be3fbed2376d375f771020cd0",
+      "chrome/browser/ui/views/tabs/hovercard/BUILD.gn": "3cb48dcf8896303226c2baa3ea47b35170ede08e1a884d1e4ed62b5f60638c49"
+    },
+    "patch_sha256": "acea6713dbedfc69ac5125d2cb8af3a6a45fdd753083475e807a0898b0579a45",
+    "scope": "Exact affected-file replay from 8 preimages byte-identical to current frozen source; no fresh full-tree preparation."
+  },
+  "platform_merge_unmerge_parity": true,
+  "earlier_clipped_footer_negative_regression": {
+    "architecture": "arm64",
+    "execution": "native",
+    "production_helpers_sha256": "f4e780db53e1ce94afd0b1c97e0a98929e2e1bd4192f7b0cb91a12950f218c19",
+    "passed": true,
+    "exit_code": 1,
+    "output": "root=180x18 rowpref=173x18 fadepref=173x18 container=none containerpref=none\nClipped text at width 180: label bounds 12,12 156x0, preferred 130x36",
+    "expected_regression": true
+  },
+  "builds": {
+    "arm64": {
+      "exit_code": 0,
+      "seconds": 212.56302745826542,
+      "source_unchanged": true,
+      "report_sha256": "d22c320e1c5ba16b5b94b28e34de3bcdf214c585667a8c13f7956803cc8069ab"
+    },
+    "x86_64": {
+      "exit_code": 0,
+      "seconds": 511.1672142073512,
+      "source_unchanged": true,
+      "report_sha256": "628fc23df144511dbdbe2c8af6432e2b097953daf9ebb73ee6f0546b17ab4647"
+    }
+  },
+  "checks": {
+    "arm64": {
+      "results": {
+        "dates": {
+          "exit_code": 0,
+          "seconds": 18.185258207842708
+        },
+        "hover": {
+          "exit_code": 0,
+          "seconds": 28.600239207968116
+        },
+        "smoke": {
+          "exit_code": 0,
+          "reused_passed_report_for_unchanged_artifact": true
+        },
+        "older-settings": {
+          "exit_code": 0,
+          "seconds": 5.831132375635207
+        }
+      },
+      "artifact_hashes": {
+        "Contents/MacOS/Lune": "fd726c9a1c0752410949b21c96a223b3b0dc0005c3996b143d0adc633269e494",
+        "Contents/Frameworks/Lune Framework.framework/Lune Framework": "4f28de4e4cf2176bfde50bfc1d2ab9efc66fa641da82e589f4c98e63f236bf75"
+      },
+      "resource_files_checked": 224,
+      "all_artifacts_report_sha256": "d5d1d02e13ee623f6a544266ad4ca3431664903204448b4e02be8bc5a071a682",
+      "artifact_unchanged": true,
+      "date_result": {
+        "architecture": "arm64",
+        "execution": "native",
+        "production_helpers_sha256": "d4deab55a695e9d0558eecf1d253025969ad045faa8872848e853342bcaeb07c",
+        "passed": true,
+        "exit_code": 0,
+        "output": "PASS: relative dates, separate dates beyond seven days, ordinals, midnight, year, leap day and both DST boundaries"
+      },
+      "hover_result": {
+        "architecture": "arm64",
+        "execution": "native",
+        "production_helpers_sha256": "4c9d646ef644f02318fcc4bcb3d2b3814cb7b2a1ac01ed78fbf6c3d22ed4953a",
+        "passed": true,
+        "exit_code": 0,
+        "output": "PASS: visible date text, matching memory icon/text metrics, 8 DIP row gap, outer padding, and stable light/dark fade-mask pixels at all fade steps",
+        "expected_regression": false
+      },
+      "smoke_report_sha256": "82e4b5e7f2f2578a0c6686d015103d90063be0b2295da240a2b35909adf96529",
+      "older_settings_report_sha256": "1988dd3a9618a2d09fd762531dc8f4e48cd29171dee771196af8716a88e9c4fd"
+    },
+    "x86_64": {
+      "results": {
+        "dates": {
+          "exit_code": 0,
+          "seconds": 15.783213291317225
+        },
+        "hover": {
+          "exit_code": 0,
+          "seconds": 48.70525795966387
+        },
+        "smoke": {
+          "exit_code": 0,
+          "seconds": 110.55928383395076
+        },
+        "older-settings": {
+          "exit_code": 0,
+          "seconds": 23.820623124949634
+        }
+      },
+      "artifact_hashes": {
+        "Contents/MacOS/Lune": "8829c8540feea6794f55430cc00690ea9677f6ed7c430faf9b4cf5a042f3196f",
+        "Contents/Frameworks/Lune Framework.framework/Lune Framework": "beb004a13e4ef0eecc92390620dfd5c0fb184f424f3aa9ff36a94fbec262d7dd"
+      },
+      "resource_files_checked": 224,
+      "all_artifacts_report_sha256": "3f5659f64f17177e580030dcc12c59af9f46f08f573c601ba432f769dcafa9a7",
+      "artifact_unchanged": true,
+      "date_result": {
+        "architecture": "x86_64",
+        "execution": "Rosetta on Apple silicon",
+        "production_helpers_sha256": "d4deab55a695e9d0558eecf1d253025969ad045faa8872848e853342bcaeb07c",
+        "passed": true,
+        "exit_code": 0,
+        "output": "PASS: relative dates, separate dates beyond seven days, ordinals, midnight, year, leap day and both DST boundaries"
+      },
+      "hover_result": {
+        "architecture": "x86_64",
+        "execution": "Rosetta on Apple silicon",
+        "production_helpers_sha256": "4c9d646ef644f02318fcc4bcb3d2b3814cb7b2a1ac01ed78fbf6c3d22ed4953a",
+        "passed": true,
+        "exit_code": 0,
+        "output": "PASS: visible date text, matching memory icon/text metrics, 8 DIP row gap, outer padding, and stable light/dark fade-mask pixels at all fade steps",
+        "expected_regression": false
+      },
+      "smoke_report_sha256": "0539d064e45946c2ecc7eb9446e9f3837f412ffe7c08bb2c9aee3790368c6cd4",
+      "older_settings_report_sha256": "1988dd3a9618a2d09fd762531dc8f4e48cd29171dee771196af8716a88e9c4fd"
+    }
+  },
+  "native_review": {
+    "heading": "First visible Older row has no date heading, including after Keep of the first Older tab; inspected in native AX tree and screenshot.",
+    "footer": "Owner accepted final eye/date preview after spacing and scrub-color revisions.",
+    "accepted_preview": {
+      "ready": true,
+      "seconds": 40.40055104158819,
+      "preview_output": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-dates/preview-output-5",
+      "profile": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-dates/preview-5/profile",
+      "pid": 17574,
+      "binary_hashes": {
+        "Contents/MacOS/Lune": "fd726c9a1c0752410949b21c96a223b3b0dc0005c3996b143d0adc633269e494",
+        "Contents/Frameworks/Lune Framework.framework/Versions/Current/Lune Framework": "e5eb9e856dfb3aaa4d1df8f3ab663001cbf80fe502576ec340032c728e2d4ebb"
+      },
+      "scope": "Isolated profile seeded/restored and fixture ready; native hover rendering reviewed separately"
+    }
+  },
+  "repository_checks": {
+    "unit_tests_passed": 78,
+    "log_sha256": "80fd61b7ec9eb6eaabf65d0d64760f786667515a9fcf5ae51dd60f23a90cd3bb",
+    "component_lints_sha256": "bca18efaade8444a071c77a5049f947307d3a09721560c854a226ac5c6d9f78d"
+  },
+  "packaged_caption": {
+    "arm64": {
+      "resource_id": 7814,
+      "caption": "$1 at $2",
+      "pak_sha256": "9ea56084e2a6b3855c7dbcc353d61263ac69bcac0adb98106006201ca6df1532",
+      "passed": true
+    },
+    "x86_64": {
+      "resource_id": 7814,
+      "caption": "$1 at $2",
+      "pak_sha256": "9ea56084e2a6b3855c7dbcc353d61263ac69bcac0adb98106006201ca6df1532",
+      "passed": true
+    }
+  },
+  "cleanup": {
+    "removed": [
+      ".work/older-tabs-dates/preview-output",
+      ".work/older-tabs-dates/preview-output-3",
+      ".work/older-tabs-dates/preview-output-4",
+      ".work/older-tabs-dates/preview-output-5",
+      ".work/older-tabs-dates/native-check-output",
+      ".work/older-tabs-dates/eye-candidate",
+      ".work/older-tabs-dates/replay",
+      ".work/older-tabs-dates/preview/profile",
+      ".work/older-tabs-dates/preview/extension",
+      ".work/older-tabs-dates/preview-2/profile",
+      ".work/older-tabs-dates/preview-2/extension",
+      ".work/older-tabs-dates/preview-3/profile",
+      ".work/older-tabs-dates/preview-3/extension",
+      ".work/older-tabs-dates/preview-4/profile",
+      ".work/older-tabs-dates/preview-4/extension",
+      ".work/older-tabs-dates/preview-5/profile",
+      ".work/older-tabs-dates/preview-5/extension",
+      ".work/older-tabs-dates/final-older-settings-arm64/profile",
+      ".work/older-tabs-dates/final-older-settings-arm64/extension",
+      ".work/older-tabs-dates/final-older-settings-x86_64/profile",
+      ".work/older-tabs-dates/final-older-settings-x86_64/extension",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/older_tabs_dates_check",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/older_tabs_hover_layout_check",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_dates_check_co1haavi",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_dates_check___j2g8gp",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_dates_check_5m9vam4u",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_dates_check_kf_zbulh",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_dates_check_13hixcfh",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_pj09qubk",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_k8q0cfkt",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_fi618iv9",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_h9zptux2",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_p31v7lje",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_w50jh6om",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_taxgzt55",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_kvhundxb",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_d43lug_z",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check__jtovlqu",
+      ".work/older-tabs-arrangement/platform/build/src/out/Default/obj/lune_older_hover_layout_check_5epbulaj",
+      ".work/older-tabs-arrangement/platform/build/src/out/Intel/older_tabs_dates_check",
+      ".work/older-tabs-arrangement/platform/build/src/out/Intel/older_tabs_hover_layout_check",
+      ".work/older-tabs-arrangement/platform/build/src/out/Intel/obj/lune_older_dates_check_7qtemp8o",
+      ".work/older-tabs-arrangement/platform/build/src/out/Intel/obj/lune_older_hover_layout_check_3gwpysal"
+    ],
+    "processes_using_targets": false,
+    "preserved": [
+      "Shared prepared Chromium source",
+      "Default and Intel outputs",
+      "Compiler and dependency caches",
+      "Source preimages, patches, logs, screenshots and compact reports"
+    ],
+    "targets_absent": true
+  },
+  "workspace": {
+    "source": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-arrangement/platform/build/src",
+    "base_platform": "a3b3fda9af9a1ed014127e7525d3fcc992ca9b6e",
+    "separate_source_copy_created": false,
+    "applied_patches": [
+      "helium/ui/older-tabs-arrangement-aging.patch",
+      "helium/ui/older-tabs-disclosure.patch",
+      "helium/ui/update-release-notes.patch",
+      "lune/github-release-notes.patch",
+      "helium/ui/older-tabs-entry-clock.patch",
+      "helium/ui/address-overflow-padding.patch",
+      "helium/ui/bottom-alert-safe-area.patch",
+      "helium/ui/onboarding-safe-area-progress.patch",
+      "helium/ui/sidebar-bottom-inset.patch",
+      "helium/ui/onboarding-preferred-defaults.patch",
+      "lune/onboarding-preferred-defaults-copy.patch",
+      "lune/onboarding-welcome-refinements.patch",
+      "helium/ui/onboarding-search-layout.patch",
+      "helium/ui/older-tabs-dates.patch"
+    ]
+  },
+  "timings": {
+    "preview_iterations": "Per-phase timings retained in .work/older-tabs-dates/timings.jsonl. First historical preview duration includes review time, so no measured workflow improvement is claimed."
+  },
+  "limits": [
+    "Intel runtime uses Rosetta on Apple silicon, not physical Intel hardware.",
+    "Strict affected-file replay reuses the prepared source and outputs; no new full Chromium preparation or full Chromium unit executable.",
+    "Date fixture uses real production methods with Chromium base/ICU and isolates Today/Yesterday resource lookup.",
+    "Views fixture uses production row construction and FadeLabel paint with a representative memory label and 16 DIP layout-constant stub; SF raster appearance is covered by owner review.",
+    "Fade paint covers light/dark footer colors at five steps with one 8-bit rounding level; it does not claim independent OS dark-mode acceptance.",
+    "Sandbox blocked the first compiler-cache/loopback-test attempt; the same checks passed with required local access.",
+    "No browser release or website deployment."
+  ]
+}
