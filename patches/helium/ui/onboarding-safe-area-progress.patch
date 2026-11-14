@@ -1,0 +1,348 @@
+Index: src/components/helium_onboarding/index.html
+===================================================================
+--- src.orig/components/helium_onboarding/index.html
++++ src/components/helium_onboarding/index.html
+@@ -5,7 +5,7 @@
+     <meta charset="UTF-8" />
+     <meta name="color-scheme" content="light dark" />
+     <link rel="icon" type="image/svg+xml" href="/lune.svg" />
+-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+     <title>Lune Setup</title>
+ </head>
+ 
+Index: src/components/helium_onboarding/src/app.css
+===================================================================
+--- src.orig/components/helium_onboarding/src/app.css
++++ src/components/helium_onboarding/src/app.css
+@@ -1,14 +1,9 @@
+ :root {
+-    --page-scroll-gradient-mask: linear-gradient(
+-        to bottom,
+-        rgba(0, 0, 0, 1) 90%,
+-        rgba(0, 0, 0, 0) 100%
+-    );
+-
+-    /* Distance of the fixed navigation buttons from the bottom of the page. */
+-    --navigation-bottom-space: 24px;
+-    /* Scroll padding that keeps page content clear of the navigation buttons. */
+-    --navigation-clearance: 96px;
++    /* The 20px dot target adds 6px around each visible 8px dot. Together
++       with this 10px footer offset, the dot clears the safe-area edge by 16px. */
++    --navigation-bottom-space: calc(env(safe-area-inset-bottom, 0px) + 10px);
++    /* Buttons, progress dots, and breathing room above the raised footer. */
++    --navigation-clearance: calc(env(safe-area-inset-bottom, 0px) + 102px);
+ }
+ 
+ body {
+@@ -64,10 +59,9 @@ h2 {
+     overflow-y: visible;
+     /* accommodation for outline */
+     padding: var(--gap-1);
+-    padding-top: 0;
++    padding-top: env(safe-area-inset-top, 0px);
+     /* accommodation for navigation buttons */
+     padding-bottom: var(--navigation-clearance);
+-    mask-image: var(--page-scroll-gradient-mask);
+ }
+ 
+ .page-content {
+@@ -211,7 +205,13 @@ body, button { font-family: Inter, sans-
+ }
+ /* The renderer extends the root background into the reserved toolbar band. */
+ html, body { background: var(--setup-background); }
+-main::before {
++/* Keep the introductory reveal independent of the setup-step dimming. */
++.setup-wallpaper {
++    position: absolute; inset: 0; pointer-events: none;
++    opacity: 1; transition: opacity 300ms ease;
++}
++.setup-wallpaper.dimmed { opacity: .5; }
++.setup-wallpaper::before {
+     content: ''; position: absolute; inset: -16px;
+     background-image: url('/wallpaper-dark.jpg');
+     background-color: var(--setup-background);
+@@ -221,8 +221,11 @@ main::before {
+         wallpaper-rise 3500ms cubic-bezier(.45,0,.55,1) both;
+ }
+ @media (prefers-color-scheme: light) {
+-    main::before { background-image: url('/wallpaper-light.jpg'); }
++    .setup-wallpaper::before { background-image: url('/wallpaper-light.jpg'); }
+ }
+ @keyframes wallpaper-rise { from { translate: 0 12px; } to { translate: 0 -4px; } }
+ @keyframes wallpaper-in { from { opacity: 0; transform: scale(1); } to { opacity: 1; transform: scale(1.05); } }
+-@media (prefers-reduced-motion: reduce) { main::before { animation: none; } }
++@media (prefers-reduced-motion: reduce) {
++    .setup-wallpaper { transition: none; }
++    .setup-wallpaper::before { animation: none; }
++}
+Index: src/components/helium_onboarding/src/components/PageNavigation.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/PageNavigation.svelte
++++ src/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -20,13 +20,24 @@
+         nextPage,
+         previousPage,
+         currentPage,
++        setupPages,
++        goToPage,
+         selectedProfiles,
+         previouslyImportedProfiles,
+     } from "../lib/onboarding-flow";
+ 
+-    const visible = $derived($currentPage !== "Welcome");
++    const welcome = $derived($currentPage === "Welcome");
+ 
+     let working = $state(false);
++    const pageTitles = $derived({
++        Welcome: s.page.title,
++        HeliumServices: s.services.title,
++        SearchEngine: s.search.title,
++        DataImport: s.dataImport.title,
++        PasswordManager: s.password.title,
++        Finish: s.finish.title,
++    });
++    const currentStep = $derived($setupPages.findIndex(page => page === $currentPage));
+ 
+     // "Next" is disabled while profiles are importing or refreshing. Importing
+     // may show a browser-level error, such as a request to close the other
+@@ -83,8 +94,10 @@
+     }
+ </script>
+ 
+-<div class="glass-children">
+-    <div id="setup-buttons" class="action-buttons" class:visible>
++<div id="setup-footer" class="glass-children">
++    <div id="setup-footer-fade" aria-hidden="true"></div>
++    {#if !welcome}
++    <div id="setup-buttons" class="action-buttons">
+         <Button disabled={working} onclick={previousPage}>
+             <IconArrowLeft />
+             {s.button.back}
+@@ -100,14 +113,45 @@
+             {$currentPage === "Finish" ? s.button.letsGo : s.button.next}
+         </Button>
+     </div>
++    {/if}
++    <nav class="setup-progress" aria-label={s.page.title}>
++        {#each $setupPages as page, step (page)}
++            <button
++                class="progress-step"
++                class:filled={step <= currentStep}
++                aria-label={pageTitles[page]}
++                aria-current={page === $currentPage ? 'step' : undefined}
++                disabled={nextDisabled}
++                onclick={() => goToPage(page)}
++            >
++                <span class="step-dot"></span>
++                <span class="step-tooltip" role="tooltip">{pageTitles[page]}</span>
++            </button>
++        {/each}
++    </nav>
+ </div>
+ 
+ <style>
+-    #setup-buttons {
+-        --bottom-space: var(--navigation-bottom-space);
+-        --misclick-protect: 8px;
+-
+-        bottom: var(--bottom-space);
++    #setup-footer-fade {
++        position: absolute;
++        top: -12px;
++        bottom: calc(-1 * var(--navigation-bottom-space));
++        left: 50%;
++        width: 100vw;
++        transform: translateX(-50%);
++        background: linear-gradient(to bottom,
++            transparent,
++            color-mix(in srgb, var(--setup-background) 92%, transparent) 65%,
++            var(--setup-background));
++        pointer-events: none;
++        z-index: -1;
++    }
++    #setup-footer {
++        bottom: var(--navigation-bottom-space);
++        display: flex;
++        flex-direction: column;
++        align-items: center;
++        gap: 10px;
+         left: 50%;
+         transform: translateX(-50%);
+ 
+@@ -115,35 +159,75 @@
+ 
+         position: fixed;
+         z-index: 9;
++    }
+ 
+-        visibility: hidden;
++    #setup-buttons {
++        position: static;
++        justify-content: center;
++    }
+ 
+-        &.visible {
+-            visibility: visible;
+-            animation: slide-in 0.35s;
+-            animation-delay: 0.4s;
+-            animation-fill-mode: backwards;
+-        }
++    .setup-progress { display: flex; gap: 0; }
++    #setup-footer .progress-step {
++        position: relative;
++        display: grid;
++        place-items: center;
++        width: 20px;
++        min-width: 0;
++        height: 20px;
++        min-height: 0;
++        padding: 0;
++        border: 0;
++        border-radius: 3px;
++        background: transparent;
++        backdrop-filter: none;
++        color: var(--primary);
++        cursor: pointer;
++        transform: none;
++        transition: none;
++        will-change: auto;
++    }
++    .step-dot {
++        width: 8px;
++        height: 8px;
++        border-radius: 50%;
++        background: currentColor;
++        opacity: .2;
++        transition: opacity 150ms;
+     }
++    .progress-step.filled .step-dot { opacity: 1; }
++    .progress-step:hover:not(:disabled) .step-dot { opacity: .4; }
++    .progress-step.filled:hover:not(:disabled) .step-dot { opacity: .75; }
++    .progress-step:focus-visible { outline: 2px solid var(--helium-blue); outline-offset: 2px; }
++    .progress-step:disabled { cursor: default; opacity: .5; }
+ 
+-    /* invisible bottom layer to prevent misclicks */
+-    #setup-buttons::before {
+-        content: '';
+-        width: 600px;
+-        height: calc(100% + var(--bottom-space) + var(--misclick-protect));
+-        top: calc(-1 * var(--misclick-protect));
++    .step-tooltip {
+         position: absolute;
++        bottom: calc(50% + 9px);
++        left: 50%;
++        transform: translateX(-50%);
++        width: max-content;
++        max-width: min(280px, calc(100vw - 40px));
++        padding: 6px 10px;
++        border-radius: 9999px;
++        background: #000;
++        color: #fff;
++        font-size: 12px;
++        font-weight: 700;
++        font-synthesis: weight;
++        line-height: 1.3;
++        text-align: center;
++        pointer-events: none;
++        visibility: hidden;
++        opacity: 0;
++        transition: none;
+     }
+-
+-    @keyframes slide-in {
+-        from {
+-            translate: 0 80px;
+-        }
++    .progress-step:hover:not(:disabled) .step-tooltip,
++    .progress-step:focus-visible .step-tooltip {
++        visibility: visible;
++        opacity: 1;
+     }
+ 
+     @media (prefers-reduced-motion) {
+-        #setup-buttons.visible {
+-            animation: none;
+-        }
++        .step-dot, .step-tooltip { transition: none; }
+     }
+ </style>
+Index: src/components/helium_onboarding/src/lib/onboarding-flow.ts
+===================================================================
+--- src.orig/components/helium_onboarding/src/lib/onboarding-flow.ts
++++ src/components/helium_onboarding/src/lib/onboarding-flow.ts
+@@ -22,13 +22,12 @@ export const currentPage = derived(
+     $index => flow[$index]
+ );
+ 
+-const shouldSkip = (page: typeof flow[number]): boolean => {
++const shouldSkip = (page: typeof flow[number], pref = get(preferences)): boolean => {
+     switch (page) {
+         case 'DataImport':
+             return platform.is.android;
+         case 'PasswordManager':
+             // skip if we aren't allowed to install extensions
+-            const pref = get(preferences);
+             return platform.is.android
+                 || !pref['services.ext_proxy']
+                 || !pref['services.enabled'];
+@@ -37,6 +36,19 @@ const shouldSkip = (page: typeof flow[nu
+     }
+ }
+ 
++// Dots describe every reachable setup page, including the welcome page.
++type SetupPage = typeof flow[number];
++export const setupPages = derived(preferences, pref =>
++    flow.filter(page => !shouldSkip(page, pref))
++);
++
++export const goToPage = (page: SetupPage) => {
++    if (get(setupPages).includes(page)) {
++        if (get(currentPage) === "Welcome" && page !== "Welcome") markIntroSeen();
++        index.set(flow.indexOf(page));
++    }
++};
++
+ const getPageNumber = (current: number, direction = 1) => {
+     let next = current + direction;
+ 
+Index: src/components/helium_onboarding/src/pages/DataImport.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/pages/DataImport.svelte
++++ src/components/helium_onboarding/src/pages/DataImport.svelte
+@@ -115,7 +115,7 @@
+              * clear of the fixed navigation buttons, so reserve that space here.
+              */
+             max-height: calc(
+-                100dvh - var(--navigation-clearance) - var(--navigation-bottom-space)
++                100dvh - var(--navigation-clearance) - env(safe-area-inset-top, 0px)
+             );
+             padding-block: var(--gap-1);
+             mask-image: none;
+Index: src/components/helium_onboarding/src/App.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/App.svelte
++++ src/components/helium_onboarding/src/App.svelte
+@@ -19,7 +19,8 @@
+     });
+ </script>
+ <main>
+-    {#if $currentPage !== "Welcome"}<PageNavigation />{/if}
++    <div class="setup-wallpaper" class:dimmed={$currentPage !== "Welcome"} aria-hidden="true"></div>
++    <PageNavigation />
+     {#each flow as page (page)}
+         {#if mountedPages.has(page)}
+             {@const Component = pages[page]}
+Index: src/components/helium_onboarding/src/pages/Welcome.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/pages/Welcome.svelte
++++ src/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -59,7 +59,7 @@
+ </div>
+ 
+ <style>
+-    #welcome-page { overflow-y: auto; justify-content: safe center; padding: 32px 20px; box-sizing: border-box; }
++    #welcome-page { overflow-y: auto; justify-content: safe center; padding: 32px 20px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 60px); box-sizing: border-box; }
+     #welcome-page.visible { animation: none; }
+     #welcome-page.visible #welcome-page-container {
+         animation: welcome-rise 3300ms cubic-bezier(.45,0,.55,1) 200ms both;

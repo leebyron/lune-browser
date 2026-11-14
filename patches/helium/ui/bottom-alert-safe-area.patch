@@ -1,0 +1,270 @@
+Index: src/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
+===================================================================
+--- src.orig/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
++++ src/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
+@@ -5,17 +5,28 @@
+ #include "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.h"
+ 
+ #include <algorithm>
++#include <memory>
++#include <utility>
+ 
+ #include "base/check.h"
+ #include "base/functional/bind.h"
++#include "base/supports_user_data.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
+ #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
++#include "chrome/browser/ui/views/frame/contents_web_view.h"
+ #include "chrome/browser/ui/views/frame/custom_corners_background.h"
+ #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
+ #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+ #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
++#include "content/public/browser/navigation_handle.h"
++#include "content/public/browser/render_frame_host.h"
++#include "content/public/browser/web_contents.h"
++#include "content/public/browser/web_contents_observer.h"
++#include "mojo/public/cpp/bindings/associated_remote.h"
++#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
++#include "third_party/blink/public/mojom/page/display_cutout.mojom.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/views/view.h"
+ #include "ui/views/view_class_properties.h"
+@@ -25,6 +36,57 @@
+ #include "chrome/browser/ui/views/frame/glass_frame_service.h"
+ #endif
+ 
++namespace {
++
++// Store the geometry with its WebContents, including across renderer swaps.
++// Layout updates only send changed values; a committed document always receives
++// the current value even if the native view did not need another layout.
++class BrowserOverlayInsets : public base::SupportsUserData::Data,
++                             public content::WebContentsObserver {
++ public:
++  explicit BrowserOverlayInsets(content::WebContents* contents)
++      : content::WebContentsObserver(contents) {}
++
++  static void Set(content::WebContents* contents, int bottom) {
++    if (!contents) {
++      return;
++    }
++    static const char kKey = 0;
++    auto* state = static_cast<BrowserOverlayInsets*>(contents->GetUserData(&kKey));
++    if (!state) {
++      auto data = std::make_unique<BrowserOverlayInsets>(contents);
++      state = data.get();
++      contents->SetUserData(&kKey, std::move(data));
++    }
++    if (state->bottom_ != bottom) {
++      state->bottom_ = bottom;
++      state->Send();
++    }
++  }
++
++  void DidFinishNavigation(content::NavigationHandle* navigation) override {
++    if (navigation->HasCommitted() && navigation->IsInPrimaryMainFrame()) {
++      Send();
++    }
++  }
++
++ private:
++  void Send() {
++    auto* frame = web_contents()->GetPrimaryMainFrame();
++    if (!frame || !frame->IsRenderFrameLive()) {
++      return;
++    }
++    mojo::AssociatedRemote<blink::mojom::DisplayCutoutClient> client;
++    frame->GetRemoteAssociatedInterfaces()->GetInterface(
++        client.BindNewEndpointAndPassReceiver());
++    client->SetBrowserOverlayInsets(gfx::Insets::TLBR(0, 0, bottom_, 0));
++  }
++
++  int bottom_ = 0;
++};
++
++}  // namespace
++
+ // Proposed layout implementation.
+ 
+ BrowserViewLayoutImpl::ProposedLayout::ProposedLayout(
+@@ -313,6 +375,21 @@ void BrowserViewLayoutImpl::Layout(views
+     }
+     container->SetBoundsRect(bounds);
+     SetViewVisibility(container, !bounds.IsEmpty());
++
++    for (ContentsContainerView* pane :
++         views().multi_contents_view->contents_container_views()) {
++      auto* contents_view = pane->contents_view();
++      const gfx::Rect contents_bounds = views::View::ConvertRectToTarget(
++          contents_view, views().browser_view, contents_view->GetLocalBounds());
++      const int bottom =
++          pane->GetVisible() && bounds.Intersects(contents_bounds)
++              ? std::clamp(contents_bounds.bottom() - bounds.y(), 0,
++                           contents_bounds.height())
++              : 0;
++      // Read only: GetWebContents() would create contents for an empty pane
++      // during window construction, before a browser tab has been attached.
++      BrowserOverlayInsets::Set(contents_view->web_contents(), bottom);
++    }
+   }
+ 
+   // Child layouts run before parent bounds are applied. Recenter now that the
+Index: src/third_party/blink/public/mojom/page/display_cutout.mojom
+===================================================================
+--- src.orig/third_party/blink/public/mojom/page/display_cutout.mojom
++++ src/third_party/blink/public/mojom/page/display_cutout.mojom
+@@ -37,4 +37,8 @@ interface DisplayCutoutHost {
+ interface DisplayCutoutClient {
+   // Notify the renderer that the safe areas have changed.
+   SetSafeArea(gfx.mojom.Insets safe_area);
++
++  // Browser-owned overlays, in DIPs relative to this frame's viewport.
++  // Kept separate from physical display cutouts and exposed for viewport-fit=cover.
++  SetBrowserOverlayInsets(gfx.mojom.Insets insets);
+ };
+Index: src/third_party/blink/renderer/core/exported/web_view_impl.cc
+===================================================================
+--- src.orig/third_party/blink/renderer/core/exported/web_view_impl.cc
++++ src/third_party/blink/renderer/core/exported/web_view_impl.cc
+@@ -3237,7 +3237,7 @@ void WebViewImpl::UpdateMainFrameLayoutS
+     view->Resize(MainFrameSize());
+     viewport.SetNeedsPaintPropertyUpdate();
+     view->SetNeedsPaintPropertyUpdate();
+-    GetPage()->SetMaxSafeAreaInsets(MainFrameImpl()->GetFrame(), gfx::Insets());
++    GetPage()->RecomputeSafeAreaInsets(MainFrameImpl()->GetFrame());
+   }
+ }
+ 
+Index: src/third_party/blink/renderer/core/frame/display_cutout_client_impl.cc
+===================================================================
+--- src.orig/third_party/blink/renderer/core/frame/display_cutout_client_impl.cc
++++ src/third_party/blink/renderer/core/frame/display_cutout_client_impl.cc
+@@ -36,6 +36,12 @@ void DisplayCutoutClientImpl::SetSafeAre
+   frame_->GetDocument()->GetPage()->SetMaxSafeAreaInsets(frame_, safe_area);
+ }
+ 
++void DisplayCutoutClientImpl::SetBrowserOverlayInsets(const gfx::Insets& insets) {
++  if (frame_->IsOutermostMainFrame()) {
++    frame_->GetDocument()->GetPage()->SetBrowserOverlayInsets(frame_, insets);
++  }
++}
++
+ void DisplayCutoutClientImpl::Trace(Visitor* visitor) const {
+   visitor->Trace(frame_);
+   visitor->Trace(receiver_);
+Index: src/third_party/blink/renderer/core/frame/display_cutout_client_impl.h
+===================================================================
+--- src.orig/third_party/blink/renderer/core/frame/display_cutout_client_impl.h
++++ src/third_party/blink/renderer/core/frame/display_cutout_client_impl.h
+@@ -34,6 +34,7 @@ class CORE_EXPORT DisplayCutoutClientImp
+ 
+   // Notify the renderer that the safe areas have changed.
+   void SetSafeArea(const gfx::Insets& safe_area) override;
++  void SetBrowserOverlayInsets(const gfx::Insets& insets) override;
+ 
+   void Trace(Visitor*) const;
+ 
+Index: src/third_party/blink/renderer/core/page/page.cc
+===================================================================
+--- src.orig/third_party/blink/renderer/core/page/page.cc
++++ src/third_party/blink/renderer/core/page/page.cc
+@@ -971,6 +971,27 @@ void Page::UpdateSafeAreaInsetWithBrowse
+ }
+ 
+ void Page::SetMaxSafeAreaInsets(LocalFrame* setter, gfx::Insets max_safe_area) {
++  max_safe_area_insets_ = max_safe_area;
++  RecomputeSafeAreaInsets(setter);
++}
++
++void Page::SetBrowserOverlayInsets(LocalFrame* setter, gfx::Insets insets) {
++  browser_overlay_insets_ = insets;
++  RecomputeSafeAreaInsets(setter);
++}
++
++void Page::RecomputeSafeAreaInsets(LocalFrame* setter) {
++  gfx::Insets max_safe_area = max_safe_area_insets_;
++  if (setter->IsOutermostMainFrame()) {
++    const auto fit = setter->GetDocument()->GetViewportData()
++                         .GetViewportDescription().GetViewportFit();
++    if (fit == mojom::ViewportFit::kCover ||
++        fit == mojom::ViewportFit::kCoverForcedByUserAgent) {
++      // Both values measure from the same viewport edges: take the maximum,
++      // rather than adding overlapping occlusions together.
++      max_safe_area.SetToMax(browser_overlay_insets_);
++    }
++  }
+   // Update |scaled_max_safe_area_insets_| first.
+   float dsf = chrome_client_->GetScreenInfo(*setter).device_scale_factor;
+   gfx::InsetsF scaled_max_safe_area_insets =
+Index: src/third_party/blink/renderer/core/page/page.h
+===================================================================
+--- src.orig/third_party/blink/renderer/core/page/page.h
++++ src/third_party/blink/renderer/core/page/page.h
+@@ -380,6 +380,8 @@ class CORE_EXPORT Page final : public Ga
+   // frame, applies the same safe-area-inset* to the given |setter|'s document
+   // as well. The input |insets| is unscaled and in the size of dips.
+   void SetMaxSafeAreaInsets(LocalFrame* setter, gfx::Insets insets);
++  void SetBrowserOverlayInsets(LocalFrame* setter, gfx::Insets insets);
++  void RecomputeSafeAreaInsets(LocalFrame* setter);
+ 
+   const RendererPreferences& GetRendererPreferences() const {
+     return renderer_preferences_;
+@@ -674,6 +676,8 @@ class CORE_EXPORT Page final : public Ga
+   // |max_safe_area_insets_| is coming from the display cutout client.
+   // |scaled_max_safe_area_insets_| has been scaled to the size of physical
+   // pixles.
++  gfx::Insets max_safe_area_insets_;
++  gfx::Insets browser_overlay_insets_;
+   gfx::InsetsF scaled_max_safe_area_insets_;
+   gfx::InsetsF applied_safe_area_insets_;
+ 
+Index: src/chrome/browser/ui/views/frame/BUILD.gn
+===================================================================
+--- src.orig/chrome/browser/ui/views/frame/BUILD.gn
++++ src/chrome/browser/ui/views/frame/BUILD.gn
+@@ -3058,11 +3058,13 @@ source_set("browser_view_layout_impl") {
+   ]
+ 
+   deps = [
++    ":contents_web_view",
+     ":glass_frame_service",
+     ":multi_contents_view",
+     "//build:buildflag_header_h",
+     "//chrome/browser/ui/immersive:immersive_mode_controller",
+     "//chrome/browser/ui/views/bookmarks",
++    "//chrome/browser/ui/views/infobars",
+     "//chrome/browser/ui/views/toolbar",
+     "//ui/base:features",
+   ]
+Index: src/third_party/blink/renderer/controller/blink_initializer.cc
+===================================================================
+--- src.orig/third_party/blink/renderer/controller/blink_initializer.cc
++++ src/third_party/blink/renderer/controller/blink_initializer.cc
+@@ -327,7 +327,9 @@ void BlinkInitializer::RegisterMemoryWat
+ }
+ 
+ void BlinkInitializer::InitLocalFrame(LocalFrame& frame) const {
+-  if (RuntimeEnabledFeatures::DisplayCutoutAPIEnabled()) {
++  // macOS browser overlays report safe areas independently of the mobile
++  // display-cutout runtime feature.
++  if (RuntimeEnabledFeatures::DisplayCutoutAPIEnabled() || BUILDFLAG(IS_MAC)) {
+     frame.GetInterfaceRegistry()->AddAssociatedInterface(
+         BindRepeating(&DisplayCutoutClientImpl::BindMojoReceiver,
+                       WrapWeakPersistent(&frame)));
+Index: src/chrome/browser/ui/views/infobars/infobar_container_view.cc
+===================================================================
+--- src.orig/chrome/browser/ui/views/infobars/infobar_container_view.cc
++++ src/chrome/browser/ui/views/infobars/infobar_container_view.cc
+@@ -269,6 +269,10 @@ void InfoBarContainerView::PlatformSpeci
+ 
+   infobar_view->SetQueuedInfoBarCount(0, base::PassKey<InfoBarContainerView>());
+   RemoveChildView(infobar_view);
++  // Non-animated dismissal removes the view without a height-change callback.
++  // Recompute the floating stack and its page safe area on the next layout,
++  // even when the browser window and content viewport have not changed size.
++  PreferredSizeChanged();
+   if (!replacing_infobar_) {
+     UpdateQueuedCountPill(infobar);
+   }
