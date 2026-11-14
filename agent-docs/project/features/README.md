@@ -8,6 +8,7 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [Selected address-bar suggestions](address-suggestion-selection.md)
 - [Search-engine suggestions and top hits](search-suggestions.md)
 - [Application-menu update check](app-menu-update-check.md)
+- [Update release notes and inline About links](update-release-notes.md)
 - [Native chrome appearance](chrome-appearance.md)
 - [Command-T glass bounds and layout](command-bar-corners.md)
 - [Stable command-menu glass](command-menu-stable-glass.md)

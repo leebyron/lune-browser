@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "dda1bdf0de0c3e04532adbc16f2aebcd6a1d8d63",
+    "commit": "947e456532c78d60f0fc606a2ac9ed5c21d85971",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -869,6 +869,14 @@
       {
         "path": "patches/helium/ui/older-tabs-disclosure.patch",
         "sha256": "0d6ceffcc107e834cbd07c0ba171b80b33c53926d82cf7f0844ef7134ca12d18"
+      },
+      {
+        "path": "patches/helium/ui/update-release-notes.patch",
+        "sha256": "ee6adad70049886fd53f30f034acbd74983e54ad28cd2bb47db29a15a0ccc55f"
+      },
+      {
+        "path": "patches/lune/github-release-notes.patch",
+        "sha256": "679127082d04eda4a24f016fa616116edeeeb5ab6b0e623e3551ba45e348ea6f"
       }
     ]
   },
@@ -2521,6 +2529,39 @@
       "adaptation": "The section foreground supplies the Native chevron fallback. A temporary host layer clip follows animated content height even when scrolling contents fill the viewport; individual tab layers retain no viewport-dependent clip, avoiding cropped drag images. Outgoing tabs and empty date headings stop reserving their old slots while the regular stack is targeted. The owner accepted the chevron, animation and final drag correction on physical Apple silicon. Both browser builds and UI/Settings/browsing/persistence smoke pass; Intel uses Rosetta. The added Views regression compiles on both targets, but the full Chromium unit-test executable was not linked or run. Five-file quilt/export/replay has zero fuzz/offsets and exact source parity. See agent-docs/project/builds/2026-11-13-older-tabs-disclosure.json.",
       "commits": [
         "dda1bdf0de0c3e04532adbc16f2aebcd6a1d8d63"
+      ]
+    },
+    {
+      "id": "downloaded-update-release-notes",
+      "depends_on": [
+        "sidebar-footer",
+        "services-update-controls",
+        "app-menu-update-check"
+      ],
+      "patches": [
+        "patches/helium/ui/update-release-notes.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Open downloaded-update release notes from a tab-style sidebar info action and keep the disabled-update settings notice inline.",
+      "adaptation": "Prepared-source quilt change reuses TabCloseButton with info.circle and See what's new accessibility text. Sparkle captures releaseNotesURL from the pending downloaded item; clicking opens a new foreground tab without invoking installation. About keeps Update settings inline with its notice and opens Privacy and security. Native Apple silicon preview was accepted; paired builds, native/Rosetta fixtures, runtime About routing/inline checks and browsing/settings/profile persistence pass. See agent-docs/project/builds/2026-11-13-update-release-notes.json.",
+      "commits": [
+        "825acebd14c9d51ff11f34dcfad398e4a5121abc"
+      ]
+    },
+    {
+      "id": "lune-github-release-notes",
+      "depends_on": [
+        "downloaded-update-release-notes",
+        "canonical-update-repository"
+      ],
+      "patches": [
+        "patches/lune/github-release-notes.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Bind existing Lune feeds to downloaded-version GitHub notes and expose latest release notes inline with the About version.",
+      "adaptation": "Distribution-only fallback uses the validated downloaded version for the GitHub release tag when an appcast omits releaseNotesLink. About links to GitHub releases/latest at the end of its version line; the link text stays together when wrapping is necessary. Published releases and feeds are unchanged. Owner accepted the final preview; validation is recorded with the reusable action.",
+      "commits": [
+        "947e456532c78d60f0fc606a2ac9ed5c21d85971"
       ]
     }
   ],
