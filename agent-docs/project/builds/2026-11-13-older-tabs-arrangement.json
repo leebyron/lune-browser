@@ -474,7 +474,8 @@
       "Exact validation logs, compact reports and clock snapshots",
       "Isolated prepared source, component input checkout and current build outputs as reusable development cache",
       "Published release source/artifacts and personal app/profile untouched"
-    ]
+    ],
+    "post_push_runner_exited": true
   },
   "repository_tests": {
     "passed": true,
@@ -492,7 +493,14 @@
     "main_integration": "Git history identifies the integration commit; no release or feed change.",
     "component_refs_verified": true,
     "component_commit": "3543de9e3f4030a7c221e9d70792b52b2f38d394",
-    "signed_tag_object": "4845a9c2c04217fe03e570a547a54bc492fd7f4a"
+    "signed_tag_object": "4845a9c2c04217fe03e570a547a54bc492fd7f4a",
+    "main_integration_commit": "703108657789606b4c097e82eecdaa13666180ba",
+    "post_push_setup": {
+      "run_id": 43563346963,
+      "conclusion": "success",
+      "url": "https://github.com/leebyron/lune-browser/actions/runs/43563346963",
+      "scope": "Fresh GitHub reconstruction, all repository tests, locked configuration, signature/input ancestry and patch validation on the existing free local runner."
+    }
   },
   "development_workspace": ".work/older-tabs-arrangement/platform/build/src",
   "patch_and_core_lint": true,
@@ -526,7 +534,22 @@
       "arm64": 7.708137959241867,
       "x86_64": 6.961327042430639
     },
-    "scope": "Measured with monotonic timers in the retained build/model drivers. Compile and link were not independently timed. One-time source/cache clone, fixture setup and edit-to-preview intervals were not measured; no comparative speedup claimed. Subsequent post-push check timing uses scripts/time-development.py, adopted while this candidate was already validated."
+    "scope": "Measured with monotonic timers in the retained build/model drivers. Compile and link were not independently timed. One-time source/cache clone, fixture setup and edit-to-preview intervals were not measured; no comparative speedup claimed. Subsequent post-push check timing uses scripts/time-development.py, adopted while this candidate was already validated.",
+    "post_push_check": {
+      "iteration": "final",
+      "arch": "arm64",
+      "phase": "checks",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/ci-runner/run.sh",
+        "--once"
+      ],
+      "started_at": "2026-11-14T05:49:56.197303+00:00",
+      "finished_at": "2026-11-14T05:50:31.570898+00:00",
+      "seconds": 35.373211,
+      "returncode": 0,
+      "exit_code": 0
+    }
   },
   "validation_scripts_sha256": {
     "scripts/check-older-tabs.py": "0026a70570ea4a9a0c543333020bfd8fc27fb801f4f4c974c7bc3e4084f6b8a8",
