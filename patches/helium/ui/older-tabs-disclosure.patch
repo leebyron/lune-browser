@@ -1,0 +1,212 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc
+@@ -419,6 +419,34 @@
+     RemoveNonAnimatingPendingDeleteViews();
+     ClearViewAnimationMetadata();
+   }
++
++  // Scroll contents can fill a viewport taller than their preferred size.
++  // Clip section rows at the animated content edge, rather than relying on
++  // the host's actual bounds to shrink along with its preferred size.
++  const bool clip_host =
++      animate_host_size_ && is_animating_ && !delegate_->IsDragging() &&
++      std::ranges::any_of(host_view()->children(),
++                          [this](const views::View* child) {
++                            return delegate_->ShouldClipChildToAnimatedHost(
++                                *child);
++                          });
++  if (clip_host || is_host_clip_active_) {
++    if (!host_view()->layer()) {
++      host_view()->SetPaintToLayer();
++      host_view()->layer()->SetFillsBoundsOpaquely(false);
++    }
++    gfx::Rect clip_bounds;
++    if (clip_host) {
++      clip_bounds = gfx::Rect(current_layout_.host_size);
++      if (IsVerticalOrWrappingVertically()) {
++        clip_bounds.set_height(current_layout_content_size_);
++      } else {
++        clip_bounds.set_width(current_layout_content_size_);
++      }
++    }
++    host_view()->layer()->SetClipRect(clip_bounds);
++    is_host_clip_active_ = clip_host;
++  }
+ }
+ 
+ void TabCollectionAnimatingLayoutManager::OnInstalled(views::View* host) {
+@@ -838,9 +866,8 @@
+       }
+       const bool clip_to_host =
+           delegate_->ShouldClipChildToAnimatedHost(*child_view);
+-      if (clip_to_host) {
+-        child_view->SetClipLayerToVisibleBounds(true);
+-      }
++      // The host clips section motion. A per-row visible-bounds clip would
++      // persist on the tab's layer and crop its transformed drag image.
+       if (clip_to_host && value < 1.0) {
+         const auto start = start_view_layout_map_.find(child_view);
+         interpolated_child.visible |=
+--- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h
++++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h
+@@ -341,6 +341,9 @@
+   // to its target size. In such cases animating the host's preferred size
+   // avoids clipping close / fade-out animations.
+   const bool animate_host_size_ = false;
++
++  // Whether LayoutImpl() must clear the temporary animated-content clip.
++  bool is_host_clip_active_ = false;
+ };
+ 
+ extern const ui::ClassProperty<bool>* const kHasAnimatingLayoutManagerKey;
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -15,7 +15,6 @@
+ #include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
+-#include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/views/frame/sidebar_footer_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+@@ -117,10 +116,8 @@
+                            this, helium::NativeGlassColorRole::kSidebarSection)
+                            .value_or(GetColorProvider()->GetColor(
+                                ui::kColorLabelForegroundSecondary));
+-    const auto icon_color = helium::NativeGlassControlColor(this).value_or(
+-        TabStyle::Get()->GetTabForegroundColor(
+-            /*apparently_active=*/true, /*hovered=*/true,
+-            GetWidget()->ShouldPaintAsActive(), GetColorProvider()));
++    const auto icon_color =
++        helium::NativeGlassControlColor(this).value_or(color);
+     if (collapsed_ == collapsed && color_ == color &&
+         icon_color_ == icon_color) {
+       return;
+@@ -275,7 +272,7 @@
+         GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
+     older_header_->SetBorder(views::CreateEmptyBorder(
+         gfx::Insets::TLBR(6, header_inset, 0, header_inset)));
+-    older_header_->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
++    older_header_->SetFocusBehavior(views::View::FocusBehavior::NEVER);
+     older_header_->SetVisible(false);
+     auto* model =
+         collection_node_->GetController()->GetDragHandler().GetTabStripModel();
+@@ -739,6 +736,10 @@
+   std::set<int> used_days;
+   const auto now = base::Time::Now();
+   for (auto* child : older) {
++    // Date headings follow the tabs still targeting the Older section.
++    if (!IsOlderView(child)) {
++      continue;
++    }
+     const auto frozen =
+         tabs::OlderTabsController::FrozenLastUse(ContentsForView(child));
+     const int days = CivilDaysBetween(now, frozen);
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -147,6 +147,10 @@
+       bounds.set_width(
+           std::max(0, size_bounds.width().value() - x - horizontal_padding));
+     }
++    // A tab targeting the regular stack no longer reserves its former slot.
++    if (older_slot && !container.IsOlderView(child)) {
++      return;
++    }
+     if (older_slot) {
+       if (auto* heading = container.OlderDateHeading(child)) {
+         previous_expanded_group = nullptr;
+@@ -163,15 +167,6 @@
+           height += 16;
+         }
+       }
+-      if (!container.IsOlderView(child)) {
+-        // While dragged above the divider, the tab is drawn in the regular
+-        // stack. Its former chronological slot and heading stay behind.
+-        if (layout_older) {
+-          height += bounds.height() + kTabVerticalPadding;
+-          previous_older_tab = true;
+-        }
+-        return;
+-      }
+     }
+     const auto drag_data = container.GetVisualDataForDraggedView(*child);
+     const bool visible = IsChildVisibleInContainer(focused_group_id, child) &&
+--- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager_unittest.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager_unittest.cc
+@@ -14,6 +14,7 @@
+ #include "base/time/time.h"
+ #include "testing/gmock/include/gmock/gmock.h"
+ #include "testing/gtest/include/gtest/gtest.h"
++#include "ui/compositor/layer.h"
+ #include "ui/gfx/animation/animation.h"
+ #include "ui/gfx/animation/animation_test_api.h"
+ #include "ui/gfx/geometry/rect.h"
+@@ -34,7 +35,12 @@
+   MockAnimatingLayoutManagerDelegate() {
+     ON_CALL(*this, ShouldAnimateLayout).WillByDefault(testing::Return(true));
+   }
++  MOCK_METHOD(bool, IsDragging, (), (const, override));
+   MOCK_METHOD(bool, IsViewDragging, (const views::View&), (const, override));
++  MOCK_METHOD(bool,
++              ShouldClipChildToAnimatedHost,
++              (const views::View&),
++              (const, override));
+   MOCK_METHOD(void, OnAnimationEnded, (), (override));
+   MOCK_METHOD(bool, ShouldAnimateLayout, (), (override));
+ };
+@@ -258,6 +264,55 @@
+ }
+ 
+ TEST_P(TabCollectionAnimatingLayoutManagerTest,
++       SectionClipDoesNotFollowDraggedTab) {
++  if (animation_axis() !=
++      TabCollectionAnimatingLayoutManager::AnimationAxis::kVertical) {
++    GTEST_SKIP() << "Section disclosure uses vertical layout.";
++  }
++  gfx::ScopedAnimationDurationScaleMode normal_duration_mode(
++      gfx::ScopedAnimationDurationScaleMode::NORMAL_DURATION);
++  ON_CALL(*layout_manager_delegate(), ShouldClipChildToAnimatedHost)
++      .WillByDefault(testing::Return(true));
++  SetLayoutManager(std::make_unique<TabCollectionAnimatingLayoutManager>(
++      std::make_unique<TestLayoutManager>(animation_axis()),
++      *layout_manager_delegate(), animation_coordinator(), animation_axis(),
++      /*animate_host_size=*/true));
++
++  // Reproduce scroll contents filling a viewport taller than their content.
++  widget()->SetBounds(gfx::Rect(0, 0, 100, 500));
++  auto* child = host_view()->AddChildView(std::make_unique<views::View>());
++  child->SetPreferredSize(gfx::Size(100, 80));
++  widget()->LayoutRootViewIfNecessary();
++  task_environment()->FastForwardBy(base::Milliseconds(50));
++  widget()->LayoutRootViewIfNecessary();
++  ASSERT_TRUE(layout_manager()->is_animating());
++  ASSERT_TRUE(host_view()->layer());
++  EXPECT_GT(host_view()->layer()->clip_rect().height(), 0);
++  EXPECT_LT(host_view()->layer()->clip_rect().height(), 80);
++  // A transformed tab must not inherit a viewport-dependent layer clip.
++  EXPECT_FALSE(child->GetClipLayerToVisibleBounds());
++
++  // Starting a drag removes the section clip before moving the tab layer.
++  ON_CALL(*layout_manager_delegate(), IsDragging)
++      .WillByDefault(testing::Return(true));
++  host_view()->InvalidateLayout();
++  widget()->LayoutRootViewIfNecessary();
++  EXPECT_TRUE(host_view()->layer()->clip_rect().IsEmpty());
++  EXPECT_FALSE(child->GetClipLayerToVisibleBounds());
++
++  // Drop into the regular stack, where this tab no longer belongs to a section.
++  ON_CALL(*layout_manager_delegate(), IsDragging)
++      .WillByDefault(testing::Return(false));
++  ON_CALL(*layout_manager_delegate(), ShouldClipChildToAnimatedHost)
++      .WillByDefault(testing::Return(false));
++  task_environment()->FastForwardBy(base::Seconds(1));
++  widget()->LayoutRootViewIfNecessary();
++  EXPECT_FALSE(layout_manager()->is_animating());
++  EXPECT_TRUE(host_view()->layer()->clip_rect().IsEmpty());
++  EXPECT_FALSE(child->GetClipLayerToVisibleBounds());
++}
++
++TEST_P(TabCollectionAnimatingLayoutManagerTest,
+        PreferredSizeDuringSwapAnimation) {
+   // Use standard duration for frame-by-frame observation.
+   gfx::ScopedAnimationDurationScaleMode normal_duration_mode(
