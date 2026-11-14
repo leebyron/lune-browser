@@ -57,3 +57,5 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [Native window-menu retention](window-menu-retention.md)
 
 - [Setup safe areas and progress](setup-safe-area-progress.md): dynamic alert inset, clickable dots, tooltips, footer fade and reduced artwork opacity during setup.
+
+- [Preferred setup defaults](setup-preferred-defaults.md): defaults parity, retained opt-outs, confirmation boundaries and softer description text.

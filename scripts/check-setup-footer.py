@@ -15,6 +15,9 @@ build = args.output.resolve()
 evidence = args.evidence.resolve()
 evidence.mkdir(exist_ok=True)
 profile = evidence/('profile-'+str(time.time_ns()))
+# Exercise the browser defaults without ChromeDriver's preset opt-outs.
+(profile/'Default').mkdir(parents=True)
+(profile/'Default/Preferences').write_text('{}\n')
 with socket.socket() as sock:
     sock.bind(('127.0.0.1', 0))
     port = sock.getsockname()[1]
@@ -109,7 +112,7 @@ try:
     assert report['setupArtwork']=='0.5'
     before=prefs()
     report['initialDots']=dots()
-    assert len(report['initialDots'])==5,report['initialDots']
+    assert len(report['initialDots'])==6,report['initialDots']
     assert report['initialDots'][1]['current']=='step'
     assert all(d['dot']=='8px' and d['target']==20 for d in dots())
     report['dotLayout']=js('''const dots=[...document.querySelectorAll('.step-dot')].map(d=>d.getBoundingClientRect());
@@ -142,7 +145,7 @@ try:
       const inset=parseFloat(getComputedStyle(document.querySelector('#safe-area-probe')).paddingBottom);
       return {above:dot.top-buttons.bottom,below:innerHeight-inset-dot.bottom};''')
     assert report['verticalSpacing']=={'above':16,'below':16},report['verticalSpacing']
-    goto(4,'#finish-page.visible')
+    goto(5,'#finish-page.visible')
     assert all(d['filled'] for d in dots())
     after=prefs()
     assert after['services.user_consented']==before['services.user_consented']==False
@@ -152,6 +155,9 @@ try:
     js("[...document.querySelectorAll('#search-engines-page button')].find(b=>b.innerText.startsWith('DuckDuckGo')).click()")
     wait("return document.querySelector('#search-engines-page button[aria-pressed=true]')?.innerText.startsWith('DuckDuckGo')")
     goto(1,'#services-page.visible')
+    js("document.querySelector('#services-page button[role=switch]').click()")
+    wait("return document.querySelectorAll('.progress-step').length===5")
+    report['optionalStepRemoved']=True
     js("document.querySelector('#services-page button[role=switch]').click()")
     wait("return document.querySelectorAll('.progress-step').length===6")
     report['optionalStepDots']=dots()

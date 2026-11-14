@@ -13,6 +13,10 @@ build = args.output.resolve()
 out = args.evidence.resolve()
 out.mkdir(parents=True, exist_ok=True)
 profile=out/('profile-'+str(time.time_ns()));profile.mkdir(exist_ok=True)
+# An existing empty preferences file prevents ChromeDriver's template from
+# injecting search.suggest_enabled=false as an explicit user choice.
+(profile/'Default').mkdir()
+(profile/'Default/Preferences').write_text('{}\n')
 with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
 log=(out/'driver.log').open('w');process=subprocess.Popen([str(build/'chromedriver'),f'--port={port}','--allowed-ips=127.0.0.1'],stdout=log,stderr=subprocess.STDOUT)
 def wd(method,path,data=None):
@@ -65,7 +69,10 @@ try:
  assert next(a for a in report['introTiming'] if a['name']=='wallpaper-in')['duration']==1600
  assert next(a for a in report['introTiming'] if a['name']=='wallpaper-in')['delay']==1300
  report['introMotion']=js("const a=document.getAnimations().find(a=>a.animationName.includes('welcome-rise'));const scale=document.getAnimations().find(a=>a.animationName.includes('logo-settle'));a.pause();scale.pause();a.currentTime=0;scale.currentTime=0;const logo=document.querySelector('#welcome-page-container svg[aria-label=Lune]');const start=logo.getBoundingClientRect();a.currentTime=3500;scale.currentTime=3500;const end=logo.getBoundingClientRect();return {startCenter:start.y+start.height/2,endCenter:end.y+end.height/2,height:innerHeight,duration:a.effect.getTiming().duration,delay:a.effect.getTiming().delay}")
- assert abs(report['introMotion']['startCenter']-(report['introMotion']['height']/2-50))<2,report['introMotion']
+ # Shorter Welcome copy can select the content-relative animation offset.
+ # Keep the logo above center in the upper-middle region, without pinning the
+ # regression to the removed defaults note's exact content height.
+ assert .3*report['introMotion']['height'] < report['introMotion']['startCenter'] < .5*report['introMotion']['height'],report['introMotion']
  assert report['introMotion']['endCenter']<report['introMotion']['startCenter']
  assert report['introMotion']['duration']==3300 and report['introMotion']['delay']==200
  screenshot('welcome')
@@ -74,9 +81,7 @@ try:
  wait("return document.querySelector('#services-page.visible')")
  report['services']=js("return document.querySelector('#services-page').innerText")
  assert 'browser updates' not in report['services'].lower()
- assert js("return document.querySelector('#services-page button[role=switch]').getAttribute('aria-checked')") == 'false'
- wait("const b=document.querySelectorAll('#services-page button[role=switch]')[1];return b?.innerText.includes('Allow automatic Helium services updates') && b.disabled && b.getAttribute('aria-checked')==='true'")
- js("document.querySelectorAll('#services-page button[role=switch]')[0].click()")
+ assert js("return document.querySelector('#services-page button[role=switch]').getAttribute('aria-checked')") == 'true'
  wait("const b=document.querySelectorAll('#services-page button[role=switch]')[1];return !b.disabled && b.getAttribute('aria-checked')==='true'")
  js("document.querySelectorAll('#services-page button[role=switch]')[1].click()")
  wait("return document.querySelectorAll('#services-page button[role=switch]')[1].getAttribute('aria-checked')==='false'")
@@ -91,11 +96,8 @@ try:
  next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['defaultSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['defaultSearch'].startswith('Startpage')
- report['searchSuggestionsInitiallyOff']=js("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')")
- assert report['searchSuggestionsInitiallyOff']=='false'
- js("document.querySelector('#search-engines-page button[role=switch]').click()")
- wait("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')==='true'")
- report['searchSuggestionsOptIn']=True
+ report['searchSuggestionsInitiallyOn']=js("return document.querySelector('#search-engines-page button[role=switch]').getAttribute('aria-checked')")
+ assert report['searchSuggestionsInitiallyOn']=='true'
  wait("return getComputedStyle(document.querySelector('#search-engines-page')).opacity==='1' && !document.querySelector('#welcome-page') && !document.querySelector('#services-page')")
  screenshot('search')
  js("document.querySelector('#search-engines-page button[role=switch]').click()")

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "71aa6b039d1c9a8d5085c0ae80085c3b20c43701",
+    "commit": "d819cd5a5adf9ed6ceb162b1edb063c6e3861ef4",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -897,6 +897,14 @@
       {
         "path": "patches/helium/ui/onboarding-safe-area-progress.patch",
         "sha256": "94ab034860e6fed5a8f9ec2aec5d7f877fad682f1e5be109141a5b9c7929cd7f"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-preferred-defaults.patch",
+        "sha256": "0d3099746d066cc5fd49ff95903f25174174435b26e146f12abb4f4f07d2b984"
+      },
+      {
+        "path": "patches/lune/onboarding-preferred-defaults-copy.patch",
+        "sha256": "be6ca689f154b23328dbacbabc38c20f91433058b49a8413e744ae4cf03cea60"
       }
     ]
   },
@@ -2660,6 +2668,37 @@
       "adaptation": "Includes Welcome in progress, uses 8px dots with 12px horizontal gaps and 16px vertical clearance, immediate bold white-on-black pill tooltips with 5px gap, no footer entrance animation, a fade beginning 12px above buttons to the true viewport bottom, unfaded final content at scroll end, and artwork fading to half opacity after Welcome. Dot jumps preserve choices without importing, consenting or completing setup.",
       "commits": [
         "71aa6b039d1c9a8d5085c0ae80085c3b20c43701"
+      ]
+    },
+    {
+      "id": "onboarding-preferred-defaults",
+      "depends_on": [
+        "setup-safe-area-progress",
+        "onboarding-search-suggestions"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-preferred-defaults.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Begin custom setup with the same preferred selections as Use defaults while preserving explicit choices and confirmation boundaries.",
+      "adaptation": "Services remain consent-gated until Next. Fresh search suggestions are shown as a recommendation without changing the backing preference until Next or an explicit toggle. Back, reload and restart preserve opt-outs. Descriptions use 14px body and 16px subtitle text with 70% secondary foreground mixed into the setup background; footer fade reaches solid color beneath the buttons.",
+      "commits": [
+        "13475cdb2a9694483a3e393fd11c5a0342ae98d7"
+      ]
+    },
+    {
+      "id": "lune-onboarding-defaults-copy",
+      "depends_on": [
+        "onboarding-preferred-defaults"
+      ],
+      "patches": [
+        "patches/lune/onboarding-preferred-defaults-copy.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Explain that Setup reviews the defaults and Next confirms the displayed Helium-service choices.",
+      "adaptation": "Retains Lune/provider identity separately from reusable behavior. Removes the extra Welcome Defaults include sentence at owner request. Privacy-policy revisions remain deferred.",
+      "commits": [
+        "d819cd5a5adf9ed6ceb162b1edb063c6e3861ef4"
       ]
     }
   ],
