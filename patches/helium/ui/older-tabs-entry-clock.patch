@@ -1,0 +1,75 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -4842,7 +4842,7 @@
+   <message name="IDS_OLDER_TABS" desc="olderTabs: automatic sidebar tab cleanup.">Older Tabs</message>
+   <message name="IDS_OLDER_TABS_KEEP" desc="olderTabsKeep: automatic sidebar tab cleanup.">Keep Tab</message>
+   <message name="IDS_OLDER_TABS_MOVE_AFTER" desc="olderTabsMoveAfter: automatic sidebar tab cleanup.">Move inactive tabs to Older Tabs after</message>
+-  <message name="IDS_OLDER_TABS_CLOSE_AFTER" desc="olderTabsCloseAfter: automatic sidebar tab cleanup.">Close inactive Older Tabs after</message>
++  <message name="IDS_OLDER_TABS_CLOSE_AFTER" desc="olderTabsCloseAfter: automatic sidebar tab cleanup.">Close Older Tabs after</message>
+   <message name="IDS_OLDER_TABS_SIX_HOURS" desc="olderTabsSixHours: automatic sidebar tab cleanup.">6 hours</message>
+   <message name="IDS_OLDER_TABS_DAY" desc="olderTabsDay: automatic sidebar tab cleanup.">1 day</message>
+   <message name="IDS_OLDER_TABS_THREE_DAYS" desc="olderTabsThreeDays: automatic sidebar tab cleanup.">3 days</message>
+--- a/chrome/browser/ui/tabs/older_tabs_controller.cc
++++ b/chrome/browser/ui/tabs/older_tabs_controller.cc
+@@ -61,6 +61,7 @@
+   std::string id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+   base::Time last_use = base::Time::Now();
+   base::Time age = last_use;
++  // Fixed entry time for the current Older residency; activity never extends it.
+   base::Time close_clock;
+   base::Time frozen;
+   double order = 0;
+@@ -299,13 +300,11 @@
+   const auto now = base::Time::Now();
+   data.last_use = now;
+   data.dirty = true;
+-  if (IsOlder(contents)) {
+-    data.close_clock = now;
+-  } else {
++  if (!IsOlder(contents)) {
+     data.age = now;
+   }
+-  // Keep event contents private and coalesce disk writes, while updating the
+-  // in-memory deadline on every trusted input event.
++  // Older retention is measured from entry, independently of subsequent use.
++  // Keep event contents private and coalesce disk writes.
+   if (base::TimeTicks::Now() - data.last_saved >= base::Seconds(30)) {
+     Save(contents);
+   }
+--- a/chrome/browser/ui/tabs/tab_strip_model_unittest.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model_unittest.cc
+@@ -8801,7 +8801,7 @@
+ }
+ }  // namespace
+ 
+-TEST_F(TabStripModelTest, OlderInteractionOnlyExtendsRetention) {
++TEST_F(TabStripModelTest, OlderInteractionPreservesEntryDeadline) {
+   PrepareTabs(tabstrip(), 2);
+   auto* contents = tabstrip()->GetWebContentsAt(0);
+   tabs::OlderTabsController::Restore(contents,
+@@ -8813,7 +8813,24 @@
+   EXPECT_EQ(*before.Find("age"), *after.Find("age"));
+   EXPECT_EQ(*before.Find("frozen"), *after.Find("frozen"));
+   EXPECT_EQ(*before.Find("order"), *after.Find("order"));
+-  EXPECT_NE(*before.Find("close_clock"), *after.Find("close_clock"));
++  EXPECT_EQ(*before.Find("close_clock"), *after.Find("close_clock"));
++  EXPECT_NE(*before.Find("last_use"), *after.Find("last_use"));
++}
++
++TEST_F(TabStripModelTest, OlderActivationPreservesEntryDeadline) {
++  PrepareTabs(tabstrip(), 2);
++  tabstrip()->ActivateTabAt(1);
++  auto* contents = tabstrip()->GetWebContentsAt(0);
++  tabs::OlderTabsController::Restore(contents,
++                                     CleanupFixture(contents, 1, true), true);
++  const auto before = CleanupState(contents);
++  tabstrip()->ActivateTabAt(0);
++  const auto after = CleanupState(contents);
++  EXPECT_TRUE(tabs::OlderTabsController::IsOlder(contents));
++  EXPECT_EQ(*before.Find("close_clock"), *after.Find("close_clock"));
++  EXPECT_EQ(*before.Find("age"), *after.Find("age"));
++  EXPECT_EQ(*before.Find("frozen"), *after.Find("frozen"));
++  EXPECT_NE(*before.Find("last_use"), *after.Find("last_use"));
+ }
+ 
+ TEST_F(TabStripModelTest, KeepMultipleOlderTabsRestoresRelativeOrder) {
