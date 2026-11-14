@@ -1,0 +1,1763 @@
+{
+  "date": "2026-11-14",
+  "status": "implemented, owner reviewed and validated; selected for future main builds",
+  "platform_commit": "71aa6b039d1c9a8d5085c0ae80085c3b20c43701",
+  "platform_tree": "24f296a9fe302d41165a2d50490c9d1e25e38cb0",
+  "platform_ref": "refs/tags/inputs/setup-safe-area-1/macos",
+  "core_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+  "chromium_version": "158.0.8127.37",
+  "published_release_unchanged": "26.1113.1",
+  "issue": {
+    "number": 35,
+    "state": "open",
+    "reason": "Defaults, services explanation, import and privacy work remain."
+  },
+  "source_replay": {
+    "passed": true,
+    "fuzz": 0,
+    "offsets": 0,
+    "base_platform": "18709b036de7550323bc4d5e63d61d9e3aa05d94",
+    "previous_base": "dda1bdf0de0c3e04532adbc16f2aebcd6a1d8d63",
+    "source_hashes": {
+      "third_party/blink/public/mojom/page/display_cutout.mojom": "86a3f076bf7e1ce41a95bcc46df4ccf27fbfd390b8a1364d061a00e33c59000d",
+      "third_party/blink/renderer/core/frame/display_cutout_client_impl.h": "811f56936093503f28693e5cfd2499f028a8d55b33165072aabf02b66a0d8ed8",
+      "third_party/blink/renderer/core/frame/display_cutout_client_impl.cc": "c1776b4706e56c679beb5782b80b725a1074cd89b75f01487ad73a9111ffbf97",
+      "third_party/blink/renderer/core/page/page.h": "d0bab4e86256391bcfc08697accb36b30a364c5ecf6e54ab3c7af2842764614f",
+      "third_party/blink/renderer/core/page/page.cc": "3cf8bd7c9c5d39d213ad663fbabd3d1492b6249e83a10dab3af48a1be9c1b913",
+      "third_party/blink/renderer/core/exported/web_view_impl.cc": "213cb1a10a5bae0d645a31ec869294207bebf47f94c19e9f2805ff0059900c65",
+      "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc": "64952a43d8dbb0845270488d1317d936bdf2b6628a3e0ea288a3ee3d87d7532b",
+      "components/helium_onboarding/index.html": "4eabcce36614c87afb6c200a7b3e8fa424712c7c11e16dc6a13dbb72723d1f66",
+      "components/helium_onboarding/src/lib/onboarding-flow.ts": "a854da57e439a5d62a476e2cde0bba7afec07433d3c0de156100e464827a02cd",
+      "components/helium_onboarding/src/app.css": "890375d438dc2b70a1994c191700ba880bd632b243fa1951cdd8190ed80d32c1",
+      "components/helium_onboarding/src/pages/DataImport.svelte": "27266f525c4066741409d207a5e9ce9da930a7620e4ee73bf7823c318943b4a3",
+      "components/helium_onboarding/src/components/PageNavigation.svelte": "84d6053f018ef4a3c99eb8416a96c6876cadb29e71910597c9c28c19ff30b184",
+      "chrome/browser/ui/views/frame/BUILD.gn": "fd06e1a8064b99982fe77954e19d7dc0f641841ba6a6421562e8208d240c6743",
+      "third_party/blink/renderer/controller/blink_initializer.cc": "b65ef46129a161b2bbe6341890f42b219a3580f0c8d6ead861b4b366bb238d2f",
+      "components/helium_onboarding/src/App.svelte": "fdd6e0dc599261b766c537983b6044b0023c9ca9b3d1054b196d033f95c77ba0",
+      "components/helium_onboarding/src/pages/Welcome.svelte": "4725992ca14295b848968a7cda24cdd2f54de0ecc068ed1e080fa614c8ae88fd",
+      "chrome/browser/ui/views/infobars/infobar_container_view.cc": "210a1e05672d5fae9020b723258e8b4b1b664e5df34f22811e54fed04960f409"
+    },
+    "combined_source_hashes": {
+      "third_party/blink/public/mojom/page/display_cutout.mojom": "86a3f076bf7e1ce41a95bcc46df4ccf27fbfd390b8a1364d061a00e33c59000d",
+      "third_party/blink/renderer/core/frame/display_cutout_client_impl.h": "811f56936093503f28693e5cfd2499f028a8d55b33165072aabf02b66a0d8ed8",
+      "third_party/blink/renderer/core/frame/display_cutout_client_impl.cc": "c1776b4706e56c679beb5782b80b725a1074cd89b75f01487ad73a9111ffbf97",
+      "third_party/blink/renderer/core/page/page.h": "d0bab4e86256391bcfc08697accb36b30a364c5ecf6e54ab3c7af2842764614f",
+      "third_party/blink/renderer/core/page/page.cc": "3cf8bd7c9c5d39d213ad663fbabd3d1492b6249e83a10dab3af48a1be9c1b913",
+      "third_party/blink/renderer/core/exported/web_view_impl.cc": "213cb1a10a5bae0d645a31ec869294207bebf47f94c19e9f2805ff0059900c65",
+      "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc": "64952a43d8dbb0845270488d1317d936bdf2b6628a3e0ea288a3ee3d87d7532b",
+      "components/helium_onboarding/index.html": "4eabcce36614c87afb6c200a7b3e8fa424712c7c11e16dc6a13dbb72723d1f66",
+      "components/helium_onboarding/src/lib/onboarding-flow.ts": "a854da57e439a5d62a476e2cde0bba7afec07433d3c0de156100e464827a02cd",
+      "components/helium_onboarding/src/app.css": "890375d438dc2b70a1994c191700ba880bd632b243fa1951cdd8190ed80d32c1",
+      "components/helium_onboarding/src/pages/DataImport.svelte": "27266f525c4066741409d207a5e9ce9da930a7620e4ee73bf7823c318943b4a3",
+      "components/helium_onboarding/src/components/PageNavigation.svelte": "84d6053f018ef4a3c99eb8416a96c6876cadb29e71910597c9c28c19ff30b184",
+      "chrome/browser/ui/views/frame/BUILD.gn": "fd06e1a8064b99982fe77954e19d7dc0f641841ba6a6421562e8208d240c6743",
+      "third_party/blink/renderer/controller/blink_initializer.cc": "b65ef46129a161b2bbe6341890f42b219a3580f0c8d6ead861b4b366bb238d2f",
+      "components/helium_onboarding/src/App.svelte": "fdd6e0dc599261b766c537983b6044b0023c9ca9b3d1054b196d033f95c77ba0",
+      "components/helium_onboarding/src/pages/Welcome.svelte": "4725992ca14295b848968a7cda24cdd2f54de0ecc068ed1e080fa614c8ae88fd",
+      "chrome/browser/ui/views/infobars/infobar_container_view.cc": "210a1e05672d5fae9020b723258e8b4b1b664e5df34f22811e54fed04960f409",
+      "chrome/app/generated_resources.grd": "7c5a2538f9c6169660f10d09bfe6b72a62694f8d1182ad2ce2d5b254502bab14",
+      "chrome/browser/mac/sparkle_glue.h": "611c709095f9d701d534f6388f19f606ecc29f6f1b9c3b34b5b8430f0ba54acd",
+      "chrome/browser/mac/sparkle_glue.mm": "8fda9abf61e90cda62e1485303d0903c9c82a771c584b9e69269cda444e5aa49",
+      "chrome/browser/ui/views/frame/sidebar_footer_view.cc": "1b49c448bf5eb12d68f986e8d2a8dd93252bd8b3d4ca2e3acd0d0bb8cf44e639",
+      "chrome/browser/ui/views/frame/sidebar_footer_view.h": "dba1955dd26c84d98c820053158f690e7c4d77528eeca1ea6d80b382de8461f7",
+      "chrome/browser/resources/settings/about_page/about_page.html.ts": "dc4de6a0f73c65e79c66852afdf988eb7a96af5fbe3349ea2fa50b122e2b7d88",
+      "chrome/browser/resources/settings/about_page/about_page.css": "355540c1b8b85d26baf95e15e059ab1dc15faf164ab4da43cbdf3dd76bd5791d",
+      "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "b8ce6594569be59cdd9a3e9f19b4fe5db0990cdd2b4bbbeb89c35b4ca694779a",
+      "chrome/app/settings_strings.grdp": "7f6f2187fcd6afd124cc70f05cf8a624e65e4c8169c57a58363568752b0e7b23",
+      "chrome/browser/ui/tabs/older_tabs_controller.cc": "1aa04e7c893e660f11126c26576df5f5f074f6353bcdc5b0917e84fd99520036",
+      "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "69464639434ca12facc828ef810d8c08cc6d963c068d2440c25e54ad489a7fef",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "a79cf7a5f6bfbd9155f291752846bfb80ce1bb6806b3392a006d8af0cc9bc15e"
+    },
+    "patches": {
+      "helium/ui/bottom-alert-safe-area.patch": "c0205b3e46b673d3c6f4679b921eaff7200cf65731c61ffc5218b4a0db38bd79",
+      "helium/ui/onboarding-safe-area-progress.patch": "94ab034860e6fed5a8f9ec2aec5d7f877fad682f1e5be109141a5b9c7929cd7f"
+    },
+    "platform_merge_unmerge": true,
+    "preimages": "All 17 feature preimages match frozen prepared-source inventory; final replay byte-identical. Accepted subsequent inputs replayed before focused patches.",
+    "fresh_full_preparation": false,
+    "previous_candidate_base": "d7c555a12b3753694f9cd97427a41cbea68e9c41",
+    "composition_update": "The accepted sidebar-bottom-inset patch touches no feature file. Applied after the feature in the development quilt stack; disjoint edits commute and exported platform series places the accepted base first. Earlier paired validation was interrupted during Intel compilation; cache retained."
+  },
+  "builds": {
+    "arm64": {
+      "architecture": "arm64",
+      "exit_code": 0,
+      "seconds": 162.18092479277402,
+      "source_hashes": {
+        "third_party/blink/public/mojom/page/display_cutout.mojom": "86a3f076bf7e1ce41a95bcc46df4ccf27fbfd390b8a1364d061a00e33c59000d",
+        "third_party/blink/renderer/core/frame/display_cutout_client_impl.h": "811f56936093503f28693e5cfd2499f028a8d55b33165072aabf02b66a0d8ed8",
+        "third_party/blink/renderer/core/frame/display_cutout_client_impl.cc": "c1776b4706e56c679beb5782b80b725a1074cd89b75f01487ad73a9111ffbf97",
+        "third_party/blink/renderer/core/page/page.h": "d0bab4e86256391bcfc08697accb36b30a364c5ecf6e54ab3c7af2842764614f",
+        "third_party/blink/renderer/core/page/page.cc": "3cf8bd7c9c5d39d213ad663fbabd3d1492b6249e83a10dab3af48a1be9c1b913",
+        "third_party/blink/renderer/core/exported/web_view_impl.cc": "213cb1a10a5bae0d645a31ec869294207bebf47f94c19e9f2805ff0059900c65",
+        "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc": "64952a43d8dbb0845270488d1317d936bdf2b6628a3e0ea288a3ee3d87d7532b",
+        "components/helium_onboarding/index.html": "4eabcce36614c87afb6c200a7b3e8fa424712c7c11e16dc6a13dbb72723d1f66",
+        "components/helium_onboarding/src/lib/onboarding-flow.ts": "a854da57e439a5d62a476e2cde0bba7afec07433d3c0de156100e464827a02cd",
+        "components/helium_onboarding/src/app.css": "890375d438dc2b70a1994c191700ba880bd632b243fa1951cdd8190ed80d32c1",
+        "components/helium_onboarding/src/pages/DataImport.svelte": "27266f525c4066741409d207a5e9ce9da930a7620e4ee73bf7823c318943b4a3",
+        "components/helium_onboarding/src/components/PageNavigation.svelte": "84d6053f018ef4a3c99eb8416a96c6876cadb29e71910597c9c28c19ff30b184",
+        "chrome/browser/ui/views/frame/BUILD.gn": "fd06e1a8064b99982fe77954e19d7dc0f641841ba6a6421562e8208d240c6743",
+        "third_party/blink/renderer/controller/blink_initializer.cc": "b65ef46129a161b2bbe6341890f42b219a3580f0c8d6ead861b4b366bb238d2f",
+        "components/helium_onboarding/src/App.svelte": "fdd6e0dc599261b766c537983b6044b0023c9ca9b3d1054b196d033f95c77ba0",
+        "components/helium_onboarding/src/pages/Welcome.svelte": "4725992ca14295b848968a7cda24cdd2f54de0ecc068ed1e080fa614c8ae88fd",
+        "chrome/browser/ui/views/infobars/infobar_container_view.cc": "210a1e05672d5fae9020b723258e8b4b1b664e5df34f22811e54fed04960f409",
+        "chrome/app/generated_resources.grd": "7c5a2538f9c6169660f10d09bfe6b72a62694f8d1182ad2ce2d5b254502bab14",
+        "chrome/browser/mac/sparkle_glue.h": "611c709095f9d701d534f6388f19f606ecc29f6f1b9c3b34b5b8430f0ba54acd",
+        "chrome/browser/mac/sparkle_glue.mm": "8fda9abf61e90cda62e1485303d0903c9c82a771c584b9e69269cda444e5aa49",
+        "chrome/browser/ui/views/frame/sidebar_footer_view.cc": "1b49c448bf5eb12d68f986e8d2a8dd93252bd8b3d4ca2e3acd0d0bb8cf44e639",
+        "chrome/browser/ui/views/frame/sidebar_footer_view.h": "dba1955dd26c84d98c820053158f690e7c4d77528eeca1ea6d80b382de8461f7",
+        "chrome/browser/resources/settings/about_page/about_page.html.ts": "dc4de6a0f73c65e79c66852afdf988eb7a96af5fbe3349ea2fa50b122e2b7d88",
+        "chrome/browser/resources/settings/about_page/about_page.css": "355540c1b8b85d26baf95e15e059ab1dc15faf164ab4da43cbdf3dd76bd5791d",
+        "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "b8ce6594569be59cdd9a3e9f19b4fe5db0990cdd2b4bbbeb89c35b4ca694779a",
+        "chrome/app/settings_strings.grdp": "7f6f2187fcd6afd124cc70f05cf8a624e65e4c8169c57a58363568752b0e7b23",
+        "chrome/browser/ui/tabs/older_tabs_controller.cc": "1aa04e7c893e660f11126c26576df5f5f074f6353bcdc5b0917e84fd99520036",
+        "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "69464639434ca12facc828ef810d8c08cc6d963c068d2440c25e54ad489a7fef",
+        "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+        "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "a79cf7a5f6bfbd9155f291752846bfb80ce1bb6806b3392a006d8af0cc9bc15e"
+      },
+      "source_unchanged_during_build": true
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "exit_code": 0,
+      "seconds": 1052.919445041567,
+      "source_hashes": {
+        "third_party/blink/public/mojom/page/display_cutout.mojom": "86a3f076bf7e1ce41a95bcc46df4ccf27fbfd390b8a1364d061a00e33c59000d",
+        "third_party/blink/renderer/core/frame/display_cutout_client_impl.h": "811f56936093503f28693e5cfd2499f028a8d55b33165072aabf02b66a0d8ed8",
+        "third_party/blink/renderer/core/frame/display_cutout_client_impl.cc": "c1776b4706e56c679beb5782b80b725a1074cd89b75f01487ad73a9111ffbf97",
+        "third_party/blink/renderer/core/page/page.h": "d0bab4e86256391bcfc08697accb36b30a364c5ecf6e54ab3c7af2842764614f",
+        "third_party/blink/renderer/core/page/page.cc": "3cf8bd7c9c5d39d213ad663fbabd3d1492b6249e83a10dab3af48a1be9c1b913",
+        "third_party/blink/renderer/core/exported/web_view_impl.cc": "213cb1a10a5bae0d645a31ec869294207bebf47f94c19e9f2805ff0059900c65",
+        "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc": "64952a43d8dbb0845270488d1317d936bdf2b6628a3e0ea288a3ee3d87d7532b",
+        "components/helium_onboarding/index.html": "4eabcce36614c87afb6c200a7b3e8fa424712c7c11e16dc6a13dbb72723d1f66",
+        "components/helium_onboarding/src/lib/onboarding-flow.ts": "a854da57e439a5d62a476e2cde0bba7afec07433d3c0de156100e464827a02cd",
+        "components/helium_onboarding/src/app.css": "890375d438dc2b70a1994c191700ba880bd632b243fa1951cdd8190ed80d32c1",
+        "components/helium_onboarding/src/pages/DataImport.svelte": "27266f525c4066741409d207a5e9ce9da930a7620e4ee73bf7823c318943b4a3",
+        "components/helium_onboarding/src/components/PageNavigation.svelte": "84d6053f018ef4a3c99eb8416a96c6876cadb29e71910597c9c28c19ff30b184",
+        "chrome/browser/ui/views/frame/BUILD.gn": "fd06e1a8064b99982fe77954e19d7dc0f641841ba6a6421562e8208d240c6743",
+        "third_party/blink/renderer/controller/blink_initializer.cc": "b65ef46129a161b2bbe6341890f42b219a3580f0c8d6ead861b4b366bb238d2f",
+        "components/helium_onboarding/src/App.svelte": "fdd6e0dc599261b766c537983b6044b0023c9ca9b3d1054b196d033f95c77ba0",
+        "components/helium_onboarding/src/pages/Welcome.svelte": "4725992ca14295b848968a7cda24cdd2f54de0ecc068ed1e080fa614c8ae88fd",
+        "chrome/browser/ui/views/infobars/infobar_container_view.cc": "210a1e05672d5fae9020b723258e8b4b1b664e5df34f22811e54fed04960f409",
+        "chrome/app/generated_resources.grd": "7c5a2538f9c6169660f10d09bfe6b72a62694f8d1182ad2ce2d5b254502bab14",
+        "chrome/browser/mac/sparkle_glue.h": "611c709095f9d701d534f6388f19f606ecc29f6f1b9c3b34b5b8430f0ba54acd",
+        "chrome/browser/mac/sparkle_glue.mm": "8fda9abf61e90cda62e1485303d0903c9c82a771c584b9e69269cda444e5aa49",
+        "chrome/browser/ui/views/frame/sidebar_footer_view.cc": "1b49c448bf5eb12d68f986e8d2a8dd93252bd8b3d4ca2e3acd0d0bb8cf44e639",
+        "chrome/browser/ui/views/frame/sidebar_footer_view.h": "dba1955dd26c84d98c820053158f690e7c4d77528eeca1ea6d80b382de8461f7",
+        "chrome/browser/resources/settings/about_page/about_page.html.ts": "dc4de6a0f73c65e79c66852afdf988eb7a96af5fbe3349ea2fa50b122e2b7d88",
+        "chrome/browser/resources/settings/about_page/about_page.css": "355540c1b8b85d26baf95e15e059ab1dc15faf164ab4da43cbdf3dd76bd5791d",
+        "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "b8ce6594569be59cdd9a3e9f19b4fe5db0990cdd2b4bbbeb89c35b4ca694779a",
+        "chrome/app/settings_strings.grdp": "7f6f2187fcd6afd124cc70f05cf8a624e65e4c8169c57a58363568752b0e7b23",
+        "chrome/browser/ui/tabs/older_tabs_controller.cc": "1aa04e7c893e660f11126c26576df5f5f074f6353bcdc5b0917e84fd99520036",
+        "chrome/browser/ui/tabs/tab_strip_model_unittest.cc": "69464639434ca12facc828ef810d8c08cc6d963c068d2440c25e54ad489a7fef",
+        "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "307887eeecd50001c273d4eb2f0a6a1308e8625b376ec27610813c9d270f75d1",
+        "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "a79cf7a5f6bfbd9155f291752846bfb80ce1bb6806b3392a006d8af0cc9bc15e"
+      },
+      "source_unchanged_during_build": true
+    }
+  },
+  "checks": {
+    "arm64": {
+      "artifact_guard": {
+        "architecture": "arm64",
+        "app_hashes": {
+          "Contents/MacOS/Lune": "fd726c9a1c0752410949b21c96a223b3b0dc0005c3996b143d0adc633269e494",
+          "Contents/Frameworks/Lune Framework.framework/Lune Framework": "a02ef0fd5992b3b6820ccefb5fc8fff2f72667808781a5c92374ca4cd0fd338e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/chrome_200_percent.pak": "3d76029b3d39291c59d3d30b2a93fc319ccf105629199242c6fc0f900fd6cd7f",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/chrome_100_percent.pak": "63f832f2cfb6732c5541298acad62e8f756b4c924c17584d0021689fb582152c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/resources.pak": "7c727efc8d9d7aec1a319fda571d808b54b02c92628f79db017fc7e66e7baf5c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/webui_code_cache.arm64.pak": "bcf131419b810c4bf53a3b020c869ce40316d2feba01c6d3d98c1f931ab96803",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/id_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/de.lproj/locale.pak": "30b06cb553bd0f6f7b4d60de49b42ee85c1417cd1dbdbe907d2a7550bf21f4cf",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sw_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sw_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ur.lproj/locale.pak": "1981bc2d7636e6d7ddeb1106775de01266015c45c80a823d65a15dae7b54de5d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/he.lproj/locale.pak": "007eb6a86101e1ae7c6ce06b4dc0efd7b5ea9467b5cf5532f24df27168262777",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/he_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ru_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sk_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ar.lproj/locale.pak": "e204a25dcdf144ba936f58018e2c0a8cd55115ea9f8d7ff9324a11603b4f4b1e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/el.lproj/locale.pak": "0e7e695a77b9d22a8c3543719adf2bcfcc62387e4042f7db7f3c312363aa161a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ja.lproj/locale.pak": "c878de0f19795fea3da067692990305ac00be0dd76f46036cb9aabbfb7b25454",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/th_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/uk_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fa.lproj/locale.pak": "ce6945c2ecc69634c11b2f567f28a628e0f5bdca39ba13694f405162d87d56d0",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hi_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/mr.lproj/locale.pak": "8109a8c7dbe6765b34fd25911bebec587aa95098c4a8533d88d3e3ae759e7909",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/am_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/te_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/gu_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ja_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ja_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/mr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en.lproj/locale.pak": "c90163532b9e40e3fd4c8ec5cee1faf8fc49b5e3a491996a1fb70b4aeb7a62f6",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nb_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/et_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sl_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/he_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/uk.lproj/locale.pak": "4bf81e62dd540a84a3aefa21ef2b81c70a7a218ccb56f58c09ea806131ec078e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/tr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_419.lproj/locale.pak": "f19c1a82efe62698fbbd2488257bb2cb5f05e72a3a72dbf0a739afb8c4999a0b",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/gu.lproj/locale.pak": "fec830209e261d714ca973e4953581ed3b06a2654bf32f8374f24f13daa2a488",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ko_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_CN.lproj/locale.pak": "66d3698c408312aafbe29c6e236d0f329bf8dfcb60d426050a53bccdf0c2d041",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fi_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/kn.lproj/locale.pak": "de767375fa16a8a5eaed8208ab5b02c8163542e8c70d86cb8960ab2173d7af73",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sv_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bn_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nb.lproj/locale.pak": "eb300d936d614d4048e44aeefb9e84508fe766e4521a0eef8b221d14ad716b14",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fil_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ml_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lv_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ms_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/th_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nl_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/id_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/am.lproj/locale.pak": "2894894365cfb5f8e91f41cc7ee47ff6e755837fe8f9df224c0da229ef71c14c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es.lproj/locale.pak": "c00c81dd0c26a001717e037e1eeb91003c9fae7fb853922de64853d1f5eddc9d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ro_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ur_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/cs_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sw.lproj/locale.pak": "9f86e1c278cea52f3a1f7076606227e0bc881d232fb2073c9d85323c0b37b29d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/et_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sl.lproj/locale.pak": "9f6356c0b5296c80a7c33811962dba657abbabc03131ca4ef5ac0d8223eee46c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_BR.lproj/locale.pak": "db5580f97b63f9f44e673c922a28d073a98a9692cfcbd242dcc878dfbd53a874",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_PT_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/da.lproj/locale.pak": "405fb8bc8be6aba3ebf6f73d0639f2ac743e4fca9c2c609b0301d52a2699568e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_CN_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/af_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/kn_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fil_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_TW_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/et.lproj/locale.pak": "63338d96be017b0d7a4d8329d9ed3a767e809b7d13e4cc3e4ff19771eb27aac9",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ms_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/it.lproj/locale.pak": "7c166c217b81aa948872a01ecd44f00eed8eecc016867eb8ea6c9ec199ee329d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bg.lproj/locale.pak": "6998681116b890e1f6e632724aaabc3859e176f475de66387831c36bc24341fd",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sk.lproj/locale.pak": "5045a7c9bdecfaaee701ec18a93c4bbaedb14ae8da1f143a7e4881d9372fbc8d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lv_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/it_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ta_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_PT.lproj/locale.pak": "bab96915fedcc26e644a36518f0a0d8b17f8989e6f28dfc577aea591a80017da",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ta_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sk_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ko_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/cs_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ur_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/uk_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/af_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ar_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ml_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hi_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/te_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lt_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sr.lproj/locale.pak": "cc0ae3e31afd7e8c44d090bd6015408071f158a984209fc4ea67349714ba6eaf",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ms.lproj/locale.pak": "4b6282d84885a96bfb7d30107176dd1741a85ad6df2f3fb890e779be35e84a1f",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ca_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ta.lproj/locale.pak": "03f8881fec0dc566c1b736cfddf532b9075a1054294991c3e19f66e3dbc27daa",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/he_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_419_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_TW_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ml.lproj/locale.pak": "427fa430e8e0ca9e84ef2fffbfa860ac5fbeefc3ef5a3532ce1c5c4e6e30d2f0",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sv.lproj/locale.pak": "18f648b2946cfaa9cb6673ec393eb5f4556953841c4be515a3e1be45d18de148",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/da_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/kn_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sv_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nl_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/te.lproj/locale.pak": "8b031b686a5ed840aa87edc7fce0f967297da946fdd17359269f47312d5f805e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/mr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/cs.lproj/locale.pak": "6d9b42aae0fe325d8f276e9d85eaf401d07291590826379816af5d06c1a302ca",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_GB_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_PT_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fi_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ko.lproj/locale.pak": "5cd89f00e531176cb2a6bc261cb4a0c9f78e3cb7f219add1b3ac0534bf2bccac",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sl_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lv_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fil.lproj/locale.pak": "016f20db67ce14cfc263dce3fbb71ff552614a563a71a5bf32b0f13f61b2a35a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/da_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_BR_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/th_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fa_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nb_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/af_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ru_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bg_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/vi_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ca_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hu.lproj/locale.pak": "0940b32d0ab3552906a84e709e299d748385ad1cdcdee2fb4edaece0a1d7f35c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ko_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hu_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_TW_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_PT_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ro_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ta_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/tr.lproj/locale.pak": "94ba009401b4266a1541f8286ff686c2ceffe05d1e3b62f78f542d0fd03c95cc",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_BR_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pl.lproj/locale.pak": "c1523adda74ec7dfd1eaaa9a07a7c431f073946bfafd562768275e88f86e50eb",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bg_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_TW.lproj/locale.pak": "6f00414eb4a6bd9e8c53578d6f869440d3ce5a3a5cc6dcb5d0e49c2d4e603001",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ml_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ca_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pl_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ar_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_GB.lproj/locale.pak": "315923acb206804784ad83a9c3ea3e64de552a07a86eef555303745b8b0cbf9c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_419_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_GB_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/mr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/de_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/vi.lproj/locale.pak": "2a15587b6b3847e4b22deb8e6734c7ff50b7f40c541786d99618c04870eb041a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/tr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/cs_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fil_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hi_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_419_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/it_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lt_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lv.lproj/locale.pak": "dfdc56eaad0afa0a5a65c064e8b0de3f49c8f584a9748594c7440d798ab388a5",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/kn_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lt.lproj/locale.pak": "6dafa7c5fa296b887a2e5275a1feacd7f2d429b61828867bc807fb5ff2a7bc99",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ru.lproj/locale.pak": "67372adbbb7909c20d2d5362ee240e51aace5d31e378847623e61aeaaac2c561",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/am_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/da_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pl_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fa_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/el_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_CN_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lt_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/af.lproj/locale.pak": "1f6239c02a8a79463116118ba0dd76198a0444b72c8e252d4bdb2e12ae78a12d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_BR_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/id_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ar_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bg_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_GB_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bn_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ur_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ja_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fr.lproj/locale.pak": "3420a7c0e2876d8da0708715c40365d785c20d177a31c26437645424bde7dfca",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/it_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fi.lproj/locale.pak": "fe30b9c5d9ef1d27395f37af9b349c2741e7bea4156129ad813bb31f9ae9c6e6",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/id.lproj/locale.pak": "1bfe82b3965587a6114bf863e8c57f6f4c40b8dbed39ca23b1a527c077163b72",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/gu_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nl.lproj/locale.pak": "cc56068c4b131c56557389e92abcd7648aec2a79c996b71bb942cbbddb0c2c15",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/th.lproj/locale.pak": "dbaeed537f01267acd1150c8eaefa101f195971d7b670fe40d94eeb2a54b8340",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fi_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sv_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ms_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nb_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/am_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bn.lproj/locale.pak": "6e16817ae80702207cad00bef775322ddaa88210d2dc8bc761997e04b34ebd5b",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/te_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sl_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/vi_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sk_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/tr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hu_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ru_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ro.lproj/locale.pak": "7b1967010a0d4921118a5d5b825d08c2247956158ba55b4013cf30b4bb53534b",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/et_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/de_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/uk_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fa_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/el_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/de_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pl_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/gu_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bn_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hu_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/vi_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/el_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sw_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hr.lproj/locale.pak": "8a3c4305f9854ed7d8c12ae41367444438e4608439e6ee80c80f8f01b064181a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hi.lproj/locale.pak": "74b45ca938ba17f2f675d90578c0f9fad9b92de3913df837802038ea5f71f40f",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ro_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ca.lproj/locale.pak": "74a4d98beaee003a14e89d0afa9a32cfa438cdbf4d520a0f0ad46e7fa6714686",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nl_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_CN_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+        },
+        "unchanged": true,
+        "results": {
+          "smoke": {
+            "exit_code": 0,
+            "seconds": 8.678805375471711
+          },
+          "onboarding": {
+            "exit_code": 0,
+            "seconds": 12.361499957740307
+          },
+          "footer": {
+            "exit_code": 0,
+            "seconds": 8.67750920727849
+          }
+        }
+      },
+      "footer": {
+        "welcomeArtwork": "1",
+        "welcomeDots": [
+          {
+            "current": "step",
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Welcome to Lune",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Helium services",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Choose a search engine",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Import from other browsers",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Password manager",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Customize Lune",
+            "target": 20
+          }
+        ],
+        "setupArtwork": "0.5",
+        "initialDots": [
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Welcome to Lune",
+            "target": 20
+          },
+          {
+            "current": "step",
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Helium services",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Choose a search engine",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Import from other browsers",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Customize Lune",
+            "target": 20
+          }
+        ],
+        "dotLayout": {
+          "belowButtons": true,
+          "gap": 12,
+          "nativeTitles": false
+        },
+        "tooltip-light": {
+          "background": "rgb(0, 0, 0)",
+          "delay": "0s",
+          "duration": "0s",
+          "foreground": "rgb(255, 255, 255)",
+          "radius": "9999px",
+          "weight": "700"
+        },
+        "tooltip-dark": {
+          "background": "rgb(0, 0, 0)",
+          "delay": "0s",
+          "duration": "0s",
+          "foreground": "rgb(255, 255, 255)",
+          "radius": "9999px",
+          "weight": "700"
+        },
+        "footerEffects": {
+          "animation": "none",
+          "fadeBlocksInput": false,
+          "fadeBottom": 0,
+          "tooltipGap": 5,
+          "translate": "none"
+        },
+        "visibleAlert": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 670,
+          "height": 800,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 884,
+          "zoom": 2
+        },
+        "verticalSpacing": {
+          "above": 16,
+          "below": 16
+        },
+        "jumpDoesNotConsentOrFinish": true,
+        "optionalStepDots": [
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Welcome to Lune",
+            "target": 20
+          },
+          {
+            "current": "step",
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Helium services",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Choose a search engine",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Import from other browsers",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Password manager",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Customize Lune",
+            "target": 20
+          }
+        ],
+        "welcomeJumpPreservesChoices": true,
+        "jumpPreservesChoices": true,
+        "optionalStepRemoved": true,
+        "keyboardNavigation": true,
+        "window900x650": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 520,
+          "height": 650,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 684,
+          "zoom": 2
+        },
+        "window1200x850": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 720,
+          "height": 850,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 984,
+          "zoom": 2
+        },
+        "previewGeometry": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 670,
+          "height": 800,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 884,
+          "zoom": 2
+        },
+        "fadeClearance": {
+          "aboveButtons": 12,
+          "contentClearance": 12.234375,
+          "fadeBottom": 0,
+          "mask": "none",
+          "maxScroll": 430,
+          "scrollTop": 430.5
+        },
+        "newDocumentCover": {
+          "bottom": 52,
+          "footerBottom": null,
+          "footerTop": null,
+          "height": 800,
+          "top": 0,
+          "viewport": "width=device-width,viewport-fit=cover",
+          "width": 884,
+          "zoom": 2
+        },
+        "dynamicViewportFit": true,
+        "returnedToSetup": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 670,
+          "height": 800,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 884,
+          "zoom": 2
+        },
+        "pass": true
+      },
+      "onboarding_passed": true,
+      "smoke": {
+        "bundle_id": "computer.lune.browser",
+        "architecture": "arm64",
+        "test_host_architecture": "arm64",
+        "chromium_version": "158.0.8127.37",
+        "executable_sha256": "fd726c9a1c0752410949b21c96a223b3b0dc0005c3996b143d0adc633269e494",
+        "framework_sha256": "a02ef0fd5992b3b6820ccefb5fc8fff2f72667808781a5c92374ca4cd0fd338e",
+        "driver_version": "ChromeDriver 158.0.8127.37 (b8c2be851f62f6a394ec57955d7f31335d7cb6d4-refs/branch-heads/8127@{#1692})",
+        "app_version": "0.22.1.1",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "mode": "headless",
+        "release_validated": false,
+        "artwork_component_commit": "71aa6b039d1c9a8d5085c0ae80085c3b20c43701",
+        "icon_sha256": "ee0d54a595137cf6f2444731120f39c0f238ef429b2ca0add865d12215fdfaa7",
+        "ui": {
+          "defaults": {
+            "helium.browser.centered_location_bar": true,
+            "helium.browser.layout": 2,
+            "helium.browser.mru_tab_cycling": true,
+            "helium.browser.rounded_frame_thickness": 4,
+            "helium.browser.show_avatar_button": false,
+            "helium.browser.ui_density": 0,
+            "helium.browser.vertical_address_bar_in_sidebar": true,
+            "helium.browser.vertical_pinned_tabs_per_row": 4,
+            "helium.browser.vertical_right_aligned": false,
+            "helium.browser.visual_tab_switcher": true,
+            "helium.browser.zen_mode": true,
+            "helium.browser.zen_mode_sidebar_pinned": true,
+            "helium.browser.zen_mode_top_chrome_pinned": false,
+            "helium.command_bar.enabled": true,
+            "helium.link_peek.enabled": false,
+            "vertical_tabs.expand_on_hover": true,
+            "vertical_tabs.uncollapsed_width": 216,
+            "vertical_tabs.collapsed_state": false
+          },
+          "about_credit": {
+            "href": "https://helium.computer/",
+            "text": "Built on Helium, with thanks to its authors and contributors.\n        helium.computer"
+          },
+          "onboarding_credit": "Built on Helium browser, with thanks to its authors and contributors.",
+          "search_engines": [
+            {
+              "name": "Startpage",
+              "selected": "true",
+              "text": "A privacy-first search engine which doesn't profile or track you. Startpage Privacy-focused. Relies on Google and Bing for results. Promises not to track or profile you."
+            },
+            {
+              "name": "Kagi",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. Kagi Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine."
+            },
+            {
+              "name": "DuckDuckGo",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. DuckDuckGo Privacy-focused. Relies on Bing for results. Promises not to track or profile you."
+            },
+            {
+              "name": "Brave Search",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. Brave Search Privacy-focused. Doesn't use Google or Bing. Promises not to track or profile you. May show promotions related to Brave services."
+            },
+            {
+              "name": "Ecosia",
+              "selected": "false",
+              "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Ecosia May plant trees for clicking ads. Relies on Google and Bing for results. Sends tracking data to Google and Microsoft."
+            },
+            {
+              "name": "Qwant",
+              "selected": "false",
+              "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Qwant Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft."
+            },
+            {
+              "name": "Google",
+              "selected": "false",
+              "text": "A mainstream search engine which collects extensive personal data. Google It's Google. It dominates the search market, collects extensive personal data, and profiles you."
+            },
+            {
+              "name": "Microsoft Bing",
+              "selected": "false",
+              "text": "A mainstream search engine which collects extensive personal data. Microsoft Bing Collects extensive personal data. Privacy controls are buried and limited. Subjectively overwhelming UI."
+            }
+          ],
+          "internal_icons": {},
+          "services_provider_disclosure": "Helium services\n\nLune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.\n\nAllow connecting to Helium services\n\nAllow Lune to connect to Helium-hosted services. These requests stay disabled until you consent.\n\nAllow automatic Helium services updates\n\nAutomatically download and install updates to Lune-provided browser components.\n\nProxy extension downloads and updates\n\nWhen enabled, Lune will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.\n\nAllow downloading the !bangs list\n\nLune will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.\n\nAllow downloading filter lists for uBlock Origin\n\nLune will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with Lune. Optional filter lists will be requested without proxying.\n\nUse your own instance of Helium services\n\nYou can host your own Helium services instance and select it in Lune settings.",
+          "native_controls_tested": false,
+          "service_provider": {
+            "host": "Helium",
+            "browser_updates": "Lune",
+            "disclosure": "When enabled, Lune will be able to connect to anonymous web services to provide additional functionality. When disabled, additional features will not work."
+          },
+          "settings_port": {
+            "noise_toggle_persisted_and_observed": true,
+            "consent_observed": true,
+            "services_remained_disabled": true,
+            "service_controls": [
+              {
+                "checked": false,
+                "id": "servicesToggleButton",
+                "key": "helium.services.enabled"
+              },
+              {
+                "checked": true,
+                "id": "extProxyToggleButton",
+                "key": "helium.services.ext_proxy"
+              },
+              {
+                "checked": true,
+                "id": "bangToggleButton",
+                "key": "helium.services.bangs"
+              },
+              {
+                "checked": true,
+                "id": "servicesUpdatesToggleButton",
+                "key": "helium.services.component_updates"
+              },
+              {
+                "checked": true,
+                "id": "filterlistToggleButton",
+                "key": "helium.services.ublock_assets"
+              }
+            ],
+            "browser_update_control_on_privacy_root": true,
+            "services_entry": {
+              "description": "Manage what Helium services are allowed in your browser",
+              "icon": "helium-services:logo"
+            },
+            "origin_normalized_persisted_and_observed": true
+          },
+          "flags_initialization": {
+            "feature_count": 409,
+            "sample_exclusions_verified": [
+              "vertical-tabs-expand-on-hover",
+              "webui-omnibox-popup",
+              "webui-toolbar"
+            ]
+          }
+        },
+        "update_feed_isolated": true,
+        "framework_unchanged": true,
+        "passed": true
+      }
+    },
+    "x86_64": {
+      "artifact_guard": {
+        "architecture": "x86_64",
+        "app_hashes": {
+          "Contents/MacOS/Lune": "8829c8540feea6794f55430cc00690ea9677f6ed7c430faf9b4cf5a042f3196f",
+          "Contents/Frameworks/Lune Framework.framework/Lune Framework": "1db6b2f0127bd6015ec9653cf029953fae594c3b8f615c95ae759e0737c25a7a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/chrome_200_percent.pak": "3d76029b3d39291c59d3d30b2a93fc319ccf105629199242c6fc0f900fd6cd7f",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/chrome_100_percent.pak": "63f832f2cfb6732c5541298acad62e8f756b4c924c17584d0021689fb582152c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/webui_code_cache.x86_64.pak": "7b2d68e4e664107f984d08d76155458cb41018493ded8936ffa9e36447a96805",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/resources.pak": "7c727efc8d9d7aec1a319fda571d808b54b02c92628f79db017fc7e66e7baf5c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/id_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/de.lproj/locale.pak": "30b06cb553bd0f6f7b4d60de49b42ee85c1417cd1dbdbe907d2a7550bf21f4cf",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sw_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sw_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ur.lproj/locale.pak": "1981bc2d7636e6d7ddeb1106775de01266015c45c80a823d65a15dae7b54de5d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/he.lproj/locale.pak": "007eb6a86101e1ae7c6ce06b4dc0efd7b5ea9467b5cf5532f24df27168262777",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/he_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ru_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sk_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ar.lproj/locale.pak": "e204a25dcdf144ba936f58018e2c0a8cd55115ea9f8d7ff9324a11603b4f4b1e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/el.lproj/locale.pak": "0e7e695a77b9d22a8c3543719adf2bcfcc62387e4042f7db7f3c312363aa161a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ja.lproj/locale.pak": "c878de0f19795fea3da067692990305ac00be0dd76f46036cb9aabbfb7b25454",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/th_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/uk_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fa.lproj/locale.pak": "ce6945c2ecc69634c11b2f567f28a628e0f5bdca39ba13694f405162d87d56d0",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hi_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/mr.lproj/locale.pak": "8109a8c7dbe6765b34fd25911bebec587aa95098c4a8533d88d3e3ae759e7909",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/am_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/te_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/gu_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ja_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ja_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/mr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en.lproj/locale.pak": "c90163532b9e40e3fd4c8ec5cee1faf8fc49b5e3a491996a1fb70b4aeb7a62f6",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nb_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/et_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sl_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/he_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/uk.lproj/locale.pak": "4bf81e62dd540a84a3aefa21ef2b81c70a7a218ccb56f58c09ea806131ec078e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/tr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_419.lproj/locale.pak": "f19c1a82efe62698fbbd2488257bb2cb5f05e72a3a72dbf0a739afb8c4999a0b",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/gu.lproj/locale.pak": "fec830209e261d714ca973e4953581ed3b06a2654bf32f8374f24f13daa2a488",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ko_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_CN.lproj/locale.pak": "66d3698c408312aafbe29c6e236d0f329bf8dfcb60d426050a53bccdf0c2d041",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fi_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/kn.lproj/locale.pak": "de767375fa16a8a5eaed8208ab5b02c8163542e8c70d86cb8960ab2173d7af73",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sv_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bn_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nb.lproj/locale.pak": "eb300d936d614d4048e44aeefb9e84508fe766e4521a0eef8b221d14ad716b14",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fil_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ml_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lv_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ms_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/th_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nl_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/id_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/am.lproj/locale.pak": "2894894365cfb5f8e91f41cc7ee47ff6e755837fe8f9df224c0da229ef71c14c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es.lproj/locale.pak": "c00c81dd0c26a001717e037e1eeb91003c9fae7fb853922de64853d1f5eddc9d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ro_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ur_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/cs_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sw.lproj/locale.pak": "9f86e1c278cea52f3a1f7076606227e0bc881d232fb2073c9d85323c0b37b29d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/et_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sl.lproj/locale.pak": "9f6356c0b5296c80a7c33811962dba657abbabc03131ca4ef5ac0d8223eee46c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_BR.lproj/locale.pak": "db5580f97b63f9f44e673c922a28d073a98a9692cfcbd242dcc878dfbd53a874",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_PT_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/da.lproj/locale.pak": "405fb8bc8be6aba3ebf6f73d0639f2ac743e4fca9c2c609b0301d52a2699568e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_CN_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/af_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/kn_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fil_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_TW_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/et.lproj/locale.pak": "63338d96be017b0d7a4d8329d9ed3a767e809b7d13e4cc3e4ff19771eb27aac9",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ms_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/it.lproj/locale.pak": "7c166c217b81aa948872a01ecd44f00eed8eecc016867eb8ea6c9ec199ee329d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bg.lproj/locale.pak": "6998681116b890e1f6e632724aaabc3859e176f475de66387831c36bc24341fd",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sk.lproj/locale.pak": "5045a7c9bdecfaaee701ec18a93c4bbaedb14ae8da1f143a7e4881d9372fbc8d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lv_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/it_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ta_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_PT.lproj/locale.pak": "bab96915fedcc26e644a36518f0a0d8b17f8989e6f28dfc577aea591a80017da",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ta_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sk_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ko_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/cs_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ur_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/uk_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/af_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ar_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ml_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hi_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/te_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lt_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sr.lproj/locale.pak": "cc0ae3e31afd7e8c44d090bd6015408071f158a984209fc4ea67349714ba6eaf",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ms.lproj/locale.pak": "4b6282d84885a96bfb7d30107176dd1741a85ad6df2f3fb890e779be35e84a1f",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ca_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ta.lproj/locale.pak": "03f8881fec0dc566c1b736cfddf532b9075a1054294991c3e19f66e3dbc27daa",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/he_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_419_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_TW_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ml.lproj/locale.pak": "427fa430e8e0ca9e84ef2fffbfa860ac5fbeefc3ef5a3532ce1c5c4e6e30d2f0",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sv.lproj/locale.pak": "18f648b2946cfaa9cb6673ec393eb5f4556953841c4be515a3e1be45d18de148",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/da_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/kn_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sv_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nl_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/te.lproj/locale.pak": "8b031b686a5ed840aa87edc7fce0f967297da946fdd17359269f47312d5f805e",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/mr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/cs.lproj/locale.pak": "6d9b42aae0fe325d8f276e9d85eaf401d07291590826379816af5d06c1a302ca",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_GB_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_PT_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fi_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ko.lproj/locale.pak": "5cd89f00e531176cb2a6bc261cb4a0c9f78e3cb7f219add1b3ac0534bf2bccac",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sl_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lv_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fil.lproj/locale.pak": "016f20db67ce14cfc263dce3fbb71ff552614a563a71a5bf32b0f13f61b2a35a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/da_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_BR_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/th_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fa_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nb_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/af_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ru_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bg_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/vi_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ca_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hu.lproj/locale.pak": "0940b32d0ab3552906a84e709e299d748385ad1cdcdee2fb4edaece0a1d7f35c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ko_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hu_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_TW_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_PT_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ro_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ta_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/tr.lproj/locale.pak": "94ba009401b4266a1541f8286ff686c2ceffe05d1e3b62f78f542d0fd03c95cc",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_BR_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pl.lproj/locale.pak": "c1523adda74ec7dfd1eaaa9a07a7c431f073946bfafd562768275e88f86e50eb",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bg_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_TW.lproj/locale.pak": "6f00414eb4a6bd9e8c53578d6f869440d3ce5a3a5cc6dcb5d0e49c2d4e603001",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ml_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ca_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pl_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ar_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_GB.lproj/locale.pak": "315923acb206804784ad83a9c3ea3e64de552a07a86eef555303745b8b0cbf9c",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_419_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_GB_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/mr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/de_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/vi.lproj/locale.pak": "2a15587b6b3847e4b22deb8e6734c7ff50b7f40c541786d99618c04870eb041a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/tr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/cs_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fil_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hi_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_419_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/it_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lt_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lv.lproj/locale.pak": "dfdc56eaad0afa0a5a65c064e8b0de3f49c8f584a9748594c7440d798ab388a5",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/kn_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lt.lproj/locale.pak": "6dafa7c5fa296b887a2e5275a1feacd7f2d429b61828867bc807fb5ff2a7bc99",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ru.lproj/locale.pak": "67372adbbb7909c20d2d5362ee240e51aace5d31e378847623e61aeaaac2c561",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/am_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/da_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pl_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fa_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/el_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_CN_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/lt_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/af.lproj/locale.pak": "1f6239c02a8a79463116118ba0dd76198a0444b72c8e252d4bdb2e12ae78a12d",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pt_BR_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/id_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ar_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bg_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_GB_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bn_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ur_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ja_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fr.lproj/locale.pak": "3420a7c0e2876d8da0708715c40365d785c20d177a31c26437645424bde7dfca",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/it_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fi.lproj/locale.pak": "fe30b9c5d9ef1d27395f37af9b349c2741e7bea4156129ad813bb31f9ae9c6e6",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/id.lproj/locale.pak": "1bfe82b3965587a6114bf863e8c57f6f4c40b8dbed39ca23b1a527c077163b72",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/gu_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nl.lproj/locale.pak": "cc56068c4b131c56557389e92abcd7648aec2a79c996b71bb942cbbddb0c2c15",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/th.lproj/locale.pak": "dbaeed537f01267acd1150c8eaefa101f195971d7b670fe40d94eeb2a54b8340",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fi_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sv_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ms_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/en_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nb_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/am_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bn.lproj/locale.pak": "6e16817ae80702207cad00bef775322ddaa88210d2dc8bc761997e04b34ebd5b",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/te_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sl_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/vi_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sk_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/tr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hr_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hu_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ru_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/es_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ro.lproj/locale.pak": "7b1967010a0d4921118a5d5b825d08c2247956158ba55b4013cf30b4bb53534b",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/et_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/de_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/uk_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fa_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/el_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/de_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/pl_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/gu_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/bn_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hu_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/vi_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/el_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sr_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/sw_FEMININE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hr.lproj/locale.pak": "8a3c4305f9854ed7d8c12ae41367444438e4608439e6ee80c80f8f01b064181a",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/hi.lproj/locale.pak": "74b45ca938ba17f2f675d90578c0f9fad9b92de3913df837802038ea5f71f40f",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ro_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/ca.lproj/locale.pak": "74a4d98beaee003a14e89d0afa9a32cfa438cdbf4d520a0f0ad46e7fa6714686",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/fr_NEUTER.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/nl_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51",
+          "Contents/Frameworks/Lune Framework.framework/Versions/158.0.8127.37/Resources/zh_CN_MASCULINE.lproj/locale.pak": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+        },
+        "unchanged": true,
+        "results": {
+          "smoke": {
+            "exit_code": 0,
+            "seconds": 139.6798366252333
+          },
+          "onboarding": {
+            "exit_code": 0,
+            "seconds": 101.56828429270536
+          },
+          "footer": {
+            "exit_code": 0,
+            "seconds": 36.212464458309114
+          }
+        }
+      },
+      "footer": {
+        "welcomeArtwork": "1",
+        "welcomeDots": [
+          {
+            "current": "step",
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Welcome to Lune",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Helium services",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Choose a search engine",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Import from other browsers",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Password manager",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Customize Lune",
+            "target": 20
+          }
+        ],
+        "setupArtwork": "0.5",
+        "initialDots": [
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Welcome to Lune",
+            "target": 20
+          },
+          {
+            "current": "step",
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Helium services",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Choose a search engine",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Import from other browsers",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Customize Lune",
+            "target": 20
+          }
+        ],
+        "dotLayout": {
+          "belowButtons": true,
+          "gap": 12,
+          "nativeTitles": false
+        },
+        "tooltip-light": {
+          "background": "rgb(0, 0, 0)",
+          "delay": "0s",
+          "duration": "0s",
+          "foreground": "rgb(255, 255, 255)",
+          "radius": "9999px",
+          "weight": "700"
+        },
+        "tooltip-dark": {
+          "background": "rgb(0, 0, 0)",
+          "delay": "0s",
+          "duration": "0s",
+          "foreground": "rgb(255, 255, 255)",
+          "radius": "9999px",
+          "weight": "700"
+        },
+        "footerEffects": {
+          "animation": "none",
+          "fadeBlocksInput": false,
+          "fadeBottom": 0,
+          "tooltipGap": 5,
+          "translate": "none"
+        },
+        "visibleAlert": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 670,
+          "height": 800,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 884,
+          "zoom": 2
+        },
+        "verticalSpacing": {
+          "above": 16,
+          "below": 16
+        },
+        "jumpDoesNotConsentOrFinish": true,
+        "optionalStepDots": [
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Welcome to Lune",
+            "target": 20
+          },
+          {
+            "current": "step",
+            "disabled": false,
+            "dot": "8px",
+            "filled": true,
+            "label": "Helium services",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Choose a search engine",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Import from other browsers",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Password manager",
+            "target": 20
+          },
+          {
+            "current": null,
+            "disabled": false,
+            "dot": "8px",
+            "filled": false,
+            "label": "Customize Lune",
+            "target": 20
+          }
+        ],
+        "welcomeJumpPreservesChoices": true,
+        "jumpPreservesChoices": true,
+        "optionalStepRemoved": true,
+        "keyboardNavigation": true,
+        "window900x650": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 520,
+          "height": 650,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 684,
+          "zoom": 2
+        },
+        "window1200x850": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 720,
+          "height": 850,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 984,
+          "zoom": 2
+        },
+        "previewGeometry": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 670,
+          "height": 800,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 884,
+          "zoom": 2
+        },
+        "fadeClearance": {
+          "aboveButtons": 12,
+          "contentClearance": 12.234375,
+          "fadeBottom": 0,
+          "mask": "none",
+          "maxScroll": 430,
+          "scrollTop": 430.5
+        },
+        "newDocumentCover": {
+          "bottom": 52,
+          "footerBottom": null,
+          "footerTop": null,
+          "height": 800,
+          "top": 0,
+          "viewport": "width=device-width,viewport-fit=cover",
+          "width": 884,
+          "zoom": 2
+        },
+        "dynamicViewportFit": true,
+        "returnedToSetup": {
+          "bottom": 52,
+          "footerBottom": 62,
+          "footerTop": 670,
+          "height": 800,
+          "top": 0,
+          "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover",
+          "width": 884,
+          "zoom": 2
+        },
+        "pass": true
+      },
+      "onboarding_passed": true,
+      "smoke": {
+        "bundle_id": "computer.lune.browser",
+        "architecture": "x86_64",
+        "test_host_architecture": "arm64",
+        "chromium_version": "158.0.8127.37",
+        "executable_sha256": "8829c8540feea6794f55430cc00690ea9677f6ed7c430faf9b4cf5a042f3196f",
+        "framework_sha256": "1db6b2f0127bd6015ec9653cf029953fae594c3b8f615c95ae759e0737c25a7a",
+        "driver_version": "ChromeDriver 158.0.8127.37 (b8c2be851f62f6a394ec57955d7f31335d7cb6d4-refs/branch-heads/8127@{#1692})",
+        "app_version": "0.22.1.1",
+        "checks": [
+          {
+            "phase": "write",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          },
+          {
+            "phase": "read",
+            "title": "Lune build smoke",
+            "runtime": "ok",
+            "stored": "persisted"
+          }
+        ],
+        "mode": "headless",
+        "release_validated": false,
+        "artwork_component_commit": "71aa6b039d1c9a8d5085c0ae80085c3b20c43701",
+        "icon_sha256": "ee0d54a595137cf6f2444731120f39c0f238ef429b2ca0add865d12215fdfaa7",
+        "ui": {
+          "defaults": {
+            "helium.browser.centered_location_bar": true,
+            "helium.browser.layout": 2,
+            "helium.browser.mru_tab_cycling": true,
+            "helium.browser.rounded_frame_thickness": 4,
+            "helium.browser.show_avatar_button": false,
+            "helium.browser.ui_density": 0,
+            "helium.browser.vertical_address_bar_in_sidebar": true,
+            "helium.browser.vertical_pinned_tabs_per_row": 4,
+            "helium.browser.vertical_right_aligned": false,
+            "helium.browser.visual_tab_switcher": true,
+            "helium.browser.zen_mode": true,
+            "helium.browser.zen_mode_sidebar_pinned": true,
+            "helium.browser.zen_mode_top_chrome_pinned": false,
+            "helium.command_bar.enabled": true,
+            "helium.link_peek.enabled": false,
+            "vertical_tabs.expand_on_hover": true,
+            "vertical_tabs.uncollapsed_width": 216,
+            "vertical_tabs.collapsed_state": false
+          },
+          "about_credit": {
+            "href": "https://helium.computer/",
+            "text": "Built on Helium, with thanks to its authors and contributors.\n        helium.computer"
+          },
+          "onboarding_credit": "Built on Helium browser, with thanks to its authors and contributors.",
+          "search_engines": [
+            {
+              "name": "Startpage",
+              "selected": "true",
+              "text": "A privacy-first search engine which doesn't profile or track you. Startpage Privacy-focused. Relies on Google and Bing for results. Promises not to track or profile you."
+            },
+            {
+              "name": "Kagi",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. Kagi Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine."
+            },
+            {
+              "name": "DuckDuckGo",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. DuckDuckGo Privacy-focused. Relies on Bing for results. Promises not to track or profile you."
+            },
+            {
+              "name": "Brave Search",
+              "selected": "false",
+              "text": "A privacy-first search engine which doesn't profile or track you. Brave Search Privacy-focused. Doesn't use Google or Bing. Promises not to track or profile you. May show promotions related to Brave services."
+            },
+            {
+              "name": "Ecosia",
+              "selected": "false",
+              "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Ecosia May plant trees for clicking ads. Relies on Google and Bing for results. Sends tracking data to Google and Microsoft."
+            },
+            {
+              "name": "Qwant",
+              "selected": "false",
+              "text": "Transparent, but not privacy-focused. Offers better privacy than mainstream search engines. Qwant Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft."
+            },
+            {
+              "name": "Google",
+              "selected": "false",
+              "text": "A mainstream search engine which collects extensive personal data. Google It's Google. It dominates the search market, collects extensive personal data, and profiles you."
+            },
+            {
+              "name": "Microsoft Bing",
+              "selected": "false",
+              "text": "A mainstream search engine which collects extensive personal data. Microsoft Bing Collects extensive personal data. Privacy controls are buried and limited. Subjectively overwhelming UI."
+            }
+          ],
+          "internal_icons": {},
+          "services_provider_disclosure": "Helium services\n\nLune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.\n\nAllow connecting to Helium services\n\nAllow Lune to connect to Helium-hosted services. These requests stay disabled until you consent.\n\nAllow automatic Helium services updates\n\nAutomatically download and install updates to Lune-provided browser components.\n\nProxy extension downloads and updates\n\nWhen enabled, Lune will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.\n\nAllow downloading the !bangs list\n\nLune will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.\n\nAllow downloading filter lists for uBlock Origin\n\nLune will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with Lune. Optional filter lists will be requested without proxying.\n\nUse your own instance of Helium services\n\nYou can host your own Helium services instance and select it in Lune settings.",
+          "native_controls_tested": false,
+          "service_provider": {
+            "host": "Helium",
+            "browser_updates": "Lune",
+            "disclosure": "When enabled, Lune will be able to connect to anonymous web services to provide additional functionality. When disabled, additional features will not work."
+          },
+          "settings_port": {
+            "noise_toggle_persisted_and_observed": true,
+            "consent_observed": true,
+            "services_remained_disabled": true,
+            "service_controls": [
+              {
+                "checked": false,
+                "id": "servicesToggleButton",
+                "key": "helium.services.enabled"
+              },
+              {
+                "checked": true,
+                "id": "extProxyToggleButton",
+                "key": "helium.services.ext_proxy"
+              },
+              {
+                "checked": true,
+                "id": "bangToggleButton",
+                "key": "helium.services.bangs"
+              },
+              {
+                "checked": true,
+                "id": "servicesUpdatesToggleButton",
+                "key": "helium.services.component_updates"
+              },
+              {
+                "checked": true,
+                "id": "filterlistToggleButton",
+                "key": "helium.services.ublock_assets"
+              }
+            ],
+            "browser_update_control_on_privacy_root": true,
+            "services_entry": {
+              "description": "Manage what Helium services are allowed in your browser",
+              "icon": "helium-services:logo"
+            },
+            "origin_normalized_persisted_and_observed": true
+          },
+          "flags_initialization": {
+            "feature_count": 409,
+            "sample_exclusions_verified": [
+              "vertical-tabs-expand-on-hover",
+              "webui-omnibox-popup",
+              "webui-toolbar"
+            ]
+          }
+        },
+        "update_feed_isolated": true,
+        "framework_unchanged": true,
+        "passed": true
+      }
+    }
+  },
+  "native_dismissal": {
+    "resizeEvents": [],
+    "samples": [
+      {
+        "above": 16,
+        "at": 1794642939781,
+        "below": 16,
+        "bottom": 52,
+        "footerBottom": 62,
+        "height": 800,
+        "t": 14386.5,
+        "width": 884
+      },
+      {
+        "above": 16,
+        "at": 1794642943713,
+        "below": 16,
+        "bottom": 0,
+        "footerBottom": 10,
+        "height": 800,
+        "t": 18319.5,
+        "width": 884
+      }
+    ],
+    "started": 1794642939781
+  },
+  "native_review": "Owner accepted preview 6 spacing and immediate dismissal. Subsequent requested fade confinement and half-opacity artwork were verified in preview 7; final search card clears the fade at scroll end.",
+  "frontend": "Svelte check zero errors/warnings and TypeScript pass",
+  "repository_checks": {
+    "unit_tests_passed": true,
+    "log_sha256": "ecc5c9e2eea4f6f169bab54be780fcd0df3434b273d2fb04b7fd09465107d03a",
+    "patch_and_translation_lints": true,
+    "onboarding_generator_messages": 108,
+    "actions_registry_guard": true
+  },
+  "timings": [
+    {
+      "iteration": "preview-1",
+      "arch": "arm64",
+      "phase": "fixture",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        "python3",
+        ".work/bottom-safe-area/setup.py"
+      ],
+      "started_at": "2026-11-14T06:38:22.314678+00:00",
+      "finished_at": "2026-11-14T06:43:47.767459+00:00",
+      "seconds": 325.469708,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "preview-1",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        "python3",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T06:44:46.089051+00:00",
+      "finished_at": "2026-11-14T06:44:58.010337+00:00",
+      "seconds": 11.921227,
+      "returncode": 1,
+      "exit_code": 1
+    },
+    {
+      "iteration": "reused-preview-1",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T06:48:49.175676+00:00",
+      "finished_at": "2026-11-14T06:58:26.331482+00:00",
+      "seconds": 577.155222,
+      "returncode": 1,
+      "exit_code": 1
+    },
+    {
+      "iteration": "reused-preview-2",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T06:58:59.847644+00:00",
+      "finished_at": "2026-11-14T07:06:29.420009+00:00",
+      "seconds": 449.57044,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "reused-preview-2",
+      "arch": "arm64",
+      "phase": "preview",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/preview.py"
+      ],
+      "started_at": "2026-11-14T07:06:40.434554+00:00",
+      "finished_at": "2026-11-14T07:06:43.946958+00:00",
+      "seconds": 3.512019,
+      "returncode": 1,
+      "exit_code": 1
+    },
+    {
+      "iteration": "reused-preview-3",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T07:11:04.513870+00:00",
+      "finished_at": "2026-11-14T07:13:47.558044+00:00",
+      "seconds": 163.043964,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "reused-preview-3",
+      "arch": "arm64",
+      "phase": "preview",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/preview.py"
+      ],
+      "started_at": "2026-11-14T07:14:35.199301+00:00",
+      "finished_at": "2026-11-14T07:16:35.412301+00:00",
+      "seconds": 120.212575,
+      "returncode": 1,
+      "exit_code": 1
+    },
+    {
+      "iteration": "reused-preview-3-fresh-profile",
+      "arch": "arm64",
+      "phase": "preview",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/preview.py"
+      ],
+      "started_at": "2026-11-14T07:18:42.153864+00:00",
+      "finished_at": "2026-11-14T07:18:44.455058+00:00",
+      "seconds": 2.301031,
+      "returncode": 1,
+      "exit_code": 1
+    },
+    {
+      "iteration": "reused-preview-4",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T07:23:43.390352+00:00",
+      "finished_at": "2026-11-14T07:26:50.759854+00:00",
+      "seconds": 187.370275,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "reused-preview-4",
+      "arch": "arm64",
+      "phase": "preview",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/preview.py"
+      ],
+      "started_at": "2026-11-14T07:27:17.602075+00:00",
+      "finished_at": "2026-11-14T07:27:26.221245+00:00",
+      "seconds": 8.619117,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "reused-preview-5",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T07:35:53.680775+00:00",
+      "finished_at": "2026-11-14T07:38:25.060551+00:00",
+      "seconds": 151.380327,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "reused-preview-5-bold",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T07:39:15.911670+00:00",
+      "finished_at": "2026-11-14T07:41:50.672959+00:00",
+      "seconds": 154.761777,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "reused-preview-6",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T07:51:26.440507+00:00",
+      "finished_at": "2026-11-14T07:55:05.186483+00:00",
+      "seconds": 218.743513,
+      "returncode": 0,
+      "exit_code": 0
+    },
+    {
+      "iteration": "reused-preview-7",
+      "arch": "arm64",
+      "phase": "build",
+      "cwd": "/Users/leebyron/code/leebyron/lune-browser",
+      "command": [
+        ".work/venv/bin/python",
+        ".work/bottom-safe-area/build.py"
+      ],
+      "started_at": "2026-11-14T08:00:35.702625+00:00",
+      "finished_at": "2026-11-14T08:04:24.862339+00:00",
+      "seconds": 229.159095,
+      "returncode": 0,
+      "exit_code": 0
+    }
+  ],
+  "limits": [
+    "Intel runtime is Rosetta on Apple silicon, not native Intel.",
+    "No fresh full Chromium preparation: reused source and incremental outputs; exact frozen-preimage replay, accepted dependency replay and final source parity were verified.",
+    "Multiple simultaneous alerts, fullscreen and page zoom were not independently exercised."
+  ],
+  "workspace": {
+    "owner": "01a1d737-9457-7f91-a947-446622f98e21",
+    "task": "Issue #35 bottom alert safe areas and clickable setup progress dots",
+    "source": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-arrangement/platform/build/src",
+    "base_core_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+    "base_platform_commit": "18709b036de7550323bc4d5e63d61d9e3aa05d94",
+    "chromium_version": "158.0.8127.37",
+    "outputs": {
+      "arm64": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-arrangement/platform/build/src/out/Default",
+      "x86_64": "/Users/leebyron/code/leebyron/lune-browser/.work/older-tabs-arrangement/platform/build/src/out/Intel"
+    },
+    "active_patches": [
+      "helium/ui/older-tabs-arrangement-aging.patch",
+      "helium/ui/older-tabs-disclosure.patch",
+      "helium/ui/update-release-notes.patch",
+      "lune/github-release-notes.patch",
+      "helium/ui/older-tabs-entry-clock.patch",
+      "helium/ui/address-overflow-padding.patch",
+      "helium/ui/bottom-alert-safe-area.patch",
+      "helium/ui/onboarding-safe-area-progress.patch",
+      "helium/ui/sidebar-bottom-inset.patch"
+    ],
+    "command_in_progress": null,
+    "state": "Validated on both architectures; accepted footer work completed; source and outputs retained for preferred defaults",
+    "adoption_base": "6712c22a87c728c19d7cb43dc7c794906cbe3ea3",
+    "latest_validation": "/Users/leebyron/code/leebyron/lune-browser/.work/bottom-safe-area/final-checks-x86_64.json"
+  },
+  "cleanup": {
+    "temporary_previews_closed": true,
+    "disposable_profile_and_replay_directories_removed": 11,
+    "retained": [
+      "shared prepared source",
+      "incremental architecture outputs",
+      "compiler caches",
+      "validation reports and screenshots"
+    ]
+  }
+}

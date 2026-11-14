@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "18709b036de7550323bc4d5e63d61d9e3aa05d94",
+    "commit": "71aa6b039d1c9a8d5085c0ae80085c3b20c43701",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -889,6 +889,14 @@
       {
         "path": "patches/helium/ui/sidebar-bottom-inset.patch",
         "sha256": "2d72e75a5e134229f8510c547df76da21dd55a7673e0ea0937d818b693c9d52b"
+      },
+      {
+        "path": "patches/helium/ui/bottom-alert-safe-area.patch",
+        "sha256": "c0205b3e46b673d3c6f4679b921eaff7200cf65731c61ffc5218b4a0db38bd79"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-safe-area-progress.patch",
+        "sha256": "94ab034860e6fed5a8f9ec2aec5d7f877fad682f1e5be109141a5b9c7929cd7f"
       }
     ]
   },
@@ -2619,6 +2627,39 @@
       "adaptation": "Reuse the computed horizontal padding in scroll-content height instead of a fixed 8 DIP bottom inset. Floating/sidebar-address mode becomes 9 DIP, matching its sides and footer; other layouts follow their own side inset. The scroll viewport remains full height. Both builds and browsing/settings/profile-persistence smoke pass, Intel under Rosetta. The owner accepted the visual fix. Automated native preview verification was limited to startup. See agent-docs/project/builds/2026-11-13-sidebar-bottom-inset.json.",
       "commits": [
         "18709b036de7550323bc4d5e63d61d9e3aa05d94"
+      ]
+    },
+    {
+      "id": "bottom-alert-safe-area",
+      "depends_on": [
+        "floating-infobars",
+        "native-header-scroll"
+      ],
+      "patches": [
+        "patches/helium/ui/bottom-alert-safe-area.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Expose the actual occupied region of floating browser alerts through the page bottom safe area for viewport-fit=cover documents.",
+      "adaptation": "Compose browser overlay geometry with existing physical and header insets, restore it after navigation, register the renderer interface on macOS, and invalidate layout on immediate alert removal. Both architecture builds and browser checks pass; native dismissal changes 52px to zero without a resize event. Multiple stacked alerts, fullscreen and zoom remain outside the executed fixture scope.",
+      "commits": [
+        "71aa6b039d1c9a8d5085c0ae80085c3b20c43701"
+      ]
+    },
+    {
+      "id": "setup-safe-area-progress",
+      "depends_on": [
+        "bottom-alert-safe-area",
+        "onboarding-reviewed-13",
+        "setup-baked-wallpapers"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-safe-area-progress.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep setup buttons and clickable progress dots visible above browser alerts, with scroll clearance and restrained background contrast.",
+      "adaptation": "Includes Welcome in progress, uses 8px dots with 12px horizontal gaps and 16px vertical clearance, immediate bold white-on-black pill tooltips with 5px gap, no footer entrance animation, a fade beginning 12px above buttons to the true viewport bottom, unfaded final content at scroll end, and artwork fading to half opacity after Welcome. Dot jumps preserve choices without importing, consenting or completing setup.",
+      "commits": [
+        "71aa6b039d1c9a8d5085c0ae80085c3b20c43701"
       ]
     }
   ],
