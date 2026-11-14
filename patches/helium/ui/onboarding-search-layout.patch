@@ -1,0 +1,450 @@
+Index: src/components/helium_onboarding/helium_onboarding_strings.grdp
+===================================================================
+--- src.orig/components/helium_onboarding/helium_onboarding_strings.grdp
++++ src/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -107,7 +107,8 @@
+   Choose a search engine
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_SUBTITLE" desc="Subtitle for the onboarding screen for selecting a default search engine.">
+-  You can change your choice later in Settings. Search engines are sorted by privacy.
++  You can change your choice later in settings.
++Search engines are sorted by privacy
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_CATEGORIES_PRIVATE" desc="Description for privacy-first search engines in onboarding.">
+   A privacy-first search engine which doesn't profile or track you.
+@@ -125,7 +126,7 @@
+   Privacy-focused. Relies on Bing for results. Promises not to track or profile you.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_ENGINES_KAGI" desc="Onboarding description of Kagi as a search engine option.">
+-  Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial. Select Kagi to make it your default search engine.
++  Ad-free search with custom ranking. Requires a Kagi account and a paid subscription after the trial.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_ENGINES_QWANT" desc="Onboarding description of Qwant as a search engine option.">
+   Based in Europe. Relies on Bing for results. Sends tracking data to Microsoft.
+@@ -143,7 +144,7 @@
+   Privacy-focused. Relies on Google and Bing for results. Promises not to track or profile you.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_ENGINES_BRAVE" desc="Onboarding description of Brave as a search engine option.">
+-  Privacy-focused. Doesn't use Google or Bing. Promises not to track or profile you. May show promotions related to Brave services.
++  Privacy-focused. Doesn't use Google or Bing. Promises not to track or profile you. Shows Brave services promotions.
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_DEFAULT_BROWSER_TITLE" desc="Title of the onboarding screen asking whether Helium should be the default browser.">
+@@ -284,8 +285,8 @@
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_HOVER" desc="Onboarding appearance choice.">On hover edge</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_COVER" desc="Keep the toolbar visible and allow pages to opt into drawing beneath it.">Always cover (experimental)</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_ALWAYS" desc="Onboarding appearance choice.">Always</message>
+-<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_TITLE" desc="Opt in to search-engine suggestions during setup.">Search suggestions</message>
+-<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_DESC" desc="Explains partial query disclosure to the chosen search engine.">Send what you type to your selected search engine to show suggested searches and websites in the address bar and Cmd-T.</message>
++<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_TITLE" desc="Opt in to search-engine suggestions during setup.">Show search suggestions</message>
++<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_DESC" desc="Explains partial query disclosure to the chosen search engine.">Sends what you type in the address bar to your search engine</message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_SEARCH_SUGGESTIONS" desc="Discloses search suggestions included in the Use defaults setup choice.">Defaults include search suggestions from your selected search engine.</message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_TITLE" desc="Independent automatic Helium service component updates toggle.">
+   Allow automatic Helium services updates
+Index: src/components/helium_onboarding/src/components/PreferenceToggle.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/PreferenceToggle.svelte
++++ src/components/helium_onboarding/src/components/PreferenceToggle.svelte
+@@ -11,12 +11,24 @@
+         desc: string;
+         prefName: BooleanPreference;
+         disabled?: boolean;
++        compact?: boolean;
+     };
+ 
+-    const { title, desc, prefName, disabled }: Props = $props();
++    const { title, desc, prefName, disabled, compact = false }: Props = $props();
+     const checked = $derived($preferences[prefName]);
+ </script>
+ 
++{#if compact}
++    <div class="compact-preference">
++        <div class="compact-text">
++            <label for={`${prefName}-toggle`}>{title}</label>
++            <p id={`${prefName}-description`} class="compact-description">{desc}</p>
++        </div>
++        <input id={`${prefName}-toggle`} type="checkbox" role="switch" {checked} {disabled}
++            aria-describedby={`${prefName}-description`}
++            onchange={(event) => setPref(prefName, event.currentTarget.checked)} />
++    </div>
++{:else}
+ <Toggle
+     name={title}
+     {desc}
+@@ -24,3 +36,65 @@
+     {disabled}
+     onchange={(enabled) => setPref(prefName, enabled)}
+ />
++{/if}
++
++<style>
++    .compact-preference {
++        display: flex;
++        align-items: center;
++        gap: 32px;
++        width: fit-content;
++        max-width: 100%;
++        padding: 14px 18px;
++        border: 1px solid color-mix(in srgb, var(--secondary) 15%, transparent);
++        border-radius: 14px;
++        background: transparent;
++        text-align: left;
++    }
++
++    .compact-text {
++        min-width: 0;
++    }
++
++    label {
++        display: block;
++        font: 400 14px/20px Inter, sans-serif;
++        cursor: pointer;
++    }
++
++    .compact-preference .compact-description {
++        margin: 2px 0 0;
++        font: 400 12px/16px Inter, sans-serif;
++    }
++
++    input {
++        appearance: none;
++        flex-shrink: 0;
++        width: 30px;
++        height: 18px;
++        border-radius: 12px;
++        background: color-mix(in srgb, var(--secondary) 30%, transparent);
++        margin: 0;
++        padding: 3px;
++        cursor: pointer;
++    }
++
++    input::before {
++        content: '';
++        display: block;
++        width: 12px;
++        height: 12px;
++        border-radius: 50%;
++        background: var(--bg-gradient-start);
++        transition: transform 150ms;
++    }
++
++    input:checked { background: var(--helium-blue); }
++    input:checked::before { transform: translateX(12px); }
++    input:focus-visible { outline: 2px solid var(--helium-blue); outline-offset: 4px; }
++    input:disabled { cursor: default; opacity: 0.5; }
++
++    @media (prefers-reduced-motion: reduce) {
++        input::before { transition: none; }
++    }
++</style>
+Index: src/components/helium_onboarding/src/pages/SearchEngine.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/pages/SearchEngine.svelte
++++ src/components/helium_onboarding/src/pages/SearchEngine.svelte
+@@ -18,7 +18,7 @@
+ </script>
+ 
+ <div id="search-engines-page" class="onboarding-page" class:visible>
+-    <div class="scrollable-page">
++    <div id="search-engines-page-container" class="scrollable-page">
+         <PageHeader
+             title={s.search.title}
+             subtitle={s.search.subtitle}
+@@ -30,7 +30,9 @@
+                 title={s.search.suggestionsTitle}
+                 desc={s.search.suggestionsDesc}
+                 prefName="search.suggest_enabled"
++                compact
+             />
++            <div class="engine-options">
+             {#each $searchEngines as e}
+                 {@const engineKey = getKeyword(e)}
+                 <SearchEngineItem
+@@ -42,6 +44,28 @@
+                     isDefault={e.default}
+                 />
+             {/each}
++            </div>
+         </div>
+     </div>
+ </div>
++
++<style>
++    #search-engines-page-container {
++        max-width: 1000px;
++    }
++
++    .engine-options {
++        margin-top: 12px;
++        display: grid;
++        grid-template-columns: repeat(2, minmax(0, 1fr));
++        justify-items: center;
++        gap: var(--gap-3);
++        width: 100%;
++    }
++
++    @media screen and (max-width: 1000px) {
++        .engine-options {
++            grid-template-columns: 1fr;
++        }
++    }
++</style>
+Index: src/components/helium_onboarding/src/components/SearchEngineItem.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/SearchEngineItem.svelte
++++ src/components/helium_onboarding/src/components/SearchEngineItem.svelte
+@@ -1,5 +1,5 @@
+ <script lang="ts">
+-    import { Button, IconSearch, Tooltip } from "@imput/helium-prism";
++    import { Button, IconCheck, IconSearch, Tooltip } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { setDefaultEngine } from "../lib/browser";
+     import { searchEngineConfig } from "../lib/search-engine-config";
+@@ -50,25 +50,23 @@
+     }}
+ >
+     <div class="engine-layout">
+-        <div class="engine-icon-container" aria-hidden="true">
++        <div class="engine-icon-container">
+             {#if !brokenIcon}
+                 <img
+                     class="engine-icon"
+-                    width="32"
+-                    height="32"
+                     src={iconPath}
+-                    alt="{name} logo"
++                    alt=""
+                     onerror={() => (brokenIcon = true)}
+                 />
+             {:else}
+                 <IconSearch />
+             {/if}
+-        </div>
+-        <div class="engine-text">
+-            <h4 class="engine-name">
++            <div class="engine-privacy">
+                 <Tooltip>
+                     {#snippet anchor()}
+-                        <PrivacyIcon />
++                        <span class="privacy-badge {engineCategory}">
++                            <PrivacyIcon />
++                        </span>
+                     {/snippet}
+                     {#snippet content()}
+                         <div class="tooltip-content">
+@@ -76,24 +74,53 @@
+                         </div>
+                     {/snippet}
+                 </Tooltip>
++            </div>
++        </div>
++        <div class="engine-text">
++            <h4 class="engine-name">
+                 {name}
+             </h4>
+             {#if engineCategory !== "custom"}
+                 <p>{desc}</p>
+             {/if}
+         </div>
++        <span class="engine-selection" class:selected={isDefault} aria-hidden="true">
++            <IconCheck />
++        </span>
+     </div>
+ </Button>
+ 
+ <style>
+     .engine-layout {
+         display: grid;
+-        grid-template-columns: 32px minmax(0, 1fr);
++        grid-template-columns: 48px minmax(0, 1fr) 28px;
+         align-items: center;
+         gap: 16px;
+         width: 100%;
+     }
+ 
++    .engine-selection {
++        display: flex;
++        align-items: center;
++        justify-content: center;
++        width: 28px;
++        height: 28px;
++        border-radius: 50%;
++        background: var(--helium-blue);
++        color: #fff;
++        visibility: hidden;
++    }
++
++    .engine-selection.selected {
++        visibility: visible;
++    }
++
++    .engine-selection :global(svg) {
++        width: 21px;
++        height: 21px;
++        stroke-width: 2px;
++    }
++
+     .engine-text {
+         display: flex;
+         flex-direction: column;
+@@ -109,14 +136,10 @@
+         line-height: 1;
+         margin-bottom: 2px;
+ 
+-        & :global(svg) {
+-            stroke-width: 2px;
+-            height: 18px;
+-            width: 18px;
+-        }
+     }
+ 
+     .engine-icon-container {
++        position: relative;
+         background: var(--helium-elevated-10);
+         display: flex;
+         justify-content: center;
+@@ -125,11 +148,37 @@
+ 
+     .engine-icon-container,
+     .engine-icon {
+-        width: 32px;
+-        height: 32px;
++        width: 48px;
++        height: 48px;
+         border-radius: 8px;
+     }
+ 
++    .engine-privacy {
++        position: absolute;
++        right: -4px;
++        bottom: -8px;
++    }
++
++    .privacy-badge {
++        display: flex;
++        align-items: center;
++        justify-content: center;
++        width: 18px;
++        height: 18px;
++        border-radius: 50%;
++        background: #ad850c;
++        color: #fff;
++    }
++
++    .privacy-badge.private { background: #348653; }
++    .privacy-badge.mainstream { background: #c04d4d; }
++
++    .privacy-badge :global(svg) {
++        width: 12px;
++        height: 12px;
++        stroke-width: 2px;
++    }
++
+     .tooltip-content {
+         max-width: 230px;
+         line-break: pretty;
+Index: src/components/helium_onboarding/src/components/PageNavigation.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/PageNavigation.svelte
++++ src/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -177,6 +177,7 @@
+ 
+     #setup-buttons {
+         position: static;
++        gap: var(--gap-3);
+         justify-content: center;
+     }
+ 
+Index: src/components/helium_onboarding/src/app.css
+===================================================================
+--- src.orig/components/helium_onboarding/src/app.css
++++ src/components/helium_onboarding/src/app.css
+@@ -79,12 +79,55 @@ h2 {
+     color: color-mix(in srgb, var(--secondary) 70%, var(--setup-background));
+ }
+ 
++/* Give setup cards a consistent soft backdrop without blurring their content. */
++.onboarding-page :is(.card, .compact-preference, .pm-option,
++                    .profile-option, .import-notice, .dropdown) {
++    backdrop-filter: blur(4px);
++}
++
+ /* Keep secondary setting descriptions smaller than control labels. */
+ .onboarding-page .page-content p {
+     font-size: 14px;
+     line-height: 1.4;
+ }
+ 
++/* Keep related setting labels consistent with the card typography. */
++.onboarding-page .updates label,
++.onboarding-page .appearance-options .option > span,
++.onboarding-page .appearance-options select {
++    font: 400 14px/20px Inter, sans-serif;
++    color: var(--primary);
++}
++
++/* Keep every card title/description pair at the same 2px separation. */
++.onboarding-page .page-content :is(.card, .pm-option, .profile-option, .import-notice)
++    :is(.engine-text, .toggle-text, .link-text, .text, .notice-text, .pm-text) {
++    gap: 2px;
++}
++
++.onboarding-page .page-content :is(.card, .pm-option, .profile-option, .import-notice) h4 {
++    margin: 0;
++}
++
++/* Match card labels and descriptions to the compact preference control. */
++.onboarding-page .page-content :is(.card, .compact-preference, .pm-option,
++                                  .profile-option, .import-notice) :is(h4, label) {
++    font: 400 14px/20px Inter, sans-serif;
++    color: var(--primary);
++}
++
++.onboarding-page .page-content :is(.card, .compact-preference, .pm-option,
++                                  .profile-option, .import-notice) p,
++.onboarding-page .page-content .pm-option .info-links a {
++    font: 400 12px/16px Inter, sans-serif;
++    color: color-mix(in srgb, var(--secondary) 70%, var(--setup-background));
++}
++
++.onboarding-page .page-content .import-notice p a {
++    font: inherit;
++    color: inherit;
++}
++
+ .page-content {
+     display: flex;
+     flex-direction: column;
+Index: src/components/helium_onboarding/BUILD.gn
+===================================================================
+--- src.orig/components/helium_onboarding/BUILD.gn
++++ src/components/helium_onboarding/BUILD.gn
+@@ -65,6 +65,8 @@ action("build") {
+     "src/pages/Welcome.svelte",
+     "src/pages/SearchEngine.svelte",
+     "src/components/PreferenceToggle.svelte",
++    "src/components/SearchEngineItem.svelte",
++    "src/components/PasswordManagerOption.svelte",
+     "src/pages/Finish.svelte",
+     "src/pages/HeliumServices.svelte",
+     "package.json",
+Index: src/components/helium_onboarding/src/components/PasswordManagerOption.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/PasswordManagerOption.svelte
++++ src/components/helium_onboarding/src/components/PasswordManagerOption.svelte
+@@ -85,6 +85,7 @@
+                 <HeliumPartner />
+             {/if}
+             <h4>{info.title}</h4>
++            <p>{info.description}</p>
+             <div class="info-links">
+                 {#if info.importGuide}
+                     {@render link(
+@@ -123,7 +124,6 @@
+             {/if}
+         </Button>
+     </div>
+-    <p>{info.description}</p>
+ </div>
+ 
+ <style>
