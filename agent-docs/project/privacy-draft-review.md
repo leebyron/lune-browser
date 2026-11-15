@@ -12,7 +12,7 @@ provider, access and retention still need confirmation.
 Reviewed the main development lock selecting macOS
 `956bc5a32fbdc7cdf89ee1ba5946683a6f69d71f` and core
 `f7d3113d2a0b271fc57d354e058b0ddc3c60ab71`, including the prepared source in the
-existing `.work/older-tabs-arrangement/platform/build/src`. No source copy was made. Setup now has a focused pending privacy-link patch. The published release remains 26.1114.1;
+existing `.work/older-tabs-arrangement/platform/build/src`. No source copy was made. Setup now has a focused privacy-link patch selected for future builds. The published release remains 26.1114.1;
 the revised Services/one-time installer flow is future-build behavior. This
 draft does not claim a new packaged-browser network capture or legal approval.
 
@@ -111,11 +111,11 @@ retention promise, corporate exemption claim, or legal-compliance certification.
 - Keep coverage aligned with current and future-release behavior. Review whether
   material changes require additional notice. The public footer carries the
   revision date and links to the versioned source and edit history.
-- Publish the policy before adopting the pending setup link to
-  `https://lune.computer/privacy`. The setup footer link is implemented in the
-  shared source and its frontend checks/build and strict patch replay pass; it
-  is not yet selected in the browser lock or shipped. The local website footer
-  link is implemented. Settings/About linking remains pending. Issue #35 stays open.
+- The setup link to `https://lune.computer/privacy` is selected for future builds.
+  Frontend checks, compiled-bundle verification and strict patch replay pass.
+  The owner waived paired architecture checks for this hosted-link/CSS change.
+  The website footer link is included. Settings/About linking and inherited
+  consent/terms wording remain follow-ups; issue #35 stays open.
 
 ## Paragraph relevance review
 

@@ -100,6 +100,8 @@ report={}
 try:
     wd('POST',prefix+'/url',{'url':'chrome://setup/'})
     wait("return !!document.querySelector('.welcome-actions .primary')")
+    report['privacyLink']=js("return document.querySelector('#welcome-footer .policy a')?.href")
+    assert report['privacyLink']=='https://lune.computer/privacy',report['privacyLink']
     report['welcomeArtwork']=js("return getComputedStyle(document.querySelector('.setup-wallpaper')).opacity")
     assert report['welcomeArtwork']=='1'
     report['welcomeDots']=dots()

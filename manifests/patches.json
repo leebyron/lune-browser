@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "956bc5a32fbdc7cdf89ee1ba5946683a6f69d71f",
+    "commit": "36af329d718eaa06c4c1d9c2759827a4cddaa01d",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -929,6 +929,14 @@
       {
         "path": "patches/helium/ui/onboarding-close-warning.patch",
         "sha256": "934ac1385407eec1363145a042bc0aee41f7dd27fd2a7f4f9706b983190da14e"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-link-underlines.patch",
+        "sha256": "dd4ffbfc943c339f1b580f345ee2ae988836efbe9a2ebf020160ca27bafc0019"
+      },
+      {
+        "path": "patches/lune/onboarding-privacy-link.patch",
+        "sha256": "652dd6eef65deeae9792e90fd218e09370be13686a02829226e811268e1c8f62"
       }
     ]
   },
@@ -2820,6 +2828,36 @@
       "adaptation": "Register a standard beforeunload warning while setup is incomplete; completion clears it. Native prompts require prior user interaction.",
       "commits": [
         "956bc5a32fbdc7cdf89ee1ba5946683a6f69d71f"
+      ]
+    },
+    {
+      "id": "onboarding-link-underlines",
+      "depends_on": [
+        "onboarding-search-layout"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-link-underlines.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use 33% underline opacity with full color on hover and keyboard focus.",
+      "adaptation": "Use 33% underline opacity with full color on hover and keyboard focus.",
+      "commits": [
+        "af9b1320db1f4d6dc2a6da6c5952149d886b3822"
+      ]
+    },
+    {
+      "id": "lune-onboarding-privacy-link",
+      "depends_on": [
+        "lune-onboarding-welcome-refinements"
+      ],
+      "patches": [
+        "patches/lune/onboarding-privacy-link.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Point the setup privacy link to the independently published Lune notice.",
+      "adaptation": "Point the setup privacy link to the independently published Lune notice.",
+      "commits": [
+        "36af329d718eaa06c4c1d9c2759827a4cddaa01d"
       ]
     }
   ],
