@@ -51,7 +51,7 @@ def wait(script):
   time.sleep(.1)
  raise AssertionError('Timeout: '+script)
 def nav_setup():
- wd('POST',p+'/url',{'url':'chrome://setup/'});wait("return !!document.querySelector('#welcome-page input')")
+ wd('POST',p+'/url',{'url':'chrome://setup/'});wait("return !!document.querySelector('.welcome-actions .primary')")
 def click(selector):js('document.querySelector('+json.dumps(selector)+').click()')
 def step(name):wait('return !!document.querySelector('+json.dumps('#'+name+'-page.visible')+')')
 def next_():click('#setup-buttons button:last-child')
@@ -65,9 +65,9 @@ def close():
  global p
  wd('DELETE',p);p=None
 
-def finish_from_search(services):
+def finish_from_services():
  next_();step('data-import');next_()
- if services:step('password-manager');next_()
+ step('password-manager');next_()
  step('finish')
  appearance=wait("return document.querySelectorAll('#finish-page select').length===4 && [...document.querySelectorAll('#finish-page select')].map(s=>s.value)")
  assert appearance==['0','lune','left','hover'],appearance
@@ -76,53 +76,39 @@ def finish_from_search(services):
 def shot(name):
  wait("return !document.getAnimations().some(a=>a.playState==='running' && a.effect.getTiming().iterations!==Infinity)")
  (out/(name+'.png')).write_bytes(base64.b64decode(wd('GET',p+'/screenshot')))
+def services():
+ click('.welcome-actions .primary');step('search-engines');next_();step('services')
+
 report={}
 try:
  start('defaults')
  before=prefs();assert before['helium.services.user_consented'] is False and before['search.suggest_enabled'] is False
  click('.welcome-actions .ghost');wait("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
  report['useDefaults']=prefs();close()
- start('unchanged-custom')
- click('.welcome-actions .primary');step('services')
- assert checked('#services-page button[role=switch]')
- assert js("return [...document.querySelectorAll('#services-page button[role=switch]')].every(b=>b.getAttribute('aria-checked')==='true' && !b.disabled)")
+ start('unchanged-custom');services()
+ assert js("return [...document.querySelectorAll('#services-page input')].length===7 && [...document.querySelectorAll('#services-page input')].every(e=>e.checked && !e.disabled)")
  before=prefs();assert before['helium.services.user_consented'] is False and before['search.suggest_enabled'] is False
  report['servicesBeforeNext']=before
- report['descriptionStyle']=js("return {description:getComputedStyle(document.querySelector('#services-page .toggle-text p')).fontSize,subtitle:getComputedStyle(document.querySelector('#services-page .page-header p')).fontSize}")
+ report['descriptionStyle']=js("return {description:getComputedStyle(document.querySelector('#services-page .compact-description')).fontSize,subtitle:getComputedStyle(document.querySelector('#services-page .page-header p')).fontSize}")
  assert report['descriptionStyle']=={'description':'12px','subtitle':'16px'}
- shot('services-defaults')
- next_();step('search-engines');assert checked('#search-engines-page input[role=switch]')
- before=prefs();assert before['helium.services.user_consented'] is True and before['search.suggest_enabled'] is False
- report['suggestionsBeforeNext']=before
- assert js("return getComputedStyle(document.querySelector('.engine-text p')).fontSize")=='12px'
- shot('search-defaults')
- finish_from_search(True);report['unchangedCustom']=prefs()
- assert report['useDefaults']==report['unchangedCustom'],(report['useDefaults'],report['unchangedCustom']);close()
- profile=start('opt-outs')
- click('#welcome-page input');click('.welcome-actions .primary');step('services')
- assert checked('#services-page button[role=switch]')
- assert checked('#services-page button[role=switch]:nth-child(2)')
- click('#services-page button[role=switch]:nth-child(2)')
- click('#services-page button[role=switch]')
- wait("return document.querySelectorAll('#services-page button[role=switch]')[1].disabled")
- click('#setup-buttons button:first-child');step('welcome');click('.welcome-actions .primary');step('services')
- assert not checked('#services-page button[role=switch]')
- nav_setup();click('.welcome-actions .primary');step('services');assert not checked('#services-page button[role=switch]')
- next_();step('search-engines');assert checked('#search-engines-page input[role=switch]')
- click('#search-engines-page input[role=switch]');wait("return document.querySelector('#search-engines-page input[role=switch]').checked===false")
- assert prefs()['search.suggest_enabled'] is False
- close();start('opt-outs-resumed',profile)
- assert js("return document.querySelector('#welcome-page input').checked") is False
- click('.welcome-actions .primary');step('services');assert not checked('#services-page button[role=switch]')
- assert not checked('#services-page button[role=switch]:nth-child(2)')
- next_();step('search-engines');assert not checked('#search-engines-page input[role=switch]')
- finish_from_search(False);report['retainedOptOuts']=prefs()
+ finish_from_services();report['unchangedCustom']=prefs()
+ assert report['useDefaults']==report['unchangedCustom'],report;close()
+ profile=start('opt-outs');services()
+ click('input[id="services.browser_updates-toggle"]')
+ click('input[id="search.suggest_enabled-toggle"]')
+ for key in ['ext_proxy','bangs','ublock_assets','component_updates']:
+  click('input[id="services.'+key+'-toggle"]')
+ click('#setup-buttons button:first-child');step('search-engines');next_();step('services')
+ assert js("return [...document.querySelectorAll('#services-page input')].filter(e=>e.id!=='ublock.enabled-toggle').every(e=>!e.checked)")
+ nav_setup();services()
+ assert js("return [...document.querySelectorAll('#services-page input')].filter(e=>e.id!=='ublock.enabled-toggle').every(e=>!e.checked)")
+ close();start('opt-outs-resumed',profile);services()
+ assert js("return [...document.querySelectorAll('#services-page input')].filter(e=>e.id!=='ublock.enabled-toggle').every(e=>!e.checked)")
+ finish_from_services();report['retainedOptOuts']=prefs()
  for k in ['search.suggest_enabled','helium.services.enabled','helium.services.component_updates','helium.services.browser_updates']:assert report['retainedOptOuts'][k] is False
- report['backReloadAndRestartPreserveChoices']=True;close()
- start('review')
- click('.welcome-actions .primary');step('services');shot('review')
+ report['backReloadAndRestartPreserveChoices']=True
  report['pass']=True
- (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
+ print(json.dumps(report,indent=2),flush=True)
 finally:
  (out/'report.json').write_text(json.dumps(report,indent=2)+'\n')
  if p:close()

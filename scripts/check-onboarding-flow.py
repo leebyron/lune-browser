@@ -46,10 +46,10 @@ def next_():js("document.querySelector('#setup-buttons button:last-child').click
 def screenshot(name):(out/(name+'.png')).write_bytes(base64.b64decode(wd('GET',p+'/screenshot')))
 try:
  nav('chrome://setup/')
- wait("return document.querySelector('#welcome-page input')?.checked")
+ wait("return document.querySelector('.welcome-actions .primary')")
  report['rootBackground']=js('return [document.documentElement,document.body,document.querySelector("main")].map(e=>getComputedStyle(e).backgroundColor)'); assert len(set(report['rootBackground']))==1
  report['tabTitle']=js('return document.title'); assert report['tabTitle']=='Welcome to Lune'
- report['welcome']=js("return {title:document.querySelector('h1').innerText,body:document.querySelector('.description').innerText,buttons:[...document.querySelectorAll('.welcome-actions button')].map(b=>b.innerText),updates:document.querySelector('input').checked,font:getComputedStyle(document.querySelector('h1')).fontFamily};")
+ report['welcome']=js("return {title:document.querySelector('h1').innerText,body:document.querySelector('.description').innerText,buttons:[...document.querySelectorAll('.welcome-actions button')].map(b=>b.innerText),font:getComputedStyle(document.querySelector('h1')).fontFamily};")
  assert report['welcome']['title']=='setup lune'; assert report['welcome']['buttons']==['Use Defaults','Setup']
  report['welcomeStyle']=js("return {background:getComputedStyle(document.querySelector('.setup-wallpaper'),'::before').backgroundImage,animation:getComputedStyle(document.querySelector('.setup-wallpaper'),'::before').animationName,policyLineHeight:getComputedStyle(document.querySelector('.policy')).lineHeight,weight:getComputedStyle(document.querySelector('.primary')).fontWeight,padding:[getComputedStyle(document.querySelector('.primary')).paddingLeft,getComputedStyle(document.querySelector('.primary')).paddingRight],synthesis:getComputedStyle(document.querySelector('.primary')).fontSynthesis,color:getComputedStyle(document.querySelector('.primary')).backgroundColor,credit:getComputedStyle(document.querySelector('.upstream-credit')).fontSize,security:document.querySelector('.updates p')!==null,remoteAssets:performance.getEntriesByType('resource').filter(r=>/^https?:/.test(r.name)).map(r=>r.name)}")
  report['wallpaperScheme']=js("return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'")
@@ -76,41 +76,30 @@ try:
  assert report['introMotion']['endCenter']<report['introMotion']['startCenter']
  assert report['introMotion']['duration']==3300 and report['introMotion']['delay']==200
  screenshot('welcome')
- js("document.querySelector('input').click()")
  js("document.querySelector('.welcome-actions .primary').click()")
- wait("return document.querySelector('#services-page.visible')")
- report['services']=js("return document.querySelector('#services-page').innerText")
- assert 'browser updates' not in report['services'].lower()
- assert js("return document.querySelector('#services-page button[role=switch]').getAttribute('aria-checked')") == 'true'
- wait("const b=document.querySelectorAll('#services-page button[role=switch]')[1];return !b.disabled && b.getAttribute('aria-checked')==='true'")
- js("document.querySelectorAll('#services-page button[role=switch]')[1].click()")
- wait("return document.querySelectorAll('#services-page button[role=switch]')[1].getAttribute('aria-checked')==='false'")
- js("document.querySelectorAll('#services-page button[role=switch]')[0].click()")
- wait("return document.querySelectorAll('#services-page button[role=switch]')[1].disabled")
- js("document.querySelectorAll('#services-page button[role=switch]')[0].click()")
- wait("return !document.querySelectorAll('#services-page button[role=switch]')[1].disabled")
- assert js("return document.querySelectorAll('#services-page button[role=switch]')[1].getAttribute('aria-checked')") == 'false'
- js("document.querySelectorAll('#services-page button[role=switch]')[0].click()")
- wait("return document.querySelectorAll('#services-page button[role=switch]')[1].disabled")
- report['customServicesUpdates']={'initially_on':True,'disabled_with_services_off':True,'explicit_off_choice_retained':True}
- next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
+ wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['defaultSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['defaultSearch'].startswith('Startpage')
- report['searchSuggestionsInitiallyOn']=js("return String(document.querySelector('#search-engines-page input[role=switch]').checked)")
- assert report['searchSuggestionsInitiallyOn']=='true'
- wait("return getComputedStyle(document.querySelector('#search-engines-page')).opacity==='1' && !document.querySelector('#welcome-page') && !document.querySelector('#services-page')")
+ wait("return getComputedStyle(document.querySelector('#search-engines-page')).opacity==='1' && !document.querySelector('#welcome-page')")
  screenshot('search')
- js("document.querySelector('#search-engines-page input[role=switch]').click()")
- wait("return String(document.querySelector('#search-engines-page input[role=switch]').checked)==='false'")
  report['searchOrder']=js("return [...document.querySelectorAll('#search-engines-page button[aria-pressed]')].slice(0,3).map(b=>b.innerText.split('\\n')[0])")
  assert report['searchOrder']==['Startpage','Kagi','DuckDuckGo']
  js("[...document.querySelectorAll('#search-engines-page button')].find(b=>b.innerText.startsWith('DuckDuckGo')).click()")
- next_();wait("return document.querySelector('#import-page.visible, #data-import-page.visible') || document.querySelector('.onboarding-page.visible')?.innerText.includes('Import from')")
+ next_();wait("return document.querySelector('#services-page.visible')")
+ report['services']=js("return document.querySelector('#services-page').innerText")
+ assert 'Update browser automatically' in report['services'] and 'proxied through Helium' in report['services']
+ assert js("return [...document.querySelectorAll('#services-page input')].length===7 && [...document.querySelectorAll('#services-page input')].every(e=>e.checked && !e.disabled)")
+ js("document.querySelectorAll('#services-page input').forEach(e=>e.click())")
+ wait("return [...document.querySelectorAll('#services-page input')].every(e=>!e.checked && !e.disabled)")
+ assert js("return document.querySelectorAll('.progress-step').length") == 6
+ screenshot('services')
+ next_();wait("return document.querySelector('#data-import-page.visible')")
  report['importGraphic']=wait("const img=document.querySelector('.helium-icon img'); return img?.complete && img.naturalWidth ? img.getAttribute('src') : false")
  assert report['importGraphic']=='/lune-app.svg'
  assert js("return document.querySelector('#setup-buttons button:last-child').innerText") == 'Next'
  assert js("return document.querySelector('#setup-buttons button:last-child svg') !== null")
  report['beforeAppearanceWidth']=js('return innerWidth')
+ next_();wait("return document.querySelector('#password-manager-page.visible .one-time-notice')")
  next_();wait("return document.querySelector('#finish-page.visible')")
  time.sleep(.6)
  report['appearanceWidth']=js('return innerWidth')
@@ -142,10 +131,12 @@ try:
  assert report['appearanceWidth'] < report['beforeAppearanceWidth']
  assert js("return !!document.querySelector('#setup-buttons button:last-child svg')")
  screenshot('finish')
+ js("document.querySelector('#setup-buttons button:first-child').click()");wait("return document.querySelector('#password-manager-page.visible')")
  js("document.querySelector('#setup-buttons button:first-child').click()");wait("return document.querySelector('#data-import-page.visible')")
  time.sleep(.5)
  report['afterBackWidth']=js('return innerWidth')
  assert report['afterBackWidth']==report['beforeAppearanceWidth']
+ next_();wait("return document.querySelector('#password-manager-page.visible')")
  next_();wait("return document.querySelector('#finish-page.visible')")
  time.sleep(.5)
  next_();time.sleep(.5);report['doneUrl']=wd('GET',p+'/url');assert report['doneUrl'] in ('chrome://newtab/','chrome://new-tab-page/')
@@ -167,15 +158,16 @@ try:
  assert report['preferences']['helium.services.enabled'] is False
  assert report['preferences']['helium.services.browser_updates'] is False
  assert report['preferences']['helium.services.component_updates'] is False
- nav('chrome://setup/');wait("return document.querySelector('#welcome-page input') && !document.querySelector('#welcome-page input').checked")
+ nav('chrome://setup/');wait("return document.querySelector('.welcome-actions .primary')")
  js("document.querySelector('.welcome-actions .primary').click()")
- wait("return document.querySelector('#services-page.visible')");next_();wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
+ wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['retainedSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['retainedSearch'].startswith('DuckDuckGo')
- assert js("return String(document.querySelector('#search-engines-page input[role=switch]').checked)") == 'false'
+ next_();wait("return document.querySelector('#services-page.visible')")
+ assert js("return [...document.querySelectorAll('#services-page input')].every(e=>!e.checked)")
  if not args.skip_use_defaults:
-  nav('chrome://setup/');wait("return document.querySelector('#welcome-page input') && !document.querySelector('#welcome-page input').checked")
-  js("document.querySelector('input').click(); document.querySelector('.welcome-actions .ghost').click()")
+  nav('chrome://setup/');wait("return document.querySelector('.welcome-actions .primary')")
+  js("document.querySelector('.welcome-actions .ghost').click()")
   wait("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
   nav('chrome://settings/');wait('return !!chrome.settingsPrivate')
   report['defaultsUpdates']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.browser_updates',p=>done(p.value));",True)
@@ -186,13 +178,7 @@ try:
   assert report['defaultsServicesUpdates'] is True
   report['defaultsSearchSuggestions']=js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('search.suggest_enabled',p=>done(p.value));",True)
   assert report['defaultsSearchSuggestions'] is True
-  nav('chrome://setup/');wait("return document.querySelector('#welcome-page input')?.checked")
-  js("document.querySelector('input').click(); document.querySelector('.welcome-actions .ghost').click()")
-  wait("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
-  nav('chrome://settings/');wait('return !!chrome.settingsPrivate')
-  assert js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.browser_updates',p=>done(p.value));",True) is False
-  assert js("const done=arguments[arguments.length-1];chrome.settingsPrivate.getPref('helium.services.component_updates',p=>done(p.value));",True) is True
-  report['defaultsServicesUpdatesIndependentOfBrowserOptOut']=True
+
  else:
   report['useDefaultsConsentBranch']='skipped; services remain disabled'
  report['pass']=True

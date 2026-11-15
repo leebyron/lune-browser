@@ -59,3 +59,4 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [Setup safe areas and progress](setup-safe-area-progress.md): dynamic alert inset, clickable dots, tooltips, footer fade and reduced artwork opacity during setup.
 
 - [Preferred setup defaults](setup-preferred-defaults.md): defaults parity, retained opt-outs, confirmation boundaries and softer description text.
+- [Setup Services and close warning](setup-services.md): inferred Helium choices, confirmed blocker installation, one-time password-manager access and unfinished-setup protection.

@@ -106,7 +106,7 @@ try:
     assert len(report['welcomeDots']) in (5,6) and report['welcomeDots'][0]['current']=='step'
     assert js("return document.querySelector('#setup-buttons')===null")
     js("document.querySelector('.welcome-actions .primary').click()")
-    wait("return !!document.querySelector('#services-page.visible')")
+    wait("return !!document.querySelector('#search-engines-page.visible')")
     time.sleep(1)
     report['setupArtwork']=js("return getComputedStyle(document.querySelector('.setup-wallpaper')).opacity")
     assert report['setupArtwork']=='0.5'
@@ -151,35 +151,37 @@ try:
     assert after['services.user_consented']==before['services.user_consented']==False
     assert after['completed_onboarding']==before['completed_onboarding']==False
     report['jumpDoesNotConsentOrFinish']=True
-    goto(2,'#search-engines-page.visible')
+    goto(1,'#search-engines-page.visible')
     js("[...document.querySelectorAll('#search-engines-page button')].find(b=>b.innerText.startsWith('DuckDuckGo')).click()")
     wait("return document.querySelector('#search-engines-page button[aria-pressed=true]')?.innerText.startsWith('DuckDuckGo')")
-    goto(1,'#services-page.visible')
-    js("document.querySelector('#services-page button[role=switch]').click()")
-    wait("return document.querySelectorAll('.progress-step').length===5")
-    report['optionalStepRemoved']=True
-    js("document.querySelector('#services-page button[role=switch]').click()")
+    goto(2,'#services-page.visible')
+    js("document.getElementById('services.ext_proxy-toggle').click()")
+    wait("return !document.getElementById('services.ext_proxy-toggle').checked")
+    assert len(dots())==6
+    report['passwordManagerStepRetained']=True
+    js("document.getElementById('services.ext_proxy-toggle').click()")
     wait("return document.querySelectorAll('.progress-step').length===6")
     report['optionalStepDots']=dots()
     goto(5,'#finish-page.visible')
-    goto(2,'#search-engines-page.visible')
+    goto(1,'#search-engines-page.visible')
     assert js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText").startswith('DuckDuckGo')
     goto(0,'#welcome-page.visible')
     assert dots()[0]['current']=='step' and js("return document.querySelector('#setup-buttons')===null")
-    goto(2,'#search-engines-page.visible')
+    goto(1,'#search-engines-page.visible')
     assert js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText").startswith('DuckDuckGo')
     report['welcomeJumpPreservesChoices']=True
     report['jumpPreservesChoices']=True
-    goto(1,'#services-page.visible')
-    js("document.querySelector('#services-page button[role=switch]').click()")
-    wait("return document.querySelectorAll('.progress-step').length===5")
-    report['optionalStepRemoved']=True
-    js("document.querySelectorAll('.progress-step')[1].focus()")
+    goto(2,'#services-page.visible')
+    js("document.getElementById('services.ext_proxy-toggle').click()")
+    wait("return !document.getElementById('services.ext_proxy-toggle').checked")
+    assert len(dots())==6
+    report['passwordManagerStepRetained']=True
+    js("document.querySelectorAll('.progress-step')[0].focus()")
     wd('POST',prefix+'/actions',{'actions':[{'type':'key','id':'keyboard','actions':[
         {'type':'keyDown','value':'\ue004'},{'type':'keyUp','value':'\ue004'},
         {'type':'keyDown','value':'\ue007'},{'type':'keyUp','value':'\ue007'}]}]})
     wait("return !!document.querySelector('#search-engines-page.visible')")
-    assert dots()[2]['current']=='step'
+    assert dots()[1]['current']=='step'
     report['keyboardNavigation']=True
     for width,height in [(900,650),(1200,850)]:
         wd('POST',prefix+'/window/rect',{'width':width,'height':height})
@@ -224,8 +226,8 @@ try:
     wd('POST',prefix+'/url',{'url':'chrome://setup/'})
     wait("return !!document.querySelector('.welcome-actions .primary')")
     js("document.querySelector('.welcome-actions .primary').click()")
-    wait("return !!document.querySelector('#services-page.visible')")
-    goto(2,'#search-engines-page.visible')
+    wait("return !!document.querySelector('#search-engines-page.visible')")
+    goto(1,'#search-engines-page.visible')
     time.sleep(.8)
     report['returnedToSetup']=geometry()
     assert report['returnedToSetup']['bottom']>0,report['returnedToSetup']

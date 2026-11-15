@@ -199,18 +199,7 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
         if not icons['welcome']:
             raise RuntimeError('Missing welcome logo')
     js('document.querySelector(".welcome-actions .primary").click();')
-    wait_for('return !!document.querySelector("#services-page.visible");')
-    service_disclosure = js('return document.querySelector("#services-page").innerText;')
-    if ('Helium services' not in service_disclosure or
-            'services hosted by Helium' not in service_disclosure or
-            'Browser updates' in service_disclosure or
-            'Lune services' in service_disclosure):
-        raise RuntimeError('Incorrect onboarding provider disclosure: ' + service_disclosure)
-    if internal_icons:
-        icons['services'] = js("return !!document.querySelector('#services-page .header-icon svg');")
-        if not icons['services']:
-            raise RuntimeError('Missing Helium services logo')
-    js('document.querySelector("#setup-buttons button:last-child").click();')
+    wait_for('return !!document.querySelector("#search-engines-page.visible");')
     engines = wait_for('''
         const cards = [...document.querySelectorAll('#search-engines-page button[aria-pressed]')];
         return cards.length ? cards.map(card => ({
@@ -224,6 +213,18 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
             or engines[0]['selected'] != 'true'
             or 'paid subscription after the trial' not in engines[1]['text']):
         raise RuntimeError(f'Packaged search recommendations are incorrect: {engines}')
+    js('document.querySelector("#setup-buttons button:last-child").click();')
+    wait_for('return !!document.querySelector("#services-page.visible");')
+    service_disclosure = js('return document.querySelector("#services-page").innerText;')
+    if ('Enable Chrome extensions proxied through Helium' not in service_disclosure or
+            'Update browser automatically' not in service_disclosure or
+            'GitHub' not in service_disclosure or
+            'Lune services' in service_disclosure):
+        raise RuntimeError('Incorrect onboarding provider disclosure: ' + service_disclosure)
+    if js("return !!document.querySelector('#services-page .header-icon svg');"):
+        raise RuntimeError('Services should not have a heading icon')
+    js('document.querySelector("#setup-buttons button:last-child").click();')
+    wait_for('return !!document.querySelector("#data-import-page.visible");')
     return {'defaults': prefs, 'about_credit': about, 'onboarding_credit': onboarding,
             'search_engines': engines, 'internal_icons': icons,
             'services_provider_disclosure': service_disclosure, 'native_controls_tested': False}
@@ -457,7 +458,7 @@ def main():
                 report['appearance_icons'][mode] = hashlib.sha256(actual).hexdigest()
         if args.internal_icons:
             assets = {'about': {32: 'product_logo_32.png', 64: 'product_logo_64.png'},
-                      'welcome': {1024: 'product_logo.svg'}, 'services': {1024: 'product_logo.svg'}}
+                      'welcome': {1024: 'product_logo.svg'}}
             for name, sizes in assets.items():
                 icon_hashes[name] = {}
                 for size, asset in sizes.items():

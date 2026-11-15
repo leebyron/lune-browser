@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "0acd40ed5d8f40d7dfe2445cff7ca5578b510a05",
+    "commit": "956bc5a32fbdc7cdf89ee1ba5946683a6f69d71f",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -917,6 +917,18 @@
       {
         "path": "patches/helium/ui/older-tabs-dates.patch",
         "sha256": "acea6713dbedfc69ac5125d2cb8af3a6a45fdd753083475e807a0898b0579a45"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-services.patch",
+        "sha256": "eb06a1c5bb334ee01ef59530f74c3db464bb37f292e805e46df5d66bd6cccf3b"
+      },
+      {
+        "path": "patches/lune/onboarding-services-copy.patch",
+        "sha256": "c1b36b235c04902f45809a1dc3fdcea72608739c7709eef47486dad8fd46051d"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-close-warning.patch",
+        "sha256": "934ac1385407eec1363145a042bc0aee41f7dd27fd2a7f4f9706b983190da14e"
       }
     ]
   },
@@ -2762,6 +2774,52 @@
       "adaptation": "Shared civil-date formatting: Today, Yesterday, weekdays at 2\u20134 days, abbreviated month and ordinal day thereafter without a comma or old-date bucket. Suppress the first visible date heading and raise label text one point. Hover footer shows native SF eye and compact date/time, matching memory icon spacing and shared outer padding; fade masks follow footer color and preserve opacity. Actual last-use history remains independent of frozen sidebar dates and entry retention.",
       "commits": [
         "0acd40ed5d8f40d7dfe2445cff7ca5578b510a05"
+      ]
+    },
+    {
+      "id": "onboarding-services",
+      "depends_on": [
+        "onboarding-search-layout",
+        "services-update-controls"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-services.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Clarify optional services and preserve explicit install confirmation.",
+      "adaptation": "Search precedes Services; browser updates, suggestions and bundled uBlock precede four Helium choices. Infer the master from applicable choices. Gate first uBlock registration until Use Defaults or forward Services confirmation; preserve legacy installs. Keep password managers available with allowlisted installer-scoped proxy permission, unchanged service preferences and normal package/prompt checks. Compact descriptions use balanced wrapping.",
+      "commits": [
+        "f097af83321e3a02a310c0547f842616d5525cfb"
+      ]
+    },
+    {
+      "id": "lune-onboarding-services-copy",
+      "depends_on": [
+        "onboarding-services"
+      ],
+      "patches": [
+        "patches/lune/onboarding-services-copy.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Identify Lune and its browser-update provider separately from Helium.",
+      "adaptation": "Lune-specific Services subtitle and GitHub browser-update disclosure stay separate from the reusable feature.",
+      "commits": [
+        "6d4d93037d50696f5c6617cfc2112f3b4dbfd673"
+      ]
+    },
+    {
+      "id": "onboarding-close-warning",
+      "depends_on": [
+        "onboarding-services"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-close-warning.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Warn before closing unfinished setup.",
+      "adaptation": "Register a standard beforeunload warning while setup is incomplete; completion clears it. Native prompts require prior user interaction.",
+      "commits": [
+        "956bc5a32fbdc7cdf89ee1ba5946683a6f69d71f"
       ]
     }
   ],
