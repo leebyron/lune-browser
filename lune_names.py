@@ -11,11 +11,14 @@ import name_substitution_utils as util
 
 # Preserve the upstream exclusions (Web Store, Root Program, Remote Desktop).
 # Preserve helium:// URLs and code/pref identifiers for compatibility.
+HELIUM_PASS = '--helium' in sys.argv
+
 util.REPLACEMENT_REGEXES = [
-    (regex, replacement.replace('Helium', 'Lune'))
+    (regex, replacement if HELIUM_PASS else replacement.replace('Helium', 'Lune'))
     for regex, replacement in util.REPLACEMENT_REGEXES
 ]
-util.REPLACEMENT_REGEXES.append((re.compile(r'\bHelium\b'), 'Lune'))
+if not HELIUM_PASS:
+    util.REPLACEMENT_REGEXES.append((re.compile(r'\bHelium\b'), 'Lune'))
 
 # These attribution messages deliberately name the upstream project.
 UPSTREAM_CREDITS = {
@@ -32,6 +35,17 @@ PROVIDER_DISCLOSURES = {
     'IDS_HELIUM_ONBOARDING_SERVICES_CONSENT',
     'IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_PROVIDER',
     'IDS_HELIUM_ONBOARDING_SERVICES_LUNE_UPDATES',
+    'IDS_HELIUM_ONBOARDING_SERVICES_BANGS_TITLE',
+    'IDS_HELIUM_ONBOARDING_SERVICES_BANGS_DESC',
+    'IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_TITLE',
+    'IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_DESC',
+    'IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_TITLE',
+    'IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_DESC',
+    'IDS_HELIUM_ONBOARDING_SERVICES_SPELLCHECK_TITLE',
+    'IDS_HELIUM_ONBOARDING_SERVICES_SPELLCHECK_DESC',
+    'IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_TITLE',
+    'IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_DESC',
+    'IDS_HELIUM_ONBOARDING_PASSWORD_ONE_TIME_NOTICE',
 }
 
 
@@ -82,6 +96,7 @@ util.replace_grit_tree = replace_grit_tree
 util.replace_xtb_translation = replace_xtb_translation
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        raise SystemExit('Usage: lune_names.py CHROMIUM_SOURCE')
-    names.do_substitution(Path(sys.argv[1]), None, min(os.cpu_count() or 1, 8), False)
+    arguments = [arg for arg in sys.argv[1:] if arg != '--helium']
+    if len(arguments) != 1:
+        raise SystemExit('Usage: lune_names.py [--helium] CHROMIUM_SOURCE')
+    names.do_substitution(Path(arguments[0]), None, min(os.cpu_count() or 1, 8), False)
