@@ -14,12 +14,12 @@ import plistlib
 import socket
 import struct
 import subprocess
-import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, ProxyHandler
+from browser_test_profiles import temporary_profile
 
 
 class Page(BaseHTTPRequestHandler):
@@ -477,7 +477,7 @@ def main():
                         raise RuntimeError(f'Helper icon differs from Lune: {plist}')
                     report['icon_bundles'].append(str(plist.relative_to(app)))
     try:
-        with tempfile.TemporaryDirectory(prefix='lune-smoke-profile-') as profile, log.open('w') as logfile:
+        with temporary_profile(prefix='lune-smoke-profile-') as profile, log.open('w') as logfile:
             env = {key: os.environ[key] for key in
                    ('HOME', 'USER', 'LOGNAME', 'PATH', 'TMPDIR', 'LC_ALL', 'DEVELOPER_DIR')
                    if key in os.environ}

@@ -7,14 +7,15 @@ from urllib.parse import quote
 import base64, json, socket, subprocess, sys, time
 
 import argparse
+from browser_test_profiles import new_profile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path, help='Build directory containing Lune.app and chromedriver')
-parser.add_argument('evidence', type=Path, help='Disposable test profile and report directory')
+parser.add_argument('evidence', type=Path, help='Report, log and screenshot directory')
 args = parser.parse_args()
 build = args.output.resolve()
 evidence = args.evidence.resolve()
 evidence.mkdir(exist_ok=True)
-profile = evidence/('profile-'+str(time.time_ns()))
+profile = new_profile('lune-setup-footer-')
 # Exercise the browser defaults without ChromeDriver's preset opt-outs.
 (profile/'Default').mkdir(parents=True)
 (profile/'Default/Preferences').write_text('{}\n')

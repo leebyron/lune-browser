@@ -96,7 +96,7 @@ def main():
     server, base, data = make_server(args.directory.resolve(), args.arch, args.case)
     print(f"Local {args.case} fixture for Lune {data['version']}; no public channel is changed.", flush=True)
     print(f'Launch the separate build-2 test app with --custom-update-server-url={base}', flush=True)
-    print('Use a disposable --user-data-dir, enable browser updates, and check About.', flush=True)
+    print('Use an internal temporary directory for --user-data-dir, enable browser updates, and check About.', flush=True)
     print('For wrong-architecture, native Intel must reject the arm64 offer and retain build 2.', flush=True)
     print('Keep this terminal open; press Control-C after quitting the test app.', flush=True)
     try:

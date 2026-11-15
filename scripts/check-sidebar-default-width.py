@@ -1,13 +1,14 @@
 from pathlib import Path
 from urllib.request import Request,urlopen
 import json,subprocess,time,socket,sys
-import argparse,tempfile
+import argparse
+from browser_test_profiles import temporary_profile
 parser=argparse.ArgumentParser(description='Verify actual sidebar layout width and preservation of a saved custom width.')
 parser.add_argument('build',type=Path)
 parser.add_argument('--saved-width',type=int)
 parser.add_argument('--report',type=Path,required=True)
 args=parser.parse_args()
-tmp=tempfile.TemporaryDirectory(prefix='lune-sidebar-width-');out=Path(tmp.name);build=args.build.resolve()
+tmp=temporary_profile(prefix='lune-sidebar-width-');out=Path(tmp.name);build=args.build.resolve()
 expected_width=args.saved_width if args.saved_width is not None else 216
 profile=out/('profile-'+str(time.time_ns()));(profile/'Default').mkdir(parents=True)
 (profile/'Default/Preferences').write_text(json.dumps({'helium':{'completed_onboarding':True,'browser':{'zen_mode_sidebar_pinned':False},'services':{'enabled':False,'browser_updates':False}}}))

@@ -1,0 +1,73 @@
+{
+  "scope": "Host-side build and release test tooling; frozen browser inputs and shipped bytes are unchanged.",
+  "profile_storage": "macOS /private/tmp, independent of TMPDIR and the configured build disk",
+  "lifetime": "One allocated profile survives all launches in its test, then cleans up on normal test-process exit; context-managed profiles also clean up on Python exceptions.",
+  "evidence_storage": "Caller-selected report/log/screenshot directories stay unchanged and may be external.",
+  "unit_tests": 95,
+  "unit_tests_passed": true,
+  "browser_checks": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "profile-smoke-arm64",
+        "seconds": 5.176779
+      },
+      {
+        "name": "profile-onboarding-flow-arm64",
+        "seconds": 10.205583
+      },
+      {
+        "name": "profile-setup-defaults-arm64",
+        "seconds": 6.922238
+      },
+      {
+        "name": "profile-setup-services-arm64",
+        "seconds": 16.708161
+      },
+      {
+        "name": "profile-session-restore-arm64",
+        "seconds": 5.137852
+      },
+      {
+        "name": "profile-restore-notice-arm64",
+        "seconds": 11.616568
+      },
+      {
+        "name": "profile-older-settings-arm64",
+        "seconds": 3.376593
+      }
+    ],
+    "restart_profile": "/private/tmp/lune-setup-opt-outs-qgjef8yx",
+    "restart_profile_removed": true,
+    "evidence_retained": true,
+    "separate_validator_defect": "The unchanged localized-credit selector expects the credit inside #welcome-page; accepted WelcomeFooter renders it in #welcome-footer. Original failure retained; correction is separate from profile allocation."
+  },
+  "browser_under_test": {
+    "frozen_source": "04f86332a4e3e40f3730b7e73f5867c4b6b95bbc",
+    "architecture": "arm64",
+    "chromium": "158.0.8127.37",
+    "executable_sha256": "c095b824b2c1754d4618bace66907ed3b468fe0f6fec2c759d36abc0a6f19c6b"
+  },
+  "implementation_sha256": {
+    "scripts/branding/check-runtime-credits.py": "8ad083772985517778db568b2e3c2b2ab361ab6ce7b51dc7bafe25bea9fdc4d5",
+    "scripts/browser_test_profiles.py": "cd0c0867a6ffe8a34e6e277cbcef317e624c3c9b07822cd71ec6ff31ecc98a75",
+    "scripts/check-autocomplete-settings.py": "88820d5ac30b5cbcad24a5988a74bba7ef3ed6f11b1c67d2eae35c5b3dd62f2a",
+    "scripts/check-older-tabs.py": "5afe2ea8d7fc434ca484253a8711f02449e5296c26838058caf5fe61b335b89e",
+    "scripts/check-onboarding-flow.py": "225597e00922dd816c631b8d88c21b7ef97f58f87117c5e8a5582eb71cab9e33",
+    "scripts/check-search-suggestions.py": "de40ecc9fdea73210c7b0773bdadacce2aa410241827e9fca05b7d82f2d32bec",
+    "scripts/check-session-restore-notice.py": "82953e183021501fef42a4ca42f5f2843827d54f46318125cff6894fc8cc0015",
+    "scripts/check-session-restore.py": "933782f2bc1142f254d62a0b790eaa83e0c596f0907be816321798d3069c9625",
+    "scripts/check-setup-defaults.py": "bd20484569d08d88cf696040f65eb0c6b03dedfa63ef0a972d96ebde401b3d6a",
+    "scripts/check-setup-footer.py": "ef9a518bef7fff250c3bf748cb3934939b0934a5e6ec8577fc80e01ea6065655",
+    "scripts/check-setup-services.py": "39beaade718ff060b24150436559b0d77b3b15fcce9ccbfb9057fd7db6b368f3",
+    "scripts/check-sidebar-default-width.py": "8cae2bb67bb84475dca5c3c0505c8a450b31369630cac58e69d66eab6adecd98",
+    "scripts/release/check_runtime.py": "6780c9d66c86051d811ade09e480ec89c4a9e4bef5257add370dcbc3a68c0a64",
+    "scripts/release/check_update.py": "8b1757b1cc3b27fa1ea9b4c2fa480c1a408141edb99a08d436c40a5bf915a469",
+    "scripts/release/manual_update_fixture.py": "d854e856161898cd7d7f485b817bee1aa6f8989c8f71bfd95dbd02b3dac8da08",
+    "scripts/smoke-browser.py": "d55df108aba063f37213631b07ce847276e13cbeaad8333006718d8e183a18f0",
+    "tests/test_browser_test_profiles.py": "9de6df0f5d0a7e51b9715c94054fa5156deaf4b60902bc0197a9842d2475aeb9",
+    "tests/test_smoke_browser.py": "62dfbd4463922e65083ad7e2f9397006c7d34030fc06b47a99b30cf9cca8d36e"
+  },
+  "specific_issues_closed": [],
+  "release_status": "26.1115.1 is still in validation; this tooling record does not claim publication."
+}

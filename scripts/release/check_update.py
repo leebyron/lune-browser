@@ -22,6 +22,7 @@ spec.loader.exec_module(smoke)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from model import version_key
+from browser_test_profiles import new_profile, require_temporary_profile
 
 
 def run(*args):
@@ -40,6 +41,7 @@ def verify(app):
 
 @contextmanager
 def session(app, driver, profile, log, extra_args=()):
+    profile = require_temporary_profile(profile)
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
@@ -114,7 +116,7 @@ def main():
         report['before_build'] = info(app)['CFBundleVersion']
         if version_key(report['before_build']) >= version_key(a.expected_build):
             raise ValueError('Baseline must be older than the candidate')
-        profile = a.directory / 'profile'
+        profile = new_profile('lune-installed-update-')
         for phase in ['before', 'after']:
             with session(app, a.driver.resolve(), profile, a.directory / f'{phase}.log',
                          [f'--custom-update-server-url={feed_base}']) as request:

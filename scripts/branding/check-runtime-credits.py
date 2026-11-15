@@ -12,10 +12,13 @@ from pathlib import Path
 import platform
 import socket
 import subprocess
-import tempfile
+import sys
 import time
 from urllib.request import Request, build_opener, ProxyHandler
 import xml.etree.ElementTree as ET
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from browser_test_profiles import temporary_profile
 
 
 # GRIT fingerprints for the deliberately unchanged Helium partner messages.
@@ -68,7 +71,7 @@ def main():
             return json.load(response)['value']
 
     args.report.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='lune-localized-test-') as profile:
+    with temporary_profile(prefix='lune-localized-test-') as profile:
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]

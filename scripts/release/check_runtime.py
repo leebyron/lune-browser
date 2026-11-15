@@ -12,6 +12,7 @@ import threading
 import time
 
 from check_update import info, run, session, smoke, verify
+from browser_test_profiles import new_profile
 
 
 def digest(path):
@@ -57,8 +58,9 @@ def main():
             minimum = re.search(r'\bminos\s+(\S+)', build).group(1)
             assert tuple(map(int, minimum.split('.'))) <= (13, 0)
             report['macho_minimums'][str(path.relative_to(app))] = minimum
+        profile = new_profile('lune-signed-runtime-')
         for phase in ('before', 'after'):
-            with session(app, args.driver.resolve(), directory/'profile',
+            with session(app, args.driver.resolve(), profile,
                          directory/f'{phase}.log', ['--host-resolver-rules=',
                          *([f'--custom-update-server-url={args.test_feed_base}'] if args.test_feed_base else [])]) as raw_request:
                 def request(*parameters):
