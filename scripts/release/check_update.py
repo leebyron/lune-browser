@@ -21,7 +21,7 @@ spec.loader.exec_module(smoke)
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from model import version_key
+from model import version_key, sha
 from browser_test_profiles import new_profile, require_temporary_profile
 
 
@@ -96,9 +96,12 @@ def main():
     a = p.parse_args()
     a.directory = a.directory.resolve()
     a.directory.mkdir(parents=True, exist_ok=False)
-    app = a.directory / 'Lune.app'
+    # Sparkle replaces this disposable bundle in place. Keep that write on the
+    # internal disk too; the host copies the verified result out as evidence.
+    app = new_profile('lune-update-install-') / 'Lune.app'
     report = {'architecture': a.arch, 'feed': a.feed, 'passed': False,
-              'updater': 'Lune About-page Sparkle integration'}
+              'updater': 'Lune About-page Sparkle integration',
+              'installation_path': str(app)}
     suffix = f'mac/appcast-{a.arch}.xml'
     if not a.feed.endswith(suffix):
         raise ValueError('Feed must use the architecture-specific mac/appcast path')
@@ -186,9 +189,19 @@ def main():
                 if run('lipo', '-archs', app / 'Contents/MacOS/Lune').strip() != a.arch:
                     raise RuntimeError('Updated app architecture changed')
         report.update(after_build=info(app)['CFBundleVersion'], profile_persisted=True,
-                      relaunch_passed=True, signatures_and_gatekeeper_passed=True, passed=True)
+                      relaunch_passed=True, signatures_and_gatekeeper_passed=True)
         if a.expect_rejection:
             report['rejected'] = a.expect_rejection
+        retained = a.directory / 'Lune.app'
+        run('ditto', app, retained)
+        report['installed_app_sha256'] = {}
+        for relative in ('Contents/MacOS/Lune', 'Contents/Info.plist',
+                         'Contents/Frameworks/Lune Framework.framework/Lune Framework'):
+            value = sha(app / relative)
+            if sha(retained / relative) != value:
+                raise RuntimeError('Retained app differs from the verified installation: ' + relative)
+            report['installed_app_sha256'][relative] = value
+        report.update(retained_app=str(retained), passed=True)
     except Exception as error:
         report['error'] = str(error)
         raise
