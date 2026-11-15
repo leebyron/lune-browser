@@ -1,0 +1,24 @@
+--- a/components/helium_onboarding/src/App.svelte
++++ b/components/helium_onboarding/src/App.svelte
+@@ -5,6 +5,13 @@
+     import { currentPage, flow } from "./lib/onboarding-flow";
+     import PageNavigation from "./components/PageNavigation.svelte";
+     Browser.setup();
++    const preferences = Browser.preferences;
++    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
++        if ($preferences.completed_onboarding === false) {
++            event.preventDefault();
++            event.returnValue = "";
++        }
++    };
+     const mountedPages = new SvelteSet<typeof flow[number]>([$currentPage]);
+     let previousPage = $currentPage;
+     $effect(() => {
+@@ -18,6 +25,7 @@
+         }, 200);
+     });
+ </script>
++<svelte:window onbeforeunload={warnBeforeLeaving} />
+ <main>
+     <div class="setup-wallpaper" class:dimmed={$currentPage !== "Welcome"} aria-hidden="true"></div>
+     <PageNavigation />
