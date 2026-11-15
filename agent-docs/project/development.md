@@ -14,6 +14,8 @@ Intel belongs earlier when the bug or edit concerns architecture-specific code, 
 
 A changed final composition must be revalidated. Reuse an existing final build/check result only when its relevant source, configuration, toolchain and tested artifact identities still match; a passing earlier preview alone is insufficient. Stop on conflicts or failed validation. This policy does not bypass locked-workspace guards or authorize editing a frozen release workspace.
 
+Before adopting a changed patch composition on main, run complete zero-fuzz source preparation from the locked archives in an isolated workspace, then compare its affected files and generated resources with the accepted preview. Replay against an already prepared or branded tree alone does not establish pipeline compatibility: patches run before domain/name substitution, localization and resource generation. Correct patch preimages at that earlier stage, preserve the accepted final output, and check provider/attribution wording through both name-substitution passes. Keep incremental development sources and outputs for the edit/preview loop; this clean preparation is a final adoption check, not a requirement for every preview. Release preparation remains a separate gate.
+
 ## Choose checks from the change
 
 - **Sidebar/native layout or interaction:** compile arm64, run the affected native/model regression if available, and inspect the actual gesture, focus or layout. A spacing revision does not need unrelated onboarding, translation, credits or artwork checks before native review.

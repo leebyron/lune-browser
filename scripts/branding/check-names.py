@@ -28,8 +28,14 @@ def main():
         'IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT': 'Built on Helium, with thanks to its authors and contributors.',
         'IDS_SETTINGS_HELIUM_SERVICES': 'Helium services',
         'IDS_LUNE_SERVICES_PROVIDER': 'Lune uses services hosted by Helium.',
-        'IDS_TEST_PRODUCT': 'Welcome to Helium',
+        'IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_TITLE': 'Enable Chrome extensions proxied through Helium',
+        'IDS_HELIUM_ONBOARDING_PASSWORD_ONE_TIME_NOTICE': 'Helium receives your IP address and the extension request.',
+        'IDS_TEST_PRODUCT': 'Welcome to Chromium',
     }
+    for service in ('BANGS', 'EXTENSIONS', 'UBLOCK', 'SPELLCHECK', 'COMPONENT_UPDATES'):
+        for part in ('TITLE', 'DESC'):
+            fixtures.setdefault(f'IDS_HELIUM_ONBOARDING_SERVICES_{service}_{part}',
+                                'Download from Helium. Helium receives your IP address.')
     expected_text = dict(fixtures)
     expected_text['IDS_TEST_PRODUCT'] = 'Welcome to Lune'
     source = ET.Element('grit')
@@ -70,6 +76,14 @@ def main():
         xtb_file = tree / 'strings_en-GB.xtb'
         source_file.write_text(ET.tostring(source, encoding='unicode'))
         xtb_file.write_text(ET.tostring(translations, encoding='unicode'))
+        subprocess.run([sys.executable, str((args.platform / 'lune_names.py').resolve()),
+                        '--helium', str(tree)], check=True, capture_output=True, text=True)
+        intermediate = {message.get('name'): message.text
+                        for message in ET.parse(source_file).getroot().findall('message')}
+        for name, text in fixtures.items():
+            expected = 'Welcome to Helium' if name == 'IDS_TEST_PRODUCT' else text
+            if intermediate.get(name) != expected:
+                raise SystemExit(f'Helium substitution changed protected wording: {name}')
         subprocess.run([sys.executable, str((args.platform / 'lune_names.py').resolve()), str(tree)],
                        check=True, capture_output=True, text=True)
         if source_file.read_text() != changed_source or xtb_file.read_text() != changed_xtb:
@@ -100,7 +114,7 @@ def main():
         if not count:
             raise SystemExit('No protected translations found to validate')
         print(f'Prepared attribution passed: {count} protected translations checked.')
-    print('Name-substitution regression passed: credits, ordinary localized branding, and multiprocessing.')
+    print('Name-substitution regression passed: credits, provider disclosures, ordinary localized branding, and both multiprocessing passes.')
 
 
 if __name__ == '__main__':

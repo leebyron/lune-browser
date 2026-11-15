@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "b4be05abeec3c496e3e518d0b922c5274155ee3b",
+    "commit": "e7711c71d5c4076a64d245ef99cafc4758fb3f7e",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -920,7 +920,7 @@
       },
       {
         "path": "patches/helium/ui/onboarding-services.patch",
-        "sha256": "eb06a1c5bb334ee01ef59530f74c3db464bb37f292e805e46df5d66bd6cccf3b"
+        "sha256": "77c0ab2467339be73692f7b26070841bf5f7ddd77da60f15b723c04ed2861a89"
       },
       {
         "path": "patches/lune/onboarding-services-copy.patch",
@@ -2807,9 +2807,10 @@
       ],
       "review_status": "reviewed-port",
       "rationale": "Clarify optional services and preserve explicit install confirmation.",
-      "adaptation": "Search precedes Services; browser updates, suggestions and bundled uBlock precede four Helium choices. Infer the master from applicable choices. Gate first uBlock registration until Use Defaults or forward Services confirmation; preserve legacy installs. Keep password managers available with allowlisted installer-scoped proxy permission, unchanged service preferences and normal package/prompt checks. Compact descriptions use balanced wrapping.",
+      "adaptation": "Search precedes Services; browser updates, suggestions and bundled uBlock precede four Helium choices. Infer the master from applicable choices. Gate first uBlock registration until Use Defaults or forward Services confirmation; preserve legacy installs. Keep password managers available with allowlisted installer-scoped proxy permission, unchanged service preferences and normal package/prompt checks. Compact descriptions use balanced wrapping. November 15 fresh preparation repair: six removed/context lines use the pre-branding Helium text; all replacement lines are unchanged. The separate Lune branding commit protects provider disclosures through both substitution passes.",
       "commits": [
-        "f097af83321e3a02a310c0547f842616d5525cfb"
+        "f097af83321e3a02a310c0547f842616d5525cfb",
+        "15b3bef67ccc3c79da9b1dd6dc7d2c7aad9d1e78"
       ]
     },
     {
