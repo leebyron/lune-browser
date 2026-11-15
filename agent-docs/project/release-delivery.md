@@ -96,7 +96,11 @@ Test notarization access with `xcrun notarytool history --keychain-profile lune-
    patch log. Wait for successful completion and the final inventory report before
    selecting or reserving a release version; do not overlap allocation with preparation.
    Use an input-named preflight workspace until preparation passes. Existing output
-   caches may be reused only after source comparison.
+   caches may be reused only after source comparison. Use preparation's paired
+   `--cache-source IDLE_DONOR_SRC --cache-report CACHE_REPORT` options, or the
+   [standalone cache transfer](building.md#reuse-outputs-after-fresh-release-preparation)
+   for an already prepared tree. It relocates both Siso file state and Ninja
+   dependencies; do not use an ad-hoc output copy or file-state-only import.
 2. Finish tools and source validation and commit release notes following the
    [release-note style](releases.md#release-note-style): terse and factual, with
    new features first, then bug fixes and security changes. Keep each paragraph
@@ -111,7 +115,8 @@ Test notarization access with `xcrun notarytool history --keychain-profile lune-
 3. Run `scripts/release/build.py --version VERSION --arch ARCH --source SOURCE
    --prepared-report REPORT --report BUILD_REPORT` for each architecture. It
    verifies clean frozen inputs, source hashes, tools and GN arguments before
-   compilation, and verifies source hashes again afterward. Include chrome,
+   compilation, runs a native cache-preflight dry run that rejects missing
+   dependencies in old workspaces, and verifies source hashes again afterward. Include chrome,
    chromedriver and chrome/installer/mac. Run matching smoke/onboarding checks.
 4. Run `scripts/release/package.py stage --version VERSION --arch ARCH --output
    OUTPUT --build-report BUILD_REPORT --smoke-report SMOKE_REPORT --directory

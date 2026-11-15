@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-15",
+  "scope": "Host build-cache tooling; paired unchanged-source benchmark, no release publication",
+  "frozen_orchestrator_commit": "04f86332a4e3e40f3730b7e73f5867c4b6b95bbc",
+  "helium_commit": "f7d3113d2a0b271fc57d354e058b0ddc3c60ab71",
+  "macos_commit": "e7711c71d5c4076a64d245ef99cafc4758fb3f7e",
+  "prepared_report_sha256": "48a14552e370ecd133c47992b58919ea0baede4c61ab3dc931f274c0897a45c2",
+  "prepared_files": 596091,
+  "prepared_symlinks": 141,
+  "source_comparison_and_paired_transfer_seconds": 245.77084037475288,
+  "transfer_timing_scope": "Trial timer excludes initial fresh-source inventory and source clone; future tool timer includes verification",
+  "matched_source_timestamps": 596091,
+  "changed_sources": [],
+  "architectures": {
+    "arm64": {
+      "baseline": {
+        "missing_dependency_invalidations": 42940,
+        "steps": 48918,
+        "siso_seconds": 7489.52,
+        "build_helper_seconds": 7578.2687821388245
+      },
+      "reused": {
+        "steps": 145,
+        "siso_seconds": 192.65,
+        "build_helper_seconds": 283.8877787590027,
+        "complete_build_command_seconds": 378.4454842917621,
+        "cxx_actions": 6,
+        "cc_actions": 0,
+        "native_summary": "3m12.65s Build Succeeded: 145 steps - 0.75/s",
+        "build_report_sha256": "81217b55a8c0b8c0f96710592adf5fea018fdcd99fb66b5059e8ab973e7b9391",
+        "build_log_sha256": "75bbbd6ae188d5a407daec52b569f7abf511b33f701065e6baebbd9b4c08a640",
+        "source_inventory_verified_before_and_after": true,
+        "preflight_missing_foreign_dependencies": 0
+      },
+      "dependency_relocation": {
+        "paths_before": 167933,
+        "paths_after": 167810,
+        "outputs": 47446,
+        "relocated_paths": 160
+      },
+      "donor_metadata_unchanged": true,
+      "smoke": {
+        "passed": true,
+        "host_architecture": "arm64",
+        "execution": "native",
+        "executable_sha256": "c095b824b2c1754d4618bace66907ed3b468fe0f6fec2c759d36abc0a6f19c6b",
+        "framework_sha256": "4948001ab99df39e8861d9a769644092d4909697c857a60cdec6998320c897ca",
+        "report_sha256": "b2461fdc6ece34a8c6e75090f0c98474a88a4ac646c5f0804e1a31e6fbe6285c"
+      }
+    },
+    "x86_64": {
+      "baseline": {
+        "missing_dependency_invalidations": 73501,
+        "steps": 83122,
+        "siso_seconds": 11350.83,
+        "build_helper_seconds": 11439.970669746399
+      },
+      "reused": {
+        "steps": 163,
+        "siso_seconds": 193.5,
+        "build_helper_seconds": 286.83818197250366,
+        "complete_build_command_seconds": 382.04422224964947,
+        "cxx_actions": 10,
+        "cc_actions": 0,
+        "native_summary": "3m13.50s Build Succeeded: 163 steps - 0.84/s",
+        "build_report_sha256": "fa21f9ab2b8503a86fb55ade865982ee226669aed410f2ff337acb0f5a12f17b",
+        "build_log_sha256": "3af4c8cd6945eeca6cc26d8f00e5da5fdd7088d675173bf4cafccae7f9a6355e",
+        "source_inventory_verified_before_and_after": true,
+        "preflight_missing_foreign_dependencies": 0
+      },
+      "dependency_relocation": {
+        "paths_before": 228285,
+        "paths_after": 228165,
+        "outputs": 81054,
+        "relocated_paths": 289
+      },
+      "donor_metadata_unchanged": true,
+      "smoke": {
+        "passed": true,
+        "host_architecture": "arm64",
+        "execution": "Rosetta",
+        "executable_sha256": "67b548935f1b5d74fd68e54325ea41e7584d7250ef24bb2c643699b2d38acd8d",
+        "framework_sha256": "be91dc770849c280f08be7da6216d6b02249aa863519add2d38b9e688372dcee",
+        "report_sha256": "5c989ddf416de4cdb1dc29d9640a7c1917523eecaf4be5b19d578b05d7f1e61e"
+      }
+    }
+  },
+  "tooling_files_sha256": {
+    "scripts/release/build.py": "3c73c4e2c1ccfb01fde1e6d4352c3da702106526e9c845a2e514e963844113d7",
+    "scripts/release/prepare.py": "643b3e5275393982ea8ceafc8dee1b3710ab58b0aa1dc231c21a6273f585d8e2",
+    "scripts/release/cache_reuse.py": "aacea8a003900a1b664e03a09828d408f94ae75b29354dd0bd6574c936cebfcf",
+    "scripts/release/cache_preflight.py": "0e611b144649c315126eff75032249b54dedd9d715c9dc74deb28e2aedf17287",
+    "scripts/release/ninja_deps.py": "bdd8a996fe1b26159196390e02ff54cb032c4cdc2421030d6c94826ef99db96b",
+    "tests/test_release_cache.py": "774c6655f93e065484dadc39586fab1f1c0478433e15d23552db1fc4b6bc41d9"
+  },
+  "tooling_tests": {
+    "count": 106,
+    "passed": true,
+    "native_ninja": "1.12.1",
+    "native_compiler": "frozen Chromium Clang",
+    "changed_header_invalidation": true,
+    "donor_disappearance_noop": true
+  },
+  "native_stale_path_guard": {
+    "passed": true,
+    "compile_started": false,
+    "original_cache_metadata_restored": true
+  },
+  "native_snapshot_lock": true,
+  "local_evidence_workspace": ".work/cache-reuse-investigation",
+  "publication_performed": false
+}

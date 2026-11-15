@@ -155,6 +155,14 @@ These use disposable profiles and process-local language overrides.
 
 Ordinary CLI/CI workspaces use `.work/<arch>/`; frozen release workspaces use their own ignored directories and reports. Older integration workspaces belong to their dated evidence and must not be substituted for current inputs. The guards reject mismatched locks, sources and toolchains. Preserve existing source trees/caches when preparing a new composition.
 
+### Reuse outputs after fresh release preparation
+
+Use `scripts/release/prepare.py --platform PLATFORM --report PREPARED_REPORT --cache-source IDLE_DONOR_SRC --cache-report CACHE_REPORT` to seed both architecture outputs after successful fresh preparation. For an already prepared tree, use `scripts/release/cache_reuse.py --source FRESH_SRC --cache-source IDLE_DONOR_SRC --prepared-report PREPARED_REPORT --report CACHE_REPORT --arch arm64 --arch x86_64`. Select a trusted donor with compatible compiler, Siso, GN, Rust and PGO hashes; keep its workspace idle throughout the operation. The donor is read-only, and existing destination outputs are never overwritten. Never copy an output directory by hand as a substitute.
+
+The transfer compares source bytes and symlinks, restores timestamps only for identical source files, snapshots outputs with APFS clones when available, and relocates both native Siso file state and the separate `.siso_deps` Ninja dependency database. A copied `.siso_fs_state` alone leaves absolute compiler-header paths in the old workspace and can invalidate tens of thousands of objects. Legacy Clang resource-header aliases are recovered only when cached header digests match the fresh source inventory; unknown source roots, malformed dependency logs and incompatible toolchain inputs fail closed. Changed source bytes keep fresh timestamps. The outer `Lune.app` is assembled again.
+
+An interrupted transfer leaves `out/.lune-cache-transfer-pending`; release builds refuse compilation until it is resolved. Preserve the failed workspace and report while investigating. Before every release compile, the build helper runs a native Siso dry run and retains its plan/explanation. Missing absolute dependencies outside the current workspace stop the build before expensive compilation. Inspect the cache-preflight log before choosing a deliberate cold build in a new output workspace. Engine, PGO, toolchain, GN command and real source changes can still require substantial rebuilding; output reuse does not waive source inventories, architecture checks or release acceptance.
+
 ## Discover upstream changes
 
 ```sh

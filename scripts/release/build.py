@@ -11,6 +11,7 @@ from model import ROOT, feed_url, git, load_record, sha
 sys.path.insert(0, str(ROOT / 'scripts'))
 import lune
 from prepare import inventory
+import cache_preflight
 
 
 def main():
@@ -80,6 +81,14 @@ def main():
     with a.report.with_suffix('.log').open('w') as log:
         subprocess.run([src/'buildtools/mac/gn', 'gen', str(out)], cwd=src, env=env,
                        stdout=log, stderr=subprocess.STDOUT, check=True)
+        try:
+            report['cache_preflight'] = cache_preflight.check(src, out, recipe['targets'], env,
+                a.report.with_suffix('.cache-preflight.log'))
+        except Exception as error:
+            report.update(cache_preflight_error=str(error), duration_seconds=time.time()-started)
+            a.report.write_text(json.dumps(report, indent=2)+'\n')
+            raise
+        a.report.write_text(json.dumps(report, indent=2)+'\n')
         result = subprocess.run(['/usr/bin/caffeinate', '-i', src/'third_party/siso/cipd/siso',
             'ninja', '--fast_local', '-C', str(out), f"-local_jobs={recipe['local_jobs']}",
             *recipe['targets']], cwd=src, env=env, stdout=log, stderr=subprocess.STDOUT)

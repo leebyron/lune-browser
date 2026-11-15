@@ -37,7 +37,12 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--platform', type=Path, required=True)
     p.add_argument('--report', type=Path, required=True)
+    p.add_argument('--cache-source', type=Path,
+                   help='Idle compatible prepared source whose outputs may seed the new tree')
+    p.add_argument('--cache-report', type=Path)
     a = p.parse_args()
+    if bool(a.cache_source) != bool(a.cache_report):
+        p.error('--cache-source and --cache-report must be supplied together')
     platform = a.platform.resolve()
     source = platform / 'build/src'
     lune.check_build_space(source, preparing=True)
@@ -76,6 +81,10 @@ python3 "$_src_dir/third_party/node/node.py" "$_src_dir/components/helium_onboar
                   files=files, symlinks=links, preparation_log_sha256=sha(report.with_suffix('.log')))
     report.write_text(json.dumps(result, indent=2) + '\n')
     print(f'Prepared and inventoried {len(files)} files and {len(links)} symlinks: {source}')
+    if a.cache_source:
+        from cache_reuse import seed
+        seed(source, a.cache_source, report, a.cache_report, ['arm64', 'x86_64'], env,
+             verified_inventory=(files, links))
 
 
 if __name__ == '__main__':
