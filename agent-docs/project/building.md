@@ -100,6 +100,31 @@ Prepared/built state is saved under `.work/<arch>/`; build outputs are inside th
 platform's `build/src/out/Default/`. A successful compile must produce `Lune.app`.
 `built.json` records `validated_for_release: false`. Nothing publishes automatically.
 
+### Host-owned build storage
+
+Disk layout is machine configuration, not a browser input. With no local storage configuration, existing `.work/<arch>` directories and compiler-cache defaults remain unchanged. An external build disk can be selected in `~/Library/Application Support/Lune Build/storage.json`; `LUNE_BUILD_STORAGE` can select another local configuration file. Never commit a host's configuration, UUID, paths or migration records.
+
+The configuration schema is:
+
+```json
+{
+  "schema_version": 1,
+  "mountpoint": "/Volumes/BuildDisk",
+  "volume_uuid": "00000000-0000-0000-0000-000000000000",
+  "cache_root": "/Volumes/BuildDisk/BuildCache/lune",
+  "sccache_dir": "/Volumes/BuildDisk/BuildCache/sccache",
+  "sccache_cache_size": "200G"
+}
+```
+
+Use the actual APFS volume UUID reported by `diskutil info -plist`, not the example UUID or a changing device identifier. Configured commands verify the mount, volume UUID, APFS filesystem, writable status and cache-path containment before creating workspace paths or starting build tools. A missing or renamed disk stops the command; there is no automatic fallback to internal storage. This preflight cannot protect an in-progress build from unplugging its disk.
+
+New architecture workspaces are linked at the existing `.work/<arch>` paths, with separate external destinations derived from each checkout's absolute path. Interactive and CI checkouts never share mutable source/output directories automatically. Existing workspace directories are preserved; tooling does not move or delete them. Preparation/build disk floors are checked on the actual target filesystem, including release preparation and compilation. The clean build environment explicitly selects only the configured compiler-cache directory and capacity, without inheriting arbitrary shell variables or credentials.
+
+Run `python3 scripts/lune.py storage` to inspect the selected storage. Before creating a new feature or release workspace, use `python3 scripts/lune.py storage --workspace <name>` to create its host-configured destination and `.work/<name>` entry path. On an unconfigured host this creates the ordinary local directory. Existing directories are left in place and the command prints their resolved location. Use an isolated name; this command does not establish workspace ownership or authorize sharing an active tree.
+
+Migrate existing work in a coordinated maintenance window: inventory ownership and unpublished changes; stop source/build/cache writers; copy complete workspaces with metadata, Git/quilt bookkeeping, incremental outputs and downloads; verify file contents and metadata; retain internal originals; then replace the old workspace paths with symlinks. Check links and Git state and validate both architecture outputs plus an incremental rebuild before reclaiming any original. Copy the compiler cache with its server stopped and verify cache hits after selecting the new location. A host-local default sccache configuration can also cover frozen checkouts whose tooling predates storage support. Keep Xcode, Keychain, runner credentials and Python environments internal. Preserve frozen source and artifact bytes; storage migration does not waive release gates or make an earlier browser validation cover changed files.
+
 The CI build script now runs the isolated headless smoke test after compilation:
 
 ```sh

@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import plistlib
 import re
 import shutil
 import subprocess
@@ -299,12 +300,113 @@ def validate(args):
     print('Locked configuration valid' + ('; ancestry, tags, trees, and gitlink verified.' if args.git_objects else '.'))
 
 
+def storage_config():
+    """Disk layout belongs to the host, not to a frozen browser input."""
+    path = Path(os.environ.get('LUNE_BUILD_STORAGE',
+        Path.home() / 'Library/Application Support/Lune Build/storage.json'))
+    if not path.exists():
+        if 'LUNE_BUILD_STORAGE' in os.environ:
+            raise ValueError(f'Missing host storage configuration: {path}')
+        return None
+    config = read_json(path)
+    if not isinstance(config, dict) or config.get('schema_version') != 1:
+        raise ValueError('Unsupported host storage configuration')
+    for key in ('mountpoint', 'cache_root', 'sccache_dir'):
+        if not isinstance(config.get(key), str) or not Path(config[key]).is_absolute():
+            raise ValueError(f'Host storage {key} must be an absolute path')
+    volume_uuid = config.get('volume_uuid')
+    if not isinstance(volume_uuid, str) or not re.fullmatch(
+            r'[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}', volume_uuid):
+        raise ValueError('Host storage requires an APFS volume UUID')
+    cache_size = config.get('sccache_cache_size')
+    if not isinstance(cache_size, str) or not re.fullmatch(r'[1-9][0-9]*[KMGTP]?', cache_size):
+        raise ValueError('Host storage requires an explicit compiler cache size')
+    return config
+
+
+def check_storage(config):
+    """Fail before creating paths when a configured external volume is absent."""
+    mount = Path(config['mountpoint'])
+    if not mount.is_dir() or not mount.is_mount():
+        raise ValueError(f'Build volume is not mounted at {mount}')
+    try:
+        info = plistlib.loads(subprocess.check_output(
+            ['/usr/sbin/diskutil', 'info', '-plist', str(mount)],
+            stderr=subprocess.PIPE))
+    except (OSError, subprocess.CalledProcessError, plistlib.InvalidFileException) as error:
+        raise ValueError(f'Cannot verify build volume at {mount}') from error
+    if (info.get('VolumeUUID', '').lower() != config['volume_uuid'].lower()
+            or info.get('MountPoint') != str(mount) or info.get('FilesystemType') != 'apfs'
+            or not info.get('WritableVolume')):
+        raise ValueError(f'Build volume identity/filesystem/writability mismatch at {mount}')
+    for key in ('cache_root', 'sccache_dir'):
+        dest = Path(config[key]).resolve()
+        if dest == mount.resolve() or not dest.is_relative_to(mount.resolve()):
+            raise ValueError(f'Host storage {key} escapes the build volume')
+
+
+def check_build_space(path, preparing=False):
+    config = storage_config()
+    if config:
+        check_storage(config)
+    target = Path(path)
+    while not target.exists():
+        target = target.parent
+    free = shutil.disk_usage(target).free / 1024**3
+    product = read_json(ROOT / 'config/product.json')
+    minimum = product['minimum_free_gib' if preparing else 'minimum_build_free_gib']
+    print(f'Build filesystem: {target.resolve()}; free space: {free:.1f} GiB')
+    if free < minimum:
+        raise ValueError(f'Free at least {minimum} GiB on the build filesystem')
+
+
+def configure_workspace(arch):
+    config = storage_config()
+    if not config:
+        return
+    check_storage(config)
+    local = ROOT / '.work' / arch
+    if local.exists() or local.is_symlink():
+        # Never reset/move a pre-existing workspace or redirect its sources.
+        if not local.is_dir():
+            raise ValueError(f'Unavailable build workspace: {local}')
+        return
+    # A runner checkout and an interactive checkout must not share mutable outputs.
+    checkout_id = hashlib.sha256(str(ROOT.resolve()).encode()).hexdigest()[:16]
+    dest = Path(config['cache_root']) / 'checkouts' / checkout_id / arch
+    dest.mkdir(parents=True, exist_ok=True)
+    local.parent.mkdir(parents=True, exist_ok=True)
+    local.symlink_to(dest, target_is_directory=True)
+
+
+def storage(args):
+    config = storage_config()
+    if config:
+        check_storage(config)
+    name = args.workspace
+    if name is not None:
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', name):
+            raise ValueError('Workspace must be a single directory name')
+        configure_workspace(name)
+        target = ROOT / '.work' / name
+        target.mkdir(parents=True, exist_ok=True)
+    else:
+        target = Path(config['cache_root']) if config else ROOT / '.work'
+    print(json.dumps(dict(configured=config is not None, path=str(target),
+                          resolved_path=str(target.resolve())), indent=2))
+
+
 def build_env():
     # Do not pass release tokens or notarization passwords to compilation.
     keep = ('HOME', 'TMPDIR', 'USER', 'LOGNAME', 'DEVELOPER_DIR')
     env = {key: os.environ[key] for key in keep if key in os.environ}
     env.update(PATH=f'{ROOT}/.work/venv/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
                LC_ALL='en_US.UTF-8', PATCH_BIN='/opt/homebrew/bin/gpatch')
+    config = storage_config()
+    if config:
+        check_storage(config)
+        env.update(SCCACHE_DIR=config['sccache_dir'],
+                   SCCACHE_CACHE_SIZE=config['sccache_cache_size'])
     return env
 
 
@@ -317,13 +419,22 @@ def check_toolchain(xcode, sdk, product):
 def doctor(args):
     product = read_json(ROOT / 'config/product.json')
     problems = []
-    free = shutil.disk_usage(ROOT).free / 1024**3
-    print(f'Platform: {platform.system()} {platform.machine()}; free space: {free:.1f} GiB')
+    print(f'Platform: {platform.system()} {platform.machine()}')
     if platform.system() != 'Darwin':
         problems.append('macOS is required for browser compilation.')
-    minimum = product['minimum_build_free_gib'] if getattr(args, 'command', None) == 'build' else product['minimum_free_gib']
-    if free < minimum:
-        problems.append(f'Free at least {minimum} GiB for this build stage.')
+    config = storage_config()
+    if config:
+        check_storage(config)
+    arch = getattr(args, 'arch', None)
+    dest = workspace(arch) if arch else ROOT
+    if config and not dest.exists():
+        dest = Path(config['cache_root'])
+    elif config and not arch:
+        dest = Path(config['cache_root'])
+    try:
+        check_build_space(dest, preparing=getattr(args, 'command', None) != 'build')
+    except ValueError as error:
+        problems.append(str(error))
     env = build_env()
     try:
         xcode = run(['xcodebuild', '-version'], capture=True, env=env)
@@ -371,6 +482,7 @@ def check_checkout(path, lock):
 def checkout(args):
     lock = read_json(LOCK)
     validate_lock(lock)
+    configure_workspace(args.arch)
     dest = workspace(args.arch)
     if not dest.exists():
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -450,11 +562,13 @@ def require_clean_orchestrator():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
-    for name in ('fetch', 'discover', 'doctor', 'validate', 'checkout', 'prepare', 'build'):
+    for name in ('fetch', 'discover', 'doctor', 'validate', 'checkout', 'prepare', 'build', 'storage'):
         command = commands.add_parser(name)
         command.set_defaults(func=globals()[name])
         if name == 'validate':
             command.add_argument('--git-objects', action='store_true')
+        if name == 'storage':
+            command.add_argument('--workspace', help='Create a named host-local task/release workspace')
         if name in ('checkout', 'prepare', 'build'):
             command.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
         if name == 'build':

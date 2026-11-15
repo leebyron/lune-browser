@@ -40,6 +40,7 @@ def main():
     a = p.parse_args()
     platform = a.platform.resolve()
     source = platform / 'build/src'
+    lune.check_build_space(source, preparing=True)
     report = a.report.resolve()
     lock = lune.read_json(ROOT / 'manifests/browser.lock.json')
     lock_digest = sha(ROOT / 'manifests/browser.lock.json')

@@ -27,6 +27,7 @@ def main():
     lune.validate(argparse.Namespace(git_objects=True))
     recipe = json.loads((ROOT / 'config/release-recipe.json').read_text())
     src = a.source.resolve()
+    lune.check_build_space(src)
     prepared = json.loads(a.prepared_report.read_text())
     for component in ('helium', 'macos'):
         if prepared[component] != lock['components'][component]['commit']:
