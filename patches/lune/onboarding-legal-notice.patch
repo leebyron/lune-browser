@@ -1,0 +1,26 @@
+Index: src/components/helium_onboarding/helium_onboarding_strings.grdp
+===================================================================
+--- src.orig/components/helium_onboarding/helium_onboarding_strings.grdp
++++ src/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -35,7 +35,7 @@
+   Make Lune your own, import from another browser, or start with the defaults.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_TERMS" desc="Legal note shown during onboarding. Keep each BEGIN/END placeholder pair around its corresponding link text, but move the pairs as needed for a natural translation.">
+-  By continuing, you agree to the <ph name="BEGIN_LINK_PRIVACY">$1</ph>privacy policy<ph name="END_LINK_PRIVACY">$2</ph> and <ph name="BEGIN_LINK_TERMS">$3</ph>terms of use<ph name="END_LINK_TERMS">$4</ph>.
++  Read Lune’s <ph name="BEGIN_LINK_PRIVACY">$1</ph>privacy policy<ph name="END_LINK_PRIVACY">$2</ph> and <ph name="BEGIN_LINK_TERMS">$3</ph>terms of use<ph name="END_LINK_TERMS">$4</ph>.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_FOOTER" desc="Footer text explaining that setup can be skipped but Helium services require consent.">
+   Choose Setup to review and change these defaults.
+Index: src/components/helium_onboarding/src/components/WelcomeFooter.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/WelcomeFooter.svelte
++++ src/components/helium_onboarding/src/components/WelcomeFooter.svelte
+@@ -9,7 +9,7 @@
+ 
+ <footer id="welcome-footer">
+     <p class="upstream-credit">{#each creditParts as part}{#if part.kind === "linkHelium"}<Link href="https://helium.computer/">{part.text}</Link>{:else if part.kind === "linkUngoogled"}<Link href="https://github.com/ungoogled-software/ungoogled-chromium">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
+-    <p class="policy">{#each termsParts as part}{#if part.kind === "linkPrivacy"}<Link href="https://lune.computer/privacy">{part.text}</Link>{:else if part.kind === "linkTerms"}<Link href="https://helium.computer/terms">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
++    <p class="policy">{#each termsParts as part}{#if part.kind === "linkPrivacy"}<Link href="https://lune.computer/privacy">{part.text}</Link>{:else if part.kind === "linkTerms"}<Link href="https://lune.computer/terms">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
+ </footer>
+ 
+ <style>
