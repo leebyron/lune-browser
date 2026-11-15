@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "36af329d718eaa06c4c1d9c2759827a4cddaa01d",
+    "commit": "b4be05abeec3c496e3e518d0b922c5274155ee3b",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -937,6 +937,18 @@
       {
         "path": "patches/lune/onboarding-privacy-link.patch",
         "sha256": "652dd6eef65deeae9792e90fd218e09370be13686a02829226e811268e1c8f62"
+      },
+      {
+        "path": "patches/lune/onboarding-legal-notice.patch",
+        "sha256": "0e6f6d8908a332ee1d25941ea1de636392f5664a6bb5f71ce0f3a7011a6d00b3"
+      },
+      {
+        "path": "patches/lune/about-legal-links.patch",
+        "sha256": "2263fb7a415999dc6ce12fe87bec9928cf354aca893c54a29381eb948c6ae4b2"
+      },
+      {
+        "path": "patches/lune/internal-terms-link.patch",
+        "sha256": "afef1b39ec066ca9bad8e6669e9991dcc04eaddf57552f9ba542528875c4e999"
       }
     ]
   },
@@ -2858,6 +2870,51 @@
       "adaptation": "Point the setup privacy link to the independently published Lune notice.",
       "commits": [
         "36af329d718eaa06c4c1d9c2759827a4cddaa01d"
+      ]
+    },
+    {
+      "id": "lune-onboarding-legal-notice",
+      "depends_on": [
+        "lune-onboarding-privacy-link"
+      ],
+      "patches": [
+        "patches/lune/onboarding-legal-notice.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the published Lune terms and neutral read-policy wording in setup.",
+      "adaptation": "Use the published Lune terms and neutral read-policy wording in setup.",
+      "commits": [
+        "5bdc786d7ebb4019bbda9ca10ed24830c605404c"
+      ]
+    },
+    {
+      "id": "lune-about-legal-links",
+      "depends_on": [
+        "lune-onboarding-legal-notice"
+      ],
+      "patches": [
+        "patches/lune/about-legal-links.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Expose localized Lune privacy and terms links outside Google branding guards in About.",
+      "adaptation": "Expose localized Lune privacy and terms links outside Google branding guards in About.",
+      "commits": [
+        "b398401ae0ebbde7677e3352792d6747c2d82f71"
+      ]
+    },
+    {
+      "id": "lune-internal-terms-link",
+      "depends_on": [
+        "lune-about-legal-links"
+      ],
+      "patches": [
+        "patches/lune/internal-terms-link.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Replace the unbranded internal terms placeholder with a link to Lune hosted terms.",
+      "adaptation": "Replace the unbranded internal terms placeholder with a link to Lune hosted terms.",
+      "commits": [
+        "b4be05abeec3c496e3e518d0b922c5274155ee3b"
       ]
     }
   ],

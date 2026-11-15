@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-15",
+  "platform": {
+    "commits": [
+      {
+        "patch": "lune/onboarding-legal-notice.patch",
+        "commit": "5bdc786d7ebb4019bbda9ca10ed24830c605404c"
+      },
+      {
+        "patch": "lune/about-legal-links.patch",
+        "commit": "b398401ae0ebbde7677e3352792d6747c2d82f71"
+      },
+      {
+        "patch": "lune/internal-terms-link.patch",
+        "commit": "b4be05abeec3c496e3e518d0b922c5274155ee3b"
+      }
+    ],
+    "commit": "b4be05abeec3c496e3e518d0b922c5274155ee3b",
+    "tree": "e033b5d7e334f9eeeec589aeb2fcea21794af918",
+    "ref": "refs/tags/inputs/browser-legal-links-1/macos"
+  },
+  "validations": [
+    {
+      "base_platform": "36af329d718eaa06c4c1d9c2759827a4cddaa01d",
+      "strict_replay": true,
+      "source_parity": true,
+      "files": {
+        "components/helium_onboarding/src/components/WelcomeFooter.svelte": "619d0cfd041e488dd2e15e4062dc958f39fd6cd40069e3e2c49a89d3e1641aa2",
+        "components/helium_onboarding/helium_onboarding_strings.grdp": "93f08f8e7c86b73737b599ee68ba369c3a3199eaaf8183afb02d350edf0be9a4"
+      },
+      "patch": "lune/onboarding-legal-notice.patch",
+      "patch_sha256": "0e6f6d8908a332ee1d25941ea1de636392f5664a6bb5f71ce0f3a7011a6d00b3",
+      "native_build": false,
+      "frontend_check": "zero errors and warnings",
+      "frontend_build": "passed",
+      "patch_lint": "passed",
+      "compiled_legal_links": true,
+      "generated_copy": true,
+      "adopted": true
+    },
+    {
+      "base_platform": "36af329d718eaa06c4c1d9c2759827a4cddaa01d",
+      "strict_replay": true,
+      "source_parity": true,
+      "files": {
+        "chrome/browser/resources/settings/about_page/about_page.html.ts": "75e1d7aef2af1d48af5269e5f43365a5d37e701a0a7040462211d021b4d71b3a",
+        "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "8549e037eaf94a9f7249d1f832d549d13e5d077d39f8a02f58502b2651fdbbf6",
+        "chrome/app/settings_strings.grdp": "a30c54de0c198baed0e78027cd2f45ed91fb85c3fcb2ae2c49f5187818fab1ca"
+      },
+      "patch": "lune/about-legal-links.patch",
+      "patch_sha256": "2263fb7a415999dc6ce12fe87bec9928cf354aca893c54a29381eb948c6ae4b2",
+      "native_build": false,
+      "adopted": true,
+      "unbranded_macos_preprocessing": "passed; both links retained",
+      "localized_labels": "XML parsed; both labels registered and unconditional",
+      "typescript_template_syntax": "passed",
+      "runtime_verified": false,
+      "patch_lint": "passed"
+    },
+    {
+      "base_platform": "36af329d718eaa06c4c1d9c2759827a4cddaa01d",
+      "strict_replay": true,
+      "source_parity": true,
+      "files": {
+        "components/resources/terms/terms_chromium.html": "85a78ddbed9664dfc8c8b11d4371b8001c58ab133e7db90209a2bc3b4a1c054e"
+      },
+      "patch": "lune/internal-terms-link.patch",
+      "patch_sha256": "afef1b39ec066ca9bad8e6669e9991dcc04eaddf57552f9ba542528875c4e999",
+      "native_build": false,
+      "adopted": true,
+      "unbranded_macos_resource_selection": "passed using GRIT active descendants",
+      "html_link": "parsed; correct hosted terms URL",
+      "patch_lint": "passed",
+      "runtime_verified": false
+    }
+  ],
+  "validation_scope": "Owner waived native architecture builds for hosted legal links. Setup frontend check/build, About unbranded preprocessing/labels/TypeScript syntax, internal terms GRIT resource selection/HTML destination, strict zero-fuzz replay/source parity and platform lint passed. No native runtime claim.",
+  "website_commit": "7bb87498c981d2d6f21eaa2867e26916c6fabda6",
+  "issue": {
+    "number": 35,
+    "state": "open",
+    "remaining": "Guided import and broader setup improvements."
+  },
+  "release": "No browser release; selected for future builds.",
+  "locked_input_checks": "Signed tag, upstream ancestry, trees, gitlink, patch stack and translation lint passed",
+  "repository_tests": "88 passed; rerun with mounted-volume and loopback permissions after sandbox-only failures"
+}

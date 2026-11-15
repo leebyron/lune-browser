@@ -1,6 +1,6 @@
 # Current project status
 
-Updated November 14, 2026. This page summarizes operational state. Exact source and artifact identities live in the linked machine-readable records; dated feature reports retain their original validation scope.
+Updated November 15, 2026. This page summarizes operational state. Exact source and artifact identities live in the linked machine-readable records; dated feature reports retain their original validation scope.
 
 ## Release delivery
 
@@ -13,6 +13,8 @@ Updated November 14, 2026. This page summarizes operational state. Exact source 
 - **Migration limit:** 26.1109.1/26.1109.2 embed the retired distribution feed URL; manually installing a current release restores stock updating.
 
 ## Inputs and validation
+
+Lune’s [terms](https://lune.computer/terms) and revised [privacy policy](https://lune.computer/privacy) are published. [Legal-link input](builds/2026-11-15-browser-legal-links.json) adds the Lune terms to setup, exposes privacy/terms in About, and replaces the internal terms placeholder with a hosted link. Source/resource checks pass; native builds were waived by the owner for these hosted-link changes. The development lock selects the input for future builds; the installed and published browser remain unchanged.
 
 The owner-accepted [address text padding fix](features/address-overflow-padding.md) is selected for future main builds through signed input `inputs/address-overflow-padding-1/macos` at `d7c555a12b3753694f9cd97427a41cbea68e9c41`. Cmd-L keeps its text margins and completion-column alignment when long URLs scroll. Strict source replay, both native geometry fixtures, both final browser builds and browsing/UI/Settings/persistence checks pass; Intel executes under Rosetta. This input preserves the accepted Older Tabs and release-notes changes. Issue #34 is resolved; published releases retain their frozen inputs.
 

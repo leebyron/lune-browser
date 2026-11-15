@@ -1,6 +1,6 @@
 # Terms page review
 
-November 14, 2026. The owner requested a terms document after privacy publication, using the same generator. [legal/terms.md](../../legal/terms.md) was prepared as a local draft for `/terms`; publication is now authorized effective November 15, 2026. The published privacy policy is unchanged.
+November 14, 2026. The owner requested a terms document after privacy publication, using the same generator. [legal/terms.md](../../legal/terms.md) was prepared as a local draft for `/terms`; it is now published effective November 15, 2026. The reviewed privacy introduction updates are published with it.
 
 The draft follows the accepted privacy notice's terse personal-project voice. It names Lee Byron, preserves software-license rights, distinguishes third-party services, states availability/warranty limits and addresses liability with an express preservation of non-waivable rights. It links the privacy notice, public issue tracker and confirmed private privacy address. It creates no account, purchase, donation, arbitration, governing-law, indemnity or automatic future-consent regime.
 
@@ -65,3 +65,10 @@ At the owner's request, pending platform patch `lune/about-legal-links.patch` ad
 Validation passes: unbranded macOS resource preprocessing retains both links; the labels parse and are registered unconditionally; the preprocessed TypeScript template compiles syntactically; strict zero-fuzz/zero-offset patch replay matches the edited source; merge/unmerge export and platform patch lint pass. No native browser build or runtime click verification was performed for this hosted-link change. Evidence: `.work/about-legal-links/validation.json`. These links are pending adoption and are not in the installed or published browser; publish `/terms` before shipping them.
 
 The cleanup chat subsequently made the retained platform/core repositories self-contained and verified connectivity with no alternates. Its preservation report confirms the existing legal draft and tracked work survived unchanged. No additional source copy was created.
+
+
+## Publication and browser adoption — November 15, 2026
+
+The owner requested both publication and replacement of the internal terms placeholder. Website commit `7bb87498c981d2d6f21eaa2867e26916c6fabda6` passed the seven renderer tests, production build, deployment dry run, GitHub setup checks and Website deployment. Public HTTPS readback matches all 47 served files, including both pages and canonical Markdown. See [publication evidence](builds/2026-11-15-terms-publication.json).
+
+The setup notice, About links and `chrome://terms` link are selected for future builds through signed input `inputs/browser-legal-links-1/macos`. Internal terms retains its lightweight bundled HTML and now links to the hosted terms; GRIT selects that resource for the unbranded macOS configuration. Strict replay and resource checks pass. See [browser-link evidence](builds/2026-11-15-browser-legal-links.json). No native build or browser release was performed under the owner's link-only validation scope; the installed application remains unchanged. Earlier pending/draft descriptions above record their original review stage.

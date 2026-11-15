@@ -25,7 +25,7 @@ provenance.
 
 ## Current status
 
-The [privacy policy](https://lune.computer/privacy) is published effective November 14, 2026 from `legal/privacy.md`. [Website run 43691567493](https://github.com/leebyron/lune-browser/actions/runs/43691567493) deployed `629ce6128a1b8993068731189ea4c1a8c42e0153`; all 45 served files match the generated build byte for byte. The [publication record](builds/2026-11-14-privacy-publication.json) records hashes and successful post-push checks. The follow-up terms page is approved for publication effective November 15, 2026; deployment verification is pending.
+The [privacy policy](https://lune.computer/privacy) is published effective November 14, 2026 from `legal/privacy.md`. [Website run 43691567493](https://github.com/leebyron/lune-browser/actions/runs/43691567493) deployed `629ce6128a1b8993068731189ea4c1a8c42e0153`; all 45 served files match the generated build byte for byte. The [publication record](builds/2026-11-14-privacy-publication.json) records hashes and successful post-push checks. The [terms of use](https://lune.computer/terms) are now published effective November 15, 2026. [Website run 43695360465](https://github.com/leebyron/lune-browser/actions/runs/43695360465) deployed `7bb87498c981d2d6f21eaa2867e26916c6fabda6`; all 47 served files, including both legal pages and their Markdown sources, match the generated build. The [publication record](builds/2026-11-15-terms-publication.json) records the readback.
 
 The deployed source uses Rock Salt 400 at 16px/32px for the personal note
 and ten botanical paragraphs. The note uses two separate paragraphs with the
