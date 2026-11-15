@@ -25,6 +25,8 @@ provenance.
 
 ## Current status
 
+The [privacy policy](https://lune.computer/privacy) is published effective November 14, 2026 from `legal/privacy.md`. [Website run 43691567493](https://github.com/leebyron/lune-browser/actions/runs/43691567493) deployed `629ce6128a1b8993068731189ea4c1a8c42e0153`; all 45 served files match the generated build byte for byte. The [publication record](builds/2026-11-14-privacy-publication.json) records hashes and successful post-push checks. The follow-up terms page is a separate local draft.
+
 The deployed source uses Rock Salt 400 at 16px/32px for the personal note
 and ten botanical paragraphs. The note uses two separate paragraphs with the
 owner's requested wording, staggering their entrances by 860ms. All story
