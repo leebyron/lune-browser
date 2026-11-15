@@ -132,12 +132,12 @@ def main():
                 for _ in range(60):
                     result = request(port, 'POST', session + '/execute/sync', {
                         'script': '''return globalThis.loadTimeData?.data?.partnerTitle &&
-                            document.querySelector('#welcome-page .upstream-credit') ? {
+                            document.querySelector('#welcome-footer .upstream-credit') ? {
                             locale: loadTimeData.getString('language'),
                             title: loadTimeData.getString('partnerTitle'),
                             tooltip: loadTimeData.getString('partnerTooltip'),
                             welcome: loadTimeData.getString('welcomeGreeting'),
-                            credit: document.querySelector('#welcome-page .upstream-credit').textContent.trim()
+                            credit: document.querySelector('#welcome-footer .upstream-credit').textContent.trim()
                         } : null;''', 'args': []})
                     if result:
                         break
