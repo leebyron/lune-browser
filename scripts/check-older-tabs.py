@@ -17,6 +17,7 @@ from pathlib import Path
 import argparse, base64, hashlib, http.server, json, socket, subprocess, threading, time
 import requests
 import struct
+import shutil
 from browser_test_profiles import new_profile
 from older_tabs_session_fixture import seed, states
 
@@ -130,7 +131,7 @@ del private
 ident = "".join(
     chr(ord("a") + int(x, 16)) for x in hashlib.sha256(key).hexdigest()[:32]
 )
-ext = ev / "extension"
+ext = profile / "extension"
 ext.mkdir()
 (ext / "manifest.json").write_text(
     json.dumps(
@@ -147,6 +148,7 @@ ext.mkdir()
 (ext / "fixture.html").write_text(
     "<!doctype html><title>Older tabs fixture</title><p>Local test controller</p>"
 )
+shutil.copytree(ext, ev / "extension")
 
 
 class Handler(http.server.BaseHTTPRequestHandler):

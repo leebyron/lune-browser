@@ -132,7 +132,7 @@ def start(name, profile=None):
             'excludeSwitches': ['disable-background-networking'], 'args': [
             '--disable-gpu', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
             '--use-mock-keychain', '--password-store=basic', '--window-size=1200,900',
-            '--log-file=' + str(out / (name + '-browser.log')),
+            '--log-file=' + str(profile / (name + '-browser.log')),
             '--custom-update-server-url=http://127.0.0.1:1/',
             '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1',
             f'--user-data-dir={profile}']}}}})
@@ -413,7 +413,7 @@ try:
         wd('POST', session + '/window', {'handle': inspector_handle})
         wd('POST', session + '/url', {'url': 'chrome://extensions/'})
         wait_js('return !!chrome.developerPrivate')
-        browser_log = out / 'password-manager-browser.log'
+        browser_log = profile / 'password-manager-browser.log'
         log_offset = browser_log.stat().st_size
         js('chrome.developerPrivate.autoUpdate(()=>{void chrome.runtime.lastError});')
         # Disabled-service requests are rejected locally. Do not wait through
@@ -449,4 +449,6 @@ finally:
         server.shutdown()
         server.server_close()
     for profile in profiles:
+        for browser_log in profile.glob('*-browser.log'):
+            shutil.copy2(browser_log, out / browser_log.name)
         shutil.rmtree(profile)
