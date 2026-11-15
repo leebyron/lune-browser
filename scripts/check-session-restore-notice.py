@@ -15,6 +15,7 @@ import threading
 import time
 
 import requests
+from browser_test_profiles import new_profile
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path)
@@ -75,7 +76,8 @@ try:
 
     for completed in (False, True):
         case = evidence/('setup-complete' if completed else 'setup-incomplete')
-        profile = case/'profile'
+        case.mkdir(parents=True)
+        profile = new_profile('lune-restore-notice-')
         (profile/'Default').mkdir(parents=True)
         (profile/'Default/Preferences').write_text(json.dumps({
             'helium': {'completed_onboarding': completed,

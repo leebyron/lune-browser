@@ -22,6 +22,7 @@ import socket
 import subprocess
 import threading
 import time
+from browser_test_profiles import new_profile
 
 UBLOCK = 'blockjmkbacgjkknlgpkjjiijinjdanf'
 PASSWORD_MANAGER = 'oboonakemofpalcgghocfoadofidjkkk'
@@ -120,7 +121,7 @@ def nav_setup():
 def start(name, profile=None):
     global session, setup_handle, inspector_handle
     if profile is None:
-        profile = out / (name + '-profile-' + str(time.time_ns()))
+        profile = new_profile('lune-services-' + name + '-')
         profiles.append(profile)
         (profile / 'Default').mkdir(parents=True)
         (profile / 'Default/Preferences').write_text('{}\n')

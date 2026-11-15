@@ -6,6 +6,7 @@ Requires the repository build environment (requests) and matching ChromeDriver.
 import argparse,http.server,json,socket,subprocess,threading,time
 from pathlib import Path
 import requests
+from browser_test_profiles import new_profile
 p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--directory',type=Path,required=True);a=p.parse_args();a.output=a.output.resolve();a.directory.mkdir(parents=True,exist_ok=False)
 class Handler(http.server.BaseHTTPRequestHandler):
  def do_GET(self):
@@ -27,7 +28,7 @@ else:raise RuntimeError('Driver not ready')
 results=[]
 try:
  for label,saved in [('default',None),('saved-new-tab',5)]:
-  case=a.directory/label;profile=case/'profile';(profile/'Default').mkdir(parents=True)
+  case=a.directory/label;case.mkdir();profile=new_profile('lune-restore-'+label+'-');(profile/'Default').mkdir(parents=True)
   prefs={'helium':{'completed_onboarding':True,'services':{'enabled':False,'browser_updates':False}}}
   (profile/'Default/Preferences').write_text(json.dumps(prefs));urls=[origin+'/saved-a',origin+'/saved-b'];row={'case':label,'saved_choice':saved}
   for phase in ('write','reopen'):

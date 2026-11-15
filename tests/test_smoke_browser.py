@@ -2,8 +2,11 @@
 import importlib.util
 from pathlib import Path
 import struct
+import sys
 import unittest
 import zlib
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 
 spec = importlib.util.spec_from_file_location('smoke', Path(__file__).parents[1] / 'scripts/smoke-browser.py')
 smoke = importlib.util.module_from_spec(spec)

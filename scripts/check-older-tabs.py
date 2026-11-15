@@ -17,6 +17,7 @@ from pathlib import Path
 import argparse, base64, hashlib, http.server, json, socket, subprocess, threading, time
 import requests
 import struct
+from browser_test_profiles import new_profile
 from older_tabs_session_fixture import seed, states
 
 p = argparse.ArgumentParser()
@@ -89,7 +90,7 @@ if a.review and not a.interactive:
 out = a.output.resolve()
 ev = a.evidence.resolve()
 ev.mkdir(parents=True, exist_ok=False)
-profile = ev / "profile"
+profile = new_profile('lune-older-tabs-')
 (profile / "Default").mkdir(parents=True)
 (profile / "Default/Preferences").write_text(
     json.dumps(

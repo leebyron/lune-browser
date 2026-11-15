@@ -5,11 +5,11 @@ import json
 from pathlib import Path
 import socket
 import subprocess
-import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, build_opener, ProxyHandler
+from browser_test_profiles import temporary_profile
 
 
 def check(app, driver, report_path):
@@ -43,7 +43,7 @@ def check(app, driver, report_path):
             raise RuntimeError(result)
         return result
     try:
-        with tempfile.TemporaryDirectory(prefix='lune-autocomplete-') as profile, \
+        with temporary_profile(prefix='lune-autocomplete-') as profile, \
              report_path.with_suffix('.driver.log').open('w') as log:
             # Chromium gates developer WebUIs in official builds. Enable the
             # diagnostic controller only in this disposable profile.

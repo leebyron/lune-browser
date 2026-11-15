@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.request import Request,urlopen
 import json,subprocess,time,socket,sys,base64
 import argparse
+from browser_test_profiles import new_profile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path, help='Build directory containing Lune.app and chromedriver')
 parser.add_argument('evidence', type=Path, help='Directory for reports and the disposable profile')
@@ -12,7 +13,7 @@ args = parser.parse_args()
 build = args.output.resolve()
 out = args.evidence.resolve()
 out.mkdir(parents=True, exist_ok=True)
-profile=out/('profile-'+str(time.time_ns()));profile.mkdir(exist_ok=True)
+profile=new_profile('lune-onboarding-flow-')
 # An existing empty preferences file prevents ChromeDriver's template from
 # injecting search.suggest_enabled=false as an explicit user choice.
 (profile/'Default').mkdir()

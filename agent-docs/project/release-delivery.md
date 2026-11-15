@@ -77,6 +77,8 @@ Check Chromium freshness, available disk space, the frozen Python/toolchain requ
 
 Keep ordinary browser fixtures off public update delivery with `--custom-update-server-url=http://127.0.0.1:1/`; use the intended fixture feed only for explicit updater checks. Chromium's `--disable-background-networking` and host-resolver rules do not isolate Sparkle's native networking. Record app/framework identities before and after tests so a public update cannot silently replace the development app being validated. Signed canonical-feed checks deliberately omit the override and verify the exact app identity separately.
 
+Build, setup, signed-runtime and installed-update checks allocate disposable browser profiles on internal temporary storage through `scripts/browser_test_profiles.py`, even when their evidence and installers are on an external build disk. Preserve the same profile across restart/update phases and leave reports, screenshots and logs in the requested evidence directory. Profiles are removed on normal test-process exit. For a frozen release whose helpers predate this allocator, use reviewed current validation helpers against the unchanged candidate and record their commit and hashes as supplemental validation; do not edit the frozen checkout or signed browser to change profile storage.
+
 Test notarization access with `xcrun notarytool history --keychain-profile lune-notary` while the Mac is unlocked, retaining the actual successful response and exit status. If it reports that the item cannot be found, follow [Keychain recovery](building.md#signing-readiness) before requesting credential re-entry. The default profile lives in the data-protection Keychain, shown as iCloud or Local Items in Keychain Access. An unlocked file-based login Keychain, a failed `security find-generic-password` lookup or an explicit `--keychain login.keychain-db` query does not establish that this profile is absent. Inspect the existing `com.apple.gke.notary.tool` item and retry the default profile; item visibility alone does not establish usable credentials. Keep passwords hidden and credentials in Keychain.
 
 ## Commands and gates
@@ -203,14 +205,15 @@ In another terminal, launch that copy with a new disposable profile and the
 local base URL printed by the helper:
 
 ```sh
+lune_update_profile="$(/usr/bin/mktemp -d /private/tmp/lune-update.XXXXXX)"
 open -n -a "$PWD/update-test/Lune.app" --args \
-  --user-data-dir="$PWD/update-profile" \
+  --user-data-dir="$lune_update_profile" \
   --custom-update-server-url=http://127.0.0.1:PRINTED_PORT/
 ```
 
 Enable browser updates in Settings, save a test bookmark and preference, then
 use About to install the update and relaunch. Confirm the candidate version from `release.json`, public browsing,
-and the saved data after relaunch. Quit the test app before stopping the server.
+and the saved data after relaunch. Quit the test app before stopping the server, then remove only the disposable directory named by `lune_update_profile`.
 Use a second, fresh copy/profile of the baseline for the negative case:
 
 ```sh

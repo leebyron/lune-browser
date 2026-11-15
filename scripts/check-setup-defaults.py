@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.request import Request,urlopen
 from urllib.error import HTTPError
 import argparse,base64,json,socket,subprocess,time,sys
+from browser_test_profiles import new_profile
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output',type=Path)
@@ -28,7 +29,7 @@ p=None
 
 def start(name,profile=None):
  global p,setup_handle,inspector_handle
- profile=profile or out/(name+'-profile-'+str(time.time_ns()))
+ profile=profile or new_profile('lune-setup-'+name+'-')
  pref_file=profile/'Default/Preferences'
  if not pref_file.exists():
   # Skip ChromeDriver's template opt-outs; retain actual user choices on restart.

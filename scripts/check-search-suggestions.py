@@ -3,9 +3,9 @@
 import argparse
 import json
 from pathlib import Path
+from browser_test_profiles import new_profile
 import socket
 import subprocess
-import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -74,7 +74,7 @@ def wd(method, path, data=None):
         raise RuntimeError(value)
     return value
 
-profile = Path(tempfile.mkdtemp(prefix='lune-search-suggestions-'))
+profile = new_profile('lune-search-suggestions-')
 (profile / 'Local State').write_text(json.dumps({'internal_only_uis_enabled': True}))
 report = {'passed': False, 'checks': {}, 'requests': requests}
 driver_log = (out / 'driver.log').open('w')
