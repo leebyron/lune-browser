@@ -1,13 +1,13 @@
 ---
 status: published
-revised: 2026-11-14
+revised: 2026-11-15
 effective: 2026-11-14
 ---
 
 # Privacy policy
 
-Lune is a personal project maintained by Lee Byron.\
-This notice covers the [macOS](https://www.apple.com/os/macos/) browser and [lune.computer](/) website.
+Lune is a free, open-source browser maintained by [Lee Byron](https://leebyron.com) as a personal project.\
+This notice covers the application and this website.
 
 ## Data on your device
 

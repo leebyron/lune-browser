@@ -1,20 +1,26 @@
 import MarkdownIt from 'markdown-it';
 
+export const legalPages = [
+  {slug: 'privacy', title: 'Privacy', description: 'How Lune handles local browser data, optional services, website requests, and information you share.'},
+  {slug: 'terms', title: 'Terms of use', description: 'Terms for using the Lune browser: open-source rights, third-party services, warranties, and liability.'},
+];
+
 const markdown = new MarkdownIt({html: false, linkify: false, typographer: false});
 const escape = markdown.utils.escapeHtml;
 
-export function renderPrivacy(source, template, {production = false} = {}) {
+export function renderLegal(source, template, {slug, title, description, production = false}) {
+  if (!/^[a-z][a-z0-9-]*$/.test(slug)) throw new Error('Invalid legal page slug.');
   const match = source.match(/^---\nstatus: (draft|published)\nrevised: (\d{4}-\d{2}-\d{2})(?:\neffective: (\d{4}-\d{2}-\d{2}))?\n---\n/);
-  if (!match) throw new Error('Privacy policy requires status and ISO revision date metadata.');
+  if (!match) throw new Error('Legal document requires status and ISO revision date metadata.');
   const [, status, revised, effective] = match;
   for (const date of [revised, effective].filter(Boolean)) {
-    if (new Date(date).toISOString().slice(0, 10) !== date) throw new Error('Invalid policy date.');
+    if (new Date(date).toISOString().slice(0, 10) !== date) throw new Error('Invalid legal document date.');
   }
   if (status === 'published' && (!effective || /\bdraft\b|placeholder/i.test(source))) {
-    throw new Error('Published privacy policy must have an effective date and no unresolved draft notes.');
+    throw new Error('Published legal document must have an effective date and no unresolved draft notes.');
   }
   if (production && status !== 'published') {
-    throw new Error('Privacy policy is a draft. Local builds are available; production deployment is blocked.');
+    throw new Error('Legal document is a draft. Local builds are available; production deployment is blocked.');
   }
   const tokens = markdown.parse(source.slice(match[0].length), {});
   const sections = [];
@@ -32,8 +38,11 @@ export function renderPrivacy(source, template, {production = false} = {}) {
     token.attrSet('id', id);
     if (token.tag === 'h2') sections.push(`<li><a href="#${id}">${escape(label)}</a></li>`);
   }
-  if (titles !== 1) throw new Error('Privacy policy must contain exactly one page title.');
+  if (titles !== 1) throw new Error('Legal document must contain exactly one page title.');
   const values = {
+    SLUG: escape(slug),
+    TITLE: escape(title),
+    DESCRIPTION: escape(description),
     CONTENT: markdown.renderer.render(tokens, markdown.options, {}),
     TOC: sections.join('\n'),
     REVISION: revised,
@@ -41,7 +50,7 @@ export function renderPrivacy(source, template, {production = false} = {}) {
     ROBOTS: status === 'draft' ? '<meta name="robots" content="noindex, nofollow">' : '',
   };
   return template.replace(/\{\{([A-Z]+)\}\}/g, (_, key) => {
-    if (!(key in values)) throw new Error(`Unknown privacy template field: ${key}`);
+    if (!(key in values)) throw new Error(`Unknown legal template field: ${key}`);
     return values[key];
   });
 }
