@@ -42,6 +42,7 @@ agent-docs/project/            definition, decisions, research, operating proced
 config/                 product identity, platforms, channels, feature policy
 manifests/              upstream policy, PR selections, exact release locks
 scripts/                fetch, compose, validate, build, release entry points
+legal/                  versioned legal notices; canonical privacy policy
 website/                Lune website and download presentation
 deploy/                 service overlays, host config, deployment automation
 .github/workflows/      checks, integration, build, sign, publish

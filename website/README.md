@@ -1,12 +1,30 @@
 # Lune website
 
-Buildless HTML, CSS, and JavaScript served by Cloudflare Workers Static Assets.
+Static HTML, CSS, and JavaScript served by Cloudflare Workers Static Assets.
 Edit `public/index.html`, `public/styles.css`, and `public/main.js` directly.
 There is no conversation-preview runtime or client-side framework dependency.
 
-From this directory, `npm run dev` starts the local site and `npm run check`
-validates the deployment. Pushes to `main` deploy through the existing Website
-workflow. See [the deployment runbook](../agent-docs/project/website.md).
+`npm run build` copies `public/` into ignored `dist/` and generates `/privacy`
+from the canonical [legal/privacy.md](../legal/privacy.md). Edit the Markdown,
+not the generated HTML. The template is `templates/privacy.html`; its stylesheet
+is `public/privacy.css`. No client-side Markdown renderer is shipped.
+
+From this directory, `npm run dev -- --port 8787` builds and starts the local site;
+open `http://localhost:8787/privacy`. Rerun `npm run build` after editing Markdown
+or the template; Wrangler watches the resulting assets. `npm run check` builds,
+runs the renderer tests and validates a deployment without publishing it.
+
+`npm run deploy` requires the policy metadata to be
+`status: published`, with an `effective: YYYY-MM-DD` date and no draft notes
+or placeholders. This guard checks readiness markers, not legal
+or factual correctness. Do not bypass it with a direct Wrangler deployment.
+Unpublished pages are marked noindex without a visible draft badge or notice.
+The Markdown download is an exact source copy;
+the GitHub history link becomes useful after the first source commit is published.
+
+Owner pushes to `main` affecting website or policy sources invoke the existing
+Website workflow, including deployment. The owner approved initial publication
+on November 14, 2026. See [the deployment runbook](../agent-docs/project/website.md).
 
 ## Behavior
 

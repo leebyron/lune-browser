@@ -143,16 +143,28 @@ marking the apex live. Reconcile DNSSEC separately after delegation if desired.
 
 ## Local development and deployment
 
+The privacy policy is canonical in `legal/privacy.md`. `npm run build`
+copies static assets from `website/public/` to ignored `website/dist/`, renders
+`/privacy` with `website/templates/privacy.html`, and exposes an identical
+Markdown download. Wrangler serves `dist/`. No client renderer or service
+backend is added. See the [privacy review](privacy-draft-review.md) for source evidence and
+remaining audit questions. Initial publication is authorized effective November
+14, 2026.
+
 From `website/`:
 
 ```sh
 npm ci
+npm run build
 npm run dev
 npm run check
 npm run deploy
 ```
 
-`check` runs Wrangler's deployment dry run. `deploy` requires Cloudflare
+`check` builds, tests the privacy renderer and runs Wrangler's deployment dry
+run. `dev` builds once before serving; rerun `npm run build` after editing policy
+or template files. `deploy` first requires a published policy status, an effective
+date and resolved draft markers, then requires Cloudflare
 authentication. Dependencies are locked; commit `package-lock.json` with dependency
 changes. Keep OAuth and API tokens outside the repository.
 
