@@ -124,6 +124,7 @@ Test notarization access with `xcrun notarytool history --keychain-profile lune-
    Mach-O minimums, About and lune://version, real public HTTPS navigation and
    restart persistence in a disposable profile. It records native versus Rosetta
    execution and does not count Rosetta as native Intel acceptance.
+   The runtime probe explicitly confirms the local blocker through custom setup with the other Services choices off, verifies bundled filters before and after restart, and checks the persisted setup-completion flag. Its default loopback feed override isolates ordinary runtime validation; the separate canonical-feed probe verifies the embedded production feed without an override.
 5. Exercise the real About-page updater from the latest published release to the candidate
    with `scripts/release/check_update.py --expected-build VERSION`. Run both
    architectures sequentially, including invalid-signature and unsupported-OS

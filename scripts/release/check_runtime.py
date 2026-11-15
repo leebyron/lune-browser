@@ -30,6 +30,7 @@ def main():
     parser.add_argument('--chromium-version', required=True)
     parser.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
     args = parser.parse_args()
+    test_feed = args.test_feed_base or 'http://127.0.0.1:1/'
     app = args.app.resolve()
     directory = args.directory.resolve()
     directory.mkdir(parents=True, exist_ok=False)
@@ -37,7 +38,7 @@ def main():
                   architecture=args.arch, host_architecture=platform.machine(),
                   native_hardware=platform.machine() == args.arch,
                   timestamp=datetime.now(timezone.utc).isoformat(), passed=False,
-                  test_feed_override=args.test_feed_base)
+                  test_feed_override=test_feed)
     fixture = ThreadingHTTPServer(('127.0.0.1', 0), smoke.Page)
     threading.Thread(target=fixture.serve_forever, daemon=True).start()
     try:
@@ -62,7 +63,7 @@ def main():
         for phase in ('before', 'after'):
             with session(app, args.driver.resolve(), profile,
                          directory/f'{phase}.log', ['--host-resolver-rules=',
-                         *([f'--custom-update-server-url={args.test_feed_base}'] if args.test_feed_base else [])]) as raw_request:
+                         f'--custom-update-server-url={test_feed}']) as raw_request:
                 def request(*parameters):
                     value = raw_request(*parameters)
                     if isinstance(value, dict) and 'error' in value:
@@ -71,6 +72,44 @@ def main():
                 def js(script, asynchronous=False):
                     return request('POST', '/execute/' + ('async' if asynchronous else 'sync'),
                                    {'script': script, 'args': []})
+                if phase == 'before':
+                    # Fresh profiles require an explicit first-install decision.
+                    # Confirm only the local blocker, keeping optional services off.
+                    def wait_for(script):
+                        for _ in range(120):
+                            result = js(script)
+                            if result:
+                                return result
+                            time.sleep(.25)
+                        raise AssertionError('Setup did not reach: ' + script)
+                    def next_step():
+                        js("document.querySelector('#setup-buttons button:last-child').click()")
+                    request('POST', '/url', {'url': 'chrome://setup/'})
+                    wait_for("return document.querySelector('.welcome-actions .primary')")
+                    js("document.querySelector('.welcome-actions .primary').click()")
+                    wait_for("return document.querySelector('#search-engines-page.visible')")
+                    next_step()
+                    wait_for("return document.querySelector('#services-page.visible')")
+                    selection = js("""const inputs=[...document.querySelectorAll('#services-page input')];
+                        for(const input of inputs){const enabled=input.id==='ublock.enabled-toggle';
+                            if(input.checked!==enabled)input.click();}
+                        return inputs.map(input=>({id:input.id,checked:input.checked}));""")
+                    assert len(selection) == 7 and all(row['checked'] == (row['id'] == 'ublock.enabled-toggle')
+                                                       for row in selection), selection
+                    next_step()
+                    for step in ('data-import', 'password-manager', 'finish'):
+                        wait_for(f"return document.querySelector('#{step}-page.visible')")
+                        next_step()
+                    wait_for("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
+                    request('POST', '/url', {'url': 'chrome://settings/'})
+                    wait_for('return !!chrome.settingsPrivate')
+                    choices = js("""const done=arguments[arguments.length-1];
+                        chrome.settingsPrivate.getAllPrefs(prefs=>done(Object.fromEntries(prefs.filter(pref=>
+                        ['helium.services.enabled','helium.services.browser_updates',
+                         'search.suggest_enabled'].includes(pref.key)).map(pref=>[pref.key,pref.value]))));""", True)
+                    assert choices == {'helium.services.enabled': False,
+                                       'helium.services.browser_updates': False, 'search.suggest_enabled': False}, choices
+                    report['setup_confirmation'] = dict(selection=selection, preferences=choices)
                 # uBlock can reload tabs when releasing requests held during startup.
                 # Wait for its bundled filters before testing a sequence of navigations.
                 request('POST', '/url', {'url': 'chrome-extension://blockjmkbacgjkknlgpkjjiijinjdanf/3p-filters.html'})
@@ -122,6 +161,9 @@ def main():
                     else:
                         raise AssertionError(dict(page=page, frames=request('POST', '/goog/cdp/execute', {'cmd':'Page.getFrameTree','params':{}}), targets=request('POST', '/goog/cdp/execute', {'cmd':'Target.getTargets','params':{}}), browser_log=request('POST','/log',{'type':'browser'})))
                     report['public_pages'].append(dict(url=page['url'], title=page['title']))
+        preferences = json.loads((profile/'Default/Preferences').read_text())
+        assert preferences.get('helium', {}).get('completed_onboarding') is True
+        report['setup_completion_persisted'] = True
         report.update(browse=True, passed=True)
     except Exception as error:
         report['error'] = repr(error)
