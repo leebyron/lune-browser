@@ -2,7 +2,7 @@
 
 November 14, 2026. The owner requested a policy draft and generated page for local
 review, then accepted the result and authorized publication on the same date. The canonical text is
-[legal/privacy.md](../../legal/privacy.md); the [website instructions](../../website/README.md)
+[legal/privacy.md](../../legal/privacy.md); the [website instructions](../../website/spec/delivery.md)
 describe building `/privacy`. The owner confirmed on November 14, 2026 that `privacy@lune.computer` is
 configured. The policy now links it as the private contact address. Mailbox
 provider, access and retention still need confirmation.

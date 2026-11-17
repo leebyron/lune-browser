@@ -6,7 +6,7 @@ provider in onboarding and settings. Lune hosts its own browser-update feeds.
 The self-hosting design below remains future work; do not deploy it as part of
 the release bootstrap. The website is deployed on
 Cloudflare Workers Static Assets; `lune.computer` is registered at DNSimple.
-See the [website runbook](website.md) for activation and CI status.
+See the [website specification](../../website/spec/README.md) for behavior and delivery.
 Source findings are recorded in [research](research.md).
 
 Validated service/tooling changes follow the [commit and completion process](committing.md), including resolved issue closure, temporary process shutdown and disposable artifact cleanup. Service deployment remains separately authorized.
@@ -85,14 +85,9 @@ a blanket license to mixed upstream code.
 
 ## Website
 
-The minimal static website lives in `website/public/` on `main`, with Cloudflare
-configuration and a pinned Wrangler dependency alongside it. A dedicated GitHub
-workflow validates changes and deploys `main`. It is independent of browser
-builds and the service runtime. Select a framework only when there is a concrete
-need. When releases exist, display both macOS downloads, minimum OS, current Chromium
-version, release date, checksums, source links, and the relationship to upstreams.
-
-Read download URLs and versions from the promoted release manifest. Detecting
-architecture can improve the default choice, but always show both alternatives.
-Use original Lune branding; Helium's UI library and website are optional references,
-not dependencies required to self-host its services.
+The static website lives in `website/` on `main` and deploys independently of
+browser builds and services. Its [specification](../../website/spec/README.md)
+defines the story, locally served assets, legal pages, and guarded delivery.
+Downloads use fixed GitHub latest-asset links, with explicit chip detection and
+a chooser when architecture is unknown; browser versions and release metadata
+remain on GitHub. Helium-hosted browser services are separate from this site.
