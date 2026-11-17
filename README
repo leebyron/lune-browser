@@ -1,73 +1,48 @@
-LUNE BROWSER
+# Lune
 
+A browser built from spare parts. Used by [@leebyron](https://leebyron.com); you can use it too.
 
+Lune is an open source Chromium browser for macOS, built on [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium/) and [Helium](https://helium.computer/), with selected work from [Xelium](https://github.com/minervanet/xelium-macos) and interaction ideas inspired by [Arc](https://arc.net/).
 
+- A vertical tab sidebar and toolbar that tuck away to give pages more room.
+- A keyboard command menu: press **Cmd-T** to search, switch tabs, or run browser commands.
+- Automatic Older Tabs to keep inactive tabs out of the way, with configurable retention.
 
-# ABOUT LUNE
+Visit [lune.computer](https://lune.computer/) for a look at the browser.
 
-A browser built from spare parts. Used by [@leebyron](https://leebyron.com) you can use it too.
+## Download
 
-## DOWNLOADS AND RELEASES
+Requires **macOS 13 or later**.
 
-Get Lune from [Releases](https://github.com/leebyron/lune-browser/releases).
-The [latest release](https://github.com/leebyron/lune-browser/releases/latest)
-has separate Apple silicon and Intel downloads for macOS 13+.
-Source and browser releases live in this repository.
+| Mac | Latest download |
+| --- | --- |
+| Apple silicon (M-series) | [Download Lune for Apple silicon](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-arm64.dmg) |
+| Intel | [Download Lune for Intel](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-x86_64.dmg) |
 
-The existing 26.1109.1 and 26.1109.2 files were moved unchanged. Their embedded
-updater points to the retired distribution repository; use manual downloads for
-those versions. Future builds will use this repository's Sparkle feeds.
+Open the DMG and drag Lune to Applications. Releases are signed and notarized, and the browser can keep itself up to date through Lune's GitHub releases.
 
-Based on and inspired by:
+See the [latest release notes](https://github.com/leebyron/lune-browser/releases/latest) or browse [all releases](https://github.com/leebyron/lune-browser/releases).
 
- - [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium/)
- - [helium](https://helium.computer/)
- - [xelium](https://github.com/minervanet/xelium-macos)
- - [arc browser](https://arc.net/)
+Optional browser services are provided by Helium and require separate consent. Read Lune's [privacy policy](https://lune.computer/privacy) and [terms](https://lune.computer/terms) for details.
 
-## AGENT DOCUMENTATION
+## About this repository
 
-Documentation written by and for agents lives in `agent-docs/`.
-Start with [the project definition](agent-docs/project/README.md).
+This repository holds Lune's source, build tooling, website, and published releases. The browser is assembled from Chromium and a set of patches; the full Chromium source tree is downloaded during source preparation.
 
- - [Repository and patch architecture](agent-docs/project/architecture.md)
- - [Builds, releases, and automatic updates](agent-docs/project/releases.md)
- - [Self-hosted services and website](agent-docs/project/services.md)
- - [Implementation roadmap](agent-docs/project/roadmap.md)
- - [Upstream research and sources](agent-docs/project/research.md)
+The `main` branch contains product configuration, pinned build inputs in [manifests/](manifests/), build and release tooling in [scripts/](scripts/), and the [website](website/). Browser code and patches live on component branches that preserve their upstream histories:
 
-Agent instructions are in [AGENTS.md](AGENTS.md).
+- [component/helium](https://github.com/leebyron/lune-browser/tree/component/helium): core browser patches and configuration.
+- [component/macos](https://github.com/leebyron/lune-browser/tree/component/macos): macOS patches, build tooling, and packaging.
+- [component/services](https://github.com/leebyron/lune-browser/tree/component/services): optional service source.
 
-Current status: signed/notarized production releases and architecture-specific
-Sparkle feeds are published. Native Intel acceptance remains pending under the
-owner's release-specific deferrals; Intel automated checks use Rosetta.
+Each release tag records its source and exact build inputs. The [development lockfile](manifests/browser.lock.json) selects inputs for future builds; published releases retain their own frozen inputs.
 
-## WEBSITE
+Report bugs and suggest improvements in [Issues](https://github.com/leebyron/lune-browser/issues).
 
-The static website lives in `website/public/` and deploys to Cloudflare Workers.
-See [the deployment runbook](agent-docs/project/website.md) for setup and status.
-
-## LICENSE
+## License
 
 Copyright (C) 2026 Lee Byron and Lune contributors.
 
-Lune's original code, build tooling, documentation, and original assets are licensed
-under the [GNU General Public License, version 3 or later](LICENSE) (`GPL-3.0-or-later`), except
-where otherwise noted. Lune is distributed without any warranty. See [NOTICE](NOTICE)
-for scope, source availability, and third-party attribution. Imported components
-and third-party assets retain their existing licenses:
+Lune's original code, tooling, documentation, and assets are licensed under the [GNU General Public License, version 3 or later](LICENSE), except where otherwise noted. Lune is distributed without any warranty.
 
- - Helium's original code and patches: [GNU GPLv3](LICENSE.helium) (`GPL-3.0-only`).
- - Original unmodified ungoogled-chromium code: [BSD 3-Clause](LICENSE.ungoogled_chromium).
-
-Modifications derived from imported code remain subject to its upstream terms.
-Website asset attribution is listed in [website/README.md](website/README.md#assets-and-attribution).
-
-
-## DEVELOPMENT BUILD SETUP
-
-The first locked inputs and local build commands are tracked on main, with
-upstream histories on component/helium, component/macos, and component/services.
-See agent-docs/project/building.md for current validation and remaining blockers.
-Both Lune architectures are built and smoke-tested locally; native Intel hardware
-acceptance remains pending. See the release notes and current delivery runbook.
+Imported components retain their existing licenses, including [Helium's GPLv3](LICENSE.helium) and [ungoogled-chromium's BSD 3-Clause license](LICENSE.ungoogled_chromium). Modifications derived from imported code remain subject to its upstream terms. See [NOTICE](NOTICE) for source availability and third-party attribution, and [website asset credits](website/README.md#assets-and-attribution).
