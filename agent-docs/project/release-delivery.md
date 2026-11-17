@@ -296,7 +296,7 @@ not replace them. Verify all four files in the signed app. The installed app ret
 them after the DMG is discarded, and the DMG includes them through that app bundle.
 The optional local source export includes the same files under their source names:
 `LICENSE`,
-`LICENSE.helium`, `LICENSE.ungoogled_chromium`, `NOTICE`, and `README`.
+`LICENSE.helium`, `LICENSE.ungoogled_chromium`, `NOTICE`, and `README.md`.
 Existing signed releases and frozen source tags remain unchanged.
 
 The source repository is public. Publish one DMG per architecture, architecture appcasts, checksums and compact release/validation metadata. Release-tag and latest download URLs reference the same asset. Link the exact signed public source tag and permanent component refs.

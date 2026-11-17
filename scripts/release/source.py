@@ -61,7 +61,7 @@ def main():
     subprocess.run(['git', 'archive', '--format=tar', '--prefix=orchestrator/',
                     '-o', str(kit / 'orchestrator.tar'), 'HEAD', 'scripts', 'config', 'manifests',
                     'branding', 'LICENSE', 'LICENSE.helium', 'LICENSE.ungoogled_chromium',
-                    'NOTICE', 'README', 'AGENTS.md',
+                    'NOTICE', 'README.md', 'AGENTS.md',
                     'agent-docs/project'], cwd=ROOT, check=True)
     (kit / 'archives.json').write_text(json.dumps(archives, indent=2) + '\n')
     (kit / 'README.txt').write_text('''Lune corresponding source kit

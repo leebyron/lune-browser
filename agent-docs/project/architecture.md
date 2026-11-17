@@ -37,7 +37,7 @@ a permanent namespaced tag/ref, not only a SHA written into JSON.
 
 ```text
 AGENTS.md
-README
+README.md
 agent-docs/project/            definition, decisions, research, operating procedures
 config/                 product identity, platforms, channels, feature policy
 manifests/              upstream policy, PR selections, exact release locks
