@@ -1,18 +1,6 @@
 # Remaining roadmap
 
-Read [current status](status.md) for published releases, the active release and validation limits. This page describes future work, not authorization to activate schedules or deployments.
-
-## Established foundations
-
-- Public source and browser releases in one GitHub repository, upstream-derived component histories, permanent input tags and hash-locked composition.
-- Fresh strict source preparation and arm64/x86_64 builds on the local Mac, with native Apple silicon and Rosetta browser checks.
-- Developer ID signing, notarization, stapling, Sparkle signatures and installed-update acceptance tooling.
-- Paired GitHub stable feeds, one DMG per architecture, version-specific downloads and fixed latest links on the Cloudflare website.
-- Owner/main/repository guards on the free self-hosted Mac workflows.
-
-## Maintain release delivery
-
-26.1110.1 is published with canonical feeds and fixed latest-download links. For each authorized release, publish after acceptance on one physical device and all technical gates pass; do not wait for manual Intel testing or a per-release approval/deferral. Keep both architecture builds and automated checks, recording Rosetta accurately. Existing .1/.2 users need a manual install after deletion of the old feed repository.
+Use [open issues](https://github.com/leebyron/lune-browser/issues) for active work. Start scheduled or deployed work only when requested.
 
 ## Improve upstream integration
 

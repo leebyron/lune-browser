@@ -34,8 +34,10 @@ def main():
                 if a.channel=='stable':urls.append(f"{LATEST}/{row['filename']}")
                 for url in urls:
                     path=tmp/row['filename'];fetch(url,path)
-                    if sha(path)!=row['sha256']:raise ValueError('Public download differs')
-                    report['checks'].append({'url':url,'sha256':sha(path)})
+                    digest = sha(path)
+                    if digest != row['sha256']:
+                        raise ValueError(f'Public download differs: {url}')
+                    report['checks'].append({'url':url,'sha256':digest})
             report['passed']=True
     finally:
         a.output.parent.mkdir(parents=True,exist_ok=True)

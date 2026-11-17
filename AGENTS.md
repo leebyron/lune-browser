@@ -1,100 +1,25 @@
 # Working on Lune
 
-Lune is a macOS Chromium distribution assembled from ungoogled-chromium, Helium, selected upstream contributions and Lune patches. Browser features should remain independently upstreamable; distribution identity and release policy stay separate.
+Lune is a macOS Chromium distribution built from ungoogled-chromium, Helium and selected patches. Keep reusable browser features upstreamable and distribution identity separate.
 
-## Start here
+## Read for the task
 
-1. Read [current status](agent-docs/project/status.md) and the [project definition](agent-docs/project/README.md).
-2. Read [architecture](agent-docs/project/architecture.md) before changing repository structure or patch composition.
-3. Use the task's runbook below. Treat dated feature/build records as historical evidence; the current lock and frozen release records determine inclusion.
-
-| Task | Read |
+| Task | Guidance |
 | --- | --- |
-| Prepare sources or compile | [Build runbook](agent-docs/project/building.md) |
-| Freeze, sign, publish or verify updates | [Release delivery](agent-docs/project/release-delivery.md) |
-| Release policy, freshness and notes | [Release policy](agent-docs/project/releases.md) |
-| Commit, close resolved issues and clean up validated work | [Completion process](agent-docs/project/committing.md) |
-| Version allocation and commit boundaries | [Release commits](agent-docs/project/release-commits.md) |
-| Native UI changes | [Feature index](agent-docs/project/features/README.md) and the relevant feature record |
-| Website deployment | [Website runbook](agent-docs/project/website.md) |
-| Helium services | [Services](agent-docs/project/services.md) |
+| Identify current inputs, published releases or open work | [Sources of project state](agent-docs/project/status.md) |
+| Change component history or patch composition | [Architecture](agent-docs/project/architecture.md) |
+| Develop or validate a browser feature | [Development loop](agent-docs/project/development.md), [relevant feature record](agent-docs/project/features/README.md) |
+| Prepare sources, build or use the Mac runner | [Build runbook](agent-docs/project/building.md) |
+| Freeze, sign, publish or verify a release | [Release delivery](agent-docs/project/release-delivery.md), [release policy](agent-docs/project/releases.md) |
+| Commit, close issues and clean up | [Completion process](agent-docs/project/committing.md) |
+| Change the website or service integration | [Website](agent-docs/project/website.md), [services](agent-docs/project/services.md) |
 
-## Project constraints
+## Constraints
 
-- Support macOS arm64 and x86_64, with macOS 13 as the current minimum. Publish an authorized release after acceptance on one physical device and all technical gates pass; do not wait for manual Intel testing or another per-release approval/deferral. Keep both architecture builds and automated checks, recording Rosetta accurately. This policy supersedes native Intel gates in historical reports.
-- Target the latest macOS Chromium Stable independently of Helium/Xelium cadence. Check official freshness at input selection and immediately before publication and promotion; never downgrade Chromium to accommodate optional UI patches.
-- Keep CI free: use the existing local Mac runner. Owner/main/canonical-repository guards must protect this public repository; do not run untrusted PR or fork code on the signing host. Recurring builds and automatic publication require an explicit request.
-- Source and browser releases belong in public `leebyron/lune-browser`. Upload one `Lune-macos-ARCH.dmg` per architecture, appcasts, checksums and compact delivery metadata. Release-tag and latest URLs reference the same asset. Do not upload duplicate DMGs, source kits, Git bundles or unchanged dependency archives.
-- Use production/stable delivery. Unpublished drafts and local fixtures are preparation tools, not a public staging channel. Release versions use `YY.MMDD.N`; never reuse a published version.
-- Release notes are terse and factual: changes since the last actually published version, new features first, then bug/security fixes and a compact engine note. Omit Downloads and compatibility and Testing and known issues sections. No humor or lighthearted framing. Keep each paragraph and list item on one source line and allow natural wrapping.
-- Optional browser services are hosted by Helium and require independent consent. Browser updates are delivered by Lune through GitHub. Lune service hosting is not deployed.
-- Signing, notarization and Sparkle credentials remain in Keychain. Use the project's clean build environment; inherited shell tools can shadow macOS utilities and break upstream scripts.
-
-## Engineering rules
-
-- Prefer native Git fetch, merge, cherry-pick, rebase, and worktree operations
-  for repository history. Preserve upstream ancestry and original authorship.
-- Helium and ungoogled-chromium are patch/configuration repositories, not full
-  Chromium trees. Use Helium's source preparation and quilt workflow at that
-  boundary. Do not apply the ungoogled series twice.
-- Keep reusable browser features independently upstreamable to Helium. Keep
-  Lune branding, domains, signing keys, and release policy in separate commits.
-  Follow the target upstream's current contribution guidelines; technical
-  portability does not guarantee maintainer acceptance.
-- Pin release inputs to full commit IDs and dependency/archive hashes. Record
-  PR base/head, ordered commits, dependencies, provenance, and local adaptations.
-  Never build a release from a moving PR URL or an unrecorded dirty tree.
-- Stop integration on conflicts or failed validation. Do not automatically drop
-  patches, choose ours/theirs, or accept fuzzy patch application to make CI green.
-- A clean merge is not a release gate by itself. Validate source preparation,
-  builds, browser behavior, signatures, and the installed-app update path on
-  both supported architectures.
-- Keep signing credentials out of source and untrusted build jobs. Use Lune's
-  own identity, profile directory, service endpoints, and Sparkle public key.
-- Publish immutable artifacts before updating the feed. Preserve the last good
-  feed on failure and never overwrite a published binary or reuse its version.
-- Keep Chromium source trees, build products, caches, private credentials, and
-  generated workspaces out of the main branch.
-
-## Working practices
-
-- Follow the [completion process](agent-docs/project/committing.md) when a change is validated as the solution: commit and push within the authorized scope, close the specific GitHub issues it fully resolves, quit temporary builds and remove their disposable artifacts after retaining concise validation evidence. Existing authorization covers this routine cleanup; preserve active work, reusable caches and release evidence.
-
-- Keep changes focused and use descriptive branch names. Do not add a `codex/`
-  prefix unless tooling explicitly requires it.
-- Update project docs when a design decision changes. Distinguish recommendations,
-  implemented behavior, source inspection, and runtime verification.
-- Run checks appropriate to the actual change. Documentation changes need link,
-  consistency, and whitespace checks, not a Chromium build.
-- Iterate on browser features and fixes with incremental arm64 builds, relevant
-  regressions and native review. Run Intel early for architecture-specific work;
-  otherwise defer it until acceptance. Before browser input adoption on main,
-  verify the final quilt/export/replay and source parity, then build and smoke-test
-  both architectures. Release gates remain separate and unchanged.
-- Choose intermediate checks from the affected behavior; run broader integration
-  checks once the candidate settles. Reuse evidence only while its relevant
-  source, configuration, toolchain and artifact identities remain unchanged.
-- Preserve incremental sources/outputs and caches. Record workspace ownership,
-  base inputs and active patches, and serialize edits/builds in shared sources.
-  Record phase timings using the [development loop](agent-docs/project/development.md).
-- Browser patches should be developed in the prepared source tree, refreshed
-  with quilt, unmerged into the correct core/platform repository, then committed.
-- Preserve imported licenses and attribution. Check current upstream guidance
-  before preparing a contribution; Helium currently requires human-written
-  upstream issue/PR descriptions. Do not submit upstream messages automatically.
-- Do not create schedules, releases, or deployments merely because they are
-  described in the roadmap. Implement and activate them when that work is requested.
-
-## Project references
-
-`agent-docs/` contains documentation written by and for agents. Keep human-facing
-documentation separate when it is added.
-
-- [Definition and scope](agent-docs/project/README.md)
-- [Repository and patch architecture](agent-docs/project/architecture.md)
-- [Committing and completing validated changes](agent-docs/project/committing.md)
-- [Builds, releases, and updates](agent-docs/project/releases.md)
-- [Services and website](agent-docs/project/services.md)
-- [Website deployment runbook](agent-docs/project/website.md)
-- [Implementation roadmap](agent-docs/project/roadmap.md)
-- [Research and primary sources](agent-docs/project/research.md)
+- Preserve upstream ancestry, licensing and attribution. Develop Chromium patches with quilt in prepared sources, then refresh and unmerge into the owning component. Stop on conflicts or failed validation. Keep the complete Helium/ungoogled series in its upstream order.
+- Iterate with arm64 and focused native checks. Before main adopts a browser input, verify complete zero-fuzz preparation and source parity, then build and smoke-test arm64 and x86_64. The release gates are separate.
+- Target the latest official macOS Chromium Stable independently of downstream cadence. Preserve the selected input commits and archive hashes. Use macOS 13 as the minimum for both architectures.
+- Keep CI on the existing local Mac with owner/main/canonical-repository guards. Keep untrusted PR and fork code off the signing host and credentials in Keychain. Use the clean build environment.
+- Publish an authorized release after one physical-device acceptance and all technical gates pass. Keep both architecture builds and automated checks, and label Rosetta execution accurately. Use the production stable feeds and immutable assets. Schedules, releases and deployments need task authorization.
+- Include affected specifications and durable validation evidence in the implementation or input-adoption commit. Verify remote checks, close resolved issues and clean up after pushing without a routine follow-up commit. Preserve shared work and caches.
+- Use descriptive branch names. Omit the `codex/` prefix unless tooling requires it. Check current upstream contribution rules and preserve Helium's requirement for human-written issue and PR descriptions.

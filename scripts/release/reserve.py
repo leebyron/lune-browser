@@ -43,8 +43,12 @@ def main():
                    help='Completed fresh zero-fuzz preparation report for the exact current browser lock')
     a = p.parse_args()
     day, sequence = version_parts(a.version)
-    if git(ROOT, 'status', '--porcelain'):
-        raise ValueError('Commit input and note changes before reserving a release')
+    notes = f'agent-docs/project/releases/{a.version}.md'
+    changes = git(ROOT, 'status', '--porcelain=v1', '--no-renames', '--untracked-files=all').splitlines()
+    if changes not in ([], [f'A  {notes}'], [f'M  {notes}']):
+        raise ValueError('Stage the release notes and commit other changes before reserving a release')
+    if (ROOT / notes).is_symlink():
+        raise ValueError('Release notes must be a regular file')
     lock_path = ROOT / 'manifests/browser.lock.json'
     lock = json.loads(lock_path.read_text())
     preparation = require_preparation(a.prepared_report, lock, sha(lock_path))
@@ -53,7 +57,7 @@ def main():
     allocated = {Path(name).stem for name in history.splitlines() if name.endswith('.json')}
     check_allocation(a.version, allocated)
     names = {'manifests/browser.lock.json', 'manifests/patches.json', 'config/product.json',
-             'config/release-recipe.json', f'agent-docs/project/releases/{a.version}.md',
+             'config/release-recipe.json', notes,
              'agent-docs/project/releases.md', 'agent-docs/project/release-delivery.md'}
     names.update(lock['download_configs'])
     names.update(git(ROOT, 'ls-files', 'scripts', 'config/requirements*.txt').splitlines())

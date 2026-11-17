@@ -1,8 +1,6 @@
 # Feature records
 
-Read [current status](../status.md) first. These records document implementation choices, source inputs, owner acceptance and validation at a particular time. Older statements such as “not in the development lock” are historical; consult the current lock or a frozen release record to establish inclusion. Rosetta results do not establish physical Intel acceptance.
-
-After a feature is validated and accepted, follow the [completion process](../committing.md): close its fully resolved issues, quit temporary previews and delete their disposable artifacts after retaining evidence.
+Use the record for the relevant UI surface when it explains behavior, a design constraint or a targeted check. These are scoped historical records. Verify inclusion in the [development lock and frozen releases](../status.md).
 
 - [Automatic Older Tabs](older-tabs.md)
 - [Selected address-bar suggestions](address-suggestion-selection.md)
@@ -55,8 +53,6 @@ After a feature is validated and accepted, follow the [completion process](../co
 - [Trailing toolbar controls](trailing-toolbar-controls.md)
 - [Toolbar hover modes](toolbar-visibility.md)
 - [Native window-menu retention](window-menu-retention.md)
-
 - [Setup safe areas and progress](setup-safe-area-progress.md): dynamic alert inset, clickable dots, tooltips, footer fade and reduced artwork opacity during setup.
-
 - [Preferred setup defaults](setup-preferred-defaults.md): defaults parity, retained opt-outs, confirmation boundaries and softer description text.
 - [Setup Services and close warning](setup-services.md): inferred Helium choices, confirmed blocker installation, one-time password-manager access and unfinished-setup protection.

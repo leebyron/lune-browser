@@ -112,6 +112,59 @@ class PreparationBeforeAllocationTests(unittest.TestCase):
                 git.assert_not_called()
                 self.assertFalse((root / 'manifests/releases').exists())
 
+    def test_release_notes_and_record_can_land_in_one_commit(self):
+        import reserve
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / 'repo'
+            root.mkdir()
+            model.git(root, 'init', '--quiet')
+            for setting, value in (('user.name', 'Test'), ('user.email', 'test@example.com'),
+                                   ('commit.gpgsign', 'false'), ('core.hooksPath', '/dev/null')):
+                model.git(root, 'config', setting, value)
+            prepared, lock, report = self.fixture(root.parent)
+            lock_path = root / 'manifests/browser.lock.json'
+            files = {
+                str(lock_path.relative_to(root)): json.dumps(dict(lock, download_configs=[])),
+                'manifests/patches.json': '{}',
+                'config/product.json': '{}',
+                'config/release-recipe.json': '{}',
+                'agent-docs/project/releases.md': '# Policy\n',
+                'agent-docs/project/release-delivery.md': '# Delivery\n',
+            }
+            for name, content in files.items():
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+            model.git(root, 'add', '--', *files)
+            model.git(root, 'commit', '-qm', 'Commit release inputs')
+            prepared.write_text(json.dumps(dict(report, browser_lock_sha256=model.sha(lock_path))))
+
+            version = '26.1112.1'
+            notes = f'agent-docs/project/releases/{version}.md'
+            notes_path = root / notes
+            notes_path.parent.mkdir()
+            notes_path.write_text('# Release notes\n')
+            record = f'manifests/releases/{version}.json'
+            args = ['reserve.py', '--version', version, '--prepared-report', str(prepared)]
+            with patch.object(reserve, 'ROOT', root), patch.object(sys, 'argv', args):
+                with self.assertRaisesRegex(ValueError, 'Stage the release notes'):
+                    reserve.main()
+                model.git(root, 'add', '--', notes)
+                lock_path.write_text('{}')
+                with self.assertRaisesRegex(ValueError, 'commit other changes'):
+                    reserve.main()
+                model.git(root, 'restore', '--', str(lock_path.relative_to(root)))
+                notes_path.write_text('# Unstaged edit\n')
+                with self.assertRaisesRegex(ValueError, 'Stage the release notes'):
+                    reserve.main()
+                self.assertFalse((root / record).exists())
+                model.git(root, 'add', '--', notes)
+                reserve.main()
+
+            model.git(root, 'add', '--', record)
+            model.git(root, 'commit', '-qm', 'Freeze release with notes')
+            self.assertEqual(model.load_record(version, root)['files'][notes], model.sha(notes_path))
+
 
 class SourceInventoryTests(unittest.TestCase):
     def test_inventory_tracks_sources_and_symlinks_but_excludes_outputs(self):

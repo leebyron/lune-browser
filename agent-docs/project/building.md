@@ -1,46 +1,12 @@
 # Development browser builds
 
-Read [current status](status.md) for active inputs and release progress. The [development lock](../../manifests/browser.lock.json) defines current core/platform commits; a frozen release record and its source tag define release builds. Do not infer inclusion from an older feature report.
+Use the [development loop](development.md) for feature iteration and adoption. This runbook covers locked-input builds. For production use the [release runbook](release-delivery.md) from the frozen checkout.
 
-Main includes the accepted update menu and canonical Sparkle endpoint, preserving the native close controls, themed sidebar, startup default and older-macOS fallback fixes. Both development builds and smoke checks pass; Intel runtime uses Rosetta. Production signing and update tooling is operational. Physical Intel acceptance remains artifact-specific.
-
-Use this runbook for development builds. For a production release, follow [release delivery](release-delivery.md), run commands from its frozen checkout and retain its preparation/build reports. Never edit an existing frozen source workspace to pick up a main-branch change.
-
-## Feature and bug-fix iteration
-
-Use the [development loop](development.md) for the three validation stages, check selection, shared-workspace record and phase timing commands. Default to incremental **arm64 only** while editing and reviewing a browser feature. Validate Intel after acceptance, before adopting the final browser input on main; run it earlier for architecture-specific work. Both-architecture support does not require rebuilding Intel for every preview revision.
-
-The CLI/CI commands below remain the full locked-input validation/build path. They are useful for final integration and engine/toolchain changes; do not repeat the entire path before each focused preview. The manual browser workflow already defaults to arm64. Its broad checks and the production build configuration remain intact.
-
-## Completing development work
-
-Follow the [commit and completion process](committing.md) after validation and acceptance. Close the specific issues the adopted change resolves, quit previews and their fixture/driver processes, and delete disposable preview/package/profile artifacts. Retain the prepared source and reusable incremental build caches needed for future work, plus concise validation evidence.
-
-## Tracked inputs
-
-`manifests/browser.lock.json` pins component commits/trees/refs, the Chromium target and ungoogled provenance, product/build requirements, patch selections and host download manifests. Every source download has a fixed hash. `manifests/patches.json` records the reviewed full Helium stack, selected contributions and local adaptations; do not apply ungoogled twice.
-
-The repository retains upstream-derived `component/helium`, `component/macos` and `component/services` histories plus permanent `inputs/*` tags. Bootstrap tags and dated feature tags are historical checkpoints, not aliases for current inputs. The platform gitlink must match the locked core. See [architecture](architecture.md) for the Git/patch boundary and [feature records](features/README.md) for scoped validation.
-
-Lune identity uses bundle/profile `computer.lune.browser`, keychain service `Lune Storage Key` and team `RBC9EP7948`. Browser updates use the canonical GitHub feeds. Optional browser services deliberately use Helium's production endpoint; Lune service hosting is not deployed. Keep these identities and consent paths separate from reusable browser features.
+`manifests/browser.lock.json` pins the engine, components, toolchain and archive manifests. `manifests/patches.json` pins reviewed patch provenance and order. Keep Lune's bundle/profile identity, Keychain identity, update URLs and Helium service preferences separate from reusable patches. See [architecture](architecture.md).
 
 ## Prepare this Mac
 
-The owner selected this Mac mini (M4 Pro, 64 GB RAM). Storage and toolchain pass
-preflight. The wrapper requires at
-least 200 GiB free before preparation, a conservative local policy rather than a
-measured guarantee. Two source/output trees and peak build usage may require more.
-Free space manually; the tooling never removes personal data or old workspaces.
-
-The installed development toolchain is pinned to Xcode **27.2 (27B52)**, SDK
-**27.2**, and Metal **27B47**. Helium CI uses Xcode 26.5; we reviewed the pinned
-[Chromium SDK configuration](https://github.com/chromium/chromium/blob/157.0.8103.38/build/config/mac/mac_sdk.gni),
-which includes Xcode 27 support, and its SDK minimum of 15. This permits a
-development build. Arm64 compilation and headless smoke checks subsequently passed
-with this exact toolchain. Both 158 builds and their smoke checks subsequently
-passed; Intel runtime used Rosetta. Native Intel hardware and release validation remain open.
-Future Xcode/SDK changes fail preflight until reviewed and repinned. The check executes the Metal compiler,
-rather than merely locating the shim supplied by Xcode.
+Install the Xcode, SDK and Metal versions pinned in `config/product.json`. The prerequisite check runs the Metal compiler. Use the existing Apple silicon Mac for both targets and compile them sequentially.
 
 On a new host, install the pinned Xcode, complete first-launch setup, then:
 
@@ -53,7 +19,7 @@ The 200 GiB threshold applies before source preparation; compilation/resume
 requires 80 GiB free after sources are present. Both are conservative safeguards,
 not measured peak usage. The two architectures are built sequentially.
 
-Measure actual filesystem free space before and after cleanup. APFS clones share extents, so summing `du` sizes does not predict the space deletion will recover. Follow the [completion process](committing.md#quit-temporary-builds-and-remove-their-artifacts): inventory exact targets, check active dependencies and unpublished changes, retain concise source-difference evidence, and obtain explicit cleanup authorization before removing preserved source/build caches. Keep the current development and required release caches unless their removal is covered. Record any owner-approved preparation-floor exception with its scope, input identities and measured free space; retain the 80 GiB pre-build check and all technical release gates.
+Measure reclaimed disk space on the actual filesystem because APFS clones share blocks. Follow [cleanup policy](committing.md#quit-temporary-builds-and-remove-their-artifacts) for preserved workspaces and caches. Record any approved preparation-floor exception, measured space and scoped inputs. Keep the pre-build floor and technical gates.
 
 Small build dependencies are already installed on this Mac. On another Mac:
 
@@ -170,79 +136,15 @@ python3 scripts/lune.py fetch
 python3 scripts/lune.py discover
 ```
 
-Fetch updates namespaced upstream refs, preserves unrelated local refs despite
-global prune settings, and rejects moved tags. Discovery compares numeric stable
-versions and checks ungoogled ancestry in Helium. It reports whether the locked
-release is current; it does not change the lock or compose a new candidate.
-A newer ungoogled release absent from Helium requires reviewed integration.
-Reviewed PR ports are composed into the pinned macOS component. Validation checks
-selection provenance, patch hashes, and series order. Arbitrary automatic PR
-replay remains unimplemented. Discovery also reports independent Chromium stable
-lag; having the newest ungoogled release is not sufficient.
-
-Always push core inputs before platform inputs, then publish exact input tags
-and the main lock. Use explicit push refspecs with `-c push.followTags=false` so
-local global Git settings do not publish unrelated tags. Never force-push
-published input tags or replace release artifacts.
+Fetch preserves unrelated refs and rejects moved tags. Discovery compares Chromium Stable separately from downstream releases and checks ungoogled ancestry. Reviewed integration updates the lock. See [architecture](architecture.md) for ordering and [completion](committing.md) for push rules.
 
 ## CI without additional spending
 
-Owner decision, 2026-11-05: keep CI free; use this Mac when required. Target
-GitHub Actions orchestration with a repository-scoped self-hosted macOS runner
-on this Mac. The manual `Development browser` workflow is implemented in
-`.github/workflows/browser.yml`; it targets the `lune-build` runner label.
-Xcode and Metal preflight pass. Runner registration and job pickup are verified.
-The [first arm64 CI run](https://github.com/leebyron/lune-browser/actions/runs/42138206769)
-passed full source preparation (strict patching, substitutions, resources) and GN
-generation. Compilation stopped at the onboarding string generator: Lune name
-substitution emits an XML declaration, but the parser assumed the first node was
-the document element. Platform commit `2300b549` adds `ignoreDeclaration: true`.
-The exact failed command now passes, and `scripts/check-onboarding.py` verifies
-all 79 messages generate identical header/TypeScript output with and without the
-declaration. CI runs that regression check before compiling. A fresh source
-preparation with the new locked patch was used for the
-[successful retry](https://github.com/leebyron/lune-browser/actions/runs/42140697247).
-It completed 57,716 actions in 2h21m29s and produced `Lune.app` and ChromeDriver.
-The app's identity, arm64 architecture, headless page loading, JavaScript, and
-local-storage persistence across relaunch passed; see [evidence](builds/2026-11-05-arm64.md).
+Use the repository-scoped `lune-mac-mini` runner with the `lune-build` label. `browser.yml` is manual. `checks.yml` and `website.yml` also run for matching main pushes. All use owner/main/canonical-repository guards and the `lune-browser-local` concurrency group. Keep fork and PR code off the signing host and large caches on disk.
 
-[GitHub documents self-hosted runner compute as free](https://docs.github.com/en/actions/concepts/billing-and-usage).
-GitHub-hosted compute and storage policies depend on repository/account settings;
-the owner still requires this Mac and no additional CI spend. Keep large source trees, compiler caches,
-and initial browser outputs on local disk; do not upload multi-gigabyte checkpoints
-to Actions artifacts by default. Do not provision paid runners, purchase storage,
-or assume an unverified account billing cap. Setup checks and website deployments now use this same Mac, without hosted
-compute or Actions cache uploads. They run only for owner-triggered main-branch
-pushes or manual dispatch in the canonical `leebyron/lune-browser` repository. PR events do not
-run on the persistent signing host. All three workflows share the
-`lune-browser-local` concurrency group. Setup/website checkout subdirectories are
-cleaned independently; browser build caches are preserved. The runner must be
-started for each job with `run.sh --once` or kept running for a reviewed batch.
+Start an approved job with `./.work/ci-runner/run.sh --once`, or keep the runner available for a reviewed batch. Runner credentials and browser/build caches stay under the ignored runner directory. Setup and website use separate checkouts. Browser jobs use caffeinate and a six-hour timeout. A timed-out build can resume from a valid preparation. Inspect partial preparations before retrying.
 
-The browser workflow is manual-only, restricted to the owner on `main` in the
-canonical public repository. No fork or PR code runs on this signing host. Runner `lune-mac-mini` is scoped to this repository. The official
-GitHub runner v2.338.2 archive was verified with SHA-256
-`25a065af409ffa317ab4d5a3b614dd15fc9c40f2172bc1b35a1b1258e919a388`.
-Runner credentials stay under ignored `.work/ci-runner/`; no service is installed
-to start it automatically at login. Start it for one job with:
-
-```sh
-./.work/ci-runner/run.sh --once
-```
-
-Builds use the runner's separate checkout under `.work/ci-runner/_work/` and preserve
-its ignored source/compiler cache between runs. Checkout uses the job's read-only
-GitHub token through temporary credential-helper environment variables; build
-steps do not receive that token. The workflow serializes builds, uses caffeinate
-to prevent idle sleep, and limits each run to six hours. A timed-out compilation
-can resume from the validated preparation record on the next dispatch. A failed
-partial source preparation requires inspection and is never automatically deleted.
-No pull-request workflow targets this Mac. For future unattended operation,
-keep the Mac awake while jobs run, and retain local compilation caches. Use the
-successful arm64 baseline for comparison when running the Intel target. Recurring
-jobs still require explicit activation and the release gates described below.
-The owner can keep using the GitHub Actions UI for triggering and reading logs,
-but the Mac must remain online for jobs to execute.
+See the [first arm64 build evidence](builds/2026-11-05-arm64.md) for bootstrap results.
 
 ### Local validation and inherited workflows
 
@@ -263,96 +165,19 @@ Repeat deliberately for `x86_64`; neither mode establishes native Intel acceptan
 Validation requires the same preparation disk/toolchain prerequisites as a build.
 This does not install a runner service or enable recurring builds.
 
-Automatic setup checks now run the inherited core/platform patch-series lint and
-translation-file lint on the exact recursively checked-out lock. They also audit
-GitHub's repository-wide workflow registry with `scripts/check-actions-policy.py`.
-Only `browser.yml`, `checks.yml`, and `website.yml` may be active. Unknown active
-workflows fail the audit, as do missing/disabled local workflows. The audit is
-detection, not a repository-wide hosted-runner prohibition.
+Setup checks validate the lock and recursive component checkout, run tests and component lint, and audit the live workflow registry. Keep `ci.yml`, `lint.yml` and `sanity.yml` disabled in GitHub, including for immutable component/input refs. Before publishing new component refs, inspect their workflow paths. Review and disable newly registered inherited workflows before further pushes. Check the registry with `python3 scripts/check-actions-policy.py` and use `gh workflow disable WORKFLOW --repo leebyron/lune-browser` for an identified inherited workflow.
 
-The inherited `ci.yml`, `lint.yml`, and `sanity.yml` are disabled in GitHub for all
-branches/tags. Keep them disabled: input tags are immutable, and imported ancestry
-retains the original YAML. Merely changing `main` cannot change those snapshots.
-Before publishing new component/integration/input refs, inspect their workflow
-paths. A newly introduced path needs review and must be disabled in Actions as
-soon as registered, before further pushes. Recheck with:
-
-```sh
-python3 scripts/check-actions-policy.py
-gh workflow disable sanity.yml --repo leebyron/lune-browser
-```
-
-Use the disable command only for an identified inherited path. Do not re-enable
-the old workflows or rerun their hosted failures. Their hosted setup changes
-Spotlight, installs/force-links Homebrew packages, and uploads source caches;
-the local entry point uses the already provisioned toolchain and local disk.
-Patch application, substitutions, and GN are covered by local preparation. The
-upstream Linux utility formatting/tests and generated pruning/domain-list audits
-have not been ported; local validation does not claim equivalent coverage of
-every job in upstream `ci.yml`.
-
-The upstream i18n generator fetches moving Windows/Linux/macOS branches. Local
-manual validation instead audits extracted additions from the pinned core/macOS
-patches against the committed translation registry, retaining the last occurrence
-of each resource/message pair. It does not regenerate Windows/Linux/onboarding
-strings, model conditional variants, or remove stale entries.
-The initial audit incorrectly blocked on **32 missing/different extracted entries**.
-Review established 31 distinct IDs, one intermediate frame-label version, and the
-integration's explicitly accepted English fallbacks. Source coverage is now
-advisory and links to [issue #4](https://github.com/leebyron/lune-browser/issues/4);
-patch lint and translation-file validation remain blocking. The clearer frame
-label is restored in a new immutable input. See [the string review](features/string-review.md)
-for the wording decision, provenance, validation, and remaining localization work.
-
-Migration verification: all 42 orchestrator tests pass; core/platform patch lint,
-translation-file lint, lock/ancestry checks, and the live Actions registry audit
-pass. The queued [setup run](https://github.com/leebyron/lune-browser/actions/runs/42279065148)
-was executed successfully on `lune-mac-mini` with the existing workflow. The new
-workflow then [passed on the same Mac](https://github.com/leebyron/lune-browser/actions/runs/42281035175)
-at commit `acda24dab34ca6b6bbcf8de3abd073ee6cb50388`, including the live registry
-audit, all 42 tests, fresh recursive checkout, and core/platform input lint. The
-manual validation path was checked through its early input failure; no fresh
-Chromium preparation or build was run for this CI change.
-
-On 2026-11-06 the hosted [setup-check run for the final 158 inputs](https://github.com/leebyron/lune-browser/actions/runs/42230439397)
-did not start. GitHub reported that recent account payments failed or the spending
-limit needs to be increased; no test step ran and no job log exists. This is an
-account/hosted-runner limitation, not a repository test failure. The same setup
-checks passed locally: all 33 tests, locked configuration, permanent refs,
-ancestry/tree/gitlink validation, and a fresh recursive GitHub checkout. No billing
-setting or paid capacity was changed. The completed local browser builds and
-runtime checks are recorded separately in the 158 evidence document. Do not keep
-retrying this hosted run as though it were a source failure; account resolution is
-needed if hosted checks are to resume.
-
-Stock GitHub-hosted macOS builds remain a possible future experiment. The pinned
-[Helium workflow](https://github.com/imputnet/helium-macos/blob/37efe2c65dccc21aaf1d8ea66fd35d1348c386a8/.github/workflows/building.yml)
-chains up to ten build phases with source/build artifacts to cross job time limits.
-That is source evidence of its strategy, not proof that Lune will fit the repository's free compute/storage allowances. Do not copy its artifact-heavy
-approach without measuring storage and runtime first.
+The local translation audit checks pinned additions against the registry. Source coverage is advisory per [issue #4](https://github.com/leebyron/lune-browser/issues/4). Patch and translation-file lint remain blocking. See the [string review](features/string-review.md) for the rationale and accepted fallback scope.
 
 ## Signing readiness
 
-The login Keychain contains a valid Developer ID Application identity:
-`Developer ID Application: Judy Byron (RBC9EP7948)`; SHA-1 fingerprint
-`A9233B3FC55405B87765E25A454F7D42187E61F2`. The owner approved this display name
-for now. The Apple Developer ID G2 intermediate was imported from Apple's
-certificate authority. The private key has not been exported to GitHub.
-
-A dedicated Sparkle Ed25519 key was generated in Keychain under account
-`computer.lune.browser`. Its public key is in `config/product.json`; never rotate
-it casually or commit/export its private key as part of routine builds.
-The downloaded Sparkle 2.10.1 tools archive has SHA-256
-`1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27`, verified
-against its GitHub release asset digest. Tools/cache are ignored by Git.
-
-Notarization uses Keychain profile `lune-notary` for team `RBC9EP7948`. The owner restored it on November 10, 2026, and an authenticated history request succeeded. The password stays in macOS Keychain; never copy it into Git, chat, logs or documentation. Verify access with `xcrun notarytool history --keychain-profile lune-notary` before signing.
+Use the existing Developer ID Application identity and Sparkle Keychain key for `computer.lune.browser`. Read public identities from `config/product.json` and the pinned recipe. Use `xcrun notarytool history --keychain-profile lune-notary` on the unlocked Mac to verify notarization access. Keep credentials in Keychain.
 
 The setup script omits `--keychain`, so notarytool stores this profile in the data protection Keychain, displayed as iCloud or Local Items in Keychain Access. This is distinct from the file-based login Keychain. Apple documents this [notarytool default](https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool#Save-credentials-in-the-keychain) and [item accessibility](https://developer.apple.com/documentation/security/restricting-keychain-item-accessibility): the default accessibility requires the device to be unlocked. A failed lookup while the Mac is locked does not establish that a saved profile was deleted. Unlock the Mac and retry the existing profile before requesting credential re-entry. An explicit `--keychain ~/Library/Keychains/login.keychain-db` query searches a different store and cannot confirm the absence of the default profile. The `security` CLI primarily inspects file-based Keychains.
 
 If the Mac is already unlocked and the default lookup still fails, open Keychain Access, select iCloud or Local Items, and search for `com.apple.gke.notary.tool`. The existing profile's Account is `com.apple.gke.notary.tool.saved-creds.lune-notary`. Inspect metadata with the password hidden, then retry `xcrun notarytool history --keychain-profile lune-notary`. Record the actual command's successful authenticated response and exit status before declaring notarization ready; a visible saved item or installed notarytool executable does not satisfy this check. Do not delete, move, duplicate or recreate a visibly existing profile merely to address a failed lookup.
 
-On November 11, default and explicit login-file lookups failed while the console was locked, with the lock timestamp preceding the first failure. After the owner unlocked the Mac, the existing default profile immediately authenticated successfully, without credential re-entry or changes. This confirms a lock-state retrieval failure for that incident; the credential persisted. Do not describe a locked-state lookup failure as credential expiration or loss.
+A previous locked-console failure cleared immediately on unlock without credential changes. See the [26.1113.1 release record](builds/2026-11-13-release-26.1113.1.md).
 
 Only if the existing profile remains unavailable after an unlocked retry and inspection of its actual store, confirm the need to provision or restore it using an app-specific password from
 [Apple Account](https://account.apple.com/), then run this in an interactive terminal:
@@ -367,14 +192,8 @@ paste the password into chat or put it in a command-line flag, repository file,
 or shell history. The ordinary Apple Account password is not the app-specific
 password. No browser is submitted by this setup command.
 
-Using a restricted environment for compilation prevents accidental token env
-inheritance, but does not isolate the login Keychain from arbitrary local code.
-This bootstrap is for reviewed, trusted sources on the owner's Mac. A future CI
-signing pipeline needs separate credentials/access controls and untrusted-PR
-isolation, as described in [releases](releases.md).
+The clean build environment excludes credential variables. Keep arbitrary untrusted jobs off the host because local code can still reach the login Keychain.
 
 ## Validation scope
 
-Use [current status](status.md), the relevant [feature record](features/README.md), and the frozen release's validation reports for results. Historical bootstrap/port evidence does not establish acceptance of newer combined inputs. Both-target development builds and production signing/update tooling are operational; physical Intel and older-macOS checks remain artifact-specific.
-
-Setup validation checks file/archive hashes, component ancestry/trees, core gitlink, selected patch hashes/order, tool identities and a recursive checkout. Fresh source preparation additionally validates the complete patch/substitution/resource pipeline. Browser tests establish their explicitly reported runtime scope. Release packaging and installed-update tests are separate gates; follow [release delivery](release-delivery.md).
+Lock validation checks pins and Git provenance. Preparation checks the full source pipeline. Runtime results apply to the exact tested build and execution mode. Use [release delivery](release-delivery.md) for packaging, signing and installed-update evidence.

@@ -1,178 +1,20 @@
-# Release commits and version information
+# Release identity and commit boundaries
 
-This document defines release identity and frozen-input boundaries. Use [release delivery](release-delivery.md) for commands, [release policy](releases.md) for gates and [current status](status.md) for active work. Examples do not reserve a version.
-
-For all changes, follow the [commit and completion process](committing.md), including resolved issue closure and temporary-build/artifact cleanup. This document adds the release-specific frozen-input contract; preserve published artifacts and required release evidence during cleanup.
+Use [release delivery](release-delivery.md#commands-and-gates) for commands and [release policy](releases.md) for gates.
 
 ## Identity and version rules
 
-One reviewed commit in the project history freezes the release version and all
-declared build inputs for both architectures. Its full Git SHA identifies that
-source state. A release version orders updates; a SHA identifies source; an
-artifact hash identifies the actual delivered bytes.
+- Use `YY.MMDD.N` in the outer app bundle version fields and both Sparkle version fields. Record the full ISO date and `America/Los_Angeles` timezone. Start the numeric sequence at 1 each day. Chromium's engine and framework versions retain their own identity.
+- Allocate serially against fetched main and retained release history. A committed allocation reserves the version even if the release fails. Retry unchanged inputs under the same version. Allocate a new version for changed inputs or replacement published bytes. Keep published source/input tags and bytes immutable. A corrective release must compare higher than any version clients could have installed.
+- The two architectures share one allocation and signed `v<VERSION>` source tag. The enclosing Git commit supplies the full source SHA. Final signed artifact hashes identify delivered bytes.
 
-Use `YY.MMDD.N`, for example `26.1108.1`. `YY` is the last two digits of the
-release year; retain the full four-digit year in the recorded ISO date.
-`N` starts at 1 for each date and
-increases for each allocated release that day. Use America/Los_Angeles as the
-release-calendar timezone, matching the owner's working timezone. Record an ISO
-date and timezone explicitly; do not infer them from a build host's clock, Git
-author/committer timestamp, or CI run time. Format MMDD with four digits, including
-a leading zero for January through September; compare components numerically.
+## Two routine release commits
 
-Generate these four values from the same committed version:
+1. **Freeze inputs and notes.** Land any source, recipe or tooling changes with their documentation as ordinary implementation commits. After complete zero-fuzz preparation, stage `agent-docs/project/releases/<VERSION>.md` and run `scripts/release/reserve.py --version VERSION --prepared-report REPORT`. Stage the resulting `manifests/releases/<VERSION>.json` and commit both paths together. Previously committed notes also work. Build and package from the clean frozen commit. The record hashes the notes, policy and exact inputs, including the browser/patch locks, product config, download manifests, recipe and tools. It also binds the preparation report and log. Keep the record and referenced files fixed at the release tag.
+2. **Promote stable delivery.** Once the gates pass, the publisher commits both feeds and their release, acceptance and freshness records together. It then marks the same public release latest. See [public readback and recovery](release-delivery.md#public-url-contract).
 
-| Field | Example |
-| --- | --- |
-| Outer app `CFBundleVersion` | `26.1108.1` |
-| Outer app `CFBundleShortVersionString` | `26.1108.1` |
-| Appcast `sparkle:version` | `26.1108.1` |
-| Appcast `sparkle:shortVersionString` | `26.1108.1` |
+## Evidence after freezing
 
-Sparkle accepts numeric `x`, `x.y`, and `x.y.z` versions; a separate lifetime
-integer counter is unnecessary. See its [version comparator](https://sparkle-project.org/documentation/api-reference/Classes/SUStandardVersionComparator.html)
-and [appcast documentation](https://sparkle-project.org/documentation/publishing/).
-Keep Chromium's engine version, framework layout, helper/version dependencies,
-and protocol-facing version information intact. About should show the Lune
-version and full Chromium version separately; expose the source SHA as diagnostic
-information, not as a suffix in the sortable version.
+Retain detailed preparation, build, signing, test, upload and public-readback reports in the release evidence workspace. Keep exact source and output identities, hashes, execution modes, check results and material limits. The draft's compact validation and the promoted acceptance record provide the durable release results. Keep readback and cleanup results with the retained evidence and report them at completion. A separate delivery recap, status update or evidence commit is unnecessary for normal success.
 
-Use `v26.1108.1` as the source release tag and
-`Lune-macos-arm64.dmg` / `Lune-macos-x86_64.dmg`
-as artifact names. Both architectures share one release identity. Feed channel
-and architecture are separate metadata, not version suffixes. Publishing and promoting the exact same prepared artifacts retains the version; there is no public staging channel.
-
-Complete fresh zero-fuzz source preparation before selecting or allocating the
-version. The reservation command requires its completed report, matching browser
-lock/component identities and unchanged preparation log; it records the report/log
-hashes with the allocation. Never reserve a version while preparation is still running.
-
-Serialize allocation against the latest release records on main. Once committed,
-a version is reserved even if validation fails; gaps are allowed. Retrying an
-unchanged candidate retains its version. Changed release inputs require a new
-version and release commit. Never reuse an allocated version for different
-inputs, overwrite published bytes, or move a published release/input tag.
-
-At the owner's request, an abandoned unpublished allocation and its draft notes
-may be removed from active files while retaining the original Git history. This
-does not renumber an already validated candidate or change its frozen source.
-
-A replacement offered to installed clients must compare greater than the latest
-version they could have installed, including historical test builds that were installed. Reject backdated
-allocations and stale concurrent promotions. Rollbacks use a new higher version
-and the normal profile-compatibility and security-freshness gates.
-
-## What belongs in the release commit
-
-The entrypoint is `manifests/releases/<version>.json`, an immutable
-record for each allocation. The release model validates this record before build, packaging and publication.
-Existing locks remain the canonical source for component details: the release
-record references them by repository-relative path and SHA-256 rather than
-maintaining a second independently editable copy. Resolve paths at the release
-commit, never at today's main branch.
-
-| Required information | Existing source or required addition |
-| --- | --- |
-| Release identity | New release record: schema version, Lune version, ISO release date, calendar timezone, daily sequence, intended initial delivery channel, both targets, expected tag and filenames. Derive redundant strings and validate agreement. |
-| Chromium | `manifests/browser.lock.json`: full version and source identity; both download manifests: exact source/platform archive URLs and cryptographic hashes. |
-| ungoogled-chromium | Browser lock: upstream tag and full commit; retain the reviewed forward-port record when Chromium is newer than that base. Never label the base as a newer ungoogled release. |
-| Helium core and macOS | Browser lock: original upstream commits, integrated commits, tree hashes, permanent refs, and the macOS core gitlink. Record an upstream release tag/version when applicable; a full commit is authoritative when no release tag describes the input. |
-| Xelium, selected PRs, and Lune patches | `manifests/patches.json` plus retained component history: source commits, PR base/head and ordered commits, dependencies, patch hashes, review status, local adaptations and attribution. |
-| Bundled dependencies and assets | Both download manifests and locked component dependency configuration: Sparkle, search data, onboarding, uBlock, compiler/sysroot/PGO inputs and any other fetched build input. Require immutable revisions or verified hashes, including transitive downloads. |
-| Product and service configuration | `config/product.json` and component patches: bundle/profile identity, artwork, service provider/origin, Sparkle public key, signing team/identity, minimum supported OS and per-architecture feed URLs. Services deployed independently retain separate locks; their live state does not define browser source identity. |
-| Build and packaging recipe | Commit the exact release commands/configuration, per-target GN settings and all overrides, target/host architecture rules, updater settings, branding flags, deployment target, packaging format/options and output-affecting environment settings. Include scripts/workflow revisions through this commit and component pins. |
-| Toolchain | Product config currently pins Xcode version/build and SDK version. Add exact Metal, compiler/linker, GN/build tooling, Python, package and packaging/signing tool identities where not already pinned transitively. Pin fetched tools by digest; record host macOS version/build requirements. A Brewfile of formula names is insufficient. |
-| Release notes and acceptance policy | Commit the notes and required validation policy or references to their committed files, including known limitations and intended channel. Passing results are produced afterward. |
-
-The release record should contain `browser_lock` and `product_config` path/hash
-references and references to the committed build recipe, toolchain inventory,
-release notes, and validation policy. Hash referenced inputs with a declared
-algorithm and validate the entire reference chain. Configuration that varies by
-architecture must be explicit. Referenced files may be shared across releases;
-their historical contents remain fixed by the enclosing commit.
-
-Do not put the release commit's own SHA inside a file in that commit, or create
-a cycle where a lock hashes itself or a file that hashes it. Obtain the full SHA
-with `git rev-parse HEAD` after committing, then place it in generated metadata,
-the annotated tag, and release provenance. The release record does not need an
-`orchestrator_commit` field; its enclosing commit supplies that identity.
-
-No dirty tracked files, untracked build inputs, mutable branch downloads, or
-unrecorded local overrides may contribute to release artifacts. The production
-recipe must consume committed data rather than reconstructing flags from prose
-or whichever generated workspace happens to exist. Exact source state is the
-goal; bit-for-bit reproducibility remains unproven.
-
-## What is produced after the commit
-
-Keep build products and reports under ignored work/output directories and publish
-reviewed compact validation metadata with the immutable release. Source is public
-at the exact source tag; do not upload duplicate Git bundles or dependency archives. Do not amend the
-release commit to insert results or hashes of its own artifacts.
-
-Record at least:
-
-- Full release commit SHA, version, release-record and lock hashes, exact component
-  commits, and target architecture for each artifact.
-- Actual host OS, tool versions, effective GN arguments and their hashes,
-  preparation/build logs, executable/framework hashes, and source-cleanliness
-  verification. Compare these with declared inputs; unexplained differences
-  block release rather than becoming retroactive exceptions.
-- Smoke and acceptance reports, native versus Rosetta execution, installed-update
-  baseline/result, profile persistence, and negative update tests. Record whether
-  each required gate passed, failed, or remains outstanding.
-- Signing certificate identity/fingerprint, notarization submission/result,
-  stapling and Gatekeeper results, and Sparkle signature verification. Credentials
-  and private keys stay outside Git and published evidence.
-- Final app/DMG and delivery-metadata filenames, sizes, cryptographic hashes, signatures,
-  immutable download URLs, source availability, and feed/readback evidence.
-- Chromium macOS stable freshness checks at integration, public release publication
-  and immediately before promotion: candidate/latest versions, check time, source,
-  result and decision. Include any explicit owner-approved known-lag exception
-  required by the [freshness gate](releases.md#chromium-freshness-gate), plus
-  publication/promotion timestamps and the channel actually promoted.
-
-Signing timestamps, notarization tickets, and packaging metadata can change bytes
-without changing the declared source. Record final hashes after signing/stapling;
-never treat a source SHA as a binary checksum. A retry may generate new local
-outputs before publication, but only the selected, validated bytes may be
-published. Once published, promote or redeliver those exact bytes. A replacement
-binary needs a new release allocation even if browser source is unchanged.
-
-## Procedure
-
-Follow the [release-delivery commands and gates](release-delivery.md#commands-and-gates): integrate reviewed inputs, commit notes/tools/policy, reserve and commit the version, build from the frozen checkout, sign/package, validate installed updates, upload an unpublished draft, then promote only after acceptance and fresh Chromium checks. Both architectures share the frozen commit; a main-branch change afterward belongs to another version.
-
-Signed source tags and releases live in `leebyron/lune-browser`. Keep the source tag on the exact frozen commit even if main moves. Publish one browser DMG per architecture with appcasts, checksums and compact metadata; verify anonymous source and artifact readback. See the [URL contract](release-delivery.md#public-url-contract).
-
-## Implementation and remaining acceptance
-
-The release-delivery tools now implement frozen records, numeric date versions,
-explicit GN/tool identities, both-target build attestation, GitHub asset publication,
-paired feed commits, latest download links, freshness checks and single-device acceptance. `reserve.py --prepared-report REPORT` checks successful complete preparation against the exact current lock and checks retained allocations before creating a record;
-fetch all remote branches first and serialize the reservation commit. This is a
-manual release flow, not a concurrent release scheduler.
-
-The freshness gate fails closed on unknown or behind-Stable results. An approved
-known-lag exception needs a separately reviewed implementation; these tools do
-not silently honor an old approval or bypass the check. Fresh checks run before
-candidate publication and each channel promotion.
-
-The actual Sparkle 2.10.1 comparator accepts the date format and orders it after
-build 2, including same-day and year transitions. Every candidate still needs
-installed-update tests from the latest published release, matching signed artifacts, both architecture
-runtime checks and acceptance on one physical device before stable. Intel checks may run under Rosetta; manual Intel acceptance and per-release deferrals are not required. Publish the authorized release once the technical gates pass. Unit tests are
-not substitutes for those gates. The owner removed the recurring build-2 migration
-requirement on November 11, 2026; historical migration results remain evidence,
-rather than a gate to repeat.
-
-`prepare.py` inventories every prepared source file and symlink except output
-and bookkeeping directories. `build.py` compares that complete inventory before
-and after compilation, including added or removed files. Reusing cached outputs
-requires comparison with a clean preparation from the locked archives. Retain
-archive verification, strict replay and preparation evidence. A complete
-bit-for-bit reproducible environment remains unproven; tool checks cover the
-recorded compiler/build/PGO, Xcode/SDK/Metal, Python and sccache inputs. Signing
-and notarization credentials stay external.
-
-Do not rewrite historical browser bytes, source tags or frozen evidence. Retained legacy artifacts can serve as migration baselines; do not recreate the retired distribution repository or compatibility URLs.
+A newly discovered defect, an enduring operational constraint or a requested audit record may warrant its own change. Bind supplemental checks to the exact tested artifacts and tool revision. Keep the frozen commit, signed tag and published assets immutable.

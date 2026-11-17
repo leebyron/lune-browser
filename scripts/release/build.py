@@ -8,6 +8,7 @@ import sys
 import time
 
 from model import ROOT, feed_url, git, load_record, sha
+from check_host import check_host
 sys.path.insert(0, str(ROOT / 'scripts'))
 import lune
 from prepare import inventory
@@ -24,11 +25,12 @@ def main():
     a = p.parse_args()
     load_record(a.version)
     lock = json.loads((ROOT / 'manifests/browser.lock.json').read_text())
-    lune.validate_lock(lock)
     lune.validate(argparse.Namespace(git_objects=True))
     recipe = json.loads((ROOT / 'config/release-recipe.json').read_text())
     src = a.source.resolve()
     lune.check_build_space(src)
+    env = lune.build_env()
+    xcode = check_host(recipe, env)
     prepared = json.loads(a.prepared_report.read_text())
     for component in ('helium', 'macos'):
         if prepared[component] != lock['components'][component]['commit']:
@@ -42,28 +44,9 @@ def main():
                              if files.get(name) != prepared['files'].get(name))
             raise ValueError(f'Prepared source changed: {changed[:20]}; check symlinks too')
     verify_sources()
-    env = lune.build_env()
-    def output(*cmd): return subprocess.check_output(cmd, text=True, env=env).strip()
-    if output('sw_vers', '-productVersion') != recipe['host_macos_version'] or output('sw_vers', '-buildVersion') != recipe['host_macos_build']:
-        raise ValueError('Host macOS differs from the frozen toolchain')
-    if output('uname', '-m') != recipe['host_architecture']:
-        raise ValueError('Unexpected build host architecture')
-    if sorted(output('python', '-m', 'pip', 'freeze').splitlines()) != sorted(recipe['python_packages']):
-        raise ValueError('Build Python packages differ from the frozen toolchain')
-    xcode = output('xcodebuild', '-version')
-    if f"Xcode {recipe['xcode_version']}" not in xcode or f"Build version {recipe['xcode_build']}" not in xcode:
-        raise ValueError('Unexpected Xcode toolchain')
-    if output('xcrun', '--sdk', 'macosx', '--show-sdk-version') != recipe['sdk_version']:
-        raise ValueError('Unexpected SDK')
     for name,digest in recipe['source_tools'].items():
         if sha(src/name)!=digest:
             raise ValueError(f'Toolchain input changed: {name}')
-    if output('python', '--version') != recipe['python_version']:
-        raise ValueError('Unexpected build Python')
-    if output('xcrun', 'metal', '--version').splitlines()[0] != recipe['metal_version']:
-        raise ValueError('Unexpected Metal toolchain')
-    if output('sccache', '--version') != recipe['sccache_version']:
-        raise ValueError('Unexpected compiler cache version')
     out = src / 'out' / ('Default' if a.arch == 'arm64' else 'Intel')
     args = dict(recipe['gn_args'], target_cpu=json.dumps('arm64' if a.arch == 'arm64' else 'x64'),
                 sparkle_feed_url=json.dumps(feed_url(a.arch)))
@@ -76,7 +59,9 @@ def main():
         core_commit=prepared['helium'], orchestrator_commit=git(ROOT, 'rev-parse', 'HEAD'),
         release_record_sha256=sha(ROOT / f'manifests/releases/{a.version}.json'),
         prepared_report_sha256=sha(a.prepared_report), args_sha256=sha(out / 'args.gn'),
-        xcode=xcode, host_os=output('sw_vers'), python=sys.version, release_validated=False)
+        xcode=xcode,
+        host_os=subprocess.check_output(['sw_vers'], text=True, env=env).strip(),
+        python=sys.version, release_validated=False)
     started = time.time()
     with a.report.with_suffix('.log').open('w') as log:
         subprocess.run([src/'buildtools/mac/gn', 'gen', str(out)], cwd=src, env=env,
