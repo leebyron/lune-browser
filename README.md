@@ -1,7 +1,5 @@
 # Lune
 
-A respectful browser for the Mac.
-
 Lune is an open source Chromium browser for macOS, made by [Lee Byron](https://leebyron.com) for his own daily browsing. You can use it too.
 
 - A vertical tab sidebar and toolbar that tuck away to give pages more room.
