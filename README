@@ -1,48 +1,39 @@
 # Lune
 
-A browser built from spare parts. Used by [@leebyron](https://leebyron.com); you can use it too.
+A respectful browser for the Mac.
 
-Lune is an open source Chromium browser for macOS, built on [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium/) and [Helium](https://helium.computer/), with selected work from [Xelium](https://github.com/minervanet/xelium-macos) and interaction ideas inspired by [Arc](https://arc.net/).
+Lune is an open source Chromium browser for macOS, made by [Lee Byron](https://leebyron.com) for his own daily browsing. You can use it too.
 
 - A vertical tab sidebar and toolbar that tuck away to give pages more room.
-- A keyboard command menu: press **Cmd-T** to search, switch tabs, or run browser commands.
-- Automatic Older Tabs to keep inactive tabs out of the way, with configurable retention.
+- Simplified, pinnable tab groups.
+- A keyboard command menu: **Cmd-T** to search or switch tabs, **Cmd-/** to run browser commands.
+- Automatic Older Tabs to keep inactive tabs out of the way.
 
 Visit [lune.computer](https://lune.computer/) for a look at the browser.
 
 ## Download
 
-Requires **macOS 13 or later**.
+- [Apple silicon](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-arm64.dmg)
+- [Intel](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-x86_64.dmg)
 
-| Mac | Latest download |
-| --- | --- |
-| Apple silicon (M-series) | [Download Lune for Apple silicon](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-arm64.dmg) |
-| Intel | [Download Lune for Intel](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-x86_64.dmg) |
-
-Open the DMG and drag Lune to Applications. Releases are signed and notarized, and the browser can keep itself up to date through Lune's GitHub releases.
-
-See the [latest release notes](https://github.com/leebyron/lune-browser/releases/latest) or browse [all releases](https://github.com/leebyron/lune-browser/releases).
-
-Optional browser services are provided by Helium and require separate consent. Read Lune's [privacy policy](https://lune.computer/privacy) and [terms](https://lune.computer/terms) for details.
+[Release notes](https://github.com/leebyron/lune-browser/releases/latest).
 
 ## About this repository
 
-This repository holds Lune's source, build tooling, website, and published releases. The browser is assembled from Chromium and a set of patches; the full Chromium source tree is downloaded during source preparation.
+- `main`: build configuration and tooling.
+- [Website source](https://github.com/leebyron/lune-browser/tree/main/website).
+- [component/helium](https://github.com/leebyron/lune-browser/tree/component/helium): core browser patches.
+- [component/macos](https://github.com/leebyron/lune-browser/tree/component/macos): macOS patches and packaging.
+- [Lockfile](https://github.com/leebyron/lune-browser/blob/main/manifests/browser.lock.json): exact build inputs.
+- [Issues](https://github.com/leebyron/lune-browser/issues): bugs and suggestions.
 
-The `main` branch contains product configuration, pinned build inputs in [manifests/](manifests/), build and release tooling in [scripts/](scripts/), and the [website](website/). Browser code and patches live on component branches that preserve their upstream histories:
+## Credits
 
-- [component/helium](https://github.com/leebyron/lune-browser/tree/component/helium): core browser patches and configuration.
-- [component/macos](https://github.com/leebyron/lune-browser/tree/component/macos): macOS patches, build tooling, and packaging.
-- [component/services](https://github.com/leebyron/lune-browser/tree/component/services): optional service source.
-
-Each release tag records its source and exact build inputs. The [development lockfile](manifests/browser.lock.json) selects inputs for future builds; published releases retain their own frozen inputs.
-
-Report bugs and suggest improvements in [Issues](https://github.com/leebyron/lune-browser/issues).
+- [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium/): Chromium foundation.
+- [Helium](https://helium.computer/): browser features.
+- [Arc](https://arc.net/): interaction inspiration.
 
 ## License
 
-Copyright (C) 2026 Lee Byron and Lune contributors.
-
-Lune's original code, tooling, documentation, and assets are licensed under the [GNU General Public License, version 3 or later](LICENSE), except where otherwise noted. Lune is distributed without any warranty.
-
-Imported components retain their existing licenses, including [Helium's GPLv3](LICENSE.helium) and [ungoogled-chromium's BSD 3-Clause license](LICENSE.ungoogled_chromium). Modifications derived from imported code remain subject to its upstream terms. See [NOTICE](NOTICE) for source availability and third-party attribution, and [website asset credits](website/README.md#assets-and-attribution).
+- [GPL-3.0-or-later](LICENSE): Lune's original work.
+- [NOTICE](NOTICE): third-party licenses and attribution.
