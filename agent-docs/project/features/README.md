@@ -49,6 +49,7 @@ Start with the relevant UI surface. Feature records cover behavior, design const
 - [Leading emoji in group titles](tab-group-emoji.md)
 - [Native tab-group menu and inline naming](tab-group-menu.md)
 - [Pinned tab groups](pinned-tab-groups.md)
+- [Dragging individual pinned tabs](pinned-grid-tab-drag.md)
 - [Expanded-group boundary separator](expanded-group-separator.md)
 
 ## Setup, services and browser updates

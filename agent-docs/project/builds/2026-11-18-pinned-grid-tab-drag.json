@@ -1,0 +1,106 @@
+{
+  "issue": 38,
+  "macos_input_tag": "inputs/pinned-grid-tab-drag-2/macos",
+  "source_preparation": {
+    "core": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+    "platform": "b6b1f3af0ab64fac5fcf05e716042b329386ebcd",
+    "chromium_version": "158.0.8127.37",
+    "strict_replay_passed": true,
+    "complete_accepted_preview_source_parity": true,
+    "accepted_preview_whitespace_cleanup": {
+      "reason": "Remove a whitespace-only quilt hunk rejected by the upstream lint rule",
+      "path": "chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc",
+      "accepted_sha256": "5945d407cc65dd1ad9a00d39d6312915890c60c3576f356f612881402ff67ad1",
+      "normalized_sha256": "d34d5c094ffef4b9c3fbd96f647368c621e1da60dc4172450759786c66433731",
+      "change": "Restore one original blank line; nonblank source lines are identical"
+    },
+    "inventory_files": 596106,
+    "inventory_symlinks": 141,
+    "patch_sha256": "baa5e7f746e5826d6960c0e279b95bf5e536124d51455aca6f8c0df3ef4e317e",
+    "changed_source_sha256": {
+      "chrome/browser/ui/views/frame/base_tab_strip_region_view.cc": "9165c0bd0f315564b4ff5c8c5cbf55850447f210b62d0bee530227ff08755b1c",
+      "chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc": "191b6e9ac6668e021f1e6a00ba517bda30618ed0f507d3e5cfc65a8cff2a1bbb",
+      "chrome/browser/ui/views/tabs/common/dragged_tabs_container.h": "69c8ad15841b3b3b799f4dde2bcab080ef420c8e7fa62c804c30b3cd1a062f04",
+      "chrome/browser/ui/views/tabs/common/pinned_tab_container_view.cc": "93709efd2bcc526af3203a87446fa8f336c801ee2b3e89863dfd30dc8f9ffbd6",
+      "chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h": "fb88a734420edfddb6cdc46ad85da3a9b5b30485204ce3650e6dfb1e559f58b1",
+      "chrome/browser/ui/views/tabs/common/pinned_tab_container_view_vertical_layout.cc": "418dc4f7469af480aeca94aaf8f19cfa71d3647853b09ea0304f6b6b5c9b4d4c",
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler.cc": "1eedaa31840ef8c2f88f945e5a64629581365563fca0b904f0ce459b34d1efc5",
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler.h": "d2f558267b70d6e65aefbd13581e23c8fc47addb5029d00a05deeea8ad114e90",
+      "chrome/browser/ui/views/tabs/common/tab_view.cc": "479eb325927ed2e5e3b93323f18d9f11cc522f7cc0568e00750fd4c5137df8ca",
+      "chrome/browser/ui/views/tabs/common/tab_view.h": "953cf47e8d39851e1a1d26085e09c595c5225edda3849e8be379e018c5a5c388",
+      "chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc": "eca4773a10c42788585a41320a2766c9f35a48358e232df1d83e4c7ffce6e3a3",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "7d9633867a683d71b8e7998973e35a594c7c6cf76632a49c7b4b2a37edf5b3fb",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h": "a8d126b0c9663db5bb568c41e99fa921b1d2921fc28d6a53354e43520ecc5951",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "4a8e4cd8df6dd557f5ddd6c9eedb6b4104251c022613e633570429ce29f97308",
+      "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc": "8288b27f92ab6e19235683002dc42b0ca171ae637b66f7456305afe0505cd1fa",
+      "chrome/browser/ui/views/tabs/common/root_tab_collection_node.cc": "e724196dfcac25fe14bf8b5fca4ad302b29dcc631b35f2240a96f7519161bbf9",
+      "chrome/browser/ui/views/tabs/common/BUILD.gn": "488294f67af51478d64c5047afadcbc363a7660cb9d4c29f530326d6896ac75a",
+      "chrome/browser/ui/views/tabs/common/pinned_tab_drop_target.h": "ffbcc61db9bcc7da8ceddb068aca36d6cfd8d32bf0b92d769a18ca0937f848f6",
+      "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc": "1331e3dbcfdbae4c1d1dcc189f7ccf4c8d552e458f5e5c757104f71168508e88"
+    },
+    "preparation_log_sha256": "cced99eeb4dc82b335388b4026c67bdc593f195ef71cfccb6d5548d71386764f"
+  },
+  "owner_accepted_preview": {
+    "accepted": "2026-11-18",
+    "scope": "preview-6",
+    "instruction": "This looks good, lets commit and include it in main builds, then clean up.",
+    "framework_sha256": "9c7709e6c9cf180d96439738eb8456e229d90e35943b0f23730396de5ab7ae2f",
+    "patch_sha256": "9be1865f075e8011f5c1b17b3ef755b1437774d5b9519712fe905eff72c3cfc4"
+  },
+  "behavior": {
+    "conversion": "individual non-split sidebar tab; grid to/from regular list",
+    "morph_ms": 240,
+    "icon_motion": "interpolate captured and final left offsets with the tab size progress",
+    "drop_selection": "pointer and final cell geometry, independent of presentation size",
+    "highlight": "only the container handling the drag paints a destination slot",
+    "first_pin": "existing upper sidebar space; no added row, gap, rule or highlighted reservation",
+    "cancel": "original pin state retained in drag data and restored on cancellation",
+    "other_payloads": "split, multi-selection, group-header and whole-window routes preserved"
+  },
+  "validation": {
+    "lock_and_provenance": "passed",
+    "component_and_translation_lint": "passed",
+    "repository_tests": {
+      "passed": 106,
+      "skipped": 1
+    },
+    "arm64": {
+      "runtime": "native Apple silicon",
+      "framework_sha256": "e0a590a104c1e375dd9e20cef8c8dd1ad99bf354f41b10bfe7b9b047068ec82f",
+      "executable_sha256": "c095b824b2c1754d4618bace66907ed3b468fe0f6fec2c759d36abc0a6f19c6b",
+      "gn_args_sha256": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
+      "build_log_sha256": "ac5048ff205a065796340a499588ff2a9f43a3200ea91c27373931f63c5161ac",
+      "browser_smoke": "passed: browsing, persistence, UI, internal artwork, Settings",
+      "browser_smoke_report_sha256": "c74cee74162b04d2dfd0ae330f280306599108886dda4ad3e62b15e7b9b99e96",
+      "focused_regressions": {
+        "grid": "7740 stable grid destinations passed, including wrapped and partial rows",
+        "placeholder": "PASS: one active placeholder; none after cancellation; empty grid reserves no row, gap, separator, or highlighted cell"
+      },
+      "focused_report_sha256": "2392dc861309aaf07655d7f9227b67aa4802165d7db91170916ac28f7eb2fbc9",
+      "haptics_setting": "default on, toggles off, persists through restart, toggles on",
+      "haptics_settings_report_sha256": "1bd8cccc4637e3ed5409cc8c7e4e5f6faf86ada507134a019066298a8d5964ab"
+    },
+    "x86_64": {
+      "runtime": "Rosetta on Apple silicon",
+      "framework_sha256": "5a03921074460dcb7be27330df2e454dd72ca8265177598b4749bfca872a038a",
+      "executable_sha256": "67b548935f1b5d74fd68e54325ea41e7584d7250ef24bb2c643699b2d38acd8d",
+      "gn_args_sha256": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4",
+      "build_log_sha256": "cea1de0ed84d82bf8c735ea07b513dcdbaeb8a86db38e74aee615294e4263fd8",
+      "browser_smoke": "passed: browsing, persistence, UI, internal artwork, Settings",
+      "browser_smoke_report_sha256": "ddec3552ab3240175798e150833f0b4a848aa789387bcbc08e999030f8f70cf8",
+      "focused_regressions": {
+        "grid": "7740 stable grid destinations passed, including wrapped and partial rows",
+        "placeholder": "PASS: one active placeholder; none after cancellation; empty grid reserves no row, gap, separator, or highlighted cell"
+      },
+      "focused_report_sha256": "a7b70bc0575c7703c5b9f1d4b34748409881889fbd5354fd8f3a664f6b673c91",
+      "haptics_setting": "default on, toggles off, persists through restart, toggles on",
+      "haptics_settings_report_sha256": "1bd8cccc4637e3ed5409cc8c7e4e5f6faf86ada507134a019066298a8d5964ab"
+    }
+  },
+  "limits": [
+    "Native pointer/visual acceptance is the physical Apple silicon owner review; automated pointer delivery was not established.",
+    "Focused fixtures exercise the production final-cell selector and extracted production paint/entry/layout blocks with lightweight Views/Canvas stubs.",
+    "No physical Intel test or complete focus-mode, split, multi-selection, transfer, tear-off, older-macOS and sidebar-side gesture matrix is claimed.",
+    "Published browser releases retain their frozen inputs; this is a future-main input adoption."
+  ]
+}

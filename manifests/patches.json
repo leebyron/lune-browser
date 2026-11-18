@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "d1bd43198424bd6271160eadb7d751a801085e2c",
+    "commit": "b6b1f3af0ab64fac5fcf05e716042b329386ebcd",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -969,6 +969,10 @@
       {
         "path": "patches/helium/ui/sidebar-tab-drag-haptics.patch",
         "sha256": "4c9f64013dcc6c880c9bb22eb9e58b38ed2213bb2c2d6e6b15baa4ceb628a74b"
+      },
+      {
+        "path": "patches/helium/ui/pinned-grid-tab-drag.patch",
+        "sha256": "baa5e7f746e5826d6960c0e279b95bf5e536124d51455aca6f8c0df3ef4e317e"
       }
     ]
   },
@@ -2997,6 +3001,22 @@
       "adaptation": "Use the macOS Generic haptic pattern and a default-on per-profile toggle.",
       "commits": [
         "d1bd43198424bd6271160eadb7d751a801085e2c"
+      ]
+    },
+    {
+      "id": "pinned-grid-tab-drag",
+      "depends_on": [
+        "pinned-tab-groups",
+        "sidebar-tab-drag-haptics"
+      ],
+      "patches": [
+        "patches/helium/ui/pinned-grid-tab-drag.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Drag individual tabs between the pinned grid and regular rows with stable destination feedback.",
+      "adaptation": "Use final cell geometry for targeting, a reversible 240 ms morph with fixed icon endpoints, one active highlight, and an invisible first-pin entry in existing upper sidebar space.",
+      "commits": [
+        "b6b1f3af0ab64fac5fcf05e716042b329386ebcd"
       ]
     }
   ],
