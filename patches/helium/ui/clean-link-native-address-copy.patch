@@ -1,0 +1,101 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -27,6 +27,7 @@
+ #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
+ #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
+ #include "chrome/browser/headless/headless_mode_util.h"
++#include "chrome/browser/net/profile_network_context_service.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/profiles/profile_observer.h"
+@@ -103,6 +104,7 @@
+ #include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/navigation_entry.h"
+ #include "content/public/browser/web_contents.h"
++#include "ui/base/clipboard/scoped_clipboard_writer.h"
+ #include "ui/base/hit_test.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_utils.h"
+@@ -1307,9 +1309,43 @@ static NSRect HeliumAddressEditingFrame(
+   return NSInsetRect(frame, std::min<CGFloat>(2, NSWidth(frame) / 2), 0);
+ }
+ 
++// The field editor receives Copy from AppKit's responder chain.
++@interface HeliumAddressFieldEditor : NSTextView
++@property(nonatomic, copy) NSString* (^cleanAddressForCopy)(NSString*);
++@end
++
++@implementation HeliumAddressFieldEditor
++@synthesize cleanAddressForCopy = _cleanAddressForCopy;
++- (void)copy:(id)sender {
++  NSString* text = self.string;
++  if (self.cleanAddressForCopy &&
++      NSEqualRanges(self.selectedRange, NSMakeRange(0, text.length))) {
++    if (NSString* cleaned = self.cleanAddressForCopy(text)) {
++      ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
++      writer.WriteText(base::SysNSStringToUTF16(cleaned));
++      return;
++    }
++  }
++  [super copy:sender];
++}
++@end
++
+ @interface HeliumAddressTextFieldCell : HeliumWordTextFieldCell
++@property(nonatomic, readonly) HeliumAddressFieldEditor* addressEditor;
+ @end
+-@implementation HeliumAddressTextFieldCell
++@implementation HeliumAddressTextFieldCell {
++  HeliumAddressFieldEditor* _addressEditor;
++}
++- (HeliumAddressFieldEditor*)addressEditor {
++  if (!_addressEditor) {
++    _addressEditor = [[HeliumAddressFieldEditor alloc] initWithFrame:NSZeroRect];
++    _addressEditor.fieldEditor = YES;
++  }
++  return _addressEditor;
++}
++- (NSTextView*)fieldEditorForView:(NSView*)controlView {
++  return self.addressEditor;
++}
+ - (NSText*)setUpFieldEditorAttributes:(NSText*)textObject {
+   NSText* result = [super setUpFieldEditorAttributes:textObject];
+   if ([result isKindOfClass:NSTextView.class]) {
+@@ -1708,7 +1744,8 @@ struct HeliumAddressResult {
+   [_controls addSubview:_addressContainer];
+   _address =
+       [[HeliumGlassAddressField alloc] initWithFrame:_addressContainer.bounds];
+-  _address.cell = [[HeliumAddressTextFieldCell alloc] initTextCell:@""];
++  auto* addressCell = [[HeliumAddressTextFieldCell alloc] initTextCell:@""];
++  _address.cell = addressCell;
+   _address.focusSurface = _material;
+   _address.bezeled = NO;
+   _address.drawsBackground = NO;
+@@ -1732,10 +1769,26 @@ struct HeliumAddressResult {
+           browserView->GetProfile()),
+       AutocompleteControllerConfig{
+           .provider_types = AutocompleteClassifier::DefaultOmniboxProviders()});
++  __weak HeliumFloatingAddressBar* weakSelf = self;
++  addressCell.addressEditor.cleanAddressForCopy = ^NSString*(NSString* text) {
++    HeliumFloatingAddressBar* owner = weakSelf;
++    if (!owner || !owner->_browserView || !owner->_scopeKeyword.empty()) {
++      return nil;
++    }
++    BrowserView* view = owner->_browserView.get();
++    auto* contents = view->GetActiveWebContents();
++    const auto* model = LocationBarModel::From(view->browser());
++    if (!contents || !model ||
++        base::SysNSStringToUTF16(text) != model->GetFormattedFullURL()) {
++      return nil;
++    }
++    auto cleaned = ProfileNetworkContextService::StripTrackingQueryForCopy(
++        contents->GetBrowserContext(), contents->GetVisibleURL());
++    return cleaned ? base::SysUTF8ToNSString(cleaned->spec()) : nil;
++  };
+   // Chromium's window key dispatcher sees command equivalents before an
+   // embedded field's delegate. Consume only Cmd+Return while this editor owns
+   // focus; all other shortcuts continue through the normal responder chain.
+-  __weak HeliumFloatingAddressBar* weakSelf = self;
+   _address.onInitialFocus = ^{
+     HeliumFloatingAddressBar* owner = weakSelf;
+     if (owner && !owner->_editing) {
