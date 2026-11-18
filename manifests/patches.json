@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "e7711c71d5c4076a64d245ef99cafc4758fb3f7e",
+    "commit": "35282adc005e33ed51f98c1c573406f8e5edda3b",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -949,6 +949,10 @@
       {
         "path": "patches/lune/internal-terms-link.patch",
         "sha256": "afef1b39ec066ca9bad8e6669e9991dcc04eaddf57552f9ba542528875c4e999"
+      },
+      {
+        "path": "patches/helium/ui/native-toast-contrast.patch",
+        "sha256": "f373d50c625e4a00a07cec9566547eb806c4e4579bc401a87cfe4f171904e287"
       }
     ]
   },
@@ -2916,6 +2920,19 @@
       "adaptation": "Replace the unbranded internal terms placeholder with a link to Lune hosted terms.",
       "commits": [
         "b4be05abeec3c496e3e518d0b922c5274155ee3b"
+      ]
+    },
+    {
+      "id": "native-toast-contrast",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/native-toast-contrast.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep copy confirmations and other browser toasts legible in the Native theme.",
+      "adaptation": "Use the surface foreground for the shared toast label, icon, and controls on the omnibox container background.",
+      "commits": [
+        "35282adc005e33ed51f98c1c573406f8e5edda3b"
       ]
     }
   ],

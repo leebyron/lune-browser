@@ -25,3 +25,16 @@ Start with the platform's `glass-icon-appearance.patch`, `glass-material-appeara
 Strict replay matched 17 files. The final 5% tint and shadow passed paired builds and native fixtures (Intel under Rosetta). The broader Settings smoke matrix was last run at an earlier tint strength. The owner accepted the final light appearance and persistent controls. Fullscreen, accessibility and the complete active/inactive matrix remain outside the cited evidence.
 
 [Full issue #7 history, AppKit comparisons and validation records](https://github.com/leebyron/lune-browser/blob/55e6622e6d5891e36149ba2e646cad543dabc51f/agent-docs/project/features/chrome-appearance.md)
+
+## Toast contrast
+
+Browser toasts use the surface foreground (`ui::kColorSysOnSurface`) for the
+label, icon, and controls on the omnibox container background. Native Light
+provided white selected-tab text on a white toast surface. The AppKit color
+mixer measured 14.94:1 in Native Light and 12.23:1 in Native Dark with the
+surface foreground. The same ratios held with increased contrast enabled.
+
+The macOS platform selects `helium/ui/native-toast-contrast.patch` after the
+Helium toast patch. The arm64 and x86_64 browser builds and smoke checks passed,
+with x86_64 running under Rosetta. The color fixture exercised both architectures.
+The Mac was locked during on-screen verification.
