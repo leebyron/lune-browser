@@ -27,7 +27,7 @@ Searches go to your chosen engine. Enabling suggestions also sends address-bar t
 
 ### Helium services
 
-[Helium](https://helium.computer/) is operated by [imput](https://imput.net/); no Helium account is required. Extension downloads and updates send identifiers, versions, and update-protocol information. [!bangs](https://helium.computer/bangs) are matched locally against a downloaded list; searches go to the destination website. Optional [uBlock Origin](https://github.com/gorhill/uBlock) refreshes request filter lists. Security and media component updates send component identifiers, versions, browser/OS details, and update results.
+[Helium](https://helium.computer/) is operated by [imput](https://imput.net/); no Helium account is required. Extension downloads and updates send identifiers, versions, and update-protocol information. [!bangs](https://helium.computer/bangs) are matched locally against a downloaded list; searches go to the destination website. When filter updates are enabled, Lune downloads and caches public URL Tracking Protection rules from Helium. Optional [uBlock Origin](https://github.com/gorhill/uBlock) also refreshes its filter lists. Helium receives your IP address and the list requests. Lune applies the rules to the URLs you open or copy on your Mac. Security and media component updates send component identifiers, versions, browser/OS details, and update results.
 
 Helium does not proxy installed extensions’ own traffic. Additional filter lists may contact their publishers directly. Choosing another service instance sends requests to that operator.
 
