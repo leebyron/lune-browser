@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "11f0e178cf129eb392771ea5d0014b8aba789450",
+    "commit": "d1bd43198424bd6271160eadb7d751a801085e2c",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -965,6 +965,10 @@
       {
         "path": "patches/helium/ui/clean-link-native-address-copy.patch",
         "sha256": "f2e92b5579b90a8b37c066ef5a5b5576bb8fc6e0bba682f1b2afa55a8caabacc"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-tab-drag-haptics.patch",
+        "sha256": "4c9f64013dcc6c880c9bb22eb9e58b38ed2213bb2c2d6e6b15baa4ceb628a74b"
       }
     ]
   },
@@ -2978,6 +2982,21 @@
       "adaptation": "Move the blocker to Privacy and expose tracking-parameter and fingerprinting protection, Global Privacy Control and Do Not Track. Use native labels for the full switch rows.",
       "commits": [
         "623abd2a5dac460efb75f9c43eed6c74c608375b"
+      ]
+    },
+    {
+      "id": "sidebar-tab-drag-haptics",
+      "depends_on": [
+        "pinned-tab-groups"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-tab-drag-haptics.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Give tactile feedback when a dragged sidebar tab reaches a valid destination or tears off.",
+      "adaptation": "Use the macOS Generic haptic pattern and a default-on per-profile toggle.",
+      "commits": [
+        "d1bd43198424bd6271160eadb7d751a801085e2c"
       ]
     }
   ],
