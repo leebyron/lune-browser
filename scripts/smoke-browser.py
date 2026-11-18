@@ -214,6 +214,13 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
             or 'paid subscription after the trial' not in engines[1]['text']):
         raise RuntimeError(f'Packaged search recommendations are incorrect: {engines}')
     js('document.querySelector("#setup-buttons button:last-child").click();')
+    wait_for('return !!document.querySelector("#privacy-page.visible");')
+    privacy_choices = js("""return [...document.querySelectorAll('#privacy-page input')]
+        .map(input => [input.id, input.checked]);""")
+    expected_privacy_choices = ['ublock.enabled', 'clean_tracking_links', 'noise.enabled',
+                                'global_privacy_control', 'enable_do_not_track']
+    assert privacy_choices == [[key + '-toggle', True] for key in expected_privacy_choices]
+    js('document.querySelector("#setup-buttons button:last-child").click();')
     wait_for('return !!document.querySelector("#services-page.visible");')
     service_disclosure = js('return document.querySelector("#services-page").innerText;')
     if ('Enable Chrome extensions proxied through Helium' not in service_disclosure or

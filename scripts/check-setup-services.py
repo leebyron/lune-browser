@@ -151,9 +151,14 @@ def close():
         session = None
 
 
-def services():
+def privacy():
     click('.welcome-actions .primary')
     step('search-engines')
+    next_step('privacy')
+
+
+def services():
+    privacy()
     next_step('services')
 
 
@@ -210,7 +215,7 @@ try:
     if args.only in ('all', 'configuration'):
         profile = start('pending')
         blocker_absent()
-        services()
+        privacy()
         assert js('return document.getElementById("ublock.enabled-toggle").checked')
         blocker_absent()
         click('input[id="ublock.enabled-toggle"]')
@@ -230,9 +235,10 @@ try:
         close()
 
         profile = start('off')
-        services()
+        privacy()
         click('input[id="ublock.enabled-toggle"]')
         wait(lambda: not prefs()['ublock.enabled'])
+        next_step('services')
         next_step('data-import')
         blocker_absent()
         next_step('password-manager')
@@ -249,7 +255,7 @@ try:
         passed('off_confirmation_and_completed_setup_do_not_install_on_restart')
         close()
 
-        profile = start('skip-services')
+        profile = start('skip-privacy')
         click('.setup-progress > button:last-child')
         step('finish')
         click('#setup-buttons button:last-child')
@@ -259,13 +265,14 @@ try:
         close()
         start('skip-restart', profile)
         blocker_absent()
-        passed('skipping_services_does_not_authorize_install')
+        passed('skipping_privacy_does_not_authorize_install')
         close()
 
         profile = start('next-on')
-        services()
+        privacy()
         blocker_absent()
-        next_step('data-import')
+        next_step('services')
+        assert not prefs()['services.user_consented']
         wait(lambda: extensions().get(UBLOCK) is True)
         assert prefs()['ublock.install_allowed']
         close()
@@ -281,9 +288,10 @@ try:
         preference_file.write_text(json.dumps(legacy))
         start('legacy-installed', profile)
         assert extensions()[UBLOCK]
-        services()
+        privacy()
         click('input[id="ublock.enabled-toggle"]')
-        next_step('data-import')
+        next_step('services')
+        assert not prefs()['services.user_consented']
         assert extensions()[UBLOCK] is False
         close()
         start('legacy-disabled', profile)
@@ -299,8 +307,8 @@ try:
                 wait_js("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
                 nav_setup()
             else:
-                services()
-                click('.setup-progress > button:nth-child(5)')
+                privacy()
+                click('.setup-progress > button:nth-child(6)')
                 step('password-manager')
             wait(lambda: extensions().get(UBLOCK) is True)
             passed(name + '_confirms_install')

@@ -106,7 +106,7 @@ try:
     report['welcomeArtwork']=js("return getComputedStyle(document.querySelector('.setup-wallpaper')).opacity")
     assert report['welcomeArtwork']=='1'
     report['welcomeDots']=dots()
-    assert len(report['welcomeDots']) in (5,6) and report['welcomeDots'][0]['current']=='step'
+    assert len(report['welcomeDots'])==7 and report['welcomeDots'][0]['current']=='step'
     assert js("return document.querySelector('#setup-buttons')===null")
     js("document.querySelector('.welcome-actions .primary').click()")
     wait("return !!document.querySelector('#search-engines-page.visible')")
@@ -115,7 +115,7 @@ try:
     assert report['setupArtwork']=='0.5'
     before=prefs()
     report['initialDots']=dots()
-    assert len(report['initialDots'])==6,report['initialDots']
+    assert len(report['initialDots'])==7,report['initialDots']
     assert report['initialDots'][1]['current']=='step'
     assert all(d['dot']=='8px' and d['target']==20 for d in dots())
     report['dotLayout']=js('''const dots=[...document.querySelectorAll('.step-dot')].map(d=>d.getBoundingClientRect());
@@ -148,7 +148,7 @@ try:
       const inset=parseFloat(getComputedStyle(document.querySelector('#safe-area-probe')).paddingBottom);
       return {above:dot.top-buttons.bottom,below:innerHeight-inset-dot.bottom};''')
     assert report['verticalSpacing']=={'above':16,'below':16},report['verticalSpacing']
-    goto(5,'#finish-page.visible')
+    goto(6,'#finish-page.visible')
     assert all(d['filled'] for d in dots())
     after=prefs()
     assert after['services.user_consented']==before['services.user_consented']==False
@@ -157,15 +157,15 @@ try:
     goto(1,'#search-engines-page.visible')
     js("[...document.querySelectorAll('#search-engines-page button')].find(b=>b.innerText.startsWith('DuckDuckGo')).click()")
     wait("return document.querySelector('#search-engines-page button[aria-pressed=true]')?.innerText.startsWith('DuckDuckGo')")
-    goto(2,'#services-page.visible')
+    goto(3,'#services-page.visible')
     js("document.getElementById('services.ext_proxy-toggle').click()")
     wait("return !document.getElementById('services.ext_proxy-toggle').checked")
-    assert len(dots())==6
+    assert len(dots())==7
     report['passwordManagerStepRetained']=True
     js("document.getElementById('services.ext_proxy-toggle').click()")
-    wait("return document.querySelectorAll('.progress-step').length===6")
+    wait("return document.querySelectorAll('.progress-step').length===7")
     report['optionalStepDots']=dots()
-    goto(5,'#finish-page.visible')
+    goto(6,'#finish-page.visible')
     goto(1,'#search-engines-page.visible')
     assert js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText").startswith('DuckDuckGo')
     goto(0,'#welcome-page.visible')
@@ -174,10 +174,10 @@ try:
     assert js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText").startswith('DuckDuckGo')
     report['welcomeJumpPreservesChoices']=True
     report['jumpPreservesChoices']=True
-    goto(2,'#services-page.visible')
+    goto(3,'#services-page.visible')
     js("document.getElementById('services.ext_proxy-toggle').click()")
     wait("return !document.getElementById('services.ext_proxy-toggle').checked")
-    assert len(dots())==6
+    assert len(dots())==7
     report['passwordManagerStepRetained']=True
     js("document.querySelectorAll('.progress-step')[0].focus()")
     wd('POST',prefix+'/actions',{'actions':[{'type':'key','id':'keyboard','actions':[

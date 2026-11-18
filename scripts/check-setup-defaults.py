@@ -24,7 +24,7 @@ for _ in range(100):
  try:
   if wd('GET','/status')['ready']:break
  except OSError:time.sleep(.1)
-keys=['search.suggest_enabled','helium.completed_onboarding','helium.services.enabled','helium.services.user_consented','helium.services.browser_updates','helium.services.component_updates','helium.services.ext_proxy','helium.services.bangs','helium.services.ublock_assets','helium.services.spellcheck_files','helium.browser.vertical_right_aligned','helium.browser.zen_mode_top_chrome_pinned','helium.browser.top_controls_overlay','helium.browser.top_controls_hover_disabled']
+keys=['enable_do_not_track','helium.global_privacy_control','helium.clean_tracking_links','search.suggest_enabled','helium.completed_onboarding','helium.services.enabled','helium.services.user_consented','helium.services.browser_updates','helium.services.component_updates','helium.services.ext_proxy','helium.services.bangs','helium.services.ublock_assets','helium.services.spellcheck_files','helium.browser.vertical_right_aligned','helium.browser.zen_mode_top_chrome_pinned','helium.browser.top_controls_overlay','helium.browser.top_controls_hover_disabled']
 p=None
 
 def start(name,profile=None):
@@ -78,7 +78,7 @@ def shot(name):
  wait("return !document.getAnimations().some(a=>a.playState==='running' && a.effect.getTiming().iterations!==Infinity)")
  (out/(name+'.png')).write_bytes(base64.b64decode(wd('GET',p+'/screenshot')))
 def services():
- click('.welcome-actions .primary');step('search-engines');next_();step('services')
+ click('.welcome-actions .primary');step('search-engines');next_();step('privacy');next_();step('services')
 
 report={}
 try:
@@ -86,8 +86,9 @@ try:
  before=prefs();assert before['helium.services.user_consented'] is False and before['search.suggest_enabled'] is False
  click('.welcome-actions .ghost');wait("return location.href.includes('newtab') || location.href.includes('new-tab-page')")
  report['useDefaults']=prefs();close()
+ assert report['useDefaults']['enable_do_not_track'] and report['useDefaults']['helium.global_privacy_control']
  start('unchanged-custom');services()
- assert js("return [...document.querySelectorAll('#services-page input')].length===7 && [...document.querySelectorAll('#services-page input')].every(e=>e.checked && !e.disabled)")
+ assert js("return [...document.querySelectorAll('#services-page input')].length===6 && [...document.querySelectorAll('#services-page input')].every(e=>e.checked && !e.disabled)")
  before=prefs();assert before['helium.services.user_consented'] is False and before['search.suggest_enabled'] is False
  report['servicesBeforeNext']=before
  report['descriptionStyle']=js("return {description:getComputedStyle(document.querySelector('#services-page .compact-description')).fontSize,subtitle:getComputedStyle(document.querySelector('#services-page .page-header p')).fontSize}")
@@ -99,12 +100,12 @@ try:
  click('input[id="search.suggest_enabled-toggle"]')
  for key in ['ext_proxy','bangs','ublock_assets','component_updates']:
   click('input[id="services.'+key+'-toggle"]')
- click('#setup-buttons button:first-child');step('search-engines');next_();step('services')
- assert js("return [...document.querySelectorAll('#services-page input')].filter(e=>e.id!=='ublock.enabled-toggle').every(e=>!e.checked)")
+ click('#setup-buttons button:first-child');step('privacy');next_();step('services')
+ assert js("return [...document.querySelectorAll('#services-page input')].every(e=>!e.checked)")
  nav_setup();services()
- assert js("return [...document.querySelectorAll('#services-page input')].filter(e=>e.id!=='ublock.enabled-toggle').every(e=>!e.checked)")
+ assert js("return [...document.querySelectorAll('#services-page input')].every(e=>!e.checked)")
  close();start('opt-outs-resumed',profile);services()
- assert js("return [...document.querySelectorAll('#services-page input')].filter(e=>e.id!=='ublock.enabled-toggle').every(e=>!e.checked)")
+ assert js("return [...document.querySelectorAll('#services-page input')].every(e=>!e.checked)")
  finish_from_services();report['retainedOptOuts']=prefs()
  for k in ['search.suggest_enabled','helium.services.enabled','helium.services.component_updates','helium.services.browser_updates']:assert report['retainedOptOuts'][k] is False
  report['backReloadAndRestartPreserveChoices']=True

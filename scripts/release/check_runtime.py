@@ -89,13 +89,14 @@ def main():
                     js("document.querySelector('.welcome-actions .primary').click()")
                     wait_for("return document.querySelector('#search-engines-page.visible')")
                     next_step()
+                    wait_for("return document.querySelector('#privacy-page.visible')")
+                    assert js("return document.getElementById('ublock.enabled-toggle').checked")
+                    next_step()
                     wait_for("return document.querySelector('#services-page.visible')")
                     selection = js("""const inputs=[...document.querySelectorAll('#services-page input')];
-                        for(const input of inputs){const enabled=input.id==='ublock.enabled-toggle';
-                            if(input.checked!==enabled)input.click();}
+                        for(const input of inputs) if(input.checked)input.click();
                         return inputs.map(input=>({id:input.id,checked:input.checked}));""")
-                    assert len(selection) == 7 and all(row['checked'] == (row['id'] == 'ublock.enabled-toggle')
-                                                       for row in selection), selection
+                    assert len(selection) == 6 and all(not row['checked'] for row in selection), selection
                     next_step()
                     for step in ('data-import', 'password-manager', 'finish'):
                         wait_for(f"return document.querySelector('#{step}-page.visible')")

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "35282adc005e33ed51f98c1c573406f8e5edda3b",
+    "commit": "11f0e178cf129eb392771ea5d0014b8aba789450",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -953,6 +953,18 @@
       {
         "path": "patches/helium/ui/native-toast-contrast.patch",
         "sha256": "f373d50c625e4a00a07cec9566547eb806c4e4579bc401a87cfe4f171904e287"
+      },
+      {
+        "path": "patches/helium/ui/clean-link-privacy-settings.patch",
+        "sha256": "ccf427d39b3d047c46e75ac4d7b08c89ebb821b8c38a6d4927b6a412a2e12711"
+      },
+      {
+        "path": "patches/helium/ui/onboarding-privacy.patch",
+        "sha256": "8be49566fea796f0a82fd22dad546ed2fdb706230125bddbf7108ef586794acc"
+      },
+      {
+        "path": "patches/helium/ui/clean-link-native-address-copy.patch",
+        "sha256": "f2e92b5579b90a8b37c066ef5a5b5576bb8fc6e0bba682f1b2afa55a8caabacc"
       }
     ]
   },
@@ -2795,7 +2807,7 @@
       ],
       "review_status": "reviewed-port",
       "rationale": "Show date headings only between Older tabs and provide readable last-use details with matching footer rows.",
-      "adaptation": "Shared civil-date formatting: Today, Yesterday, weekdays at 2\u20134 days, abbreviated month and ordinal day thereafter without a comma or old-date bucket. Suppress the first visible date heading and raise label text one point. Hover footer shows native SF eye and compact date/time, matching memory icon spacing and shared outer padding; fade masks follow footer color and preserve opacity. Actual last-use history remains independent of frozen sidebar dates and entry retention.",
+      "adaptation": "Shared civil-date formatting: Today, Yesterday, weekdays at 2–4 days, abbreviated month and ordinal day thereafter without a comma or old-date bucket. Suppress the first visible date heading and raise label text one point. Hover footer shows native SF eye and compact date/time, matching memory icon spacing and shared outer padding; fade masks follow footer color and preserve opacity. Actual last-use history remains independent of frozen sidebar dates and entry retention.",
       "commits": [
         "0acd40ed5d8f40d7dfe2445cff7ca5578b510a05"
       ]
@@ -2933,6 +2945,39 @@
       "adaptation": "Use the surface foreground for the shared toast label, icon, and controls on the omnibox container background.",
       "commits": [
         "35282adc005e33ed51f98c1c573406f8e5edda3b"
+      ]
+    },
+    {
+      "id": "native-tracking-parameter-removal",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/clean-link-privacy-settings.patch",
+        "patches/helium/ui/clean-link-native-address-copy.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Strip known tracking query fields before covered requests and from copied URLs.",
+      "adaptation": "Use the bundled AdGuard/uBO snapshot and refresh directly under existing Helium consent. Expose native domain exceptions and clean complete addresses copied from the AppKit editor.",
+      "commits": [
+        "80455f1385ca85b1fbd731cc330d5af7bb132a5c",
+        "1f1940d6678733f2ce873fbb18bbe5479ccc4e89",
+        "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+        "185c170aea1022594e09bf43489ddd8d62efc18b",
+        "11f0e178cf129eb392771ea5d0014b8aba789450"
+      ]
+    },
+    {
+      "id": "onboarding-privacy",
+      "depends_on": [
+        "native-tracking-parameter-removal"
+      ],
+      "patches": [
+        "patches/helium/ui/onboarding-privacy.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Make local privacy protections visible during Setup before requesting service consent.",
+      "adaptation": "Move the blocker to Privacy and expose tracking-parameter and fingerprinting protection, Global Privacy Control and Do Not Track. Use native labels for the full switch rows.",
+      "commits": [
+        "623abd2a5dac460efb75f9c43eed6c74c608375b"
       ]
     }
   ],

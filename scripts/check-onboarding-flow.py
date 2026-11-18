@@ -86,13 +86,18 @@ try:
  report['searchOrder']=js("return [...document.querySelectorAll('#search-engines-page button[aria-pressed]')].slice(0,3).map(b=>b.innerText.split('\\n')[0])")
  assert report['searchOrder']==['Startpage','Kagi','DuckDuckGo']
  js("[...document.querySelectorAll('#search-engines-page button')].find(b=>b.innerText.startsWith('DuckDuckGo')).click()")
+ next_();wait("return document.querySelector('#privacy-page.visible')")
+ assert js("return [...document.querySelectorAll('#privacy-page input')].every(input => input.checked)")
+ js("document.getElementById('ublock.enabled-toggle').click()")
+ wait("return !document.getElementById('ublock.enabled-toggle').checked")
  next_();wait("return document.querySelector('#services-page.visible')")
+ assert not js("return !!document.querySelector('#services-page input[id=\"ublock.enabled-toggle\"]')")
  report['services']=js("return document.querySelector('#services-page').innerText")
  assert 'Update browser automatically' in report['services'] and 'proxied through Helium' in report['services']
- assert js("return [...document.querySelectorAll('#services-page input')].length===7 && [...document.querySelectorAll('#services-page input')].every(e=>e.checked && !e.disabled)")
+ assert js("return [...document.querySelectorAll('#services-page input')].length===6 && [...document.querySelectorAll('#services-page input')].every(e=>e.checked && !e.disabled)")
  js("document.querySelectorAll('#services-page input').forEach(e=>e.click())")
  wait("return [...document.querySelectorAll('#services-page input')].every(e=>!e.checked && !e.disabled)")
- assert js("return document.querySelectorAll('.progress-step').length") == 6
+ assert js("return document.querySelectorAll('.progress-step').length") == 7
  screenshot('services')
  next_();wait("return document.querySelector('#data-import-page.visible')")
  report['importGraphic']=wait("const img=document.querySelector('.helium-icon img'); return img?.complete && img.naturalWidth ? img.getAttribute('src') : false")
@@ -164,6 +169,7 @@ try:
  wait("return document.querySelector('#search-engines-page.visible button[aria-pressed=true]')")
  report['retainedSearch']=js("return document.querySelector('#search-engines-page button[aria-pressed=true]').innerText")
  assert report['retainedSearch'].startswith('DuckDuckGo')
+ next_();wait("return document.querySelector('#privacy-page.visible')")
  next_();wait("return document.querySelector('#services-page.visible')")
  assert js("return [...document.querySelectorAll('#services-page input')].every(e=>!e.checked)")
  if not args.skip_use_defaults:
