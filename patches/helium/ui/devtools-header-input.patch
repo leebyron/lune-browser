@@ -1,0 +1,167 @@
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -2016,6 +2016,7 @@
+       ":glass_frame_service",
+       ":toolbar_button_provider",
+       ":vertical_tab_strip_region_view",
++      "//cc/base",
+       "//chrome/app:command_ids",
+       "//chrome/app:generated_resources",
+       "//chrome/browser/autocomplete",
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -8,6 +8,7 @@
+ 
+ #include <algorithm>
+ #include <cmath>
++#include <utility>
+ #include <vector>
+ 
+ #include "base/command_line.h"
+@@ -23,6 +24,7 @@
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
++#include "cc/base/region.h"
+ #include "chrome/app/chrome_command_ids.h"
+ #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
+ #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
+@@ -122,6 +124,7 @@
+ #include "ui/gfx/geometry/rect_conversions.h"
+ #include "ui/gfx/geometry/rect_f.h"
+ #include "ui/gfx/geometry/size.h"
++#include "ui/gfx/geometry/vector2d.h"
+ #include "ui/gfx/mac/coordinate_conversion.h"
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
+@@ -182,6 +185,44 @@
+   return [NSAppearance
+       appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+ }
++
++cc::Region DockedDevToolsHeaderExclusion(BrowserView* view,
++                                        const gfx::Rect& header) {
++  cc::Region exclusion;
++  for (const auto& container : view->GetContentsContainerViews()) {
++    auto* devtools = container->devtools_web_view();
++    if (!container->IsDrawn() || !devtools->IsDrawn()) {
++      continue;
++    }
++    using Placement = ContentsContainerView::DevToolsDockedPlacement;
++    const auto placement = container->devtools_docked_placement();
++    if (placement != Placement::kLeft && placement != Placement::kRight) {
++      continue;
++    }
++
++    // The DevTools WebView extends behind the inspected page. Only the exposed
++    // column should receive input through the header, including in split view.
++    gfx::Rect column = views::View::ConvertRectToTarget(
++        devtools, view, devtools->GetLocalBounds());
++    const gfx::Rect page = views::View::ConvertRectToTarget(
++        container.get(), view, container->GetContentsViewBounds());
++    if (placement == Placement::kLeft) {
++      column.set_width(std::clamp(page.x() - column.x(), 0, column.width()));
++    } else {
++      const int left = std::clamp(page.right(), column.x(), column.right());
++      column.set_width(column.right() - left);
++      column.set_x(left);
++    }
++    column.Intersect(header);
++    exclusion.Union(column);
++  }
++  if (auto* sidebar = view->GetSidebarView(); !exclusion.IsEmpty() &&
++      sidebar && sidebar->IsDrawn() && view->GetSideChromeRevealRatio() > 0) {
++    exclusion.Subtract(views::View::ConvertRectToTarget(
++        sidebar, view, sidebar->GetLocalBounds()));
++  }
++  return exclusion;
++}
+ }  // namespace
+ 
+ // Window-local wheel routing preserves the original native event. In particular,
+@@ -781,6 +822,7 @@
+ // controls above it retain their normal clicks, text selection and menus.
+ @interface HeliumGlassDragRegion : HeliumChromeHitRegion
+ - (instancetype)initWithBrowserView:(BrowserView*)view;
++- (void)setDevToolsExclusion:(cc::Region)exclusion;
+ - (void)startWindowDrag:(NSEvent*)event;
+ - (views::View*)contextMenuSourceAtPoint:(NSPoint)point;
+ @property(nonatomic, readonly) BOOL dragging;
+@@ -793,6 +835,7 @@
+ @implementation HeliumGlassDragRegion {
+   BOOL _dragging;
+   base::WeakPtr<BrowserView> _browser;
++  cc::Region _devToolsExclusion;
+ }
+ - (instancetype)initWithBrowserView:(BrowserView*)view {
+   self = [super initWithFrame:NSZeroRect];
+@@ -836,6 +879,17 @@
+ @synthesize navigationBounds = _navigationBounds;
+ @synthesize windowControlsBounds = _windowControlsBounds;
+ @synthesize sidebarButtonBounds = _sidebarButtonBounds;
++- (void)setDevToolsExclusion:(cc::Region)exclusion {
++  if (_devToolsExclusion == exclusion) {
++    return;
++  }
++  _devToolsExclusion = std::move(exclusion);
++  [self.window invalidateCursorRectsForView:self];
++}
++- (BOOL)isDevToolsPoint:(NSPoint)point {
++  return _devToolsExclusion.Contains(
++      gfx::Point(base::ClampFloor(point.x), base::ClampFloor(point.y)));
++}
+ - (NSRect)interactiveBounds {
+   NSRect bounds = self.bounds;
+   if (_browser && !_browser->IsFullscreen()) {
+@@ -848,13 +902,20 @@
+   return bounds;
+ }
+ - (void)resetCursorRects {
+-  if (self.enabled) {
+-    [self addCursorRect:[self interactiveBounds] cursor:NSCursor.arrowCursor];
++  if (!self.enabled) {
++    return;
++  }
++  cc::Region cursor_region(
++      gfx::ToEnclosedRect(gfx::RectF([self interactiveBounds])));
++  cursor_region.Subtract(_devToolsExclusion);
++  for (const gfx::Rect rect : cursor_region) {
++    [self addCursorRect:rect.ToCGRect() cursor:NSCursor.arrowCursor];
+   }
+ }
+ - (void)mouseMoved:(NSEvent*)event {
+   NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+-  if (self.enabled && NSPointInRect(point, [self interactiveBounds])) {
++  if (self.enabled && NSPointInRect(point, [self interactiveBounds]) &&
++      ![self isDevToolsPoint:point]) {
+     [NSCursor.arrowCursor set];
+   }
+ }
+@@ -867,6 +928,7 @@
+   // reserved for native resizing. AppKit handles resizing before view dispatch;
+   // cursor registration still leaves the resize perimeter to AppKit.
+   if (!self.enabled || self.hidden || !NSPointInRect(local, self.bounds) ||
++      [self isDevToolsPoint:local] ||
+       NSPointInRect(local, self.addressBounds) ||
+       NSPointInRect(local, self.navigationBounds) ||
+       NSPointInRect(local, self.windowControlsBounds) ||
+@@ -877,7 +939,8 @@
+ }
+ - (void)mouseDown:(NSEvent*)event {
+   const NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+-  if (!self.enabled || self.hidden || !NSPointInRect(point, self.bounds)) {
++  if (!self.enabled || self.hidden || !NSPointInRect(point, self.bounds) ||
++      [self isDevToolsPoint:point]) {
+     return;
+   }
+   // AppKit has first refusal for native edge resizing. A press delivered here
+@@ -3660,6 +3723,9 @@
+           0, std::min(drag_bounds.right(), side.x()) - drag_bounds.x()));
+     }
+     drag->SetBoundsRect(drag_bounds);
++    auto devtools_exclusion = DockedDevToolsHeaderExclusion(view, drag_bounds);
++    devtools_exclusion += -drag_bounds.OffsetFromOrigin();
++    [floating_drag_region_ setDevToolsExclusion:std::move(devtools_exclusion)];
+     floating_drag_region_.navigationBounds = FloatingNavigationWidth(view) > 0
+         ? [floating_drag_region_ convertRect:floating_navigation_.bounds
+                                    fromView:floating_navigation_]
