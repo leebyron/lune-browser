@@ -1,0 +1,69 @@
+{
+  "macos_input_tag": "inputs/tab-group-drag-visuals-1/macos",
+  "owner_accepted_preview": {
+    "date": "2026-11-18",
+    "architecture": "arm64",
+    "framework_sha256": "0fb633bfc01a9cb56060347aef99602eb2074ee790ec7fcd280343b583ec2283",
+    "accepted": "Owner accepted sidebar group drag presentation and authorized commit and push"
+  },
+  "source_preparation": {
+    "core": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+    "platform": "0753d8f2a9390afb7d26a6a27c43cb40959c95f5",
+    "chromium_version": "158.0.8127.37",
+    "strict_replay_passed": true,
+    "complete_accepted_preview_source_parity": true,
+    "inventory_files": 596106,
+    "inventory_symlinks": 141,
+    "patch_sha256": "e7cadae559663e3928c75a75f3fe5b873c9094e2c76255cbb0ca54fc5182ee47",
+    "changed_source_sha256": {
+      "chrome/browser/ui/views/tabs/common/tab_group_view.cc": "5270ee5b8354ca9d0902a2099595153a4a0312c6ecaca875d58e9d301e753ffb",
+      "chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc": "0d1dc901e8dde31bd532feae3e0f81a166a17858a1b6fcbde460810612dc6b61",
+      "chrome/browser/ui/views/tabs/common/tab_view.cc": "02d2a25bb91ce133427b5f494baea30ca56fa4a38bb46c4df1bab6243075c824",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "bc5cc409272a566b6f6c326e9d2cefbc6faec25a69a99264fece65071c2c702f"
+    },
+    "preparation_log_sha256": "06b50d7c38dbc4e7544789d972994cf7e87921d6c67d356e11480ce26558a908"
+  },
+  "validation": {
+    "lock_and_provenance": "passed",
+    "component_and_translation_lint": "passed",
+    "repository_tests": {
+      "passed": 106,
+      "skipped": 1
+    },
+    "arm64": {
+      "runtime": "native Apple silicon",
+      "framework_sha256": "111e74add9d8b6f6110c2aaf0018c5e574aaf9e796d676bae6b3641b3bd2b7e6",
+      "executable_sha256": "c095b824b2c1754d4618bace66907ed3b468fe0f6fec2c759d36abc0a6f19c6b",
+      "gn_args_sha256": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
+      "build_log_sha256": "cb2b5ec9ab3e6d53457e7a1506f5f76fc1cb2ece77bad751689df536679e1eca",
+      "browser_smoke": "passed: browsing, persistence, UI, internal artwork, Settings",
+      "browser_smoke_report_sha256": "432971e0dcab2278ab10d8db728b318ef3ebea57b188817e5df949193e17a8bc",
+      "pinned_grid_regression": {
+        "grid": "7740 stable grid destinations passed, including wrapped and partial rows",
+        "placeholder": "PASS: one active placeholder; none after cancellation; empty grid reserves no row, gap, separator, or highlighted cell"
+      },
+      "group_visual_regression": "Title clipping, stationary group highlight and continuous pinned-group handoff passed.",
+      "haptics_setting": "default on, toggles off, persists through restart, toggles on"
+    },
+    "x86_64": {
+      "runtime": "Rosetta on Apple silicon",
+      "framework_sha256": "b00ad56b604c98332d9c3c1add235423cb5eb1bd4b7962a4223bac0482299414",
+      "executable_sha256": "67b548935f1b5d74fd68e54325ea41e7584d7250ef24bb2c643699b2d38acd8d",
+      "gn_args_sha256": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4",
+      "build_log_sha256": "b3ffde5318108dc0c62230e3128eb0cb1ffeb102d85c5b965df995c9d6077398",
+      "browser_smoke": "passed: browsing, persistence, UI, internal artwork, Settings",
+      "browser_smoke_report_sha256": "28141d7fe9c2ff9ee1199f2aec66e1fe80ce04f2e95552af3a24c4c8ec64b96a",
+      "pinned_grid_regression": {
+        "grid": "7740 stable grid destinations passed, including wrapped and partial rows",
+        "placeholder": "PASS: one active placeholder; none after cancellation; empty grid reserves no row, gap, separator, or highlighted cell"
+      },
+      "group_visual_regression": "Title clipping, stationary group highlight and continuous pinned-group handoff passed.",
+      "haptics_setting": "default on, toggles off, persists through restart, toggles on"
+    }
+  },
+  "limits": [
+    "Native drag and visual acceptance comes from the owner in the Apple silicon preview.",
+    "The focused checks compile production title-layer, paint geometry and hit-testing code with lightweight Views and canvas stubs.",
+    "Intel runtime uses Rosetta on Apple silicon."
+  ]
+}

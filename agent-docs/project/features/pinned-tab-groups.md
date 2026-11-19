@@ -14,6 +14,8 @@ Dragging an ordinary tab over a collapsed vertical group exposes a temporary fir
 
 Only a collapsed group that is the current tab-drop destination receives a selected-tab pill. Its fill, label color and corner radius match the active tab, while its existing header padding and height stay unchanged. Expanded headers remain neutral. Group carets hide throughout internal tab dragging and return to normal hover behavior afterward. Native-theme carets use the header foreground rather than white selected-tab text; the independent color fix retains the native glass control-color override.
 
+During an individual tab drag, the active slot inside an expanded or collapsed group uses the same highlight as the sidebar tab list. It paints at the final position while surrounding rows animate. The gap shared by two pinned groups keeps the current group active until the pointer reaches the next one. A drag entering the gap directly targets the nearer group. [Visual validation](../builds/2026-11-18-tab-group-drag-visuals.json)
+
 Pinned groups are protected from automatic Older Tabs cleanup even when **Move inactive tabs from groups** is enabled. Existing stale Older residency is repaired rather than retained in a pinned group.
 
 ## Separator and dragging

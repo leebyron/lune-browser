@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "cae1e7e466789a8243d6d136b274f68f8ecca3c5",
+    "commit": "0753d8f2a9390afb7d26a6a27c43cb40959c95f5",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -977,6 +977,10 @@
       {
         "path": "patches/helium/ui/tab-group-drag-haptics.patch",
         "sha256": "cfc10d6ce7144ec01bbada9a74b66fcfda1286c52a60fba285a49ec656cd59fc"
+      },
+      {
+        "path": "patches/helium/ui/tab-group-drag-visuals.patch",
+        "sha256": "e7cadae559663e3928c75a75f3fe5b873c9094e2c76255cbb0ca54fc5182ee47"
       }
     ]
   },
@@ -3038,6 +3042,21 @@
       "adaptation": "Resolve group destinations from stationary rows, keep the empty pinned-group lane out of layout, and hand off directly between pinned tiles and group membership.",
       "commits": [
         "cae1e7e466789a8243d6d136b274f68f8ecca3c5"
+      ]
+    },
+    {
+      "id": "tab-group-drag-visuals",
+      "depends_on": [
+        "tab-group-drag-haptics"
+      ],
+      "patches": [
+        "patches/helium/ui/tab-group-drag-visuals.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep individual tab drop feedback continuous and visually attached to its intended slot in sidebar groups.",
+      "adaptation": "Paint the active slot at its final group position, retain the group through a shared gap, and retire the separately composited title when the pin morph ends.",
+      "commits": [
+        "0753d8f2a9390afb7d26a6a27c43cb40959c95f5"
       ]
     }
   ],

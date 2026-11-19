@@ -2,6 +2,8 @@
 
 Drag an individual tab into the top pinned grid to pin it, or back into the regular list to unpin it. The destination has an empty tab-shaped slot. The dragged tab morphs over 240 ms with easing in and out: its title fades and its icon moves between the initial and final left offsets using the same progress as the tab size. Reversing direction starts from the currently rendered geometry.
 
+The title uses a separate layer only while the pin morph is active during a drag. It then paints with the tab again so group collapse clips the text. [Visual validation](../builds/2026-11-18-tab-group-drag-visuals.json)
+
 Drop selection uses the pointer and final grid cells, including the current destination reservation. It does not use the floating tab's animated width or remove its gap from hit-test geometry. This keeps the chosen slot and the existing sidebar haptics stable while the morph runs. Only the container handling the drag paints a highlighted destination.
 
 When no pinned tiles exist, the first-pin entry uses existing space above the tab list. Starting an ordinary tab drag adds no pinned row, gap, separator, or highlighted cell. Moving into that entry pins the tab and creates its actual destination slot. Ending or cancelling the drag clears temporary presentation. Cancellation retains the original drag snapshot and restores the original pin state; window attachment uses the current pin state.
