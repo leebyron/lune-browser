@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "981bef41826d7aca95fd335e81ea8a52bbf053ca",
+    "commit": "5a9cbeac1880cdd8757e0b8cf33c79e94e018649",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1005,6 +1005,10 @@
       {
         "path": "patches/helium/ui/devtools-header-input.patch",
         "sha256": "5a8ef040dd11cdedfa6b103e70c13d7aeda50ee94c012fe28228b401c913a77a"
+      },
+      {
+        "path": "patches/helium/ui/page-top-window-drag.patch",
+        "sha256": "5b6e5edbaa6eea2e88a8d10cc31e7728e7985505f0ab35c44b8e8ca0166d8860"
       }
     ]
   },
@@ -3173,6 +3177,22 @@
       "adaptation": "Subtract the exposed side-docked DevTools area from native drag and cursor input using live pane geometry and existing sidebar precedence.",
       "commits": [
         "981bef41826d7aca95fd335e81ea8a52bbf053ca"
+      ]
+    },
+    {
+      "id": "page-top-window-drag",
+      "depends_on": [
+        "devtools-header-input",
+        "sidebar-drag-header-retention"
+      ],
+      "patches": [
+        "patches/helium/ui/page-top-window-drag.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Let a user move the window from blank webpage background when the floating toolbar leaves that space exposed.",
+      "adaptation": "Use the shared toolbar height and Blink eligibility before handing a drag to AppKit. Expose an opt-in appearance preference and a Command bypass.",
+      "commits": [
+        "5a9cbeac1880cdd8757e0b8cf33c79e94e018649"
       ]
     }
   ],

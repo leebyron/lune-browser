@@ -1,0 +1,177 @@
+{
+  "date": "2026-11-18",
+  "issue": 47,
+  "chromium_version": "158.0.8127.37",
+  "core": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+  "platform": "5a9cbeac1880cdd8757e0b8cf33c79e94e018649",
+  "platform_base": "981bef41826d7aca95fd335e81ea8a52bbf053ca",
+  "input_ref": "refs/tags/inputs/page-top-window-drag-2/macos",
+  "source_preparation": {
+    "complete": true,
+    "zero_fuzz": true,
+    "new_patch_offsets": {
+      "chrome/app/generated_resources.grd": [
+        467
+      ]
+    },
+    "complete_prepared_source_parity": true,
+    "unchanged_through_both_builds": true,
+    "inventory_files": 596108,
+    "inventory_symlinks": 141,
+    "preparation_log_sha256": "508b31fcab9bc31c3eb2425c99951dd17e7b24c31b412c50dadcfc14f137c08c",
+    "patch_sha256": "5b6e5edbaa6eea2e88a8d10cc31e7728e7985505f0ab35c44b8e8ca0166d8860",
+    "changed_source_sha256": {
+      "chrome/app/generated_resources.grd": "160a4d62e0882f26179fe461a2084993bc433cf7530acf81f97907b6e6f528e8",
+      "chrome/browser/extensions/api/settings_private/prefs_util.cc": "d520947fad9cecfed4b87654a42a7d1357c76cbfba8e7afa52ec8bfd1183e598",
+      "chrome/browser/resources/settings/appearance_page/appearance_page.html.ts": "d69d685b3c1be402692792e213a7d5f02b2b69912e2d58794fce1b16cf85764a",
+      "chrome/browser/ui/tabs/tab_strip_prefs.cc": "17bee8dac58e53f6272e2ab6d7dfe130ed38d089cd6323168943302383c416f7",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.h": "a30730a95e1fdd79c2860c62e7e1b9cafe4e67deaa828dc91afe131cb9b5a48e",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "31a8b9ef672cdabf7c29826331a2d58555444d56062463eb7350b87573008525",
+      "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "f806b23b27d7b79956e5b1263e13c5a31fece156298a02eb8ad1c8070018d04b",
+      "content/browser/renderer_host/render_widget_host_impl.cc": "e777f8e966bb5b47a038d4b5b2e945e04d7e552d5ec6a678277ea393058ef5cc",
+      "third_party/blink/public/mojom/page/widget.mojom": "e265a396b915ada0843b0725c5eb2d566f0e156db2d5fd1d8bf351bc4d6121d1",
+      "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc": "eeff299c4356b14cc5f73cde3faf2ae9e5b3640785446da8b6cf512b2daef994",
+      "third_party/blink/renderer/core/frame/web_frame_widget_impl.h": "657f0c655a5cf86d92483daeb614aa4e74a59573d1305673393d8672806cfda3",
+      "third_party/blink/renderer/core/input/event_handler.cc": "eace3d40527c19f305d7d3555bd41b2b921911f329a409ed79e5a32f20f8307e",
+      "third_party/blink/renderer/core/input/event_handler.h": "350ee34cd6bc0a9e073ec2475bf31290da4e63d18fe5b8a10dad925e99cc1c1d",
+      "chrome/browser/ui/helium/page_top_window_drag_pref.h": "0f2b61bcfc4ca7d9b9a6a36d19b8651bc9b8c89cb3ed30d2eabbfb6140b04a05",
+      "content/public/browser/page_top_window_drag_mac.h": "da391280789a9001feeb7e1fb12e8477f5c1c45d464421ab04b5c5f83090e94f"
+    },
+    "generated_settings_parity_sha256": {
+      "gen/chrome/grit/generated_resources.h": "4cb14dc001db5dc4359afbda428e846657d82f5385fa938340ec73f3291b0311",
+      "gen/chrome/browser/resources/settings/preprocessed/appearance_page/appearance_page.html.ts": "862cf026601d5996360c909a49cb9c10054bfaec93133a74010a4411953217c4",
+      "gen/chrome/browser/resources/settings/tsc/appearance_page/appearance_page.html.js": "4f138ef7db8104098f03c8532d1dada67274cc528f592f47aab54c27979ba711"
+    }
+  },
+  "builds": {
+    "arm64": {
+      "platform": "5a9cbeac1880cdd8757e0b8cf33c79e94e018649",
+      "architecture": "arm64",
+      "framework_sha256": "ad2a22f9674db0178260f91a7ff807b19858c73662f14b23b1980f24d25c7547",
+      "build": true,
+      "gn_dependency_check": true,
+      "smoke": true,
+      "chrome_fixtures": true,
+      "execution": "native Apple silicon"
+    },
+    "x86_64": {
+      "platform": "5a9cbeac1880cdd8757e0b8cf33c79e94e018649",
+      "architecture": "x86_64",
+      "framework_sha256": "aa08d4a6ad52c0adaee5bc08052d0751eb5d1da9dd65a97a7240e9790a71545f",
+      "build": true,
+      "gn_dependency_check": true,
+      "smoke": true,
+      "chrome_fixtures": true,
+      "execution": "Rosetta on Apple silicon"
+    }
+  },
+  "native_regression": {
+    "accepted_by_owner_on_preview": true,
+    "preview_runs_passed": 3,
+    "final_run_passed": true,
+    "framework_sha256": "ad2a22f9674db0178260f91a7ff807b19858c73662f14b23b1980f24d25c7547",
+    "method": "Native Quartz mouse events in a disposable profile, plus backend Settings and WindowServer bounds readback",
+    "persisted_preference_verified": true,
+    "gestures": [
+      {
+        "name": "disabled",
+        "window_displacement": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "subthreshold click",
+        "window_displacement": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "blank space",
+        "window_displacement": [
+          40,
+          0
+        ]
+      },
+      {
+        "name": "second drag and reverse direction",
+        "window_displacement": [
+          -40,
+          0
+        ]
+      },
+      {
+        "name": "last point in band",
+        "window_displacement": [
+          40,
+          0
+        ]
+      },
+      {
+        "name": "first point outside band",
+        "window_displacement": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "Command bypass",
+        "window_displacement": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "text selection",
+        "window_displacement": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "scripted drag with pointer capture",
+        "window_displacement": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "embedded webpage input",
+        "window_displacement": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "drag after page input",
+        "window_displacement": [
+          -40,
+          0
+        ]
+      },
+      {
+        "name": "disabled in the same window",
+        "window_displacement": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "link click",
+        "window_displacement": [
+          0,
+          0
+        ]
+      }
+    ],
+    "coverage": "Ordinary active window on physical Apple silicon; other displays, inactive windows and the broader fullscreen and split-view gesture matrix remain for separate native checks."
+  },
+  "repository_tests": {
+    "run": 107,
+    "skipped": 1,
+    "passed": true
+  },
+  "locked_input_ancestry_and_integrity": true,
+  "complete_patch_series_and_translation_files": true
+}

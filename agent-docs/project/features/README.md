@@ -28,6 +28,7 @@ Start with the relevant UI surface. Feature records cover behavior, design const
 - [Scroll through the floating glass header](header-scroll-through.md)
 - [Header hover beside docked DevTools](devtools-header-hover.md)
 - [Header visibility during sidebar window dragging](sidebar-drag-header-retention.md)
+- [Page-top window dragging](page-top-window-drag.md)
 - [Menu reveal retention](menu-reveal-retention.md)
 - [Toolbar retention for extension popups](extension-popup-retention.md)
 - [Native window-menu retention](window-menu-retention.md)
