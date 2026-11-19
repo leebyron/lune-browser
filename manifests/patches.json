@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "5a9cbeac1880cdd8757e0b8cf33c79e94e018649",
+    "commit": "6ac348b8b2dd31b8ba49554df709b9f401ae5833",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1009,6 +1009,10 @@
       {
         "path": "patches/helium/ui/page-top-window-drag.patch",
         "sha256": "5b6e5edbaa6eea2e88a8d10cc31e7728e7985505f0ab35c44b8e8ca0166d8860"
+      },
+      {
+        "path": "patches/helium/ui/independent-tab-cycling.patch",
+        "sha256": "712640cdad9b5fbbc5c9edd7c7b94c8d6e8cc715ab3f2cfcaa8ab1c401394ae8"
       }
     ]
   },
@@ -3193,6 +3197,22 @@
       "adaptation": "Use the shared toolbar height and Blink eligibility before handing a drag to AppKit. Expose an opt-in appearance preference and a Command bypass.",
       "commits": [
         "5a9cbeac1880cdd8757e0b8cf33c79e94e018649"
+      ]
+    },
+    {
+      "id": "independent-tab-cycling",
+      "depends_on": [
+        "helium-2539",
+        "older-tabs-disclosure"
+      ],
+      "patches": [
+        "patches/helium/ui/independent-tab-cycling.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Allow sidebar-order navigation with Command-Shift-brackets and recent-tab switching with Control-Tab.",
+      "adaptation": "Preserve the Control-Tab preference, give the bracket commands a separate preference, and use all visible tabs for sequential switching.",
+      "commits": [
+        "6ac348b8b2dd31b8ba49554df709b9f401ae5833"
       ]
     }
   ],

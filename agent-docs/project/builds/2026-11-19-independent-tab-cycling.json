@@ -1,0 +1,334 @@
+{
+  "issue": "https://github.com/leebyron/lune-browser/issues/49",
+  "base_main": "ef247d251c28ecf8b59ec57e6e280fbcd1aa1fe0",
+  "input_ref": "refs/tags/inputs/independent-tab-cycling-1/macos",
+  "input_tree": "10cc7690cf94be5db31629f5d2958ff75a9fdaf5",
+  "source_preparation": {
+    "platform": "6ac348b8b2dd31b8ba49554df709b9f401ae5833",
+    "core": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+    "chromium_version": "158.0.8127.37",
+    "complete_source_parity": true,
+    "strict_replay_passed": true,
+    "inventory_files": 596108,
+    "inventory_symlinks": 141,
+    "patch_sha256": "712640cdad9b5fbbc5c9edd7c7b94c8d6e8cc715ab3f2cfcaa8ab1c401394ae8",
+    "source_sha256": {
+      "chrome/app/chrome_command_ids.h": "cf046fdf34851729a84aa800e10c6c450743733be8cf9d90689dafefbad30949",
+      "chrome/app/generated_resources.grd": "bb119fc8ef2fccd39e54ddecddc98c8ad1e812323d31d80d81fd01d71fa80b14",
+      "chrome/app/settings_strings.grdp": "71975707af01efdb596256608f81bf41ffa82c25da10eeaf01ff7ef9b0c601bd",
+      "chrome/browser/extensions/api/settings_private/prefs_util.cc": "266913a8c06c724d8adec39294c38b140cd64a8ff14c4210409b508f8399e7bf",
+      "chrome/browser/global_keyboard_shortcuts_mac.mm": "641230b342121e36e63decf546e3a3fc9db4ec1aef7da5947613ae6f4e9a8765",
+      "chrome/browser/resources/settings/appearance_page/appearance_behavior_page.html": "a515d07513599daa7b0e2bdef1085a815cc388c1d5d4fc4ad8ce1bbe837d5c77",
+      "chrome/browser/ui/accelerator_table.cc": "b60d12db6f8419732606088c9969bffdae7ba8cf78fc0df97a161190c44b03a3",
+      "chrome/browser/ui/browser_command_controller.cc": "155efe1ade519edde452220d849f931fc60e79c031affc7c432497abcad11fe6",
+      "chrome/browser/ui/browser_shortcuts/browser_shortcut_metadata.cc": "f3d0009feb3c19ddb8e94c230c34949fbf5ab02999bbbf1f8ab53e1c5d8b0113",
+      "chrome/browser/ui/tabs/tab_strip_model.cc": "d55a1cdddde8d727f8899ea954340dd2546a4edebe216d629501413663a7f9ef",
+      "chrome/browser/ui/tabs/tab_strip_model.h": "a07dadd9674e1bd79c955ca91c255ffbed8e3a7bd8af98a68f0e59276e8a2dbe",
+      "chrome/browser/ui/tabs/tab_strip_prefs.cc": "298ad59335b395c9e66baf141afd2980ac1b52f44d8daaf2acfcb519c15c76ba",
+      "chrome/browser/ui/tabs/tab_strip_prefs.h": "f564207ed71784fac1b57f09358e8831b0db68b4995227cacfe35a537c2ba089",
+      "chrome/browser/ui/views/frame/browser_view.cc": "af636bba9944fdd23271cf21564566b41dca8df5c6a024ce1cd09903e86dca0b",
+      "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "40eb38c21fdaf5f9136064c40b13b47f426b5e947f1ac2230f7165b19ae95057",
+      "chrome/browser/ui/views/frame/browser_native_widget_mac.mm": "a03d8693d247f2b4f7e8f388a0b62cba8dacb3f6960558afcf6dc2be8838d445",
+      "chrome/browser/ui/views/tabs/visual_tab_switcher.cc": "c82cb404310514a1494145e178befe3251de5668e9b27a3e4b384c61b252cf35"
+    },
+    "patch_offsets": [
+      "Hunk #1 succeeded at 1916 (offset 9 lines).",
+      "Hunk #1 succeeded at 356 (offset 1 line)."
+    ],
+    "preparation_log_sha256": "5d37a0a6a663a9f6ae7831796708348d1e443f05517608fdd8da12017330de5f",
+    "final_source_inventory_unchanged": true
+  },
+  "cache_reuse": {
+    "base": "5a9cbeac1880cdd8757e0b8cf33c79e94e018649",
+    "matching_source_timestamps": 596091,
+    "changed_sources": [
+      "chrome/app/chrome_command_ids.h",
+      "chrome/app/generated_resources.grd",
+      "chrome/app/settings_strings.grdp",
+      "chrome/browser/global_keyboard_shortcuts_mac.mm",
+      "chrome/browser/extensions/api/settings_private/prefs_util.cc",
+      "chrome/browser/resources/settings/appearance_page/appearance_behavior_page.html",
+      "chrome/browser/ui/accelerator_table.cc",
+      "chrome/browser/ui/browser_command_controller.cc",
+      "chrome/browser/ui/browser_shortcuts/browser_shortcut_metadata.cc",
+      "chrome/browser/ui/tabs/tab_strip_model.cc",
+      "chrome/browser/ui/tabs/tab_strip_model.h",
+      "chrome/browser/ui/tabs/tab_strip_prefs.cc",
+      "chrome/browser/ui/tabs/tab_strip_prefs.h",
+      "chrome/browser/ui/views/frame/browser_native_widget_mac.mm",
+      "chrome/browser/ui/views/frame/browser_view.cc",
+      "chrome/browser/ui/views/tabs/visual_tab_switcher.cc",
+      "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc"
+    ],
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ]
+  },
+  "component_lint": "passed",
+  "new_string_scope": "English fallback for the three new strings",
+  "repository_tests_passed": 107,
+  "baseline": {
+    "framework_sha256": "ad2a22f9674db0178260f91a7ff807b19858c73662f14b23b1980f24d25c7547",
+    "control_forward": "E",
+    "bracket_forward_from_B": "E",
+    "expected_bracket_forward_from_B": "C"
+  },
+  "builds": {
+    "arm64": {
+      "executed_as": "native Apple silicon",
+      "framework_sha256": "8e7dcea5f3545be92ce297d4919fb23a82ba95fa9ed3ee7f0b25c69f5f99c9b2",
+      "executable_sha256": "c095b824b2c1754d4618bace66907ed3b468fe0f6fec2c759d36abc0a6f19c6b",
+      "build_succeeded": true,
+      "smoke_passed": true,
+      "smoke_checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "native_shortcut_cases": [
+        {
+          "case": "Default Control forward uses recency",
+          "selected": "E"
+        },
+        {
+          "case": "Default Control backward uses recency",
+          "selected": "G"
+        },
+        {
+          "case": "Default brackets move down",
+          "selected": "C"
+        },
+        {
+          "case": "Default brackets move up",
+          "selected": "A"
+        },
+        {
+          "case": "Sequential Control includes tabs outside the recent five",
+          "selected": "C"
+        },
+        {
+          "case": "Sequential Control moves backward",
+          "selected": "A"
+        },
+        {
+          "case": "Changing Control leaves bracket order independent",
+          "selected": "C"
+        },
+        {
+          "case": "Bracket recency moves forward",
+          "selected": "E"
+        },
+        {
+          "case": "Bracket recency moves backward",
+          "selected": "C"
+        },
+        {
+          "case": "Held Command advances within one recency cycle",
+          "selected": "A"
+        },
+        {
+          "case": "Changing brackets leaves Control sequential",
+          "selected": "C"
+        },
+        {
+          "case": "Both settings can use recency",
+          "selected": "E"
+        },
+        {
+          "case": "Control recency with the visual switcher off",
+          "selected": "E"
+        },
+        {
+          "case": "Sequential Control with the visual switcher off",
+          "selected": "C"
+        },
+        {
+          "case": "Bracket cycling skips a collapsed group",
+          "selected": "D"
+        },
+        {
+          "case": "Bracket cycling uses pinned sidebar position",
+          "selected": "F"
+        },
+        {
+          "case": "Bracket cycling wraps at the top",
+          "selected": "G"
+        },
+        {
+          "case": "Bracket cycling follows a reordered tab",
+          "selected": "G"
+        }
+      ],
+      "defaults": {
+        "control_recent": true,
+        "bracket_recent": false
+      },
+      "independent_values_persisted": true,
+      "evidence_sha256": {
+        "native": "606547404e09c1800386446f2b382863ad0eeacab4fe55d0d3c2eee4628ab416",
+        "smoke": "3e6cd63dad79047e1d1e8941d11383975ddd2993d34ecbbc328ec54d81d2798f"
+      }
+    },
+    "x86_64": {
+      "executed_as": "Intel under Rosetta on Apple silicon",
+      "framework_sha256": "f101525b922aa7b1f6cf3cf56bbf85b0259c66602c81b6aa46221cd0909902cd",
+      "executable_sha256": "67b548935f1b5d74fd68e54325ea41e7584d7250ef24bb2c643699b2d38acd8d",
+      "build_succeeded": true,
+      "smoke_passed": true,
+      "smoke_checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "native_shortcut_cases": [
+        {
+          "case": "Default Control forward uses recency",
+          "selected": "E"
+        },
+        {
+          "case": "Default Control backward uses recency",
+          "selected": "G"
+        },
+        {
+          "case": "Default brackets move down",
+          "selected": "C"
+        },
+        {
+          "case": "Default brackets move up",
+          "selected": "A"
+        },
+        {
+          "case": "Sequential Control includes tabs outside the recent five",
+          "selected": "C"
+        },
+        {
+          "case": "Sequential Control moves backward",
+          "selected": "A"
+        },
+        {
+          "case": "Changing Control leaves bracket order independent",
+          "selected": "C"
+        },
+        {
+          "case": "Bracket recency moves forward",
+          "selected": "E"
+        },
+        {
+          "case": "Bracket recency moves backward",
+          "selected": "C"
+        },
+        {
+          "case": "Held Command advances within one recency cycle",
+          "selected": "A"
+        },
+        {
+          "case": "Changing brackets leaves Control sequential",
+          "selected": "C"
+        },
+        {
+          "case": "Both settings can use recency",
+          "selected": "E"
+        },
+        {
+          "case": "Control recency with the visual switcher off",
+          "selected": "E"
+        },
+        {
+          "case": "Sequential Control with the visual switcher off",
+          "selected": "C"
+        },
+        {
+          "case": "Bracket cycling skips a collapsed group",
+          "selected": "D"
+        },
+        {
+          "case": "Bracket cycling uses pinned sidebar position",
+          "selected": "F"
+        },
+        {
+          "case": "Bracket cycling wraps at the top",
+          "selected": "G"
+        },
+        {
+          "case": "Bracket cycling follows a reordered tab",
+          "selected": "G"
+        }
+      ],
+      "defaults": {
+        "control_recent": true,
+        "bracket_recent": false
+      },
+      "independent_values_persisted": true,
+      "evidence_sha256": {
+        "native": "96790dd82495e4cc68b4ecf6fcfe4b4c5b56ef8f6829518a8d2db370cbf6746d",
+        "smoke": "b8e64333c025a0e5382efb6d8f44d8adf7d0ae74c3db6b384640caa431ef7c74"
+      }
+    }
+  },
+  "rosetta_startup": {
+    "first_timeout_seconds": 30,
+    "passing_fixture_timeout_seconds": 120
+  },
+  "arm64_restored_older_tabs": {
+    "passed": true,
+    "collapsed": {
+      "older": [
+        "F",
+        "B",
+        "C",
+        "E",
+        "G"
+      ],
+      "order": [
+        "dashboard",
+        "A",
+        "D",
+        "F",
+        "B",
+        "C",
+        "E",
+        "G"
+      ],
+      "selected": "dashboard"
+    },
+    "expanded": {
+      "older": [
+        "F",
+        "B",
+        "C",
+        "E",
+        "G"
+      ],
+      "order": [
+        "dashboard",
+        "A",
+        "D",
+        "F",
+        "B",
+        "C",
+        "E",
+        "G"
+      ],
+      "selected": "F"
+    }
+  }
+}

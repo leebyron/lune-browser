@@ -76,6 +76,7 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
         'helium.browser.centered_location_bar': True,
         'helium.browser.show_avatar_button': False,
         'helium.browser.mru_tab_cycling': True,
+        'helium.browser.bracket_tab_cycling_mru': False,
         'helium.browser.visual_tab_switcher': True,
         'helium.browser.vertical_pinned_tabs_per_row': 4,
         'helium.command_bar.enabled': True,
