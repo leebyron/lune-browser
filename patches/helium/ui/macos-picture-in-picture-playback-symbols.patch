@@ -1,0 +1,324 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials.cc
++++ b/chrome/browser/ui/views/helium/native_frame_materials.cc
+@@ -108,7 +108,7 @@
+ }
+ 
+ #if !BUILDFLAG(IS_MAC)
+-gfx::ImageSkia NativeToolbarSymbolForName(const char*, int, SkColor) {
++gfx::ImageSkia NativeToolbarSymbolForName(const char*, int, SkColor, int) {
+   return {};
+ }
+ gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor) {
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -36,7 +36,8 @@
+ const char* NativeToolbarSymbolNameForAction(int action_id);
+ gfx::ImageSkia NativeToolbarSymbolForName(const char* symbol_name,
+                                           int size,
+-                                          SkColor color);
++                                          SkColor color,
++                                          int symbol_point_size = 16);
+ 
+ // Sidebar action artwork matches TabCloseButton: 11pt medium, 16px canvas.
+ gfx::ImageSkia NativeSidebarSymbolForName(const char* symbol_name,
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -810,7 +810,8 @@
+ 
+ gfx::ImageSkia NativeToolbarSymbolForName(const char* symbol_name,
+                                           int size,
+-                                          SkColor color) {
++                                          SkColor color,
++                                          int symbol_point_size) {
+   if (!symbol_name) {
+     return {};
+   }
+@@ -849,7 +850,7 @@
+     return {};
+   }
+   if (NSImage* configured = [symbol imageWithSymbolConfiguration:
+-          [NSImageSymbolConfiguration configurationWithPointSize:16
++          [NSImageSymbolConfiguration configurationWithPointSize:symbol_point_size
+                                                          weight:NSFontWeightMedium]]) {
+     symbol = configured;
+   }
+--- a/chrome/browser/ui/views/overlay/BUILD.gn
++++ b/chrome/browser/ui/views/overlay/BUILD.gn
+@@ -86,7 +86,11 @@
+ 
+   if (is_mac) {
+     sources += [ "video_overlay_window_native_widget_mac.mm" ]
+-    deps += [ "//components/remote_cocoa/common:mojo" ]
++    deps += [
++      "//chrome/browser/ui/views/helium:native_frame_materials",
++      "//components/remote_cocoa/common:mojo",
++      "//ui/color",
++    ]
+     frameworks = [ "Cocoa.framework" ]
+   }
+ 
+--- a/chrome/browser/ui/views/overlay/hang_up_button.cc
++++ b/chrome/browser/ui/views/overlay/hang_up_button.cc
+@@ -40,10 +40,11 @@
+ 
+   SetImageModel(
+       views::Button::STATE_NORMAL,
+-      ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+-                                         ? vector_icons::kCallEndFilledIcon
+-                                         : vector_icons::kCallEndOldIcon,
+-                                     ui::kColorSysOnError, icon_size));
++      ControlImage(features::IsRoundedIconsEnabled()
++                       ? vector_icons::kCallEndFilledIcon
++                       : vector_icons::kCallEndOldIcon,
++                   "phone.down.fill", ui::kColorSysOnError, icon_size,
++                   /*symbol_point_size=*/20));
+ }
+ 
+ BEGIN_METADATA(HangUpButton)
+--- a/chrome/browser/ui/views/overlay/overlay_window_image_button.cc
++++ b/chrome/browser/ui/views/overlay/overlay_window_image_button.cc
+@@ -4,6 +4,9 @@
+ 
+ #include "chrome/browser/ui/views/overlay/overlay_window_image_button.h"
+ 
++#include <utility>
++
++#include "build/build_config.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "ui/base/cursor/cursor.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+@@ -11,6 +14,12 @@
+ #include "ui/views/controls/button/image_button_factory.h"
+ #include "ui/views/controls/highlight_path_generator.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "base/functional/bind.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "ui/color/color_provider.h"
++#endif
++
+ OverlayWindowImageButton::OverlayWindowImageButton(PressedCallback callback)
+     : ImageButton(std::move(callback)) {
+   SetImageHorizontalAlignment(views::ImageButton::ALIGN_CENTER);
+@@ -27,5 +36,33 @@
+   return ui::mojom::CursorType::kHand;
+ }
+ 
++ui::ImageModel OverlayWindowImageButton::ControlImage(
++    const gfx::VectorIcon& fallback,
++    const char* symbol_name,
++    ui::ColorId color,
++    int size,
++    int symbol_point_size) {
++  auto vector_image = ui::ImageModel::FromVectorIcon(fallback, color, size);
++#if BUILDFLAG(IS_MAC)
++  if (size > 0) {
++    return ui::ImageModel::FromImageGenerator(
++        base::BindRepeating(
++            [](const char* symbol, ui::ColorId color, int size, int point_size,
++               const ui::ImageModel& fallback,
++               const ui::ColorProvider* provider) {
++              if (!provider) {
++                return gfx::ImageSkia();
++              }
++              auto image = helium::NativeToolbarSymbolForName(
++                  symbol, size, provider->GetColor(color), point_size);
++              return image.isNull() ? fallback.Rasterize(provider) : image;
++            },
++            symbol_name, color, size, symbol_point_size, std::move(vector_image)),
++        gfx::Size(size, size));
++  }
++#endif
++  return vector_image;
++}
++
+ BEGIN_METADATA(OverlayWindowImageButton)
+ END_METADATA
+--- a/chrome/browser/ui/views/overlay/overlay_window_image_button.h
++++ b/chrome/browser/ui/views/overlay/overlay_window_image_button.h
+@@ -20,6 +20,12 @@
+   explicit OverlayWindowImageButton(PressedCallback callback);
+   ~OverlayWindowImageButton() override = default;
+ 
++  static ui::ImageModel ControlImage(const gfx::VectorIcon& fallback,
++                                     const char* symbol_name,
++                                     ui::ColorId color,
++                                     int size,
++                                     int symbol_point_size = 16);
++
+   // views::View:
+   ui::Cursor GetCursor(const ui::MouseEvent& event) override;
+ };
+--- a/chrome/browser/ui/views/overlay/overlay_window_live_caption_button.cc
++++ b/chrome/browser/ui/views/overlay/overlay_window_live_caption_button.cc
+@@ -19,6 +19,7 @@
+           features::IsRoundedIconsEnabled()
+               ? vector_icons::kSubtitlesIcon
+               : vector_icons::kLiveCaptionOnOldIcon,
++          "captions.bubble",
+           l10n_util::GetStringUTF16(
+               IDS_PICTURE_IN_PICTURE_LIVE_CAPTION_CONTROL_TEXT)) {}
+ 
+--- a/chrome/browser/ui/views/overlay/playback_image_button.cc
++++ b/chrome/browser/ui/views/overlay/playback_image_button.cc
+@@ -20,6 +20,7 @@
+ namespace {
+ 
+ constexpr int kPlaybackButtonIconSize = 24;
++constexpr int kPlaybackSymbolPointSize = 20;
+ 
+ }  // namespace
+ 
+@@ -31,19 +32,22 @@
+   // the ink drop layer, so we need to force the ink drop layer higher here.
+   views::InkDrop::Get(this)->SetLayerRegion(views::LayerRegion::kAbove);
+ 
+-  play_image_ = ui::ImageModel::FromVectorIcon(
++  play_image_ = ControlImage(
+       features::IsRoundedIconsEnabled()
+           ? vector_icons::kPlayArrowFilledFlippableIcon
+           : vector_icons::kPlayArrowOldIcon,
+-      ui::kColorSysOnSecondaryContainer, kPlaybackButtonIconSize);
+-  pause_image_ = ui::ImageModel::FromVectorIcon(
++      "play.fill", ui::kColorSysOnSecondaryContainer, kPlaybackButtonIconSize,
++      kPlaybackSymbolPointSize);
++  pause_image_ = ControlImage(
+       features::IsRoundedIconsEnabled() ? vector_icons::kPauseFilledIcon
+                                         : vector_icons::kPauseOldIcon,
+-      kColorPipWindowForeground, kPlaybackButtonIconSize);
+-  replay_image_ = ui::ImageModel::FromVectorIcon(
++      "pause.fill", kColorPipWindowForeground, kPlaybackButtonIconSize,
++      kPlaybackSymbolPointSize);
++  replay_image_ = ControlImage(
+       features::IsRoundedIconsEnabled() ? vector_icons::kReplayIcon
+                                         : vector_icons::kReplayOldIcon,
+-      kColorPipWindowForeground, kPlaybackButtonIconSize);
++      "arrow.counterclockwise", kColorPipWindowForeground,
++      kPlaybackButtonIconSize, kPlaybackSymbolPointSize);
+ 
+   UpdateImageAndText();
+ 
+--- a/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.cc
++++ b/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.cc
+@@ -14,8 +14,11 @@
+ SimpleOverlayWindowImageButton::SimpleOverlayWindowImageButton(
+     PressedCallback callback,
+     const gfx::VectorIcon& icon,
++    const char* symbol_name,
+     std::u16string label)
+-    : OverlayWindowImageButton(std::move(callback)), icon_(icon) {
++    : OverlayWindowImageButton(std::move(callback)),
++      icon_(icon),
++      symbol_name_(symbol_name) {
+   UpdateImage();
+ 
+   // Accessibility.
+@@ -46,11 +49,11 @@
+ void SimpleOverlayWindowImageButton::UpdateImage() {
+   const int icon_size = std::max(0, width() - (2 * kPipWindowIconPadding));
+   SetImageModel(views::Button::STATE_NORMAL,
+-                ui::ImageModel::FromVectorIcon(
+-                    *icon_, kColorPipWindowForeground, icon_size));
++                ControlImage(*icon_, symbol_name_, kColorPipWindowForeground,
++                             icon_size));
+   SetImageModel(views::Button::STATE_DISABLED,
+-                ui::ImageModel::FromVectorIcon(
+-                    *icon_, kColorPipWindowForegroundInactive, icon_size));
++                ControlImage(*icon_, symbol_name_,
++                             kColorPipWindowForegroundInactive, icon_size));
+ }
+ 
+ BEGIN_METADATA(SimpleOverlayWindowImageButton)
+--- a/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.h
++++ b/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.h
+@@ -20,6 +20,7 @@
+  public:
+   explicit SimpleOverlayWindowImageButton(PressedCallback callback,
+                                           const gfx::VectorIcon& icon,
++                                          const char* symbol_name,
+                                           std::u16string label);
+   SimpleOverlayWindowImageButton(const SimpleOverlayWindowImageButton&) =
+       delete;
+@@ -38,6 +39,7 @@
+   void UpdateImage();
+ 
+   const raw_ref<const gfx::VectorIcon> icon_;
++  const char* const symbol_name_;
+ 
+   // Last visible size of the image button.
+   gfx::Size last_visible_size_;
+--- a/chrome/browser/ui/views/overlay/toggle_camera_button.cc
++++ b/chrome/browser/ui/views/overlay/toggle_camera_button.cc
+@@ -50,8 +50,9 @@
+   const int icon_size = std::max(0, width() - (2 * kPipWindowIconPadding));
+ 
+   SetImageModel(views::Button::STATE_NORMAL,
+-                ui::ImageModel::FromVectorIcon(icon, kColorPipWindowForeground,
+-                                               icon_size));
++                ControlImage(icon, is_turned_on_ ? "video.fill"
++                                               : "video.slash.fill",
++                             kColorPipWindowForeground, icon_size));
+   SetTooltipText(l10n_util::GetStringUTF16(text));
+ }
+ 
+--- a/chrome/browser/ui/views/overlay/toggle_microphone_button.cc
++++ b/chrome/browser/ui/views/overlay/toggle_microphone_button.cc
+@@ -49,8 +49,8 @@
+   const int icon_size = std::max(0, width() - (2 * kPipWindowIconPadding));
+ 
+   SetImageModel(views::Button::STATE_NORMAL,
+-                ui::ImageModel::FromVectorIcon(icon, kColorPipWindowForeground,
+-                                               icon_size));
++                ControlImage(icon, is_muted_ ? "mic.slash.fill" : "mic.fill",
++                             kColorPipWindowForeground, icon_size));
+   SetTooltipText(l10n_util::GetStringUTF16(text));
+ }
+ 
+--- a/chrome/browser/ui/views/overlay/toggle_mute_button.cc
++++ b/chrome/browser/ui/views/overlay/toggle_mute_button.cc
+@@ -50,8 +50,9 @@
+   const int icon_size = std::max(0, width() - (2 * kPipWindowIconPadding));
+ 
+   SetImageModel(views::Button::STATE_NORMAL,
+-                ui::ImageModel::FromVectorIcon(icon, kColorPipWindowForeground,
+-                                               icon_size));
++                ControlImage(icon, is_muted_ ? "speaker.slash.fill"
++                                            : "speaker.wave.2.fill",
++                             kColorPipWindowForeground, icon_size));
+   SetTooltipText(l10n_util::GetStringUTF16(text));
+ }
+ 
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -1165,6 +1165,7 @@
+               base::Unretained(this)),
+           features::IsRoundedIconsEnabled() ? vector_icons::kReplay10Icon
+                                             : vector_icons::kReplay10OldIcon,
++          "gobackward.10",
+           l10n_util::GetStringUTF16(IDS_PICTURE_IN_PICTURE_REPLAY_10_TEXT));
+   replay_10_seconds_button->SetSize(kActionButtonSize);
+ 
+@@ -1177,6 +1178,7 @@
+               base::Unretained(this)),
+           features::IsRoundedIconsEnabled() ? vector_icons::kForward10Icon
+                                             : vector_icons::kForward10OldIcon,
++          "goforward.10",
+           l10n_util::GetStringUTF16(IDS_PICTURE_IN_PICTURE_FORWARD_10_TEXT));
+   forward_10_seconds_button->SetSize(kActionButtonSize);
+ 
+@@ -1194,6 +1196,7 @@
+           features::IsRoundedIconsEnabled()
+               ? vector_icons::kSkipPreviousIcon
+               : vector_icons::kSkipPreviousOldIcon,
++          "backward.end.fill",
+           l10n_util::GetStringUTF16(
+               IDS_PICTURE_IN_PICTURE_PREVIOUS_TRACK_CONTROL_ACCESSIBLE_TEXT));
+   previous_track_controls_view->SetSize(kActionButtonSize);
+@@ -1211,6 +1214,7 @@
+               base::Unretained(this)),
+           features::IsRoundedIconsEnabled() ? vector_icons::kSkipNextIcon
+                                             : vector_icons::kSkipNextOldIcon,
++          "forward.end.fill",
+           l10n_util::GetStringUTF16(
+               IDS_PICTURE_IN_PICTURE_NEXT_TRACK_CONTROL_ACCESSIBLE_TEXT));
+   next_track_controls_view->SetSize(kActionButtonSize);
