@@ -1,0 +1,139 @@
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -119,11 +119,15 @@ constexpr gfx::Size kOverlayViewPadding(
+ constexpr gfx::Size kActionButtonSize(28, 28);
+ 
+ constexpr int kTopControlsHeight = 34;
+-constexpr int kBottomControlsHeight = 64;
+ constexpr int kBottomControlsHorizontalMargin = 12;
+ constexpr int kBottomControlsVerticalMargin = 4;
+ 
+ #if BUILDFLAG(IS_MAC)
++// Reserve a separate track-skip row above the inset playback footer.
++constexpr int kBottomControlsHeight = 2 * kActionButtonSize.height() +
++                                      kBottomControlsVerticalMargin +
++                                      kBottomControlsHorizontalMargin;
++
+ // Expand just the relevant edge strip. A pointer outside the middle of the
+ // window's side cannot reveal either group from there.
+ bool IsPointerNearControlBar(const gfx::Point& cursor,
+@@ -137,6 +141,8 @@ bool IsPointerNearControlBar(const gfx::
+          cursor.y() >= bar.y() - distance &&
+          cursor.y() <= bar.bottom() + distance;
+ }
++#else
++constexpr int kBottomControlsHeight = 64;
+ #endif
+ 
+ // The amount of time the seek buttons next to the play button seek.
+@@ -1899,8 +1905,9 @@ void VideoOverlayWindowViews::LayoutMacP
+   constexpr int kTimestampHeight = 16;
+   constexpr int kMinScrubberWidth = 44;
+   const int control_height = kActionButtonSize.height();
+-  const int row_y = bounds.bottom() - kBottomControlsVerticalMargin -
+-                    control_height;
++  // Equal insets place the speaker's center on the bottom corner diagonal.
++  const int row_y =
++      bounds.bottom() - kBottomControlsHorizontalMargin - control_height;
+   const int text_y = row_y + (control_height - kTimestampHeight) / 2;
+   const int left = bounds.x() + kBottomControlsHorizontalMargin;
+   int right = bounds.right() - kBottomControlsHorizontalMargin;
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -931,6 +931,11 @@ TEST_F(VideoOverlayWindowViewsTest, Time
+   EXPECT_LE(timestamp->bounds().right(), progress->x());
+   EXPECT_LE(progress->bounds().right(), remaining->x());
+   EXPECT_LT(remaining->bounds().right(), mute->x());
++  EXPECT_EQ(12, mute->parent()->width() - mute->bounds().right());
++  EXPECT_EQ(12, mute->parent()->height() - mute->bounds().bottom());
++  EXPECT_LE(overlay_window().next_track_controls_view_for_testing()
++                ->bounds().bottom(),
++            mute->y());
+ #else
+   EXPECT_EQ(u"0:42 / 1:40", timestamp->GetText());
+ #endif
+@@ -1655,6 +1660,9 @@ TEST_F(VideoOverlayWindowViewsTest, Poin
+   WaitForLayout();
+ 
+   const gfx::Rect window = overlay_window().GetWindowBoundsInScreen();
++  const int footer_top = window.bottom() -
++                         overlay_window().progress_view_for_testing()
++                             ->parent()->height();
+   auto check = [&](gfx::Point cursor, bool header, bool footer, bool center) {
+     SCOPED_TRACE(cursor.ToString());
+     SetCursorScreenPoint(cursor);
+@@ -1677,9 +1685,9 @@ TEST_F(VideoOverlayWindowViewsTest, Poin
+   check({mid_x, window.bottom() + 16}, false, true, false);
+   check({mid_x, window.bottom() + 64}, false, true, false);
+   check({mid_x, window.bottom() + 65}, false, false, false);
+-  check({window.right() + 16, window.bottom() - 81}, false, false, false);
+-  check({window.right() + 16, window.bottom() - 80}, false, true, false);
+-  check({window.right() + 64, window.bottom() - 80}, false, true, false);
++  check({window.right() + 16, footer_top - 17}, false, false, false);
++  check({window.right() + 16, footer_top - 16}, false, true, false);
++  check({window.right() + 64, footer_top - 16}, false, true, false);
+ 
+   check(window.CenterPoint(), true, true, true);
+   check({mid_x, window.bottom() + 32}, false, true, false);
+@@ -1711,6 +1719,36 @@ TEST_F(VideoOverlayWindowViewsTest, Scru
+   SetCursorScreenPoint({x, track.y() - 17});
+   EXPECT_FALSE(progress->round_thumb_visible_for_testing());
+ }
++
++TEST_F(VideoOverlayWindowViewsTest, ScrubberCanBeGrabbedPastTrackEndpoints) {
++  constexpr base::TimeDelta duration = base::Seconds(100);
++  overlay_window().UpdateNaturalSize({640, 480});
++  overlay_window().ShowInactive();
++  overlay_window().ForceControlsVisibleForTesting(true);
++  overlay_window().SetMediaPosition(media_session::MediaPosition(
++      /*playback_rate=*/0, duration, base::Seconds(42),
++      /*end_of_media=*/false));
++
++  auto* progress = overlay_window().progress_view_for_testing();
++  const gfx::Rect track = progress->GetTrackBounds();
++  ASSERT_FALSE(track.IsEmpty());
++  auto click = [&](int x) {
++    const gfx::Point point(x, track.CenterPoint().y());
++    const ui::MouseEvent press(
++        ui::EventType::kMousePressed, point, point, ui::EventTimeForNow(),
++        ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON);
++    ASSERT_TRUE(progress->OnMousePressed(press));
++    const ui::MouseEvent release(
++        ui::EventType::kMouseReleased, point, point, ui::EventTimeForNow(),
++        ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON);
++    progress->OnMouseReleased(release);
++  };
++
++  EXPECT_CALL(pip_window_controller(), SeekTo(base::TimeDelta()));
++  click(track.x() - 5);
++  EXPECT_CALL(pip_window_controller(), SeekTo(duration));
++  click(track.right() + 5);
++}
+ #endif
+ 
+ TEST_F(VideoOverlayWindowViewsTest, PlaybackControlsContainerVisibility) {
+--- a/components/global_media_controls/public/views/media_progress_view.cc
++++ b/components/global_media_controls/public/views/media_progress_view.cc
+@@ -60,7 +60,7 @@ constexpr float kProgressPhaseSpeed = 28
+ // squiggly or straight progress.
+ constexpr gfx::SizeF kSquigglyProgressIndicatorSize = gfx::SizeF(6, 14);
+ constexpr gfx::SizeF kStraightProgressIndicatorSize = gfx::SizeF(4, 16);
+-constexpr gfx::SizeF kRoundProgressIndicatorSize = gfx::SizeF(8, 8);
++constexpr gfx::SizeF kRoundProgressIndicatorSize = gfx::SizeF(12, 12);
+ 
+ // The width of the gap between the progress indicator and the straight lines.
+ constexpr float kStraightProgressIndicatorGap = 4.0f;
+@@ -699,6 +699,13 @@ double MediaProgressView::CalculateNewVa
+ }
+ 
+ bool MediaProgressView::IsValidSeekPosition(int x, int y) {
++  if (round_thumb_) {
++    // The round thumb extends past the painted endpoints. Accept the rest of
++    // the scrubber's hit area and let HandleSeeking clamp to the track.
++    const gfx::Rect bounds = GetContentsBounds();
++    return bounds.width() > kWidthInset * 2 && bounds.Contains(x, y);
++  }
++
+   const int height = (use_squiggly_line_ ? kSquigglyProgressViewHeight
+                                          : kStraightProgressViewHeight);
+   return (kWidthInset <= x) &&
