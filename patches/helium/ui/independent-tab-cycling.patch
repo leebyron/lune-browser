@@ -1,0 +1,322 @@
+--- a/chrome/app/chrome_command_ids.h
++++ b/chrome/app/chrome_command_ids.h
+@@ -295,6 +295,8 @@
+ 
+ #define IDC_HELIUM_SERVICES_OPEN 40700
+ #define IDC_HELIUM_COMMAND_BAR 40703
++#define IDC_SELECT_NEXT_TAB_WITH_BRACKET 40704
++#define IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET 40705
+ 
+ // Spell-check
+ #define IDC_SPELLCHECK_SUGGESTION_0     41000
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -1907,6 +1907,12 @@
+       <message name="IDS_IMPORT_SETTINGS_MENU_LABEL" desc="The app menu label to import bookmarks and settings.">
+         Import bookmarks and settings...
+       </message>
++      <message name="IDS_SHORTCUT_COMMAND_SELECT_NEXT_TAB_WITH_BRACKET" desc="Name of the configurable shortcut for the next tab, bound by default to Command-Shift-right bracket.">
++        Select next tab (bracket shortcut)
++      </message>
++      <message name="IDS_SHORTCUT_COMMAND_SELECT_PREVIOUS_TAB_WITH_BRACKET" desc="Name of the configurable shortcut for the previous tab, bound by default to Command-Shift-left bracket.">
++        Select previous tab (bracket shortcut)
++      </message>
+       <message name="IDS_SHORTCUT_COMMAND_SELECT_NEXT_TAB" desc="Command name shown on the Settings shortcuts page for selecting the next tab.">
+         Next tab
+       </message>
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -355,6 +355,11 @@
+     <message name="IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER" desc="Label for the checkbox which enables or disables cycling through tabs in MRU order when using Ctrl+Tab.">
+       Cycle through tabs in most recently used order with Ctrl+Tab
+     </message>
++    <if expr="is_macosx">
++      <message name="IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER_WITH_BRACKETS" desc="Label for the toggle that uses most recently used order for the Command-Shift-bracket tab switching shortcuts.">
++        Cycle through tabs in most recently used order with ⌘⇧[ and ⌘⇧]
++      </message>
++    </if>
+     <message name="IDS_SETTINGS_SHIFT_RIGHT_CLICK_CONTEXT_MENU" desc="Label for the checkbox which makes Shift+right click show the browser context menu even when a page blocks it.">
+       Force context menu with Shift+Right Click
+     </message>
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -245,6 +245,8 @@
+   (*s_allowlist)[::prefs::kHeliumZenModeTopChromePinned] =
+       settings_api::PrefType::kBoolean;
+ #if BUILDFLAG(IS_MAC)
++  (*s_allowlist)[tabs::kBracketTabCyclingMRU] =
++      settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumPageTopWindowDrag] =
+       settings_api::PrefType::kBoolean;
+ #endif
+--- a/chrome/browser/global_keyboard_shortcuts_mac.mm
++++ b/chrome/browser/global_keyboard_shortcuts_mac.mm
+@@ -114,8 +114,8 @@
+     std::vector<KeyboardShortcutData> keys({
+     // cmd    shift  cntrl  option vkeycode               command
+     // ---    -----  -----  ------ --------               -------
+-      {true,  true,  false, false, kVK_ANSI_RightBracket, IDC_SELECT_NEXT_TAB},
+-      {true,  true,  false, false, kVK_ANSI_LeftBracket,  IDC_SELECT_PREVIOUS_TAB},
++      {true,  true,  false, false, kVK_ANSI_RightBracket, IDC_SELECT_NEXT_TAB_WITH_BRACKET},
++      {true,  true,  false, false, kVK_ANSI_LeftBracket,  IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET},
+       {false, false, true,  false, kVK_PageDown,          IDC_SELECT_NEXT_TAB},
+       {false, false, true,  false, kVK_PageUp,            IDC_SELECT_PREVIOUS_TAB},
+       {true,  false, false, true,  kVK_RightArrow,        IDC_SELECT_NEXT_TAB},
+--- a/chrome/browser/resources/settings/appearance_page/appearance_behavior_page.html
++++ b/chrome/browser/resources/settings/appearance_page/appearance_behavior_page.html
+@@ -14,6 +14,12 @@
+       pref-key="helium.browser.mru_tab_cycling"
+       label="$i18n{cycleTabsInMRUOrder}">
+   </settings-toggle-button>
++  <if expr="is_macosx">
++    <settings-toggle-button class="hr" id="bracketTabCyclingMRU"
++        pref-key="helium.browser.bracket_tab_cycling_mru"
++        label="$i18n{cycleTabsInMRUOrderWithBrackets}">
++    </settings-toggle-button>
++  </if>
+   <settings-toggle-button id="visualTabSwitcher"
+       pref-key="helium.browser.visual_tab_switcher"
+       checked="{{visualTabSwitcherEnabled_}}"
+--- a/chrome/browser/ui/accelerator_table.cc
++++ b/chrome/browser/ui/accelerator_table.cc
+@@ -345,6 +345,8 @@
+     IDC_FOCUS_PREVIOUS_PANE, IDC_MOVE_TAB_NEXT,       IDC_MOVE_TAB_PREVIOUS,
+     IDC_SELECT_NEXT_TAB,     IDC_SELECT_PREVIOUS_TAB, IDC_CYCLE_TO_NEXT_TAB,
+     IDC_CYCLE_TO_PREV_TAB,
++    IDC_SELECT_NEXT_TAB_WITH_BRACKET,
++    IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET,
+ };
+ 
+ constexpr int kReservedCommandIds[] = {
+@@ -357,6 +359,8 @@
+     IDC_RESTORE_TAB,
+     IDC_SELECT_NEXT_TAB,
+     IDC_SELECT_PREVIOUS_TAB,
++    IDC_SELECT_NEXT_TAB_WITH_BRACKET,
++    IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET,
+     IDC_CYCLE_TO_NEXT_TAB,
+     IDC_CYCLE_TO_PREV_TAB,
+     IDC_EXIT,
+--- a/chrome/browser/ui/browser_command_controller.cc
++++ b/chrome/browser/ui/browser_command_controller.cc
+@@ -831,6 +831,13 @@
+           TabStripUserGestureDetails(
+               TabStripUserGestureDetails::GestureType::kKeyboard, time_stamp));
+       break;
++    case IDC_SELECT_NEXT_TAB_WITH_BRACKET:
++    case IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET:
++      browser_->tab_strip_model()->SelectTabWithBracketShortcut(
++          id == IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET,
++          TabStripUserGestureDetails(
++              TabStripUserGestureDetails::GestureType::kKeyboard, time_stamp));
++      break;
+     case IDC_CYCLE_TO_NEXT_TAB:
+       if (IsCtrlTabMruEnabled(browser_)) {
+         base::RecordAction(base::UserMetricsAction("Accel_CycleToNextTab"));
+@@ -2161,6 +2168,10 @@
+   command_updater_->UpdateCommandEnabled(IDC_SELECT_NEXT_TAB, supports_tabs);
+   command_updater_->UpdateCommandEnabled(IDC_SELECT_PREVIOUS_TAB,
+                                          supports_tabs);
++  command_updater_->UpdateCommandEnabled(IDC_SELECT_NEXT_TAB_WITH_BRACKET,
++                                         supports_tabs);
++  command_updater_->UpdateCommandEnabled(IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET,
++                                         supports_tabs);
+   command_updater_->UpdateCommandEnabled(IDC_CYCLE_TO_NEXT_TAB, supports_tabs);
+   command_updater_->UpdateCommandEnabled(IDC_CYCLE_TO_PREV_TAB, supports_tabs);
+   command_updater_->UpdateCommandEnabled(IDC_MOVE_TAB_NEXT, supports_tabs);
+@@ -2765,6 +2776,10 @@
+                                          is_tab_switching_enabled_);
+   command_updater_->UpdateCommandEnabled(IDC_SELECT_PREVIOUS_TAB,
+                                          is_tab_switching_enabled_);
++  command_updater_->UpdateCommandEnabled(IDC_SELECT_NEXT_TAB_WITH_BRACKET,
++                                         is_tab_switching_enabled_);
++  command_updater_->UpdateCommandEnabled(IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET,
++                                         is_tab_switching_enabled_);
+   command_updater_->UpdateCommandEnabled(IDC_CYCLE_TO_NEXT_TAB,
+                                          is_tab_switching_enabled_);
+   command_updater_->UpdateCommandEnabled(IDC_CYCLE_TO_PREV_TAB,
+--- a/chrome/browser/ui/browser_shortcuts/browser_shortcut_metadata.cc
++++ b/chrome/browser/ui/browser_shortcuts/browser_shortcut_metadata.cc
+@@ -130,6 +130,10 @@
+       return Label(IDS_CLOSE_WARNING_FOR_CLEAR_COOKIES_ON_EXIT_CLOSE);
+     case IDC_RESTORE_TAB:
+       return Label(IDS_RESTORE_TAB);
++    case IDC_SELECT_NEXT_TAB_WITH_BRACKET:
++      return Label(IDS_SHORTCUT_COMMAND_SELECT_NEXT_TAB_WITH_BRACKET);
++    case IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET:
++      return Label(IDS_SHORTCUT_COMMAND_SELECT_PREVIOUS_TAB_WITH_BRACKET);
+     case IDC_SELECT_NEXT_TAB:
+     case IDC_CYCLE_TO_NEXT_TAB:
+       return Label(IDS_SHORTCUT_COMMAND_SELECT_NEXT_TAB);
+--- a/chrome/browser/ui/tabs/tab_strip_model.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model.cc
+@@ -75,6 +75,7 @@
+ #include "chrome/browser/ui/tabs/tab_muted_utils.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
++#include "chrome/browser/ui/tabs/tab_strip_prefs.h"
+ #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
+ #include "chrome/browser/ui/tabs/tab_utils.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_metrics.h"
+@@ -1984,6 +1985,18 @@
+   SelectRelativeTabCycle(TabRelativeDirection::kPrevious, detail);
+ }
+ 
++void TabStripModel::SelectTabWithBracketShortcut(
++    bool reverse,
++    TabStripUserGestureDetails detail) {
++  const auto direction =
++      reverse ? TabRelativeDirection::kPrevious : TabRelativeDirection::kNext;
++  if (profile_->GetPrefs()->GetBoolean(tabs::kBracketTabCyclingMRU)) {
++    SelectMRUTab(direction, detail);
++  } else {
++    SelectRelativeTab(direction, detail);
++  }
++}
++
+ void TabStripModel::SelectLastTab(TabStripUserGestureDetails detail) {
+   if (!empty()) {
+     ActivateTab(*rbegin(), detail);
+@@ -4662,7 +4675,10 @@
+ }
+ 
+ void TabStripModel::SelectMRUTab(TabRelativeDirection direction,
+-                                 TabStripUserGestureDetails detail) {
++                                TabStripUserGestureDetails detail) {
++  if (empty()) {
++    return;
++  }
+   if (mru_cycle_list_.empty()) {
+     BrowserWindowInterface* browser =
+         GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+@@ -4703,6 +4719,13 @@
+ }
+ 
+ bool TabStripModel::IsTabEligibleForSequentialCycling(int index) const {
++  if (older_tabs_controller_ &&
++      profile_->GetPrefs()->GetBoolean(tabs::kOlderTabsCollapsed) &&
++      older_tabs_controller_->IsEnabled() &&
++      tabs::OlderTabsController::IsOlder(GetWebContentsAt(index))) {
++    return false;
++  }
++
+   const auto focused_group = GetFocusedGroup();
+   return !IsTabCollapsed(index) &&
+          (!focused_group ||
+--- a/chrome/browser/ui/tabs/tab_strip_model.h
++++ b/chrome/browser/ui/tabs/tab_strip_model.h
+@@ -633,12 +633,16 @@
+       TabStripUserGestureDetails detail = TabStripUserGestureDetails(
+           TabStripUserGestureDetails::GestureType::kOther));
+ 
++  // Selects a tab according to the order configured for the bracket keys.
++  void SelectTabWithBracketShortcut(bool reverse,
++                                    TabStripUserGestureDetails detail);
++
+   // Selects the last tab in the tab strip.
+   void SelectLastTab(
+       TabStripUserGestureDetails detail = TabStripUserGestureDetails(
+           TabStripUserGestureDetails::GestureType::kOther));
+ 
+-  // Stops cycling through tabs in MRU order when Ctrl is released.
++  // Stops cycling through tabs in MRU order when the modifier is released.
+   // Used in BrowserView::StopTabCycling().
+   void StopMRUCycling();
+ 
+--- a/chrome/browser/ui/tabs/tab_strip_prefs.cc
++++ b/chrome/browser/ui/tabs/tab_strip_prefs.cc
+@@ -29,6 +29,7 @@
+                                 kDefaultOlderTabsMoveHours);
+   registry->RegisterIntegerPref(kOlderTabsCloseHours,
+                                 kDefaultOlderTabsCloseHours);
++  registry->RegisterBooleanPref(kBracketTabCyclingMRU, false);
+   registry->RegisterBooleanPref(kOlderTabsCollapsed, false);
+   registry->RegisterBooleanPref(kOlderTabsMoveGrouped, false);
+   registry->RegisterBooleanPref(prefs::kTabSearchPinnedToTabstrip, true);
+--- a/chrome/browser/ui/tabs/tab_strip_prefs.h
++++ b/chrome/browser/ui/tabs/tab_strip_prefs.h
+@@ -14,6 +14,9 @@
+ 
+ namespace tabs {
+ 
++inline constexpr char kBracketTabCyclingMRU[] =
++    "helium.browser.bracket_tab_cycling_mru";
++
+ enum class TabSearchPosition {
+   kLeadingHorizontalTabstrip,
+   kVerticalTabstrip,
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -950,11 +950,14 @@
+  private:
+   // ui::EventObserver overrides:
+   void OnEvent(const ui::Event& event) override {
+-    if (event.type() == ui::EventType::kKeyReleased &&
+-        event.AsKeyEvent()->key_code() == ui::VKEY_CONTROL) {
+-      // Ctrl key was released, stop the tab cycling.
+-      Stop();
+-      return;
++    if (event.type() == ui::EventType::kKeyReleased) {
++      const auto key = event.AsKeyEvent()->key_code();
++      if (key == ui::VKEY_CONTROL || key == ui::VKEY_LWIN ||
++          key == ui::VKEY_RWIN) {
++        // Control and Command both drive MRU cycling shortcuts.
++        Stop();
++        return;
++      }
+     }
+ 
+     if (event.type() == ui::EventType::kMousePressed) {
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -643,6 +643,10 @@
+       {"systemMode", IDS_NTP_CUSTOMIZE_CHROME_COLOR_SCHEME_MODE_SYSTEM_LABEL},
+       {"openNewTabNextToActive", IDS_SETTINGS_NEW_TAB_NEXT_TO_ACTIVE_BUTTON},
+       {"cycleTabsInMRUOrder", IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER},
++#if BUILDFLAG(IS_MAC)
++      {"cycleTabsInMRUOrderWithBrackets",
++       IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER_WITH_BRACKETS},
++#endif
+       {"visualTabSwitcher", IDS_SETTINGS_VISUAL_TAB_SWITCHER},
+       {"visualTabSwitcherList", IDS_SETTINGS_VISUAL_TAB_SWITCHER_LIST},
+       {"roundedFrame", IDS_SETTINGS_ROUNDED_FRAME},
+--- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
+@@ -350,6 +350,8 @@
+     case IDC_SAVE_PAGE:
+     case IDC_SELECT_NEXT_TAB:
+     case IDC_SELECT_PREVIOUS_TAB:
++    case IDC_SELECT_NEXT_TAB_WITH_BRACKET:
++    case IDC_SELECT_PREVIOUS_TAB_WITH_BRACKET:
+     case IDC_CYCLE_TO_NEXT_TAB:
+     case IDC_CYCLE_TO_PREV_TAB:
+     case IDC_SHOW_BOOKMARK_MANAGER:
+--- a/chrome/browser/ui/views/tabs/visual_tab_switcher.cc
++++ b/chrome/browser/ui/views/tabs/visual_tab_switcher.cc
+@@ -162,9 +162,7 @@
+       return false;
+     }
+     auto* active = model->GetActiveWebContents();
+-    const bool limit_tabs =
+-        max_tabs > 0 && tabs_.size() > static_cast<size_t>(max_tabs);
+-    if (mru || limit_tabs) {
++    if (mru) {
+       std::stable_sort(
+           tabs_.begin(), tabs_.end(), [active](const auto& a, const auto& b) {
+             if (a == active || b == active) {
+@@ -172,13 +170,8 @@
+             }
+             return a->GetLastActiveTimeTicks() > b->GetLastActiveTimeTicks();
+           });
+-    }
+-    if (limit_tabs) {
+-      tabs_.resize(max_tabs);
+-      if (!mru) {
+-        std::ranges::sort(tabs_, {}, [model](const auto& tab) {
+-          return model->GetIndexOfWebContents(tab);
+-        });
++      if (max_tabs > 0 && tabs_.size() > static_cast<size_t>(max_tabs)) {
++        tabs_.resize(max_tabs);
+       }
+     }
+     const auto active_tab = std::find(tabs_.begin(), tabs_.end(), active);
