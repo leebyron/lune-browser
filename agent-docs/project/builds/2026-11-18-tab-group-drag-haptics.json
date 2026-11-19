@@ -1,0 +1,90 @@
+{
+  "macos_input_tag": "inputs/tab-group-drag-haptics-1/macos",
+  "owner_accepted_preview": {
+    "date": "2026-11-18",
+    "architecture": "arm64",
+    "framework_sha256": "887ff785ff739d0af7ae4b680163047e31d0cf80442e942ed1e0ee06582ea8c2",
+    "accepted": "Owner accepted sidebar drag behavior and authorized commit and push",
+    "follow_up": [
+      "Clip tab text during pinned-group collapse",
+      "Paint active drop slots inside groups"
+    ]
+  },
+  "source_preparation": {
+    "core": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+    "platform": "cae1e7e466789a8243d6d136b274f68f8ecca3c5",
+    "chromium_version": "158.0.8127.37",
+    "strict_replay_passed": true,
+    "complete_accepted_preview_source_parity": true,
+    "inventory_files": 596106,
+    "inventory_symlinks": 141,
+    "patch_sha256": "cfc10d6ce7144ec01bbada9a74b66fcfda1286c52a60fba285a49ec656cd59fc",
+    "changed_source_sha256": {
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler_mac.mm": "4a7b5a51d290f96260c9e5fb63ff539b8c3f51f80695b939ff084eb81a82ca6e",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "742fb98bb9de1dba161d2576274a73899b98d31fc64c6a4ba18c88568286dde7",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "dd66dc4b325f381bcfa2496b2196d91003e76f23f8a04afb52eb40c223184fc5",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.h": "6df97259f71f7ba07681b4965724715ab93867e7d74ec3f21161facf55a5bf80",
+      "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc": "2dea40a8e9bbd5627433e7996fd5a305dabfadf74979938b467a18a95d4710f2",
+      "chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc": "55307452c7d0a101b3c94a0b099ab4236add3748ff6fce051003e2bf551e1152",
+      "chrome/browser/ui/views/tabs/common/dragged_tabs_container.h": "672aedf76663c4171c245d7b4dea5123f36fcf524a00b8051a10cc28a2437033",
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler.cc": "25fc97228364da244bc501c63ef3810413574cdfefc7c88cadce5b4debcf0d3c",
+      "chrome/browser/ui/views/tabs/common/tab_drag_handler.h": "3f288f2d6b85bd8ff9945181a58386b95e94cab9e39e5ef5e1d38d4245aba5b3",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h": "dad8a3fe5085be4a12e6a7923518ab2485da27c18db6c1fc6203330ca7c60da5",
+      "chrome/browser/ui/views/frame/base_tab_strip_region_view.cc": "1847f63f65c1977200ac1a1bd5ee3eeae591a10cd27df437b2d09cc13ca1ced1",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view.cc": "75151caf7f1bf7208f81995a2d6487377e0985f8dc7670fedb5ff727add3fcdf",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view.h": "709ec405c0d026527c7c3ae4a07cd365846a750993c5c36ad6a8b1f2a96788c6"
+    },
+    "preparation_log_sha256": "0788997d0ec059c9f405ee37a83226a88afc085c159dc854b0f50943ab7bb5f0"
+  },
+  "validation": {
+    "lock_and_provenance": "passed",
+    "component_and_translation_lint": "passed",
+    "repository_tests": {
+      "passed": 106,
+      "skipped": 1
+    },
+    "arm64": {
+      "runtime": "native Apple silicon",
+      "framework_sha256": "38ad370bb705d502ac8bc5598280a51a6bb65c23de7d8c869743e531e7b77859",
+      "executable_sha256": "c095b824b2c1754d4618bace66907ed3b468fe0f6fec2c759d36abc0a6f19c6b",
+      "gn_args_sha256": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
+      "build_log_sha256": "2bff13543752a745aa7e7d74cc3465ab168d7a91ed401f7bc50664ac1af8039c",
+      "browser_smoke": "passed: browsing, persistence, UI, internal artwork, Settings",
+      "browser_smoke_report_sha256": "dbd2a9919dd06f9c0e241163b2339f811bc94f9e1a1c204f034c0d2d78af612b",
+      "pinned_grid_regression": {
+        "grid": "7740 stable grid destinations passed, including wrapped and partial rows",
+        "placeholder": "PASS: one active placeholder; none after cancellation; empty grid reserves no row, gap, separator, or highlighted cell"
+      },
+      "group_drag_regression": {
+        "pinned-group-entry": "Expanded and collapsed group entry, direct unpin and group move, entry slop and ineligible drags passed.",
+        "grid-boundary": "First and additional pin transitions, stationary exit, viewport clipping and pinned-group pointer ownership passed.",
+        "group-reorder": "Passed stable pin entry, stationary rule changes, reorder hysteresis, and the first-group drop boundary."
+      },
+      "haptics_setting": "default on, toggles off, persists through restart, toggles on"
+    },
+    "x86_64": {
+      "runtime": "Rosetta on Apple silicon",
+      "framework_sha256": "45a81b105bad703edb70a4e16ed534c6748f978f78a2634eab8f08f4e5ab18ba",
+      "executable_sha256": "67b548935f1b5d74fd68e54325ea41e7584d7250ef24bb2c643699b2d38acd8d",
+      "gn_args_sha256": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4",
+      "build_log_sha256": "b2b6ce8e555bb357847e1e7a76ae0f030267c28662590f81b18a65317d682329",
+      "browser_smoke": "passed: browsing, persistence, UI, internal artwork, Settings",
+      "browser_smoke_report_sha256": "0ef06b9b86b7f80da9e2d31cb7aafb1536ddfb3b6e15484732459263ec4c656c",
+      "pinned_grid_regression": {
+        "grid": "7740 stable grid destinations passed, including wrapped and partial rows",
+        "placeholder": "PASS: one active placeholder; none after cancellation; empty grid reserves no row, gap, separator, or highlighted cell"
+      },
+      "group_drag_regression": {
+        "pinned-group-entry": "Expanded and collapsed group entry, direct unpin and group move, entry slop and ineligible drags passed.",
+        "grid-boundary": "First and additional pin transitions, stationary exit, viewport clipping and pinned-group pointer ownership passed.",
+        "group-reorder": "Passed stable pin entry, stationary rule changes, reorder hysteresis, and the first-group drop boundary."
+      },
+      "haptics_setting": "default on, toggles off, persists through restart, toggles on"
+    }
+  },
+  "limits": [
+    "Physical gesture and haptic acceptance comes from the owner on Apple silicon.",
+    "The focused layout and routing fixtures compile production code with lightweight Views and model stubs.",
+    "Intel runtime uses Rosetta on Apple silicon."
+  ]
+}

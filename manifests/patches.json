@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "b6b1f3af0ab64fac5fcf05e716042b329386ebcd",
+    "commit": "cae1e7e466789a8243d6d136b274f68f8ecca3c5",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -973,6 +973,10 @@
       {
         "path": "patches/helium/ui/pinned-grid-tab-drag.patch",
         "sha256": "baa5e7f746e5826d6960c0e279b95bf5e536124d51455aca6f8c0df3ef4e317e"
+      },
+      {
+        "path": "patches/helium/ui/tab-group-drag-haptics.patch",
+        "sha256": "cfc10d6ce7144ec01bbada9a74b66fcfda1286c52a60fba285a49ec656cd59fc"
       }
     ]
   },
@@ -3017,6 +3021,23 @@
       "adaptation": "Use final cell geometry for targeting, a reversible 240 ms morph with fixed icon endpoints, one active highlight, and an invisible first-pin entry in existing upper sidebar space.",
       "commits": [
         "b6b1f3af0ab64fac5fcf05e716042b329386ebcd"
+      ]
+    },
+    {
+      "id": "tab-group-drag-haptics",
+      "depends_on": [
+        "pinned-tab-groups",
+        "sidebar-tab-drag-haptics",
+        "pinned-grid-tab-drag"
+      ],
+      "patches": [
+        "patches/helium/ui/tab-group-drag-haptics.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Provide tactile feedback for moving sidebar groups and stabilize the destinations that drive it.",
+      "adaptation": "Resolve group destinations from stationary rows, keep the empty pinned-group lane out of layout, and hand off directly between pinned tiles and group membership.",
+      "commits": [
+        "cae1e7e466789a8243d6d136b274f68f8ecca3c5"
       ]
     }
   ],
