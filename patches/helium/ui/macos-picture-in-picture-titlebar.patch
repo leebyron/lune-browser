@@ -1,0 +1,484 @@
+--- a/chrome/browser/ui/views/overlay/back_to_tab_button.cc
++++ b/chrome/browser/ui/views/overlay/back_to_tab_button.cc
+@@ -4,7 +4,6 @@
+ 
+ #include "chrome/browser/ui/views/overlay/back_to_tab_button.h"
+ 
+-#include "build/build_config.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/vector_icons/vector_icons.h"
+@@ -17,6 +16,7 @@
+ namespace {
+ 
+ constexpr int kBackToTabButtonVerticalMargin = 5;
++constexpr int kBackToTabButtonHorizontalMargin = 28;
+ constexpr int kBackToTabButtonSize = 24;
+ constexpr int kBackToTabButtonIconSize = 16;
+ 
+@@ -42,13 +42,9 @@
+ }
+ 
+ void OverlayWindowBackToTabButton::SetPosition(const gfx::Size& size) {
+-#if BUILDFLAG(IS_MAC)
+-  constexpr int x = 8;
+-#else
+-  constexpr int kTrailingMargin = 28;
+-  const int x = size.width() - kBackToTabButtonSize - kTrailingMargin;
+-#endif
+-  views::ImageButton::SetPosition(gfx::Point(x, kBackToTabButtonVerticalMargin));
++  views::ImageButton::SetPosition(gfx::Point(
++      size.width() - kBackToTabButtonSize - kBackToTabButtonHorizontalMargin,
++      kBackToTabButtonVerticalMargin));
+ }
+ 
+ BEGIN_METADATA(OverlayWindowBackToTabButton)
+--- a/chrome/browser/ui/views/overlay/minimize_button.cc
++++ b/chrome/browser/ui/views/overlay/minimize_button.cc
+@@ -4,7 +4,6 @@
+ 
+ #include "chrome/browser/ui/views/overlay/minimize_button.h"
+ 
+-#include "build/build_config.h"
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/grit/generated_resources.h"
+@@ -17,7 +16,7 @@
+ namespace {
+ 
+ constexpr int kMinimizeButtonVerticalMargin = 5;
+-constexpr int kMinimizeButtonHorizontalMargin = BUILDFLAG(IS_MAC) ? 28 : 52;
++constexpr int kMinimizeButtonHorizontalMargin = 52;
+ constexpr int kMinimizeButtonSize = 24;
+ constexpr int kMinimizeButtonIconSize = 16;
+ 
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
+@@ -5,6 +5,9 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_OVERLAY_VIDEO_OVERLAY_WINDOW_NATIVE_WIDGET_MAC_H_
+ #define CHROME_BROWSER_UI_VIEWS_OVERLAY_VIDEO_OVERLAY_WINDOW_NATIVE_WIDGET_MAC_H_
+ 
++#include <memory>
++
++#include "base/functional/callback.h"
+ #include "ui/views/widget/native_widget_mac.h"
+ 
+ class VideoOverlayWindowViews;
+@@ -21,11 +24,20 @@
+ 
+   ~VideoOverlayWindowNativeWidgetMac() override;
+ 
++  void InstallWindowControls(base::RepeatingClosure close,
++                             base::RepeatingClosure minimize,
++                             base::RepeatingClosure open_tab);
++  void SetWindowControlsVisible(bool visible);
++
+  protected:
+   // NativeWidgetMac:
+   void PopulateCreateWindowParams(
+       const views::Widget::InitParams& widget_params,
+       remote_cocoa::mojom::CreateWindowParams* params) override;
++
++ private:
++  struct Titlebar;
++  std::unique_ptr<Titlebar> titlebar_;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_OVERLAY_VIDEO_OVERLAY_WINDOW_NATIVE_WIDGET_MAC_H_
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+@@ -5,9 +5,209 @@
+ #include "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h"
+ 
+ #import <Cocoa/Cocoa.h>
++#import <QuartzCore/QuartzCore.h>
+ 
++#include <algorithm>
++#include <cmath>
++#include <iterator>
++#include <utility>
++
++#include "base/memory/weak_ptr.h"
+ #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
++#include "chrome/grit/generated_resources.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
++#include "ui/base/l10n/l10n_util_mac.h"
++
++// AppKit's native frame chooses the shape for the current window and state.
++// Reuse that radius for content clipping and control alignment.
++@interface NSView (VideoPictureInPictureFrameRadius)
++- (CGFloat)_cornerRadius;
++@end
++
++namespace {
++
++constexpr NSWindowButton kWindowButtons[] = {
++    NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton};
++constexpr CGFloat kOpenTabHeight = 22;
++constexpr CGFloat kOpenTabPadding = 14;
++
++}  // namespace
++
++@interface VideoPictureInPictureTitlebar : NSView
++- (instancetype)initWithWidget:(views::Widget*)widget
++                         close:(base::RepeatingClosure)close
++                      minimize:(base::RepeatingClosure)minimize
++                       openTab:(base::RepeatingClosure)openTab;
++@end
++
++@implementation VideoPictureInPictureTitlebar {
++  base::WeakPtr<views::Widget> _widget;
++  base::RepeatingClosure _close;
++  base::RepeatingClosure _minimize;
++  base::RepeatingClosure _openTab;
++  NSArray<NSButton*>* _lights;
++  NSView* _material;
++  NSButton* _openTabButton;
++  NSString* _openTabTitle;
++  CGFloat _openTabWidth;
++}
++
++- (instancetype)initWithWidget:(views::Widget*)widget
++                         close:(base::RepeatingClosure)close
++                      minimize:(base::RepeatingClosure)minimize
++                       openTab:(base::RepeatingClosure)openTab {
++  NSWindow* window = widget->GetNativeWindow().GetNativeNSWindow();
++  if (!(self = [super initWithFrame:window.contentView.bounds])) {
++    return nil;
++  }
++  _widget = widget->GetWeakPtr();
++  _close = std::move(close);
++  _minimize = std::move(minimize);
++  _openTab = std::move(openTab);
++  self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++
++  const SEL actions[] = {@selector(closePictureInPicture:),
++                         @selector(minimizePictureInPicture:),
++                         @selector(togglePictureInPictureFullscreen:)};
++  NSMutableArray<NSButton*>* lights = [NSMutableArray array];
++  for (size_t i = 0; i < std::size(kWindowButtons); ++i) {
++    NSButton* button = [NSWindow standardWindowButton:kWindowButtons[i]
++                                        forStyleMask:window.styleMask];
++    button.target = self;
++    button.action = actions[i];
++    if (button) {
++      [self addSubview:button];
++      [lights addObject:button];
++    }
++  }
++  _lights = lights;
++
++  self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
++  _openTabTitle = NSLocalizedString(
++      @"Open Tab", @"Return to the source tab from video Picture-in-Picture");
++  NSString* accessibilityTitle = l10n_util::GetNSString(
++      IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT);
++  NSImage* image = [NSImage imageWithSystemSymbolName:@"arrow.uturn.backward"
++                          accessibilityDescription:nil];
++  NSImageSymbolConfiguration* configuration =
++      [NSImageSymbolConfiguration configurationWithPointSize:12
++                                                       weight:NSFontWeightMedium];
++  _openTabButton = [NSButton buttonWithTitle:_openTabTitle
++                                     image:[image imageWithSymbolConfiguration:configuration]
++                                    target:self
++                                    action:@selector(openSourceTab:)];
++  _openTabButton.bordered = NO;
++  _openTabButton.font = [NSFont systemFontOfSize:11 weight:NSFontWeightMedium];
++  _openTabButton.imagePosition = NSImageLeft;
++  _openTabButton.contentTintColor = NSColor.whiteColor;
++  _openTabButton.toolTip = accessibilityTitle;
++  _openTabButton.accessibilityLabel = _openTabTitle;
++  _openTabWidth = _openTabButton.fittingSize.width + kOpenTabPadding;
++  _openTabButton.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++
++  if (@available(macOS 26, *)) {
++    NSGlassEffectView* glass = [[NSGlassEffectView alloc] initWithFrame:NSZeroRect];
++    glass.style = NSGlassEffectViewStyleRegular;
++    glass.cornerRadius = kOpenTabHeight / 2;
++    if (@available(macOS 27, *)) {
++      glass.effectIsInteractive = YES;
++    }
++    glass.contentView = _openTabButton;
++    _material = glass;
++  } else {
++    NSVisualEffectView* glass = [[NSVisualEffectView alloc] initWithFrame:NSZeroRect];
++    glass.material = NSVisualEffectMaterialHUDWindow;
++    glass.blendingMode = NSVisualEffectBlendingModeWithinWindow;
++    glass.state = NSVisualEffectStateActive;
++    glass.wantsLayer = YES;
++    glass.layer.cornerRadius = kOpenTabHeight / 2;
++    glass.layer.masksToBounds = YES;
++    [glass addSubview:_openTabButton];
++    _material = glass;
++  }
++  [self addSubview:_material];
++  return self;
++}
++
++- (BOOL)isFlipped {
++  return YES;
++}
++
++- (void)layout {
++  [super layout];
++  NSWindow* window = self.window;
++  NSView* frameView = window.contentView.superview;
++  NSButton* standardClose = [window standardWindowButton:NSWindowCloseButton];
++  const NSRect closeFrame =
++      [self convertRect:standardClose.frame fromView:standardClose.superview];
++  const CGFloat standardCenter =
++      std::max(NSMidY(closeFrame), kOpenTabHeight / 2 + 4);
++  const CGFloat radius = [frameView respondsToSelector:@selector(_cornerRadius)]
++                             ? frameView._cornerRadius
++                             : standardCenter;
++  const CGFloat center = radius > 0 ? radius : standardCenter;
++  window.contentView.layer.cornerRadius = radius;
++  window.contentView.layer.masksToBounds = YES;
++
++  CGFloat lightsRight = 0;
++  for (NSUInteger i = 0; i < _lights.count; ++i) {
++    NSButton* standardButton = [window standardWindowButton:kWindowButtons[i]];
++    const CGFloat offset =
++        std::abs(NSMidX(standardButton.frame) - NSMidX(standardClose.frame));
++    standardButton.hidden = YES;
++    NSButton* button = _lights[i];
++    NSRect frame = button.frame;
++    frame.origin = NSMakePoint(center + offset - NSWidth(frame) / 2,
++                              center - NSHeight(frame) / 2);
++    button.frame = frame;
++    lightsRight = std::max(lightsRight, NSMaxX(frame));
++  }
++
++  const CGFloat height = std::min(kOpenTabHeight, 2 * (center - 2));
++  const CGFloat right = NSWidth(self.bounds) - center + height / 2;
++  const bool showTitle = right - _openTabWidth >= lightsRight + 4;
++  const CGFloat width = showTitle ? _openTabWidth : height;
++  _openTabButton.title = showTitle ? _openTabTitle : @"";
++  _openTabButton.imagePosition = showTitle ? NSImageLeft : NSImageOnly;
++  _material.frame = NSMakeRect(right - width, center - height / 2, width, height);
++  if (@available(macOS 26, *)) {
++    ((NSGlassEffectView*)_material).cornerRadius = height / 2;
++  } else {
++    _material.layer.cornerRadius = height / 2;
++  }
++  _openTabButton.frame = _material.bounds;
++}
++
++- (NSView*)hitTest:(NSPoint)point {
++  NSView* hit = [super hitTest:point];
++  return hit == self ? nil : hit;
++}
++
++- (void)closePictureInPicture:(id)sender {
++  base::RepeatingClosure action = _close;
++  action.Run();
++}
++
++- (void)minimizePictureInPicture:(id)sender {
++  base::RepeatingClosure action = _minimize;
++  action.Run();
++}
++
++- (void)togglePictureInPictureFullscreen:(id)sender {
++  if (_widget) {
++    _widget->SetFullscreen(!_widget->IsFullscreen());
++  }
++}
++
++- (void)openSourceTab:(id)sender {
++  base::RepeatingClosure action = _openTab;
++  action.Run();
++}
++@end
++
++struct VideoOverlayWindowNativeWidgetMac::Titlebar {
++  VideoPictureInPictureTitlebar* view;
++};
+ 
+ VideoOverlayWindowNativeWidgetMac::VideoOverlayWindowNativeWidgetMac(
+     VideoOverlayWindowViews* widget)
+@@ -20,5 +220,33 @@
+     const views::Widget::InitParams& widget_params,
+     remote_cocoa::mojom::CreateWindowParams* params) {
+   params->window_class = remote_cocoa::mojom::WindowClass::kFrameless;
+-  params->style_mask = NSWindowStyleMaskFullSizeContentView;
++  params->style_mask = NSWindowStyleMaskTitled |
++                       NSWindowStyleMaskFullSizeContentView |
++                       NSWindowStyleMaskClosable |
++                       NSWindowStyleMaskMiniaturizable |
++                       NSWindowStyleMaskResizable;
++}
++
++void VideoOverlayWindowNativeWidgetMac::InstallWindowControls(
++    base::RepeatingClosure close,
++    base::RepeatingClosure minimize,
++    base::RepeatingClosure open_tab) {
++  NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  window.titleVisibility = NSWindowTitleHidden;
++  window.titlebarAppearsTransparent = YES;
++  window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleNone;
++  titlebar_ = std::make_unique<Titlebar>();
++  titlebar_->view = [[VideoPictureInPictureTitlebar alloc]
++      initWithWidget:GetWidget()
++               close:std::move(close)
++            minimize:std::move(minimize)
++             openTab:std::move(open_tab)];
++  [window.contentView addSubview:titlebar_->view];
++  [titlebar_->view layout];
++}
++
++void VideoOverlayWindowNativeWidgetMac::SetWindowControlsVisible(bool visible) {
++  if (titlebar_) {
++    titlebar_->view.hidden = !visible;
++  }
+ }
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -70,7 +70,6 @@
+ #include "ui/gfx/canvas.h"
+ #include "ui/gfx/favicon_size.h"
+ #include "ui/gfx/geometry/resize_utils.h"
+-#include "ui/gfx/geometry/rounded_corners_f.h"
+ #include "ui/gfx/geometry/skia_conversions.h"
+ #include "ui/gfx/text_constants.h"
+ #include "ui/views/background.h"
+@@ -354,11 +353,9 @@
+ #endif
+ 
+ #if BUILDFLAG(IS_MAC)
+-  // Clip the native content view, including the video surface and scrims.
+-  constexpr int kMacWindowCornerRadius = 12;
+-  params.rounded_corners = gfx::RoundedCornersF(kMacWindowCornerRadius);
+-  params.native_widget =
++  auto* native_widget =
+       new VideoOverlayWindowNativeWidgetMac(overlay_window.get());
++  params.native_widget = native_widget;
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -371,6 +368,23 @@
+   overlay_window->Init(std::move(params));
+   overlay_window->OnRootViewReady();
+ 
++#if BUILDFLAG(IS_MAC)
++  native_widget->InstallWindowControls(
++      base::BindRepeating(&VideoOverlayWindowViews::CloseAndPauseIfAvailable,
++                          overlay_window->weak_factory_.GetWeakPtr()),
++      base::BindRepeating([] {
++        PictureInPictureWindowManager::GetInstance()
++            ->ExitPictureInPictureViaWindowUi(
++                PictureInPictureWindowManager::UiBehavior::kCloseWindowOnly);
++      }),
++      base::BindRepeating([] {
++        PictureInPictureWindowManager::GetInstance()
++            ->ExitPictureInPictureViaWindowUi(
++                PictureInPictureWindowManager::UiBehavior::
++                    kCloseWindowAndFocusOpener);
++      }));
++#endif
++
+ #if BUILDFLAG(IS_WIN)
+   std::wstring app_user_model_id;
+   BrowserWindowInterface* browser =
+@@ -778,6 +792,12 @@
+ 
+ void VideoOverlayWindowViews::UpdateControlsVisibility(bool is_visible,
+                                                        bool should_animate) {
++#if BUILDFLAG(IS_MAC)
++  if (auto* mac_widget =
++          static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget())) {
++    mac_widget->SetWindowControlsVisible(!IsOverlayViewShown());
++  }
++#endif
+   if (is_moving_) {
+     // If we've already queued a visibility change for the same visibility, then
+     // only animate if both should animate (which matches what would have
+@@ -1014,10 +1034,13 @@
+   if (!AreControlsVisible()) {
+     return false;
+   }
+-  if (GetBackToTabControlsBounds().Contains(point) ||
++  if ((back_to_tab_button_->GetVisible() &&
++       GetBackToTabControlsBounds().Contains(point)) ||
+       GetSkipAdControlsBounds().Contains(point) ||
+-      GetCloseControlsBounds().Contains(point) ||
+-      GetMinimizeControlsBounds().Contains(point) ||
++      (close_controls_view_->GetVisible() &&
++       GetCloseControlsBounds().Contains(point)) ||
++      (minimize_button_->GetVisible() &&
++       GetMinimizeControlsBounds().Contains(point)) ||
+       GetPlayPauseControlsBounds().Contains(point) ||
+       GetReplay10SecondsButtonBounds().Contains(point) ||
+       GetForward10SecondsButtonBounds().Contains(point) ||
+@@ -1370,6 +1393,12 @@
+   close_controls_view_ =
+       controls_container_view_->AddChildView(std::move(close_controls_view));
+ 
++#if BUILDFLAG(IS_MAC)
++  minimize_button_->SetVisible(false);
++  back_to_tab_button_->SetVisible(false);
++  close_controls_view_->SetVisible(false);
++#endif
++
+   replay_10_seconds_button_ = playback_controls_container_view_->AddChildView(
+       std::move(replay_10_seconds_button));
+   play_pause_controls_view_ = playback_controls_container_view_->AddChildView(
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -826,7 +826,7 @@
+   OverlayWindowBackToTabButton* back_to_tab_image_button =
+       overlay_window().back_to_tab_button_for_testing();
+   ASSERT_NE(nullptr, back_to_tab_image_button);
+-  EXPECT_TRUE(back_to_tab_image_button->IsDrawn());
++  EXPECT_EQ(!BUILDFLAG(IS_MAC), back_to_tab_image_button->IsDrawn());
+   views::test::ButtonTestApi button_clicker(back_to_tab_image_button);
+   ui::MouseEvent dummy_event(ui::EventType::kMousePressed, gfx::Point(0, 0),
+                              gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
+@@ -1636,7 +1636,14 @@
+   EXPECT_TRUE(playback_controls_container->IsDrawn());
+ }
+ 
+-TEST_F(VideoOverlayWindowViewsTest, TopControlsFollowPlatformLayout) {
++TEST_F(VideoOverlayWindowViewsTest, ViewsTopControlsFollowPlatformLayout) {
++#if BUILDFLAG(IS_MAC)
++  overlay_window().ShowInactive();
++  overlay_window().ForceControlsVisibleForTesting(true, true);
++  EXPECT_FALSE(overlay_window().close_button_for_testing()->IsDrawn());
++  EXPECT_FALSE(overlay_window().minimize_button_for_testing()->IsDrawn());
++  EXPECT_FALSE(overlay_window().back_to_tab_button_for_testing()->IsDrawn());
++#else
+   const gfx::Rect work_area(0, 0, 4000, 4000);
+   SetDisplayWorkArea(work_area);
+   overlay_window().ShowInactive();
+@@ -1675,22 +1682,18 @@
+ 
+     // Control placement is relative to the window in every screen quadrant.
+     const auto pip_window_bounds = overlay_window().GetWindowBoundsInScreen();
+-    const auto check_control_bounds = [&](const views::View* button_view,
+-                                          bool on_left) {
+-      const gfx::Rect bounds = button_view->GetMirroredBounds();
+-      if (on_left) {
+-        EXPECT_LT(bounds.right(), pip_window_bounds.width() / 2);
+-      } else {
+-        EXPECT_GT(bounds.x(), pip_window_bounds.width() / 2);
+-      }
+-      EXPECT_LT(bounds.y(), pip_window_bounds.height() / 2);
++    const auto check_control_bounds = [&](const views::View* button_view) {
++      EXPECT_GT(button_view->GetMirroredBounds().x(),
++                pip_window_bounds.width() / 2);
++      EXPECT_LT(button_view->GetMirroredBounds().y(),
++                pip_window_bounds.height() / 2);
+     };
+ 
+-    check_control_bounds(overlay_window().close_button_for_testing(), false);
+-    check_control_bounds(overlay_window().minimize_button_for_testing(), false);
+-    check_control_bounds(overlay_window().back_to_tab_button_for_testing(),
+-                         BUILDFLAG(IS_MAC));
++    check_control_bounds(overlay_window().close_button_for_testing());
++    check_control_bounds(overlay_window().minimize_button_for_testing());
++    check_control_bounds(overlay_window().back_to_tab_button_for_testing());
+   }
++#endif
+ }
+ 
+ class VideoOverlayWindowWithShowAnimationTest
