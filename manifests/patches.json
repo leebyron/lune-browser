@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "ae139acca1c433e899f08028cdb9485a1f741d2f",
+    "commit": "981bef41826d7aca95fd335e81ea8a52bbf053ca",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1001,6 +1001,10 @@
       {
         "path": "patches/helium/ui/fullscreen-menubar-geometry.patch",
         "sha256": "cc6adc04da19e945cbc09887b9c806bcd90f0911850ebf50aefb33a544f23c6e"
+      },
+      {
+        "path": "patches/helium/ui/devtools-header-input.patch",
+        "sha256": "5a8ef040dd11cdedfa6b103e70c13d7aeda50ee94c012fe28228b401c913a77a"
       }
     ]
   },
@@ -3153,6 +3157,22 @@
       "adaptation": "Subtract menu-bar space already outside the native content window and derive only the remaining overlap from the live menu-bar fraction.",
       "commits": [
         "ae139acca1c433e899f08028cdb9485a1f741d2f"
+      ]
+    },
+    {
+      "id": "devtools-header-input",
+      "depends_on": [
+        "fullscreen-menubar-geometry",
+        "devtools-header-hover"
+      ],
+      "patches": [
+        "patches/helium/ui/devtools-header-input.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep side-docked DevTools interactive in regular windows when Lune’s floating toolbar is pinned.",
+      "adaptation": "Subtract the exposed side-docked DevTools area from native drag and cursor input using live pane geometry and existing sidebar precedence.",
+      "commits": [
+        "981bef41826d7aca95fd335e81ea8a52bbf053ca"
       ]
     }
   ],

@@ -28,3 +28,11 @@ Both arm64 and x86_64 browser builds pass. UI/defaults, loopback browsing, JavaS
 The owner accepted the live Apple silicon preview on November 10, 2026: “great this looks like a fix to me.” The preview runs with an isolated profile and DevTools docked to the right. Its first shell-sandboxed launch aborted in AppKit/HIServices application registration before the browser window existed; relaunch outside the command sandbox succeeded. The attached crash report is not evidence of a hover-path crash.
 
 The preview/build workspace also contains the concurrent bang-suggestions feature. Its patch does not touch any of the three header source files, and those files replay identically from the focused locked composition. The new platform input excludes that unrelated feature. Fullscreen, bottom docking, left docking and the multi-window pointer matrix were not separately owner-accepted; native Intel hardware was not tested. Local detailed evidence is under `.work/devtools-header/`.
+
+## Pointer input with an always-visible toolbar
+
+In a regular window, DevTools receives pointer input in its exposed side-docked column while the native toolbar stays visible in **Always** and **Always cover (experimental)**. The page-side header still provides window drag and its context menu.
+
+`BrowserFrameViewMac` derives the exclusion from each drawn DevTools WebView and the corresponding inspected page bounds. The DevTools WebView can extend behind the page, so only its exposed left or right column is subtracted from the drag surface. The exclusion follows pane layout and preserves the input area of a visible sidebar. `HeliumGlassDragRegion` uses it for AppKit hit testing and cursor registration and updates. See [issue #46](https://github.com/leebyron/lune-browser/issues/46) and the [validation record](../builds/2026-11-18-devtools-header-input.json).
+
+Split-view pointer access is deferred. The native probe still found a blocked Console tab with DevTools docked to the right in a split pane under **Always**.
