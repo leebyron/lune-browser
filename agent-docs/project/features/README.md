@@ -23,6 +23,7 @@ Start with the relevant UI surface. Feature records cover behavior, design const
 
 - [Trailing toolbar controls](trailing-toolbar-controls.md)
 - [Toolbar hover modes](toolbar-visibility.md)
+- [Native chrome proximity and fullscreen](native-chrome-hover.md)
 - [Pinned toolbar and page inset](header-inset-prototype.md)
 - [Scroll through the floating glass header](header-scroll-through.md)
 - [Header hover beside docked DevTools](devtools-header-hover.md)

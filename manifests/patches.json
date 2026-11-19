@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "0753d8f2a9390afb7d26a6a27c43cb40959c95f5",
+    "commit": "ae139acca1c433e899f08028cdb9485a1f741d2f",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -981,6 +981,26 @@
       {
         "path": "patches/helium/ui/tab-group-drag-visuals.patch",
         "sha256": "e7cadae559663e3928c75a75f3fe5b873c9094e2c76255cbb0ca54fc5182ee47"
+      },
+      {
+        "path": "patches/helium/ui/fullscreen-header-hover.patch",
+        "sha256": "5ce65370158db128bd0d9ed3fb5ec56e67b5fc3e21a667e20d11599a9a66b675"
+      },
+      {
+        "path": "patches/helium/ui/window-chrome-proximity.patch",
+        "sha256": "9aeee082fbf6710ff326c9b7d080810f696c8ea2d4374e4d38eb266bf98725ce"
+      },
+      {
+        "path": "patches/helium/ui/content-fullscreen-chrome.patch",
+        "sha256": "ebfb1cb75a1f88bf16430a02e6e8e7e82921aaad3a5dbbedf4ffaaf6da18154d"
+      },
+      {
+        "path": "patches/helium/ui/chrome-hover-distances.patch",
+        "sha256": "bca2be89d37c1f01d3fa90350849ebbf99a1233c4f370990e3dc50465b3cb896"
+      },
+      {
+        "path": "patches/helium/ui/fullscreen-menubar-geometry.patch",
+        "sha256": "cc6adc04da19e945cbc09887b9c806bcd90f0911850ebf50aefb33a544f23c6e"
       }
     ]
   },
@@ -3057,6 +3077,82 @@
       "adaptation": "Paint the active slot at its final group position, retain the group through a shared gap, and retire the separately composited title when the pin morph ends.",
       "commits": [
         "0753d8f2a9390afb7d26a6a27c43cb40959c95f5"
+      ]
+    },
+    {
+      "id": "fullscreen-header-hover",
+      "depends_on": [
+        "toolbar-hover-order",
+        "devtools-header-hover"
+      ],
+      "patches": [
+        "patches/helium/ui/fullscreen-header-hover.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Reveal the header above fullscreen content while retaining DevTools exclusions.",
+      "adaptation": "Use the owning screen and actual native content boundary for menu-bar and camera-strip entry.",
+      "commits": [
+        "63ff7d7d0ad698b7cddb71b180a370ede68ec3e8"
+      ]
+    },
+    {
+      "id": "window-chrome-proximity",
+      "depends_on": [
+        "fullscreen-header-hover"
+      ],
+      "patches": [
+        "patches/helium/ui/window-chrome-proximity.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Allow native chrome entry and retention near the exterior of a window.",
+      "adaptation": "Poll only the active native window and keep native drag, resize, editing and menu holds.",
+      "commits": [
+        "c79dc593c236bcbf7f7ed5b3e880ed4b024caf43"
+      ]
+    },
+    {
+      "id": "content-fullscreen-chrome",
+      "depends_on": [
+        "window-chrome-proximity"
+      ],
+      "patches": [
+        "patches/helium/ui/content-fullscreen-chrome.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Suppress all sidebar surfaces and input during webpage fullscreen.",
+      "adaptation": "Apply eligibility after focus/menu holds, clear transient reveal on entry, and preserve saved side/pin preferences.",
+      "commits": [
+        "1eb829a408758f44eb078788bc9b2cd50ea63afa"
+      ]
+    },
+    {
+      "id": "native-chrome-hover-distances",
+      "depends_on": [
+        "content-fullscreen-chrome"
+      ],
+      "patches": [
+        "patches/helium/ui/chrome-hover-distances.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use owner-selected side 16/128 and top 16/64 reveal and retention distances.",
+      "adaptation": "Share native distance constants for interior and exterior proximity while keeping one physical content pixel beneath a visible fullscreen menu bar.",
+      "commits": [
+        "54e2644c3c9735bc263323cc1737a734e1bea157"
+      ]
+    },
+    {
+      "id": "fullscreen-menubar-geometry",
+      "depends_on": [
+        "native-chrome-hover-distances"
+      ],
+      "patches": [
+        "patches/helium/ui/fullscreen-menubar-geometry.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep fullscreen chrome aligned during initial entry and menu-bar visibility changes.",
+      "adaptation": "Subtract menu-bar space already outside the native content window and derive only the remaining overlap from the live menu-bar fraction.",
+      "commits": [
+        "ae139acca1c433e899f08028cdb9485a1f741d2f"
       ]
     }
   ],

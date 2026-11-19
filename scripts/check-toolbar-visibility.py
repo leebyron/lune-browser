@@ -58,8 +58,9 @@ struct BrowserView {
 };
 namespace helium {
   bool pointer_in_rail;
-  bool IsPointerInNativeRevealRail(BrowserView*, bool) { return pointer_in_rail; }
+  bool IsPointerInNativeRevealRail(BrowserView*, bool, int = 0) { return pointer_in_rail; }
 }
+int TopUIFullscreenYOffset() { return 0; }
 @interface Header : NSObject
 @property(nonatomic, getter=isPresented) BOOL presented;
 @end

@@ -1,0 +1,95 @@
+{
+  "date": "2026-11-18",
+  "scope": "Approved native hover and fullscreen input for future main builds",
+  "addresses_issues": [
+    19,
+    39
+  ],
+  "chromium_version": "158.0.8127.37",
+  "core": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+  "platform": "ae139acca1c433e899f08028cdb9485a1f741d2f",
+  "platform_base": "0753d8f2a9390afb7d26a6a27c43cb40959c95f5",
+  "input_ref": "refs/tags/inputs/native-chrome-hover-1/macos",
+  "ordered_commits": [
+    "63ff7d7d0ad698b7cddb71b180a370ede68ec3e8",
+    "c79dc593c236bcbf7f7ed5b3e880ed4b024caf43",
+    "1eb829a408758f44eb078788bc9b2cd50ea63afa",
+    "54e2644c3c9735bc263323cc1737a734e1bea157",
+    "ae139acca1c433e899f08028cdb9485a1f741d2f"
+  ],
+  "patch_sha256": {
+    "helium/ui/fullscreen-header-hover.patch": "5ce65370158db128bd0d9ed3fb5ec56e67b5fc3e21a667e20d11599a9a66b675",
+    "helium/ui/window-chrome-proximity.patch": "9aeee082fbf6710ff326c9b7d080810f696c8ea2d4374e4d38eb266bf98725ce",
+    "helium/ui/content-fullscreen-chrome.patch": "ebfb1cb75a1f88bf16430a02e6e8e7e82921aaad3a5dbbedf4ffaaf6da18154d",
+    "helium/ui/chrome-hover-distances.patch": "bca2be89d37c1f01d3fa90350849ebbf99a1233c4f370990e3dc50465b3cb896",
+    "helium/ui/fullscreen-menubar-geometry.patch": "cc6adc04da19e945cbc09887b9c806bcd90f0911850ebf50aefb33a544f23c6e"
+  },
+  "source_preparation": {
+    "complete": true,
+    "zero_fuzz": true,
+    "new_patch_offsets": 0,
+    "complete_approved_source_parity": true,
+    "inventory_files": 596106,
+    "inventory_symlinks": 141,
+    "preparation_log_sha256": "34bb6c45db9df679dc690576864ec4766ce4522e623cab1d5ab336aee67d1879",
+    "changed_source_sha256": {
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "4ecbb02da75896262e3d549bf5639ffdece911bf2824c2ca2b08a42eb5741368",
+      "chrome/browser/ui/views/frame/browser_view.cc": "0b4a1b2ba91b332cd5d7e6b73ca75f7f09f4ba17fab01bb3c5b1202ce0e7dea4",
+      "chrome/browser/ui/views/helium/native_frame_materials.h": "8932c3303ffbe94e0b4bd60bd828bad1cafa9ab674bb36ac15bbb97643faa1fd",
+      "chrome/browser/ui/views/helium/native_frame_materials_mac.mm": "e9f005edf2862d6c3abb14b371e76a38572c7ba11c42ad2978224b2f61fc94e9",
+      "chrome/browser/ui/views/frame/browser_view.h": "1a13e192b2439c441f37c3a2d2e78b64ceaf572a815b7bf59b2d59cbfaeb5c38",
+      "chrome/browser/ui/views/helium/BUILD.gn": "60ac122cb0103873bfcc22c2ea8ce8f648d1735d43cc18c5e8c53d4281342dc8"
+    },
+    "unchanged_through_both_builds": true
+  },
+  "native_review": {
+    "architecture": "arm64",
+    "reviewed_framework_sha256": "f1c79fd9084758119e4fbedcbca70192d46229c6e2dfe8dc3a6ecf66a046c76c",
+    "owner_accepted_behavior": true,
+    "final_sizes_explicitly_approved": {
+      "side": [
+        16,
+        128
+      ],
+      "top": [
+        16,
+        64
+      ],
+      "below_open_toolbar": 64
+    },
+    "visible_fullscreen_content_rail_physical_pixels": 1
+  },
+  "validation": {
+    "arm64": {
+      "build": true,
+      "smoke": true,
+      "framework_sha256": "0cec9931e38af37757745acb86a1b7b93466c1863b7f9a1156bef0926a790241",
+      "execution": "native Apple silicon"
+    },
+    "x86_64": {
+      "build": true,
+      "smoke": true,
+      "framework_sha256": "9be50fb1cbb2737a5a10df635b26a0a3934bd0201f063f2f96bc948c4fce2087",
+      "execution": "Rosetta on Apple silicon"
+    },
+    "focused_checks": [
+      "production hover/menu geometry",
+      "side-docked DevTools exclusions",
+      "toolbar preference and engagement states",
+      "native drag/resize/menu retention",
+      "affected GN target dependency checks"
+    ],
+    "internal_icons_and_settings": true,
+    "repository_tests": {
+      "run": 107,
+      "skipped": 1,
+      "passed": true
+    },
+    "locked_input_ancestry_and_integrity": true,
+    "complete_patch_series_and_translation_files": true
+  },
+  "limits": [
+    "Native Intel hardware was not used.",
+    "This adopts a development input; published browser releases and stable feeds retain their frozen bytes."
+  ]
+}

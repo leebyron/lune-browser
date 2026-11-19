@@ -6,7 +6,7 @@ The vertical browser chrome uses a centered native address capsule with separate
 
 - Cmd-L or the first click enters native address editing, selects the full address and opens suggestions. Later clicks position the caret. Focus uses Chromium's `GetFormattedFullURL()`. New Tab starts with empty editing text, while an explicit visit to `about:blank` retains the literal URL.
 - Chromium's profile-aware `AutocompleteController` supplies matches. Up/Down changes selection, Return opens the result, Cmd-Return opens a foreground tab and Escape restores the page address. Cmd-T keeps its separate [command palette](command-bar.md). See [suggestion selection](address-suggestion-selection.md), [bangs](address-bar-bangs.md), [cursor behavior](address-bar-cursor.md) and [overflow padding](address-overflow-padding.md) before editing those paths.
-- Editing and browser bubbles retain the controls. [Toolbar mode](toolbar-visibility.md) determines entry. Pointer retention extends 48 pt below the revealed header. The header surfaces and trailing controls fade together. Left traffic lights follow the top toolbar or visible left sidebar and keep their left position with a right sidebar.
+- Editing and browser bubbles retain the controls. [Toolbar mode](toolbar-visibility.md) determines entry. Pointer retention extends 64 pt below the revealed glass controls; [native hover](native-chrome-hover.md) defines the remaining proximity and fullscreen rules. The header surfaces and trailing controls fade together. Left traffic lights follow the top toolbar or visible left sidebar and keep their left position with a right sidebar.
 
 ## Source and constraints
 
