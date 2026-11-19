@@ -1,0 +1,645 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -20876,6 +20876,9 @@ Please help our engineers fix this probl
+       <message name="IDS_UPDATE_SEE_WHATS_NEW" desc="Accessible name for the button opening the downloaded browser update release notes.">
+         See what's new
+       </message>
++      <message name="IDS_PAGE_TOP_WINDOW_DRAG" desc="Appearance setting to allow moving a browser window by dragging on the blank background at the top of a webpage.">
++        Allow window dragging from the top of webpages
++      </message>
+   </messages>
+ </release>
+ </grit>
+\ No newline at end of file
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -38,6 +38,7 @@
+ #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
+ #include "chrome/common/extensions/api/settings_private.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/browser/ui/helium/page_top_window_drag_pref.h"
+ #include "chrome/common/sidebar_tab_drag_pref_names.h"
+ #include "components/autofill/core/common/autofill_prefs.h"
+ #include "components/bookmarks/common/bookmark_pref_names.h"
+@@ -243,6 +244,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumZenModeTopChromePinned] =
+       settings_api::PrefType::kBoolean;
++#if BUILDFLAG(IS_MAC)
++  (*s_allowlist)[::prefs::kHeliumPageTopWindowDrag] =
++      settings_api::PrefType::kBoolean;
++#endif
+   (*s_allowlist)[::prefs::kHeliumTopControlsHoverDisabled] =
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumTopControlsOverlay] =
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -76,6 +76,10 @@ export function getHtml(this: SettingsAp
+           @settings-control-change="${this.onToolbarModeSettingsControlChange_}">
+       </settings-dropdown-menu>
+     </div>
++    <settings-toggle-button class="hr" id="pageTopWindowDrag"
++        label="$i18n{pageTopWindowDrag}"
++        pref-key="helium.browser.page_top_window_drag">
++    </settings-toggle-button>
+     <div class="cr-row">
+       <div class="flex cr-padded-text" aria-hidden="true">
+         $i18n{sidebarPosition}
+--- a/chrome/browser/ui/tabs/tab_strip_prefs.cc
++++ b/chrome/browser/ui/tabs/tab_strip_prefs.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
+ 
+ #include "base/time/time.h"
++#include "build/build_config.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
+ #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
+@@ -16,6 +17,7 @@
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/browser/ui/helium/page_top_window_drag_pref.h"
+ #include "components/pref_registry/pref_registry_syncable.h"
+ #include "components/prefs/pref_service.h"
+ #include "ui/actions/actions.h"
+@@ -49,6 +51,9 @@ void RegisterProfilePrefs(user_prefs::Pr
+   registry->RegisterBooleanPref(prefs::kHeliumZenModeTopChromePinned, false);
+   registry->RegisterBooleanPref(prefs::kHeliumTopControlsOverlay, false);
+   registry->RegisterBooleanPref(prefs::kHeliumTopControlsHoverDisabled, false);
++#if BUILDFLAG(IS_MAC)
++  registry->RegisterBooleanPref(prefs::kHeliumPageTopWindowDrag, false);
++#endif
+   registry->RegisterBooleanPref(prefs::kHeliumVerticalAddressBarInSidebar,
+                                 true);
+ }
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -11,10 +11,13 @@
+ 
+ #include "base/gtest_prod_util.h"
+ #include "base/memory/raw_ptr.h"
++#include "base/memory/weak_ptr.h"
+ #include "chrome/browser/ui/views/frame/browser_frame_view.h"
+ #include "chrome/browser/web_applications/web_app_registrar.h"
+ #include "chrome/browser/web_applications/web_app_registrar_observer.h"
+ #include "components/prefs/pref_member.h"
++#include "content/public/browser/weak_document_ptr.h"
++#include "ui/gfx/geometry/point_f.h"
+ #include "ui/gfx/geometry/rect_f.h"
+ #include "ui/views/view_tracker.h"
+ 
+@@ -23,6 +26,10 @@ class OneShotTimer;
+ class RepeatingTimer;
+ }  // namespace base
+ 
++namespace content {
++class WebContents;
++}
++
+ namespace remote_cocoa::mojom {
+ enum class ToolbarVisibilityStyle;
+ }
+@@ -136,6 +143,18 @@ class BrowserFrameViewMac : public Brows
+   void ResetFloatingSidebar();
+   void UpdateFloatingCustomizeClose();
+   NSView* HeaderScrollTarget(NSEvent* event, NSView* momentum_target);
++  NSEvent* HandlePageTopDragEvent(NSEvent* event);
++  content::WebContents* PageTopDragTarget(NSEvent* event,
++                                        gfx::PointF& widget_point);
++  void OnPageTopDragTarget(uint64_t press, bool eligible);
++
++  id __strong page_top_drag_monitor_ = nil;
++  NSEvent* __strong page_top_drag_press_ = nil;
++  content::WeakDocumentPtr page_top_drag_document_;
++  gfx::PointF page_top_drag_point_;
++  uint64_t page_top_drag_press_id_ = 0;
++  bool page_top_drag_eligible_ = false;
++  bool page_top_drag_active_ = false;
+ 
+   void UpdateCaptionButtonPlaceholderContainerBackground();
+ 
+@@ -207,6 +226,8 @@ class BrowserFrameViewMac : public Brows
+   // Used to track the current toolbar style.
+   std::optional<remote_cocoa::mojom::ToolbarVisibilityStyle>
+       current_toolbar_style_;
++
++  base::WeakPtrFactory<BrowserFrameViewMac> page_top_drag_weak_factory_{this};
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_VIEW_MAC_H_
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -50,6 +50,7 @@
+ #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
+ #include "chrome/browser/ui/helium/native_result_row_mac.h"
+ #include "chrome/browser/ui/helium/native_word_navigation_mac.h"
++#include "chrome/browser/ui/helium/page_top_window_drag_pref.h"
+ #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/navigator/browser_navigator.h"
+@@ -105,8 +106,13 @@
+ #include "components/strings/grit/components_strings.h"
+ #include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/navigation_entry.h"
++#include "content/public/browser/page_top_window_drag_mac.h"
++#include "content/public/browser/render_frame_host.h"
++#include "content/public/browser/render_widget_host.h"
++#include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents.h"
+ #include "ui/base/clipboard/scoped_clipboard_writer.h"
++#include "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/hit_test.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_utils.h"
+@@ -2531,6 +2537,17 @@ FullscreenToolbarStyle GetUserPreferredT
+ ///////////////////////////////////////////////////////////////////////////////
+ // BrowserFrameViewMac, public:
+ 
++namespace {
++constexpr int kFloatingToolbarControlHeight = 36;
++constexpr int kFloatingToolbarVerticalPadding = 8;
++constexpr int kFloatingToolbarHeight =
++    kFloatingToolbarControlHeight + 2 * kFloatingToolbarVerticalPadding;
++constexpr CGFloat kPageTopDragThreshold = 4;
++constexpr NSEventModifierFlags kPageTopDragModifiers =
++    NSEventModifierFlagCommand | NSEventModifierFlagShift |
++    NSEventModifierFlagOption | NSEventModifierFlagControl;
++}  // namespace
++
+ BrowserFrameViewMac::BrowserFrameViewMac(BrowserWidget* frame,
+                                          BrowserView* browser_view)
+     : BrowserFrameView(frame, browser_view),
+@@ -2571,6 +2588,10 @@ BrowserFrameViewMac::BrowserFrameViewMac
+ }
+ 
+ BrowserFrameViewMac::~BrowserFrameViewMac() {
++  page_top_drag_weak_factory_.InvalidateWeakPtrs();
++  if (page_top_drag_monitor_) {
++    [NSEvent removeMonitor:page_top_drag_monitor_];
++  }
+   [header_scroll_router_ shutdown];
+   header_scroll_router_ = nil;
+   floating_address_refresh_timer_->Stop();
+@@ -3020,7 +3041,8 @@ int BrowserFrameViewMac::NonClientHitTes
+         views::View::ConvertRectToTarget(sidebar, GetBrowserView(),
+                                          sidebar->GetLocalBounds())
+             .Contains(local);
+-    if (!in_sidebar && local.y() >= 0 && local.y() < 52) {
++    if (!in_sidebar && local.y() >= 0 &&
++        local.y() < kFloatingToolbarHeight) {
+       return HTCLIENT;
+     }
+   }
+@@ -3293,6 +3315,16 @@ void BrowserFrameViewMac::UpdateFloating
+   if (!GetWidget() || GetWidget()->IsClosed() || !browser_view->toolbar()) {
+     return;
+   }
++  if (!page_top_drag_monitor_ && HasFloatingAddressBar()) {
++    auto weak = page_top_drag_weak_factory_.GetWeakPtr();
++    page_top_drag_monitor_ = [NSEvent
++        addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown |
++                                            NSEventMaskLeftMouseDragged |
++                                            NSEventMaskLeftMouseUp
++                                    handler:^NSEvent*(NSEvent* event) {
++      return weak ? weak->HandlePageTopDragEvent(event) : event;
++    }];
++  }
+   UpdateFloatingCustomizeClose();
+   auto* location = browser_view->toolbar()->location_bar_view();
+   if (location && location->GetVisible() == HasFloatingAddressBar()) {
+@@ -3377,8 +3409,9 @@ void BrowserFrameViewMac::UpdateFloating
+   const int leading = std::max(content.x() + glass_inset, controls_right + 8);
+   const int trailing =
+       std::min(content.right() - glass_inset, browser_view->width() - 8);
+-  const gfx::Rect bar_region(leading, 8 + TopUIFullscreenYOffset(),
+-                             std::max(0, trailing - leading), 36);
++  const gfx::Rect bar_region(
++      leading, kFloatingToolbarVerticalPadding + TopUIFullscreenYOffset(),
++      std::max(0, trailing - leading), kFloatingToolbarControlHeight);
+   const int navigation_width = FloatingNavigationWidth(browser_view);
+   const int address_left =
+       leading + (navigation_width > 0 ? navigation_width + 12 : 0);
+@@ -3699,7 +3732,9 @@ void BrowserFrameViewMac::UpdateFloating
+                                  FloatingNavigationWidth(view), 36));
+     // Cover the gap above controls even while the fullscreen menu bar lowers
+     // them. Only the controls move; the input shield stays at the window top.
+-    gfx::Rect drag_bounds(0, 0, view->width(), region.y() - 8 + 52);
++    gfx::Rect drag_bounds(
++        0, 0, view->width(),
++        region.y() - kFloatingToolbarVerticalPadding + kFloatingToolbarHeight);
+     if (auto* panel = view->side_panel(); panel && panel->GetVisible()) {
+       const gfx::Rect panel_bounds = views::View::ConvertRectToTarget(
+           panel, view, panel->GetLocalBounds());
+@@ -3930,6 +3965,133 @@ NSView* BrowserFrameViewMac::HeaderScrol
+   return nil;
+ }
+ 
++content::WebContents* BrowserFrameViewMac::PageTopDragTarget(
++    NSEvent* event, gfx::PointF& widget_point) {
++  auto* browser = GetBrowserView();
++  NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  if (!HasFloatingAddressBar() || !window.movable ||
++      GetWidget()->IsFullscreen() ||
++      window.attachedSheet || NSApp.modalWindow ||
++      browser->IsChromeRevealHeldForMenu() || IsWindowControlsMenuOpen() ||
++      !browser->GetProfile()->GetPrefs()->GetBoolean(
++          prefs::kHeliumPageTopWindowDrag) ||
++      ui::IsWindowResizePoint(window, event.locationInWindow)) {
++    return nullptr;
++  }
++
++  const NSPoint screen = [window convertPointToScreen:event.locationInWindow];
++  gfx::Point point = gfx::ScreenPointFromNSPoint(screen);
++  views::View::ConvertPointFromScreen(browser, &point);
++  if (point.y() < 0 || point.y() >= kFloatingToolbarHeight) {
++    return nullptr;
++  }
++  NSView* content_view = window.contentView;
++  NSView* native_hit = [content_view hitTest:
++      [content_view.superview convertPoint:event.locationInWindow fromView:nil]];
++  if (!native_hit) {
++    return nullptr;
++  }
++  for (const auto& container : browser->GetContentsContainerViews()) {
++    auto* page = container->contents_view();
++    if (!page || !page->IsDrawn() || !page->GetEnabled() ||
++        page->holder()->GetProperty(views::kIsBlockedByModalKey)) {
++      continue;
++    }
++    gfx::Point local = point;
++    views::View::ConvertPointToTarget(browser, container.get(), &local);
++    auto* hit = container->GetEventHandlerForPoint(local);
++    if (!hit || !page->Contains(hit)) {
++      continue;
++    }
++    content::WebContents* contents = page->web_contents();
++    if (!contents || !contents->GetLastCommittedURL().SchemeIsHTTPOrHTTPS() ||
++        contents->IsFullscreen()) {
++      return nullptr;
++    }
++    auto* frame = contents->GetPrimaryMainFrame();
++    auto* view = frame->GetRenderWidgetHost()->GetView();
++    NSView* renderer = view ? view->GetNativeView().GetNativeNSView() : nil;
++    if (!renderer || renderer.window != window ||
++        ![native_hit isDescendantOf:renderer]) {
++      return nullptr;
++    }
++    NSPoint position = [renderer convertPoint:event.locationInWindow fromView:nil];
++    if (!renderer.isFlipped) {
++      position.y = NSMaxY(renderer.bounds) - position.y;
++    }
++    widget_point = gfx::PointF(position.x, position.y);
++    return contents;
++  }
++  return nullptr;
++}
++
++void BrowserFrameViewMac::OnPageTopDragTarget(uint64_t press, bool eligible) {
++  if (press == page_top_drag_press_id_ && page_top_drag_press_) {
++    page_top_drag_eligible_ = eligible;
++  }
++}
++
++NSEvent* BrowserFrameViewMac::HandlePageTopDragEvent(NSEvent* event) {
++  if (!GetWidget() || GetWidget()->IsClosed() ||
++      event.window != GetWidget()->GetNativeWindow().GetNativeNSWindow()) {
++    return event;
++  }
++  if (event.type == NSEventTypeLeftMouseDown) {
++    ++page_top_drag_press_id_;
++    page_top_drag_press_ = nil;
++    page_top_drag_document_ = {};
++    page_top_drag_active_ = false;
++    page_top_drag_eligible_ = false;
++    if (event.clickCount == 1 && !(event.modifierFlags & kPageTopDragModifiers)) {
++      if (auto* target = PageTopDragTarget(event, page_top_drag_point_)) {
++        auto* frame = target->GetPrimaryMainFrame();
++        page_top_drag_document_ = frame->GetWeakDocumentPtr();
++        page_top_drag_press_ = event;
++        content::IsPageTopDragTarget(
++            *frame->GetRenderWidgetHost(), page_top_drag_point_,
++            base::BindOnce(&BrowserFrameViewMac::OnPageTopDragTarget,
++                           page_top_drag_weak_factory_.GetWeakPtr(),
++                           page_top_drag_press_id_));
++      }
++    }
++    return event;
++  }
++  if (event.type == NSEventTypeLeftMouseUp) {
++    page_top_drag_press_ = nil;
++    page_top_drag_document_ = {};
++    return std::exchange(page_top_drag_active_, false) ? nil : event;
++  }
++  if (page_top_drag_active_) {
++    return nil;
++  }
++  NSEvent* press = page_top_drag_press_;
++  if (!press) {
++    return event;
++  }
++  const NSPoint start = press.locationInWindow;
++  const NSPoint current = event.locationInWindow;
++  if (std::hypot(current.x - start.x, current.y - start.y) <
++      kPageTopDragThreshold) {
++    return event;
++  }
++  page_top_drag_press_ = nil;
++  auto* frame = page_top_drag_document_.AsRenderFrameHostIfValid();
++  gfx::PointF widget_point;
++  auto* target = page_top_drag_eligible_ ? PageTopDragTarget(press, widget_point)
++                                         : nullptr;
++  if (!frame || !target || frame != target->GetPrimaryMainFrame() ||
++      widget_point != page_top_drag_point_ ||
++      (event.modifierFlags & kPageTopDragModifiers)) {
++    return event;
++  }
++
++  page_top_drag_active_ = true;
++  content::ReleasePageTopDragPress(*frame->GetRenderWidgetHost(),
++                                   widget_point);
++  [event.window performWindowDragWithEvent:press];
++  return nil;
++}
++
+ void BrowserFrameViewMac::UpdateFloatingCustomizeClose() {
+   auto* view = GetBrowserView();
+   auto* panel = view->side_panel();
+@@ -3975,7 +4137,8 @@ bool BrowserFrameViewMac::IsWindowContro
+ }
+ 
+ bool BrowserFrameViewMac::IsFloatingChromeDragging() const {
+-  return floating_drag_region_.dragging || floating_window_controls_.dragging ||
++  return (page_top_drag_active_ && (NSEvent.pressedMouseButtons & 1)) ||
++         floating_drag_region_.dragging || floating_window_controls_.dragging ||
+          pinned_sidebar_input_.dragging;
+ }
+ 
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -614,6 +614,7 @@ void AddAppearanceStrings(content::WebUI
+   static constexpr webui::LocalizedString kLocalizedStrings[] = {
+       {"appearancePageTitle", IDS_SETTINGS_APPEARANCE},
+       {"showToolbar", IDS_TOP_CONTROLS_MENU},
++      {"pageTopWindowDrag", IDS_PAGE_TOP_WINDOW_DRAG},
+       {"showToolbarHover", IDS_TOP_CONTROLS_HOVER},
+       {"showToolbarNoHover", IDS_TOP_CONTROLS_NO_HOVER},
+       {"showToolbarAlways", IDS_TOP_CONTROLS_ALWAYS},
+--- a/content/browser/renderer_host/render_widget_host_impl.cc
++++ b/content/browser/renderer_host/render_widget_host_impl.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "content/browser/renderer_host/render_widget_host_impl.h"
++#include "content/public/browser/page_top_window_drag_mac.h"
+ 
+ #include <math.h>
+ 
+@@ -657,6 +658,29 @@ int RenderWidgetHostImpl::GetRoutingID()
+   return routing_id_;
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++void IsPageTopDragTarget(RenderWidgetHost& widget,
++                         const gfx::PointF& point_in_widget,
++                         base::OnceCallback<void(bool)> reply) {
++  auto* host = RenderWidgetHostImpl::From(&widget);
++  const auto& frame_widget = host->GetAssociatedFrameWidget();
++  if (!frame_widget || !host->renderer_initialized()) {
++    std::move(reply).Run(false);
++    return;
++  }
++  frame_widget->IsPageTopDragTarget(point_in_widget, std::move(reply));
++}
++
++void ReleasePageTopDragPress(RenderWidgetHost& widget,
++                             const gfx::PointF& point_in_widget) {
++  auto* host = RenderWidgetHostImpl::From(&widget);
++  const auto& frame_widget = host->GetAssociatedFrameWidget();
++  if (frame_widget && host->renderer_initialized()) {
++    frame_widget->ReleasePageTopDragPress(point_in_widget);
++  }
++}
++#endif
++
+ RenderWidgetHostViewBase* RenderWidgetHostImpl::GetView() {
+   return view_.get();
+ }
+--- a/third_party/blink/public/mojom/page/widget.mojom
++++ b/third_party/blink/public/mojom/page/widget.mojom
+@@ -172,6 +172,14 @@ interface FrameWidget {
+   GetStringAtPoint(gfx.mojom.Point point_in_local_root)
+       => (ui.mojom.AttributedString? string, gfx.mojom.Point baseline_point);
+ 
++  // Classifies the press before the browser takes an AppKit window drag.
++  [EnableIf=is_mac]
++  IsPageTopDragTarget(gfx.mojom.PointF point_in_widget) => (bool eligible);
++
++  // Balances a press taken over by AppKit without dispatching a click.
++  [EnableIf=is_mac]
++  ReleasePageTopDragPress(gfx.mojom.PointF point_in_widget);
++
+   // Enables device emulator.
+   EnableDeviceEmulation(DeviceEmulationParams parameters,
+                         DeviceEmulationCacheBehavior cache_behavior);
+--- a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
++++ b/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
+@@ -133,6 +133,7 @@
+ #include "third_party/blink/renderer/core/input/touch_action_util.h"
+ #include "third_party/blink/renderer/core/layout/hit_test_location.h"
+ #include "third_party/blink/renderer/core/layout/hit_test_request.h"
++#include "third_party/blink/renderer/core/layout/hit_test_result.h"
+ #include "third_party/blink/renderer/core/layout/layout_box.h"
+ #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
+ #include "third_party/blink/renderer/core/layout/layout_html_canvas.h"
+@@ -930,6 +931,87 @@ void WebFrameWidgetImpl::UpdateRenderThr
+ }
+ 
+ #if BUILDFLAG(IS_MAC)
++namespace {
++
++bool HasPageDragListeners(const EventTarget& target) {
++  return target.HasEventListeners(event_type_names::kMousedown) ||
++         target.HasEventListeners(event_type_names::kMouseup) ||
++         target.HasEventListeners(event_type_names::kMousemove) ||
++         target.HasEventListeners(event_type_names::kPointerdown) ||
++         target.HasEventListeners(event_type_names::kPointerup) ||
++         target.HasEventListeners(event_type_names::kPointermove) ||
++         target.HasEventListeners(event_type_names::kPointerrawupdate) ||
++         target.HasEventListeners(event_type_names::kGotpointercapture) ||
++         target.HasEventListeners(event_type_names::kDragstart) ||
++         target.HasEventListeners(event_type_names::kSelectstart);
++}
++
++bool IsPlainPageBackground(const HitTestResult& hit,
++                           const Document& document) {
++  Node* node = hit.InnerNode();
++  if (!node || &node->GetDocument() != &document || hit.GetScrollbar() ||
++      hit.IsOverEmbeddedContentView() || hit.URLElement() ||
++      hit.InnerPossiblyPseudoNode() != node || IsEditable(*node)) {
++    return false;
++  }
++
++  // Permit ordinary structural HTML only. Custom controls, text, media,
++  // frames, canvas and shadow trees retain their pointer input.
++  for (Node* ancestor = node; ancestor && ancestor != &document;
++       ancestor = ancestor->parentNode()) {
++    const auto* element = DynamicTo<HTMLElement>(ancestor);
++    if (!element || element->IsInShadowTree() || element->draggable() ||
++        element->FastHasAttribute(html_names::kRoleAttr) ||
++        element->FastHasAttribute(html_names::kTabindexAttr) ||
++        HasPageDragListeners(*element)) {
++      return false;
++    }
++    if (!element->HasTagName(html_names::kHTMLTag) &&
++        !element->HasTagName(html_names::kBodyTag) &&
++        !element->HasTagName(html_names::kDivTag) &&
++        !element->HasTagName(html_names::kSectionTag) &&
++        !element->HasTagName(html_names::kMainTag) &&
++        !element->HasTagName(html_names::kHeaderTag) &&
++        !element->HasTagName(html_names::kFooterTag) &&
++        !element->HasTagName(html_names::kArticleTag) &&
++        !element->HasTagName(html_names::kAsideTag) &&
++        !element->HasTagName(html_names::kNavTag)) {
++      return false;
++    }
++  }
++  return !HasPageDragListeners(document) &&
++         document.domWindow() && !HasPageDragListeners(*document.domWindow());
++}
++
++}  // namespace
++
++void WebFrameWidgetImpl::IsPageTopDragTarget(
++    const gfx::PointF& point_in_widget,
++    IsPageTopDragTargetCallback callback) {
++  LocalFrame* frame = local_root_ ? local_root_->GetFrame() : nullptr;
++  const bool eligible =
++      frame && frame->IsOutermostMainFrame() && frame->View() &&
++      frame->GetDocument() && GetPage() &&
++      !GetPage()->GetPointerLockController().IsPointerLocked() &&
++      IsPlainPageBackground(
++          CoreHitTestResultAt(widget_base_->DIPsToBlinkSpace(point_in_widget)),
++          *frame->GetDocument());
++  std::move(callback).Run(eligible);
++}
++
++void WebFrameWidgetImpl::ReleasePageTopDragPress(
++    const gfx::PointF& point_in_widget) {
++  LocalFrame* frame = local_root_ ? local_root_->GetFrame() : nullptr;
++  if (!frame || !frame->View()) {
++    return;
++  }
++  WebMouseEvent release(WebInputEvent::Type::kMouseUp,
++                        WebInputEvent::kNoModifiers, base::TimeTicks::Now());
++  release.button = WebMouseEvent::Button::kLeft;
++  release.SetPositionInWidget(widget_base_->DIPsToBlinkSpace(point_in_widget));
++  frame->GetEventHandler().ReleaseMousePressForWindowDrag(release);
++}
++
+ void WebFrameWidgetImpl::GetStringAtPoint(const gfx::Point& point_in_local_root,
+                                           GetStringAtPointCallback callback) {
+   gfx::Point baseline_point;
+--- a/third_party/blink/renderer/core/frame/web_frame_widget_impl.h
++++ b/third_party/blink/renderer/core/frame/web_frame_widget_impl.h
+@@ -994,6 +994,9 @@ class CORE_EXPORT WebFrameWidgetImpl
+   // input.
+   void SetIsInertForSubFrame(bool inert) override;
+ #if BUILDFLAG(IS_MAC)
++  void IsPageTopDragTarget(const gfx::PointF& point_in_widget,
++                           IsPageTopDragTargetCallback callback) override;
++  void ReleasePageTopDragPress(const gfx::PointF& point_in_widget) override;
+   void GetStringAtPoint(const gfx::Point& point_in_local_root,
+                         GetStringAtPointCallback callback) override;
+ #endif
+--- a/third_party/blink/renderer/core/input/event_handler.cc
++++ b/third_party/blink/renderer/core/input/event_handler.cc
+@@ -1260,6 +1260,16 @@ WebInputEventResult EventHandler::Handle
+   return event_result;
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++void EventHandler::ReleaseMousePressForWindowDrag(
++    const WebMouseEvent& mouse_event) {
++  if (mouse_event_manager_->MousePressed()) {
++    mouse_event_manager_->InvalidateClick();
++    HandleMouseReleaseEvent(mouse_event);
++  }
++}
++#endif
++
+ WebInputEventResult EventHandler::HandleMouseReleaseEvent(
+     const WebMouseEvent& mouse_event) {
+   TRACE_EVENT0("blink", "EventHandler::handleMouseReleaseEvent");
+--- a/third_party/blink/renderer/core/input/event_handler.h
++++ b/third_party/blink/renderer/core/input/event_handler.h
+@@ -31,6 +31,7 @@
+ #include "base/debug/crash_logging.h"
+ #include "base/gtest_prod_util.h"
+ #include "base/time/time.h"
++#include "build/build_config.h"
+ #include "third_party/blink/public/common/input/web_input_event.h"
+ #include "third_party/blink/public/platform/web_input_event_result.h"
+ #include "third_party/blink/renderer/core/core_export.h"
+@@ -167,6 +168,9 @@ class CORE_EXPORT EventHandler final : p
+ 
+   WebInputEventResult HandleMousePressEvent(const WebMouseEvent&);
+   WebInputEventResult HandleMouseReleaseEvent(const WebMouseEvent&);
++#if BUILDFLAG(IS_MAC)
++  void ReleaseMousePressForWindowDrag(const WebMouseEvent&);
++#endif
+   WebInputEventResult HandleWheelEvent(const WebMouseWheelEvent&);
+ 
+   WebInputEventResult HandleTargetedMouseEvent(
+--- /dev/null
++++ b/chrome/browser/ui/helium/page_top_window_drag_pref.h
+@@ -0,0 +1,15 @@
++// Copyright 2026 The Helium Authors
++// This file is part of the Helium Browser, and is distributed under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_HELIUM_PAGE_TOP_WINDOW_DRAG_PREF_H_
++#define CHROME_BROWSER_UI_HELIUM_PAGE_TOP_WINDOW_DRAG_PREF_H_
++
++namespace prefs {
++
++inline constexpr char kHeliumPageTopWindowDrag[] =
++    "helium.browser.page_top_window_drag";
++
++}  // namespace prefs
++
++#endif  // CHROME_BROWSER_UI_HELIUM_PAGE_TOP_WINDOW_DRAG_PREF_H_
+--- /dev/null
++++ b/content/public/browser/page_top_window_drag_mac.h
+@@ -0,0 +1,31 @@
++// Copyright 2026 The Helium Authors
++// This file is part of the Helium Browser, and is distributed under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CONTENT_PUBLIC_BROWSER_PAGE_TOP_WINDOW_DRAG_MAC_H_
++#define CONTENT_PUBLIC_BROWSER_PAGE_TOP_WINDOW_DRAG_MAC_H_
++
++#include "base/functional/callback_forward.h"
++#include "content/common/content_export.h"
++
++namespace gfx {
++class PointF;
++}
++
++namespace content {
++
++class RenderWidgetHost;
++
++// Asks Blink whether the point is inert background in a top-level webpage.
++// A false or missing reply leaves the gesture with the page.
++CONTENT_EXPORT void IsPageTopDragTarget(RenderWidgetHost& widget,
++                                       const gfx::PointF& point_in_widget,
++                                       base::OnceCallback<void(bool)> reply);
++
++// Clears Blink's pressed state when AppKit takes over a native drag.
++CONTENT_EXPORT void ReleasePageTopDragPress(RenderWidgetHost& widget,
++                                           const gfx::PointF& point_in_widget);
++
++}  // namespace content
++
++#endif  // CONTENT_PUBLIC_BROWSER_PAGE_TOP_WINDOW_DRAG_MAC_H_
