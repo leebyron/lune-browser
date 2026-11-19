@@ -1,0 +1,109 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -3363,12 +3363,13 @@
+   }
+   const bool in_sidebar_header = sidebar_header.Contains(cursor);
+   // Distance hysteresis: enter through the rail or a visible sidebar header.
+-  // Once open, page/sidebar columns down to 48 points below the glass retain
++  // Once open, page/sidebar columns down to 64 points below the glass retain
+   // it, including the fullscreen menu-bar strip above the content window.
+   // Side-docked DevTools neither reveal nor retain the header.
+   const bool within_retention = [floating_address_bar_ isPresented] &&
+                                 in_hover_area && in_window &&
+-                                cursor.y() <= bounds.bottom() + 48;
++                                cursor.y() <= bounds.bottom() +
++                                    helium::kNativeTopChromeRetentionDistance;
+   if (host && host->GetVisible()) {
+     host->SetBoundsRect(bounds);
+     [floating_address_bar_ refresh];
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2352,9 +2352,15 @@
+     const gfx::Rect sidebar = views::View::ConvertRectToTarget(
+         vertical_tab_strip_region_view_->parent(), this,
+         vertical_tab_strip_region_view_->bounds());
++    int retention_distance = 48;
++#if BUILDFLAG(IS_MAC)
++    if (GetFrameView() && GetFrameView()->HasFloatingAddressBar()) {
++      retention_distance = helium::kNativeSideChromeRetentionDistance;
++    }
++#endif
+     within_side_retention = IsVerticalTabStripRightAligned()
+-                                ? cursor.x() >= sidebar.x() - 48
+-                                : cursor.x() <= sidebar.right() + 48;
++        ? cursor.x() >= sidebar.x() - retention_distance
++        : cursor.x() <= sidebar.right() + retention_distance;
+   }
+   const bool reveal_side = within_side_retention || in_side_trigger ||
+                            (!reveal_top && in_side_chrome);
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -418,12 +418,15 @@
+   }
+   const NSRect bounds = [window convertRectToScreen:
+       [content convertRect:content.bounds toView:nil]];
+-  const CGFloat margin = retention ? 16 : 8;
++  const CGFloat horizontal = retention ? kNativeSideChromeRetentionDistance
++                                       : kNativeSideChromeRevealDistance;
++  const CGFloat vertical = retention ? kNativeTopChromeRetentionDistance
++                                     : kNativeTopChromeRevealDistance;
+   const NSPoint pointer = NSEvent.mouseLocation;
+-  return pointer.x >= NSMinX(bounds) - margin &&
+-         pointer.x <= NSMaxX(bounds) + margin &&
+-         pointer.y >= NSMinY(bounds) - margin &&
+-         pointer.y <= NSMaxY(bounds) + margin;
++  return pointer.x >= NSMinX(bounds) - horizontal &&
++         pointer.x <= NSMaxX(bounds) + horizontal &&
++         pointer.y >= NSMinY(bounds) - vertical &&
++         pointer.y <= NSMaxY(bounds) + vertical;
+ }
+ 
+ bool IsPointerAboveNativeFullscreenContent(const BrowserView* view) {
+@@ -479,20 +482,19 @@
+   const NSPoint point =
+       [native convertPoint:[window convertPointFromScreen:screen_point]
+                   fromView:nil];
+-  // Reveal within eight logical pixels of the top or mounted side. This
+-  // observer is independent of AppKit's resize hit targets and consumes no
+-  // layout space. Retain the adjacent exterior edge for resize-hover reveal.
+-  constexpr CGFloat rail = 8;
+-  if (point.x < -rail || point.x > NSWidth(native.bounds) + rail ||
+-      point.y < -rail || point.y > NSHeight(native.bounds) + rail) {
++  // Observe the top and mounted side without reserving layout or resize space.
++  constexpr CGFloat top_rail = kNativeTopChromeRevealDistance;
++  constexpr CGFloat side_rail = kNativeSideChromeRevealDistance;
++  if (point.x < -side_rail || point.x > NSWidth(native.bounds) + side_rail ||
++      point.y < -top_rail || point.y > NSHeight(native.bounds) + top_rail) {
+     return false;
+   }
+   const CGFloat y =
+       native.isFlipped ? point.y : NSHeight(native.bounds) - point.y;
+-  return top ? y < rail
++  return top ? y < top_rail
+              : (view->IsVerticalTabStripRightAligned()
+-                    ? point.x >= NSWidth(native.bounds) - rail
+-                    : point.x < rail);
++                    ? point.x >= NSWidth(native.bounds) - side_rail
++                    : point.x < side_rail);
+ }
+ }  // namespace helium
+ 
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -64,10 +64,15 @@
+ std::optional<SkColor> NativeGlassControlColor(const views::View* view,
+                                                bool enabled = true);
+ #if BUILDFLAG(IS_MAC)
++inline constexpr int kNativeTopChromeRevealDistance = 16;
++inline constexpr int kNativeTopChromeRetentionDistance = 64;
++inline constexpr int kNativeSideChromeRevealDistance = 16;
++inline constexpr int kNativeSideChromeRetentionDistance = 128;
++
+ // The menu bar and camera-safe strip above fullscreen app content.
+ // Excludes webpage fullscreen and other screens.
+ bool IsPointerAboveNativeFullscreenContent(const BrowserView* view);
+-// Eight-point windowed entry area; sixteen-point exterior retention area.
++// Windowed proximity uses separate horizontal and vertical distances.
+ bool IsPointerInNativeWindowHoverArea(const BrowserView* view, bool retention);
+ bool IsPointerInNativeRevealRail(const BrowserView* view, bool top);
+ // AppKit owns the lifetime of an interactive window resize.
