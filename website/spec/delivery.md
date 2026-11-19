@@ -47,7 +47,7 @@ Use the existing `[self-hosted, macOS, ARM64, lune-build]` runner. Website, setu
 
 For an authorized deployment:
 
-1. Validate the settled source and inspect the commits being pushed. Apply the [Chromium freshness gate](../../agent-docs/project/releases.md#chromium-freshness-gate) before website promotion.
+1. Validate the settled source and inspect the commits being pushed. Website changes and deployments do not require Chromium version or freshness checks.
 2. Run the guarded Website workflow, or `npm run deploy` with the same production guard and appropriate authentication. A queued, cancelled, or merely pushed revision is not a deployment.
 3. Verify workflow success, public HTTPS, and byte parity against the exact deployed build. Read back changed homepage assets and any generated legal HTML/Markdown; `_headers` is configuration, not a served file. Do not claim Cloudflare-injected analytics markup is a source change; distinguish it from the generated page when checking responses.
 4. Retain the source commit, hashes, workflow URL, readback result, and material test limits in a dated [build record](../../agent-docs/project/builds/). Follow the [completion process](../../agent-docs/project/committing.md) and stop task-owned previews/servers.

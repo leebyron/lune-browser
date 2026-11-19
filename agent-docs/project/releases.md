@@ -53,7 +53,7 @@ The implementation follows Xelium's Chromium signing, notarization, DMG and Spar
 
 ## Chromium freshness gate
 
-Use [Chromium Dash's official macOS Stable endpoint](https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1) at input selection, immediately before public release publication and again before feed/website promotion. Do not substitute downstream release versions, another platform/channel or a cached discovery result. Compare the complete numeric Chromium version in frozen inputs and packaged apps. Label a newer candidate as ahead of the observed Stable version, not as matching Stable.
+Use [Chromium Dash's official macOS Stable endpoint](https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1) at input selection, immediately before public release publication and again before browser feed promotion. Website changes and deployments do not require this check. Do not substitute downstream release versions, another platform/channel or a cached discovery result. Compare the complete numeric Chromium version in frozen inputs and packaged apps. Label a newer candidate as ahead of the observed Stable version, not as matching Stable.
 
 Record Lune version/source commit, target architectures/channel, candidate and observed Chromium versions, UTC check time, source URL/channel/platform, response evidence, comparison (`current`, `ahead`, `behind`, `unknown`) and publication decision. Keep observations separate from frozen source records. A Stable update during building/acceptance can invalidate an earlier freshness claim.
 

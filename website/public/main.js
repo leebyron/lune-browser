@@ -13,7 +13,7 @@
   let commandOverride=null;
   let commandStart=0,bangStart=0,commandComplete=0,commandDismiss=0,commandEnd=0,bangStartedAt=null,commandFrame=0;
   let panelPointer=null,cursorPath=null,cursorPathLength=0,browserScale=1;
-  const panelDismissDistance=48;
+  const chromeHover={sideReveal:16,sideRetain:128,topReveal:16,topRetain:64};
   let demoStart=0,demoDistance=460,toolbarStop=25,cursorStop=65,sidebarOverride=null,sidebarHovered=false,demoToolbarActive=false;
   const dock=root.querySelector('.dock'),items=[...dock.querySelectorAll('.dock-item')];
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
@@ -205,7 +205,7 @@
     const incoming = `M ${-originX - 28} ${pageHeight * .38 * browserScale} C ${toolbarX*.35} ${pageHeight*.38*browserScale}, ${toolbarX*.8} ${toolbarY}, ${toolbarX} ${toolbarY}`;
     const toToggle=` C ${toolbarX*.8} ${toolbarY}, ${toggleX+48*browserScale} ${toggleY}, ${toggleX} ${toggleY}`;
     // Arc above the browser, then leave the left edge of the desktop.
-    const exitX = -originX - 32, exitY = -48 * browserScale;
+    const exitX = Math.min(-originX - 32, -(chromeHover.sideRetain + 16) * browserScale), exitY = -48 * browserScale;
     const outgoing = ` C ${toggleX - 30 * browserScale} ${-42 * browserScale}, ${exitX + 100 * browserScale} ${exitY - 20 * browserScale}, ${exitX} ${exitY}`;
     // Pause precisely at the toggle, regardless of viewport or curve length.
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -513,9 +513,11 @@
       progress<=.62?toolbarStop+clamp((progress-.42)/.20)*(cursorStop-toolbarStop):
       progress<=.76?cursorStop:cursorStop+clamp((progress-.76)/.24)*(100-cursorStop);
     const cursorPoint = cursorPath.getPointAtLength(cursorDistance / 100 * cursorPathLength);
-    const cursorInsideWindow=cursorPoint.x>=0&&cursorPoint.x<=win.clientWidth*browserScale&&
-      cursorPoint.y>=0&&cursorPoint.y<=win.clientHeight*browserScale;
-    const demoHolding = sidebarOverride === null && (progress < .68 || cursorInsideWindow);
+    const cursorWithinRetention=containsPoint(
+      {x:cursorPoint.x/browserScale,y:cursorPoint.y/browserScale},
+      {left:-chromeHover.sideRetain,right:win.clientWidth+chromeHover.sideRetain,
+       top:-chromeHover.topRetain,bottom:win.clientHeight+chromeHover.topRetain});
+    const demoHolding = sidebarOverride === null && (progress < .68 || (progress < 1 && cursorWithinRetention));
     const keyboardFocus = Boolean(sidebarRegion.querySelector(':focus-visible'));
     const visible = !floating || demoHolding || sidebarHovered || keyboardFocus;
     sidebar.inert = !visible;
@@ -526,7 +528,7 @@
     win.dataset.sidebar = !floating ? 'pinned' : visible ? 'floating' : 'hidden';
     updateWindowControls('sidebar');
     const wasDemoToolbarActive=demoToolbarActive;
-    demoToolbarActive=!reduce.matches&&sidebarOverride===null&&progress>=.18&&progress<1&&cursorInsideWindow;
+    demoToolbarActive=!reduce.matches&&sidebarOverride===null&&progress>=.18&&progress<1&&cursorWithinRetention;
     if(demoToolbarActive)showToolbar();
     else if(wasDemoToolbarActive) {
       if(panelPointer)dismissDistantPanels();
@@ -614,39 +616,46 @@
     toolbarRail.setAttribute('aria-expanded', 'false');
     updateWindowControls('toolbar');
   }
-  function distanceFromPanel(point, rect) {
-    const dx = Math.max(rect.left - point.x, 0, point.x - rect.right);
-    const dy = Math.max(rect.top - point.y, 0, point.y - rect.bottom);
-    return Math.hypot(dx, dy);
+  function containsPoint(point, rect) {
+    return point.x>=rect.left&&point.x<=rect.right&&point.y>=rect.top&&point.y<=rect.bottom;
+  }
+  function windowPointer() {
+    const frame=win.getBoundingClientRect();
+    return {x:(panelPointer.x-frame.left)/browserScale,y:(panelPointer.y-frame.top)/browserScale};
   }
   function dismissDistantPanels() {
     if (!panelPointer) return;
-    const sidebarArea = sidebarRegion.getBoundingClientRect();
-    const sidebarBounds = {left:sidebarArea.left + sidebar.offsetLeft * browserScale,right:sidebarArea.left + (sidebar.offsetLeft + sidebar.offsetWidth) * browserScale,
-      top:sidebarArea.top + sidebar.offsetTop * browserScale,bottom:sidebarArea.top + (sidebar.offsetTop + sidebar.offsetHeight) * browserScale};
+    const point=windowPointer();
+    // Resting panel bounds avoid changing retention while the sidebar slides.
+    const sidebarBounds={left:-chromeHover.sideRetain,right:sidebar.offsetWidth+chromeHover.sideRetain,
+      top:-chromeHover.topRetain,bottom:win.clientHeight+chromeHover.topRetain};
     if (sidebarHovered && !sidebarRegion.querySelector(':focus-visible') &&
-        distanceFromPanel(panelPointer, sidebarBounds) > panelDismissDistance) {
+        !windowControls.contains(document.activeElement) && !containsPoint(point,sidebarBounds)) {
       sidebarHovered = false;
       updateSidebar(scroll.scrollTop);
     }
-    // Like the native header, retain the whole top strip across capsule gaps
-    // and the sidebar header, down to 48px below the glass.
-    const frame = win.getBoundingClientRect();
-    // Measure resting bounds, independently of the sidebar slide.
-    // Treat its capsules and the gaps between them as one floating top bar.
-    const area = toolbarRegion.getBoundingClientRect();
-    const rect = {left:frame.left,right:frame.right,top:area.top,bottom:area.top + 44 * browserScale};
-    const controlsRect = windowControls.getBoundingClientRect();
+    // Retain the whole top strip, including capsule gaps and window controls,
+    // 64px above the window and below the bottom of the 44px glass controls.
+    const topBounds={left:-chromeHover.sideRetain,right:win.clientWidth+chromeHover.sideRetain,
+      top:-chromeHover.topRetain,bottom:44+chromeHover.topRetain};
     if (!demoToolbarActive && toolbarRegion.hasAttribute('data-open') && !toolbarRegion.contains(document.activeElement) &&
-        !windowControls.contains(document.activeElement) &&
-        Math.min(distanceFromPanel(panelPointer, rect), distanceFromPanel(panelPointer, controlsRect)) > panelDismissDistance) hideToolbar();
+        !windowControls.contains(document.activeElement) && !containsPoint(point,topBounds)) hideToolbar();
   }
   function trackPanelPointer(event) {
     if (event.pointerType === 'touch') return;
     panelPointer = {x:event.clientX,y:event.clientY};
-    const bounds = sidebar.getBoundingClientRect();
-    if (win.dataset.sidebar !== 'hidden' && panelPointer.x >= bounds.left && panelPointer.x <= bounds.right &&
-        panelPointer.y >= bounds.top && panelPointer.y <= bounds.top + 52 * browserScale) showToolbar();
+    if (!appVisible) return;
+    const point=windowPointer();
+    const sideEntry={left:-chromeHover.sideReveal,right:chromeHover.sideReveal,
+      top:-chromeHover.topReveal,bottom:win.clientHeight+chromeHover.topReveal};
+    if (containsPoint(point,sideEntry) && !sidebarHovered) {
+      sidebarHovered=true;
+      updateSidebar(scroll.scrollTop);
+    }
+    const topEntry={left:-chromeHover.sideReveal,right:win.clientWidth+chromeHover.sideReveal,
+      top:-chromeHover.topReveal,bottom:chromeHover.topReveal};
+    if (containsPoint(point,topEntry) || (win.dataset.sidebar !== 'hidden' &&
+        containsPoint(point,{left:0,right:sidebar.offsetWidth,top:0,bottom:52}))) showToolbar();
     dismissDistantPanels();
   }
   document.addEventListener('pointermove', trackPanelPointer, {passive:true});

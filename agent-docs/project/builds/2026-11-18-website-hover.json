@@ -1,0 +1,77 @@
+{
+  "date": "2026-11-18",
+  "scope": "Website faux-browser native-style reveal and retention",
+  "browser_adoption_main": "a6ca85803c7402e850a45d8fcfd45bc2c0c62a2a",
+  "distances_logical_pixels": {
+    "side_reveal": 16,
+    "side_retention": 128,
+    "top_reveal": 16,
+    "top_retention": 64,
+    "below_open_glass": 64
+  },
+  "source_sha256": {
+    "website/public/main.js": "d97ed9ff107105e38277c96c163d99a6cbeeb5985e3acd4e4bcc31cdca7362e3",
+    "website/public/styles.css": "124ccb1bd5795194f41cdcc5b1777a8e7b0f1d92cf7c45e62beaa788aeca8bf4",
+    "website/public/index.html": "7c6154eda5544d995eb5c675d8981732db08c90200390fdc2c73cfbd9fae03cc"
+  },
+  "checks": {
+    "npm_run_check": true,
+    "legal_tests": 7,
+    "wrangler_deploy_dry_run": true,
+    "javascript_syntax": true,
+    "cache_query_keys_match_content": true,
+    "browser_boundary_scenarios_per_configuration": 20,
+    "configurations": [
+      {
+        "viewport": [
+          1600,
+          1100
+        ],
+        "scale": 1,
+        "color": "light",
+        "native_timeline": true
+      },
+      {
+        "viewport": [
+          1600,
+          1100
+        ],
+        "scale": 1,
+        "color": "dark",
+        "reduced_motion": true
+      },
+      {
+        "viewport": [
+          393,
+          852
+        ],
+        "scale": 0.5,
+        "color": "light",
+        "native_timeline": true
+      },
+      {
+        "viewport": [
+          393,
+          852
+        ],
+        "scale": 0.5,
+        "color": "dark",
+        "forced_javascript_fallback": true
+      }
+    ],
+    "side_and_top_interior_and_exterior_hysteresis": true,
+    "keyboard_focus_and_escape": true,
+    "touch_does_not_hover_reveal": true,
+    "new_tab_open_and_dismiss": true,
+    "simulated_cursor_forward_reverse_completion": true,
+    "light_dark_desktop_and_phone_layout_inspection": true,
+    "console_errors_or_warnings": 0
+  },
+  "website_version_check_policy": "Website changes and deployments do not require Chromium version or freshness checks.",
+  "limits": [
+    "Boundary scenarios dispatch DOM pointer events.",
+    "Phone viewport emulation is not physical iPhone or Safari acceptance.",
+    "Native browser release inputs and delivery feeds are unchanged."
+  ],
+  "detailed_evidence": ".work/website-hover-qa/; production workflow and byte readback reported after push"
+}
