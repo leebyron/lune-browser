@@ -115,8 +115,8 @@
 -  EXPECT_TRUE(origin->IsDrawn());
 +  EXPECT_EQ(!BUILDFLAG(IS_MAC), origin->IsDrawn());
  
-   overlay_window().SetSourceTitle(u"9oo91e.qjz9zk");
-   EXPECT_EQ(origin->GetText(), u"9oo91e.qjz9zk");
+   overlay_window().SetSourceTitle(u"google.com");
+   EXPECT_EQ(origin->GetText(), u"google.com");
 @@ -1636,7 +1636,7 @@
    EXPECT_TRUE(playback_controls_container->IsDrawn());
  }
