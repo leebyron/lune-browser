@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "7979bbb2f077ffa3915eb56720d3cee0f52d19e0",
+    "commit": "622464d3bfb4ecb0f1da565d6556b12d1d3f38f6",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1069,6 +1069,10 @@
       {
         "path": "patches/helium/ui/older-date-label-offset.patch",
         "sha256": "0e0752a733bb64b5ad12715bb991e473872590927254416dce7f3054bd17a3ff"
+      },
+      {
+        "path": "patches/helium/ui/manual-pip-auto-permission-offer.patch",
+        "sha256": "c48d5b74ca7f710fed2a04d5531c383212f1a4b26836db9cfb8362b8e7425139"
       }
     ]
   },
@@ -3363,6 +3367,21 @@
       "adaptation": "Shift one unit from the label’s top inset to its bottom inset so the full offset applies even when the previous top inset was zero.",
       "commits": [
         "7979bbb2f077ffa3915eb56720d3cee0f52d19e0"
+      ]
+    },
+    {
+      "id": "manual-pip-auto-permission",
+      "depends_on": [
+        "automatic-picture-in-picture"
+      ],
+      "patches": [
+        "patches/helium/ui/manual-pip-auto-permission-offer.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Offer automatic Picture-in-Picture after the first manual video PiP for a site on Ask.",
+      "adaptation": "Reuse the permission overlay with the domain in the question. Allow saves a site exception and Not Now leaves Ask. Remember the offer per origin in regular macOS profiles.",
+      "commits": [
+        "622464d3bfb4ecb0f1da565d6556b12d1d3f38f6"
       ]
     }
   ],

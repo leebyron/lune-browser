@@ -70,6 +70,14 @@ Playback still needs audio focus and recent audibility. For browser-initiated
 video there must be a single eligible player in the primary main frame.
 Incognito treats Ask as blocked.
 
+On macOS, Lune offers to turn on automatic PiP the first time the user
+opens video PiP manually for a site set to **Ask** in a regular profile.
+The same in-window permission dialog names the domain in the question and
+places **Allow** above **Not Now**.
+**Allow** saves a site exception. **Not Now** dismisses the offer and
+keeps the site on **Ask**. Both choices keep the current video playing. The
+profile remembers that it has shown the offer for that origin.
+
 Lune’s macOS input enables Chromium’s
 `BrowserInitiatedAutomaticPictureInPicture` feature by default. The existing
 `chrome://flags/#browser-initiated-automatic-picture-in-picture` flag can turn it off. Site handlers, permission decisions, tab
@@ -83,3 +91,6 @@ disabled default.
 
 See the [implementation evidence](../builds/2026-11-19-automatic-picture-in-picture.json)
 for the source parity and browser checks.
+
+See the [manual permission offer validation](../builds/2026-11-20-manual-pip-auto-permission.json)
+for the signed input, paired builds, and YouTube checks.

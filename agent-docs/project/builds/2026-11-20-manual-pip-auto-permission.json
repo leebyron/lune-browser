@@ -1,0 +1,100 @@
+{
+  "date": "2026-11-20",
+  "chromium_version": "158.0.8127.37",
+  "platform_input": {
+    "commit": "622464d3bfb4ecb0f1da565d6556b12d1d3f38f6",
+    "ref": "refs/tags/inputs/manual-pip-auto-permission-1/macos",
+    "base": "7979bbb2f077ffa3915eb56720d3cee0f52d19e0"
+  },
+  "source_preparation": {
+    "macos": "622464d3bfb4ecb0f1da565d6556b12d1d3f38f6",
+    "helium": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+    "chromium": "158.0.8127.37",
+    "strict_replay_passed": true,
+    "patch_hunk_offsets": [
+      467
+    ],
+    "full_source_parity": true,
+    "inventory_files": 596108,
+    "inventory_symlinks": 141,
+    "source_sha256": {
+      "chrome/browser/picture_in_picture/auto_pip_setting_view.h": "6fe119d80868a492d233bc5cca9ef2536a833544ba04cd0ff98cd70c4e41d6c4",
+      "chrome/browser/picture_in_picture/auto_pip_setting_view.cc": "d8e907fd32bafbbf0cc2c600a634a3a4b5f2908f52c51deac57382f1796c3a0e",
+      "chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.h": "b2332ef8fd29e8b9a4c86a806cef71aa272084a17e5928a199f261001004267e",
+      "chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.cc": "7e776f55a440d86247b5f5608eb81fec5dc669a0f40a6e9e072f5ad816533f64",
+      "chrome/browser/picture_in_picture/auto_pip_setting_helper.h": "491f9bc1ba5a18ce8fbcf553fbb2314f762ee9e9d4d64a990fae76167490b842",
+      "chrome/browser/picture_in_picture/auto_pip_setting_helper.cc": "f219fb55be491abc5db6a000a9f1444b854a09889b5318f97e321b4290630e46",
+      "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h": "c58b809e79b10bca695fcf0184551193ecc2cc2ec957862f013965ab0f9045fd",
+      "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc": "3234dc9d9cf9c846c842c9cb54969285b19b340ed5e6a9d8df177df8ca6ac3a2",
+      "chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc": "da4272abccea9eb8caf27f2a62be9a5ff9b69cd843fa277a27cc0f1c26e74705",
+      "chrome/browser/picture_in_picture/BUILD.gn": "d5cd5c4283e911d7bb377fbacd3d7217fbf47cf28ef8c4a224f649359c004a11",
+      "chrome/browser/prefs/BUILD.gn": "0e8a339eb4b664404beb1394f481d6b014bff44c5a80e397dd1eb873d7906a7b",
+      "chrome/browser/prefs/browser_prefs.cc": "bfc544d266f2b8da794d6ab643944c1333c27259cd9470a0cfe6623cf9821926",
+      "chrome/app/generated_resources.grd": "4ca0c9a03adc37134e3f770b92f752b47809939fd8e8ffec7615ebb98c7c93e9"
+    },
+    "patch_sha256": "c48d5b74ca7f710fed2a04d5531c383212f1a4b26836db9cfb8362b8e7425139"
+  },
+  "builds": {
+    "arm64": {
+      "execution": "Native Apple silicon",
+      "framework_sha256": "ade25adb213f18fb57d6e579a9d2862114cd8d5084d1d83ff20f9bf5fc4c4c85",
+      "browser_smoke_passed": true,
+      "manual_pip_cases": [
+        "Not Now leaves the playing window open and preserves Ask",
+        "The same origin is not offered the choice in another tab",
+        "Allow saves Allow and enables the next eligible automatic window",
+        "Manual PiP leaves an existing block unchanged",
+        "Manual PiP leaves an existing allow unchanged",
+        "The first automatic PiP retains the Allow this time choice",
+        "Both offer markers and only the affirmative permission persist to disk"
+      ]
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "4dc926040b1b3c8df38c020ee42e6d0e15ac275e02026558af6fff88dc917a44",
+      "browser_smoke_passed": true,
+      "manual_pip_cases": [
+        "Not Now leaves the playing window open and preserves Ask",
+        "The same origin is not offered the choice in another tab",
+        "Allow saves Allow and enables the next eligible automatic window",
+        "Manual PiP leaves an existing block unchanged",
+        "Manual PiP leaves an existing allow unchanged",
+        "The first automatic PiP retains the Allow this time choice",
+        "Both offer markers and only the affirmative permission persist to disk"
+      ]
+    }
+  },
+  "youtube_arm64_preview": {
+    "url": "https://www.youtube.com/watch?v=CFGLoQIhmow",
+    "trials": {
+      "Not Now": {
+        "start_permission": "ask",
+        "after_click": "ask",
+        "video_kept_playing": true,
+        "automatic_pip_on_next_switch": false,
+        "offer_suppressed_on_second_manual_open": true
+      },
+      "Allow": {
+        "start_permission": "ask",
+        "after_click": "allow",
+        "video_kept_playing": true,
+        "automatic_pip_on_next_switch": true
+      }
+    },
+    "screenshot_sha256": "6bdc58e2ba1917941eb7f50a86e179a43c9a24b64e330bb9476b7c30383dfb2b"
+  },
+  "repository_tests": {
+    "run": 107,
+    "skipped": 1
+  },
+  "patch_and_translation_lint_passed": true,
+  "issue_50_stable_readback": {
+    "version": "26.1119.1",
+    "execution": "Native Apple silicon",
+    "passed_case_counts": {
+      "release": 13,
+      "incognito": 1,
+      "disabled": 10
+    }
+  }
+}
