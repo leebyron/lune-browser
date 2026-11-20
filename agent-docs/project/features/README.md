@@ -33,6 +33,7 @@ Start with the relevant UI surface. Feature records cover behavior, design const
 - [Toolbar retention for extension popups](extension-popup-retention.md)
 - [Native window-menu retention](window-menu-retention.md)
 - [Floating Media Controls](media-toolbar-controls.md)
+- [Automatic Picture-in-Picture](automatic-picture-in-picture.md)
 - [Edge-to-edge macOS frame](edge-to-edge-frame.md)
 - [Native window close controls](native-window-close.md)
 - [Content pane shadow](content-pane-shadow.md)

@@ -12,6 +12,8 @@ Patches apply before substitutions, localization and resource generation. Verify
 
 Reuse checks when the relevant source, config, toolchain and artifact identities match. Track which checks apply to the final candidate in one task evidence location. Rerun checks affected by edits and keep broader unchanged checks for the settled composition. Use tooling tests and link, consistency and whitespace checks for documentation and tooling changes.
 
+Keep normal site navigation available in previews handed to reviewers, including when the preview also loads a local test fixture. Automated smoke runs can still use an isolated profile with restricted DNS.
+
 ## Coordinate shared workspaces
 
 Reuse sources, outputs, download and compiler caches. Before editing or building, inspect the preparation report and ownership. Keep one ignored coordination record next to the tree, such as `.work/<workspace>/development-workspace.json`, with the owner/task, source and output paths, exact core/platform inputs and engine version, active patch order and current operation.

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "6ac348b8b2dd31b8ba49554df709b9f401ae5833",
+    "commit": "2b342ed0debaf3a3c2f113410c081e8a6a33de44",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1013,6 +1013,46 @@
       {
         "path": "patches/helium/ui/independent-tab-cycling.patch",
         "sha256": "712640cdad9b5fbbc5c9edd7c7b94c8d6e8cc715ab3f2cfcaa8ab1c401394ae8"
+      },
+      {
+        "path": "patches/helium/ui/browser-initiated-automatic-picture-in-picture.patch",
+        "sha256": "012b573a4d7e5b347b4471a377e94c7955d65c1f452e2f73ed2effc89dba7e37"
+      },
+      {
+        "path": "patches/helium/ui/macos-video-picture-in-picture-window.patch",
+        "sha256": "2fd7e4f4ac47328acb4d53ae92b2c8a049c11718e921ae343d5c53ecb9f75c3d"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-titlebar.patch",
+        "sha256": "27cce1859d64a6d848b55138ece1dadf920ea188bbfd24168dbf945f649217b6"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-playback-symbols.patch",
+        "sha256": "34bfbaf05a946c30b60ac57ed805ac6feb0a4fe1a32df1f9b8a8a9897f952480"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-hover.patch",
+        "sha256": "37aae23006556947293d25b0b69c1065a61531604eb2334a8d97eac9092d2ac5"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-footer.patch",
+        "sha256": "4821c6279d0b5fe4ebdfa5f345bddda632dfa2fdd102cc3dba5a15f43a2f7799"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-footer-insets.patch",
+        "sha256": "867b4be9c6753bdac12cbd88a24f97599a4df28754103314deb1bd40336988f2"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-native-controls.patch",
+        "sha256": "0207194df000432b86901528d78d9fea26e2b458a47d2d87d1a1e33031fde149"
+      },
+      {
+        "path": "patches/helium/ui/macos-tab-media-close-slot.patch",
+        "sha256": "84c61c6fdca6673843b54715f04629273f196a81329d260fd70e5ca669571ed8"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-window-interaction.patch",
+        "sha256": "2691d2c6344cf933146cdbea6e0ec618ecbe81b40adfe86c0cc7d015ac5c5dd9"
       }
     ]
   },
@@ -3213,6 +3253,38 @@
       "adaptation": "Preserve the Control-Tab preference, give the bracket commands a separate preference, and use all visible tabs for sequential switching.",
       "commits": [
         "6ac348b8b2dd31b8ba49554df709b9f401ae5833"
+      ]
+    },
+    {
+      "id": "automatic-picture-in-picture",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/browser-initiated-automatic-picture-in-picture.patch",
+        "patches/helium/ui/macos-video-picture-in-picture-window.patch",
+        "patches/helium/ui/macos-picture-in-picture-titlebar.patch",
+        "patches/helium/ui/macos-picture-in-picture-playback-symbols.patch",
+        "patches/helium/ui/macos-picture-in-picture-hover.patch",
+        "patches/helium/ui/macos-picture-in-picture-footer.patch",
+        "patches/helium/ui/macos-picture-in-picture-footer-insets.patch",
+        "patches/helium/ui/macos-picture-in-picture-native-controls.patch",
+        "patches/helium/ui/macos-tab-media-close-slot.patch",
+        "patches/helium/ui/macos-picture-in-picture-window-interaction.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep eligible playing video visible when switching tabs, including on sites without a Media Session handler.",
+      "adaptation": "Enable Chromium’s browser-initiated feature, route native macOS window and playback controls, and place PiP and audible-audio tab indicators in the close-button slot.",
+      "commits": [
+        "d6712392f70a1f0750d5725c045b18f596002696",
+        "9800614a9e7dc1a2c8f41837b35879512ad89d90",
+        "adcce82d1bfb679e3db037ca72657095cb5c9fdd",
+        "d2069957930ad007611a2e6ef0f0289937b161cb",
+        "9059105d7411dc5dece7321037a4c417b6d14519",
+        "436f2520e6384c17bcc8afabf8def2afeb9d74a0",
+        "ca88ec473ab6d8e09b6ef21e4f3b9b8cb8f93920",
+        "f6c5450a162c42f8f315d94b3c7a81901c451ba4",
+        "838f5a6891bbe3c9af3f25dd3a3a7abffaf09155",
+        "846fce4980cc9e3034c869a4fd12515864720539",
+        "2b342ed0debaf3a3c2f113410c081e8a6a33de44"
       ]
     }
   ],
