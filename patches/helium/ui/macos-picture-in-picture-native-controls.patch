@@ -1,0 +1,1291 @@
+--- a/chrome/browser/ui/views/overlay/BUILD.gn
++++ b/chrome/browser/ui/views/overlay/BUILD.gn
+@@ -88,10 +88,12 @@ source_set("impl") {
+     sources += [ "video_overlay_window_native_widget_mac.mm" ]
+     deps += [
+       "//chrome/browser/ui/views/helium:native_frame_materials",
++      "//components/remote_cocoa/app_shim",
+       "//components/remote_cocoa/common:mojo",
+       "//ui/color",
+     ]
+     frameworks = [ "Cocoa.framework" ]
++    weak_frameworks = [ "Symbols.framework" ]
+   }
+ 
+   if (is_win) {
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
+@@ -24,11 +24,24 @@ class VideoOverlayWindowNativeWidgetMac
+ 
+   ~VideoOverlayWindowNativeWidgetMac() override;
+ 
+-  void InstallWindowControls(base::RepeatingClosure close,
+-                             base::RepeatingClosure minimize,
+-                             base::RepeatingClosure open_tab,
+-                             base::RepeatingClosure update_hover);
++  struct Actions {
++    base::RepeatingClosure close;
++    base::RepeatingClosure minimize;
++    base::RepeatingClosure fullscreen;
++    base::RepeatingClosure open_tab;
++    base::RepeatingClosure play_pause;
++    base::RepeatingClosure skip_back;
++    base::RepeatingClosure skip_forward;
++    base::RepeatingClosure update_hover;
++  };
++  enum class PlaybackSymbol { kPlay, kPause, kReplay };
++
++  void InstallWindowControls(Actions actions);
+   void SetWindowControlsVisible(bool visible);
++  void SetTransportControls(const gfx::Rect& play_pause,
++                            const gfx::Rect& skip_back,
++                            const gfx::Rect& skip_forward);
++  void SetPlaybackSymbol(PlaybackSymbol symbol);
+ 
+  protected:
+   // NativeWidgetMac:
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+@@ -6,129 +6,209 @@
+ 
+ #import <Cocoa/Cocoa.h>
+ #import <QuartzCore/QuartzCore.h>
++#import <Symbols/Symbols.h>
+ 
+ #include <algorithm>
+ #include <cmath>
+ #include <iterator>
++#include <optional>
+ #include <utility>
+ 
+-#include "base/memory/weak_ptr.h"
++#include "base/apple/foundation_util.h"
+ #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
+ #include "chrome/grit/generated_resources.h"
++#import "components/remote_cocoa/app_shim/bridged_content_view.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
+ #include "ui/base/l10n/l10n_util_mac.h"
+ 
+-// AppKit's native frame chooses the shape for the current window and state.
+-// Reuse that radius for content clipping and control alignment.
+ @interface NSView (VideoPictureInPictureFrameRadius)
+ - (CGFloat)_cornerRadius;
+ @end
+ 
++// AppKit caches the presentation of detached standard window buttons.
++@interface NSButton (VideoPictureInPictureTrafficLightHover)
++- (void)mouseEnteredOrExited;
++@end
++
++@interface VideoPictureInPictureButton : NSButton
++@end
++@implementation VideoPictureInPictureButton
++- (BOOL)acceptsFirstMouse:(NSEvent*)event {
++  return YES;
++}
++@end
++
++@interface VideoPictureInPictureSymbolView : NSImageView
++@end
++@implementation VideoPictureInPictureSymbolView
++- (NSView*)hitTest:(NSPoint)point {
++  return nil;
++}
++@end
++
+ namespace {
+ 
++using Actions = VideoOverlayWindowNativeWidgetMac::Actions;
++using PlaybackSymbol = VideoOverlayWindowNativeWidgetMac::PlaybackSymbol;
++
+ constexpr NSWindowButton kWindowButtons[] = {
+     NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton};
+ constexpr CGFloat kOpenTabHeight = 22;
+-constexpr CGFloat kOpenTabPadding = 14;
++
++NSImage* MakeSymbol(NSString* name, CGFloat size) {
++  NSImage* image = [NSImage imageWithSystemSymbolName:name
++                             accessibilityDescription:nil];
++  return [image imageWithSymbolConfiguration:
++      [NSImageSymbolConfiguration configurationWithPointSize:size
++                                                       weight:NSFontWeightMedium]];
++}
++
++void SetButtonLabel(NSButton* button, int message_id) {
++  NSString* label = l10n_util::GetNSString(message_id);
++  button.toolTip = label;
++  button.accessibilityLabel = label;
++}
++
++NSView* MakeGlass(NSButton* button) {
++  button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  if (@available(macOS 26, *)) {
++    NSGlassEffectView* glass = [[NSGlassEffectView alloc] initWithFrame:NSZeroRect];
++    glass.style = NSGlassEffectViewStyleRegular;
++    if (@available(macOS 27, *)) {
++      glass.effectIsInteractive = YES;
++    }
++    glass.contentView = button;
++    return glass;
++  }
++  NSVisualEffectView* glass = [[NSVisualEffectView alloc] initWithFrame:NSZeroRect];
++  glass.material = NSVisualEffectMaterialHUDWindow;
++  glass.blendingMode = NSVisualEffectBlendingModeWithinWindow;
++  glass.state = NSVisualEffectStateActive;
++  glass.wantsLayer = YES;
++  glass.layer.masksToBounds = YES;
++  [glass addSubview:button];
++  return glass;
++}
++
++void LayoutGlass(NSView* glass, NSRect frame) {
++  glass.hidden = NSIsEmptyRect(frame);
++  if (glass.hidden || NSEqualRects(glass.frame, frame)) {
++    return;
++  }
++  glass.frame = frame;
++  if (@available(macOS 26, *)) {
++    NSGlassEffectView* effect = (NSGlassEffectView*)glass;
++    effect.cornerRadius = NSHeight(frame) / 2;
++    effect.contentView.frame = glass.bounds;
++  } else {
++    glass.layer.cornerRadius = NSHeight(frame) / 2;
++    glass.subviews.firstObject.frame = glass.bounds;
++  }
++}
++
++NSRect ToNSRect(const gfx::Rect& bounds) {
++  return NSMakeRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
++}
+ 
+ }  // namespace
+ 
+-@interface VideoPictureInPictureTitlebar : NSView
+-- (instancetype)initWithWidget:(views::Widget*)widget
+-                         close:(base::RepeatingClosure)close
+-                      minimize:(base::RepeatingClosure)minimize
+-                       openTab:(base::RepeatingClosure)openTab;
++@interface VideoPictureInPictureControls : NSView
++- (instancetype)initWithWindow:(NSWindow*)window actions:(Actions)actions;
++- (void)setHeaderVisible:(BOOL)visible;
++- (void)setPlayFrame:(NSRect)play
++           backFrame:(NSRect)back
++        forwardFrame:(NSRect)forward;
++- (void)setPlaybackSymbol:(PlaybackSymbol)symbol;
+ @end
+ 
+-@implementation VideoPictureInPictureTitlebar {
+-  base::WeakPtr<views::Widget> _widget;
+-  base::RepeatingClosure _close;
+-  base::RepeatingClosure _minimize;
+-  base::RepeatingClosure _openTab;
++@implementation VideoPictureInPictureControls {
++  Actions _actions;
+   NSArray<NSButton*>* _lights;
+-  NSView* _material;
+-  NSButton* _openTabButton;
+-  NSString* _openTabTitle;
+-  CGFloat _openTabWidth;
++  NSRect _trafficLightBounds;
++  BOOL _trafficLightsHovered;
++  NSView* _openTabGlass;
++  NSView* _playGlass;
++  NSView* _skipBackGlass;
++  NSView* _skipForwardGlass;
++  NSButton* _playButton;
++  NSImageView* _playSymbolView;
++  std::optional<PlaybackSymbol> _playbackSymbol;
+ }
+ 
+-- (instancetype)initWithWidget:(views::Widget*)widget
+-                         close:(base::RepeatingClosure)close
+-                      minimize:(base::RepeatingClosure)minimize
+-                       openTab:(base::RepeatingClosure)openTab {
+-  NSWindow* window = widget->GetNativeWindow().GetNativeNSWindow();
++- (instancetype)initWithWindow:(NSWindow*)window actions:(Actions)actions {
+   if (!(self = [super initWithFrame:window.contentView.bounds])) {
+     return nil;
+   }
+-  _widget = widget->GetWeakPtr();
+-  _close = std::move(close);
+-  _minimize = std::move(minimize);
+-  _openTab = std::move(openTab);
++  _actions = std::move(actions);
+   self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+ 
+-  const SEL actions[] = {@selector(closePictureInPicture:),
+-                         @selector(minimizePictureInPicture:),
+-                         @selector(togglePictureInPictureFullscreen:)};
++  const SEL selectors[] = {@selector(closePictureInPicture:),
++                           @selector(minimizePictureInPicture:),
++                           @selector(fullscreenPictureInPicture:)};
+   NSMutableArray<NSButton*>* lights = [NSMutableArray array];
+   for (size_t i = 0; i < std::size(kWindowButtons); ++i) {
+     NSButton* button = [NSWindow standardWindowButton:kWindowButtons[i]
+                                         forStyleMask:window.styleMask];
++    if (!button) {
++      continue;
++    }
+     button.target = self;
+-    button.action = actions[i];
+-    if (button) {
+-      [self addSubview:button];
+-      [lights addObject:button];
++    button.action = selectors[i];
++    button.enabled = YES;
++    if (kWindowButtons[i] == NSWindowZoomButton) {
++      SetButtonLabel(button, IDS_ENTER_FULLSCREEN_MAC);
+     }
++    [self addSubview:button];
++    [lights addObject:button];
+   }
+   _lights = lights;
+ 
+-  self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+-  _openTabTitle = NSLocalizedString(
+-      @"Open Tab", @"Return to the source tab from video Picture-in-Picture");
+-  NSString* accessibilityTitle = l10n_util::GetNSString(
+-      IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT);
+-  NSImage* image = [NSImage imageWithSystemSymbolName:@"arrow.uturn.backward"
+-                          accessibilityDescription:nil];
+-  NSImageSymbolConfiguration* configuration =
+-      [NSImageSymbolConfiguration configurationWithPointSize:12
+-                                                       weight:NSFontWeightMedium];
+-  _openTabButton = [NSButton buttonWithTitle:_openTabTitle
+-                                     image:[image imageWithSymbolConfiguration:configuration]
+-                                    target:self
+-                                    action:@selector(openSourceTab:)];
+-  _openTabButton.bordered = NO;
+-  _openTabButton.font = [NSFont systemFontOfSize:11 weight:NSFontWeightMedium];
+-  _openTabButton.imagePosition = NSImageLeft;
+-  _openTabButton.contentTintColor = NSColor.whiteColor;
+-  _openTabButton.toolTip = accessibilityTitle;
+-  _openTabButton.accessibilityLabel = _openTabTitle;
+-  _openTabWidth = _openTabButton.fittingSize.width + kOpenTabPadding;
+-  _openTabButton.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-
+-  if (@available(macOS 26, *)) {
+-    NSGlassEffectView* glass = [[NSGlassEffectView alloc] initWithFrame:NSZeroRect];
+-    glass.style = NSGlassEffectViewStyleRegular;
+-    glass.cornerRadius = kOpenTabHeight / 2;
+-    if (@available(macOS 27, *)) {
+-      glass.effectIsInteractive = YES;
+-    }
+-    glass.contentView = _openTabButton;
+-    _material = glass;
+-  } else {
+-    NSVisualEffectView* glass = [[NSVisualEffectView alloc] initWithFrame:NSZeroRect];
+-    glass.material = NSVisualEffectMaterialHUDWindow;
+-    glass.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+-    glass.state = NSVisualEffectStateActive;
+-    glass.wantsLayer = YES;
+-    glass.layer.cornerRadius = kOpenTabHeight / 2;
+-    glass.layer.masksToBounds = YES;
+-    [glass addSubview:_openTabButton];
+-    _material = glass;
++  _openTabGlass = MakeGlass([self buttonWithSymbol:MakeSymbol(@"pip.exit", 14)
++                                           label:IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT
++                                          action:@selector(openSourceTab:)]);
++  _playButton = [self buttonWithSymbol:nil
++                                label:IDS_PICTURE_IN_PICTURE_PLAY_CONTROL_TEXT
++                               action:@selector(togglePlayback:)];
++  _playSymbolView = [[VideoPictureInPictureSymbolView alloc] initWithFrame:NSZeroRect];
++  _playSymbolView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  _playSymbolView.imageScaling = NSImageScaleNone;
++  _playSymbolView.contentTintColor = NSColor.whiteColor;
++  [_playSymbolView setAccessibilityElement:NO];
++  [_playButton addSubview:_playSymbolView];
++  _playGlass = MakeGlass(_playButton);
++  _skipBackGlass = MakeGlass([self buttonWithSymbol:MakeSymbol(@"gobackward.10", 18)
++                                            label:IDS_PICTURE_IN_PICTURE_REPLAY_10_TEXT
++                                           action:@selector(skipBack:)]);
++  _skipForwardGlass =
++      MakeGlass([self buttonWithSymbol:MakeSymbol(@"goforward.10", 18)
++                                label:IDS_PICTURE_IN_PICTURE_FORWARD_10_TEXT
++                               action:@selector(skipForward:)]);
++  for (NSView* glass in @[_openTabGlass, _playGlass, _skipBackGlass,
++                         _skipForwardGlass]) {
++    glass.hidden = YES;
++    [self addSubview:glass];
+   }
+-  [self addSubview:_material];
++  [self setPlaybackSymbol:PlaybackSymbol::kPlay];
+   return self;
+ }
+ 
++- (NSButton*)buttonWithSymbol:(NSImage*)image
++                       label:(int)messageId
++                      action:(SEL)action {
++  NSButton* button =
++      [[VideoPictureInPictureButton alloc] initWithFrame:NSZeroRect];
++  button.target = self;
++  button.action = action;
++  button.title = @"";
++  button.bordered = NO;
++  button.image = image;
++  button.imagePosition = NSImageOnly;
++  button.contentTintColor = NSColor.whiteColor;
++  SetButtonLabel(button, messageId);
++  return button;
++}
++
+ - (BOOL)isFlipped {
+   return YES;
+ }
+@@ -149,7 +229,7 @@ constexpr CGFloat kOpenTabPadding = 14;
+   window.contentView.layer.cornerRadius = radius;
+   window.contentView.layer.masksToBounds = YES;
+ 
+-  CGFloat lightsRight = 0;
++  _trafficLightBounds = NSZeroRect;
+   for (NSUInteger i = 0; i < _lights.count; ++i) {
+     NSButton* standardButton = [window standardWindowButton:kWindowButtons[i]];
+     const CGFloat offset =
+@@ -160,22 +240,89 @@ constexpr CGFloat kOpenTabPadding = 14;
+     frame.origin = NSMakePoint(center + offset - NSWidth(frame) / 2,
+                               center - NSHeight(frame) / 2);
+     button.frame = frame;
+-    lightsRight = std::max(lightsRight, NSMaxX(frame));
++    _trafficLightBounds = NSUnionRect(_trafficLightBounds, frame);
+   }
+ 
+-  const CGFloat height = std::min(kOpenTabHeight, 2 * (center - 2));
+-  const CGFloat right = NSWidth(self.bounds) - center + height / 2;
+-  const bool showTitle = right - _openTabWidth >= lightsRight + 4;
+-  const CGFloat width = showTitle ? _openTabWidth : height;
+-  _openTabButton.title = showTitle ? _openTabTitle : @"";
+-  _openTabButton.imagePosition = showTitle ? NSImageLeft : NSImageOnly;
+-  _material.frame = NSMakeRect(right - width, center - height / 2, width, height);
+-  if (@available(macOS 26, *)) {
+-    ((NSGlassEffectView*)_material).cornerRadius = height / 2;
+-  } else {
+-    _material.layer.cornerRadius = height / 2;
++  const CGFloat side = std::min(kOpenTabHeight, 2 * (center - 2));
++  const BOOL openTabHidden = _openTabGlass.hidden;
++  LayoutGlass(_openTabGlass,
++              NSMakeRect(NSWidth(self.bounds) - center - side / 2,
++                         center - side / 2, side, side));
++  _openTabGlass.hidden = openTabHidden;
++}
++
++- (void)setHeaderVisible:(BOOL)visible {
++  _openTabGlass.hidden = !visible;
++  for (NSButton* button in _lights) {
++    button.hidden = !visible;
++  }
++  const NSPoint pointer = [self convertPoint:
++      [self.window convertPointFromScreen:NSEvent.mouseLocation] fromView:nil];
++  const BOOL hovered = visible && NSPointInRect(
++      pointer, NSInsetRect(_trafficLightBounds, -3, -3));
++  if (hovered != _trafficLightsHovered) {
++    _trafficLightsHovered = hovered;
++    for (NSButton* button in _lights) {
++      if ([button respondsToSelector:@selector(mouseEnteredOrExited)]) {
++        [button mouseEnteredOrExited];
++      }
++      button.needsDisplay = YES;
++    }
+   }
+-  _openTabButton.frame = _material.bounds;
++}
++
++// The detached standard buttons ask their superview to track group hover.
++- (BOOL)_mouseInGroup:(id)sender {
++  return _trafficLightsHovered;
++}
++
++- (void)setPlayFrame:(NSRect)play
++           backFrame:(NSRect)back
++        forwardFrame:(NSRect)forward {
++  LayoutGlass(_playGlass, play);
++  LayoutGlass(_skipBackGlass, back);
++  LayoutGlass(_skipForwardGlass, forward);
++  _playSymbolView.frame = _playButton.bounds;
++}
++
++- (void)setPlaybackSymbol:(PlaybackSymbol)symbol {
++  if (_playbackSymbol == symbol) {
++    return;
++  }
++  NSString* name = @"play.fill";
++  int messageId = IDS_PICTURE_IN_PICTURE_PLAY_CONTROL_TEXT;
++  switch (symbol) {
++    case PlaybackSymbol::kPlay:
++      break;
++    case PlaybackSymbol::kPause:
++      name = @"pause.fill";
++      messageId = IDS_PICTURE_IN_PICTURE_PAUSE_CONTROL_TEXT;
++      break;
++    case PlaybackSymbol::kReplay:
++      name = @"arrow.counterclockwise";
++      messageId = IDS_PICTURE_IN_PICTURE_REPLAY_CONTROL_TEXT;
++      break;
++  }
++  NSImage* image = MakeSymbol(name, 22);
++  const BOOL animate = _playbackSymbol.has_value() && !_playGlass.hidden &&
++      !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
++  _playbackSymbol = symbol;
++  SetButtonLabel(_playButton, messageId);
++
++  if (@available(macOS 14, *)) {
++    if (animate) {
++      [_playSymbolView setSymbolImage:image
++               withContentTransition:[NSSymbolReplaceContentTransition replaceDownUpTransition]];
++      return;
++    }
++  } else if (animate) {
++    _playSymbolView.wantsLayer = YES;
++    CATransition* transition = [CATransition animation];
++    transition.type = kCATransitionFade;
++    transition.duration = 0.15;
++    [_playSymbolView.layer addAnimation:transition forKey:@"playbackSymbol"];
++  }
++  _playSymbolView.image = image;
+ }
+ 
+ - (NSView*)hitTest:(NSPoint)point {
+@@ -184,25 +331,36 @@ constexpr CGFloat kOpenTabPadding = 14;
+ }
+ 
+ - (void)closePictureInPicture:(id)sender {
+-  base::RepeatingClosure action = _close;
++  base::RepeatingClosure action = _actions.close;
+   action.Run();
+ }
+ 
+ - (void)minimizePictureInPicture:(id)sender {
+-  base::RepeatingClosure action = _minimize;
++  base::RepeatingClosure action = _actions.minimize;
+   action.Run();
+ }
+ 
+-- (void)togglePictureInPictureFullscreen:(id)sender {
+-  if (_widget) {
+-    _widget->SetFullscreen(!_widget->IsFullscreen());
+-  }
++- (void)fullscreenPictureInPicture:(id)sender {
++  base::RepeatingClosure action = _actions.fullscreen;
++  action.Run();
+ }
+ 
+ - (void)openSourceTab:(id)sender {
+-  base::RepeatingClosure action = _openTab;
++  base::RepeatingClosure action = _actions.open_tab;
+   action.Run();
+ }
++
++- (void)togglePlayback:(id)sender {
++  _actions.play_pause.Run();
++}
++
++- (void)skipBack:(id)sender {
++  _actions.skip_back.Run();
++}
++
++- (void)skipForward:(id)sender {
++  _actions.skip_forward.Run();
++}
+ @end
+ 
+ struct VideoOverlayWindowNativeWidgetMac::Titlebar {
+@@ -215,7 +373,7 @@ struct VideoOverlayWindowNativeWidgetMac
+     }
+   }
+ 
+-  VideoPictureInPictureTitlebar* view;
++  VideoPictureInPictureControls* view;
+   id local_mouse_monitor;
+   id global_mouse_monitor;
+ };
+@@ -238,27 +396,23 @@ void VideoOverlayWindowNativeWidgetMac::
+                        NSWindowStyleMaskResizable;
+ }
+ 
+-void VideoOverlayWindowNativeWidgetMac::InstallWindowControls(
+-    base::RepeatingClosure close,
+-    base::RepeatingClosure minimize,
+-    base::RepeatingClosure open_tab,
+-    base::RepeatingClosure update_hover) {
++void VideoOverlayWindowNativeWidgetMac::InstallWindowControls(Actions actions) {
+   NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
+   window.titleVisibility = NSWindowTitleHidden;
+   window.titlebarAppearsTransparent = YES;
+   window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleNone;
+   titlebar_ = std::make_unique<Titlebar>();
+-  titlebar_->view = [[VideoPictureInPictureTitlebar alloc]
+-      initWithWidget:GetWidget()
+-               close:std::move(close)
+-            minimize:std::move(minimize)
+-             openTab:std::move(open_tab)];
+-  [window.contentView addSubview:titlebar_->view];
++  auto update_hover = std::move(actions.update_hover);
++  titlebar_->view = [[VideoPictureInPictureControls alloc]
++      initWithWindow:window
++             actions:std::move(actions)];
++  [window.contentView addSubview:titlebar_->view positioned:NSWindowAbove relativeTo:nil];
++  BridgedContentView* content_view =
++      base::apple::ObjCCast<BridgedContentView>(window.contentView);
++  content_view.nativeChromeHitTestView = titlebar_->view;
+   [titlebar_->view layout];
+   SetWindowControlsVisible(false);
+ 
+-  // Local monitoring includes the native buttons over the Views content.
+-  // Global monitoring covers the exterior rails over other applications.
+   constexpr NSEventMask kPointerMotion =
+       NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged |
+       NSEventMaskRightMouseDragged | NSEventMaskOtherMouseDragged;
+@@ -278,7 +432,24 @@ void VideoOverlayWindowNativeWidgetMac::
+ }
+ 
+ void VideoOverlayWindowNativeWidgetMac::SetWindowControlsVisible(bool visible) {
+-  if (titlebar_ && titlebar_->view.hidden == visible) {
+-    titlebar_->view.hidden = !visible;
++  if (titlebar_) {
++    [titlebar_->view setHeaderVisible:visible];
++  }
++}
++
++void VideoOverlayWindowNativeWidgetMac::SetTransportControls(
++    const gfx::Rect& play_pause,
++    const gfx::Rect& skip_back,
++    const gfx::Rect& skip_forward) {
++  if (titlebar_) {
++    [titlebar_->view setPlayFrame:ToNSRect(play_pause)
++                        backFrame:ToNSRect(skip_back)
++                     forwardFrame:ToNSRect(skip_forward)];
++  }
++}
++
++void VideoOverlayWindowNativeWidgetMac::SetPlaybackSymbol(PlaybackSymbol symbol) {
++  if (titlebar_) {
++    [titlebar_->view setPlaybackSymbol:symbol];
+   }
+ }
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -398,22 +398,36 @@ std::unique_ptr<VideoOverlayWindowViews>
+   overlay_window->OnRootViewReady();
+ 
+ #if BUILDFLAG(IS_MAC)
+-  native_widget->InstallWindowControls(
+-      base::BindRepeating(&VideoOverlayWindowViews::CloseAndPauseIfAvailable,
+-                          overlay_window->weak_factory_.GetWeakPtr()),
+-      base::BindRepeating([] {
++  const auto weak_window = overlay_window->weak_factory_.GetWeakPtr();
++  native_widget->InstallWindowControls({
++      .close = base::BindRepeating([] {
++        PictureInPictureWindowManager::GetInstance()
++            ->ExitPictureInPictureViaWindowUi(
++                PictureInPictureWindowManager::UiBehavior::
++                    kCloseWindowAndPauseVideo);
++      }),
++      .minimize = base::BindRepeating([] {
+         PictureInPictureWindowManager::GetInstance()
+             ->ExitPictureInPictureViaWindowUi(
+                 PictureInPictureWindowManager::UiBehavior::kCloseWindowOnly);
+       }),
+-      base::BindRepeating([] {
++      .fullscreen = base::BindRepeating(
++          &VideoOverlayWindowViews::EnterVideoFullscreen, weak_window),
++      .open_tab = base::BindRepeating([] {
+         PictureInPictureWindowManager::GetInstance()
+             ->ExitPictureInPictureViaWindowUi(
+                 PictureInPictureWindowManager::UiBehavior::
+                     kCloseWindowAndFocusOpener);
+       }),
+-      base::BindRepeating(&VideoOverlayWindowViews::UpdateControlsForCursor,
+-                          overlay_window->weak_factory_.GetWeakPtr()));
++      .play_pause = base::BindRepeating(&VideoOverlayWindowViews::TogglePlayPause,
++                                       weak_window),
++      .skip_back = base::BindRepeating(&VideoOverlayWindowViews::Replay10Seconds,
++                                      weak_window),
++      .skip_forward = base::BindRepeating(
++          &VideoOverlayWindowViews::Forward10Seconds, weak_window),
++      .update_hover = base::BindRepeating(
++          &VideoOverlayWindowViews::UpdateControlsForCursor, weak_window),
++  });
+ #endif
+ 
+ #if BUILDFLAG(IS_WIN)
+@@ -866,12 +880,15 @@ void VideoOverlayWindowViews::UpdateCont
+   footer_hovered_ = inside || (can_hover && IsPointerNearControlBar(
+                                                cursor, footer, footer_hovered_));
+ 
+-  center_controls_visible_ =
+-      can_show_controls && force_controls_visible_.value_or(inside);
++  const bool inside_center =
++      inside && !header.Contains(cursor) && !footer.Contains(cursor);
++  center_controls_visible_ = can_show_controls && !dragging_progress &&
++      force_controls_visible_.value_or(inside_center);
+   // Keep the scrubber alive until Views delivers the end of the drag.
+   footer_controls_visible_ = can_show_controls &&
+       (dragging_progress || force_controls_visible_.value_or(footer_hovered_));
+-  center_controls_container_view_->SetVisible(center_controls_visible_);
++  center_controls_container_view_->SetVisible(
++      center_controls_visible_ && force_controls_visible_.has_value());
+   footer_controls_container_view_->SetVisible(footer_controls_visible_);
+   UpdateScrubberThumbVisibility(cursor);
+   vc_controls_container_view_->SetVisible(center_controls_visible_ &&
+@@ -880,9 +897,10 @@ void VideoOverlayWindowViews::UpdateCont
+           static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget())) {
+     mac_widget->SetWindowControlsVisible(header_hovered_);
+   }
++  UpdateNativeTransportControls();
+   controls_scrim_view_->layer()->SetOpacity(center_controls_visible_ ? 1 : 0);
+   controls_bottom_scrim_view_->layer()->SetOpacity(
+-      footer_controls_visible_ ? 1 : 0);
++      footer_controls_visible_ && !center_controls_visible_ ? 1 : 0);
+   const bool wanted_visibility =
+       center_controls_visible_ || footer_controls_visible_;
+   const bool wanted_title = header_hovered_ || force_controls_visible_ == true;
+@@ -914,13 +932,20 @@ void VideoOverlayWindowViews::UpdateCont
+   //   * We are in the initial "show" period, or
+   //   * The overlay window does not meet the user interaction criteria and is
+   //   not trusted for media playback
+-  const bool title_is_visible =
++  bool title_is_visible =
+       force_title_and_scrim_visible_.has_value()
+           ? force_title_and_scrim_visible_.value()
+           : wanted_title || initial_title_hide_timer_.IsRunning() ||
+                 !can_hide_title_and_scrim;
+ 
++#if BUILDFLAG(IS_MAC)
++  // The full-window scrim and edge gradients are mutually exclusive.
++  title_is_visible &= !center_controls_visible_;
++  GetTitleView()->layer()->SetOpacity(title_is_visible ? 1.0 : 0.0);
++  GetControlsTopScrimView()->layer()->SetOpacity(title_is_visible ? 1.0 : 0.0);
++#endif
+   if (should_animate) {
++#if !BUILDFLAG(IS_MAC)
+     // Animate the title and top scrim.
+     if (title_is_visible != AreTitleAndScrimVisible()) {
+       const std::vector<raw_ptr<views::View>> title_and_scrim = {
+@@ -932,6 +957,7 @@ void VideoOverlayWindowViews::UpdateCont
+                                : OverlayControlsFadeAnimation::Type::kToHidden);
+       title_and_top_scrim_fade_animation_->Start();
+     }
++#endif
+ 
+     // Animate the main controls.
+     if (wanted_visibility != AreControlsVisible()) {
+@@ -974,18 +1000,37 @@ void VideoOverlayWindowViews::UpdateCont
+ 
+ void VideoOverlayWindowViews::UpdateScrubberThumbVisibility(
+     const gfx::Point& cursor) {
+-  bool show_thumb = false;
++  std::optional<gfx::Point> local_cursor;
+   if (footer_controls_visible_ && show_playback_controls_ &&
+       !HasVideoConferenceControls() && !is_live_) {
+-    gfx::Rect track = progress_view_->GetTrackBounds();
+-    if (!track.IsEmpty()) {
+-      views::View::ConvertRectToScreen(progress_view_, &track);
+-      show_thumb =
+-          IsPointerNearControlBar(cursor, track, scrubber_thumb_hovered_);
+-    }
++    local_cursor = views::View::ConvertPointFromScreen(progress_view_, cursor);
+   }
+-  scrubber_thumb_hovered_ = show_thumb;
+-  progress_view_->SetRoundThumbVisible(show_thumb);
++  progress_view_->SetRoundThumbHover(local_cursor);
++}
++
++void VideoOverlayWindowViews::UpdateNativeTransportControls() {
++  auto* mac_widget =
++      static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget());
++  if (!mac_widget) {
++    return;
++  }
++  const bool show = center_controls_visible_ && show_playback_controls_ &&
++                    !HasVideoConferenceControls() &&
++                    !force_controls_visible_.has_value();
++  mac_widget->SetTransportControls(
++      show && play_pause_controls_view_->GetVisible()
++          ? GetPlayPauseControlsBounds()
++          : gfx::Rect(),
++      show && replay_10_seconds_button_->GetVisible()
++          ? GetReplay10SecondsButtonBounds()
++          : gfx::Rect(),
++      show && forward_10_seconds_button_->GetVisible()
++          ? GetForward10SecondsButtonBounds()
++          : gfx::Rect());
++}
++
++void VideoOverlayWindowViews::EnterVideoFullscreen() {
++  controller_->RequestFullscreen();
+ }
+ 
+ void VideoOverlayWindowViews::OnNativeWidgetVisibilityChanged(bool visible) {
+@@ -1206,8 +1251,13 @@ void VideoOverlayWindowViews::SetUpViews
+   auto video_view = std::make_unique<views::View>();
+ 
+   auto controls_scrim_view = std::make_unique<views::View>();
++#if BUILDFLAG(IS_MAC)
++  controls_scrim_view->SetBackground(
++      views::CreateSolidBackground(SkColorSetA(SK_ColorBLACK, 0x1A)));
++#else
+   controls_scrim_view->SetBackground(
+       views::CreateSolidBackground(kColorPipWindowScrimFull));
++#endif
+ 
+   auto controls_container_view = std::make_unique<views::View>();
+   auto title_view = std::make_unique<views::View>();
+@@ -1226,6 +1276,15 @@ void VideoOverlayWindowViews::SetUpViews
+   auto vc_controls_container_view = std::make_unique<views::View>();
+ 
+   auto controls_top_scrim_view = std::make_unique<views::View>();
++#if BUILDFLAG(IS_MAC)
++  const SkColor4f edge = SkColor4f::FromColor(SkColorSetA(SK_ColorBLACK, 0x40));
++  const SkColor4f clear = SkColor4f::FromColor(SK_ColorTRANSPARENT);
++  controls_top_scrim_view->SetBackground(
++      std::make_unique<GradientBackground>(edge, clear));
++  auto controls_bottom_scrim_view = std::make_unique<views::View>();
++  controls_bottom_scrim_view->SetBackground(
++      std::make_unique<GradientBackground>(clear, edge));
++#else
+   controls_top_scrim_view->SetBackground(std::make_unique<GradientBackground>(
+       SkColor4f::FromColor(
+           GetColorProvider()->GetColor(kColorPipWindowScrimTopGradientStart)),
+@@ -1239,6 +1298,7 @@ void VideoOverlayWindowViews::SetUpViews
+               kColorPipWindowScrimBottomGradientStart)),
+           SkColor4f::FromColor(GetColorProvider()->GetColor(
+               kColorPipWindowScrimBottomGradientEnd))));
++#endif
+ 
+   auto favicon_view = std::make_unique<views::ImageView>();
+   favicon_view->SetSize(kFaviconSize);
+@@ -1787,6 +1847,9 @@ void VideoOverlayWindowViews::OnUpdateCo
+     vc_controls_container_view_->SetVisible(true);
+ #endif
+     playback_controls_container_view_->SetVisible(false);
++#if BUILDFLAG(IS_MAC)
++    UpdateNativeTransportControls();
++#endif
+     return;
+   }
+   playback_controls_container_view_->SetVisible(show_playback_controls_);
+@@ -1897,6 +1960,9 @@ void VideoOverlayWindowViews::OnUpdateCo
+   replay_10_seconds_button_->SetVisible(!is_dragging_progress_bar && !is_live_);
+   forward_10_seconds_button_->SetVisible(!is_dragging_progress_bar &&
+                                          !is_live_);
++#if BUILDFLAG(IS_MAC)
++  UpdateNativeTransportControls();
++#endif
+ }
+ 
+ #if BUILDFLAG(IS_MAC)
+@@ -2111,6 +2177,16 @@ void VideoOverlayWindowViews::UpdateNatu
+ void VideoOverlayWindowViews::SetPlaybackState(PlaybackState playback_state) {
+   playback_state_for_testing_ = playback_state;
+   play_pause_controls_view_->SetPlaybackState(playback_state);
++#if BUILDFLAG(IS_MAC)
++  using Symbol = VideoOverlayWindowNativeWidgetMac::PlaybackSymbol;
++  auto* mac_widget =
++      static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget());
++  if (mac_widget) {
++    mac_widget->SetPlaybackSymbol(
++        playback_state == kPlaying ? Symbol::kPause
++        : playback_state == kEndOfVideo ? Symbol::kReplay : Symbol::kPlay);
++  }
++#endif
+ }
+ 
+ void VideoOverlayWindowViews::SetPlayPauseButtonVisibility(bool is_visible) {
+@@ -2462,7 +2538,7 @@ void VideoOverlayWindowViews::TogglePlay
+   // TogglePlayPause() since the IPC message may not have been propagated
+   // the media player yet.
+   bool is_active = controller_->TogglePlayPause();
+-  play_pause_controls_view_->SetPlaybackState(is_active ? kPlaying : kPaused);
++  SetPlaybackState(is_active ? kPlaying : kPaused);
+ }
+ 
+ void VideoOverlayWindowViews::Replay10Seconds() {
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.h
+@@ -280,6 +280,9 @@ class VideoOverlayWindowViews : public c
+ 
+ #if BUILDFLAG(IS_MAC)
+   bool header_hovered_for_testing() const { return header_hovered_; }
++  bool center_controls_visible_for_testing() const {
++    return center_controls_visible_;
++  }
+   views::Label* remaining_timestamp_for_testing() const {
+     return remaining_timestamp_;
+   }
+@@ -314,6 +317,8 @@ class VideoOverlayWindowViews : public c
+ 
+ #if BUILDFLAG(IS_MAC)
+   void UpdateControlsForCursor();
++  void UpdateNativeTransportControls();
++  void EnterVideoFullscreen();
+   void LayoutMacPlaybackFooter(const gfx::Rect& bounds);
+   void UpdateScrubberThumbVisibility(const gfx::Point& cursor);
+ #endif
+@@ -500,7 +505,6 @@ class VideoOverlayWindowViews : public c
+   raw_ptr<views::View> footer_controls_container_view_ = nullptr;
+   bool header_hovered_ = false;
+   bool footer_hovered_ = false;
+-  bool scrubber_thumb_hovered_ = false;
+   bool center_controls_visible_ = false;
+   bool footer_controls_visible_ = false;
+ #endif
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -1648,7 +1648,11 @@ TEST_F(VideoOverlayWindowViewsTest, Mous
+       overlay_window().initial_title_hide_timer_for_testing().IsRunning());
+ 
+   // All controls should now be visible or animating to visible.
++#if BUILDFLAG(IS_MAC)
++  EXPECT_FALSE(overlay_window().AreTitleAndScrimVisibleForTesting());
++#else
+   EXPECT_TRUE(overlay_window().AreTitleAndScrimVisibleForTesting());
++#endif
+   EXPECT_TRUE(overlay_window().AreControlsVisible());
+ }
+ 
+@@ -1668,9 +1672,7 @@ TEST_F(VideoOverlayWindowViewsTest, Poin
+     SetCursorScreenPoint(cursor);
+     EXPECT_EQ(header, overlay_window().header_hovered_for_testing());
+     EXPECT_EQ(footer, overlay_window().progress_view_for_testing()->IsDrawn());
+-    EXPECT_EQ(
+-        center,
+-        overlay_window().play_pause_controls_view_for_testing()->IsDrawn());
++    EXPECT_EQ(center, overlay_window().center_controls_visible_for_testing());
+   };
+   const int mid_x = window.CenterPoint().x();
+   check({mid_x, window.y() - 17}, false, false, false);
+@@ -1690,10 +1692,12 @@ TEST_F(VideoOverlayWindowViewsTest, Poin
+   check({window.right() + 64, footer_top - 16}, false, true, false);
+ 
+   check(window.CenterPoint(), true, true, true);
++  check({mid_x, window.y() + 10}, true, true, false);
++  check({mid_x, window.bottom() - 10}, true, true, false);
+   check({mid_x, window.bottom() + 32}, false, true, false);
+ }
+ 
+-TEST_F(VideoOverlayWindowViewsTest, ScrubberThumbHasItsOwnHoverZone) {
++TEST_F(VideoOverlayWindowViewsTest, ScrubberThumbHasRailAndGrabHoverStates) {
+   overlay_window().UpdateNaturalSize({640, 480});
+   overlay_window().ShowInactive();
+   overlay_window().SetMediaPosition(media_session::MediaPosition(
+@@ -1702,21 +1706,21 @@ TEST_F(VideoOverlayWindowViewsTest, Scru
+   WaitForLayout();
+ 
+   auto* progress = overlay_window().progress_view_for_testing();
+-  gfx::Rect track = progress->GetTrackBounds();
+-  views::View::ConvertRectToScreen(progress, &track);
++  const gfx::Rect track = progress->GetTrackBounds();
++  const gfx::Rect scrubber = progress->GetBoundsInScreen();
+   ASSERT_FALSE(track.IsEmpty());
+-  const int x = track.CenterPoint().x();
++  gfx::Point playhead(track.x() + track.width() * 0.42, track.CenterPoint().y());
++  views::View::ConvertPointToScreen(progress, &playhead);
+ 
+-  SetCursorScreenPoint({x, track.y() - 17});
++  SetCursorScreenPoint({playhead.x(), scrubber.y() - 1});
+   ASSERT_TRUE(progress->IsDrawn());
+   EXPECT_FALSE(progress->round_thumb_visible_for_testing());
+-  SetCursorScreenPoint({x, track.y() - 16});
+-  EXPECT_TRUE(progress->round_thumb_visible_for_testing());
+-  SetCursorScreenPoint({x, track.y() - 64});
++  SetCursorScreenPoint({scrubber.right() - 2, playhead.y()});
+   EXPECT_TRUE(progress->round_thumb_visible_for_testing());
+-  SetCursorScreenPoint({x, track.y() - 65});
+-  EXPECT_FALSE(progress->round_thumb_visible_for_testing());
+-  SetCursorScreenPoint({x, track.y() - 17});
++  EXPECT_FALSE(progress->round_thumb_grabbed_for_testing());
++  SetCursorScreenPoint(playhead);
++  EXPECT_TRUE(progress->round_thumb_grabbed_for_testing());
++  SetCursorScreenPoint({playhead.x(), scrubber.bottom()});
+   EXPECT_FALSE(progress->round_thumb_visible_for_testing());
+ }
+ 
+--- a/components/global_media_controls/public/views/media_progress_view.cc
++++ b/components/global_media_controls/public/views/media_progress_view.cc
+@@ -60,7 +60,9 @@ constexpr float kProgressPhaseSpeed = 28
+ // squiggly or straight progress.
+ constexpr gfx::SizeF kSquigglyProgressIndicatorSize = gfx::SizeF(6, 14);
+ constexpr gfx::SizeF kStraightProgressIndicatorSize = gfx::SizeF(4, 16);
+-constexpr gfx::SizeF kRoundProgressIndicatorSize = gfx::SizeF(12, 12);
++constexpr float kRoundThumbDiameter = 8.0f;
++constexpr float kGrabbedThumbDiameter = 12.0f;
++constexpr float kThumbGrabRadius = 8.0f;
+ 
+ // The width of the gap between the progress indicator and the straight lines.
+ constexpr float kStraightProgressIndicatorGap = 4.0f;
+@@ -138,12 +140,14 @@ MediaProgressView::MediaProgressView(
+       seek_callback_(std::move(seek_callback)),
+       on_update_progress_callback_(std::move(on_update_progress_callback)),
+       slide_animation_(this),
+-      thickness_animation_(this) {
++      thickness_animation_(this),
++      grab_animation_(this) {
+   SetFlipCanvasOnPaintForRTLUI(true);
+   SetFocusBehavior(FocusBehavior::ALWAYS);
+ 
+   slide_animation_.SetSlideDuration(kSlideAnimationDuration);
+   thickness_animation_.SetSlideDuration(kThicknessAnimationDuration);
++  grab_animation_.SetSlideDuration(kThicknessAnimationDuration);
+   straight_progress_stroke_width_ = kStrokeWidth;
+ 
+   GetViewAccessibility().SetRole(ax::mojom::Role::kSlider);
+@@ -162,10 +166,31 @@ void MediaProgressView::SetRoundThumb(bo
+   SchedulePaint();
+ }
+ 
+-void MediaProgressView::SetRoundThumbVisible(bool visible) {
+-  if (round_thumb_visible_ != visible) {
+-    round_thumb_visible_ = visible;
+-    SchedulePaint();
++void MediaProgressView::SetRoundThumbHover(std::optional<gfx::Point> cursor) {
++  round_thumb_cursor_ = cursor;
++  UpdateRoundThumbAnimations();
++}
++
++void MediaProgressView::UpdateRoundThumbAnimations() {
++  const bool over_track =
++      round_thumb_cursor_ && !is_live_ &&
++      IsValidSeekPosition(round_thumb_cursor_->x(), round_thumb_cursor_->y());
++  const double playhead = base::i18n::IsRTL() ? 1 - current_value_
++                                               : current_value_;
++  const gfx::Rect track = GetTrackBounds();
++  const float thumb_x = track.x() + track.width() * playhead;
++  const bool over_thumb =
++      over_track &&
++      std::abs(round_thumb_cursor_->x() - thumb_x) <= kThumbGrabRadius;
++  if (over_track || is_dragging_) {
++    thickness_animation_.Show();
++  } else {
++    thickness_animation_.Hide();
++  }
++  if (over_thumb || is_dragging_) {
++    grab_animation_.Show();
++  } else {
++    grab_animation_.Hide();
+   }
+ }
+ 
+@@ -192,6 +217,8 @@ void MediaProgressView::AnimationProgres
+       OnPropertyChanged(&straight_progress_stroke_width_,
+                         views::PropertyEffects::kPaint);
+     }
++  } else if (animation == &grab_animation_ && IsDrawn()) {
++    SchedulePaint();
+   }
+ }
+ 
+@@ -256,8 +283,9 @@ void MediaProgressView::OnPaint(gfx::Can
+   const float view_height = CalculatePreferredSize({}).height();
+   const float progress_width = view_width * current_value_;
+   const float straight_stroke_width =
+-      round_thumb_ ? std::max(static_cast<float>(kRoundTrackStrokeWidth),
+-                              straight_progress_stroke_width_)
++      round_thumb_ ? thickness_animation_.CurrentValueBetween(
++                         static_cast<double>(kRoundTrackStrokeWidth),
++                         kLargeStrokeWidth)
+                    : straight_progress_stroke_width_;
+   const ui::ColorId foreground_color = use_paused_colors_
+                                           ? paused_foreground_color_id_
+@@ -319,9 +347,13 @@ void MediaProgressView::OnPaint(gfx::Can
+   if (use_squiggly_line_) {
+     indicator_size = kSquigglyProgressIndicatorSize;
+   } else if (round_thumb_) {
+-    indicator_size = kRoundProgressIndicatorSize;
++    const float diameter =
++        kRoundThumbDiameter * thickness_animation_.GetCurrentValue() +
++        (kGrabbedThumbDiameter - kRoundThumbDiameter) *
++            grab_animation_.GetCurrentValue();
++    indicator_size = gfx::SizeF(diameter, diameter);
+   }
+-  if (is_live_ || (round_thumb_ && !round_thumb_visible_)) {
++  if (is_live_) {
+     indicator_size = gfx::SizeF();
+   }
+   const float background_line_x =
+@@ -377,11 +409,13 @@ void MediaProgressView::OnBlur() {
+ }
+ 
+ void MediaProgressView::OnMouseEntered(const ui::MouseEvent& event) {
+-  thickness_animation_.Show();
++  if (!round_thumb_) {
++    thickness_animation_.Show();
++  }
+ }
+ 
+ void MediaProgressView::OnMouseExited(const ui::MouseEvent& event) {
+-  if (!is_dragging_) {
++  if (!round_thumb_ && !is_dragging_) {
+     thickness_animation_.Hide();
+   }
+ }
+@@ -525,6 +559,9 @@ void MediaProgressView::UpdateProgress(
+   if (progress_changed) {
+     current_value_ = new_value;
+   }
++  if (round_thumb_ && round_thumb_cursor_) {
++    UpdateRoundThumbAnimations();
++  }
+ 
+   const bool should_animate_waves = !is_paused_ && use_squiggly_line_;
+ 
+@@ -633,7 +670,11 @@ void MediaProgressView::DelayedProgressD
+ 
+   // Enlarge the straight progress line stroke width when the user starts
+   // dragging the progress line.
+-  thickness_animation_.Show();
++  if (round_thumb_) {
++    UpdateRoundThumbAnimations();
++  } else {
++    thickness_animation_.Show();
++  }
+   drag_state_change_callback_.Run(DragState::kDragStarted);
+ 
+   // Seek to the location for the dragging event so that if the user only
+@@ -659,7 +700,9 @@ void MediaProgressView::OnProgressDragEn
+     }
+     // Reset the straight progress line stroke width if the mouse is not
+     // hovering over the view.
+-    if (!IsMouseHovered()) {
++    if (round_thumb_) {
++      UpdateRoundThumbAnimations();
++    } else if (!IsMouseHovered()) {
+       thickness_animation_.Hide();
+     }
+     drag_state_change_callback_.Run(DragState::kDragEnded);
+--- a/components/global_media_controls/public/views/media_progress_view.h
++++ b/components/global_media_controls/public/views/media_progress_view.h
+@@ -5,6 +5,8 @@
+ #ifndef COMPONENTS_GLOBAL_MEDIA_CONTROLS_PUBLIC_VIEWS_MEDIA_PROGRESS_VIEW_H_
+ #define COMPONENTS_GLOBAL_MEDIA_CONTROLS_PUBLIC_VIEWS_MEDIA_PROGRESS_VIEW_H_
+ 
++#include <optional>
++
+ #include "base/memory/raw_ptr.h"
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
+@@ -96,7 +98,7 @@ class COMPONENT_EXPORT(GLOBAL_MEDIA_CONT
+ 
+   // Draws a circular thumb on the straight scrubber.
+   void SetRoundThumb(bool round_thumb);
+-  void SetRoundThumbVisible(bool visible);
++  void SetRoundThumbHover(std::optional<gfx::Point> cursor);
+   gfx::Rect GetTrackBounds() const;
+ 
+   // Returns the update interval based on whether the view is drawn and the
+@@ -108,7 +110,12 @@ class COMPONENT_EXPORT(GLOBAL_MEDIA_CONT
+   float phase_offset_for_testing() const;
+   float progress_amp_fraction_for_testing() const;
+   float straight_progress_stroke_width_for_testing() const;
+-  bool round_thumb_visible_for_testing() const { return round_thumb_visible_; }
++  bool round_thumb_visible_for_testing() const {
++    return thickness_animation_.IsShowing();
++  }
++  bool round_thumb_grabbed_for_testing() const {
++    return grab_animation_.IsShowing();
++  }
+   bool is_paused_for_testing() const;
+   bool is_live_for_testing() const;
+   bool use_paused_colors_for_testing() const;
+@@ -151,11 +158,12 @@ class COMPONENT_EXPORT(GLOBAL_MEDIA_CONT
+ 
+   // Returns whether the given seek position is valid to be handled.
+   bool IsValidSeekPosition(int x, int y);
++  void UpdateRoundThumbAnimations();
+ 
+   // Init parameters.
+   bool use_squiggly_line_;
+   bool round_thumb_ = false;
+-  bool round_thumb_visible_ = false;
++  std::optional<gfx::Point> round_thumb_cursor_;
+   ui::ColorId playing_foreground_color_id_;
+   ui::ColorId playing_background_color_id_;
+   ui::ColorId paused_foreground_color_id_;
+@@ -198,6 +206,7 @@ class COMPONENT_EXPORT(GLOBAL_MEDIA_CONT
+   // Animation for progress line to transition between thicker and less thick
+   // states.
+   gfx::SlideAnimation thickness_animation_;
++  gfx::SlideAnimation grab_animation_;
+ 
+   // Timer to continuously update the progress value if the media is playing.
+   std::unique_ptr<base::OneShotTimer> update_progress_timer_ =
+--- a/components/remote_cocoa/app_shim/bridged_content_view.h
++++ b/components/remote_cocoa/app_shim/bridged_content_view.h
+@@ -54,6 +54,9 @@ REMOTE_COCOA_APP_SHIM_EXPORT
+ }
+ 
+ @property(readonly, nonatomic) remote_cocoa::NativeWidgetNSWindowBridge* bridge;
++
++// A direct native chrome subview whose controls handle hits before Views.
++@property(nonatomic, weak) NSView* nativeChromeHitTestView;
+ @property(assign, nonatomic) BOOL drawMenuBackgroundForBlur;
+ @property(strong, nonatomic) NSEvent* keyDownEventForTesting;
+ 
+--- a/components/remote_cocoa/app_shim/bridged_content_view.mm
++++ b/components/remote_cocoa/app_shim/bridged_content_view.mm
+@@ -381,6 +381,15 @@ ui::TextEditCommand GetTextEditCommandFo
+   remote_cocoa::mojom::HitTestResult hitTestResult;
+   _bridge->host()->GetHitTestResult(flippedPoint, &hitTestResult);
+ 
++  if (hitTestResult != remote_cocoa::mojom::HitTestResult::kBlockedSubView) {
++    if (NSView* chrome = self.nativeChromeHitTestView;
++        chrome.superview == self && !chrome.hiddenOrHasHiddenAncestor) {
++      if (NSView* target = [chrome hitTest:pointInView]) {
++        return target;
++      }
++    }
++  }
++
+   // If `point` is classified as a draggable background (HTCAPTION), return nil
+   // so that it can lead to a window drag or double-click in the title bar.
+   // Dragging could be optimized by telling the window server which regions
+@@ -1820,8 +1829,21 @@ ui::TextEditCommand GetTextEditCommandFo
+ // NSAccessibility formal protocol implementation:
+ 
+ - (NSArray*)accessibilityChildren {
+-  if (id accessible = _bridge->host_helper()->GetNativeViewAccessible())
++  if (id accessible = _bridge->host_helper()->GetNativeViewAccessible()) {
++    if (NSView* chrome = self.nativeChromeHitTestView;
++        chrome.superview == self && !chrome.hiddenOrHasHiddenAncestor) {
++      NSMutableArray<NSView*>* visible_controls = [NSMutableArray array];
++      for (NSView* child in chrome.subviews) {
++        if (!child.hidden) {
++          [visible_controls addObject:child];
++        }
++      }
++      return [@[ accessible ]
++          arrayByAddingObjectsFromArray:
++              NSAccessibilityUnignoredChildren(visible_controls)];
++    }
+     return @[ accessible ];
++  }
+   return [super accessibilityChildren];
+ }
+ 
+--- a/content/browser/picture_in_picture/picture_in_picture_service_impl_unittest.cc
++++ b/content/browser/picture_in_picture/picture_in_picture_service_impl_unittest.cc
+@@ -56,6 +56,7 @@ class DummyPictureInPictureSessionObserv
+   // Implementation of PictureInPictureSessionObserver.
+   void OnWindowSizeChanged(const gfx::Size&) override {}
+   void OnStopped() override {}
++  void OnFullscreenRequested() override {}
+ };
+ 
+ class PictureInPictureDelegate : public WebContentsDelegate {
+--- a/content/browser/picture_in_picture/picture_in_picture_session.cc
++++ b/content/browser/picture_in_picture/picture_in_picture_session.cc
+@@ -85,6 +85,12 @@ void PictureInPictureSession::NotifyWind
+   observer_->OnWindowSizeChanged(size);
+ }
+ 
++void PictureInPictureSession::RequestFullscreen() {
++  if (!is_stopping_) {
++    observer_->OnFullscreenRequested();
++  }
++}
++
+ mojo::AssociatedRemote<media::mojom::MediaPlayer>&
+ PictureInPictureSession::GetMediaPlayerRemote() {
+   CHECK(media_player_remote_.is_bound(), base::NotFatalUntil::M159);
+--- a/content/browser/picture_in_picture/picture_in_picture_session.h
++++ b/content/browser/picture_in_picture/picture_in_picture_session.h
+@@ -54,6 +54,7 @@ class PictureInPictureSession : public b
+       const media_session::MediaPosition& media_position) final;
+ 
+   void NotifyWindowResized(const gfx::Size& size);
++  void RequestFullscreen();
+ 
+   // Return an already bound mojo Remote for the MediaPlayer mojo interface.
+   mojo::AssociatedRemote<media::mojom::MediaPlayer>& GetMediaPlayerRemote();
+--- a/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc
++++ b/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.cc
+@@ -490,6 +490,17 @@ void VideoPictureInPictureWindowControll
+   active_session_->GetMediaPlayerRemote()->RequestMute(mute);
+ }
+ 
++void VideoPictureInPictureWindowControllerImpl::RequestFullscreen() {
++  if (!active_session_ || !active_session_->player_id().has_value()) {
++    return;
++  }
++
++  // Returning to the source tab can dismiss automatic PiP. Deliver the
++  // fullscreen request on the session's observer before its stop notification.
++  active_session_->RequestFullscreen();
++  FocusInitiator();
++}
++
+ bool VideoPictureInPictureWindowControllerImpl::GetMuteStatus() {
+   return MediaSessionImpl::Get(web_contents())->GetMuteStatus();
+ }
+--- a/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.h
++++ b/content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.h
+@@ -77,6 +77,7 @@ class CONTENT_EXPORT VideoPictureInPictu
+   void ToggleCamera() override;
+   void HangUp() override;
+   void RequestMute(bool mute) override;
++  void RequestFullscreen() override;
+   bool GetMuteStatus() override;
+   void PreviousSlide() override;
+   void NextSlide() override;
+--- a/content/public/browser/video_picture_in_picture_window_controller.h
++++ b/content/public/browser/video_picture_in_picture_window_controller.h
+@@ -44,6 +44,9 @@ class VideoPictureInPictureWindowControl
+   // Requests the player to suspend playback.
+   virtual void Pause() = 0;
+ 
++  // Focuses the source tab and requests fullscreen playback for this video.
++  virtual void RequestFullscreen() {}
++
+   // Called when the user interacts with the "Toggle Microphone" control.
+   virtual void ToggleMicrophone() = 0;
+ 
+--- a/third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom
++++ b/third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom
+@@ -20,6 +20,9 @@ interface PictureInPictureSessionObserve
+   // Picture-in-Picture window or when another session has started. This will
+   // not be called when `Stop()` is called on a PictureInPictureSession object.
+   OnStopped();
++
++  // The user chose fullscreen on the native Picture-in-Picture window.
++  OnFullscreenRequested();
+ };
+ 
+ // Representation of a Picture-in-Picture session. The caller receives this
+--- a/third_party/blink/renderer/modules/document_picture_in_picture/picture_in_picture_controller_impl.cc
++++ b/third_party/blink/renderer/modules/document_picture_in_picture/picture_in_picture_controller_impl.cc
+@@ -19,6 +19,7 @@
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
++#include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-shared.h"
+ #include "third_party/blink/renderer/bindings/modules/v8/v8_document_picture_in_picture_options.h"
+ #include "third_party/blink/renderer/core/dom/document.h"
+ #include "third_party/blink/renderer/core/dom/dom_exception.h"
+@@ -598,6 +599,18 @@ void PictureInPictureControllerImpl::OnS
+   OnExitedPictureInPicture(nullptr);
+ }
+ 
++void PictureInPictureControllerImpl::OnFullscreenRequested() {
++  HTMLVideoElement* video = picture_in_picture_element_.Get();
++  if (!video) {
++    return;
++  }
++  if (LocalFrame* frame = video->GetDocument().GetFrame()) {
++    LocalFrame::NotifyUserActivation(
++        frame, mojom::blink::UserActivationNotificationType::kInteraction);
++    video->EnterFullscreen();
++  }
++}
++
+ void PictureInPictureControllerImpl::SetMayThrottleIfUndrawnFrames(
+     bool may_throttle) {
+   if (!GetSupplementable()->GetFrame() ||
+--- a/third_party/blink/renderer/modules/document_picture_in_picture/picture_in_picture_controller_impl.h
++++ b/third_party/blink/renderer/modules/document_picture_in_picture/picture_in_picture_controller_impl.h
+@@ -125,6 +125,7 @@ class MODULES_EXPORT PictureInPictureCon
+   // Implementation of PictureInPictureSessionObserver.
+   void OnWindowSizeChanged(const gfx::Size&) override;
+   void OnStopped() override;
++  void OnFullscreenRequested() override;
+ 
+   void Trace(Visitor*) const override;
+ 
