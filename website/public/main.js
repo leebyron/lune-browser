@@ -13,7 +13,7 @@
   let commandOverride=null;
   let commandStart=0,bangStart=0,commandComplete=0,commandDismiss=0,commandEnd=0,bangStartedAt=null,commandFrame=0;
   let panelPointer=null,cursorPath=null,cursorPathLength=0,browserScale=1;
-  const chromeHover={sideReveal:16,sideRetain:128,topReveal:16,topRetain:64};
+  const chromeHover={sideReveal:16,sideRetain:128,topRevealOutside:16,topRevealInside:8,topRetain:64};
   let demoStart=0,demoDistance=460,toolbarStop=25,cursorStop=65,sidebarOverride=null,sidebarHovered=false,demoToolbarActive=false;
   const dock=root.querySelector('.dock'),items=[...dock.querySelectorAll('.dock-item')];
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
@@ -647,14 +647,14 @@
     if (!appVisible) return;
     const point=windowPointer();
     const sideEntry={left:-chromeHover.sideReveal,right:chromeHover.sideReveal,
-      top:-chromeHover.topReveal,bottom:win.clientHeight+chromeHover.topReveal};
+      top:-chromeHover.topRevealOutside,bottom:win.clientHeight+chromeHover.topRevealOutside};
     if (containsPoint(point,sideEntry) && !sidebarHovered) {
       sidebarHovered=true;
       updateSidebar(scroll.scrollTop);
     }
-    const topEntry={left:-chromeHover.sideReveal,right:win.clientWidth+chromeHover.sideReveal,
-      top:-chromeHover.topReveal,bottom:chromeHover.topReveal};
-    if (containsPoint(point,topEntry) || (win.dataset.sidebar !== 'hidden' &&
+    const inTopEntry=point.x>=-chromeHover.sideReveal && point.x<=win.clientWidth+chromeHover.sideReveal &&
+      point.y>=-chromeHover.topRevealOutside && point.y<chromeHover.topRevealInside;
+    if (inTopEntry || (win.dataset.sidebar !== 'hidden' &&
         containsPoint(point,{left:0,right:sidebar.offsetWidth,top:0,bottom:52}))) showToolbar();
     dismissDistantPanels();
   }

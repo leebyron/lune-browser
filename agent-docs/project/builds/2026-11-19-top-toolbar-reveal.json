@@ -1,0 +1,126 @@
+{
+  "date": "2026-11-19",
+  "chromium_version": "158.0.8127.37",
+  "base_platform": "988d81ce468fd0c0c733b62e001bb9628b9b2b54",
+  "core": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+  "platform": "9949c5d5f5161ccef651d58a080a1848088847e3",
+  "input_ref": "refs/tags/inputs/narrow-top-toolbar-reveal-1/macos",
+  "source_preparation": {
+    "zero_fuzz": true,
+    "new_patch_offsets": 0,
+    "complete_prepared_source_parity": true,
+    "unchanged_through_both_builds": true,
+    "files_compared": 596108,
+    "symlinks_compared": 141,
+    "affected_source_sha256": {
+      "chrome/browser/ui/views/helium/native_frame_materials_mac.mm": "92ee687c75bc12678bd112419e9c89156b94b2cc0323735900d9130dd80dc8eb"
+    },
+    "patch_sha256": "e1db252da27157692c780143e407bf79eea66f6ee0e92d8c551c3076205c0976"
+  },
+  "builds": {
+    "arm64": {
+      "build": true,
+      "smoke": true,
+      "execution": "native Apple silicon",
+      "framework_sha256": "c80922d4ca2f2ee17f99e157ced03efc8decb656b39ba1459c599666a77792b7",
+      "native_window_pointer_check": true,
+      "gn_check": true,
+      "focused_native_fixtures": [
+        "fullscreen and window hover",
+        "DevTools",
+        "toolbar modes",
+        "drag retention"
+      ]
+    },
+    "x86_64": {
+      "build": true,
+      "smoke": true,
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "b2cfa88fc5f427b08bcf0e68d29dd3696a1b9881728409e08018a906a00457d8",
+      "native_window_pointer_check": true,
+      "gn_check": true,
+      "focused_native_fixtures": [
+        "fullscreen and window hover",
+        "DevTools",
+        "toolbar modes",
+        "drag retention"
+      ]
+    }
+  },
+  "native_window_pointer_check": {
+    "method": "Quartz mouse moves in an active macOS window with screenshots of the toolbar area.",
+    "baseline_framework_sha256": "34985e15b45f76a9314885c4e9e0c4e4efbb4781f1c5f61275b75ff61c6438cb",
+    "inward_boundary_pixels": {
+      "reveals": 7,
+      "stays_hidden": 8
+    },
+    "exterior_boundary_pixels": {
+      "reveals": -16,
+      "stays_hidden": -17
+    },
+    "retention_boundary_pixels_from_window_top": {
+      "above": {
+        "retains": -64,
+        "dismisses": -65
+      },
+      "below": {
+        "retains": 108,
+        "dismisses": 109
+      }
+    },
+    "baseline_revealed_at_8_and_9_pixels_inside": true
+  },
+  "website": {
+    "asset_sha256": {
+      "index.html": "49aef0a6b741c6adcfdc90ee7c968ff89e0f0ce78046e679ab74b33afa4031bb",
+      "styles.css": "2f4d558039209b17b82ec8ab4554e4322557e836352d6463b77d8283e6e6a905",
+      "main.js": "5aefdaafe067968d3fbe62c0faff9f2fb0a63ac548f8eb2b9b7b62d8f797ac47"
+    },
+    "npm_check": "passed, including seven tests and Wrangler dry run",
+    "layouts": [
+      {
+        "viewport": [
+          1440,
+          950
+        ],
+        "scale": 1,
+        "appearance": "light",
+        "reduced_motion": true,
+        "pointer_and_interaction_checks": 24,
+        "browser_mouse_positions": 9,
+        "scroll_demo_states": 0
+      },
+      {
+        "viewport": [
+          1440,
+          950
+        ],
+        "scale": 1,
+        "appearance": "dark",
+        "reduced_motion": false,
+        "pointer_and_interaction_checks": 24,
+        "browser_mouse_positions": 9,
+        "scroll_demo_states": 7
+      },
+      {
+        "viewport": [
+          390,
+          844
+        ],
+        "scale": 0.5,
+        "appearance": "dark",
+        "reduced_motion": false,
+        "pointer_and_interaction_checks": 24,
+        "browser_mouse_positions": 9,
+        "scroll_demo_states": 7
+      }
+    ],
+    "environment": "Headless Lune with desktop and phone-sized viewports."
+  },
+  "repository_tests": {
+    "run": 107,
+    "skipped": 1,
+    "passed": true
+  },
+  "validation_scope": "Fullscreen coverage uses native geometry fixtures. The headed browser comparison used windowed mode on Apple silicon. The website check used emulated phone dimensions."
+}

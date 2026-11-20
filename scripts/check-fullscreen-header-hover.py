@@ -197,7 +197,7 @@ int main() { @autoreleasepool {
               if (native_top<=menu_bottom) assert(offset==0);
               else assert(available_top<=menu_bottom && menu_bottom<available_top+1);
               CGFloat gap=screen_top-available_top;
-              CGFloat thickness=gap>0?1/scale:16;
+              CGFloat thickness=gap>0?1/scale:8;
               for (CGFloat distance : {-1.,0.,gap/2,gap,gap+thickness,
                                         gap+thickness+.25,gap+108,gap+109}) {
                 pointer=NSMakePoint(origin.x+800,screen_top-distance);
@@ -248,10 +248,11 @@ int main() { @autoreleasepool {
         pointer.x=origin.x+(right?1903.5:16);
         assert(!IsPointerInNativeRevealRail(&view,false,0));
       }
-      pointer=NSMakePoint(origin.x+800,origin.y+1080-15.5);
-      assert(IsPointerInNativeRevealRail(&view,true,0));
-      pointer.y=origin.y+1080-16;
-      assert(!IsPointerInNativeRevealRail(&view,true,0));
+      for (CGFloat depth : {-17.,-16.,0.,7.5,8.,16.}) {
+        pointer=NSMakePoint(origin.x+800,origin.y+1080-depth);
+        assert(IsPointerInNativeRevealRail(&view,true,0)==
+               (depth>=-16 && depth<8));
+      }
       assert(NativeFullscreenTopControlsOffset(&view,1)==0);
       assert(!IsPointerAboveNativeFullscreenContent(&view,0));
     }
@@ -279,7 +280,7 @@ int main() { @autoreleasepool {
   assert(!view.ShouldDrawVerticalTabStrip());
   tabs::controller.vertical=true; view.type=BrowserWindowInterface::Type::TYPE_POPUP;
   assert(!view.ShouldDrawVerticalTabStrip());
-  puts("PASS: side 16/128, top 16/64, one physical content pixel below visible menus, initial/animated fullscreen offsets, both sidebar sides, display origins and scales");
+  puts("PASS: top entry 8 inside and 16 outside, top retention 64, side 16/128, fullscreen menus, both sidebar sides, display origins and scales");
 } }
 '''
     with tempfile.TemporaryDirectory(prefix='lune-fullscreen-hover-') as temp:

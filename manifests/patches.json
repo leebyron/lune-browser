@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "988d81ce468fd0c0c733b62e001bb9628b9b2b54",
+    "commit": "9949c5d5f5161ccef651d58a080a1848088847e3",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1061,6 +1061,10 @@
       {
         "path": "patches/helium/ui/page-top-window-drag-default.patch",
         "sha256": "b48a77d0e9f26fff5894a8404f6ab7e7f5f79f3963b2987190a55b8348bb39f4"
+      },
+      {
+        "path": "patches/helium/ui/narrow-top-toolbar-reveal.patch",
+        "sha256": "e1db252da27157692c780143e407bf79eea66f6ee0e92d8c551c3076205c0976"
       }
     ]
   },
@@ -3325,6 +3329,21 @@
       "adaptation": "Set the existing registered preference default to true so explicit choices retain priority.",
       "commits": [
         "988d81ce468fd0c0c733b62e001bb9628b9b2b54"
+      ]
+    },
+    {
+      "id": "narrow-top-toolbar-reveal",
+      "depends_on": [
+        "fullscreen-menubar-geometry"
+      ],
+      "patches": [
+        "patches/helium/ui/narrow-top-toolbar-reveal.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Reduce unintended toolbar reveal when the pointer is near the top of the page.",
+      "adaptation": "Use 8 logical pixels inside the top edge and retain the 16-pixel exterior band, 64-pixel retention distances, and fullscreen menu-strip geometry.",
+      "commits": [
+        "9949c5d5f5161ccef651d58a080a1848088847e3"
       ]
     }
   ],
