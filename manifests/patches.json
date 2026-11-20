@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "9949c5d5f5161ccef651d58a080a1848088847e3",
+    "commit": "7979bbb2f077ffa3915eb56720d3cee0f52d19e0",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1065,6 +1065,10 @@
       {
         "path": "patches/helium/ui/narrow-top-toolbar-reveal.patch",
         "sha256": "e1db252da27157692c780143e407bf79eea66f6ee0e92d8c551c3076205c0976"
+      },
+      {
+        "path": "patches/helium/ui/older-date-label-offset.patch",
+        "sha256": "0e0752a733bb64b5ad12715bb991e473872590927254416dce7f3054bd17a3ff"
       }
     ]
   },
@@ -3344,6 +3348,21 @@
       "adaptation": "Use 8 logical pixels inside the top edge and retain the 16-pixel exterior band, 64-pixel retention distances, and fullscreen menu-strip geometry.",
       "commits": [
         "9949c5d5f5161ccef651d58a080a1848088847e3"
+      ]
+    },
+    {
+      "id": "older-date-label-offset",
+      "depends_on": [
+        "older-tabs-dates"
+      ],
+      "patches": [
+        "patches/helium/ui/older-date-label-offset.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Move Older Tabs date heading text up one logical pixel within its existing row.",
+      "adaptation": "Shift one unit from the label’s top inset to its bottom inset so the full offset applies even when the previous top inset was zero.",
+      "commits": [
+        "7979bbb2f077ffa3915eb56720d3cee0f52d19e0"
       ]
     }
   ],
