@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "2b342ed0debaf3a3c2f113410c081e8a6a33de44",
+    "commit": "7ee46eac05d0a7dfc5da3d65d37a312ca99de76c",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1053,6 +1053,10 @@
       {
         "path": "patches/helium/ui/macos-picture-in-picture-window-interaction.patch",
         "sha256": "2691d2c6344cf933146cdbea6e0ec618ecbe81b40adfe86c0cc7d015ac5c5dd9"
+      },
+      {
+        "path": "patches/helium/ui/native-search-width.patch",
+        "sha256": "c64b565338f524a85ee93e34312d3941175719d387896c88037aa2d17034c7d1"
       }
     ]
   },
@@ -3285,6 +3289,23 @@
         "838f5a6891bbe3c9af3f25dd3a3a7abffaf09155",
         "846fce4980cc9e3034c869a4fd12515864720539",
         "2b342ed0debaf3a3c2f113410c081e8a6a33de44"
+      ]
+    },
+    {
+      "id": "native-search-width",
+      "depends_on": [
+        "native-toolbar-controls",
+        "native-menu-layout",
+        "address-bar-bangs"
+      ],
+      "patches": [
+        "patches/helium/ui/native-search-width.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep the floating address bar and command menu to a readable width in wide windows.",
+      "adaptation": "Cap the macOS glass at 720 pt. Reserve the address results outset in the collapsed width and retain responsive toolbar spacing and command-menu side margins.",
+      "commits": [
+        "7ee46eac05d0a7dfc5da3d65d37a312ca99de76c"
       ]
     }
   ],

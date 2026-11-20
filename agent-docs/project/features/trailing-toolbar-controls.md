@@ -9,7 +9,7 @@
 
 ## Address and native menus
 
-- Center the address capsule with a maximum of half the available header region outside the sidebar. Shrink it to the space between groups. Reload uses a 32 pt target and 2 pt trailing inset. Hiding it returns the target width to the field, preserves the 40 pt leading inset and retains short display-text centering.
+- Center the address capsule between the navigation and trailing groups. Its collapsed width is limited by the gap between the groups, half the available header region outside the sidebar, and a 700 pt cap. Results extend the glass by 10 pt per side up to 720 pt, with the field, Site Information and Reload held in place. Reload uses a 32 pt target and 2 pt trailing inset. Hiding it returns the target width to the field, preserves the 40 pt leading inset and retains short display-text centering. [Width validation](../builds/2026-11-19-native-search-width.json)
 - Right-click, Control-click and a 500 ms hold on Back, Forward and Reload use Chromium's existing menu provider, availability and original commands. Consume a recognized hold before mouse-up can also click. With no menu, allow the ordinary click. Reload's menu retains its DevTools and Reload-state gates.
 - A second click on Site Information must leave the bubble closed after release. Observe the bubble widget hiding or destruction during a press over its icon, then suppress that release's reopen action. Clear any unused latch after dispatch. A mouse-down monitor alone lost the race with Chromium focus-loss dismissal.
 

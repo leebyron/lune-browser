@@ -16,6 +16,11 @@ view for the remaining results. Up/Down scrolls the selected row into view,
 including wraparound; changing the result list resets the scroll position.
 Other platforms retain their existing Views implementation.
 
+The visible macOS panel is centered and capped at 720 pt. In narrower windows
+it leaves 36 pt on each side. The width is the same with or without results,
+including in the shared Cmd+/ view. The surrounding translucent widget leaves
+48 pt per side for glass effects and shadow. [Width validation](../builds/2026-11-19-native-search-width.json)
+
 URL-looking input uses Chromium's omnibox classification, including local hosts,
 IP addresses and internal browser pages. The direct URL action is first, even
 when an existing tab matches. For other text, the direct default-engine search

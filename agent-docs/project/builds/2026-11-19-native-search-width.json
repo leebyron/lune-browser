@@ -1,0 +1,136 @@
+{
+  "issue": "https://github.com/leebyron/lune-browser/issues/51",
+  "base_main": "913bacaff8dcc31efabc99b81294946db7ca1506",
+  "chromium_version": "158.0.8127.37",
+  "signed_macos_input": {
+    "commit": "7ee46eac05d0a7dfc5da3d65d37a312ca99de76c",
+    "upstream_commit": "37efe2c65dccc21aaf1d8ea66fd35d1348c386a8",
+    "tree": "39dcac165f8ca5442faeda805442229d671b7265",
+    "ref": "refs/tags/inputs/native-search-width-1/macos"
+  },
+  "width_points": {
+    "address_collapsed": 700,
+    "address_result_outset_per_side": 10,
+    "address_expanded": 720,
+    "command_menu": 720,
+    "command_menu_window_margin": 36
+  },
+  "preparation": {
+    "strict_replay_passed": true,
+    "preparation_log_sha256": "4e62aaf083a0b2b890feea8fdf2b11650930f70e506dfbcebabcd4a17fcf98c3",
+    "files_compared": 596108,
+    "links_compared": 141,
+    "affected_files_byte_identical_to_quilt_preview": {
+      "chrome/browser/ui/helium/helium_command_bar_view_mac.mm": "cf34c55bab8be2540f1b27e28a4ba42840b825724063e91e688a8d0c5454ecf8",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "97713de4987ae398739d41e28db288609bdd51a84629dd27be0627a28bc930ee"
+    },
+    "patch_sha256": "c64b565338f524a85ee93e34312d3941175719d387896c88037aa2d17034c7d1",
+    "baseline_xml_declaration_case_differences": 1390,
+    "cache_transfer_changed_only_affected_source_files": true
+  },
+  "builds": {
+    "arm64": {
+      "execution": "native Apple silicon",
+      "framework_sha256": "24796e1d625a535ff5e1b4159f8ba8175627f35f387e6d8f00a66ffcada4a236",
+      "executable_sha256": "c095b824b2c1754d4618bace66907ed3b468fe0f6fec2c759d36abc0a6f19c6b",
+      "smoke_report_sha256": "b8715ca5b805b3aef56f14e1a2b1b49ecfec11ebc0128c39351c44108e4608ec",
+      "native_fixtures_log_sha256": "400665570ff15d2e159504969f16f4e75d3268b7addabd2a1393a444b82e2de8"
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "1e87a0fd0eb1cd2c459978047a563dd47a95e1cb19c65528f72414fcb59a156b",
+      "executable_sha256": "67b548935f1b5d74fd68e54325ea41e7584d7250ef24bb2c643699b2d38acd8d",
+      "smoke_report_sha256": "bd75ebf6f7226875712435ad4bc0fff1c603437f3ab30119f455b74e89e15665",
+      "native_fixtures_log_sha256": "400665570ff15d2e159504969f16f4e75d3268b7addabd2a1393a444b82e2de8"
+    }
+  },
+  "headless_browser_smoke": "Paired UI, local navigation, JavaScript, profile persistence, Settings, and internal artwork checks passed.",
+  "focused_geometry": {
+    "tested_production_expressions": true,
+    "address_cases": 8,
+    "command_cases": 7,
+    "architectures": [
+      "arm64",
+      "x86_64 (Rosetta)"
+    ],
+    "passed": true
+  },
+  "native_apple_silicon_geometry": [
+    {
+      "side": "left",
+      "window_width": 1820,
+      "address_collapsed_ax_estimate": 702,
+      "address_expanded_ax_estimate": 722,
+      "address_controls_stable": true,
+      "command": {
+        "command-empty": 720,
+        "command-results": 720,
+        "commands-only": 720
+      }
+    },
+    {
+      "side": "left",
+      "window_width": 680,
+      "address_collapsed_ax_estimate": 224,
+      "address_expanded_ax_estimate": 244,
+      "address_controls_stable": true,
+      "command": {
+        "command-empty": 608,
+        "command-results": 608,
+        "commands-only": 608
+      }
+    },
+    {
+      "side": "right",
+      "window_width": 1820,
+      "address_collapsed_ax_estimate": 702,
+      "address_expanded_ax_estimate": 722,
+      "address_controls_stable": true,
+      "command": {
+        "command-empty": 720,
+        "command-results": 720,
+        "commands-only": 720
+      }
+    },
+    {
+      "side": "right",
+      "window_width": 680,
+      "address_collapsed_ax_estimate": 179,
+      "address_expanded_ax_estimate": 199,
+      "address_controls_stable": true,
+      "command": {
+        "command-empty": 608,
+        "command-results": 608,
+        "commands-only": 608
+      }
+    }
+  ],
+  "native_address_width_scope": "Production geometry verifies exact layout bounds. AppKit element-based estimates read 2 pt above those bounds at the cap. Captured focus outlines moved by exactly 10 pt per side.",
+  "native_focus_outline_capture": [
+    {
+      "sidebar": "left",
+      "capture_scale": 2,
+      "focus_outline_outset_per_side_pt": 10,
+      "capture_sha256": {
+        "focused-empty": "160f9017ed78b2480f7f61e08d5e66645e364a7af8250af9403ab4978c6f4dbc",
+        "results": "653d22f0b124130a949b547755a2bf4f315716b33d58d33360ba98a5a2848e0e"
+      }
+    },
+    {
+      "sidebar": "right",
+      "capture_scale": 2,
+      "focus_outline_outset_per_side_pt": 10,
+      "capture_sha256": {
+        "focused-empty": "6e622a3ed77aff5d9f8649485e510f170507762ef3bc223f534015b8cfdab38b",
+        "results": "c2d7effe28398e110d701da8fedd3d1e6006553d50e91f23e16ddf8ce73bb13d"
+      }
+    }
+  ],
+  "native_probe_sha256": "bcbcf67659dae16cc619aa325673ab890a32fb85bfc7dad7e6cc8ec1599d3df3",
+  "repository_tests": {
+    "run": 107,
+    "skipped": 1,
+    "failures": 0
+  },
+  "locked_patch_and_localization_checks": "passed"
+}
