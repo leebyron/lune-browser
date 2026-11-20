@@ -1,0 +1,285 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -1358,7 +1358,7 @@ void TabView::UpdateColors() {
+   title_->SetEnabledColor(colors.foreground_color);
+   icon_->SetNativeIconColor(colors.foreground_color);
+   close_button_->SetColors(colors);
+-  alert_indicator_->OnParentTabButtonColorChanged();
++  alert_indicator_->OnParentTabButtonColorChanged(colors.foreground_color);
+ 
+   UpdateBorder();
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_view_horizontal_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_horizontal_layout.cc
+@@ -141,9 +141,12 @@ views::ProposedLayout TabViewHorizontalL
+   const int after_title_padding =
+       GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding);
+ 
++  const bool indicator_in_close_slot =
++      showing_alert_indicator && !TabView().pinned_ &&
++      TabView().alert_indicator_->UsesCloseButtonSlot();
+   int close_x = contents_rect.right();
+   gfx::Rect close_button_bounds;
+-  if (showing_close_button) {
++  if (showing_close_button || indicator_in_close_slot) {
+     // The visible size is the button's hover shape size. The actual size
+     // includes the border insets for the button.
+     const int close_button_visible_size =
+@@ -179,7 +182,11 @@ views::ProposedLayout TabViewHorizontalL
+                                      showing_close_button, close_button_bounds);
+ 
+   gfx::Rect alert_indicator_bounds;
+-  if (showing_alert_indicator) {
++  if (indicator_in_close_slot) {
++    alert_indicator_bounds = close_button_bounds;
++    alert_indicator_bounds.ClampToCenteredSize(
++        TabView().alert_indicator_->GetPreferredSize());
++  } else if (showing_alert_indicator) {
+     int right = contents_rect.right();
+     if (showing_close_button) {
+       right = close_x;
+@@ -221,9 +228,9 @@ views::ProposedLayout TabViewHorizontalL
+       title_left = std::max(title_left, after_favicon);
+     }
+     int title_right = contents_rect.right();
+-    if (showing_alert_indicator) {
++    if (showing_alert_indicator && !indicator_in_close_slot) {
+       title_right = alert_indicator_bounds.x() - after_title_padding;
+-    } else if (showing_close_button) {
++    } else if (showing_close_button || indicator_in_close_slot) {
+       // Allow the title to overlay the close button's empty border padding.
+       title_right = close_x;
+     }
+@@ -317,6 +324,19 @@ TabViewHorizontalLayout::CalculateChildV
+   }
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ 
++  if (TabView().alert_indicator_->UsesCloseButtonSlot()) {
++    showing_close_button = should_show_close_button &&
++        (TabView().close_button_->HasFocus() ||
++         (TabView().hovered_ &&
++          (TabView().active_ || large_enough_for_close_button)));
++    showing_alert_indicator = !showing_close_button;
++    showing_icon =
++        has_favicon && favicon_width + close_button_width <= available_width;
++    center_icon = available_width < close_button_width;
++    show_title = !center_icon;
++    return icon_visibilities;
++  }
++
+   if (TabView().active_) {
+     const bool active_tab_declutter_eligible =
+         declutter_eligible &&
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
+@@ -77,15 +77,24 @@ views::ProposedLayout TabViewVerticalLay
+                            !TabView().IsInExpandOnHover(width) &&
+                            !TabView().IsPinDragAnimating();
+ 
++  const bool share_close_slot =
++      !is_centered && !TabView().pinned_ && !TabView().IsPinDragAnimating() &&
++      TabView().alert_indicator_->UsesCloseButtonSlot();
++
+   int placed_children = 0;
+   for (const auto& child : tab_children_configs_) {
++    if (share_close_slot && child.view == TabView().alert_indicator_) {
++      continue;
++    }
++    const bool shared_slot =
++        share_close_slot && child.view == TabView().close_button_;
+     const bool can_render_child =
+         is_centered
+             ? (placed_children == 0)
+             : (child.min_width + child.padding < bounds_remaining.width() ||
+                placed_children < 2);
+     const bool is_child_visible = IsChildVisible(child.view, width);
+-    if (is_child_visible && can_render_child) {
++    if ((is_child_visible || shared_slot) && can_render_child) {
+       gfx::Rect child_bounds =
+           GetChildBounds(bounds_remaining, child, is_centered);
+       if (child.view == TabView().icon_ && TabView().IsPinDragAnimating()) {
+@@ -98,6 +107,13 @@ views::ProposedLayout TabViewVerticalLay
+       }
+       layouts.child_layouts.emplace_back(child.view.get(), is_child_visible,
+                                          child_bounds);
++      if (shared_slot) {
++        gfx::Rect indicator_bounds = child_bounds;
++        indicator_bounds.ClampToCenteredSize(
++            TabView().alert_indicator_->GetPreferredSize());
++        layouts.child_layouts.emplace_back(TabView().alert_indicator_.get(),
++                                           !is_child_visible, indicator_bounds);
++      }
+ 
+       if (!is_centered) {
+         bounds_remaining.Inset(
+--- a/chrome/browser/ui/views/tabs/tab.cc
++++ b/chrome/browser/ui/views/tabs/tab.cc
+@@ -543,8 +543,12 @@ void Tab::Layout(PassKey) {
+   const int after_title_padding =
+       GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding);
+ 
++  const bool indicator_in_close_slot =
++      showing_alert_indicator_ && !data().pinned &&
++      !is_animating_from_pinned_ &&
++      alert_indicator_button_->UsesCloseButtonSlot();
+   int close_x = contents_rect.right();
+-  if (showing_close_button_) {
++  if (showing_close_button_ || indicator_in_close_slot) {
+     // The visible size is the button's hover shape size. The actual size
+     // includes the border insets for the button.
+     const int close_button_visible_size =
+@@ -579,7 +583,11 @@ void Tab::Layout(PassKey) {
+   close_button_->SetVisible(showing_close_button_);
+ 
+   int alert_indicator_right = contents_rect.right();
+-  if (showing_alert_indicator_) {
++  if (indicator_in_close_slot) {
++    gfx::Rect bounds = close_button_->bounds();
++    bounds.ClampToCenteredSize(alert_indicator_button_->GetPreferredSize());
++    alert_indicator_button_->SetBoundsRect(bounds);
++  } else if (showing_alert_indicator_) {
+     int alert_left = start;
+     if (showing_icon_) {
+       alert_left = favicon_bounds.right() + kIndicatorPadding;
+@@ -611,7 +619,7 @@ void Tab::Layout(PassKey) {
+ 
+   if (show_title) {
+     int title_left = start;
+-    if (showing_alert_indicator_) {
++    if (showing_alert_indicator_ && !indicator_in_close_slot) {
+       title_left = alert_indicator_right + kIndicatorPadding;
+     } else if (showing_icon_) {
+       // When computing the spacing from the favicon, don't count the actual
+@@ -624,7 +632,7 @@ void Tab::Layout(PassKey) {
+       title_left = std::max(title_left, after_favicon);
+     }
+     int title_right = contents_rect.right();
+-    if (showing_close_button_) {
++    if (showing_close_button_ || indicator_in_close_slot) {
+       // Allow the title to overlay the close button's empty border padding.
+       title_right = close_x - after_title_padding;
+     }
+@@ -1085,7 +1093,6 @@ void Tab::ActiveStateChanged() {
+   UpdateTabIconAttention();
+   UpdateForegroundColors();
+   icon_->SetActiveState(IsActive());
+-  alert_indicator_button_->OnParentTabButtonColorChanged();
+   alert_indicator_button_->UpdateEnabledForMuteToggle();
+   DeprecatedLayoutImmediately();
+ }
+@@ -1388,6 +1395,17 @@ void Tab::UpdateIconVisibility() {
+   const bool should_show_close_button = !base::CommandLine::ForCurrentProcess()->HasSwitch("hide-tab-close-buttons");
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ 
++  if (alert_indicator_button_->UsesCloseButtonSlot()) {
++    showing_close_button_ = should_show_close_button && !closing_ &&
++        (close_button_->HasFocus() ||
++         (mouse_hovered_ && (IsActive() || large_enough_for_close_button)));
++    showing_alert_indicator_ = !showing_close_button_;
++    showing_icon_ =
++        has_favicon && favicon_width + close_button_width <= available_width;
++    center_icon_ = available_width < close_button_width;
++    return;
++  }
++
+   if (IsActive()) {
+     const bool active_tab_declutter_eligible =
+         declutter_eligible &&
+@@ -1519,7 +1537,8 @@ void Tab::UpdateForegroundColors() {
+   title_->SetEnabledColor(colors.foreground_color);
+   icon_->SetNativeIconColor(colors.foreground_color);
+   close_button_->SetColors(colors);
+-  alert_indicator_button_->OnParentTabButtonColorChanged();
++  alert_indicator_button_->OnParentTabButtonColorChanged(
++      colors.foreground_color);
+   // There may be no focus ring when the tab is closing.
+   if (auto* focus_ring = views::FocusRing::Get(this); focus_ring) {
+     focus_ring->SetColorId(colors.focus_ring_color);
+--- a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
+@@ -14,6 +14,7 @@
+ #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/tabs/alert/tab_alert_icon.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/tab.h"
+ #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
+ #include "chrome/common/chrome_features.h"
+@@ -106,6 +107,18 @@ ui::ImageModel GetTabAlertIndicatorImage
+   return tabs::GetAlertImageModel(pressed_alert_state, button_color);
+ }
+ 
++const char* MediaTabSymbol(std::optional<tabs::TabAlert> state) {
++#if BUILDFLAG(IS_MAC)
++  if (state == tabs::TabAlert::kPipPlaying) {
++    return "pip";
++  }
++  if (state == tabs::TabAlert::kAudioPlaying) {
++    return "speaker.wave.2";
++  }
++#endif
++  return nullptr;
++}
++
+ }  // namespace
+ 
+ class AlertIndicatorButton::FadeAnimationDelegate
+@@ -268,8 +281,19 @@ void AlertIndicatorButton::UpdateEnabled
+   SetEnabled(enable);
+ }
+ 
+-void AlertIndicatorButton::OnParentTabButtonColorChanged() {
+-  if (alert_state_ == tabs::TabAlert::kAudioPlaying ||
++bool AlertIndicatorButton::UsesCloseButtonSlot() const {
++  return MediaTabSymbol(showing_alert_state_) != nullptr;
++}
++
++void AlertIndicatorButton::OnParentTabButtonColorChanged(
++    SkColor foreground_color) {
++  const bool changed = tab_foreground_color_ != foreground_color;
++  tab_foreground_color_ = foreground_color;
++  if (UsesCloseButtonSlot()) {
++    if (changed && alert_state_) {
++      UpdateIconForAlertState(*alert_state_);
++    }
++  } else if (alert_state_ == tabs::TabAlert::kAudioPlaying ||
+       alert_state_ == tabs::TabAlert::kAudioMuting) {
+     UpdateIconForAlertState(alert_state_.value());
+   }
+@@ -482,6 +506,15 @@ AlertIndicatorButton::CreateTabAlertIndi
+ }
+ 
+ void AlertIndicatorButton::UpdateIconForAlertState(tabs::TabAlert state) {
++  if (const char* symbol = MediaTabSymbol(state);
++      symbol && tab_foreground_color_) {
++    const ui::ImageModel image = ui::ImageModel::FromImageSkia(
++        helium::NativeSidebarSymbolForName(symbol, *tab_foreground_color_));
++    SetImageModel(views::Button::STATE_NORMAL, image);
++    SetImageModel(views::Button::STATE_DISABLED, image);
++    SetImageModel(views::Button::STATE_PRESSED, image);
++    return;
++  }
+   const ui::ColorId color =
+       GetColorProvider()
+           ? tabs::GetAlertIndicatorColor(state, delegate_->IsApparentlyActive(),
+--- a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.h
++++ b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.h
+@@ -84,7 +84,9 @@ class AlertIndicatorButton : public view
+ 
+   // Called when the parent tab's button color changes.  Determines whether
+   // ResetImages() needs to be called.
+-  void OnParentTabButtonColorChanged();
++  void OnParentTabButtonColorChanged(SkColor foreground_color);
++
++  bool UsesCloseButtonSlot() const;
+ 
+   // Sets visibility of animation around alert indicator icon.
+   void UpdateAlertIndicatorAnimation();
+@@ -152,6 +154,7 @@ class AlertIndicatorButton : public view
+   const raw_ptr<Delegate> delegate_;
+ 
+   std::optional<tabs::TabAlert> alert_state_;
++  std::optional<SkColor> tab_foreground_color_;
+ 
+   // Alert indicator fade-in/out animation (i.e., only on show/hide, not a
+   // continuous animation).
