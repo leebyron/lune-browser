@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "7ee46eac05d0a7dfc5da3d65d37a312ca99de76c",
+    "commit": "988d81ce468fd0c0c733b62e001bb9628b9b2b54",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1057,6 +1057,10 @@
       {
         "path": "patches/helium/ui/native-search-width.patch",
         "sha256": "c64b565338f524a85ee93e34312d3941175719d387896c88037aa2d17034c7d1"
+      },
+      {
+        "path": "patches/helium/ui/page-top-window-drag-default.patch",
+        "sha256": "b48a77d0e9f26fff5894a8404f6ab7e7f5f79f3963b2987190a55b8348bb39f4"
       }
     ]
   },
@@ -3306,6 +3310,21 @@
       "adaptation": "Cap the macOS glass at 720 pt. Reserve the address results outset in the collapsed width and retain responsive toolbar spacing and command-menu side margins.",
       "commits": [
         "7ee46eac05d0a7dfc5da3d65d37a312ca99de76c"
+      ]
+    },
+    {
+      "id": "page-top-window-drag-default",
+      "depends_on": [
+        "page-top-window-drag"
+      ],
+      "patches": [
+        "patches/helium/ui/page-top-window-drag-default.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Enable page-top window dragging for profiles that use the default.",
+      "adaptation": "Set the existing registered preference default to true so explicit choices retain priority.",
+      "commits": [
+        "988d81ce468fd0c0c733b62e001bb9628b9b2b54"
       ]
     }
   ],

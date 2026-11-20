@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-19",
+  "issue": 47,
+  "chromium_version": "158.0.8127.37",
+  "base_main": "861aa5d4",
+  "base_platform": "7ee46eac05d0a7dfc5da3d65d37a312ca99de76c",
+  "core": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+  "platform": "988d81ce468fd0c0c733b62e001bb9628b9b2b54",
+  "input_ref": "refs/tags/inputs/page-top-drag-default-1/macos",
+  "source_preparation": {
+    "zero_fuzz": true,
+    "new_patch_offsets": 0,
+    "complete_prepared_source_parity": true,
+    "unchanged_through_both_builds": true,
+    "files_compared": 596108,
+    "symlinks_compared": 141,
+    "affected_source_sha256": {
+      "chrome/browser/ui/tabs/tab_strip_prefs.cc": "7e7d11a4b0d3cf95ce913c8ce95e8015dbc79a6d158fd054ee1bd2c053f1b641"
+    },
+    "patch_sha256": "b48a77d0e9f26fff5894a8404f6ab7e7f5f79f3963b2987190a55b8348bb39f4"
+  },
+  "builds": {
+    "arm64": {
+      "build": true,
+      "smoke": true,
+      "execution": "native Apple silicon",
+      "framework_sha256": "34985e15b45f76a9314885c4e9e0c4e4efbb4781f1c5f61275b75ff61c6438cb"
+    },
+    "x86_64": {
+      "build": true,
+      "smoke": true,
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "1b481c68c9bee0d9604c994f7c503a2bf47c0f849a1915e849625d07aab232ff"
+    }
+  },
+  "default_off_arm64_baseline_rejected": true,
+  "native_checks": {
+    "arm64": {
+      "framework_sha256": "34985e15b45f76a9314885c4e9e0c4e4efbb4781f1c5f61275b75ff61c6438cb",
+      "fresh_profile_enabled": true,
+      "explicit_off_loaded_after_restart": true,
+      "gestures": [
+        "subthreshold click",
+        "blank space with the default preference",
+        "second drag and reverse direction",
+        "last point in band",
+        "first point outside band",
+        "Command bypass",
+        "text selection",
+        "scripted drag with pointer capture",
+        "embedded webpage input",
+        "drag after page input",
+        "disabled in the same window",
+        "link click"
+      ]
+    },
+    "x86_64": {
+      "framework_sha256": "1b481c68c9bee0d9604c994f7c503a2bf47c0f849a1915e849625d07aab232ff",
+      "fresh_profile_enabled": true,
+      "explicit_off_loaded_after_restart": true,
+      "gestures": [
+        "subthreshold click",
+        "blank space with the default preference",
+        "second drag and reverse direction",
+        "last point in band",
+        "first point outside band",
+        "Command bypass",
+        "text selection",
+        "scripted drag with pointer capture",
+        "embedded webpage input",
+        "drag after page input",
+        "disabled in the same window",
+        "link click"
+      ]
+    }
+  },
+  "locked_input_ancestry_and_integrity": true,
+  "complete_patch_series_and_translation_files": true,
+  "repository_tests": {
+    "run": 107,
+    "skipped": 1,
+    "passed": true
+  }
+}

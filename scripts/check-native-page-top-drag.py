@@ -146,13 +146,17 @@ class Driver:
         self.request('POST', '/window', {'handle': handle})
 
 
-def set_drag_enabled(driver, settings, page, enabled):
+def drag_setting(driver, settings):
     driver.switch(settings)
     wait_for(lambda: driver.script(FIND_TOGGLE + 'return toggle?.pref?.key;') == PREF,
              'the page-top drag setting')
     label = driver.script(FIND_TOGGLE + 'return toggle.label;')
     assert label == LABEL, label
-    assert driver.get_pref() is not enabled
+    return driver.get_pref()
+
+
+def set_drag_enabled(driver, settings, page, enabled):
+    assert drag_setting(driver, settings) is not enabled
     x, y = driver.script(FIND_TOGGLE + """
       toggle.scrollIntoView({block: 'center'});
       const bounds = toggle.shadowRoot.querySelector('cr-toggle').getBoundingClientRect();
@@ -178,11 +182,13 @@ def run_gestures(driver, mouse, pid, report, settings, page):
         assert abs(dx - delta) <= 1 and abs(dy) <= 1, (delta, observed)
         return observed
 
+    assert drag_setting(driver, settings) is True
+    report['default_enabled'] = True
+    driver.switch(page)
     blank = (220, 28)
-    assert gesture('disabled', blank, 'drag')['counters']['blank'] == 1
-    set_drag_enabled(driver, settings, page, True)
-    assert gesture('subthreshold click', blank, 'slip')['counters']['blank'] == 2
-    assert gesture('blank space', blank, 'drag', delta=40)['counters']['blank'] == 2
+    assert gesture('subthreshold click', blank, 'slip')['counters']['blank'] == 1
+    assert gesture('blank space with the default preference', blank, 'drag',
+                   delta=40)['counters']['blank'] == 1
     gesture('second drag and reverse direction', (220, 27), 'drag', 'left', delta=-40)
     gesture('last point in band', (220, 51), 'drag', delta=40)
     gesture('first point outside band', (220, 52), 'drag')
@@ -204,6 +210,21 @@ def run_gestures(driver, mouse, pid, report, settings, page):
       return [r.x + r.width / 2, r.y + r.height / 2];
     """)
     assert gesture('link click', point)['counters']['link'] == 1
+    set_drag_enabled(driver, settings, page, False)
+
+
+@contextmanager
+def browser_session(output, options, profile, report_path):
+    active_port = profile / 'DevToolsActivePort'
+    active_port.unlink(missing_ok=True)
+    driver_log = report_path.with_suffix('.chromedriver.log')
+    with process([output / 'chromedriver', '--port=0', '--allowed-ips=127.0.0.1'],
+                 driver_log), process(options, report_path.with_suffix('.browser.log')) as child:
+        debug = wait_for(lambda: active_port.read_text().splitlines() if active_port.exists() else None,
+                         'the browser’s temporary debugging endpoint')
+        port = wait_for(lambda: re.search(r'successfully on port (\d+)', driver_log.read_text()),
+                        'ChromeDriver to bind')
+        yield child, Driver(port[1], f'127.0.0.1:{debug[0]}')
 
 
 def check(output, report_path, report):
@@ -215,7 +236,8 @@ def check(output, report_path, report):
     report['browser_architecture'] = subprocess.check_output(
         ['lipo', '-archs', str(browser)], text=True).strip()
     report['host_architecture'] = platform.machine()
-    with ThreadingHTTPServer(('127.0.0.1', 0), FixturePage) as server,             temporary_profile('lune-page-top-drag-') as directory:
+    with (ThreadingHTTPServer(('127.0.0.1', 0), FixturePage) as server,
+          temporary_profile('lune-page-top-drag-') as directory):
         threading.Thread(target=server.serve_forever, daemon=True).start()
         url = f'http://127.0.0.1:{server.server_port}/'
         profile = Path(directory)
@@ -241,15 +263,7 @@ def check(output, report_path, report):
                    '--custom-update-server-url=http://127.0.0.1:9/',
                    '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1']
         try:
-            driver_log = report_path.with_suffix('.chromedriver.log')
-            with process([output / 'chromedriver', '--port=0', '--allowed-ips=127.0.0.1'],
-                         driver_log), process(options + [url], report_path.with_suffix('.browser.log')) as child:
-                active_port = profile / 'DevToolsActivePort'
-                debug = wait_for(lambda: active_port.read_text().splitlines() if active_port.exists() else None,
-                                 'the browser’s temporary debugging endpoint')
-                port = wait_for(lambda: re.search(r'successfully on port (\d+)', driver_log.read_text()),
-                                'ChromeDriver to bind')
-                driver = Driver(port[1], f'127.0.0.1:{debug[0]}')
+            with browser_session(output, options + [url], profile, report_path) as (child, driver):
                 page = driver.request('GET', '/window')
                 wait_for(lambda: driver.script('return document.readyState === "complete" && !!window.count;'),
                          'the loopback page to load')
@@ -259,8 +273,14 @@ def check(output, report_path, report):
                 driver.switch(page)
                 run_gestures(driver, mouse, child.pid, report, settings, page)
                 wait_for(lambda: json.loads(preferences.read_text()).get('helium', {}).get(
-                    'browser', {}).get('page_top_window_drag') is True, 'the preference on disk')
-                report['persisted'] = True
+                    'browser', {}).get('page_top_window_drag') is False, 'the off preference on disk')
+            restart_report = report_path.with_name(report_path.stem + '-restart.json')
+            with browser_session(output, options + ['--headless=new', 'about:blank'],
+                                 profile, restart_report) as (_, driver):
+                settings = driver.request('GET', '/window')
+                driver.request('POST', '/url', {'url': 'chrome://settings/appearance'})
+                assert drag_setting(driver, settings) is False
+                report['off_persisted_after_restart'] = True
         finally:
             server.shutdown()
 
