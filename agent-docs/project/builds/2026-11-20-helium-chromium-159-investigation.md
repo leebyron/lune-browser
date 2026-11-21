@@ -202,7 +202,8 @@ is the sidebar scrollbar input fix from Lune main.
 Helium's merge utility rebuilt the entire queue from the staged component
 files. The patch order and all 663 patch digests match the quilt replay.
 Vendor patch lint passed for both components and core localization lint
-passed. The orchestration suite ran 108 tests with one skip. The queue
+passed. All 108 orchestration tests passed with Ninja and Clang from the
+candidate archives, including the native dependency-log test. The queue
 inventory and per-patch logs are retained in `.work/input-audit/`.
 
 Fresh preparation from the staged platform tree
@@ -223,6 +224,29 @@ conditional Safe Browsing include of `async_check_tracker.h` in
 in the previous Lune source reference. The trace is
 `.work/input-audit/arm64-focused-gn-check.log`. Browser compilation and
 native smoke tests remain pending.
+
+The prepared source passed the pinned-grid geometry and placeholder fixture,
+the AppKit sidebar pin-activation and theme fixtures, and the header drag
+presentation fixture on arm64 and x86_64 under Rosetta. The grid fixture
+covers 7,740 destinations per architecture and the header fixture exercises
+4,096 presentation states per architecture. These fixtures exercise extracted
+production code. Review actual pointer delivery, animation and surface
+appearance in the browser.
+
+Once the M158 browser builds, exercise ordinary pinning across two windows,
+drag cancellation, pinned-group restore, Older Tabs restart and retention,
+Settings and onboarding, and independent browser and component update consent.
+For upstream changes, check the zoom indicator with a long address, History
+and Reading Mode entry points, partial canvas readback and noise behavior
+across frames, workers and popups, certificate component delivery, and a
+round trip with a configured sync provider. Verify Web Push and translation
+stay dormant under stock defaults.
+
+Copy download link allocates command and metric IDs beyond Chromium's Open
+With values. The new clipboard path currently writes the raw download URL.
+It needs the existing tracking-cleanup preference, domain exclusions and
+signed-URL exceptions covered before adoption. Check the action in the
+Downloads bubble and preserve clipboard handling for private windows.
 
 ## Porting the engine
 
