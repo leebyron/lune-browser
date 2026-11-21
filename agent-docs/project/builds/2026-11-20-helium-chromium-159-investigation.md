@@ -289,11 +289,45 @@ confirmed the outline was gone.
 A loopback fixture on the corrected arm64 build saved both test attachments
 with extensions disabled. A top-level navigation to the first attachment
 removed `fbclid` before the server saw the request and retained `utm_source`
-under Lune's existing navigation policy. Clicking an HTML `download` link
+under the previous navigation policy. Clicking an HTML `download` link
 for the second attachment retained both parameters. Both routes preserved
-the unrelated `keep` parameter. This confirms that the direct-download path
-bypasses Lune's navigation cleanup. The server-observed requests are in
+the unrelated `keep` parameter. The explicit download uses a separate loader
+that bypassed Lune's navigation cleanup. The server-observed requests are in
 `.work/input-audit/download-first-request.json`.
+
+The updated candidate adds `lune/clean-direct-download-urls.patch` and
+`lune/clean-campaign-parameters.patch` in platform tree
+`165e3cd91997b70edba3bd937f2fd49db87a3e4c`. The first reuses the native
+profile policy before Chromium starts a new explicit download. The second
+lets the same filter rules handle campaign parameters across navigation,
+downloads, referrers and copying. The previous `utm_*` exemption had been
+described as a compatibility precaution. The intended behavior is to strip
+campaign attribution when a rule matches. Signed and OAuth flows, site-specific
+list exceptions and user-excluded domains retain their protections.
+
+All 665 patches applied in fresh zero-fuzz replay, and all three edited
+Chromium files matched the quilt source. Platform patch lint passed.
+The arm64 browser and Settings smoke test, native link and clipboard
+regressions with cleanup enabled and opted out, and repository suite
+(108 tests, one skipped) passed.
+
+With extensions disabled in the rebuilt browser, both attachment navigation
+and an HTML `download` link saved the file and sent only `keep=1` on the
+first request. A same-origin referrer also sent only `keep=1`. The signed
+URL, excluded domain and cleanup-off download cases kept their full queries.
+The fixture uses a visible window and the browser's download preferences.
+ChromeDriver's headless download override installs a replacement delegate
+that bypasses the browser's download sanitizer. **Save Link As** uses the
+same production sanitizer and passed the owner's manual check. The owner
+also tested **Copy Download Link** for both fixture downloads. The clipboard
+URLs ended in `?keep=1` and matched the requests recorded by the server.
+
+The arm64 framework SHA-256 is
+`e564a8167058821d4eef4554a58e9fb474615a9eef1f4ac92987810bf358cf9e`.
+The download and build results are in
+`.work/input-audit/clean-campaign-download-after.json` and
+`.work/input-audit/clean-campaign-download-build.json`. Intel validation
+for these patches is pending.
 
 ## Porting the engine
 

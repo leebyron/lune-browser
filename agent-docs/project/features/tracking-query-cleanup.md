@@ -2,6 +2,8 @@
 
 [Issue #43](https://github.com/leebyron/lune-browser/issues/43) adds query cleanup before top-level HTTP(S) GET navigation and on browser URL copy. A same-origin internal redirect gives the destination the cleaned query and commits the cleaned URL in the tab. The browser applies cleanup before starting a service-worker loader. The network path covers reused redirect loaders and navigational prefetch. It also cleans outgoing referrer URLs after Chromium applies its referrer policy. A same-document History API update keeps its URL and state. Copy Page URL and a whole-address copy in the floating editor clean the clipboard after such an update. Copy Link Address cleans a link before it has been opened. A partial address selection copies the selected text.
 
+The Helium 0.22.2 integration candidate also applies cleanup to the initial HTTP(S) GET for new downloads from an HTML `download` link or **Save Link As**. This happens before Chromium starts the request or offers it to a service worker. Range requests and interrupted-download resumes use Chromium's existing paths.
+
 The signed input composition and validation results are recorded in the [build evidence](../builds/2026-11-18-tracking-parameter-removal.json).
 
 ## Rules and consent
@@ -10,7 +12,7 @@ The build extracts the compatible `removeparam` rules and exceptions from the bu
 
 The existing **Update privacy filter lists through Helium** choice governs native refresh and use of the downloaded rules. Lune can refresh with uBlock Origin disabled. Lune checks for updates when consent is granted, then once a day after a successful check. Failed requests, malformed catalogs and unsupported rules leave the last valid list in use and retry after an hour. The parser rejects an entire refresh that contains an active include, unknown condition, or unsupported removal selector. This preserves exceptions that an incomplete parse could otherwise miss. An identical response advances the saved check timestamp. Loaded network contexts receive updates only when the effective list or the cleanup setting changes. A valid snapshot is available at launch before any download. Revoking consent or changing the service origin stops the in-flight fetch and switches to the bundled rules until the new consent or origin supplies a valid snapshot. uBlock Origin runs its own filtering and updater.
 
-Settings → Privacy and security → **Remove tracking parameters** contains the default-on toggle and the excluded-domain list. The toggle and exclusions apply to native request, referrer and clipboard cleanup. A domain entry covers that host and its subdomains. The Setup Privacy step exposes the same toggle. uBlock Origin continues to apply its own enabled lists. The native matcher uses domain, path and value scopes and exceptions from the list. It preserves recognized signed and OAuth URLs and leaves campaign parameters beginning with `utm_` in navigation and referrers for compatibility. List rules can remove those parameters on copy.
+Settings → Privacy and security → **Remove tracking parameters** contains the default-on toggle and the excluded-domain list. The toggle and exclusions apply to native request, referrer and clipboard cleanup. A domain entry covers that host and its subdomains. The Setup Privacy step exposes the same toggle. uBlock Origin continues to apply its own enabled lists. The native matcher uses domain, path and value scopes and exceptions from the list. It preserves recognized signed and OAuth URLs. In the Helium 0.22.2 integration candidate, the same filter rules apply to campaign parameters such as `utm_source` in requests, referrers and copied URLs.
 
 ## Test cases
 
@@ -22,7 +24,7 @@ Use a local HTTP server to check request targets, referrers and the committed ad
 | `https://open.spotify.com/track/<id>?si=lune-test` | Remove `si` and keep the track. |
 | `https://www.instagram.com/p/<post>/?igsh=lune-test` | Remove `igsh` and keep the post. |
 | `https://www.amazon.com/s?k=notebook&s=price-asc-rank` | Keep the search and sort query. |
-| `https://example.com/?si=keep&item=42&utm_source=newsletter` | Keep `si` and `item`. The bundled snapshot removes `utm_source` on copy. |
+| `https://example.com/?si=keep&item=42&utm_source=newsletter` | Keep `si` and `item`. The bundled snapshot matches and removes `utm_source`. |
 | `https://uploadnow.io/share?utm_source=service` | Preserve the parameter under the bundled snapshot’s share-link exception. |
 
 ## Request coverage compared with uBlock Origin
@@ -52,11 +54,14 @@ The Amazon product URL comparison used the same matcher and two rule sets. The o
 python3 scripts/check-clean-link-loading.py BUILD_OUTPUT --report REPORT.json --clipboard
 python3 scripts/check-clean-link-loading.py BUILD_OUTPUT --report REFRESH.json --refresh-rules SAVED_LIST.txt --setup-consent next
 python3 scripts/check-clean-link-loading.py BUILD_OUTPUT --report PRIVACY.json --privacy-controls
+python3 scripts/check-clean-link-loading.py BUILD_OUTPUT --report DOWNLOADS.json --download-requests
 ```
 
 The first command checks request targets, the committed URL, referrers and copy with extensions disabled. Add `--disabled` to exercise the native opt-out. The second serves a saved Helium list through a loopback-only catalog. Pass `--setup-consent defaults` to verify the first download and clean copy with Use Defaults, which also enables uBlock Origin. Omit the option to run the full fixture with consent granted in Settings. The fixture checks that Lune fetches only after consent, updates rules without restarting, rejects malformed lists and foreign asset URLs, uses its saved rules after a restart, and sends no cookies, authentication or referrer.
 
 The Privacy controls fixture starts with list updates and extensions disabled. It checks a rule from the bundled Helium snapshot, then uses Settings to toggle cleanup and add and remove a domain exclusion. It verifies the address, the copied URL and the request referrer, and checks that the exclusion survives restart.
+
+The downloads fixture disables extensions and checks that both navigation to an attachment and an HTML `download` link save the file and send only `keep=1` on the first request. It checks signed links, domain exclusion, the cleanup toggle and a referrer containing campaign tags.
 
 To check the floating editor on macOS, use the console on a test page to run `history.pushState(null, '', '?item=7&fbclid=push')`. Press Cmd+L and Cmd+C and paste into a text editor. The pasted address should keep `item=7`. Select just `fbclid=push` in the address bar and copy again to check literal text selection. The page should retain the URL set by `pushState`.
 

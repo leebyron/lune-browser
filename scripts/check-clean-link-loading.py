@@ -97,6 +97,8 @@ def main():
     parser.add_argument('--with-ublock', action='store_true')
     parser.add_argument('--request-coverage', action='store_true',
                         help='Compare destination and referrer cleanup in isolation.')
+    parser.add_argument('--download-requests', action='store_true',
+                        help='Check the first HTTP request for downloads with extensions disabled.')
     parser.add_argument('--cold-external', action='store_true',
                         help='Use Launch Services on native hardware to check a cold external URL.')
     parser.add_argument('--refresh-rules', type=Path,
@@ -110,12 +112,17 @@ def main():
         parser.error('Use --request-coverage alone or with --with-ublock --disabled')
     if args.cold_external and not args.request_coverage:
         parser.error('--cold-external requires --request-coverage')
+    if args.download_requests and (
+            args.with_ublock or args.disabled or args.request_coverage or
+            args.privacy_controls or args.refresh_rules or args.clipboard):
+        parser.error('Use --download-requests on its own')
     output = args.output.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     seen = []
     update_headers = []
     rules = args.refresh_rules.read_bytes() if args.refresh_rules else b''
     list_route = '/ubo/adguard-spyware-url/fixture/v1/privacy-removeparam.txt'
+    download_content = b'Lune download request fixture\n'
     generation = {'parameter': 'lune_fixture_alpha', 'unsupported': None, 'source': None,
                   'offline': False}
 
@@ -130,6 +137,16 @@ def main():
             seen.append((self.command, self.path, self.headers.get('Referer'),
                          self.headers.get('Sec-Purpose')))
             route = urlsplit(self.path).path
+            if route.startswith('/download-fixture/') and route.endswith('.txt'):
+                filename = route.rsplit('/', 1)[-1]
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+                self.send_header('Content-Length', str(len(download_content)))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                self.wfile.write(download_content)
+                return
             if route.startswith('/ubo/'):
                 update_headers.append((route, self.headers.get('Cookie'),
                                        self.headers.get('Authorization'),
@@ -256,6 +273,16 @@ def main():
                 f'--user-data-dir={profile}',
             ]
             prefs = {'net.network_prediction_options': 0}
+            if args.download_requests:
+                # Headless ChromeDriver replaces the browser's download delegate.
+                options.remove('--headless=new')
+                download_dir = Path(profile) / 'downloads'
+                download_dir.mkdir()
+                prefs.update({
+                    'download.default_directory': str(download_dir),
+                    'download.prompt_for_download': False,
+                    'profile.default_content_setting_values.automatic_downloads': 1,
+                })
             if args.with_ublock and not args.refresh_rules:
                 prefs.update({'helium.ublock.install_allowed': True,
                               'helium.ublock.enabled': True,
@@ -346,6 +373,64 @@ def main():
                     'args': [name],
                 })
 
+            def set_pref(name, value):
+                navigate('chrome://settings/privacy')
+                assert request('POST', session + '/execute/async', {
+                    'script': """const done = arguments[2];
+                    chrome.settingsPrivate.setPref(arguments[0], arguments[1], '', done);""",
+                    'args': [name, value],
+                }) is True, name
+
+            if args.download_requests:
+                original_query = 'fbclid=fixture&utm_source=mail&keep=1'
+                requests = {}
+
+                def check_download(name, *, direct, expected, signed=False):
+                    filename = name + '.txt'
+                    route = '/download-fixture/' + filename
+                    query = original_query + ('&X-Amz-Signature=abc' if signed else '')
+                    navigate(redirect_origin + '/download-page')
+                    execute("""const link = document.createElement('a');
+                        link.id = 'test-download';
+                        link.href = arguments[0];
+                        link.textContent = 'Download fixture';
+                        if (arguments[1]) link.download = arguments[2];
+                        document.body.append(link);""", route + '?' + query, direct, filename)
+                    element = request('POST', session + '/element', {
+                        'using': 'css selector', 'value': '#test-download',
+                    })
+                    node = element['element-6066-11e4-a52e-4f735466cecf']
+                    request('POST', session + f'/element/{node}/click', {})
+                    saved = download_dir / filename
+                    wait_for(saved.is_file, f'Download did not finish: {filename}')
+                    assert saved.read_bytes() == download_content, filename
+                    targets = [path for method, path, _, _ in seen
+                               if method == 'GET' and urlsplit(path).path == route]
+                    assert targets == [route + '?' + expected], targets
+                    requests[name] = targets[0]
+
+                check_download('navigation', direct=False, expected='keep=1')
+                check_download('direct', direct=True, expected='keep=1')
+                check_download('signed', direct=True, signed=True,
+                               expected=original_query + '&X-Amz-Signature=abc')
+                execute("""history.replaceState(null, '', '?' + arguments[0]);
+                    fetch('/download-referrer');""", original_query)
+                wait_for(lambda: any(row[1] == '/download-referrer' for row in seen),
+                         'Download fixture referrer check never reached the server')
+                referrer = next(row[2] for row in seen if row[1] == '/download-referrer')
+                assert referrer == redirect_origin + '/download-page?keep=1', referrer
+                set_pref('helium.tracking_query_excluded_domains', ['localhost'])
+                check_download('excluded', direct=True, expected=original_query)
+                set_pref('helium.tracking_query_excluded_domains', [])
+                set_pref('helium.clean_tracking_links', False)
+                check_download('disabled', direct=True, expected=original_query)
+                args.report.write_text(json.dumps({
+                    'passed': True, 'browser': created['capabilities']['browserVersion'],
+                    'extensions_enabled': False, 'first_requests': requests,
+                    'referrer': referrer.removeprefix(redirect_origin),
+                }, indent=2) + '\n')
+                return
+
             if args.privacy_controls:
                 bundled_target = origin + '/bundled-fallback?item=1'
                 assert navigate(bundled_target + '&pjclid=fixture') == bundled_target
@@ -427,14 +512,6 @@ def main():
                 return
 
             if args.refresh_rules:
-                def set_pref(name, value):
-                    navigate('chrome://settings/privacy')
-                    assert request('POST', session + '/execute/async', {
-                        'script': """const done = arguments[2];
-                        chrome.settingsPrivate.setPref(arguments[0], arguments[1], '', done);""",
-                        'args': [name, value],
-                    }) is True, name
-
                 observed = []
                 context_updates = {}
 
@@ -762,13 +839,13 @@ def main():
                     break
                 time.sleep(0.5)
 
-            actual = navigate(origin + '/redirect?fbclid=first&utm_source=mail')
+            actual = navigate(origin + '/redirect?fbclid=first&utm_source=mail&keep=1')
             expected = (
-                ['/redirect?fbclid=first&utm_source=mail',
+                ['/redirect?fbclid=first&utm_source=mail&keep=1',
                  '/hop?fbclid=hop&q=%2f%2B+%20',
                  '/landing?gclid=final&q=%2f%2B+%20']
                 if args.disabled else
-                ['/redirect?utm_source=mail', '/hop?q=%2f%2B+%20',
+                ['/redirect?keep=1', '/hop?q=%2f%2B+%20',
                  '/landing?q=%2f%2B+%20']
             )
             redirect_paths = [path for _, path, _, _ in seen
