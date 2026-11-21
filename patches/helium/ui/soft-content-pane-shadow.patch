@@ -1,0 +1,30 @@
+--- a/chrome/browser/ui/views/frame/contents_container_view.cc
++++ b/chrome/browser/ui/views/frame/contents_container_view.cc
+@@ -80,7 +80,12 @@
+   content_shadow_anchor_->SetVisible(false);
+   content_shadow_ =
+       std::make_unique<views::ViewDecoration>(content_shadow_anchor_);
+-  content_shadow_->SetShadow(2);
++  // A broad ambient shadow, with no directional key shadow, keeps the sides
++  // even. Translate only its transparent anchor down one DIP below in layout.
++  content_shadow_->SetShadow(
++      8, ui::decoration::Shadow::Style::kMaterialDesign,
++      ui::decoration::Shadow::ElevationToColorsMap{
++          {8, {SK_ColorTRANSPARENT, SkColorSetA(SK_ColorBLACK, 0x30)}}});
+ 
+   // The default z-order is the order in which children were added to the
+   // parent view. So first added devtools and the devtools scrim view (as it
+@@ -663,10 +668,11 @@
+   }
+ 
+   gfx::Rect full_contents_bounds = GetContentsBounds();
++  gfx::Rect shadow_bounds = full_contents_bounds;
++  shadow_bounds.Offset(0, 1);
+   layouts.child_layouts.emplace_back(
+       content_shadow_anchor_.get(),
+-      should_round_contents_ && !full_contents_bounds.IsEmpty(),
+-      full_contents_bounds);
++      should_round_contents_ && !full_contents_bounds.IsEmpty(), shadow_bounds);
+   gfx::Rect devtools_bounds;
+   // The area contents excluding devtools is drawn (ie |contents_view_|,
+   // |new_tab_footer_view_|, etc).

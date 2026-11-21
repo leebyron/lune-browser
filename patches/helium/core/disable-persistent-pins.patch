@@ -1,0 +1,187 @@
+--- a/chrome/browser/profile_resetter/profile_resetter.cc
++++ b/chrome/browser/profile_resetter/profile_resetter.cc
+@@ -402,7 +402,7 @@
+   // Pins are shared by all windows, so they're unpinned in place all at once
+   // rather than one by one, which would close their copies in other windows.
+   if (helium_pins::HeliumPinsService* const pins_service =
+-          PinnedTabServiceFactory::GetForProfile(profile_)) {
++          PinnedTabServiceFactory::GetPersistentForProfile(profile_)) {
+     pins_service->UnpinAll();
+   }
+ 
+--- a/chrome/browser/ui/tabs/helium_pins_tab_controller.cc
++++ b/chrome/browser/ui/tabs/helium_pins_tab_controller.cc
+@@ -103,7 +103,7 @@
+ void HeliumPinsTabController::StashRestoredState(
+     content::WebContents* contents,
+     const std::map<std::string, std::string>& extra_data) {
+-  if (!FindValue(extra_data, kPinIdKey).empty()) {
++  if (kPersistentPinsEnabled && !FindValue(extra_data, kPinIdKey).empty()) {
+     RestoredPinState::CreateForWebContents(contents, extra_data);
+   }
+ }
+@@ -205,8 +205,9 @@
+   }
+ 
+   content::WebContents* const contents = handle->GetWebContents();
+-  HeliumPinsService* const service = PinnedTabServiceFactory::GetForProfile(
+-      Profile::FromBrowserContext(contents->GetBrowserContext()));
++  HeliumPinsService* const service =
++      PinnedTabServiceFactory::GetPersistentForProfile(
++          Profile::FromBrowserContext(contents->GetBrowserContext()));
+   if (service) {
+     service->SetPinnedUrl(pin_id_, GetPinnableUrl(contents));
+   }
+--- a/chrome/browser/ui/tabs/helium_pins_util.cc
++++ b/chrome/browser/ui/tabs/helium_pins_util.cc
+@@ -255,7 +255,8 @@
+ }
+ 
+ bool HasPersistentPins(BrowserWindowInterface* browser) {
+-  return browser && browser->GetType() == BrowserWindowInterface::TYPE_NORMAL;
++  return kPersistentPinsEnabled && browser &&
++         browser->GetType() == BrowserWindowInterface::TYPE_NORMAL;
+ }
+ 
+ HeliumPinsTabController* GetPersistentPinController(tabs::TabInterface* tab) {
+@@ -276,6 +277,9 @@
+ }
+ 
+ bool WouldShowHibernatedPin(const TabStripModel& model, int index) {
++  if (!kPersistentPinsEnabled) {
++    return false;
++  }
+   tabs::TabInterface* const tab = model.GetTabAtIndex(index);
+   std::vector<tabs::TabInterface*> shown = {tab};
+   if (const std::optional<split_tabs::SplitTabId> split = tab->GetSplit()) {
+@@ -472,7 +476,7 @@
+   controller->SetReturnOnActivation(false);
+ 
+   if (HeliumPinsService* const pins_service =
+-          PinnedTabServiceFactory::GetForProfile(
++          PinnedTabServiceFactory::GetPersistentForProfile(
+               tab->GetBrowserWindowInterface()->GetProfile())) {
+     pins_service->SetPinnedUrl(controller->pin_id(), url);
+   }
+--- a/chrome/browser/ui/tabs/helium_pins_util.h
++++ b/chrome/browser/ui/tabs/helium_pins_util.h
+@@ -25,7 +25,11 @@
+ 
+ class HeliumPinsTabController;
+ 
+-// Returns whether browser keeps persistent pins: only normal windows do.
++// Keep per-window pinning and the existing startup restore until persistent
++// pins have been integrated with Lune's tab and group interactions.
++inline constexpr bool kPersistentPinsEnabled = false;
++
++// Returns whether this browser keeps persistent pins.
+ bool HasPersistentPins(BrowserWindowInterface* browser);
+ 
+ // Returns the controller of tab if it is pinned, belongs to its profile's pin
+--- a/chrome/browser/ui/tabs/pinned_tab_service_factory.cc
++++ b/chrome/browser/ui/tabs/pinned_tab_service_factory.cc
+@@ -8,13 +8,22 @@
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/browser_manager_service_factory.h"
+ #include "chrome/browser/ui/tabs/helium_pins_service.h"
++#include "chrome/browser/ui/tabs/helium_pins_util.h"
++#include "chrome/browser/ui/tabs/pinned_tab_service.h"
+ #include "components/keyed_service/core/service_access_type.h"
+ 
+ // static
+-helium_pins::HeliumPinsService* PinnedTabServiceFactory::GetForProfile(
++KeyedService* PinnedTabServiceFactory::GetForProfile(Profile* profile) {
++  return GetInstance()->GetServiceForBrowserContext(profile, true);
++}
++
++// static
++helium_pins::HeliumPinsService* PinnedTabServiceFactory::GetPersistentForProfile(
+     Profile* profile) {
+-  return static_cast<helium_pins::HeliumPinsService*>(
+-      GetInstance()->GetServiceForBrowserContext(profile, true));
++  if (!helium_pins::kPersistentPinsEnabled) {
++    return nullptr;
++  }
++  return static_cast<helium_pins::HeliumPinsService*>(GetForProfile(profile));
+ }
+ 
+ PinnedTabServiceFactory* PinnedTabServiceFactory::GetInstance() {
+@@ -27,16 +36,20 @@
+           "PinnedTabService",
+           // Off-the-record profiles get their own, in-memory pins.
+           ProfileSelections::Builder()
+-              .WithRegular(ProfileSelection::kOwnInstance)
+-              .WithGuest(ProfileSelection::kOwnInstance)
++              .WithRegular(helium_pins::kPersistentPinsEnabled
++                               ? ProfileSelection::kOwnInstance
++                               : ProfileSelection::kOriginalOnly)
++              .WithGuest(helium_pins::kPersistentPinsEnabled
++                             ? ProfileSelection::kOwnInstance
++                             : ProfileSelection::kOriginalOnly)
+               // TODO(crbug.com/41488885): Check if this service is needed for
+               // Ash Internals.
+               .WithAshInternals(ProfileSelection::kOriginalOnly)
+               .Build()) {
+-  // The pins of the profile's windows are kept in sync.
+-  DependsOn(BrowserManagerServiceFactory::GetInstance());
+-  // Hibernated pins take their titles from history.
+-  DependsOn(HistoryServiceFactory::GetInstance());
++  if (helium_pins::kPersistentPinsEnabled) {
++    DependsOn(BrowserManagerServiceFactory::GetInstance());
++    DependsOn(HistoryServiceFactory::GetInstance());
++  }
+ }
+ 
+ PinnedTabServiceFactory::~PinnedTabServiceFactory() = default;
+@@ -45,6 +58,9 @@
+ PinnedTabServiceFactory::BuildServiceInstanceForBrowserContext(
+     content::BrowserContext* context) const {
+   Profile* const profile = Profile::FromBrowserContext(context);
++  if (!helium_pins::kPersistentPinsEnabled) {
++    return std::make_unique<PinnedTabService>(profile);
++  }
+   // Persistent pins replace the pinned tabs that PinnedTabService saves.
+   // Off-the-record profiles start without pins and don't save them, and don't
+   // take titles from the original profile's history.
+--- a/chrome/browser/ui/tabs/pinned_tab_service_factory.h
++++ b/chrome/browser/ui/tabs/pinned_tab_service_factory.h
+@@ -19,8 +19,12 @@
+ // associated PinnedTabService.
+ class PinnedTabServiceFactory : public ProfileKeyedServiceFactory {
+  public:
+-  // Returns the persistent pins of profile.
+-  static helium_pins::HeliumPinsService* GetForProfile(Profile* profile);
++  // Returns the pinned-tab service selected for this profile.
++  static KeyedService* GetForProfile(Profile* profile);
++
++  // Returns the shared pin service when persistent pins are enabled.
++  static helium_pins::HeliumPinsService* GetPersistentForProfile(
++      Profile* profile);
+ 
+   static PinnedTabServiceFactory* GetInstance();
+ 
+--- a/chrome/browser/ui/tabs/tab_features.cc
++++ b/chrome/browser/ui/tabs/tab_features.cc
+@@ -166,6 +166,7 @@
+ #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
+ #include "chrome/browser/ui/tabs/back_to_opener/back_to_opener_controller.h"
+ #include "chrome/browser/ui/tabs/helium_pins_tab_controller.h"
++#include "chrome/browser/ui/tabs/helium_pins_util.h"
+ #include "chrome/browser/ui/tabs/inactive_window_mouse_event_controller.h"
+ #include "chrome/browser/ui/tabs/page_context_eligibility_helper.h"
+ #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
+@@ -1030,10 +1031,10 @@
+             .CreateInstance<back_to_opener::BackToOpenerController>(tab, tab);
+   }
+ 
+-  // Created for all tabs, since any tab can become a persistent pin.
+-  helium_pins_tab_controller_ =
+-      GetUserDataFactory().CreateInstance<helium_pins::HeliumPinsTabController>(
+-          tab, tab);
++  if (helium_pins::kPersistentPinsEnabled) {
++    helium_pins_tab_controller_ = GetUserDataFactory().CreateInstance<
++        helium_pins::HeliumPinsTabController>(tab, tab);
++  }
+ 
+   if (base::FeatureList::IsEnabled(dictation::kDictation) &&
+       profile->IsRegularProfile()) {

@@ -1,0 +1,1666 @@
+--- a/chrome/browser/net/profile_network_context_service.cc
++++ b/chrome/browser/net/profile_network_context_service.cc
+@@ -4,10 +4,12 @@
+ 
+ #include "chrome/browser/net/profile_network_context_service.h"
+ 
++#include <algorithm>
+ #include <memory>
+ #include <optional>
+ #include <string>
+ #include <string_view>
++#include <utility>
+ 
+ #include "base/base64.h"
+ #include "base/byte_size.h"
+@@ -20,6 +22,8 @@
+ #include "base/files/file_util.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback_helpers.h"
++#include "base/json/json_reader.h"
++#include "base/json/values_util.h"
+ #include "base/metrics/field_trial.h"
+ #include "base/metrics/field_trial_params.h"
+ #include "base/notreached.h"
+@@ -39,6 +43,7 @@
+ #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+ #include "chrome/browser/domain_reliability/service_factory.h"
+ #include "chrome/browser/net/disk_cache_dir_util.h"
++#include "chrome/browser/net/profile_network_context_service_factory.h"
+ #include "chrome/browser/net/system_network_context_manager.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/signin/signin_util.h"
+@@ -67,6 +72,8 @@
+ #include "components/embedder_support/switches.h"
+ #include "components/enterprise/buildflags/buildflags.h"
+ #include "components/enterprise/connectors/core/connectors_prefs.h"
++#include "components/helium_services/helium_services_helpers.h"
++#include "components/helium_services/pref_names.h"
+ #include "components/language/core/browser/language_prefs.h"
+ #include "components/language/core/browser/pref_names.h"
+ #include "components/metrics/metrics_pref_names.h"
+@@ -94,13 +101,18 @@
+ #include "net/http/http_util.h"
+ #include "net/net_buildflags.h"
+ #include "net/ssl/client_cert_store.h"
++#include "net/traffic_annotation/network_traffic_annotation.h"
+ #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
+ #include "services/network/public/cpp/cors/origin_access_list.h"
+ #include "services/network/public/cpp/features.h"
++#include "services/network/public/cpp/resource_request.h"
++#include "services/network/public/cpp/shared_url_loader_factory.h"
++#include "services/network/public/cpp/simple_url_loader.h"
+ #include "services/network/public/mojom/cert_verifier_service.mojom.h"
+ #include "services/network/public/mojom/network_context.mojom.h"
+ #include "services/network/public/mojom/network_service.mojom.h"
+ #include "third_party/blink/public/common/features.h"
++#include "url/origin.h"
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include "ash/constants/ash_features.h"
+@@ -516,6 +528,24 @@ bool GetHttpCacheBackendResetParam(
+ 
+ }  // namespace
+ 
++namespace {
++
++constexpr auto kTrackingQueryRefreshInterval = base::Days(1);
++constexpr auto kTrackingQueryRetryInterval = base::Hours(1);
++constexpr size_t kMaxTrackingQueryCatalogSize = 512 * 1024;
++
++bool CanUseTrackingQueryAsset(const PrefService& prefs, const GURL& source) {
++  return helium::ShouldAccessUBlockAssets(prefs) && source.is_valid() &&
++         !source.has_username() && !source.has_password() &&
++         !source.has_query() && !source.has_ref() &&
++         source.path().starts_with("/ubo/adguard-spyware-url/") &&
++         source.path().ends_with("/privacy-removeparam.txt") &&
++         url::Origin::Create(source).IsSameOriginWith(
++             url::Origin::Create(helium::GetServicesBaseURL(prefs)));
++}
++
++}  // namespace
++
+ ProfileNetworkContextService::ProfileNetworkContextService(Profile* profile)
+     : profile_(profile),
+       proxy_config_monitor_(std::make_unique<ProxyConfigMonitor>(profile)) {
+@@ -552,6 +582,33 @@ ProfileNetworkContextService::ProfileNet
+   HostContentSettingsMapFactory::GetForProfile(profile_)->AddObserver(this);
+ 
+   pref_change_registrar_.Init(profile_prefs);
++  const auto tracking_settings_changed = base::BindRepeating(
++      &ProfileNetworkContextService::OnTrackingQuerySettingsChanged,
++      base::Unretained(this));
++  helium::ConfigurePrefChangeRegistrarFor(
++      prefs::kHeliumUBlockAssetsEnabled, pref_change_registrar_,
++      tracking_settings_changed);
++  pref_change_registrar_.Add(
++      prefs::kHeliumTrackingQueryAsset,
++      base::BindRepeating(&ProfileNetworkContextService::UpdateTrackingQueryRules,
++                          base::Unretained(this)));
++  pref_change_registrar_.Add(prefs::kHeliumCleanTrackingLinksEnabled,
++                             tracking_settings_changed);
++  pref_change_registrar_.Add(
++      prefs::kHeliumTrackingQueryExcludedDomains,
++      base::BindRepeating(
++          &ProfileNetworkContextService::UpdateTrackingQueryExcludedDomains,
++          base::Unretained(this)));
++  LoadTrackingQueryState();
++  tracking_query_excluded_domains_ = ReadTrackingQueryExcludedDomains();
++  const auto checked = base::ValueToTime(
++      profile_prefs->GetDict(prefs::kHeliumTrackingQueryAsset).Find("checked"));
++  const auto now = base::Time::Now();
++  ScheduleTrackingQueryRefresh(
++      !tracking_query_list_.empty() && checked && *checked <= now
++          ? std::max(base::TimeDelta(),
++                     *checked + kTrackingQueryRefreshInterval - now)
++          : base::TimeDelta());
+ 
+   // When any of the following CT preferences change, we schedule an update
+   // to aggregate the actual update using a |ct_policy_update_timer_|.
+@@ -613,6 +670,243 @@ ProfileNetworkContextService::ProfileNet
+ 
+ ProfileNetworkContextService::~ProfileNetworkContextService() = default;
+ 
++std::optional<GURL> ProfileNetworkContextService::StripTrackingQueryForCopy(
++    content::BrowserContext* context, const GURL& url) {
++  auto* service = ProfileNetworkContextServiceFactory::GetForContext(context);
++  return service
++             ? service->StripTrackingQuery(url, net::TrackingQueryAction::kCopy)
++             : std::nullopt;
++}
++
++std::optional<GURL> ProfileNetworkContextService::StripTrackingQuery(
++    const GURL& url, net::TrackingQueryAction action) const {
++  if (!tracking_query_cleanup_enabled_) {
++    return std::nullopt;
++  }
++  return net::StripTrackingQuery(url, action, tracking_query_rules_.get(),
++                                 tracking_query_excluded_domains_);
++}
++
++GURL ProfileNetworkContextService::GetTrackingQueryCatalogURL() const {
++  if (is_shutting_down_ || !profile_->IsRegularProfile() ||
++      !tracking_query_cleanup_enabled_ ||
++      !helium::ShouldAccessUBlockAssets(*profile_->GetPrefs())) {
++    return GURL();
++  }
++  const GURL catalog = helium::GetUBlockAssetsURL(*profile_->GetPrefs());
++  return catalog.has_username() || catalog.has_password() ? GURL() : catalog;
++}
++
++void ProfileNetworkContextService::OnTrackingQuerySettingsChanged() {
++  tracking_query_refresh_timer_.Stop();
++  tracking_query_loader_.reset();
++  UpdateTrackingQueryRules();
++  ScheduleTrackingQueryRefresh(base::TimeDelta());
++}
++
++void ProfileNetworkContextService::ScheduleTrackingQueryRefresh(
++    base::TimeDelta delay) {
++  if (!GetTrackingQueryCatalogURL().is_valid()) {
++    return;
++  }
++  tracking_query_refresh_timer_.Start(
++      FROM_HERE, delay,
++      base::BindOnce(&ProfileNetworkContextService::RefreshTrackingQueryRules,
++                     weak_factory_.GetWeakPtr()));
++}
++
++void ProfileNetworkContextService::RefreshTrackingQueryRules() {
++  const GURL catalog = GetTrackingQueryCatalogURL();
++  if (!catalog.is_valid()) {
++    return;
++  }
++  FetchTrackingQueryResource(
++      catalog, kMaxTrackingQueryCatalogSize,
++      base::BindOnce(&ProfileNetworkContextService::OnTrackingQueryCatalogDownloaded,
++                     weak_factory_.GetWeakPtr()));
++}
++
++void ProfileNetworkContextService::FetchTrackingQueryResource(
++    const GURL& url,
++    size_t max_size,
++    base::OnceCallback<void(std::optional<std::string>)> callback) {
++  constexpr auto traffic_annotation = net::DefineNetworkTrafficAnnotation(
++      "helium_tracking_query_rules", R"(
++        semantics {
++          sender: "Lune link tracking protection"
++          description: "Updates the public rules for removing tracking parameters from links."
++          trigger: "With filter updates and link cleanup enabled, when consent is granted and periodically thereafter."
++          data: "A request for the filter-list catalog or the public URL Tracking Protection file. No browsing URLs or identifiers are included."
++          destination: OTHER
++          destination_other: "Helium services or the service instance chosen in settings."
++          internal {
++            contacts { email: "lee@leebyron.com" }
++          }
++          user_data { type: NONE }
++          last_reviewed: "2026-11-17"
++        }
++        policy {
++          cookies_allowed: NO
++          setting: "Set Update privacy filter lists through Helium in Privacy settings."
++          policy_exception_justification: "The user controls this request through Helium service consent and the filter-list update setting."
++        })");
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = url;
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++  request->redirect_mode = network::mojom::RedirectMode::kError;
++  tracking_query_loader_ =
++      network::SimpleURLLoader::Create(std::move(request), traffic_annotation);
++  tracking_query_loader_->SetTimeoutDuration(base::Seconds(30));
++  auto factory = g_browser_process->system_network_context_manager()
++                     ->GetSharedURLLoaderFactory();
++  tracking_query_loader_->DownloadToString(factory.get(), std::move(callback),
++                                           max_size);
++}
++
++void ProfileNetworkContextService::OnTrackingQueryCatalogDownloaded(
++    std::optional<std::string> body) {
++  tracking_query_loader_.reset();
++  auto catalog = body ? base::JSONReader::ReadDict(*body, base::JSON_PARSE_RFC)
++                      : std::nullopt;
++  const auto* entry = catalog ? catalog->FindDict("adguard-spyware-url") : nullptr;
++  const auto* destinations = entry ? entry->Find("contentURL") : nullptr;
++  const auto& profile_prefs = *profile_->GetPrefs();
++  GURL source;
++  if (destinations && destinations->is_string()) {
++    source = GURL(destinations->GetString());
++  } else if (destinations && destinations->is_list()) {
++    for (const auto& destination : destinations->GetList()) {
++      const auto* url = destination.GetIfString();
++      if (url && CanUseTrackingQueryAsset(profile_prefs, GURL(*url))) {
++        source = GURL(*url);
++        break;
++      }
++    }
++  }
++  if (!GetTrackingQueryCatalogURL().is_valid()) {
++    return;
++  }
++  if (!CanUseTrackingQueryAsset(profile_prefs, source)) {
++    ScheduleTrackingQueryRefresh(kTrackingQueryRetryInterval);
++    return;
++  }
++  FetchTrackingQueryResource(
++      source, net::kMaxTrackingQueryListSize,
++      base::BindOnce(&ProfileNetworkContextService::OnTrackingQueryListDownloaded,
++                     weak_factory_.GetWeakPtr(), source));
++}
++
++void ProfileNetworkContextService::OnTrackingQueryListDownloaded(
++    const GURL& source, std::optional<std::string> body) {
++  tracking_query_loader_.reset();
++  auto* profile_prefs = profile_->GetPrefs();
++  if (!GetTrackingQueryCatalogURL().is_valid()) {
++    return;
++  }
++  if (!body || body->empty() ||
++      !CanUseTrackingQueryAsset(*profile_prefs, source) ||
++      (*body != tracking_query_list_ &&
++       !net::TrackingQueryRules::FromDownloadedList(*body))) {
++    ScheduleTrackingQueryRefresh(kTrackingQueryRetryInterval);
++    return;
++  }
++
++  base::DictValue snapshot;
++  snapshot.Set("source", source.spec());
++  snapshot.Set("content", std::move(*body));
++  snapshot.Set("checked", base::TimeToValue(base::Time::Now()));
++  profile_prefs->SetDict(prefs::kHeliumTrackingQueryAsset, std::move(snapshot));
++  ScheduleTrackingQueryRefresh(kTrackingQueryRefreshInterval);
++}
++
++void ProfileNetworkContextService::ConfigureTrackingQueryCleanup(
++    network::mojom::NetworkContextParams* params) const {
++  params->enable_tracking_query_cleanup = tracking_query_cleanup_enabled_;
++  params->tracking_query_list = tracking_query_list_;
++  params->tracking_query_excluded_domains = tracking_query_excluded_domains_;
++}
++
++bool ProfileNetworkContextService::LoadTrackingQueryState() {
++  const auto* profile_prefs = profile_->GetPrefs();
++  const bool enabled =
++      profile_prefs->GetBoolean(prefs::kHeliumCleanTrackingLinksEnabled);
++  const bool enabled_changed =
++      std::exchange(tracking_query_cleanup_enabled_, enabled) != enabled;
++  const auto& snapshot = profile_prefs->GetDict(prefs::kHeliumTrackingQueryAsset);
++  const auto* source = snapshot.FindString("source");
++  const auto* content = snapshot.FindString("content");
++  if (enabled && source && content &&
++      CanUseTrackingQueryAsset(*profile_prefs, GURL(*source))) {
++    if (*content == tracking_query_list_) {
++      return enabled_changed;
++    }
++    if (auto parsed = net::TrackingQueryRules::FromDownloadedList(*content)) {
++      tracking_query_list_ = *content;
++      tracking_query_rules_ = std::move(parsed);
++      return true;
++    }
++  }
++  const bool rules_changed = !tracking_query_list_.empty();
++  tracking_query_list_.clear();
++  tracking_query_rules_.reset();
++  return enabled_changed || rules_changed;
++}
++
++void ProfileNetworkContextService::UpdateTrackingQueryRules() {
++  if (is_shutting_down_ || !LoadTrackingQueryState()) {
++    return;
++  }
++  profile_->ForEachLoadedStoragePartition(
++      [this](content::StoragePartition* partition) {
++        partition->GetNetworkContext()->SetTrackingQueryCleanup(
++            tracking_query_cleanup_enabled_, tracking_query_list_);
++      });
++}
++
++std::vector<std::string>
++ProfileNetworkContextService::ReadTrackingQueryExcludedDomains() const {
++  std::vector<std::string> domains;
++  for (const auto& entry : profile_->GetPrefs()->GetList(
++           prefs::kHeliumTrackingQueryExcludedDomains)) {
++    if (!entry.is_string()) {
++      continue;
++    }
++    std::string host = base::ToLowerASCII(entry.GetString());
++    if (host.ends_with('.')) {
++      host.pop_back();
++    }
++    if (host.empty() ||
++        host.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789.-") !=
++            std::string::npos) {
++      continue;
++    }
++    const GURL url("https://" + host);
++    if (url.is_valid() && url.has_host()) {
++      domains.emplace_back(url.host());
++    }
++  }
++  std::ranges::sort(domains);
++  auto duplicate = std::ranges::unique(domains);
++  domains.erase(duplicate.begin(), duplicate.end());
++  return domains;
++}
++
++void ProfileNetworkContextService::UpdateTrackingQueryExcludedDomains() {
++  if (is_shutting_down_) {
++    return;
++  }
++  auto domains = ReadTrackingQueryExcludedDomains();
++  if (domains == tracking_query_excluded_domains_) {
++    return;
++  }
++  tracking_query_excluded_domains_ = std::move(domains);
++  profile_->ForEachLoadedStoragePartition(
++      [this](content::StoragePartition* partition) {
++        partition->GetNetworkContext()->SetTrackingQueryExcludedDomains(
++            tracking_query_excluded_domains_);
++      });
++}
++
+ void ProfileNetworkContextService::ConfigureNetworkContextParams(
+     bool in_memory,
+     const base::FilePath& relative_partition_path,
+@@ -645,6 +939,9 @@ void ProfileNetworkContextService::Confi
+ // static
+ void ProfileNetworkContextService::RegisterProfilePrefs(
+     user_prefs::PrefRegistrySyncable* registry) {
++  registry->RegisterBooleanPref(prefs::kHeliumCleanTrackingLinksEnabled, true);
++  registry->RegisterListPref(prefs::kHeliumTrackingQueryExcludedDomains);
++  registry->RegisterDictionaryPref(prefs::kHeliumTrackingQueryAsset);
+   registry->RegisterBooleanPref(embedder_support::kAlternateErrorPagesEnabled,
+                                 false);
+   registry->RegisterBooleanPref(prefs::kQuicAllowed, true);
+@@ -1353,6 +1650,7 @@ void ProfileNetworkContextService::Confi
+ 
+   network_context_params->accept_language = ComputeAcceptLanguage();
+   network_context_params->enable_referrers = enable_referrers_.GetValue();
++  ConfigureTrackingQueryCleanup(network_context_params);
+ 
+   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+   if (command_line->HasSwitch(embedder_support::kShortReportingDelay)) {
+@@ -1659,6 +1957,8 @@ void ProfileNetworkContextService::Shutd
+ 
+   cert_policy_update_timer_.Stop();
+   ct_policy_update_timer_.Stop();
++  tracking_query_refresh_timer_.Stop();
++  tracking_query_loader_.reset();
+ 
+   HostContentSettingsMapFactory::GetForProfile(profile_)->RemoveObserver(this);
+   cookie_settings_observation_.Reset();
+--- a/chrome/browser/net/profile_network_context_service.h
++++ b/chrome/browser/net/profile_network_context_service.h
+@@ -9,6 +9,7 @@
+ #include <optional>
+ #include <string>
+ #include <utility>
++#include <vector>
+ 
+ #include "base/callback_list.h"
+ #include "base/files/file_path.h"
+@@ -32,6 +33,7 @@
+ #include "components/prefs/pref_change_registrar.h"
+ #include "components/prefs/pref_member.h"
+ #include "net/net_buildflags.h"
++#include "net/base/tracking_query.h"
+ #include "net/ssl/client_cert_matcher.h"
+ #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom-forward.h"
+ #include "services/network/public/mojom/cert_verifier_service_updater.mojom.h"
+@@ -42,9 +44,17 @@
+ #include "components/server_certificate_database/server_certificate_database.h"  // nogncheck
+ #endif
+ 
++namespace network {
++class SimpleURLLoader;
++}
++
+ class PrefRegistrySimple;
+ class Profile;
+ 
++namespace content {
++class BrowserContext;
++}
++
+ namespace net {
+ class ClientCertStore;
+ 
+@@ -78,6 +88,13 @@ class ProfileNetworkContextService
+ 
+   ~ProfileNetworkContextService() override;
+ 
++  static std::optional<GURL> StripTrackingQueryForCopy(
++      content::BrowserContext* context, const GURL& url);
++  std::optional<GURL> StripTrackingQuery(
++      const GURL& url, net::TrackingQueryAction action) const;
++  void ConfigureTrackingQueryCleanup(
++      network::mojom::NetworkContextParams* params) const;
++
+   // Configures the NetworkContextParams and the CertVerifierCreationParams for
+   // the BrowserContext, using the specified parameters. An empty
+   // |relative_partition_path| corresponds to the main network context.
+@@ -174,6 +191,22 @@ class ProfileNetworkContextService
+   std::string ComputeAcceptLanguage() const;
+ 
+   void UpdateReferrersEnabled();
++  // Returns whether the effective cleanup setting or list changed.
++  bool LoadTrackingQueryState();
++  void UpdateTrackingQueryRules();
++  std::vector<std::string> ReadTrackingQueryExcludedDomains() const;
++  void UpdateTrackingQueryExcludedDomains();
++  GURL GetTrackingQueryCatalogURL() const;
++  void OnTrackingQuerySettingsChanged();
++  void ScheduleTrackingQueryRefresh(base::TimeDelta delay);
++  void RefreshTrackingQueryRules();
++  void FetchTrackingQueryResource(
++      const GURL& url,
++      size_t max_size,
++      base::OnceCallback<void(std::optional<std::string>)> callback);
++  void OnTrackingQueryCatalogDownloaded(std::optional<std::string> body);
++  void OnTrackingQueryListDownloaded(const GURL& source,
++                                     std::optional<std::string> body);
+ 
+   // Gets the current CTPolicy from preferences.
+   network::mojom::CTPolicyPtr GetCTPolicy();
+@@ -253,6 +286,13 @@ class ProfileNetworkContextService
+ 
+   raw_ptr<Profile> profile_;
+ 
++  bool tracking_query_cleanup_enabled_ = false;
++  std::string tracking_query_list_;
++  std::unique_ptr<net::TrackingQueryRules> tracking_query_rules_;
++  std::vector<std::string> tracking_query_excluded_domains_;
++  base::OneShotTimer tracking_query_refresh_timer_;
++  std::unique_ptr<network::SimpleURLLoader> tracking_query_loader_;
++
+   std::unique_ptr<ProxyConfigMonitor> proxy_config_monitor_;
+ 
+   BooleanPrefMember quic_allowed_;
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -258,7 +258,7 @@
+ #include "media/base/media_switches.h"
+ #include "mojo/public/cpp/bindings/associated_remote.h"
+ #include "net/base/network_anonymization_key.h"
+-#include "net/base/tracking_query.h"
++#include "chrome/browser/net/profile_network_context_service.h"
+ #include "net/base/url_util.h"
+ #include "net/traffic_annotation/network_traffic_annotation.h"
+ #include "pdf/buildflags.h"
+@@ -1243,10 +1243,11 @@ void RenderViewContextMenu::WriteURLToCl
+       ui::ClipboardBuffer::kCopyPaste,
+       CreateDataEndpoint(/*notify_if_restricted=*/true));
+   scw.SetDataSourceURL(main_frame_url_, current_url_);
+-  const auto cleaned = id == IDC_CONTENT_CONTEXT_COPYLINKLOCATION
+-                           ? net::StripTrackingQuery(
+-                                 url, net::TrackingQueryAction::kCopy)
+-                           : std::nullopt;
++  const auto cleaned =
++      id == IDC_CONTENT_CONTEXT_COPYLINKLOCATION
++          ? ProfileNetworkContextService::StripTrackingQueryForCopy(
++                browser_context_, url)
++          : std::nullopt;
+   scw.WriteText(cleaned ? base::UTF8ToUTF16(cleaned->spec())
+                         : FormatURLForClipboard(url));
+ 
+--- a/chrome/browser/ui/browser_commands.cc
++++ b/chrome/browser/ui/browser_commands.cc
+@@ -211,7 +211,7 @@
+ #include "content/public/common/url_constants.h"
+ #include "content/public/common/url_utils.h"
+ #include "extensions/buildflags/buildflags.h"
+-#include "net/base/tracking_query.h"
++#include "chrome/browser/net/profile_network_context_service.h"
+ #include "pdf/buildflags.h"
+ #include "printing/buildflags/buildflags.h"
+ #include "rlz/buildflags/buildflags.h"
+@@ -296,8 +296,8 @@ const char kChPlatformOverrideForTabletS
+ 
+ std::u16string FormatURLForCopy(content::WebContents* web_contents) {
+   const GURL& url = web_contents->GetVisibleURL();
+-  if (auto cleaned =
+-          net::StripTrackingQuery(url, net::TrackingQueryAction::kCopy)) {
++  if (auto cleaned = ProfileNetworkContextService::StripTrackingQueryForCopy(
++          web_contents->GetBrowserContext(), url)) {
+     return base::UTF8ToUTF16(cleaned->spec());
+   }
+   return url_formatter::FormatUrl(
+--- a/chrome/browser/ui/views/omnibox/omnibox_view_views.cc
++++ b/chrome/browser/ui/views/omnibox/omnibox_view_views.cc
+@@ -101,7 +101,7 @@
+ #include "content/public/browser/web_contents.h"
+ #include "extensions/common/constants.h"
+ #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+-#include "net/base/tracking_query.h"
++#include "chrome/browser/net/profile_network_context_service.h"
+ #include "net/base/url_util.h"
+ #include "third_party/metrics_proto/omnibox_event.pb.h"
+ #include "third_party/perfetto/include/perfetto/tracing/track.h"
+@@ -2456,9 +2456,10 @@ void OmniboxViewViews::HandleCutOrCopyAd
+   controller()->edit_model()->AdjustTextForCopy(GetSelectedRange().GetMin(),
+                                                 text, &url, &write_url);
+   if (IsSelectAll()) {
+-    if (write_url && !controller()->edit_model()->user_input_in_progress()) {
+-      if (auto cleaned =
+-              net::StripTrackingQuery(url, net::TrackingQueryAction::kCopy)) {
++    if (write_url && web_contents() &&
++        !controller()->edit_model()->user_input_in_progress()) {
++      if (auto cleaned = ProfileNetworkContextService::StripTrackingQueryForCopy(
++              web_contents()->GetBrowserContext(), url)) {
+         *text = base::UTF8ToUTF16(cleaned->spec());
+       }
+     }
+--- a/components/helium_services/pref_names.h
++++ b/components/helium_services/pref_names.h
+@@ -19,6 +19,13 @@ inline constexpr char kHeliumComponentUp
+ inline constexpr char kHeliumDisableSchemaAlerts[] =
+     "helium.services.disable_schema_alerts";
+ 
++inline constexpr char kHeliumTrackingQueryAsset[] =
++    "helium.tracking_query_asset";
++inline constexpr char kHeliumCleanTrackingLinksEnabled[] =
++    "helium.clean_tracking_links";
++inline constexpr char kHeliumTrackingQueryExcludedDomains[] =
++    "helium.tracking_query_excluded_domains";
++
+ inline constexpr char kHeliumPrefPrefix[] = "helium.";
+ 
+ inline constexpr char kHeliumServicesEnabled[] =
+--- a/net/BUILD.gn
++++ b/net/BUILD.gn
+@@ -190,6 +190,18 @@ rust_static_library("http_chunked_decode
+   allow_unsafe = true
+ }
+ 
++action("generate_tracking_query_rules") {
++  script = "base/generate_tracking_query_rules.py"
++  inputs = [
++    "//third_party/lune_tracking_query_rules/privacy-removeparam.txt",
++    "//third_party/ublock/assets/ublock/filters.min.txt",
++    "//third_party/ublock/assets/ublock/privacy.min.txt",
++    "//third_party/ublock/assets/ublock/unbreak.min.txt",
++  ]
++  outputs = [ "$target_gen_dir/tracking_query_rules.inc" ]
++  args = rebase_path(outputs + inputs, root_build_dir)
++}
++
+ component("net") {
+   sources = [
+     "base/address_family.cc",
+@@ -1273,11 +1285,13 @@ component("net") {
+ 
+   deps = [
+     ":cronet_buildflags",
++    ":generate_tracking_query_rules",
+     ":http_chunked_decoder_rust",
+     ":net_deps",
+     "//components/network_time/time_tracker",
+     "//components/unexportable_keys",
+     "//net/http:transport_security_state_generated_files",
++    "//third_party/re2",
+     "//third_party/rust/sfv/v0_15/wrapper",
+     "//third_party/simdutf",
+   ]
+--- /dev/null
++++ b/net/base/generate_tracking_query_rules.py
+@@ -0,0 +1,37 @@
++# Copyright 2026 The Lune Authors
++# You can use, redistribute, and/or modify this source code under
++# the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++"""Extract URL removal directives from the uBlock assets in this build."""
++
++from pathlib import Path
++import re
++import sys
++
++
++DIRECTIVE = re.compile(r"(?:\$|,)(?:removeparam|queryprune)(?:[=,]|$)")
++
++
++def main():
++    output, snapshot, *assets = map(Path, sys.argv[1:])
++    def embed(name, paths):
++        rules = "\n".join(
++            line for path in paths
++            for line in map(str.strip, path.read_text(encoding="utf-8").splitlines())
++            if line.startswith("!#") or (
++                not line.startswith(("!", "[", "#")) and DIRECTIVE.search(line)
++            )
++        )
++        if not rules or ')LuneRules"' in rules:
++            raise ValueError("Expected embeddable uBlock removal directives")
++        return f'constexpr std::string_view {name} = R"LuneRules(\n{rules}\n)LuneRules";\n'
++
++    output.write_text(
++        embed("kBundledTrackingQueryRules", assets)
++        + embed("kBundledTrackingQuerySnapshot", [snapshot]),
++        encoding="utf-8",
++    )
++
++
++if __name__ == "__main__":
++    main()
+--- a/net/base/tracking_query.cc
++++ b/net/base/tracking_query.cc
+@@ -4,64 +4,497 @@
+ 
+ #include "net/base/tracking_query.h"
+ 
++#include <algorithm>
++#include <map>
++#include <set>
+ #include <string>
+-#include <string_view>
++#include <utility>
+ #include <vector>
+ 
+ #include "base/containers/fixed_flat_set.h"
+ #include "base/feature_list.h"
++#include "base/no_destructor.h"
+ #include "base/strings/escape.h"
+ #include "base/strings/string_split.h"
+ #include "base/strings/string_util.h"
++#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
++#include "net/tracking_query_rules.inc"
++#include "third_party/re2/src/re2/re2.h"
+ 
+ namespace net {
+-
+ namespace {
+ 
+ BASE_FEATURE(kHeliumTrackingQueryCleanup, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+-// Reviewed parameter names from AdGuard/uBO URL Tracking Protection. Keep
+-// ambiguous names such as "si" restricted to the destinations that use them
+-// for tracking. See https://github.com/uBlockOrigin/uAssets/blob/master/filters/privacy-removeparam.txt
+-constexpr auto kClickIdentifiers = base::MakeFixedFlatSet<std::string_view>({
+-    "dclid", "fbclid", "gclid", "msclkid", "ttclid", "twclid",
+-});
+-
+-constexpr auto kCampaignParameters = base::MakeFixedFlatSet<std::string_view>({
+-    "utm_campaign", "utm_content", "utm_id", "utm_medium", "utm_source",
+-    "utm_source_platform", "utm_term",
+-});
+-
+-constexpr auto kSignatureParameters = base::MakeFixedFlatSet<std::string_view>({
++constexpr auto kSignatures = base::MakeFixedFlatSet<std::string_view>({
+     "hmac", "key-pair-id", "oauth_signature", "sig", "signature",
+     "x-amz-signature", "x-goog-signature",
+ });
+ 
+-bool IsTrackingParameter(std::string_view name,
+-                         const GURL& url,
+-                         TrackingQueryAction action) {
+-  return kClickIdentifiers.contains(name) ||
+-         (action == TrackingQueryAction::kCopy &&
+-          kCampaignParameters.contains(name)) ||
+-         (name == "si" &&
+-          (url.DomainIs("youtu.be") || url.DomainIs("open.spotify.com") ||
+-           (url.DomainIs("youtube.com") &&
+-            url.path().starts_with("/shorts/")))) ||
+-         (name == "igsh" && url.DomainIs("instagram.com")) ||
+-         (name == "igshid" &&
+-          (url.DomainIs("instagram.com") || url.DomainIs("threads.com") ||
+-           url.DomainIs("threads.net")));
++// The filter grammar and exception precedence are described in uBlock Origin's
++// static-filter-syntax documentation. Evaluate rules in a top-level document
++// context. uBO uses the top-level destination as the document origin.
++struct Domains {
++  std::vector<std::string> included;
++  std::vector<std::string> excluded;
++  bool Matches(const GURL& url) const {
++    std::optional<std::string> registrable_domain;
++    auto matches_domain = [&](std::string_view name) {
++      if (!name.ends_with(".*")) {
++        return url.DomainIs(name);
++      }
++      if (!registrable_domain) {
++        registrable_domain = registry_controlled_domains::GetDomainAndRegistry(
++            url, registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
++      }
++      return std::string_view(*registrable_domain)
++                 .substr(0, registrable_domain->find('.')) ==
++             name.substr(0, name.size() - 2);
++    };
++    return !std::ranges::any_of(excluded, matches_domain) &&
++           (included.empty() || std::ranges::any_of(included, matches_domain));
++  }
++};
++
++struct Rule {
++  std::string selector;
++  std::string host;
++  std::unique_ptr<RE2> url_pattern;
++  std::unique_ptr<RE2> parameter_pattern;
++  std::vector<Domains> domains;
++  bool exception = false;
++  bool important = false;
++  bool invert = false;
++
++  bool Matches(const GURL& url, std::string_view candidate) const {
++    return (host.empty() || url.DomainIs(host)) &&
++           (!url_pattern || RE2::PartialMatch(candidate, *url_pattern)) &&
++           std::ranges::all_of(domains, [&url](const Domains& entry) {
++             return entry.Matches(url);
++           });
++  }
++
++  bool Selects(std::string_view key, std::string_view key_value) const {
++    if (selector.empty()) {
++      return true;
++    }
++    return invert != (parameter_pattern
++                          ? RE2::PartialMatch(key_value, *parameter_pattern)
++                          : key == std::string_view(selector).substr(invert));
++  }
++};
++
++std::unique_ptr<RE2> CompileExpression(std::string_view expression,
++                                       bool case_sensitive) {
++  RE2::Options options;
++  options.set_case_sensitive(case_sensitive);
++  options.set_log_errors(false);
++  options.set_max_mem(128 * 1024);
++  auto compiled = std::make_unique<RE2>(expression, options);
++  return compiled->ok() ? std::move(compiled) : nullptr;
++}
++
++bool CompileUrlPattern(std::string_view pattern, Rule& rule,
++                       bool case_sensitive) {
++  if (pattern.empty() || pattern == "*") {
++    return true;
++  }
++
++  if (pattern.starts_with("||") && pattern.ends_with('^')) {
++    const std::string_view host = pattern.substr(2, pattern.size() - 3);
++    if (!host.empty() &&
++        host.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.") ==
++            std::string_view::npos) {
++      rule.host = host;
++      return true;
++    }
++  }
++
++  std::string expression;
++  if (pattern.starts_with('/') && pattern.ends_with('/')) {
++    expression = pattern.substr(1, pattern.size() - 2);
++  } else {
++    if (pattern.starts_with("||")) {
++      expression = R"(^https?://(?:[^/?#]*\.)?)";
++      pattern.remove_prefix(2);
++    } else if (pattern.starts_with('|')) {
++      expression = "^";
++      pattern.remove_prefix(1);
++    }
++    const bool anchored_end = pattern.ends_with('|');
++    if (anchored_end) {
++      pattern.remove_suffix(1);
++    }
++    while (!pattern.empty()) {
++      const size_t special = pattern.find_first_of("*^");
++      expression += RE2::QuoteMeta(pattern.substr(0, special));
++      if (special == std::string_view::npos) {
++        break;
++      }
++      expression += pattern[special] == '*'
++                        ? ".*"
++                        : "(?:[^a-zA-Z0-9_.%-]|$)";
++      pattern.remove_prefix(special + 1);
++    }
++    if (anchored_end) {
++      expression += '$';
++    }
++  }
++
++  rule.url_pattern = CompileExpression(expression, case_sensitive);
++  return !!rule.url_pattern;
++}
++
++bool ParseDomains(std::string_view value, Rule& rule) {
++  Domains domains;
++  for (auto entry : base::SplitStringPiece(value, "|", base::TRIM_WHITESPACE,
++                                           base::SPLIT_WANT_ALL)) {
++    const bool excluded = entry.starts_with('~');
++    if (excluded) {
++      entry.remove_prefix(1);
++    }
++    const auto name = entry.ends_with(".*")
++                          ? entry.substr(0, entry.size() - 2)
++                          : entry;
++    if (name.empty() ||
++        name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.") !=
++            std::string_view::npos) {
++      return false;
++    }
++    (excluded ? domains.excluded : domains.included).emplace_back(entry);
++  }
++  rule.domains.push_back(std::move(domains));
++  return true;
++}
++
++// Only the network rule options used by the packaged and refreshed filter
++// lists are accepted. An unknown option can qualify an exception, so a
++// snapshot with unsupported document rules must leave the last rules in use.
++bool ParseRule(std::string_view line, std::optional<Rule>& output) {
++  Rule rule;
++  rule.exception = line.starts_with("@@");
++  if (rule.exception) {
++    line.remove_prefix(2);
++  }
++  const size_t separator = line.starts_with('/') && line.contains("/$")
++                               ? line.find("/$") + 1
++                               : line.find('$');
++  if (separator == std::string_view::npos) {
++    return true;
++  }
++  std::string_view options = line.substr(separator + 1);
++  bool removal = false;
++  bool types_present = false;
++  bool document = false;
++  bool excluded_document = false;
++  bool match_case = false;
++  bool unsupported = false;
++  constexpr auto resource_types = base::MakeFixedFlatSet<std::string_view>({
++      "beacon", "css", "font", "frame", "image", "media", "object", "other",
++      "ping", "popup", "script", "stylesheet", "subdocument", "websocket",
++      "xhr", "xmlhttprequest",
++  });
++  while (!options.empty()) {
++    size_t comma = options.find(',');
++    while (comma != std::string_view::npos && comma > 0 &&
++           options[comma - 1] == '\\') {
++      comma = options.find(',', comma + 1);
++    }
++    const auto option = options.substr(0, comma);
++    const size_t equals = option.find('=');
++    const auto name = option.substr(0, equals);
++    const auto value = equals == std::string_view::npos
++                           ? std::string_view()
++                           : option.substr(equals + 1);
++    if (name == "removeparam" || name == "queryprune") {
++      unsupported |= removal;
++      rule.selector = base::TrimWhitespaceASCII(value, base::TRIM_ALL);
++      removal = true;
++    } else if (name == "doc" || name == "document") {
++      types_present = document = true;
++    } else if (name == "~doc" || name == "~document") {
++      excluded_document = true;
++    } else if (resource_types.contains(name)) {
++      types_present = true;
++    } else if (name.starts_with('~') && resource_types.contains(name.substr(1))) {
++      // Excluding another resource type still allows main documents.
++    } else if (name == "domain" || name == "from" || name == "to") {
++      unsupported |= !ParseDomains(value, rule);
++    } else if (name == "important") {
++      rule.important = true;
++    } else if (name == "match-case") {
++      match_case = true;
++    } else if (name == "3p" || name == "third-party" || name == "~1p" ||
++               name == "~first-party" || name == "strict3p" ||
++               name == "~strict1p") {
++      excluded_document = true;
++    } else if (name != "1p" && name != "first-party" && name != "~3p" &&
++               name != "~third-party" && name != "strict1p" &&
++               name != "~strict3p") {
++      unsupported = true;
++    }
++    if (comma == std::string_view::npos) {
++      break;
++    }
++    options.remove_prefix(comma + 1);
++  }
++  if (!removal) {
++    return true;
++  }
++  if (unsupported) {
++    return false;
++  }
++  if (excluded_document || (types_present && !document)) {
++    return true;
++  }
++  if (!CompileUrlPattern(line.substr(0, separator), rule, match_case)) {
++    return false;
++  }
++  rule.invert = rule.selector.starts_with('~');
++  std::string_view selector(rule.selector);
++  selector.remove_prefix(rule.invert);
++  if (selector.starts_with('/')) {
++    const bool case_sensitive = !selector.ends_with("/i");
++    const size_t last_delimiter = selector.rfind('/');
++    if (last_delimiter <= 1 ||
++        (case_sensitive && !selector.ends_with('/'))) {
++      return false;
++    }
++    std::string expression(selector.substr(1, last_delimiter - 1));
++    base::ReplaceSubstringsAfterOffset(&expression, 0, "\\,", ",");
++    rule.parameter_pattern = CompileExpression(expression, case_sensitive);
++    if (!rule.parameter_pattern) {
++      return false;
++    }
++  } else if (selector.contains('|') || (rule.invert && selector.empty())) {
++    return false;
++  }
++  output.emplace(std::move(rule));
++  return true;
++}
++
++// Match the supported preparser tokens and browser flavor in bundled uBlock
++// Origin's static-filtering-parser.js and vapi-common.js.
++std::optional<bool> EvaluateFilterToken(std::string_view token) {
++  const bool invert = token.starts_with('!');
++  if (invert) {
++    token.remove_prefix(1);
++  }
++
++  constexpr auto enabled = base::MakeFixedFlatSet<std::string_view>({
++      "adguard_ext_chromium", "adguard_ext_opera", "cap_ipaddress",
++      "env_chromium", "ext_ublock",
++  });
++  constexpr auto disabled = base::MakeFixedFlatSet<std::string_view>({
++      "adguard", "adguard_app_android", "adguard_app_cli", "adguard_app_ios",
++      "adguard_app_mac", "adguard_app_windows", "adguard_ext_android_cb",
++      "adguard_ext_chromium_mv3", "adguard_ext_edge", "adguard_ext_firefox",
++      "adguard_ext_safari", "cap_html_filtering", "env_brave", "env_edge",
++      "env_firefox", "env_legacy", "env_mobile", "env_mv3", "env_safari",
++      "ext_abp", "ext_devbuild", "ext_ubol", "false",
++  });
++  if (enabled.contains(token)) {
++    return !invert;
++  }
++  if (disabled.contains(token)) {
++    return invert;
++  }
++  return std::nullopt;
++}
++
++std::optional<bool> EvaluateFilterCondition(std::string_view condition) {
++  condition = base::TrimWhitespaceASCII(condition, base::TRIM_ALL);
++  if (condition.starts_with('(') && condition.ends_with(')')) {
++    condition.remove_prefix(1);
++    condition.remove_suffix(1);
++  }
++  const auto parts = base::SplitStringPiece(
++      condition, base::kWhitespaceASCII, base::KEEP_WHITESPACE,
++      base::SPLIT_WANT_NONEMPTY);
++  if (parts.empty() || parts.size() % 2 == 0 ||
++      parts.front().starts_with('|') || parts.front().starts_with('&')) {
++    return std::nullopt;
++  }
++  auto result = EvaluateFilterToken(parts.front());
++  if (!result) {
++    return std::nullopt;
++  }
++  for (size_t i = 1; i < parts.size(); i += 2) {
++    const auto term = EvaluateFilterToken(parts[i + 1]);
++    if (!term || (parts[i] != "||" && parts[i] != "&&")) {
++      return std::nullopt;
++    }
++    // uBlock combines terms from left to right.
++    if (*result == (parts[i] == "&&")) {
++      result = term;
++    }
++  }
++  return result;
+ }
+ 
+ }  // namespace
+ 
++class TrackingQueryRules::Data {
++ public:
++  bool Append(std::string_view content) {
++    struct Section {
++      bool parent;
++      bool condition;
++      bool saw_else = false;
++    };
++    bool active = true;
++    std::vector<Section> sections;
++    for (std::string_view line : base::SplitStringPiece(
++             content, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
++      if (line.starts_with("!#if ")) {
++        const auto condition = EvaluateFilterCondition(line.substr(5));
++        if (!condition) {
++          return false;
++        }
++        sections.push_back({active, *condition});
++        active &= *condition;
++      } else if (line == "!#else") {
++        if (sections.empty() || sections.back().saw_else) {
++          return false;
++        }
++        sections.back().saw_else = true;
++        active = sections.back().parent && !sections.back().condition;
++      } else if (line == "!#endif") {
++        if (sections.empty()) {
++          return false;
++        }
++        active = sections.back().parent;
++        sections.pop_back();
++      } else if (line.starts_with("!#")) {
++        // Includes can carry exceptions. Reject incomplete active lists.
++        if (active || !line.starts_with("!#include ")) {
++          return false;
++        }
++      } else if (active && !line.starts_with('!') && !line.starts_with('[') &&
++                 (line.contains("$removeparam") || line.contains(",removeparam") ||
++                  line.contains("$queryprune") || line.contains(",queryprune"))) {
++        if (const size_t comment = line.find(" !"); comment != std::string_view::npos) {
++          line = line.substr(0, comment);
++        }
++        std::optional<Rule> rule;
++        if (!ParseRule(line, rule)) {
++          return false;
++        }
++        if (!rule) {
++          continue;
++        }
++        if (rule->selector.empty() || rule->invert || rule->parameter_pattern) {
++          generic.push_back(std::move(*rule));
++        } else {
++          const std::string selector = rule->selector;
++          named[selector].push_back(std::move(*rule));
++        }
++        if (++count > 10000) {
++          return false;
++        }
++      }
++    }
++    return sections.empty();
++  }
++
++  bool ShouldRemove(const GURL& url, std::string_view candidate,
++                    std::string_view key, std::string_view value) const {
++    bool always_remove = false;
++    bool except_all = false;
++    std::set<std::string_view> selectors;
++    std::set<std::string_view> exceptions;
++    const std::string key_value = generic.empty()
++        ? std::string()
++        : std::string(key) + "=" + base::UnescapeBinaryURLComponent(value);
++    auto apply = [&](const Rule& rule) {
++      if (!rule.Matches(url, candidate) ||
++          !rule.Selects(key, key_value)) {
++        return;
++      }
++      if (rule.exception) {
++        except_all |= rule.selector.empty();
++        exceptions.insert(rule.selector);
++      } else if (rule.important) {
++        always_remove = true;
++      } else {
++        selectors.insert(rule.selector);
++      }
++    };
++
++    if (const auto found = named.find(key); found != named.end()) {
++      for (const auto& rule : found->second) {
++        apply(rule);
++      }
++    }
++    for (const auto& rule : generic) {
++      apply(rule);
++    }
++    return always_remove ||
++           (!except_all && std::ranges::any_of(selectors, [&](auto selector) {
++              return !exceptions.contains(selector);
++            }));
++  }
++
++  size_t count = 0;
++  std::map<std::string, std::vector<Rule>, std::less<>> named;
++  std::vector<Rule> generic;
++};
++
++TrackingQueryRules::TrackingQueryRules(std::unique_ptr<Data> data)
++    : data_(std::move(data)) {}
++TrackingQueryRules::~TrackingQueryRules() = default;
++
++// Bound the size before compiling the remotely maintained expressions.
++std::unique_ptr<TrackingQueryRules> TrackingQueryRules::FromDownloadedList(
++    std::string_view content) {
++  if (content.empty() || content.size() > kMaxTrackingQueryListSize) {
++    return nullptr;
++  }
++  auto data = std::make_unique<Data>();
++  if (!data->Append(kBundledTrackingQueryRules)) {
++    return nullptr;
++  }
++  const size_t bundled_count = data->count;
++  if (!data->Append(content) || data->count == bundled_count) {
++    return nullptr;
++  }
++  return std::unique_ptr<TrackingQueryRules>(
++      new TrackingQueryRules(std::move(data)));
++}
++
++size_t TrackingQueryRules::size() const {
++  return data_->count;
++}
++
+ std::optional<GURL> StripTrackingQuery(const GURL& url,
+-                                     TrackingQueryAction action) {
++                                      TrackingQueryAction action,
++                                      const TrackingQueryRules* rules,
++                                      base::span<const std::string> excluded_domains) {
+   if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() || url.query().empty() ||
+       !base::FeatureList::IsEnabled(kHeliumTrackingQueryCleanup)) {
+     return std::nullopt;
+   }
++  if (std::ranges::any_of(excluded_domains, [&url](const auto& domain) {
++        return url.DomainIs(domain);
++      })) {
++    return std::nullopt;
++  }
+ 
++  static const base::NoDestructor<std::unique_ptr<TrackingQueryRules::Data>>
++      bundled([] {
++        auto data = std::make_unique<TrackingQueryRules::Data>();
++        if (!data->Append(kBundledTrackingQueryRules)) {
++          return std::make_unique<TrackingQueryRules::Data>();
++        }
++        // A downloaded list replaces this snapshot and keeps the core rules.
++        if (!data->Append(kBundledTrackingQuerySnapshot)) {
++          data = std::make_unique<TrackingQueryRules::Data>();
++          data->Append(kBundledTrackingQueryRules);
++        }
++        return data;
++      }());
++  const auto& data = rules ? *rules->data_ : **bundled;
++  const GURL candidate = url.GetAsReferrer();
+   const auto fields = base::SplitStringPiece(
+       url.query(), "&", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+   std::vector<std::string_view> kept;
+@@ -71,17 +504,21 @@ std::optional<GURL> StripTrackingQuery(c
+   bool has_client_id = false;
+   bool has_redirect_uri = false;
+   for (std::string_view field : fields) {
+-    const auto name = base::ToLowerASCII(base::UnescapeBinaryURLComponent(
+-        field.substr(0, field.find('='))));
+-    // A signature may cover the whole query. Keep OAuth URLs intact as well.
+-    if (kSignatureParameters.contains(name)) {
++    const size_t equals = field.find('=');
++    const auto key = field.substr(0, equals);
++    const auto name = base::ToLowerASCII(base::UnescapeBinaryURLComponent(key));
++    if (kSignatures.contains(name)) {
+       return std::nullopt;
+     }
+     has_code |= name == "code";
+     has_state |= name == "state";
+     has_client_id |= name == "client_id";
+     has_redirect_uri |= name == "redirect_uri";
+-    if (!IsTrackingParameter(name, url, action)) {
++    const auto value = equals == std::string_view::npos
++                           ? std::string_view()
++                           : field.substr(equals + 1);
++    if ((action == TrackingQueryAction::kNavigate && name.starts_with("utm_")) ||
++        !data.ShouldRemove(url, candidate.spec(), key, value)) {
+       kept.push_back(field);
+     }
+   }
+@@ -90,11 +527,9 @@ std::optional<GURL> StripTrackingQuery(c
+       (has_client_id && has_redirect_uri)) {
+     return std::nullopt;
+   }
+-
+-  // Match decoded names, but use the original fields to rebuild the URL.
+   const std::string query = base::JoinString(kept, "&");
+   GURL::Replacements replacements;
+-  if (kept.empty()) {
++  if (query.empty()) {
+     replacements.ClearQuery();
+   } else {
+     replacements.SetQueryStr(query);
+--- a/net/base/tracking_query.h
++++ b/net/base/tracking_query.h
+@@ -5,8 +5,13 @@
+ #ifndef NET_BASE_TRACKING_QUERY_H_
+ #define NET_BASE_TRACKING_QUERY_H_
+ 
++#include <cstddef>
++#include <memory>
+ #include <optional>
++#include <string>
++#include <string_view>
+ 
++#include "base/containers/span.h"
+ #include "net/base/net_export.h"
+ #include "url/gurl.h"
+ 
+@@ -14,10 +19,35 @@ namespace net {
+ 
+ enum class TrackingQueryAction { kNavigate, kCopy };
+ 
++inline constexpr size_t kMaxTrackingQueryListSize = 1024 * 1024;
++
++// A validated snapshot of the bundled and downloaded uBlock document rules.
++class NET_EXPORT TrackingQueryRules {
++ public:
++  ~TrackingQueryRules();
++
++  static std::unique_ptr<TrackingQueryRules> FromDownloadedList(
++      std::string_view content);
++
++  size_t size() const;
++
++ private:
++  class Data;
++  friend std::optional<GURL> StripTrackingQuery(const GURL&,
++                                               TrackingQueryAction,
++                                               const TrackingQueryRules*,
++                                               base::span<const std::string>);
++  explicit TrackingQueryRules(std::unique_ptr<Data> data);
++
++  const std::unique_ptr<Data> data_;
++};
++
+ // Returns a replacement URL only when an HTTP(S) query was cleaned.
+ NET_EXPORT std::optional<GURL> StripTrackingQuery(
+     const GURL& url,
+-    TrackingQueryAction action);
++    TrackingQueryAction action,
++    const TrackingQueryRules* rules = nullptr,
++    base::span<const std::string> excluded_domains = {});
+ 
+ }  // namespace net
+ 
+--- a/net/base/tracking_query_unittest.cc
++++ b/net/base/tracking_query_unittest.cc
+@@ -12,7 +12,7 @@ namespace {
+ 
+ TEST(TrackingQueryTest, PreservesOriginalFieldsAndFragment) {
+   const GURL original(
+-      "https://example.test/a?item=%2f%2B+%20&%66bclid=one&item=two&FBCLID"
++      "https://example.test/a?item=%2f%2B+%20&fbclid=one&item=two&fbclid"
+       "&empty=&bare#details");
+   EXPECT_EQ(StripTrackingQuery(original, TrackingQueryAction::kNavigate),
+             GURL("https://example.test/a?item=%2f%2B+%20&item=two&empty=&bare"
+@@ -24,8 +24,10 @@ TEST(TrackingQueryTest, PreservesOrigina
+ 
+ TEST(TrackingQueryTest, RemovesCampaignTagsOnCopy) {
+   const GURL url("https://example.test/?utm_source=mail&id=7&s=price");
+-  EXPECT_FALSE(StripTrackingQuery(url, TrackingQueryAction::kNavigate));
+-  EXPECT_EQ(StripTrackingQuery(url, TrackingQueryAction::kCopy),
++  auto rules = TrackingQueryRules::FromDownloadedList("$removeparam=utm_source");
++  ASSERT_TRUE(rules);
++  EXPECT_FALSE(StripTrackingQuery(url, TrackingQueryAction::kNavigate, rules.get()));
++  EXPECT_EQ(StripTrackingQuery(url, TrackingQueryAction::kCopy, rules.get()),
+             GURL("https://example.test/?id=7&s=price"));
+ }
+ 
+@@ -38,9 +40,6 @@ TEST(TrackingQueryTest, RestrictsShareId
+     EXPECT_EQ(StripTrackingQuery(
+                   GURL("https://open.spotify.com/track/track?si=test"), action),
+               GURL("https://open.spotify.com/track/track"));
+-    EXPECT_EQ(StripTrackingQuery(
+-                  GURL("https://www.instagram.com/p/post/?igsh=test"), action),
+-              GURL("https://www.instagram.com/p/post/"));
+     EXPECT_FALSE(StripTrackingQuery(GURL("https://example.test/?si=keep"),
+                                     action));
+     EXPECT_FALSE(StripTrackingQuery(GURL("https://youtube.com.evil.test/"
+@@ -49,6 +48,108 @@ TEST(TrackingQueryTest, RestrictsShareId
+   }
+ }
+ 
++TEST(TrackingQueryTest, HonorsDownloadedScopeValuesAndExceptions) {
++  auto rules = TrackingQueryRules::FromDownloadedList(
++      "||example.test/share/*$doc,removeparam=/^via=(a|b)$/\n"
++      "||example.test^$xhr,removeparam=media\n"
++      "$removeparam=campaign,to=~login.example.test\n"
++      "$removeparam=referral,to=amazon.*\n"
++      "@@||example.test/share/original^$removeparam\n"
++      "||instagram.com^$removeparam=igsh\n");
++  ASSERT_TRUE(rules);
++  const auto copy = [&](std::string_view url) {
++    return StripTrackingQuery(GURL(url), TrackingQueryAction::kCopy, rules.get());
++  };
++  EXPECT_EQ(copy("https://example.test/share/x?via=%61&via=c&media=keep&campaign=2"),
++            GURL("https://example.test/share/x?via=c&media=keep"));
++  EXPECT_EQ(copy("https://www.instagram.com/p/x?igsh=one"),
++            GURL("https://www.instagram.com/p/x"));
++  EXPECT_FALSE(copy("https://login.example.test/?campaign=2"));
++  EXPECT_FALSE(copy("https://example.test/share/original?fbclid=keep&via=b"));
++  EXPECT_FALSE(copy("https://example.test.evil.invalid/share/x?via=a"));
++  EXPECT_EQ(copy("https://shop.amazon.co.uk/s?referral=a&s=price"),
++            GURL("https://shop.amazon.co.uk/s?s=price"));
++  EXPECT_FALSE(copy("https://amazon.example.com/s?referral=keep"));
++}
++
++TEST(TrackingQueryTest, UsesBundledUBlockFilterConditions) {
++  auto rules = TrackingQueryRules::FromDownloadedList(
++      "!#if (ext_ublock && env_chromium)\n"
++      "$removeparam=classic\n"
++      "!#if !ext_ubol\n"
++      "$removeparam=not_lite\n"
++      "!#endif\n"
++      "!#else\n"
++      "$removeparam=other_browser\n"
++      "!#endif\n"
++      "!#if cap_ipaddress || env_firefox\n"
++      "$removeparam=has_ip\n"
++      "!#else\n"
++      "!#include inactive-list.txt\n"
++      "!#endif\n");
++  ASSERT_TRUE(rules);
++  const GURL original(
++      "https://example.test/?classic=1&not_lite=1&other_browser=1&has_ip=1");
++  EXPECT_EQ(StripTrackingQuery(original, TrackingQueryAction::kCopy,
++                              rules.get()),
++            GURL("https://example.test/?other_browser=1"));
++}
++
++TEST(TrackingQueryTest, KeepsUnsupportedDownloadsFromReplacingRules) {
++  EXPECT_FALSE(TrackingQueryRules::FromDownloadedList("No list here."));
++  for (std::string_view unsupported : {
++           "@@$removeparam,unsupported",
++           "!#include more-rules.txt",
++           "$removeparam=|legacy",
++           "$removeparam=~|legacy",
++           "$removeparam=multiple|values",
++           "$removeparam=first,queryprune=second",
++           "$removeparam=~",
++           "$removeparam=//",
++           "!#if ext_ublock && cap_unknown\n"
++           "@@$removeparam\n"
++           "!#endif",
++           "!#if unknown || ext_ublock\n"
++           "@@$removeparam\n"
++           "!#endif",
++           "!#if ext_ublock\n"
++           "!#else\n"
++           "!#else\n"
++           "!#endif",
++       }) {
++    SCOPED_TRACE(unsupported);
++    EXPECT_FALSE(TrackingQueryRules::FromDownloadedList(
++        std::string("$removeparam=tracking\n") + std::string(unsupported)));
++  }
++}
++
++TEST(TrackingQueryTest, DownloadReplacesBundledSnapshot) {
++  const GURL original("https://example.test/?pjclid=one&fbclid=two&keep=1");
++  EXPECT_EQ(StripTrackingQuery(original, TrackingQueryAction::kNavigate),
++            GURL("https://example.test/?keep=1"));
++
++  auto rules = TrackingQueryRules::FromDownloadedList("$removeparam=new_id");
++  ASSERT_TRUE(rules);
++  EXPECT_EQ(
++      StripTrackingQuery(original, TrackingQueryAction::kNavigate, rules.get()),
++      GURL("https://example.test/?pjclid=one&keep=1"));
++}
++
++TEST(TrackingQueryTest, HonorsDomainExclusions) {
++  const std::string excluded[] = {"example.test"};
++  for (const auto action :
++       {TrackingQueryAction::kNavigate, TrackingQueryAction::kCopy}) {
++    EXPECT_FALSE(StripTrackingQuery(GURL("https://example.test/?fbclid=keep"),
++                                    action, nullptr, excluded));
++    EXPECT_FALSE(StripTrackingQuery(
++        GURL("https://sub.example.test:8443/?fbclid=keep"), action, nullptr,
++        excluded));
++    EXPECT_EQ(StripTrackingQuery(GURL("https://notexample.test/?fbclid=test"),
++                                 action, nullptr, excluded),
++              GURL("https://notexample.test/"));
++  }
++}
++
+ TEST(TrackingQueryTest, PreservesSignedAndOAuthUrls) {
+   for (const auto action :
+        {TrackingQueryAction::kNavigate, TrackingQueryAction::kCopy}) {
+--- a/services/network/network_context.cc
++++ b/services/network/network_context.cc
+@@ -185,6 +185,7 @@
+ #include "services/network/url_request_context_builder_mojo.h"
+ #include "services/network/web_transport.h"
+ #include "url/gurl.h"
++#include "net/base/tracking_query.h"
+ #include "url/url_canon.h"
+ #include "url/url_constants.h"
+ 
+@@ -741,6 +742,9 @@ NetworkContext::NetworkContext(
+                                         : nullptr),
+       variations_headers_(std::move(params_->initial_variations_headers)) {
+   TRACE_EVENT0("loading", "NetworkContext::NetworkContext");
++  SetTrackingQueryCleanup(params_->enable_tracking_query_cleanup,
++                          params_->tracking_query_list);
++  SetTrackingQueryExcludedDomains(params_->tracking_query_excluded_domains);
+ 
+   if (features::ShouldBindNetworkContextDirectReceiver()) {
+     receiver_.emplace<DirectReceiver>(mojo::DirectReceiverKey{}, this);
+@@ -2011,6 +2015,27 @@ void NetworkContext::SetAcceptLanguage(c
+   user_agent_settings_->set_accept_language(new_accept_language);
+ }
+ 
++void NetworkContext::SetTrackingQueryCleanup(bool enabled,
++                                             const std::string& list) {
++  enable_tracking_query_cleanup_ = enabled;
++  tracking_query_rules_ =
++      enabled ? net::TrackingQueryRules::FromDownloadedList(list) : nullptr;
++}
++
++std::optional<GURL> NetworkContext::StripTrackingQuery(const GURL& url) const {
++  if (!enable_tracking_query_cleanup_) {
++    return std::nullopt;
++  }
++  return net::StripTrackingQuery(url, net::TrackingQueryAction::kNavigate,
++                                 tracking_query_rules_.get(),
++                                 tracking_query_excluded_domains_);
++}
++
++void NetworkContext::SetTrackingQueryExcludedDomains(
++    const std::vector<std::string>& excluded_domains) {
++  tracking_query_excluded_domains_ = excluded_domains;
++}
++
+ void NetworkContext::SetEnableReferrers(bool enable_referrers) {
+   // This may only be called on NetworkContexts created with the constructor
+   // that calls MakeURLRequestContext().
+--- a/services/network/network_context.h
++++ b/services/network/network_context.h
+@@ -100,6 +100,7 @@ class UnguessableToken;
+ }  // namespace base
+ 
+ namespace net {
++class TrackingQueryRules;
+ class CertVerifier;
+ class HostPortPair;
+ class IsolationInfo;
+@@ -362,6 +363,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE)
+       std::vector<mojom::MatchedNetworkConditionsPtr> conditions) override;
+   void SetAcceptLanguage(const std::string& new_accept_language) override;
+   void SetEnableReferrers(bool enable_referrers) override;
++  void SetTrackingQueryCleanup(bool enabled, const std::string& list) override;
++  void SetTrackingQueryExcludedDomains(
++      const std::vector<std::string>& excluded_domains) override;
++  std::optional<GURL> StripTrackingQuery(const GURL& url) const;
+ #if BUILDFLAG(IS_CT_SUPPORTED)
+   void SetCTPolicy(mojom::CTPolicyPtr ct_policy) override;
+   void MaybeEnqueueSCTReport(
+@@ -1018,6 +1023,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE)
+   raw_ptr<NetworkServiceNetworkDelegate> network_delegate_ = nullptr;
+ 
+   mojom::NetworkContextParamsPtr params_;
++  bool enable_tracking_query_cleanup_ = false;
++  std::unique_ptr<net::TrackingQueryRules> tracking_query_rules_;
++  std::vector<std::string> tracking_query_excluded_domains_;
+ 
+   // These must be below the URLRequestContext, so they're destroyed before it
+   // is.
+--- a/services/network/network_service_network_delegate.cc
++++ b/services/network/network_service_network_delegate.cc
+@@ -20,7 +20,6 @@
+ #include "net/base/isolation_info.h"
+ #include "net/base/load_flags.h"
+ #include "net/base/net_errors.h"
+-#include "net/base/tracking_query.h"
+ #include "net/cookies/cookie_setting_override.h"
+ #include "net/cookies/cookie_util.h"
+ #include "net/http/http_request_headers.h"
+@@ -86,8 +85,8 @@ void NetworkServiceNetworkDelegate::Mayb
+       request->referrer_policy(), enable_referrers_);
+   // Same-document history updates can add trackers that would otherwise
+   // appear in the Referer on the next same-site request.
+-  auto cleaned_referrer = net::StripTrackingQuery(
+-      sanitized_referrer.first, net::TrackingQueryAction::kNavigate);
++  auto cleaned_referrer =
++      network_context_->StripTrackingQuery(sanitized_referrer.first);
+   if (cleaned_referrer || sanitized_referrer.first != effective_url.spec() ||
+       sanitized_referrer.second != request->referrer_policy()) {
+     request->SetReferrer(cleaned_referrer ? cleaned_referrer->spec()
+@@ -119,8 +118,7 @@ int NetworkServiceNetworkDelegate::OnBef
+   if (loader && loader->IsDocumentNavigation() &&
+       request->isolation_info().IsMainFrameRequest() &&
+       request->method() == net::HttpRequestHeaders::kGetMethod) {
+-    if (auto cleaned = net::StripTrackingQuery(
+-            *effective_url, net::TrackingQueryAction::kNavigate)) {
++    if (auto cleaned = network_context_->StripTrackingQuery(*effective_url)) {
+       *new_url = std::move(*cleaned);
+       effective_url = new_url;
+     }
+--- a/services/network/public/mojom/network_context.mojom
++++ b/services/network/public/mojom/network_context.mojom
+@@ -353,6 +353,11 @@ struct SocketBrokerRemotes {
+ 
+ // Parameters for constructing a network context.
+ struct NetworkContextParams {
++  // Profile-local URL cleanup. A blank list selects the bundled default.
++  bool enable_tracking_query_cleanup = false;
++  string tracking_query_list;
++  array<string> tracking_query_excluded_domains;
++
+   // The user agent string.
+   string user_agent;
+ 
+@@ -1457,6 +1462,10 @@ interface NetworkContext {
+   // If false, the referrer of requests is never populated.
+   SetEnableReferrers(bool enable_referrers);
+ 
++  // Replace the profile-local filter snapshot after a refresh or opt-out.
++  SetTrackingQueryCleanup(bool enabled, string list);
++  SetTrackingQueryExcludedDomains(array<string> excluded_domains);
++
+   // Updates the CT policy to be used for requests. Only applies if the
+   // NetworkContextParams set enforce_chrome_ct_policy to true.
+   // TODO(rsleevi): Remove this once Chrome-specific policies are moved out
+--- a/chrome/browser/preloading/prefetch/prefetch_service/chrome_prefetch_service_delegate.cc
++++ b/chrome/browser/preloading/prefetch/prefetch_service/chrome_prefetch_service_delegate.cc
+@@ -6,6 +6,8 @@
+ 
+ #include "chrome/browser/battery/battery_saver.h"
+ #include "chrome/browser/data_saver/data_saver.h"
++#include "chrome/browser/net/profile_network_context_service.h"
++#include "chrome/browser/net/profile_network_context_service_factory.h"
+ #if BUILDFLAG(IS_ANDROID)
+ #include "chrome/browser/flags/android/chrome_feature_list.h"
+ #endif  // BUILDFLAG(IS_ANDROID)
+@@ -34,6 +36,12 @@ ChromePrefetchServiceDelegate::ChromePre
+ 
+ ChromePrefetchServiceDelegate::~ChromePrefetchServiceDelegate() = default;
+ 
++void ChromePrefetchServiceDelegate::ConfigureTrackingQueryCleanup(
++    network::mojom::NetworkContextParams* params) {
++  ProfileNetworkContextServiceFactory::GetForContext(profile_)
++      ->ConfigureTrackingQueryCleanup(params);
++}
++
+ std::string ChromePrefetchServiceDelegate::GetAcceptLanguageHeader() {
+   return net::HttpUtil::GenerateAcceptLanguageHeader(
+       profile_->GetPrefs()->GetString(language::prefs::kAcceptLanguages));
+--- a/chrome/browser/preloading/prefetch/prefetch_service/chrome_prefetch_service_delegate.h
++++ b/chrome/browser/preloading/prefetch/prefetch_service/chrome_prefetch_service_delegate.h
+@@ -33,6 +33,8 @@ class ChromePrefetchServiceDelegate : pu
+ 
+   // content::PrefetchServiceDelegate
+   std::string GetAcceptLanguageHeader() override;
++  void ConfigureTrackingQueryCleanup(
++      network::mojom::NetworkContextParams* params) override;
+   GURL GetDefaultPrefetchProxyHost() override;
+   std::string GetAPIKey() override;
+   GURL GetDefaultDNSCanaryCheckURL() override;
+--- a/content/browser/preloading/prefetch/prefetch_service.cc
++++ b/content/browser/preloading/prefetch/prefetch_service.cc
+@@ -1713,6 +1713,7 @@ PrefetchService::CreateIsolatedNetworkCo
+ 
+   if (delegate_) {
+     context_params->accept_language = delegate_->GetAcceptLanguageHeader();
++    delegate_->ConfigureTrackingQueryCleanup(context_params.get());
+   }
+ 
+   context_params->http_cache_enabled = true;
+--- a/content/public/browser/prefetch_service_delegate.h
++++ b/content/public/browser/prefetch_service_delegate.h
+@@ -10,6 +10,7 @@
+ #include "base/time/time.h"
+ #include "content/common/content_export.h"
+ #include "content/public/browser/preloading.h"
++#include "services/network/public/mojom/network_context.mojom-forward.h"
+ #include "url/gurl.h"
+ #include "url/origin.h"
+ 
+@@ -28,6 +29,9 @@ class CONTENT_EXPORT PrefetchServiceDele
+   // Gets the accept language header to be included in prefetch requests.
+   virtual std::string GetAcceptLanguageHeader() = 0;
+ 
++  virtual void ConfigureTrackingQueryCleanup(
++      network::mojom::NetworkContextParams* params) {}
++
+   // Gets the default host of the prefetch proxy.
+   virtual GURL GetDefaultPrefetchProxyHost() = 0;
+ 
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -419,7 +419,9 @@
+ #include "mojo/public/cpp/bindings/remote.h"
+ #include "net/base/data_url.h"
+ #include "net/base/features.h"
++#include "net/base/tracking_query.h"
+ #include "net/base/url_util.h"
++#include "net/http/http_request_headers.h"
+ #include "net/cookies/cookie_setting_override.h"
+ #include "net/cookies/site_for_cookies.h"
+ #include "net/ssl/client_cert_store.h"
+@@ -6237,6 +6239,25 @@ std::unique_ptr<blink::URLLoaderThrottle
+       std::move(dynamic_params));
+ }
+ 
++namespace {
++
++// The loader turns this rewrite into an internal redirect before starting its
++// factory, including when the selected factory belongs to a service worker.
++class TrackingQueryNavigationThrottle final : public blink::URLLoaderThrottle {
++ public:
++  explicit TrackingQueryNavigationThrottle(GURL clean_url)
++      : clean_url_(std::move(clean_url)) {}
++
++  void WillStartRequest(network::ResourceRequest* request, bool*) override {
++    request->url = clean_url_;
++  }
++
++ private:
++  const GURL clean_url_;
++};
++
++}  // namespace
++
+ std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
+ ChromeContentBrowserClient::CreateURLLoaderThrottles(
+     const network::ResourceRequest& request,
+@@ -6253,6 +6274,19 @@ ChromeContentBrowserClient::CreateURLLoa
+   Profile* profile = Profile::FromBrowserContext(browser_context);
+   DCHECK(profile);
+ 
++  if (navigation_id && request.is_outermost_main_frame &&
++      request.method == net::HttpRequestHeaders::kGetMethod &&
++      request.url.has_query()) {
++    if (auto* service =
++            ProfileNetworkContextServiceFactory::GetForContext(browser_context)) {
++      if (auto cleaned = service->StripTrackingQuery(
++              request.url, net::TrackingQueryAction::kNavigate)) {
++        result.push_back(std::make_unique<TrackingQueryNavigationThrottle>(
++            std::move(*cleaned)));
++      }
++    }
++  }
++
+   ChromeNavigationUIData* chrome_navigation_ui_data =
+       static_cast<ChromeNavigationUIData*>(navigation_ui_data);
+ 
