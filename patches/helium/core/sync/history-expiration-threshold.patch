@@ -1,6 +1,6 @@
 --- a/components/sync/engine/BUILD.gn
 +++ b/components/sync/engine/BUILD.gn
-@@ -194,6 +194,7 @@ static_library("engine") {
+@@ -194,6 +194,7 @@
      "//base:i18n",
      "//build:branding_buildflags",
      "//components/autofill/core/browser:payments_sync_utils",
@@ -10,7 +10,7 @@
  
 --- a/components/history/core/browser/browsing_history_service.cc
 +++ b/components/history/core/browser/browsing_history_service.cc
-@@ -30,6 +30,7 @@
+@@ -35,6 +35,7 @@
  #include "components/history/core/browser/features.h"
  #include "components/history/core/browser/history_backend.h"
  #include "components/history/core/browser/history_types.h"
@@ -18,8 +18,8 @@
  #include "components/keyed_service/core/service_access_type.h"
  #include "components/strings/grit/components_strings.h"
  #include "components/sync/base/user_selectable_type.h"
-@@ -834,8 +835,7 @@ void BrowsingHistoryService::QueryComple
-   if (results.reached_beginning()) {
+@@ -905,8 +906,7 @@
+   if (!results.has_more_results()) {
      // Exhausted the local results; continue querying to get remote results.
      // Start querying at the point where local history ends.
 -    base::Time expiry_treshold =
@@ -28,7 +28,7 @@
      if (state->remote_end_time_for_continuation.is_null()) {
        state->remote_end_time_for_continuation = base::Time::Max();
      }
-@@ -930,7 +930,7 @@ void BrowsingHistoryService::RecordResul
+@@ -1057,7 +1057,7 @@
    // Count the number of local, remote, and combined entries, each split by
    // entries before vs after the local expiry threshold (90 days).
    const base::Time local_expiry_threshold =
@@ -39,7 +39,7 @@
    for (const HistoryEntry& entry : results) {
 --- a/components/history/core/browser/history_backend.cc
 +++ b/components/history/core/browser/history_backend.cc
-@@ -67,6 +67,7 @@
+@@ -68,6 +68,7 @@
  #include "components/history/core/browser/sync/history_sync_bridge.h"
  #include "components/history/core/browser/url_row.h"
  #include "components/history/core/browser/url_utils.h"
@@ -47,7 +47,7 @@
  #include "components/sync/base/features.h"
  #include "components/sync/base/report_unrecoverable_error.h"
  #include "components/sync/model/client_tag_based_data_type_processor.h"
-@@ -1397,7 +1398,7 @@ void HistoryBackend::InitImpl(
+@@ -1373,7 +1374,7 @@
  
    // Start expiring old stuff.
    if (!base::CommandLine::ForCurrentProcess()->HasSwitch("keep-old-history"))
@@ -66,7 +66,7 @@
  #include "components/sync/service/sync_service.h"
  #include "sql/init_status.h"
  #include "url/origin.h"
-@@ -213,7 +214,8 @@ class HistoryBackend : public base::RefC
+@@ -208,7 +209,8 @@
  
    // The number of days old a history entry can be before it is considered "old"
    // and is deleted.
@@ -117,7 +117,7 @@
  #include <map>
  #include <set>
  #include <string_view>
-@@ -1131,6 +1130,26 @@ size_t LoopbackServer::GetEntityCount()
+@@ -1131,6 +1130,26 @@
    return entities_.size();
  }
  
@@ -154,7 +154,7 @@
  #include "base/values.h"
  #include "components/sync/base/data_type.h"
  #include "components/sync/engine/loopback_server/loopback_server_entity.h"
-@@ -131,6 +132,10 @@ class LoopbackServer : public base::Impo
+@@ -131,6 +132,10 @@
                              int64_t last_version_assigned);
    size_t GetEntityCount() const;
  

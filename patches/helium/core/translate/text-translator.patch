@@ -1,14 +1,14 @@
 --- a/chrome/browser/chrome_browser_interface_binders.cc
 +++ b/chrome/browser/chrome_browser_interface_binders.cc
-@@ -57,6 +57,7 @@
+@@ -52,6 +52,7 @@
  #include "components/security_state/core/security_state.h"
  #include "components/signin/public/identity_manager/identity_manager.h"
  #include "components/spellcheck/spellcheck_buildflags.h"
 +#include "components/translate/content/browser/text_translator_host.h"
  #include "components/translate/content/common/translate.mojom.h"
- #include "content/public/browser/browser_context.h"
- #include "content/public/browser/render_frame_host.h"
-@@ -479,6 +480,8 @@ void PopulateChromeFrameBinders(
+ #include "components/web_distiller/content/browser/distillability_driver.h"
+ #include "components/web_distiller/content/browser/distiller_javascript_service_impl.h"
+@@ -492,6 +493,8 @@
  
    map->Add<translate::mojom::ContentTranslateDriver>(
        &translate::BindContentTranslateDriver);
@@ -19,7 +19,7 @@
  
 --- a/components/translate/content/browser/BUILD.gn
 +++ b/components/translate/content/browser/BUILD.gn
-@@ -16,6 +16,8 @@ static_library("browser") {
+@@ -16,6 +16,8 @@
      "contextual_translate_delegate.h",
      "partial_translate_manager.cc",
      "partial_translate_manager.h",
@@ -223,7 +223,7 @@
 +#endif  // COMPONENTS_TRANSLATE_CONTENT_BROWSER_TEXT_TRANSLATOR_HOST_H_
 --- a/components/translate/content/common/translate.mojom
 +++ b/components/translate/content/common/translate.mojom
-@@ -123,3 +123,30 @@ interface ContentTranslateDriver {
+@@ -123,3 +123,30 @@
                 LanguageDetectionDetails details,
                 bool translation_critiera_met);
  };
@@ -288,7 +288,7 @@
  #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
  #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
  #include "third_party/blink/public/web/web_document.h"
-@@ -56,6 +63,47 @@ using blink::WebLocalFrame;
+@@ -56,6 +63,47 @@
  using blink::WebScriptSource;
  using blink::WebString;
  
@@ -336,7 +336,7 @@
  namespace {
  
  // The delay in milliseconds that we'll wait before checking to see if the
-@@ -73,6 +121,9 @@ const int kTranslateStatusCheckDelayMs =
+@@ -73,6 +121,9 @@
  // Language name passed to the Translate element for it to detect the language.
  const char kAutoDetectionLanguage[] = "auto";
  
@@ -346,7 +346,7 @@
  // The current CLD model version.
  constexpr char kCLDModelVersion[] = "CLD3";
  
-@@ -217,6 +268,7 @@ void TranslateAgent::PdfPageCaptured(con
+@@ -217,6 +268,7 @@
  
  void TranslateAgent::CancelPendingTranslation() {
    weak_method_factory_.InvalidateWeakPtrs();
@@ -354,7 +354,7 @@
    // Make sure to send the cancelled response back.
    if (translate_callback_pending_) {
      std::move(translate_callback_pending_)
-@@ -686,6 +738,8 @@ void TranslateAgent::TranslatePageImpl(i
+@@ -686,6 +738,8 @@
    if (!weak_this) {
      return;
    }
@@ -363,7 +363,7 @@
    // Check the status of the translation.
    translate_task_runner_->PostDelayedTask(
        FROM_HERE,
-@@ -718,6 +772,156 @@ TranslateAgent::GetTranslateHandler() {
+@@ -718,6 +772,156 @@
    return translate_handler_;
  }
  
@@ -530,7 +530,7 @@
  
  #include "base/gtest_prod_util.h"
  #include "base/memory/ref_counted_memory.h"
-@@ -138,6 +139,24 @@ class TranslateAgent : public content::R
+@@ -138,6 +139,24 @@
  
    const mojo::Remote<mojom::ContentTranslateDriver>& GetTranslateHandler();
  
@@ -555,7 +555,7 @@
    // Helper to send the page registration Mojo call to the browser.
    void RegisterPageInternal(LanguageDetectionDetails details,
                              bool page_level_translation_criteria_met);
-@@ -199,6 +218,10 @@ class TranslateAgent : public content::R
+@@ -199,6 +218,10 @@
    // Mojo interface).
    mojo::Remote<mojom::ContentTranslateDriver> translate_handler_;
  
@@ -568,7 +568,7 @@
  
 --- a/components/translate/content/renderer/BUILD.gn
 +++ b/components/translate/content/renderer/BUILD.gn
-@@ -19,6 +19,7 @@ static_library("renderer") {
+@@ -19,6 +19,7 @@
      "//components/translate/core/language_detection",
      "//content/public/common",
      "//content/public/renderer",

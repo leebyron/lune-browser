@@ -1,6 +1,6 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -3998,6 +3998,45 @@
+@@ -3963,6 +3963,45 @@
        <message name="IDS_SETTINGS_SYSTEM_FEATURE_NOTIFICATIONS_LABEL" desc="Label for the toggle that enables Chrome system notifications about features.">
          Show system notifications about Chrome features and tips
        </message>
@@ -1015,7 +1015,7 @@
 +#endif  // CHROME_BROWSER_UI_WEBUI_SETTINGS_BROWSER_SHORTCUTS_HANDLER_H_
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -19,6 +19,7 @@
+@@ -20,6 +20,7 @@
  #include "build/build_config.h"
  #include "build/buildflag.h"
  #include "chrome/browser/autofill/personal_data_manager_factory.h"
@@ -1023,7 +1023,7 @@
  #include "chrome/browser/browser_process.h"
  #include "chrome/browser/browser_process_platform_part.h"
  #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-@@ -4391,12 +4392,35 @@ void AddSystemStrings(content::WebUIData
+@@ -4418,12 +4419,35 @@
        {"isolationStateSubLabel", IDS_SETTINGS_SYSTEM_ISOLATION_STATE_SUBLABEL},
  #endif  // BUILDFLAG(IS_WIN)
        {"proxySettingsLabel", IDS_SETTINGS_SYSTEM_PROXY_SETTINGS_LABEL},
@@ -1061,8 +1061,8 @@
    html_source->AddString("isolationStateLearnMoreUrl",
 --- a/chrome/browser/resources/settings/system_page/system_page.html.ts
 +++ b/chrome/browser/resources/settings/system_page/system_page.html.ts
-@@ -11,7 +11,15 @@ export function getHtml(this: SettingsSy
-   // clang-format off
+@@ -11,7 +11,15 @@
+ export function getHtml(this: SettingsSystemPageElement) {
    return html`<!--_html_template_start_-->
  <settings-section page-title="$i18n{systemPageTitle}"
 -    class="cr-centered-card-container">
@@ -1076,9 +1076,9 @@
 +    <div class="hr"></div>
 +  ` : ''}
  <if expr="not is_macosx">
-   <settings-toggle-button
-       pref-key="background_mode.enabled"
-@@ -137,6 +145,12 @@ export function getHtml(this: SettingsSy
+   <settings-toggle-button pref-key="background_mode.enabled"
+       label="$i18n{backgroundAppsLabel}">
+@@ -137,5 +145,11 @@
      </relaunch-confirmation-dialog>
    ` : ''}
  </settings-section>
@@ -1089,7 +1089,6 @@
 +  </settings-browser-shortcuts-page>
 +` : ''}
  <!--_html_template_end_-->`;
-   // clang-format on
  }
 --- a/chrome/browser/resources/settings/system_page/system_page.ts
 +++ b/chrome/browser/resources/settings/system_page/system_page.ts
@@ -1108,7 +1107,7 @@
  
  import {PrefService} from '/shared/settings/prefs2/pref_service.js';
  import {PrefServiceObserverMixinLit} from '/shared/settings/prefs2/pref_service_observer_mixin_lit.js';
-@@ -28,6 +30,9 @@ import {loadTimeData} from '../i18n_setu
+@@ -28,6 +30,9 @@
  import {MetricsBrowserProxyImpl} from '../metrics_browser_proxy.js';
  // </if>
  import {RelaunchMixinLit, RestartType} from '../relaunch_mixin_lit.js';
@@ -1118,7 +1117,7 @@
  import {getSearchManager} from '../search_settings.js';
  import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
  
-@@ -55,8 +60,9 @@ export interface SettingsSystemPageEleme
+@@ -55,8 +60,9 @@
    };
  }
  
@@ -1130,7 +1129,7 @@
  
  export class SettingsSystemPageElement extends SettingsSystemPageElementBase
      implements SettingsPlugin {
-@@ -77,6 +83,8 @@ export class SettingsSystemPageElement e
+@@ -77,6 +83,8 @@
        isProxyEnforcedByPolicy_: {type: Boolean},
        isProxyDefault_: {type: Boolean},
        isProxyEnforcedByMultipleSources_: {type: Boolean},
@@ -1139,7 +1138,7 @@
  
        // <if expr="_google_chrome and is_win">
        showFeatureNotificationsSetting_: {type: Boolean},
-@@ -97,6 +105,9 @@ export class SettingsSystemPageElement e
+@@ -97,6 +105,9 @@
    protected accessor isProxyEnforcedByPolicy_: boolean = false;
    protected accessor isProxyDefault_: boolean = false;
    protected accessor isProxyEnforcedByMultipleSources_: boolean = false;
@@ -1149,7 +1148,7 @@
  
    // <if expr="_google_chrome and is_win">
    protected accessor showFeatureNotificationsSetting_: boolean =
-@@ -153,6 +164,10 @@ export class SettingsSystemPageElement e
+@@ -153,6 +164,10 @@
      }
    }
  
@@ -1160,7 +1159,7 @@
    private observeProxyPrefChanged_() {
      if (!this.proxyPref_ || !this.proxyOverrideRulesPref_) {
        return;
-@@ -220,6 +235,12 @@ export class SettingsSystemPageElement e
+@@ -220,6 +235,12 @@
      }
    }
  
@@ -1173,7 +1172,7 @@
    protected onRestartClick_(e: Event) {
      // Prevent event from bubbling up to the toggle button.
      e.stopPropagation();
-@@ -262,6 +283,14 @@ export class SettingsSystemPageElement e
+@@ -262,6 +283,14 @@
      const searchRequest = await getSearchManager().search(query, this);
      return searchRequest.getSearchResult();
    }
@@ -1190,8 +1189,8 @@
  declare global {
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
-@@ -265,6 +265,9 @@ function createRoutes(): SettingsRoutes
-   if (visibility.system !== false) {
+@@ -312,6 +312,9 @@
+   if (!isSettingsRefresh2026Enabled && visibility.system !== false) {
      r.SYSTEM = r.ADVANCED.createSection(
          '/system', 'system', loadTimeData.getString('systemPageTitle'));
 +    if (loadTimeData.getBoolean('showCustomizableBrowserShortcuts')) {
@@ -1202,7 +1201,7 @@
  
 --- a/chrome/browser/resources/settings/router.ts
 +++ b/chrome/browser/resources/settings/router.ts
-@@ -115,6 +115,7 @@ export interface SettingsRoutes {
+@@ -118,6 +118,7 @@
    SITE_SETTINGS_ZOOM_LEVELS: Route;
    SITE_SETTINGS_WEB_PRINTING: Route;
    SKILLS: Route;
@@ -1212,7 +1211,7 @@
    SYNC_ADVANCED: Route;
 --- a/chrome/browser/ui/webui/settings/settings_ui.cc
 +++ b/chrome/browser/ui/webui/settings/settings_ui.cc
-@@ -48,6 +48,7 @@
+@@ -47,6 +47,7 @@
  #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
  #include "chrome/browser/sync/sync_service_factory.h"
  #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -1220,7 +1219,7 @@
  #include "chrome/browser/ui/hats/hats_service.h"
  #include "chrome/browser/ui/hats/hats_service_factory.h"
  #include "chrome/browser/ui/managed_ui.h"
-@@ -67,6 +68,7 @@
+@@ -66,6 +67,7 @@
  #include "chrome/browser/ui/webui/settings/appearance_handler.h"
  #include "chrome/browser/ui/webui/settings/brave_import_data_handler.h"
  #include "chrome/browser/ui/webui/settings/browser_lifetime_handler.h"
@@ -1228,7 +1227,7 @@
  #include "chrome/browser/ui/webui/settings/device_tab_visibility_handler.h"
  #include "chrome/browser/ui/webui/settings/dictation_handler.h"
  #include "chrome/browser/ui/webui/settings/downloads_handler.h"
-@@ -836,6 +838,15 @@ void SettingsUI::BindInterface(
+@@ -837,6 +839,15 @@
    help_bubble_handler_factory_receiver_.Bind(std::move(pending_receiver));
  }
  
@@ -1244,7 +1243,7 @@
  void SettingsUI::AddSettingsPageUIHandler(
      std::unique_ptr<content::WebUIMessageHandler> handler) {
    CHECK(handler, base::NotFatalUntil::M162);
-@@ -904,6 +915,18 @@ void SettingsUI::CreateHelpBubbleHandler
+@@ -905,6 +916,18 @@
            web_ui()->GetRenderFrameHost()));
  }
  
@@ -1265,7 +1264,7 @@
          customize_color_scheme_mode::mojom::CustomizeColorSchemeModeClient>
 --- a/chrome/browser/ui/webui/settings/settings_ui.h
 +++ b/chrome/browser/ui/webui/settings/settings_ui.h
-@@ -8,6 +8,7 @@
+@@ -11,6 +11,7 @@
  #include "base/callback_list.h"
  #include "build/build_config.h"
  #include "chrome/browser/profiles/profile.h"
@@ -1273,7 +1272,7 @@
  #include "chrome/browser/ui/webui/settings/search/mojom/settings_search.mojom.h"
  #include "chrome/common/buildflags.h"
  #include "chrome/common/webui_url_constants.h"
-@@ -50,6 +51,7 @@ class SettingsSearchHandler;
+@@ -55,6 +56,7 @@
  
  namespace settings {
  
@@ -1281,7 +1280,7 @@
  class SettingsUI;
  
  class SettingsUIConfig : public content::DefaultWebUIConfig<SettingsUI> {
-@@ -63,6 +65,7 @@ class SettingsUIConfig : public content:
+@@ -68,6 +70,7 @@
  class SettingsUI
      : public ui::MojoWebUIController,
        public help_bubble::mojom::HelpBubbleHandlerFactory,
@@ -1289,7 +1288,7 @@
        public customize_color_scheme_mode::mojom::
            CustomizeColorSchemeModeHandlerFactory,
        public settings_search::mojom::SettingsSearchHandlerFactory
-@@ -128,6 +131,10 @@ class SettingsUI
+@@ -133,6 +136,10 @@
                       settings_search::mojom::SettingsSearchHandlerFactory>
                           pending_receiver);
  
@@ -1300,7 +1299,7 @@
   private:
    void AddSettingsPageUIHandler(
        std::unique_ptr<content::WebUIMessageHandler> handler);
-@@ -181,6 +188,14 @@ class SettingsUI
+@@ -185,6 +192,14 @@
    mojo::Receiver<help_bubble::mojom::HelpBubbleHandlerFactory>
        help_bubble_handler_factory_receiver_{this};
  
@@ -1317,7 +1316,7 @@
            customize_color_scheme_mode::mojom::CustomizeColorSchemeModeClient>
 --- a/chrome/browser/resources/settings/system_page/system_page_browser_proxy.ts
 +++ b/chrome/browser/resources/settings/system_page/system_page_browser_proxy.ts
-@@ -9,6 +9,9 @@ import {loadTimeData} from '../i18n_setu
+@@ -9,6 +9,9 @@
  // clang-format off
  
  export interface SystemPageBrowserProxy {
@@ -1327,7 +1326,7 @@
    /** Shows the native system proxy settings. */
    showProxySettings(): void;
  
-@@ -20,6 +23,10 @@ export interface SystemPageBrowserProxy
+@@ -20,6 +23,10 @@
  }
  
  export class SystemPageBrowserProxyImpl implements SystemPageBrowserProxy {
@@ -1340,7 +1339,7 @@
    }
 --- a/chrome/browser/resources/settings/BUILD.gn
 +++ b/chrome/browser/resources/settings/BUILD.gn
-@@ -152,6 +152,8 @@ build_webui("build") {
+@@ -123,6 +123,8 @@
      web_component_files += [ "site_settings/smart_card_readers_page.ts" ]
    }
  
@@ -1349,26 +1348,23 @@
    # -----------------web_component_files end ----------------------------------
  
    # -----------------ts_files start ----------------------------
-@@ -728,8 +730,14 @@ build_webui("build") {
-     "system_page/system_page.css",
-   ]
+@@ -784,11 +786,13 @@
  
--  mojo_files_deps = [ "//components/autofill/core/browser/data_model/autofill_ai:mojo_bindings_ts__generator" ]
--  mojo_files = [ "$root_gen_dir/components/autofill/core/browser/data_model/autofill_ai/autofill_ai_enums.mojom-webui.ts" ]
-+  mojo_files_deps = [
+   mojo_files_deps = [
+     "//chrome/browser/ui/webui/settings/search/mojom:mojom_ts__generator",
 +    "//chrome/browser/ui/webui/settings:mojo_bindings_ts__generator",
-+    "//components/autofill/core/browser/data_model/autofill_ai:mojo_bindings_ts__generator",
-+  ]
-+  mojo_files = [
+     "//components/autofill/core/browser/data_model/autofill_ai:mojo_bindings_ts__generator",
+   ]
+   mojo_files = [
+     "$root_gen_dir/chrome/browser/ui/webui/settings/search/mojom/setting_id.mojom-webui.ts",
+     "$root_gen_dir/chrome/browser/ui/webui/settings/search/mojom/settings_search.mojom-webui.ts",
 +    "$root_gen_dir/chrome/browser/ui/webui/settings/browser_shortcuts.mojom-webui.ts",
-+    "$root_gen_dir/components/autofill/core/browser/data_model/autofill_ai/autofill_ai_enums.mojom-webui.ts",
-+  ]
+     "$root_gen_dir/components/autofill/core/browser/data_model/autofill_ai/autofill_ai_enums.mojom-webui.ts",
+   ]
    if (!is_chromeos) {
-     mojo_files_deps +=
-         [ "//chrome/browser/accessibility:mojo_bindings_ts__generator" ]
 --- a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 +++ b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
-@@ -630,6 +630,7 @@ void PopulateChromeWebUIFrameInterfaceBr
+@@ -603,6 +603,7 @@
        .Add<batch_upload_promo::mojom::PageHandlerFactory>()
        .Add<customize_color_scheme_mode::mojom::
                 CustomizeColorSchemeModeHandlerFactory>()
@@ -1378,7 +1374,7 @@
  
 --- a/chrome/browser/ui/webui/BUILD.gn
 +++ b/chrome/browser/ui/webui/BUILD.gn
-@@ -86,6 +86,7 @@ source_set("configs") {
+@@ -87,6 +87,7 @@
      "//chrome/browser/ui/webui/regional_capabilities_internals",
      "//chrome/browser/ui/webui/saved_tab_groups_unsupported",
      "//chrome/browser/ui/webui/segmentation_internals",
@@ -1388,11 +1384,12 @@
      "//chrome/browser/ui/webui/sync_internals",
 --- a/chrome/browser/ui/webui/settings/BUILD.gn
 +++ b/chrome/browser/ui/webui/settings/BUILD.gn
-@@ -5,9 +5,15 @@
+@@ -5,10 +5,16 @@
  import("//build/config/ozone.gni")
  import("//build/config/ui.gni")
  import("//components/signin/features.gni")
 +import("//mojo/public/tools/bindings/mojom.gni")
+ import("//third_party/blink/public/public_features.gni")
  
  assert(is_win || is_mac || is_linux || is_chromeos)
  
@@ -1401,10 +1398,10 @@
 +  webui_module_path = "/"
 +}
 +
- source_set("settings") {
+ source_set("element_ids") {
    sources = [
-     "about_handler.h",
-@@ -16,6 +22,7 @@ source_set("settings") {
+     "settings_element_ids.cc",
+@@ -29,6 +35,7 @@
      "brave_import_data_handler.h",
      "brave_importer_observer.h",
      "browser_lifetime_handler.h",
@@ -1412,15 +1409,15 @@
      "captions_handler.h",
      "custom_home_pages_table_model.h",
      "device_tab_visibility_handler.h",
-@@ -58,6 +65,7 @@ source_set("settings") {
-   ]
+@@ -71,6 +78,7 @@
  
    public_deps = [
+     ":element_ids",
 +    ":mojo_bindings",
      "//base",
      "//chrome/browser:shell_integration",
      "//chrome/browser/engagement",
-@@ -71,6 +79,7 @@ source_set("settings") {
+@@ -84,6 +92,7 @@
      "//chrome/browser/profiles:profile",
      "//chrome/browser/speech",
      "//chrome/browser/themes",
@@ -1428,7 +1425,7 @@
      "//chrome/browser/ui/safety_hub",
      "//chrome/browser/ui/search_engines",
      "//chrome/browser/ui/webui/help",
-@@ -152,6 +161,7 @@ source_set("impl") {
+@@ -166,6 +175,7 @@
      "brave_import_data_handler.cc",
      "brave_importer_observer.cc",
      "browser_lifetime_handler.cc",

@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -12359,6 +12359,12 @@ Check your passwords anytime in <ph name
+@@ -11539,6 +11539,12 @@
          <message name="IDS_TAB_CXMENU_DUPLICATE" desc="The label of the 'Duplicate' Tab context menu item.">
            Duplicate
          </message>
@@ -13,7 +13,7 @@
          <message name="IDS_TAB_CXMENU_CLOSETAB" desc="The label of the tab context menu item for closing one or more tabs.">
            Close
          </message>
-@@ -12498,6 +12504,12 @@ Check your passwords anytime in <ph name
+@@ -11669,6 +11675,12 @@
          <message name="IDS_TAB_CXMENU_DUPLICATE" desc="In Title Case: The label of the 'Duplicate' Tab context menu item.">
            Duplicate
          </message>
@@ -28,7 +28,7 @@
          </message>
 --- a/components/tabs/public/tab_context_menu_command.h
 +++ b/components/tabs/public/tab_context_menu_command.h
-@@ -42,6 +42,7 @@ enum TabContextMenuCommand {
+@@ -42,6 +42,7 @@
    CommandAiModeCreateNewThread,
    CommandAiModeUnshare,
    CommandToggleFocusGroup,
@@ -38,17 +38,17 @@
  
 --- a/chrome/browser/ui/tabs/tab_strip_model.h
 +++ b/chrome/browser/ui/tabs/tab_strip_model.h
-@@ -1124,6 +1124,10 @@ class TabStripModel {
-   // increasing order.
-   std::vector<int> GetIndicesForCommand(int index) const;
- 
+@@ -1182,6 +1182,10 @@
+   // this model are ignored.
+   std::vector<int> GetSortedIndicesForTabs(
+       const std::vector<tabs::TabHandle>& tabs) const;
++
 +  // Returns the indices that will be discarded when executing the discard
 +  // command for the tab at |index|. Indices are sorted in increasing order.
 +  std::vector<int> GetIndicesDiscardedByCommand(int index) const;
-+
-   // Returns whether any tab would close when executing the command `id`
-   // (CommandCloseTabsToRight or CommandCloseOtherTabs) for `context_tab`.
-   bool HasTabsClosedByCommand(tabs::TabHandle context_tab,
+   // Returns true if the specified WebContents is a New Tab at the end of
+   // the tabstrip. We check for this because opener relationships are _not_
+   // forgotten for the New Tab page opened as a result of a New Tab gesture
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
 @@ -47,8 +47,11 @@
@@ -61,9 +61,9 @@
  #include "chrome/browser/reading_list/reading_list_model_factory.h"
 +#include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom.h"
  #include "chrome/browser/resource_coordinator/tab_helper.h"
+ #include "chrome/browser/search/search.h"
  #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
- #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
-@@ -98,6 +101,7 @@
+@@ -94,6 +97,7 @@
  #include "components/contextual_tasks/public/features.h"
  #include "components/feature_engagement/public/feature_constants.h"
  #include "components/omnibox/common/composebox_features.h"
@@ -71,7 +71,15 @@
  #include "components/prefs/pref_service.h"
  #include "components/reading_list/core/reading_list_model.h"
  #include "components/sessions/core/session_id.h"
-@@ -199,6 +203,56 @@ void RecordToggleFocusGroupMetrics(bool
+@@ -205,6 +209,7 @@
+     case TabStripModel::CommandCloseOtherTabs:
+     case TabStripModel::CommandCloseTabsToRight:
+     case TabStripModel::CommandCloseAllTabs:
++    case TabStripModel::CommandDiscard:
+       return false;
+     case TabStripModel::CommandNewTabToRight:
+     case TabStripModel::CommandReload:
+@@ -283,6 +288,56 @@
    }
  }
  
@@ -128,7 +136,7 @@
  }  // namespace
  
  TabGroupModelFactory::TabGroupModelFactory() {
-@@ -2721,6 +2775,22 @@ bool TabStripModel::IsContextMenuCommand
+@@ -2909,6 +2964,22 @@
      case CommandReload:
        return delegate_->CanReload();
  
@@ -139,7 +147,7 @@
 +      }
 +
 +      const std::vector<int> indices =
-+          GetIndicesDiscardedByCommand(context_index);
++          GetIndicesDiscardedByCommand(GetIndexOfTab(context_tab_ptr));
 +      for (int index : indices) {
 +        if (GetDiscardCandidatePageNode(this, index, eligibility_policy)) {
 +          return true;
@@ -151,7 +159,7 @@
      case CommandCloseOtherTabs:
      case CommandCloseTabsToRight: {
        return HasTabsClosedByCommand(context_tab, command_id);
-@@ -2937,6 +3007,28 @@ void TabStripModel::ExecuteContextMenuCo
+@@ -3151,6 +3222,28 @@
        break;
      }
  
@@ -162,7 +170,7 @@
 +      }
 +
 +      const std::vector<int> indices =
-+          GetIndicesDiscardedByCommand(context_index);
++          GetIndicesDiscardedByCommand(GetIndexOfTab(context_tab_ptr));
 +      for (int index : indices) {
 +        base::WeakPtr<performance_manager::PageNode> page_node =
 +            GetDiscardCandidatePageNode(this, index, eligibility_policy);
@@ -180,7 +188,7 @@
      case CommandCloseTab: {
        base::UmaHistogramCounts1000("Tab.ContextMenu.CloseTab.SelectedTabsCount",
                                     selection_model_.size());
-@@ -3882,6 +3974,32 @@ std::vector<int> TabStripModel::GetIndic
+@@ -4144,6 +4237,32 @@
    return std::vector<int>(sel.begin(), sel.end());
  }
  
@@ -215,22 +223,23 @@
    tabs::TabInterface* tab = context_tab.Get();
 --- a/chrome/browser/ui/tabs/tab_menu_model.cc
 +++ b/chrome/browser/ui/tabs/tab_menu_model.cc
-@@ -697,6 +697,12 @@ void TabMenuModel::Build(int index) {
+@@ -681,6 +681,13 @@
    }
  #endif
  
 +  AddSeparator(ui::NORMAL_SEPARATOR);
-+  AddItemWithStringId(TabStripModel::CommandDiscard,
-+                      tab_strip_->IsTabInForeground(index)
-+                          ? IDS_TAB_CXMENU_HIBERNATE_OTHER_TABS
-+                          : IDS_TAB_CXMENU_HIBERNATE);
++  AddItemWithStringId(
++      TabStripModel::CommandDiscard,
++      tab_strip_->IsTabInForeground(tab_strip_->GetIndexOfTab(context_tab_ptr))
++          ? IDS_TAB_CXMENU_HIBERNATE_OTHER_TABS
++          : IDS_TAB_CXMENU_HIBERNATE);
 +
    // Separator Close Tab items
    AddSeparator(ui::NORMAL_SEPARATOR);
    AddItemWithStringId(TabStripModel::CommandCloseTab, IDS_TAB_CXMENU_CLOSETAB);
 --- a/chrome/browser/ui/performance_controls/memory_saver_chip_tab_helper.cc
 +++ b/chrome/browser/ui/performance_controls/memory_saver_chip_tab_helper.cc
-@@ -115,8 +115,9 @@ bool MemorySaverChipTabHelper::ComputeSh
+@@ -115,8 +115,9 @@
  
  void MemorySaverChipTabHelper::ComputeChipState(
      content::NavigationHandle* navigation_handle) {
@@ -242,7 +251,7 @@
    bool const was_discarded = navigation_handle->ExistingDocumentWasDiscarded();
    std::optional<mojom::LifecycleUnitDiscardReason> const discard_reason =
        memory_saver::GetDiscardReason(navigation_handle->GetWebContents());
-@@ -125,7 +126,8 @@ void MemorySaverChipTabHelper::ComputeCh
+@@ -125,7 +126,8 @@
  
    if (!(is_memory_saver_mode_enabled_ && was_discarded &&
          (discard_reason == mojom::LifecycleUnitDiscardReason::PROACTIVE ||
@@ -254,7 +263,7 @@
    } else if (ComputeShouldEducateAboutMemorySavings()) {
 --- a/chrome/browser/ui/tab_ui_helper.cc
 +++ b/chrome/browser/ui/tab_ui_helper.cc
-@@ -395,7 +395,9 @@ bool TabUIHelper::ShouldShowDiscardStatu
+@@ -431,7 +431,9 @@
           (discard_reason.value() ==
                mojom::LifecycleUnitDiscardReason::PROACTIVE ||
            discard_reason.value() ==

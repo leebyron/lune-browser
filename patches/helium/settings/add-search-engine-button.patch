@@ -1,6 +1,6 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -2227,6 +2227,9 @@
+@@ -2233,6 +2233,9 @@
      <message name="IDS_SETTINGS_SEARCH_ENGINES_ADD_SITE_SEARCH" desc="Title for a dialog that allows adding a new site search engine.">
        Add site search
      </message>
@@ -24,7 +24,7 @@
        </message>
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -188,6 +188,7 @@ namespace {
+@@ -191,6 +191,7 @@
  void AddCommonStrings(content::WebUIDataSource* html_source, Profile* profile) {
    static constexpr webui::LocalizedString kLocalizedStrings[] = {
        {"add", IDS_ADD},
@@ -32,7 +32,7 @@
        {"advancedPageTitle", IDS_SETTINGS_ADVANCED},
        {"back", IDS_ACCNAME_BACK},
        {"basicPageTitle", IDS_SETTINGS_BASIC},
-@@ -3229,6 +3230,8 @@ void AddSearchEnginesStrings(content::We
+@@ -3258,6 +3259,8 @@
         IDS_SETTINGS_SEARCH_ENGINES_PAGE_EXPLANATION},
        {"searchEnginesAddSiteSearch",
         IDS_SETTINGS_SEARCH_ENGINES_ADD_SITE_SEARCH},
@@ -43,7 +43,7 @@
        {"searchEnginesViewSearchEngine",
 --- a/chrome/browser/resources/settings/search_page/search_engine_edit_dialog.ts
 +++ b/chrome/browser/resources/settings/search_page/search_engine_edit_dialog.ts
-@@ -24,7 +24,7 @@ import {loadTimeData} from '../i18n_setu
+@@ -24,7 +24,7 @@
  import {getCss} from './search_engine_edit_dialog.css.js';
  import {getHtml} from './search_engine_edit_dialog.html.js';
  import type {CategorizedTemplateUrls, SearchEngine, SearchEnginesBrowserProxy, SearchEnginesInfo} from './search_engines_browser_proxy.js';
@@ -52,7 +52,7 @@
  
  export interface SettingsSearchEngineEditDialogElement {
    $: {
-@@ -62,6 +62,7 @@ export class SettingsSearchEngineEditDia
+@@ -62,6 +62,7 @@
         * should be added.
         */
        model: {type: Object},
@@ -60,7 +60,7 @@
        searchEngine_: {type: String},
        keyword_: {type: String},
        queryUrl_: {type: String},
-@@ -75,6 +76,7 @@ export class SettingsSearchEngineEditDia
+@@ -75,6 +76,7 @@
    }
  
    accessor model: SearchEngine|null = null;
@@ -68,7 +68,7 @@
    protected accessor searchEngine_: string = '';
    protected accessor keyword_: string = '';
    protected accessor queryUrl_: string = '';
-@@ -104,7 +106,8 @@ export class SettingsSearchEngineEditDia
+@@ -104,7 +106,8 @@
    override willUpdate(changedProperties: PropertyValues<this>) {
      super.willUpdate(changedProperties);
  
@@ -78,7 +78,7 @@
        if (this.model) {
          this.readonly_ = this.model.isManaged && !this.model.canBeEdited;
          if (this.model.isPrepopulated || this.model.default) {
-@@ -127,9 +130,11 @@ export class SettingsSearchEngineEditDia
+@@ -127,9 +130,11 @@
          this.queryUrl_ = this.model.url;
          this.suggestionsUrl_ = this.model.suggestionsUrl;
        } else {
@@ -93,7 +93,7 @@
          this.readonly_ = false;
          this.showPolicySubtitle_ = false;
          this.searchEngine_ = '';
-@@ -261,7 +266,23 @@ export class SettingsSearchEngineEditDia
+@@ -261,7 +266,23 @@
      this.browserProxy_.searchEngineEditCompleted(
          this.searchEngine_, this.keyword_, this.queryUrl_,
          this.suggestionsUrl_);
@@ -118,7 +118,7 @@
    }
  
    private validateElement_(inputElement: CrInputElement) {
-@@ -281,7 +302,8 @@ export class SettingsSearchEngineEditDia
+@@ -281,7 +302,8 @@
      }
  
      this.browserProxy_
@@ -130,7 +130,7 @@
            this.updateActionButtonState_();
 --- a/chrome/browser/resources/settings/search_page/search_engines_page.html.ts
 +++ b/chrome/browser/resources/settings/search_page/search_engines_page.html.ts
-@@ -53,6 +53,11 @@ export function getHtml(this: SettingsSe
+@@ -49,6 +49,11 @@
          $i18n{searchEnginesSearchEnginesExplanation}
        </div>
      </div>
@@ -140,9 +140,9 @@
 +      $i18n{add}
 +    </cr-button>
    </div>
-   <settings-search-engines-list ?hidden="${!this.matchingDefaultEngines_.length}"
-       .engines="${this.matchingDefaultEngines_}" show-shortcut>
-@@ -65,6 +70,7 @@ export function getHtml(this: SettingsSe
+   <settings-search-engines-list
+       ?hidden="${!this.matchingDefaultEngines_.length}"
+@@ -62,6 +67,7 @@
  
    ${this.showEditDialog_ ? html`
      <settings-search-engine-edit-dialog .model="${this.dialogModel_}"
@@ -152,7 +152,7 @@
    ` : ''}
 --- a/chrome/browser/resources/settings/search_page/search_engines_page.ts
 +++ b/chrome/browser/resources/settings/search_page/search_engines_page.ts
-@@ -82,6 +82,7 @@ export class SettingsSearchEnginesPageEl
+@@ -83,6 +83,7 @@
  
        dialogModel_: {type: Object},
        dialogAnchorElement_: {type: Object},
@@ -160,15 +160,15 @@
        showEditDialog_: {type: Boolean},
        showDeleteConfirmationDialog_: {type: Boolean},
      };
-@@ -99,6 +100,7 @@ export class SettingsSearchEnginesPageEl
+@@ -100,6 +101,7 @@
    protected accessor matchingExtensions_: SearchEngine[] = [];
    protected accessor dialogModel_: SearchEngine|null = null;
-   protected accessor dialogAnchorElement_: HTMLElement|null = null;
+   private accessor dialogAnchorElement_: HTMLElement|null = null;
 +  protected accessor isNewPrimary_: boolean = false;
    protected accessor showEditDialog_: boolean = false;
    protected accessor showDeleteConfirmationDialog_: boolean = false;
  
-@@ -186,9 +188,11 @@ export class SettingsSearchEnginesPageEl
+@@ -162,9 +164,11 @@
    }
  
    private openEditDialog_(
@@ -181,7 +181,7 @@
      this.showEditDialog_ = true;
    }
  
-@@ -245,6 +249,12 @@ export class SettingsSearchEnginesPageEl
+@@ -221,6 +225,12 @@
      this.extensions = searchEnginesInfo.extensions;
    }
  
@@ -196,7 +196,7 @@
      this.browserProxy_.recordSearchEnginesPageHistogram(
 --- a/components/search_engines/util.cc
 +++ b/components/search_engines/util.cc
-@@ -334,7 +334,8 @@ std::string GetFixedUpSearchEngineUrl(
+@@ -334,7 +334,8 @@
  
  bool IsSearchEngineURLValidToUse(const std::string& url_input,
                                   const TemplateURLService* service,
@@ -206,7 +206,7 @@
    std::string url =
        GetFixedUpSearchEngineUrl(url_input, service->search_terms_data());
    if (url.empty()) {
-@@ -355,8 +356,12 @@ bool IsSearchEngineURLValidToUse(const s
+@@ -355,8 +356,12 @@
  
    // If this is going to be the default search engine, it must support
    // replacement.
@@ -222,7 +222,7 @@
  
 --- a/chrome/browser/ui/search_engines/edit_search_engine_controller.cc
 +++ b/chrome/browser/ui/search_engines/edit_search_engine_controller.cc
-@@ -32,15 +32,17 @@ bool EditSearchEngineController::IsTitle
+@@ -32,15 +32,17 @@
    return IsSearchEngineNameValidToUse(title_input);
  }
  
@@ -244,7 +244,7 @@
    TemplateURLService* template_url_service =
        TemplateURLServiceFactory::GetForProfile(profile_);
    std::string suggestions_url =
-@@ -49,7 +51,7 @@ bool EditSearchEngineController::IsSugge
+@@ -49,7 +51,7 @@
    if (suggestions_url.empty())
      return true;
  
@@ -255,7 +255,7 @@
  bool EditSearchEngineController::IsKeywordValid(
 --- a/chrome/browser/resources/settings/search_page/search_engines_browser_proxy.ts
 +++ b/chrome/browser/resources/settings/search_page/search_engines_browser_proxy.ts
-@@ -156,8 +156,9 @@ export interface SearchEnginesBrowserPro
+@@ -156,8 +156,9 @@
  
    getSaveGuestChoice(): Promise<boolean|null>;
  
@@ -267,7 +267,7 @@
  
    /**
     * Helper function that calls recordHistogram for the
-@@ -227,9 +228,10 @@ export class SearchEnginesBrowserProxyIm
+@@ -227,9 +228,10 @@
      return sendWithPromise<boolean|null>('getSaveGuestChoice');
    }
  
@@ -282,7 +282,7 @@
    recordSearchEnginesPageHistogram(interaction: SearchEnginesInteractions) {
 --- a/chrome/browser/ui/webui/settings/search_engines_handler.cc
 +++ b/chrome/browser/ui/webui/settings/search_engines_handler.cc
-@@ -726,17 +726,19 @@ void SearchEnginesHandler::OnEditedKeywo
+@@ -726,17 +726,19 @@
  
  void SearchEnginesHandler::HandleValidateSearchEngineInput(
      const base::ListValue& args) {
@@ -305,7 +305,7 @@
    if (!edit_controller_.get()) {
      return false;
    }
-@@ -747,9 +749,9 @@ bool SearchEnginesHandler::CheckFieldVal
+@@ -747,9 +749,9 @@
    } else if (field_name.compare(kKeywordField) == 0) {
      is_valid = edit_controller_->IsKeywordValid(base::UTF8ToUTF16(field_value));
    } else if (field_name.compare(kQueryUrlField) == 0) {
@@ -319,7 +319,7 @@
    }
 --- a/chrome/browser/ui/search_engines/edit_search_engine_controller.h
 +++ b/chrome/browser/ui/search_engines/edit_search_engine_controller.h
-@@ -52,9 +52,9 @@ class EditSearchEngineController {
+@@ -52,9 +52,9 @@
    // URL. The URL is valid if it contains no search terms and is a valid
    // url, or if it contains a search term and replacing that search term with a
    // character results in a valid url.
@@ -333,7 +333,7 @@
    // The keyword is valid if it is non-empty and does not conflict with an
 --- a/chrome/browser/ui/webui/settings/search_engines_handler.h
 +++ b/chrome/browser/ui/webui/settings/search_engines_handler.h
-@@ -132,7 +132,8 @@ class SearchEnginesHandler : public Sett
+@@ -132,7 +132,8 @@
    // Checks whether the given user input field (searchEngine, keyword, queryUrl,
    // suggestionsUrl) is populated with a valid value.
    bool CheckFieldValidity(const std::string& field_name,
@@ -345,7 +345,7 @@
    // Called from WebUI.
 --- a/components/search_engines/util.h
 +++ b/components/search_engines/util.h
-@@ -278,7 +278,8 @@ bool IsSearchEngineKeywordValidToUse(con
+@@ -278,7 +278,8 @@
  // new one.
  bool IsSearchEngineURLValidToUse(const std::string& url_input,
                                   const TemplateURLService* service,

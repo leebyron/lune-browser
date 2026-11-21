@@ -1,6 +1,6 @@
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
-@@ -1078,16 +1078,7 @@ bool RenderViewContextMenu::IsDevToolsUR
+@@ -1101,16 +1101,7 @@
  }
  
  // static
@@ -18,7 +18,7 @@
  
  DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(RenderViewContextMenu,
                                        kExitFullscreenMenuItem);
-@@ -1399,17 +1390,6 @@ void RenderViewContextMenu::InitMenu() {
+@@ -1432,17 +1423,6 @@
      AppendSpellingAndSearchSuggestionItems();
    }
  
@@ -36,7 +36,7 @@
    if (editable) {
      AppendOtherEditableItems();
    }
-@@ -2639,53 +2619,6 @@ void RenderViewContextMenu::AppendPageIt
+@@ -2683,55 +2663,6 @@
                                      IDS_CONTENT_CONTEXT_SAVEPAGEAS);
      menu_model_.AddItemWithStringId(IDC_PRINT, IDS_CONTENT_CONTEXT_PRINT);
  
@@ -49,6 +49,7 @@
 -
 -      // Save to Memory Banks
 -      AppendSaveToMemoryBanksItem();
+-      AppendBrowseMemoryBanksItem();
 -
 -      // Search with google lens
 -      if (IsRegionSearchEnabled()) {
@@ -65,6 +66,7 @@
 -
 -      // Save to Memory Banks
 -      AppendSaveToMemoryBanksItem();
+-      AppendBrowseMemoryBanksItem();
 -    }
 -
 -    // Indigo (Try it on)
@@ -90,7 +92,7 @@
      // Translate to language
      if (CanTranslate(/*menu_logging=*/true)) {
        AppendTranslateItem();
-@@ -2708,7 +2641,6 @@ void RenderViewContextMenu::AppendPageIt
+@@ -2754,7 +2685,6 @@
                                    IDS_CONTENT_CONTEXT_SAVEPAGEAS);
    menu_model_.AddItemWithStringId(IDC_PRINT, IDS_CONTENT_CONTEXT_PRINT);
    AppendLiveCaptionItem();
@@ -98,7 +100,7 @@
  
    if (features::IsReadAnythingMenuShuffleExperimentEnabled()) {
      // This will be set to false in AppendRegionSearchItem() if it is called.
-@@ -2940,9 +2872,7 @@ void RenderViewContextMenu::AppendReadAn
+@@ -2987,9 +2917,7 @@
    }
  
    // Show Read Anything option if it's not already open.
@@ -109,7 +111,7 @@
      menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE,
                                      IDS_CONTENT_CONTEXT_READING_MODE);
  
-@@ -4482,26 +4412,7 @@ void RenderViewContextMenu::AddSpellChec
+@@ -4551,26 +4479,7 @@
    AddSpellCheckServiceItem(&menu_model_, is_checked);
  }
  
@@ -137,7 +139,7 @@
  
  // static
  void RenderViewContextMenu::RegisterMenuShownCallbackForTesting(
-@@ -4875,7 +4786,7 @@ bool RenderViewContextMenu::AppendQRCode
+@@ -4943,7 +4852,7 @@
      return false;
    }
  
@@ -146,7 +148,7 @@
      return false;
    }
  
-@@ -6094,11 +6005,7 @@ bool RenderViewContextMenu::CanTranslate
+@@ -6224,11 +6133,7 @@
  }
  
  bool RenderViewContextMenu::CanPartiallyTranslate() {
@@ -161,7 +163,7 @@
  void RenderViewContextMenu::MaybePrepareForLensQuery() {
 --- a/chrome/browser/ui/browser_tab_strip_model_delegate.cc
 +++ b/chrome/browser/ui/browser_tab_strip_model_delegate.cc
-@@ -350,7 +350,7 @@ void BrowserTabStripModelDelegate::AddTo
+@@ -355,7 +355,7 @@
  }
  
  bool BrowserTabStripModelDelegate::SupportsReadLater() {

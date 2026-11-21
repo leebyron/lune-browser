@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/ui_features.cc
 +++ b/chrome/browser/ui/ui_features.cc
-@@ -83,7 +83,7 @@ BASE_FEATURE_PARAM(int,
+@@ -117,7 +117,7 @@
                     kTabStripDeclutterMaxTabWidthForCloseHide,
                     &kTabStripDeclutter,
                     100);
@@ -9,7 +9,7 @@
  BASE_FEATURE_PARAM(bool,
                     kToolbarGlowUpReloadEnabled,
                     &kToolbarGlowUp,
-@@ -93,15 +93,15 @@ BASE_FEATURE_PARAM(bool,
+@@ -127,7 +127,7 @@
                     kToolbarGlowUpBackForwardEnabled,
                     &kToolbarGlowUp,
                     "back-forward",
@@ -18,19 +18,18 @@
  BASE_FEATURE_PARAM(bool,
                     kToolbarGlowUpBookmarkEnabled,
                     &kToolbarGlowUp,
-                    "bookmark",
+@@ -135,7 +135,7 @@
                     true);
  BASE_FEATURE(kMenuSimplification, base::FEATURE_DISABLED_BY_DEFAULT);
--BASE_FEATURE(kTabGroupColorRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
+ BASE_FEATURE(kTabGroupColorRefresh, base::FEATURE_ENABLED_BY_DEFAULT);
 -BASE_FEATURE(kWebuiRefresh2026, base::FEATURE_DISABLED_BY_DEFAULT);
-+BASE_FEATURE(kTabGroupColorRefresh, base::FEATURE_ENABLED_BY_DEFAULT);
 +BASE_FEATURE(kWebuiRefresh2026, base::FEATURE_ENABLED_BY_DEFAULT);
  BASE_FEATURE(kAppMenuGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
  // Enables the redesigned Settings 2026 refresh features and search UX.
  BASE_FEATURE(kSettingsRefresh2026, base::FEATURE_DISABLED_BY_DEFAULT);
 --- a/ui/base/ui_base_features.cc
 +++ b/ui/base/ui_base_features.cc
-@@ -501,7 +501,7 @@ BASE_FEATURE(kGlassFrame, base::FEATURE_
+@@ -513,7 +513,7 @@
  BASE_FEATURE_PARAM(bool, kGlassExpandOnHoverEnabled, &kGlassFrame, true);
  BASE_FEATURE_PARAM(bool, kGlassFrameEnabledByDefault, &kGlassFrame, true);
  

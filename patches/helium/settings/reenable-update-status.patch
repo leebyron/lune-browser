@@ -1,15 +1,15 @@
 --- a/chrome/browser/resources/settings/about_page/about_page.html.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
-@@ -23,7 +23,7 @@ export function getHtml(this: SettingsAb
+@@ -21,7 +21,7 @@
    <div class="cr-row two-line">
      <!-- Set the icon from the iconset (when it's obsolete/EOL and
        when update is done) or set the src (when it's updating). -->
 -<if expr="False">
 +<if expr="not is_chromeos">
-     <div class="icon-container"
-         ?hidden="${!this.shouldShowIcons_()}">
-       <cr-icon
-@@ -35,7 +35,7 @@ export function getHtml(this: SettingsAb
+     <div class="icon-container" ?hidden="${!this.shouldShowIcons_()}">
+       <cr-icon ?hidden="${this.shouldShowThrobber_()}"
+           icon="${this.getUpdateStatusIcon_()}">
+@@ -31,7 +31,7 @@
      </div>
  </if>
      <div class="flex cr-padded-text">

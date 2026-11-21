@@ -1,6 +1,6 @@
 --- a/components/gcm_driver/gcm_profile_service.h
 +++ b/components/gcm_driver/gcm_profile_service.h
-@@ -80,8 +80,8 @@ class GCMProfileService : public KeyedSe
+@@ -74,8 +74,8 @@
  
    GCMDriver* driver() const { return driver_.get(); }
  
@@ -13,7 +13,7 @@
   private:
 --- a/components/helium_services/helium_services_helpers.cc
 +++ b/components/helium_services/helium_services_helpers.cc
-@@ -113,6 +113,11 @@ bool ShouldAccessUBlockAssets(const Pref
+@@ -113,6 +113,11 @@
              prefs.GetBoolean(prefs::kHeliumUBlockAssetsEnabled);
  }
  
@@ -25,7 +25,7 @@
  GURL GetExtensionUpdateURL(const PrefService& prefs) {
      if (!ShouldAccessExtensionService(prefs)) {
          return GetDummyURL();
-@@ -172,6 +177,21 @@ GURL GetUBlockAssetsURL(const PrefServic
+@@ -172,6 +177,21 @@
      return GetServicesBaseURL(prefs).Resolve("/ubo/assets.json");
  }
  
@@ -49,7 +49,7 @@
    registrar.Add(prefs::kHeliumServicesEnabled, observer);
 --- a/components/helium_services/helium_services_helpers.h
 +++ b/components/helium_services/helium_services_helpers.h
-@@ -18,6 +18,8 @@ const char kHeliumDefaultOrigin[] =
+@@ -18,6 +18,8 @@
  const char kHeliumDummyOrigin[] =
      "https://helium-services-are-disabled.qjz9zk";
  
@@ -58,7 +58,7 @@
  bool ShouldAccessServices(const PrefService& prefs);
  
  COMPONENT_EXPORT(HELIUM) bool ShouldFetchBangs(const PrefService& prefs);
-@@ -25,6 +27,7 @@ COMPONENT_EXPORT(HELIUM) bool ShouldAcce
+@@ -25,6 +27,7 @@
  COMPONENT_EXPORT(HELIUM) bool ShouldAccessUpdateService(const PrefService& prefs);
  COMPONENT_EXPORT(HELIUM) bool ShouldAccessComponentUpdateService(const PrefService& prefs);
  COMPONENT_EXPORT(HELIUM) bool ShouldAccessUBlockAssets(const PrefService& prefs);
@@ -66,7 +66,7 @@
  COMPONENT_EXPORT(HELIUM) GURL GetServicesBaseURL(const PrefService& prefs);
  COMPONENT_EXPORT(HELIUM) GURL GetDummyURL();
  COMPONENT_EXPORT(HELIUM) GURL GetExtensionUpdateURL(const PrefService& prefs);
-@@ -33,6 +36,7 @@ COMPONENT_EXPORT(HELIUM) GURL GetSpellch
+@@ -33,6 +36,7 @@
  COMPONENT_EXPORT(HELIUM) GURL GetBrowserUpdateURL(const PrefService& prefs);
  COMPONENT_EXPORT(HELIUM) GURL GetComponentUpdateURL(const PrefService* prefs);
  COMPONENT_EXPORT(HELIUM) GURL GetUBlockAssetsURL(const PrefService& prefs);
@@ -76,7 +76,7 @@
                              PrefChangeRegistrar& registrar, const base::RepeatingClosure& observer);
 --- a/components/helium_services/pref_names.h
 +++ b/components/helium_services/pref_names.h
-@@ -41,6 +41,10 @@ inline constexpr char kHeliumSpellcheckE
+@@ -41,6 +41,10 @@
  
  inline constexpr char kHeliumUBlockAssetsEnabled[] =
      "helium.services.ublock_assets";
@@ -89,7 +89,7 @@
  #endif  // COMPONENTS_HELIUM_SERVICES_PREF_NAMES_H_
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -248,6 +248,8 @@ void RegisterBrowserUserPrefs(user_prefs
+@@ -248,6 +248,8 @@
      registry->RegisterBooleanPref(prefs::kHeliumServicesConsented, false);
      registry->RegisterBooleanPref(prefs::kHeliumUpdateFetchingEnabled, true);
      registry->RegisterBooleanPref(prefs::kHeliumUBlockAssetsEnabled, true);
@@ -100,7 +100,7 @@
    registry->RegisterBooleanPref(
 --- a/components/push_messaging/push_messaging_features.cc
 +++ b/components/push_messaging/push_messaging_features.cc
-@@ -17,4 +17,8 @@ BASE_FEATURE(kPushSubscriptionWithExpira
+@@ -17,4 +17,8 @@
  BASE_FEATURE(kPushMessagingGcmEndpointWebpushPath,
               base::FEATURE_DISABLED_BY_DEFAULT);
  
@@ -111,7 +111,7 @@
  }  // namespace features
 --- a/components/push_messaging/push_messaging_features.h
 +++ b/components/push_messaging/push_messaging_features.h
-@@ -19,6 +19,10 @@ BASE_DECLARE_FEATURE(kPushSubscriptionWi
+@@ -19,6 +19,10 @@
  // Feature flag to control use of new /wp/ path based Webpush endpoints.
  BASE_DECLARE_FEATURE(kPushMessagingGcmEndpointWebpushPath);
  
@@ -124,7 +124,7 @@
  #endif  // COMPONENTS_PUSH_MESSAGING_PUSH_MESSAGING_FEATURES_H_
 --- a/chrome/browser/ui/webui/BUILD.gn
 +++ b/chrome/browser/ui/webui/BUILD.gn
-@@ -731,6 +731,7 @@ source_set("onboarding") {
+@@ -733,6 +733,7 @@
      "//components/helium_onboarding:generated_resources",
      "//components/helium_onboarding:localized_strings",
      "//components/helium_services",
@@ -150,7 +150,7 @@
  #include "content/public/browser/web_contents.h"
  #include "content/public/browser/web_ui_controller.h"
  #include "content/public/browser/web_ui_data_source.h"
-@@ -37,6 +39,8 @@ HeliumOnboardingPage::HeliumOnboardingPa
+@@ -37,6 +39,8 @@
                                IDR_HELIUM_ONBOARDING_INDEX_HTML);
    source->AddLocalizedStrings(helium_onboarding::kLocalizedStrings);
    source->UseStringsJs();
@@ -161,7 +161,7 @@
    source->AddBoolean("showMacImportPermissionNotice",
 --- a/components/helium_services/schema.cc
 +++ b/components/helium_services/schema.cc
-@@ -32,6 +32,15 @@ ServicesChangelog& GetChangelog() {
+@@ -32,6 +32,15 @@
              "Automatic component updates are now available. They're managed by the same toggle that enables automatic browser updates.\n"
              "From now on, you'll be notified about major changes to Helium services. Even though these notifications are extremely rare, you can choose to ignore them and accept all future changes automatically."
            }
@@ -179,7 +179,7 @@
    return kHeliumSchemaChangelog;
 --- a/components/push_messaging/push_messaging_utils.cc
 +++ b/components/push_messaging/push_messaging_utils.cc
-@@ -30,7 +30,8 @@ std::string GetGcmEndpointForChannel(ver
+@@ -30,7 +30,8 @@
  
  GURL CreateEndpoint(version_info::Channel channel,
                      const std::string& subscription_id) {
@@ -191,7 +191,7 @@
  }
 --- a/components/streaming_client/streaming_websocket_client.cc
 +++ b/components/streaming_client/streaming_websocket_client.cc
-@@ -42,11 +42,13 @@ StreamingWebSocketClient::StreamingWebSo
+@@ -42,11 +42,13 @@
      const GURL& service_url,
      network::NetworkContextGetter network_context_getter,
      net::NetworkTrafficAnnotationTag traffic_annotation,
@@ -206,7 +206,7 @@
        readable_watcher_(FROM_HERE, mojo::SimpleWatcher::ArmingPolicy::MANUAL),
        writable_watcher_(FROM_HERE, mojo::SimpleWatcher::ArmingPolicy::MANUAL) {}
  
-@@ -114,8 +116,10 @@ void StreamingWebSocketClient::Connect()
+@@ -114,8 +116,10 @@
  
    std::vector<network::mojom::HttpHeaderPtr> additional_headers =
        delegate_->GetAdditionalHeaders();
@@ -219,7 +219,7 @@
  
    // When using a manual URL we usually need to send cookies for auth (to hit
    // internal servers).
-@@ -159,13 +163,12 @@ void StreamingWebSocketClient::WriteToDa
+@@ -159,13 +163,12 @@
    while (!pending_write_data_.empty()) {
      const std::vector<uint8_t>& message = pending_write_data_.front();
      if (!head_message_announced_) {
@@ -235,7 +235,7 @@
        head_message_announced_ = true;
      }
  
-@@ -279,7 +282,7 @@ void StreamingWebSocketClient::OnDataFra
+@@ -279,7 +282,7 @@
  
    const size_t old_size = pending_read_data_index_;
    const size_t new_size = old_size + data_len;
@@ -246,7 +246,7 @@
        new_size > kMaxIncomingMessageSize) {
 --- a/components/streaming_client/streaming_websocket_client.h
 +++ b/components/streaming_client/streaming_websocket_client.h
-@@ -76,7 +76,9 @@ class StreamingWebSocketClient
+@@ -76,7 +76,9 @@
    StreamingWebSocketClient(const GURL& service_url,
                             network::NetworkContextGetter network_context_getter,
                             net::NetworkTrafficAnnotationTag traffic_annotation,
@@ -257,7 +257,7 @@
    ~StreamingWebSocketClient() override;
  
    StreamingWebSocketClient(const StreamingWebSocketClient&) = delete;
-@@ -145,6 +147,7 @@ class StreamingWebSocketClient
+@@ -145,6 +147,7 @@
    const network::NetworkContextGetter network_context_getter_;
    const net::NetworkTrafficAnnotationTag traffic_annotation_;
    const raw_ptr<Delegate> delegate_;
@@ -276,7 +276,7 @@
      "gcm_product_util.cc",
      "gcm_product_util.h",
      "gcm_profile_service_factory.cc",
-@@ -24,13 +26,18 @@ source_set("gcm") {
+@@ -24,13 +26,18 @@
      "//chrome/common:channel_info",
      "//chrome/common:constants",
      "//chrome/common:version_header",
@@ -1247,7 +1247,7 @@
  #include "chrome/common/chrome_version.h"
  #include "chrome/common/pref_names.h"
  #include "components/pref_registry/pref_registry_syncable.h"
-@@ -53,6 +54,7 @@ void RegisterPrefs(PrefRegistrySimple* r
+@@ -53,6 +54,7 @@
  
  void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
    RegisterPrefs(registry);
@@ -1269,7 +1269,7 @@
  #include "content/public/browser/browser_context.h"
  #include "mojo/public/cpp/bindings/pending_receiver.h"
  #include "services/network/public/cpp/shared_url_loader_factory.h"
-@@ -168,6 +170,11 @@ GCMProfileServiceFactory::BuildServiceIn
+@@ -168,6 +170,11 @@
    service = std::make_unique<GCMProfileService>(profile->GetPath(),
                                                  blocking_task_runner);
  #else
@@ -1279,5 +1279,5 @@
 +  }
 +
    service = std::make_unique<GCMProfileService>(
-       profile->GetPrefs(), profile->GetPath(),
+       profile->GetPath(),
        base::BindRepeating(&RequestProxyResolvingSocketFactory,

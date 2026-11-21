@@ -8,7 +8,7 @@
  
  namespace content {
  class SessionStorageNamespaceHandle;
-@@ -27,6 +28,13 @@ struct SerializedUserAgentOverride;
+@@ -27,6 +28,13 @@
  
  namespace chrome {
  
@@ -22,7 +22,7 @@
  // Add a tab with its session history restored from the SessionRestore and
  // TabRestoreService systems. If `select` is true, the tab is selected.
  // |tab_index| gives the index to insert the tab at. |selected_navigation| is
-@@ -41,7 +49,8 @@ namespace chrome {
+@@ -41,7 +49,8 @@
  // restore. |last_active_time| is the value to use to indicate the last time the
  // WebContents was made active, if this is left default initialized then the
  // creation time will be used. If `is_active_browser` is set, it indicates
@@ -32,7 +32,7 @@
  // Returns the WebContents of the restored tab.
  content::WebContents* AddRestoredTab(
      BrowserWindowInterface* browser,
-@@ -58,7 +67,18 @@ content::WebContents* AddRestoredTab(
+@@ -58,7 +67,18 @@
      const sessions::SerializedUserAgentOverride& user_agent_override,
      const std::map<std::string, std::string>& extra_data,
      bool from_session_restore,
@@ -73,7 +73,7 @@
  
  using content::NavigationEntry;
  using content::RestoreType;
-@@ -143,7 +147,8 @@ WebContents* AddRestoredTabImpl(std::uni
+@@ -143,7 +147,8 @@
                                  bool select,
                                  bool pin,
                                  bool from_session_restore,
@@ -83,7 +83,7 @@
    TabStripModel* const tab_strip_model = browser->tab_strip_model();
  
    int add_types = select ? AddTabTypes::ADD_ACTIVE : AddTabTypes::ADD_NONE;
-@@ -259,10 +264,19 @@ WebContents* AddRestoredTabImpl(std::uni
+@@ -259,10 +264,19 @@
    should_load = (browser->GetType() != BrowserWindowInterface::Type::TYPE_APP);
  #endif  // BUILDFLAG(IS_MAC)
  
@@ -104,7 +104,7 @@
    return raw_web_contents;
  }
  
-@@ -283,16 +297,38 @@ WebContents* AddRestoredTab(
+@@ -283,16 +297,38 @@
      const sessions::SerializedUserAgentOverride& user_agent_override,
      const std::map<std::string, std::string>& extra_data,
      bool from_session_restore,
@@ -149,7 +149,7 @@
  WebContents* ReplaceRestoredTab(
 --- a/chrome/browser/performance_manager/public/background_tab_loading_policy.h
 +++ b/chrome/browser/performance_manager/public/background_tab_loading_policy.h
-@@ -20,10 +20,14 @@ bool CanScheduleLoadForRestoredTabs();
+@@ -20,10 +20,14 @@
  
  // Schedules the restored WebContents in |web_contents| to be loaded when
  // appropriate. Invoked from the UI thread. Asserts that
@@ -167,7 +167,7 @@
  // Performance Manager graph. The graph must exist when this is called (for
 --- a/chrome/browser/performance_manager/policies/background_tab_loading_policy.cc
 +++ b/chrome/browser/performance_manager/policies/background_tab_loading_policy.cc
-@@ -148,6 +148,15 @@ void ScheduleLoadForRestoredTabs(
+@@ -149,6 +149,15 @@
    policy->ScheduleLoadForRestoredTabs(std::move(page_node_data_vector));
  }
  
@@ -185,7 +185,7 @@
    CHECK(!BackgroundTabLoadingPolicy::GetFromGraph());
 --- a/chrome/browser/sessions/session_restore_stats_collector.cc
 +++ b/chrome/browser/sessions/session_restore_stats_collector.cc
-@@ -204,6 +204,11 @@ void SessionRestoreStatsCollector::Rende
+@@ -204,6 +204,11 @@
  }
  
  void SessionRestoreStatsCollector::RegisterObserverForTab(WebContents* tab) {
@@ -199,7 +199,7 @@
    // If we don't have a RenderWidgetHost, we can't track paints for the tab so
 --- a/chrome/browser/sessions/session_restore_delegate.cc
 +++ b/chrome/browser/sessions/session_restore_delegate.cc
-@@ -84,8 +84,22 @@ bool SessionRestoreDelegate::RestoredTab
+@@ -84,8 +84,22 @@
  void SessionRestoreDelegate::RestoreTabs(
      const std::vector<RestoredTab>& tabs,
      const base::TimeTicks& restore_started) {
@@ -223,7 +223,7 @@
  
    SessionRestoreStatsCollector::GetOrCreateInstance(
        restore_started,
-@@ -93,12 +107,10 @@ void SessionRestoreDelegate::RestoreTabs
+@@ -93,12 +107,10 @@
            SessionRestoreStatsCollector::UmaStatsReportingDelegate>())
        ->TrackTabs(tabs);
  
@@ -243,7 +243,7 @@
  }
 --- a/chrome/browser/sessions/session_restore.cc
 +++ b/chrome/browser/sessions/session_restore.cc
-@@ -600,8 +600,8 @@ class SessionRestoreImpl : public Browse
+@@ -605,8 +605,8 @@
                    [](RestoredTab& tab) { return tab.contents() == nullptr; });
  
      if (succeeded) {
@@ -254,7 +254,7 @@
        std::stable_sort(restored_tabs.begin(), restored_tabs.end());
        SessionRestoreDelegate::RestoreTabs(restored_tabs, restore_started_);
      }
-@@ -1098,50 +1098,64 @@ class SessionRestoreImpl : public Browse
+@@ -1104,50 +1104,64 @@
      // base::Time) can be mapped onto the TimeTicks timeline WebContents wants.
      const base::Time now = base::Time::Now();
      const base::TimeTicks now_ticks = base::TimeTicks::Now();
@@ -351,7 +351,7 @@
    void RestoreTab(const sessions::SessionTab& tab,
                    BrowserWindowInterface* browser,
                    bool is_active_browser,
-@@ -1195,7 +1209,10 @@ class SessionRestoreImpl : public Browse
+@@ -1201,7 +1215,10 @@
          tab.extension_app_id, new_group, is_selected_tab, tab.pinned,
          last_active_time_ticks, last_active_time,
          session_storage_namespace.get(), tab.user_agent_override,
@@ -360,12 +360,12 @@
 +        is_selected_tab
 +            ? chrome::RestoredTabLoadPolicy::kLoadIfVisible
 +            : chrome::RestoredTabLoadPolicy::kDeferUntilActivation);
-     DCHECK(web_contents);
+     CHECK(web_contents, base::NotFatalUntil::M163);
  
-     RestoredTab restored_tab(web_contents, is_selected_tab,
+     // `AddRestoredTab()` assigns a fresh `SessionID` to `web_contents`, so
 --- a/chrome/browser/ui/browser_live_tab_context.cc
 +++ b/chrome/browser/ui/browser_live_tab_context.cc
-@@ -196,6 +196,15 @@ sessions::LiveTab* BrowserLiveTabContext
+@@ -195,6 +195,15 @@
        tab_strip_model_->GetActiveWebContents());
  }
  
@@ -381,7 +381,7 @@
  std::map<std::string, std::string> BrowserLiveTabContext::GetExtraDataForTab(
      int index) const {
    std::map<std::string, std::string> extra_data;
-@@ -280,6 +289,15 @@ BrowserLiveTabContext::GetSavedTabGroupI
+@@ -278,6 +287,15 @@
                       : std::nullopt;
  }
  
@@ -397,7 +397,7 @@
  const std::optional<tab_groups::TabGroupId>
  BrowserLiveTabContext::GetGroupIdForSavedGroup(const base::Uuid& saved) const {
    tab_groups::TabGroupSyncService* tab_group_service =
-@@ -383,6 +401,11 @@ sessions::LiveTab* BrowserLiveTabContext
+@@ -382,6 +400,11 @@
    }
    std::optional<base::Uuid> saved_group_id = tab.saved_group_id;
    content::WebContents* web_contents = nullptr;
@@ -409,7 +409,7 @@
  
    BrowserWindowInterface* const browser = &*browser_;
    const bool is_normal_tab = !group_id.has_value();
-@@ -398,7 +421,8 @@ sessions::LiveTab* BrowserLiveTabContext
+@@ -397,7 +420,8 @@
          tab.extension_app_id, group_id, select, tab.pinned, base::TimeTicks(),
          base::Time(), storage_namespace, tab.user_agent_override,
          tab.extra_data,
@@ -417,9 +417,9 @@
 +        /*from_session_restore=*/false, /*is_active_browser=*/std::nullopt,
 +        load_policy);
  
-     if (group_id.has_value() && !IsEphemeralTabGroup(group_id.value()) &&
+     if (tab.group.has_value() && group_id.has_value() &&
          !tab_group_service->GetGroup(group_id.value()).has_value()) {
-@@ -412,6 +436,8 @@ sessions::LiveTab* BrowserLiveTabContext
+@@ -411,6 +435,8 @@
                tab.group.value()));
      }
    } else {
@@ -428,7 +428,7 @@
      std::optional<tab_groups::SavedTabGroup> saved_group =
          tab_group_service->GetGroup(saved_group_id.value());
      CHECK(saved_group);
-@@ -441,7 +467,7 @@ sessions::LiveTab* BrowserLiveTabContext
+@@ -440,7 +466,7 @@
      if (is_restoring_group_or_window) {
        // Open the saved tab group as-is if the tab is being restored from a
        // group or window context. This is to enforce that SavedTabGroups are
@@ -437,7 +437,7 @@
        return nullptr;
      }
  
-@@ -462,6 +488,10 @@ sessions::LiveTab* BrowserLiveTabContext
+@@ -461,6 +487,10 @@
  
    CHECK(web_contents);
  
@@ -450,7 +450,7 @@
    } else {
 --- a/components/sessions/core/tab_restore_service_helper.cc
 +++ b/components/sessions/core/tab_restore_service_helper.cc
-@@ -1007,38 +1007,73 @@ std::optional<std::vector<LiveTab*>> Tab
+@@ -1100,38 +1100,73 @@
  
          CHECK(!window.tabs.empty());
          const int selected_tab_index =
@@ -539,7 +539,7 @@
          }
  
          MapSavedGroupTabsToLiveTabs(context, window.tab_groups, tabs_by_group,
-@@ -1046,6 +1081,15 @@ std::optional<std::vector<LiveTab*>> Tab
+@@ -1139,6 +1174,15 @@
  
          ReconstructSplits(context, window_split_tabs, restored_tab_map);
  
@@ -557,15 +557,15 @@
            UpdateTabBrowserIDs(browser_id, context->GetSessionID());
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-@@ -34,6 +34,7 @@
+@@ -36,6 +36,7 @@
+ #include "chrome/browser/sessions/session_service.h"
  #include "chrome/browser/sessions/session_service_factory.h"
- #include "chrome/browser/signin/account_consistency_mode_manager.h"
  #include "chrome/browser/ui/browser_commands.h"
 +#include "chrome/browser/ui/browser_tabrestore.h"
  #include "chrome/browser/ui/browser_tabstrip.h"
  #include "chrome/browser/ui/browser_window.h"
- #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
-@@ -433,6 +434,16 @@ BrowserWindowInterface* StartupBrowserCr
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -436,6 +437,16 @@
        continue;
      }
  
@@ -584,20 +584,19 @@
      if (tab.type == StartupTab::Type::kPinned) {
 --- a/chrome/browser/ui/tabs/tab_utils.h
 +++ b/chrome/browser/ui/tabs/tab_utils.h
-@@ -9,6 +9,10 @@
+@@ -9,10 +9,18 @@
  
- class TabStripModel;
+ #include "components/tabs/public/tab_interface.h"
  
 +namespace content {
 +class WebContents;
 +}
 +
- // Returns true if the site at `index` in `tab_strip` is muted.
- bool IsSiteMuted(const TabStripModel& tab_strip, const int index);
+ // Returns true if the site for `tab` is muted.
+ bool IsSiteMuted(tabs::TabHandle tab);
  
-@@ -16,4 +20,8 @@ bool IsSiteMuted(const TabStripModel& ta
- bool AreAllSitesMuted(const TabStripModel& tab_strip,
-                       const std::vector<int>& indices);
+ // Returns true if the sites for `tabs` are all muted.
+ bool AreAllSitesMuted(const std::vector<tabs::TabHandle>& tabs);
  
 +// Returns whether `contents` has restored navigation state that is waiting to
 +// be loaded.
@@ -608,14 +607,14 @@
 +++ b/chrome/browser/ui/tabs/tab_utils.cc
 @@ -10,6 +10,8 @@
  #include "chrome/browser/ui/tabs/tab_muted_utils.h"
- #include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "components/content_settings/core/browser/host_content_settings_map.h"
+ #include "components/tabs/public/tab_interface.h"
 +#include "content/public/browser/navigation_controller.h"
 +#include "content/public/browser/navigation_entry.h"
  #include "content/public/browser/web_contents.h"
  #include "content/public/common/url_constants.h"
  
-@@ -48,3 +50,9 @@ bool AreAllSitesMuted(const TabStripMode
+@@ -51,3 +53,9 @@
    }
    return true;
  }
@@ -635,7 +634,7 @@
  #include "chrome/browser/ui/thumbnails/thumbnail_scheduler.h"
  #include "chrome/browser/ui/thumbnails/thumbnail_scheduler_impl.h"
  #include "components/tabs/public/tab_interface.h"
-@@ -221,8 +222,10 @@ void ThumbnailTabHelper::AboutToBeDiscar
+@@ -221,8 +222,10 @@
  void ThumbnailTabHelper::ThumbnailImageBeingObservedChanged(
      bool is_being_observed) {
    capture_driver_.UpdateThumbnailVisibility(is_being_observed);
@@ -650,7 +649,7 @@
  }
 --- a/chrome/browser/ui/browser_live_tab_context.h
 +++ b/chrome/browser/ui/browser_live_tab_context.h
-@@ -74,6 +74,7 @@ class BrowserLiveTabContext : public ses
+@@ -74,6 +74,7 @@
    std::string GetUserTitle() const override;
    sessions::LiveTab* GetLiveTabAt(int index) const override;
    sessions::LiveTab* GetActiveLiveTab() const override;
@@ -658,7 +657,7 @@
    std::map<std::string, std::string> GetExtraDataForTab(
        int index) const override;
    std::map<std::string, std::string> GetExtraDataForWindow() const override;
-@@ -89,6 +90,7 @@ class BrowserLiveTabContext : public ses
+@@ -89,6 +90,7 @@
        const tab_groups::TabGroupId& group) const override;
    const std::optional<tab_groups::TabGroupId> GetGroupIdForSavedGroup(
        const base::Uuid& saved) const override;
@@ -668,7 +667,7 @@
    void SetVisualDataForGroup(
 --- a/components/sessions/core/live_tab_context.h
 +++ b/components/sessions/core/live_tab_context.h
-@@ -49,6 +49,9 @@ class SESSIONS_EXPORT LiveTabContext {
+@@ -49,6 +49,9 @@
    virtual std::string GetUserTitle() const = 0;
    virtual LiveTab* GetLiveTabAt(int index) const = 0;
    virtual LiveTab* GetActiveLiveTab() const = 0;
@@ -678,7 +677,7 @@
    virtual std::map<std::string, std::string> GetExtraDataForTab(
        int index) const = 0;
    virtual std::map<std::string, std::string> GetExtraDataForWindow() const = 0;
-@@ -66,6 +69,9 @@ class SESSIONS_EXPORT LiveTabContext {
+@@ -66,6 +69,9 @@
        const tab_groups::TabGroupId& group) const = 0;
    virtual const std::optional<tab_groups::TabGroupId> GetGroupIdForSavedGroup(
        const base::Uuid& saved) const = 0;

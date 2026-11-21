@@ -12,7 +12,7 @@
    </message>
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -2132,6 +2132,18 @@
+@@ -2138,6 +2138,18 @@
      <message name="IDS_SETTINGS_SEARCH_MANAGE_SEARCH_ENGINES_AND_SITE_SEARCH" desc="Label for the Manage Search Engines and Site Search button.">
        Manage search engines and site search
      </message>
@@ -45,7 +45,7 @@
      Signed in to <ph name="EMAIL">$1<ex>abcd@google.com</ex></ph>
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -589,6 +589,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -589,6 +589,10 @@
        settings_api::PrefType::kDictionary;
    (*s_allowlist)[::omnibox::kKeywordSpaceTriggeringEnabled] =
        settings_api::PrefType::kBoolean;
@@ -72,7 +72,7 @@
 +}
 --- a/chrome/browser/resources/settings/search_page/search_page.html.ts
 +++ b/chrome/browser/resources/settings/search_page/search_page.html.ts
-@@ -55,13 +55,6 @@ export function getHtml(this: SettingsSe
+@@ -58,13 +58,6 @@
          <div>${this.confirmationToastLabel_}</div>
        </cr-toast>
      </div>
@@ -86,7 +86,7 @@
      ${this.defaultSearchProviderDataPref_?.extensionId ? html`
        ${this.searchSettingsUpdateEnabled_ ? html`
          <div class="cr-row">
-@@ -99,5 +92,26 @@ export function getHtml(this: SettingsSe
+@@ -103,5 +96,26 @@
      ` : ''}
    </div>
  </settings-section>
@@ -115,7 +115,7 @@
  }
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -2301,8 +2301,8 @@ void AddPersonalizationOptionsStrings(co
+@@ -2319,8 +2319,8 @@
        {"enablePersonalizationLoggingDesc",
         IDS_SETTINGS_ENABLE_LOGGING_PREF_DESC},
        {"spellingDescription", IDS_SETTINGS_SPELLING_PREF_DESC},
@@ -126,8 +126,8 @@
        {"searchAggregatorSuggestPref", IDS_SETTINGS_SEARCH_AGGREGATOR_PREF},
        {"searchAggregatorSuggestPrefDesc",
         IDS_SETTINGS_SEARCH_AGGREGATOR_PREF_DESC},
-@@ -3142,6 +3142,12 @@ void AddSearchStrings(content::WebUIData
-       {"searchEnginesCancelButton", IDS_CANCEL},
+@@ -3171,6 +3171,12 @@
+       {"searchEnginesBackButton", IDS_SETTINGS_SEARCH_ENGINES_BACK_BUTTON},
        {"searchEnginesConfirmationToastLabel",
         IDS_SEARCH_ENGINE_CHOICE_SETTINGS_CONFIRMATION_TOAST_LABEL},
 +      {"addressBarPageTitle", IDS_SETTINGS_ADDRESS_BAR},

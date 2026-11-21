@@ -1,6 +1,6 @@
 --- a/components/history/core/browser/web_history_service.cc
 +++ b/components/history/core/browser/web_history_service.cc
-@@ -32,6 +32,7 @@
+@@ -31,6 +31,7 @@
  #include "components/sync/base/sync_util.h"
  #include "components/sync/protocol/history_status.pb.h"
  #include "components/sync/service/sync_service.h"
@@ -8,7 +8,7 @@
  #include "google_apis/gaia/gaia_urls.h"
  #include "google_apis/gaia/google_service_auth_error.h"
  #include "net/base/url_util.h"
-@@ -74,9 +75,9 @@ const size_t kMaxRetries = 1;
+@@ -73,9 +74,9 @@
  
  // Returns whether history sync is enabled.
  bool IsHistorySyncEnabledFromService(syncer::SyncService* sync_service) {
@@ -21,8 +21,8 @@
  }
  
  class RequestImpl : public WebHistoryService::Request {
---- a/chrome/browser/safe_browsing/chrome_password_protection_service.cc
-+++ b/chrome/browser/safe_browsing/chrome_password_protection_service.cc
+--- a/chrome/browser/safe_browsing/password_protection/chrome_password_protection_service.cc
++++ b/chrome/browser/safe_browsing/password_protection/chrome_password_protection_service.cc
 @@ -90,6 +90,7 @@
  #include "components/strings/grit/components_strings.h"
  #include "components/sync/protocol/user_event_specifics.pb.h"
@@ -31,7 +31,7 @@
  #include "components/sync_user_events/user_event_service.h"
  #include "components/unified_consent/pref_names.h"
  #include "components/variations/service/variations_service.h"
-@@ -1786,9 +1787,9 @@ void ChromePasswordProtectionService::Fi
+@@ -1787,9 +1788,9 @@
  
  bool ChromePasswordProtectionService::IsPrimaryAccountSyncingHistory() const {
    syncer::SyncService* sync = SyncServiceFactory::GetForProfile(profile_);
@@ -54,7 +54,7 @@
  
  namespace safe_browsing {
  
-@@ -67,8 +68,9 @@ ChromeUserPopulation GetUserPopulationFo
+@@ -67,8 +68,9 @@
  
    syncer::SyncService* sync = SyncServiceFactory::GetForProfile(profile);
    bool is_history_sync_active =
@@ -142,7 +142,7 @@
  void RecordKeyRetrievalTrigger(
 --- a/components/sync/service/sync_service_utils.h
 +++ b/components/sync/service/sync_service_utils.h
-@@ -36,9 +36,9 @@ enum class UploadState {
+@@ -36,9 +36,9 @@
    kMaxValue = ACTIVE
  };
  
@@ -165,7 +165,7 @@
  #include "components/sync/service/sync_user_settings.h"
  
  namespace autofill {
-@@ -121,7 +122,9 @@ bool IbanSaveManager::IsIbanUploadEnable
+@@ -121,7 +122,9 @@
  
    // Don't offer upload for users that are only syncing locally, since they
    // won't receive the IBANs back from Google Payments.
@@ -178,7 +178,7 @@
          signin_state_for_metrics);
 --- a/components/autofill/core/browser/studies/autofill_experiments.cc
 +++ b/components/autofill/core/browser/studies/autofill_experiments.cc
-@@ -181,7 +181,9 @@ bool IsCreditCardUploadEnabled(
+@@ -181,7 +181,9 @@
  
    // Don't offer upload for users that are only syncing locally, since they
    // won't receive the cards back from Google Payments.
@@ -199,7 +199,7 @@
  #include "components/sync/service/sync_user_settings.h"
  
  namespace password_manager::features_util {
-@@ -17,7 +18,8 @@ bool IsAccountStorageActive(const syncer
+@@ -17,7 +18,8 @@
      return false;
    }
  
@@ -211,7 +211,7 @@
  
 --- a/components/safe_browsing/core/browser/sync/sync_utils.cc
 +++ b/components/safe_browsing/core/browser/sync/sync_utils.cc
-@@ -48,9 +48,9 @@ bool SyncUtils::AreSigninAndSyncSetUpFor
+@@ -48,9 +48,9 @@
  // TODO(bdea): Migrate other SB classes that define this method to call the one
  // here instead.
  bool SyncUtils::IsHistorySyncEnabled(syncer::SyncService* sync_service) {
@@ -234,7 +234,7 @@
  #include "chrome/browser/sync/sync_invalidations_service_factory.h"
  #include "components/personal_context/core/personal_context_features.h"
  #include "components/personal_context/core/personal_context_key_manager.h"
-@@ -47,6 +48,10 @@ std::string DeviceInfoSyncClientImpl::Ge
+@@ -47,6 +48,10 @@
    }
  #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
  

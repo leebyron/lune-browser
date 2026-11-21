@@ -1,16 +1,16 @@
 --- a/chrome/browser/resources/settings/BUILD.gn
 +++ b/chrome/browser/resources/settings/BUILD.gn
-@@ -51,6 +51,7 @@ build_webui("build") {
+@@ -51,6 +51,7 @@
  
    # -----------------web_component_files start ---------------------------------
    web_component_files = [
 +    "appearance_page/appearance_behavior_page.ts",
-     "controls/collapse_radio_button.ts",
-     "controls/controlled_radio_button.ts",
-     "controls/settings_checkbox.ts",
+     "privacy_page/privacy_page_index.ts",
+     "privacy_page/services_page.ts",
+     "site_settings/ads_page.ts",
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -600,6 +600,8 @@ void AddAppearanceStrings(content::WebUI
+@@ -561,6 +561,8 @@
                            Profile* profile) {
    static constexpr webui::LocalizedString kLocalizedStrings[] = {
        {"appearancePageTitle", IDS_SETTINGS_APPEARANCE},
@@ -84,7 +84,7 @@
 +customElements.define(AppearanceBehaviorPageElement.is, AppearanceBehaviorPageElement);
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page_index.css
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page_index.css
-@@ -12,3 +12,9 @@ cr-view-manager [hidden-by-search],
+@@ -12,3 +12,9 @@
  cr-view-manager[show-all] [slot=view][data-parent-view-id] {
    display: none;
  }
@@ -96,7 +96,7 @@
 +}
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page_index.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page_index.html.ts
-@@ -11,12 +11,15 @@ export function getHtml(this: SettingsAp
+@@ -10,12 +10,15 @@
    return html`<!--_html_template_start_-->
  <cr-view-manager id="viewManager" class="cr-centered-card-container"
      ?show-all="${this.shouldShowAll}">
@@ -125,7 +125,7 @@
  import './appearance_page.js';
  
  import type {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
-@@ -51,6 +52,13 @@ export class SettingsAppearancePageIndex
+@@ -51,6 +52,13 @@
  
    protected accessor routes_: SettingsRoutes = routes;
  
@@ -139,7 +139,7 @@
    override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
      super.currentRouteChanged(newRoute, oldRoute);
  
-@@ -59,8 +67,7 @@ export class SettingsAppearancePageIndex
+@@ -59,8 +67,7 @@
      queueMicrotask(() => {
        switch (newRoute) {
          case routes.APPEARANCE:
@@ -149,7 +149,7 @@
            break;
          case routes.FONTS:
            this.$.viewManager.switchView(
-@@ -69,8 +76,7 @@ export class SettingsAppearancePageIndex
+@@ -69,8 +76,7 @@
          case routes.BASIC:
            // Switch back to the default view in case they are part of search
            // results.
@@ -161,7 +161,7 @@
            // Nothing to do. Other parent elements are responsible for updating
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
-@@ -62,23 +62,6 @@ export function getHtml(this: SettingsAp
+@@ -61,23 +61,6 @@
          </cr-button>
        ` : ''}
      </div>
@@ -185,7 +185,7 @@
      <div class="hr"
          ?hidden="${!this.showHr_(
              this.pageVisibility_.setTheme, this.pageVisibility_.homeButton)}">
-@@ -118,11 +101,6 @@ export function getHtml(this: SettingsAp
+@@ -117,11 +100,6 @@
          </settings-radio-group>
        </div>
      ` : ''}
@@ -197,7 +197,7 @@
      ${!this.ntpSimplificationBookmarksBarEnabled_ ? html`
        <settings-toggle-button id="showBookmarksBar"
            ?hidden="${!this.pageVisibility_.bookmarksBar}"
-@@ -220,11 +198,6 @@ export function getHtml(this: SettingsAp
+@@ -219,11 +197,6 @@
          ?hidden="${this.showOrganizerPanelEnabled_}">
      </settings-toggle-button>
  
@@ -209,23 +209,20 @@
      ${this.showCtrlTabMru_ ? html`
        <settings-toggle-button class="hr" id="ctrlTabMru"
            pref-key="browser.ctrl_tab_mru" label="$i18n{ctrlTabMru}">
-@@ -338,13 +311,6 @@ export function getHtml(this: SettingsAp
+@@ -337,10 +310,6 @@
      </settings-toggle-button>
  </if>
    </div>
 -  <settings-toggle-button class="hr" id="splitViewDragAndDrop"
 -      pref-key="browser.split_view_drag_and_drop_enabled"
--      label="${this.i18n(
--          this.splitViewHorizontalEnabled_ ?
--              'allowSplitViewDragAndDropHorizontal' :
--              'allowSplitViewDragAndDrop')}">
+-      label="$i18n{allowSplitViewDragAndDrop}">
 -  </settings-toggle-button>
  </settings-section>
  ${this.showManagedThemeDialog_ ? html`
    <managed-dialog @close="${this.onManagedDialogClose_}"
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
-@@ -70,8 +70,6 @@ type PrefObject<T> = chrome.settingsPriv
+@@ -70,8 +70,6 @@
  
  export interface SettingsAppearancePageElement {
    $: {
@@ -234,7 +231,7 @@
      defaultFontSize: SettingsDropdownMenuElement,
      zoomLevel: HTMLSelectElement,
    };
-@@ -614,11 +612,6 @@ export class SettingsAppearancePageEleme
+@@ -622,11 +620,6 @@
      return colorSchemeMode === this.selectedColorSchemeMode_;
    }
  
@@ -246,22 +243,22 @@
    protected onZoomLevelChange_() {
      chrome.settingsPrivate.setDefaultZoom(parseFloat(this.$.zoomLevel.value));
    }
---- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
-+++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-@@ -47,8 +47,8 @@
-         <a role="menuitem" id="appearance" href="/appearance"
-             ?hidden="${this.shouldHideMenuItem_(this.pageVisibility_?.appearance)}"
-             class="cr-nav-menu-item">
--          <cr-icon icon="settings:palette"></cr-icon>
--          <span class="menu-label">$i18n{appearancePageTitle}</span>
-+          <cr-icon icon="settings:style"></cr-icon>
-+          <span class="menu-label">$i18n{appearanceBehaviorPageTitle}</span>
-           <cr-ripple></cr-ripple>
-         </a>
-         <a role="menuitem" id="search" href="/search" class="cr-nav-menu-item">
+--- a/chrome/browser/resources/settings/settings_menu/settings_menu.html.ts
++++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html.ts
+@@ -65,8 +65,8 @@
+     <a role="menuitem" id="appearance" href="/appearance"
+         ?hidden="${this.shouldHideMenuItem_(this.pageVisibility_?.appearance)}"
+         class="cr-nav-menu-item">
+-      <cr-icon icon="settings:palette"></cr-icon>
+-      <span class="menu-label">$i18n{appearancePageTitle}</span>
++      <cr-icon icon="settings:style"></cr-icon>
++      <span class="menu-label">$i18n{appearanceBehaviorPageTitle}</span>
+       <cr-ripple></cr-ripple>
+     </a>
+     ${!this.settingsRefresh2026Enabled_ ? html`
 --- a/chrome/browser/resources/settings/icons.html.ts
 +++ b/chrome/browser/resources/settings/icons.html.ts
-@@ -113,6 +113,10 @@ NOTE: Chrome OS icons go in ./chromeos/o
+@@ -111,6 +111,10 @@
  <cr-iconset name="settings" size="24">
    <svg>
      <defs>
@@ -272,7 +269,7 @@
        <!-- Domain verification GM3 icon -->
        <g id="domain-verification">
          <path d="M4.2 19.2c-.497 0-.919-.177-1.27-.528a1.747 1.747 0 0 1-.532-1.274V6.594c0-.496.18-.918.532-1.27a1.74 1.74 0 0 1 1.27-.523h15.6c.497 0 .919.176 1.27.527.352.356.532.777.532 1.274v10.804c0 .496-.18.918-.532 1.27a1.74 1.74 0 0 1-1.27.523Zm0-1.802h15.6v-9H4.2Zm6.75-3.546 3.6-3.602a.87.87 0 0 1 .637-.273.87.87 0 0 1 .637.273c.184.184.278.39.278.625a.862.862 0 0 1-.278.625l-4.25 4.25a.864.864 0 0 1-.636.273.87.87 0 0 1-.637-.273l-2.125-2.125a.816.816 0 0 1-.262-.637.914.914 0 0 1 .285-.636.88.88 0 0 1 .637-.278c.242 0 .457.094.64.278ZM4.2 17.398V6.602Zm0 0"></path>
-@@ -349,6 +353,10 @@ NOTE: Chrome OS icons go in ./chromeos/o
+@@ -346,6 +350,10 @@
  <cr-iconset name="settings" size="24">
    <svg>
      <defs>

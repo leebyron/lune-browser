@@ -143,8 +143,8 @@
    },
 --- a/chrome/browser/extensions/BUILD.gn
 +++ b/chrome/browser/extensions/BUILD.gn
-@@ -646,6 +646,7 @@ source_set("extensions") {
-     "//net:extras",
+@@ -648,6 +648,7 @@
+     "//services/device/public/mojom",
      "//services/metrics/public/cpp:ukm_builders",
      "//storage/browser",
 +    "//third_party/ublock",
@@ -153,7 +153,7 @@
      "//ui/base/unowned_user_data",
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
-@@ -165,6 +165,7 @@ template("chrome_extra_paks") {
+@@ -165,6 +165,7 @@
        "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
        "$root_gen_dir/third_party/blink/public/resources/inspector_overlay_resources.pak",
        "$root_gen_dir/third_party/blink/public/strings/permission_element_generated_strings.pak",
@@ -161,7 +161,7 @@
        "$root_gen_dir/ui/resources/ui_lottie_resources.pak",
        "$root_gen_dir/ui/webui/resources/webui_resources.pak",
      ]
-@@ -201,6 +202,7 @@ template("chrome_extra_paks") {
+@@ -201,6 +202,7 @@
        "//third_party/blink/public:devtools_inspector_resources",
        "//third_party/blink/public:resources",
        "//third_party/blink/public/strings:permission_element_generated_strings",
@@ -179,8 +179,8 @@
  #include "ui/webui/buildflags.h"
  
  #if BUILDFLAG(ENABLE_WEBUI_NTP)
-@@ -138,6 +139,7 @@ ChromeComponentExtensionResourceManager:
-           extensions_features::kApiContextualTasksPrivate)) {
+@@ -140,6 +141,7 @@
+           extensions_features::kApiContextualTasksPrivateAba)) {
      AddComponentResourceEntries(kContextualTasksExtensionResources);
    }
 +  AddComponentResourceEntries(kUblockResources);

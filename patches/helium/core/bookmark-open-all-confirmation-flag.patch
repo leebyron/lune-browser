@@ -25,7 +25,7 @@
  
 --- a/chrome/browser/ui/ui_features.h
 +++ b/chrome/browser/ui/ui_features.h
-@@ -19,6 +19,8 @@ namespace features {
+@@ -19,6 +19,8 @@
  // All features in alphabetical order. The features should be documented
  // alongside the definition of their values in the .cc file.
  
@@ -36,13 +36,13 @@
  
 --- a/chrome/browser/ui/bookmarks/bookmark_utils_desktop.cc
 +++ b/chrome/browser/ui/bookmarks/bookmark_utils_desktop.cc
-@@ -390,7 +390,8 @@ void OpenAllIfAllowed(
+@@ -429,7 +429,8 @@
  
    // Skip the prompt if there are few bookmarks.
    size_t child_count = url_and_ids.size();
 -  if (child_count < bookmarks::kNumBookmarkUrlsBeforePrompting) {
 +  if (!base::FeatureList::IsEnabled(features::kBookmarkOpenAllConfirmation) ||
 +      child_count < bookmarks::kNumBookmarkUrlsBeforePrompting) {
-     DoOpenPromptConfirm(
+     DoOpen(
          browser, std::move(url_and_ids), initial_disposition,
          bookmark_folder_node_id,

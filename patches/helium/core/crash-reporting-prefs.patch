@@ -1,6 +1,6 @@
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -671,6 +671,12 @@ inline constexpr char kSplitViewDragAndD
+@@ -564,6 +564,12 @@
  // recently used tabs.
  inline constexpr char kCtrlTabMru[] = "browser.ctrl_tab_mru";
  
@@ -15,7 +15,7 @@
  inline constexpr char kVoiceTypingSettings[] = "browser.voice_typing_settings";
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -28,6 +28,7 @@
+@@ -30,6 +30,7 @@
  #include "chrome/browser/component_updater/component_updater_prefs.h"
  #include "chrome/browser/context_hub/prefs.h"
  #include "chrome/browser/contextual_cueing/prefs.h"
@@ -23,7 +23,7 @@
  #include "chrome/browser/download/download_prefs.h"
  #include "chrome/browser/engagement/important_sites_util.h"
  #include "chrome/browser/enterprise/util/managed_browser_utils.h"
-@@ -1727,6 +1728,9 @@ void RegisterLocalState(PrefRegistrySimp
+@@ -1793,6 +1794,9 @@
    breadcrumbs::RegisterPrefs(registry);
    browser_shutdown::RegisterPrefs(registry);
    BrowserProcessImpl::RegisterPrefs(registry);
@@ -35,7 +35,7 @@
    chrome_for_testing::RegisterPrefs(registry);
 --- a/chrome/browser/chrome_browser_main.cc
 +++ b/chrome/browser/chrome_browser_main.cc
-@@ -36,6 +36,7 @@
+@@ -37,6 +37,7 @@
  #include "chrome/browser/browser_process_impl.h"
  #include "chrome/browser/chrome_browser_main_extra_parts.h"
  #include "chrome/browser/component_updater/registration.h"
@@ -43,7 +43,7 @@
  #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
  #include "chrome/browser/enterprise/chrome_browser_main_extra_parts_enterprise.h"
  #include "chrome/browser/first_run/bookmark_importer.h"
-@@ -1308,6 +1309,8 @@ int ChromeBrowserMainParts::PreCreateThr
+@@ -1331,6 +1332,8 @@
      browser_process_->Init();
    }
  
@@ -54,15 +54,15 @@
        policy::GetManagedBy(browser_process_->browser_policy_connector()
 --- a/components/crash/core/app/crash_reporter_client.cc
 +++ b/components/crash/core/app/crash_reporter_client.cc
-@@ -4,6 +4,7 @@
+@@ -7,6 +7,7 @@
+ #include <stdint.h>
  
- #include "components/crash/core/app/crash_reporter_client.h"
- 
+ #include "base/check.h"
 +#include "base/command_line.h"
+ #include "base/containers/span.h"
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
- 
-@@ -25,6 +26,10 @@ CrashReporterClient* g_client = nullptr;
+@@ -27,6 +28,10 @@
  const char kDefaultUploadURL[] = "https://clients2.google.com/cr/report";
  #endif
  
@@ -73,7 +73,7 @@
  }  // namespace
  
  void SetCrashReporterClient(CrashReporterClient* client) {
-@@ -141,8 +146,15 @@ void CrashReporterClient::GetSanitizatio
+@@ -143,8 +148,15 @@
  #endif
  
  std::string CrashReporterClient::GetUploadUrl() {
@@ -93,7 +93,7 @@
  #endif
 --- a/components/crash/core/app/crashpad.cc
 +++ b/components/crash/core/app/crashpad.cc
-@@ -247,26 +247,37 @@ void DestroyCrashpadClient() {
+@@ -249,26 +249,37 @@
  }
  
  #if !BUILDFLAG(IS_CHROMEOS)
@@ -143,7 +143,7 @@
  #endif  // !BUILDFLAG(IS_CHROMEOS)
  
  #if !BUILDFLAG(IS_ANDROID)
-@@ -358,6 +369,14 @@ void RequestSingleCrashUpload(const std:
+@@ -360,6 +371,14 @@
  #endif
  }
  
@@ -158,7 +158,7 @@
  std::optional<base::FilePath> GetCrashpadDatabasePath() {
  #if BUILDFLAG(IS_WIN)
    base::FilePath::StringType::const_pointer path =
-@@ -448,6 +467,24 @@ void RequestSingleCrashUploadImpl(const
+@@ -460,6 +479,24 @@
    g_database->RequestUpload(uuid);
  }
  
@@ -183,7 +183,7 @@
  base::FilePath::StringType::const_pointer GetCrashpadDatabasePathImpl() {
    if (!g_database_path)
      return nullptr;
-@@ -472,6 +509,10 @@ void ClearReportsBetweenImpl(time_t begi
+@@ -489,6 +526,10 @@
  
  namespace internal {
  
@@ -196,7 +196,7 @@
  }
 --- a/components/crash/core/app/crashpad.h
 +++ b/components/crash/core/app/crashpad.h
-@@ -139,6 +139,10 @@ void DestroyCrashpadClient();
+@@ -140,6 +140,10 @@
  // running.
  void SetUploadConsent(bool consent);
  
@@ -207,7 +207,7 @@
  #endif  // !BUILDFLAG(IS_CHROMEOS)
  
  enum class ReportUploadState {
-@@ -166,6 +170,11 @@ void GetReports(std::vector<Report>* rep
+@@ -167,6 +171,11 @@
  // Requests a user triggered upload for a crash report with a given id.
  void RequestSingleCrashUpload(const std::string& local_id);
  
@@ -219,7 +219,7 @@
  void DumpWithoutCrashing();
  
  #if BUILDFLAG(IS_IOS)
-@@ -224,6 +233,9 @@ void GetReportsImpl(std::vector<Report>*
+@@ -231,6 +240,9 @@
  // The implementation function for RequestSingleCrashUpload.
  void RequestSingleCrashUploadImpl(const std::string& local_id);
  
@@ -229,7 +229,7 @@
  // The implementation function for GetCrashpadDatabasePath.
  base::FilePath::StringType::const_pointer GetCrashpadDatabasePathImpl();
  
-@@ -291,6 +303,10 @@ bool GetHandlerSocket(int* sock, pid_t*
+@@ -302,6 +314,10 @@
  
  namespace internal {
  
@@ -242,7 +242,7 @@
  // that it may be reused by GetCrashKeysForKasko.
 --- a/chrome/browser/crash_upload_list/BUILD.gn
 +++ b/chrome/browser/crash_upload_list/BUILD.gn
-@@ -12,6 +12,8 @@ static_library("crash_upload_list") {
+@@ -12,6 +12,8 @@
    sources = [
      "crash_upload_list.cc",
      "crash_upload_list.h",
@@ -251,7 +251,7 @@
    ]
  
    if (is_android) {
-@@ -29,10 +31,15 @@ static_library("crash_upload_list") {
+@@ -29,10 +31,15 @@
    }
  
    deps = [
@@ -463,8 +463,8 @@
 +#endif  // CHROME_BROWSER_CRASH_UPLOAD_LIST_HELIUM_CRASH_REPORTING_H_
 --- a/chrome/chrome_elf/chrome_elf.def
 +++ b/chrome/chrome_elf/chrome_elf.def
-@@ -9,10 +9,12 @@ EXPORTS
-   DumpHungProcessWithPtype_ExportThunk
+@@ -8,10 +8,12 @@
+   CrashForException_ExportThunk
    GetCrashpadDatabasePath_ExportThunk
    ClearReportsBetween_ExportThunk
 +  DeleteCrashReport_ExportThunk
@@ -475,10 +475,10 @@
 +  SetUploadConsentFromUser_ExportThunk
    GetUploadConsent_ExportThunk
    GetProductInfo_ExportThunk
- 
+   WriteUserStreamData_ExportThunk
 --- a/components/crash/core/app/crash_export_stubs.cc
 +++ b/components/crash/core/app/crash_export_stubs.cc
-@@ -15,6 +15,10 @@
+@@ -21,6 +21,10 @@
  
  void RequestSingleCrashUpload_ExportThunk(const char* local_id) {}
  
@@ -489,7 +489,7 @@
  size_t GetCrashReports_ExportThunk(crash_reporter::Report* reports,
                                     size_t reports_size) {
    return 0;
-@@ -28,6 +32,8 @@ int CrashForException_ExportThunk(EXCEPT
+@@ -34,6 +38,8 @@
  
  void SetUploadConsent_ExportThunk(bool consent) {}
  
@@ -500,7 +500,7 @@
  }
 --- a/components/crash/core/app/crash_export_thunks.cc
 +++ b/components/crash/core/app/crash_export_thunks.cc
-@@ -20,6 +20,10 @@ void RequestSingleCrashUpload_ExportThun
+@@ -23,6 +23,10 @@
    crash_reporter::RequestSingleCrashUploadImpl(local_id);
  }
  
@@ -511,7 +511,7 @@
  size_t GetCrashReports_ExportThunk(crash_reporter::Report* reports,
                                     size_t reports_size) {
    static_assert(std::is_trivially_copyable<crash_reporter::Report>::value,
-@@ -56,6 +60,10 @@ void SetUploadConsent_ExportThunk(bool c
+@@ -59,6 +63,10 @@
    crash_reporter::SetUploadConsent(consent);
  }
  
@@ -524,7 +524,7 @@
  }
 --- a/components/crash/core/app/crash_export_thunks.h
 +++ b/components/crash/core/app/crash_export_thunks.h
-@@ -29,6 +29,10 @@ extern "C" {
+@@ -30,6 +30,10 @@
  // crash report upload. See CrashUploadListCrashpad.
  void RequestSingleCrashUpload_ExportThunk(const char* local_id);
  
@@ -535,7 +535,7 @@
  // This function may be invoked across module boundaries to retrieve the crash
  // list. It copies up to |report_count| reports into |reports| and returns the
  // number of reports available. If the return value is less than or equal to
-@@ -53,6 +57,10 @@ int CrashForException_ExportThunk(EXCEPT
+@@ -54,6 +58,10 @@
  // not enforced to avoid blocking startup code on synchronizing them.
  void SetUploadConsent_ExportThunk(bool consent);
  
@@ -548,16 +548,8 @@
  bool GetUploadConsent_ExportThunk();
 --- a/chrome/app/chrome_crash_reporter_client_win.cc
 +++ b/chrome/app/chrome_crash_reporter_client_win.cc
-@@ -12,6 +12,7 @@
- 
- #include <iterator>
- #include <memory>
-+#include <optional>
- #include <string>
- #include <utility>
- #include <vector>
-@@ -29,6 +30,13 @@
- #include "components/metrics/system_profile_user_stream.h"
+@@ -32,6 +32,13 @@
+ #include "components/crash/core/app/crashpad.h"
  #include "components/version_info/channel.h"
  
 +namespace {
@@ -570,7 +562,7 @@
  ChromeCrashReporterClient::ChromeCrashReporterClient() = default;
  
  ChromeCrashReporterClient::~ChromeCrashReporterClient() = default;
-@@ -105,6 +113,17 @@ void ChromeCrashReporterClient::GetProdu
+@@ -105,6 +112,17 @@
                    base::WideToUTF8(channel_name));
  }
  
@@ -590,7 +582,7 @@
    // Chromium builds. The Google Chrome stable channel uses smaller dumps.
 --- a/chrome/app/chrome_crash_reporter_client_win.h
 +++ b/chrome/app/chrome_crash_reporter_client_win.h
-@@ -30,6 +30,7 @@ class ChromeCrashReporterClient : public
+@@ -38,6 +38,7 @@
                                  std::wstring* special_build,
                                  std::wstring* channel_name) override;
    void GetProductInfo(ProductInfo* product_info) override;
