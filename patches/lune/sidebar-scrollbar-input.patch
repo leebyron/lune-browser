@@ -1,0 +1,179 @@
+--- a/chrome/browser/ui/views/tabs/shared/rounded_scroll_bar.cc
++++ b/chrome/browser/ui/views/tabs/shared/rounded_scroll_bar.cc
+@@ -14,6 +14,7 @@
+ #include "ui/compositor/layer.h"
+ #include "ui/compositor/layer_animator.h"
+ #include "ui/compositor/scoped_layer_animation_settings.h"
++#include "ui/events/event.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/native_theme/overlay_scrollbar_constants.h"
+ #include "ui/views/background.h"
+@@ -43,7 +44,7 @@ void RoundedScrollBar::Thumb::Init() {
+   SetFlipCanvasOnPaintForRTLUI(true);
+   SetPaintToLayer();
+   layer()->SetFillsBoundsOpaquely(false);
+-  StartHideCountdown();
++  layer()->SetOpacity(0.0f);
+   layer()->SetAnimator(ui::LayerAnimator::CreateImplicitAnimator());
+ }
+ 
+@@ -66,30 +67,17 @@ void RoundedScrollBar::Thumb::OnPaint(gf
+   canvas->DrawRoundRect(fill_bounds, rounded_corners, fill_flags);
+ }
+ 
+-void RoundedScrollBar::Thumb::OnBoundsChanged(
+-    const gfx::Rect& previous_bounds) {
+-  // When the host view is animating its size (i.e. during collapse or expand),
+-  // the scrollbar thumb should be hidden and not update its bounds until the
+-  // animation is complete.
+-  if (is_animating_size_) {
+-    Hide();
+-    return;
+-  }
+-  Show();
+-  // Don't start the hide countdown if the thumb is still hovered or pressed.
+-  if (GetState() == views::Button::STATE_NORMAL) {
+-    StartHideCountdown();
+-  }
+-}
+-
+ void RoundedScrollBar::Thumb::Show() {
+   if (layer()->GetTargetOpacity() != 1.0f) {
+     layer()->SetOpacity(1.0f);
+   }
+-  hide_timer_.Stop();
++  hide_timer_.Start(
++      FROM_HERE, ui::GetOverlayScrollbarFadeDelay(),
++      base::BindOnce(&RoundedScrollBar::Thumb::Hide, base::Unretained(this)));
+ }
+ 
+ void RoundedScrollBar::Thumb::Hide() {
++  hide_timer_.Stop();
+   ui::ScopedLayerAnimationSettings settings(layer()->GetAnimator());
+   settings.SetTransitionDuration(ui::GetOverlayScrollbarFadeDuration());
+   if (layer()->GetTargetOpacity() != 0.0f) {
+@@ -97,18 +85,11 @@ void RoundedScrollBar::Thumb::Hide() {
+   }
+ }
+ 
+-void RoundedScrollBar::Thumb::StartHideCountdown() {
+-  hide_timer_.Start(
+-      FROM_HERE, ui::GetOverlayScrollbarFadeDelay(),
+-      base::BindOnce(&RoundedScrollBar::Thumb::Hide, base::Unretained(this)));
+-}
+-
+ BEGIN_METADATA(RoundedScrollBar, Thumb)
+ END_METADATA
+ 
+ RoundedScrollBar::RoundedScrollBar()
+     : views::ScrollBar(views::ScrollBar::Orientation::kVertical) {
+-  SetNotifyEnterExitOnChild(true);
+   SetLayoutManager(std::make_unique<views::FillLayout>());
+   auto* thumb = new Thumb(this);
+   SetThumb(thumb);
+@@ -118,23 +99,33 @@ RoundedScrollBar::RoundedScrollBar()
+ RoundedScrollBar::~RoundedScrollBar() = default;
+ 
+ void RoundedScrollBar::SetIsAnimatingSize(bool is_animating) {
+-  Thumb* thumb = views::AsViewClass<Thumb>(GetThumb());
+-  thumb->set_is_animating_size(is_animating);
+-  if (is_animating) {
+-    thumb->Hide();
++  is_animating_size_ = is_animating;
++  if (is_animating_size_) {
++    views::AsViewClass<Thumb>(GetThumb())->Hide();
+   }
+ }
+ 
+-void RoundedScrollBar::OnMouseEntered(const ui::MouseEvent& event) {
+-  RoundedScrollBar::Thumb* thumb =
+-      views::AsViewClass<RoundedScrollBar::Thumb>(GetThumb());
+-  thumb->Show();
++void RoundedScrollBar::ObserveScrollEvent(const ui::ScrollEvent& event) {
++  views::ScrollBar::ObserveScrollEvent(event);
++  // The ScrollView forwards trackpad events after compositor scrolling.
++  if (event.handled() && event.type() == ui::EventType::kScroll &&
++      event.y_offset() != 0) {
++    RevealThumbForScroll();
++  }
++}
++
++void RoundedScrollBar::ScrollToPosition(int position) {
++  views::ScrollBar::ScrollToPosition(position);
++  // Wheel, keyboard and thumb input scroll through the bar. Layout and
++  // programmatic scrolls update its geometry directly via ScrollBar::Update.
++  RevealThumbForScroll();
+ }
+ 
+-void RoundedScrollBar::OnMouseExited(const ui::MouseEvent& event) {
+-  RoundedScrollBar::Thumb* thumb =
+-      views::AsViewClass<RoundedScrollBar::Thumb>(GetThumb());
+-  thumb->StartHideCountdown();
++void RoundedScrollBar::RevealThumbForScroll() {
++  if (is_animating_size_ || !GetVisible() || GetMaxPosition() <= 0) {
++    return;
++  }
++  views::AsViewClass<Thumb>(GetThumb())->Show();
+ }
+ 
+ bool RoundedScrollBar::OverlapsContent() const {
+--- a/chrome/browser/ui/views/tabs/shared/rounded_scroll_bar.h
++++ b/chrome/browser/ui/views/tabs/shared/rounded_scroll_bar.h
+@@ -13,8 +13,8 @@
+ 
+ namespace tabs {
+ 
+-// A transparent vertical scrollbar which overlays its contents and fades in on
+-// hover. It uses a rounded thumb that fades out when not in use.
++// A transparent vertical scrollbar with a rounded overlay thumb that appears
++// during user scrolling and fades out when idle.
+ class RoundedScrollBar : public views::ScrollBar {
+   METADATA_HEADER(RoundedScrollBar, views::ScrollBar)
+ 
+@@ -29,8 +29,7 @@ class RoundedScrollBar : public views::S
+   void SetIsAnimatingSize(bool is_animating);
+ 
+   // ScrollBar:
+-  void OnMouseEntered(const ui::MouseEvent& event) override;
+-  void OnMouseExited(const ui::MouseEvent& event) override;
++  void ObserveScrollEvent(const ui::ScrollEvent& event) override;
+   bool OverlapsContent() const override;
+   gfx::Rect GetTrackBounds() const override;
+   int GetThickness() const override;
+@@ -51,30 +50,27 @@ class RoundedScrollBar : public views::S
+ 
+     void Show();
+     void Hide();
+-    // Starts a countdown that hides the thumb when it fires.
+-    void StartHideCountdown();
+-
+-    void set_is_animating_size(bool is_animating) {
+-      is_animating_size_ = is_animating;
+-    }
+ 
+    protected:
+     // BaseScrollBarThumb:
+     gfx::Size CalculatePreferredSize(
+         const views::SizeBounds& /*available_size*/) const override;
+     void OnPaint(gfx::Canvas* canvas) override;
+-    void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
+ 
+    private:
+     base::OneShotTimer hide_timer_;
+     raw_ptr<RoundedScrollBar> scroll_bar_ = nullptr;
+-    bool is_animating_size_ = false;
+   };
+ 
+   virtual bool ShouldHaveRightMargin() const;
+ 
++  // ScrollBar:
++  void ScrollToPosition(int position) override;
++
+  private:
+-  friend class Thumb;
++  void RevealThumbForScroll();
++
++  bool is_animating_size_ = false;
+ };
+ 
+ }  // namespace tabs
