@@ -58,11 +58,26 @@ Isolate ordinary fixtures with `--custom-update-server-url=http://127.0.0.1:1/`.
    verifies clean frozen inputs, source hashes, tools and GN arguments before
    compilation, runs a native cache-preflight dry run that rejects missing
    dependencies in old workspaces, and verifies source hashes again afterward. Include chrome,
-   chromedriver and chrome/installer/mac. Run matching smoke/onboarding checks.
+   chromedriver and chrome/installer/mac. Run the packaged smoke checks on each
+   architecture at both forced display scales. Keep both JSON reports for staging.
+
+   ```sh
+   .work/venv/bin/python scripts/smoke-browser.py OUTPUT --arch ARCH \
+     --ui --internal-icons --settings --toolbar-inset --device-scale-factor 1 \
+     --report SMOKE_REPORT
+   .work/venv/bin/python scripts/smoke-browser.py OUTPUT --arch ARCH \
+     --ui --internal-icons --settings --toolbar-inset --device-scale-factor 2 \
+     --report RETINA_SMOKE_REPORT
+   ```
+
 4. Run `scripts/release/package.py stage --version VERSION --arch ARCH --output
-   OUTPUT --build-report BUILD_REPORT --smoke-report SMOKE_REPORT --directory
-   CANDIDATE`, then its `sign` and `package` commands on that directory. Each
-   stage refuses existing output. Signing uses nested Chromium signing, Apple
+   OUTPUT --build-report BUILD_REPORT --smoke-report SMOKE_REPORT
+   --retina-smoke-report RETINA_SMOKE_REPORT --directory CANDIDATE`, then its
+   `sign` and `package` commands on that directory. Staging requires both reports
+   to show passing toolbar regressions at their respective scales and match
+   the architecture, input commit, and executable and framework hashes. It
+   retains the reports in the candidate directory. Each stage refuses existing
+   output. Signing uses nested Chromium signing, Apple
    notarization, stapling, Gatekeeper and Sparkle Ed25519 verification.
    After signing, use the reviewed `scripts/release/check_runtime.py --app APP
    --driver DRIVER --directory REPORT_DIRECTORY --version VERSION

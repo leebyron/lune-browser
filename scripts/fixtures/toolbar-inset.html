@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Lune toolbar inset fixture</title>
+  <script>
+    if (new URLSearchParams(location.search).has('cover')) {
+      const viewport = document.createElement('meta');
+      viewport.name = 'viewport';
+      viewport.content = 'viewport-fit=cover';
+      document.head.append(viewport);
+    }
+  </script>
+  <style>
+    html { background: #163851; }
+    body { margin: 0; min-height: 2600px; background: #326e6b; }
+    #fixed, #sticky { width: max-content; margin-left: 100px; background: white; }
+    #fixed { position: fixed; top: 0; z-index: 1; }
+    #sticky { position: sticky; top: 36px; margin-top: 60px; }
+    #nested { margin: 24px 100px; height: 100px; width: 200px; overflow: auto; }
+    #nested > div { height: 600px; background: linear-gradient(white, gray); }
+    #target { margin: 800px 100px 0; scroll-margin-top: 110px; }
+    #vh, #dvh, #safe { position: absolute; visibility: hidden; pointer-events: none; }
+    #vh { height: 100vh; }
+    #dvh { height: 100dvh; }
+    #safe { padding-top: env(safe-area-inset-top, 0px); }
+  </style>
+</head>
+<body>
+  <div id="vh"></div>
+  <div id="dvh"></div>
+  <div id="safe"></div>
+  <nav id="fixed">
+    <button id="click">Test click</button>
+    <a href="#target">Jump to field</a>
+  </nav>
+  <div id="sticky">Sticky content</div>
+  <div id="nested"><div>Nested scroller</div></div>
+  <div id="target"><label>Fixture field <input id="field"></label></div>
+  <script>
+    window.trustedClicks = 0;
+    document.querySelector('#click').addEventListener('click', event => {
+      if (event.isTrusted) window.trustedClicks++;
+    });
+  </script>
+</body>
+</html>

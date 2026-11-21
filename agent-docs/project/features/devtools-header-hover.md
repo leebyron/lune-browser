@@ -35,4 +35,6 @@ In a regular window, DevTools receives pointer input in its exposed side-docked 
 
 `BrowserFrameViewMac` derives the exclusion from each drawn DevTools WebView and the corresponding inspected page bounds. The DevTools WebView can extend behind the page, so only its exposed left or right column is subtracted from the drag surface. The exclusion follows pane layout and preserves the input area of a visible sidebar. `HeliumGlassDragRegion` uses it for AppKit hit testing and cursor registration and updates. See [issue #46](https://github.com/leebyron/lune-browser/issues/46) and the [validation record](../builds/2026-11-18-devtools-header-input.json).
 
-Split-view pointer access is deferred. The native probe still found a blocked Console tab with DevTools docked to the right in a split pane under **Always**.
+The native probe still found a blocked Console tab with DevTools docked to the
+right in a split pane under **Always**. [Issue #53](https://github.com/leebyron/lune-browser/issues/53)
+tracks the split-view fix.

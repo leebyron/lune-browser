@@ -23,11 +23,21 @@ from browser_test_profiles import temporary_profile
 
 
 class Page(BaseHTTPRequestHandler):
+    toolbar_inset_fixture = None
+
     def do_GET(self):
         if self.path == '/no-update.xml':
             data = b'<?xml version="1.0"?><rss version="2.0"><channel><title>Lune smoke updates</title></channel></rss>'
             self.send_response(200)
             self.send_header('Content-Type', 'application/rss+xml')
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        if self.toolbar_inset_fixture and self.path.split('?', 1)[0] == '/toolbar-inset':
+            data = self.toolbar_inset_fixture
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -381,6 +391,10 @@ def main():
     parser.add_argument('--services', action='store_true',
                         help='Opt into live Helium services only in the disposable test profile; requires --settings.')
     parser.add_argument('--headed', action='store_true', help='Show the isolated browser window.')
+    parser.add_argument('--toolbar-inset', action='store_true',
+                        help='Exercise live toolbar modes, page zoom, viewport geometry and input.')
+    parser.add_argument('--device-scale-factor', type=int, choices=(1, 2),
+                        help='Force the display scale for the toolbar inset check.')
     parser.add_argument('--appearance', action='store_true',
                         help='Verify light/dark browser and onboarding palettes; requires --ui.')
     parser.add_argument('--internal-icons', action='store_true',
@@ -396,6 +410,8 @@ def main():
         parser.error('--services requires --settings')
     if (args.internal_icons or args.settings or args.appearance) and not args.ui:
         parser.error('--internal-icons, --settings and --appearance require --ui')
+    if args.device_scale_factor and not args.toolbar_inset:
+        parser.error('--device-scale-factor requires --toolbar-inset')
     root = Path(__file__).resolve().parents[1]
     lock = json.loads((root / 'manifests/browser.lock.json').read_text())
     expected_version = args.chromium_version or lock['chromium_version']
@@ -413,7 +429,15 @@ def main():
     version = subprocess.check_output([driver, '--version'], text=True).strip()
     if not version.startswith(f'ChromeDriver {expected_version} '):
         raise RuntimeError(f'Expected Chromium {expected_version} driver, got {version}.')
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Page)
+    handler = Page
+    if args.toolbar_inset:
+        from toolbar_inset_check import check_toolbar_inset
+
+        class ToolbarInsetPage(Page):
+            toolbar_inset_fixture = (root / 'scripts/fixtures/toolbar-inset.html').read_bytes()
+
+        handler = ToolbarInsetPage
+    server = ThreadingHTTPServer(('127.0.0.1', 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     with socket.socket() as sock:
@@ -509,6 +533,9 @@ def main():
                         **({'goog:loggingPrefs': {'performance': 'ALL'}} if args.services else {}),
                         'goog:chromeOptions': {'binary': str(binary), 'args': [
                             *([] if args.headed else ['--headless=new']),
+                            *(['--window-size=1100,800'] if args.toolbar_inset else []),
+                            *([f'--force-device-scale-factor={args.device_scale_factor}']
+                              if args.device_scale_factor else []),
                             '--no-first-run', '--no-default-browser-check',
                             # Sparkle uses native networking outside Chromium's
                             # host-resolver rules. Never update a smoke-test app.
@@ -546,6 +573,11 @@ def main():
                         if args.services:
                             from release.check_services import check_services
                             report['services'] = check_services(request, path, f'http://127.0.0.1:{server.server_port}/write')
+                    if args.toolbar_inset:
+                        check_toolbar_inset(
+                            request, path, f'http://127.0.0.1:{server.server_port}/toolbar-inset',
+                            FIND, report.setdefault('toolbar_inset', {}),
+                            phase, args.device_scale_factor)
                     request('DELETE', path)
                     session = None
                 if hashlib.sha256((app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework').read_bytes()).hexdigest() != report['framework_sha256']:

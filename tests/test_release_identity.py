@@ -48,6 +48,28 @@ class ReleaseIdentityTests(unittest.TestCase):
                     model.load_record('26.1109.1', root)
 
 
+class StagingSmokeTests(unittest.TestCase):
+    def test_toolbar_regression_is_required_at_the_requested_scale(self):
+        from package import require_smoke
+
+        expected = {'architecture': 'arm64', 'framework_sha256': 'a' * 64}
+        toolbar = {'passed': True, 'display_scale': 1, 'failures': [], 'cases': [{'mode': 'always'}]}
+        smoke = dict(expected, passed=True, toolbar_inset=toolbar)
+        require_smoke(smoke, expected, 1)
+        require_smoke(dict(smoke, toolbar_inset=dict(toolbar, display_scale=2)), expected, 2)
+
+        with self.assertRaisesRegex(ValueError, 'must pass at 2x'):
+            require_smoke(smoke, expected, 2)
+        with self.assertRaisesRegex(ValueError, 'must pass at 1x'):
+            require_smoke(dict(expected, passed=True), expected, 1)
+        for change in ({'passed': False}, {'failures': ['bad inset']}, {'cases': []}):
+            with self.subTest(change=change), self.assertRaisesRegex(ValueError, 'must pass at 1x'):
+                require_smoke(dict(smoke, toolbar_inset=dict(toolbar, **change)), expected, 1)
+
+        with self.assertRaisesRegex(ValueError, 'exact candidate'):
+            require_smoke(dict(smoke, framework_sha256='b' * 64), expected, 1)
+
+
 class AllocationTests(unittest.TestCase):
     def test_serialized_allocation_rejects_reuse_backdating_and_skips(self):
         from reserve import check_allocation

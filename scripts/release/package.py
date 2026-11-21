@@ -68,6 +68,17 @@ def inspect_app(app, product, arch, build=None):
     return info
 
 
+def require_smoke(smoke, expected, scale):
+    require(smoke.get('passed') is True and
+            all(smoke.get(name) == value for name, value in expected.items()),
+            f'Matching {scale}x runtime smoke must pass for the exact candidate')
+    toolbar = smoke.get('toolbar_inset')
+    require(isinstance(toolbar, dict) and toolbar.get('passed') is True
+            and toolbar.get('display_scale') == scale and toolbar.get('failures') == []
+            and isinstance(toolbar.get('cases'), list) and toolbar['cases'],
+            f'Toolbar inset regression must pass at {scale}x display scale')
+
+
 def stage(args):
     product = read(ROOT / 'config/product.json')
     lock = read(ROOT / 'manifests/browser.lock.json')
@@ -84,12 +95,16 @@ def stage(args):
     app = args.output / 'Lune.app'
     info = inspect_app(app, product, args.arch)
     smoke = read(args.smoke_report)
-    require(smoke.get('passed') is True and smoke['chromium_version'] == lock['chromium_version']
-            and smoke['architecture'] == args.arch, 'Matching runtime smoke must pass')
-    require(smoke.get('artwork_component_commit') == report['platform_commit'], 'Smoke tested different inputs')
-    require(smoke['executable_sha256'] == sha(app / 'Contents/MacOS/Lune')
-            and smoke['framework_sha256'] == sha(app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework'),
-            'App changed after runtime validation')
+    retina_smoke = read(args.retina_smoke_report)
+    expected_smoke = {
+        'chromium_version': lock['chromium_version'],
+        'architecture': args.arch,
+        'artwork_component_commit': report['platform_commit'],
+        'executable_sha256': sha(app / 'Contents/MacOS/Lune'),
+        'framework_sha256': sha(app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework'),
+    }
+    require_smoke(smoke, expected_smoke, 1)
+    require_smoke(retina_smoke, expected_smoke, 2)
     require((args.output / 'Lune Packaging/sign_chrome.py').is_file(), 'Build packaging tools first')
     args.directory.mkdir(parents=True)
     run('ditto', app, args.directory / 'input/Lune.app')
@@ -115,11 +130,13 @@ def stage(args):
         'lock_sha256': sha(ROOT / 'manifests/browser.lock.json'),
         'product': product, 'args_sha256': report['args_sha256'],
         'release_record_sha256': sha(ROOT / f'manifests/releases/{args.version}.json'),
-        'input_executable_sha256': sha(app / 'Contents/MacOS/Lune'),
-        'input_framework_sha256': sha(app / 'Contents/Frameworks/Lune Framework.framework/Lune Framework'),
+        'input_executable_sha256': expected_smoke['executable_sha256'],
+        'input_framework_sha256': expected_smoke['framework_sha256'],
         'signed': False, 'packaged': False, 'published': False,
     })
     shutil.copyfile(ROOT / 'manifests/browser.lock.json', args.directory / 'browser.lock.json')
+    save(args.directory / 'smoke.json', smoke)
+    save(args.directory / 'smoke-retina.json', retina_smoke)
 
 
 def sign(args):
@@ -188,7 +205,8 @@ def main():
     p = sub.add_parser('stage')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--build-report', type=Path, required=True)
-    p.add_argument('--smoke-report', type=Path, required=True)
+    p.add_argument('--smoke-report', type=Path, required=True, help='Passing 1x smoke report')
+    p.add_argument('--retina-smoke-report', type=Path, required=True, help='Passing 2x smoke report')
     p.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
     p.add_argument('--version', required=True)
     p.add_argument('--directory', type=Path, required=True)

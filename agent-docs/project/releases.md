@@ -14,7 +14,7 @@ Build only reviewed sources on the signing host. Keep untrusted PR/fork jobs off
 
 1. Validate the lock, source reachability, clean input trees, PR dependency order, core/platform gitlink and pinned toolchain.
 2. Prepare fresh sources through the complete upstream pipeline, including substitutions, localization, resources and generated versions. Require patch replay without fuzz or rejects. Wait for complete successful preparation before selecting and reserving a version; failed or still-running preparation must not consume a version number. Bind the reservation to the completed report and exact browser lock.
-3. Build both architectures. Run focused changed-feature tests and applicable browser checks for startup, navigation, tabs/windows, persistence, settings, extensions and uBlock.
+3. Build both architectures. Run focused changed-feature tests and applicable browser checks for startup, navigation, tabs/windows, persistence, settings, extensions and uBlock. Release staging requires passing toolbar inset regressions at 1× and 2× display scale on each build.
 4. Check packaged identity, profile/keychain paths, architecture, minimum OS, service endpoints, both effective updater feed selection and bundle metadata, and the Sparkle public key.
 5. Sign nested components with Chromium's signing machinery. Notarize/staple the app and DMG; verify signatures and Gatekeeper acceptance.
 6. Exercise the latest published release updating through a local feed serving the exact final signed DMG, then relaunch and check profile persistence on both architectures. Verify invalid-signature, incompatible-OS and wrong-architecture rejection. The legacy build-2 migration is no longer a recurring gate. Local fixtures are not a public delivery channel.
