@@ -1,0 +1,1069 @@
+--- a/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
++++ b/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
+@@ -5,6 +5,8 @@
+ #include "chrome/browser/ui/webui/onboarding/onboarding_handler.h"
+ 
+ #include "base/functional/bind.h"
++#include "base/containers/fixed_flat_set.h"
++#include "components/helium_services/helium_services_helpers.h"
+ #include "base/strings/string_util.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+@@ -16,6 +18,7 @@
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/browser/extensions/webstore_install_with_prompt.h"
++#include "chrome/browser/extensions/component_loader.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/customize_chrome/side_panel_controller.h"
+ #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
+@@ -31,6 +34,8 @@
+ #include "components/prefs/pref_service.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_ui.h"
++#include "components/helium_services/extension_ids.h"
++#include "extensions/browser/disable_reason.h"
+ #include "extensions/browser/extension_registrar.h"
+ #include "extensions/browser/extension_registry.h"
+ #include "extensions/common/extension.h"
+@@ -39,11 +44,50 @@
+ #include "base/mac/mac_util.h"
+ #endif
+ 
++namespace {
++// Keep in sync with the offered password managers. A renderer cannot grant a
++// one-time exception to arbitrary extensions through the setup message handler.
++constexpr auto kPasswordManagerIds = base::MakeFixedFlatSet<std::string_view>({
++    "ghmbeldphafepmbegfdlkpapadhbakde",  // Proton Pass
++    "nngceckbapebfimnlniiiahkandclblb",  // Bitwarden
++    "aeblfdkhhhdcdjpifhhbdiojplfjncoa",  // 1Password
++    "oboonakemofpalcgghocfoadofidjkkk",  // KeePassXC
++    "fdjamakpfbbddfjaooikfcpapjohcfmg",  // Dashlane
++    "pejdijmoenmkgeppbflobdenhhabjlaj",  // iCloud Passwords
++});
++constexpr const char* kSetupServicePrefs[] = {
++    prefs::kHeliumExtProxyEnabled, prefs::kHeliumBangsEnabled,
++    prefs::kHeliumUBlockAssetsEnabled, prefs::kHeliumComponentUpdatesEnabled,
++#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
++    prefs::kHeliumSpellcheckEnabled,
++#endif
++};
++bool IsSetupServicePref(std::string_view name) {
++  for (auto* key : kSetupServicePrefs) {
++    if (name == key) return true;
++  }
++  return false;
++}
++bool HasSetupServiceEnabled(const PrefService& prefs) {
++  for (auto* key : kSetupServicePrefs) {
++    if (prefs.GetBoolean(key)) return true;
++  }
++  return false;
++}
++}  // namespace
++
+ OnboardingMessageHandler::OnboardingMessageHandler(
+     content::BrowserContext* browser_context)
+     : browser_context_(browser_context),
+       profile_(Profile::FromBrowserContext(browser_context)),
+       pref_service_(profile_->GetPrefs()) {
++  // Reopening setup reflects the actual state of an existing blocker. For a
++  // fresh profile, retain the pending recommendation without installing it.
++  auto* registry = extensions::ExtensionRegistry::Get(browser_context_);
++  if (registry->GetInstalledExtension(helium::kUBlockOriginComponentId)) {
++    pref_service_->SetBoolean(prefs::kHeliumUBlockEnabled,
++        registry->enabled_extensions().Contains(helium::kUBlockOriginComponentId));
++  }
+   pref_change_registrar_.Init(pref_service_);
+ 
+   for (const auto [key, _] : GetPreferencesDict()) {
+@@ -74,7 +118,7 @@
+   // Explicitly allow this one non-Helium preference in onboarding. Keep the
+   // general settings API restricted to its existing Helium namespace.
+   // Show the preferred choice without enabling requests merely by opening
+-  // setup. Next on the search step persists it. Explicit choices, policy values
++  // setup. Next on the Services step persists it. Explicit choices, policy values
+   // and completed profiles keep their existing value when setup is revisited.
+   const bool recommend_suggestions =
+       !pref_service_->GetBoolean(prefs::kHeliumDidOnboarding) &&
+@@ -82,6 +126,13 @@
+   output.Set(prefs::kSearchSuggestEnabled,
+              recommend_suggestions ||
+                  pref_service_->GetBoolean(prefs::kSearchSuggestEnabled));
++  // A previously disabled master gate must not appear as enabled services or
++  // reactivate remembered choices when one individual service is selected.
++  if (!pref_service_->GetBoolean(prefs::kHeliumServicesEnabled)) {
++    for (auto* key : kSetupServicePrefs) {
++      output.Set(std::string(key).substr(sizeof(prefs::kHeliumPrefPrefix) - 1), false);
++    }
++  }
+   return output;
+ }
+ 
+@@ -156,6 +207,10 @@
+       base::BindRepeating(&OnboardingMessageHandler::HandleGetExtensions,
+                           base::Unretained(this)));
+   web_ui()->RegisterMessageCallback(
++      "setUBlockEnabled",
++      base::BindRepeating(&OnboardingMessageHandler::HandleSetUBlockEnabled,
++                         base::Unretained(this)));
++  web_ui()->RegisterMessageCallback(
+       "installExtension",
+       base::BindRepeating(&OnboardingMessageHandler::HandleInstallExtension,
+                           base::Unretained(this)));
+@@ -195,11 +250,51 @@
+                             std::move(filtered_extension_data));
+ }
+ 
++void OnboardingMessageHandler::HandleSetUBlockEnabled(
++    const base::ListValue& args) {
++  if (args.empty() || !args[0].is_string()) return;
++  AllowJavascript();
++  if (args.size() != 2 || !args[1].is_bool()) {
++    RejectJavascriptCallback(args[0], base::Value("Expected an enabled boolean"));
++    return;
++  }
++
++  // Only the bundled blocker is controllable here. Use the normal extension
++  // registrar so disable reasons, policy restrictions and persistence apply.
++  pref_service_->SetBoolean(prefs::kHeliumUBlockEnabled, args[1].GetBool());
++  auto* registrar = extensions::ExtensionRegistrar::Get(browser_context_);
++  if (args[1].GetBool()) {
++    pref_service_->SetBoolean(prefs::kHeliumUBlockInstallAllowed, true);
++    extensions::ComponentLoader::Get(browser_context_)->AddUBlock();
++    registrar->EnableExtension(helium::kUBlockOriginComponentId);
++  } else {
++    registrar->DisableExtension(helium::kUBlockOriginComponentId,
++                               {extensions::disable_reason::DISABLE_USER_ACTION});
++  }
++  const bool enabled = extensions::ExtensionRegistry::Get(browser_context_)
++      ->enabled_extensions().Contains(helium::kUBlockOriginComponentId);
++  ResolveJavascriptCallback(args[0], base::Value(enabled));
++}
++
+ void OnboardingMessageHandler::HandleInstallExtension(
+     const base::ListValue& args) {
+-  CHECK_EQ(2U, args.size());
++  if (args.empty() || !args[0].is_string()) return;
++  AllowJavascript();
+   const auto& callback_id = args[0].GetString();
++  if (args.size() != 3 || !args[1].is_string() || !args[2].is_bool() ||
++      !kPasswordManagerIds.contains(args[1].GetString())) {
++    RejectJavascriptCallback(callback_id,
++        base::DictValue().Set("error", "Invalid password manager request")
++                         .Set("code", extensions::webstore_install::NOT_PERMITTED));
++    return;
++  }
+   const auto& extension_id = args[1].GetString();
++  if (!helium::ShouldAccessExtensionService(*pref_service_) && !args[2].GetBool()) {
++    RejectJavascriptCallback(callback_id,
++        base::DictValue().Set("error", "One-time installation permission required")
++                         .Set("code", extensions::webstore_install::NOT_PERMITTED));
++    return;
++  }
+ 
+   // If the extension is already installed, but disabled, enable it.
+   const auto* registry = extensions::ExtensionRegistry::Get(browser_context_);
+@@ -234,7 +329,8 @@
+       base::BindOnce(&OnboardingMessageHandler::OnExtensionInstallFinished,
+                      weak_ptr_factory_.GetWeakPtr(), callback_id));
+ 
+-  installer->BeginInstall();
++  installer->BeginInstall(
++      !helium::ShouldAccessExtensionService(*pref_service_));
+ }
+ 
+ void OnboardingMessageHandler::OnExtensionInstallFinished(
+@@ -313,6 +409,10 @@
+   const std::string key = args[1].GetString();
+   const std::string pref_name = key == prefs::kSearchSuggestEnabled
+       ? key : prefs::kHeliumPrefPrefix + key;
++  // A pending checkbox selection must not authorize the first installation.
++  if (pref_name == prefs::kHeliumUBlockInstallAllowed) {
++    return RejectJavascriptCallback(callback_id, "Use setup confirmation");
++  }
+   auto* pref = pref_service_->FindPreference(pref_name);
+   if (!pref) {
+     return RejectJavascriptCallback(callback_id, pref_name + " does not exist");
+@@ -322,7 +422,15 @@
+     return RejectJavascriptCallback(callback_id, "invalid value type");
+   }
+ 
++  if (IsSetupServicePref(pref_name) &&
++      !pref_service_->GetBoolean(prefs::kHeliumServicesEnabled)) {
++    for (auto* key : kSetupServicePrefs) pref_service_->SetBoolean(key, false);
++  }
+   pref_service_->Set(pref_name, args[2].Clone());
++  if (IsSetupServicePref(pref_name)) {
++    pref_service_->SetBoolean(prefs::kHeliumServicesEnabled,
++                             HasSetupServiceEnabled(*pref_service_));
++  }
+ 
+   ResolveJavascriptCallback(callback_id, {});
+ }
+--- a/chrome/browser/extensions/webstore_standalone_installer.h
++++ b/chrome/browser/extensions/webstore_standalone_installer.h
+@@ -63,7 +63,9 @@
+   WebstoreStandaloneInstaller& operator=(const WebstoreStandaloneInstaller&) =
+       delete;
+ 
+-  void BeginInstall();
++  // Trusted callers may authorize this installation only, without enabling
++  // the profile-wide extension service or its background updater.
++  void BeginInstall(bool allow_one_time_download = false);
+ 
+  protected:
+   ~WebstoreStandaloneInstaller() override;
+@@ -161,6 +163,8 @@
+  private:
+   friend class base::RefCountedThreadSafe<WebstoreStandaloneInstaller>;
+ 
++  bool allow_one_time_download_ = false;
++
+   // Several delegate/client interface implementations follow. The normal flow
+   // (for successful installs) with the item snippets API is:
+   //
+--- a/chrome/browser/extensions/webstore_standalone_installer.cc
++++ b/chrome/browser/extensions/webstore_standalone_installer.cc
+@@ -52,7 +52,8 @@
+   observation_.Observe(profile);
+ }
+ 
+-void WebstoreStandaloneInstaller::BeginInstall() {
++void WebstoreStandaloneInstaller::BeginInstall(bool allow_one_time_download) {
++  allow_one_time_download_ = allow_one_time_download;
+   // Add a ref to keep this alive for WebstoreDataFetcher.
+   // All code paths from here eventually lead to either CompleteInstall or
+   // AbortInstall, which both call CleanUp to release this ref.
+@@ -77,7 +78,10 @@
+   webstore_data_fetcher_ =
+       std::make_unique<WebstoreDataFetcher>(this, GURL(), id_);
+ 
+-  GURL snippet_url = helium::GetWebstoreSnippetURL(*profile_->GetPrefs(), id_);
++  GURL snippet_url = allow_one_time_download_
++      ? helium::GetServicesBaseURL(*profile_->GetPrefs())
++            .Resolve("/ext/cws_snippet?id=" + id_)
++      : helium::GetWebstoreSnippetURL(*profile_->GetPrefs(), id_);
+ 
+   webstore_data_fetcher_->Start(profile_->GetDefaultStoragePartition()
+                                     ->GetURLLoaderFactoryForBrowserProcess()
+@@ -233,7 +237,8 @@
+                      weak_ptr_factory_.GetWeakPtr()),
+       base::BindOnce(&WebstoreStandaloneInstaller::OnExtensionInstallFailure,
+                      weak_ptr_factory_.GetWeakPtr()),
+-      GetWebContents(), id_, std::move(approval), install_source_);
++      GetWebContents(), id_, std::move(approval), install_source_,
++      allow_one_time_download_);
+   installer->Start();
+ }
+ 
+--- a/extensions/browser/webstore_installer.h
++++ b/extensions/browser/webstore_installer.h
+@@ -87,7 +87,8 @@
+                     content::WebContents* web_contents,
+                     const std::string& id,
+                     std::unique_ptr<InstallApproval> approval,
+-                    InstallSource source);
++                    InstallSource source,
++                    bool allow_one_time_download = false);
+ 
+   // Starts downloading and installing the extension.
+   void Start();
+@@ -167,6 +168,8 @@
+   FailureCallback failure_callback_;
+   std::string id_;
+   InstallSource install_source_;
++  // Applies only to this installer and its required modules, never updates.
++  const bool allow_one_time_download_;
+   // The DownloadItem is owned by the DownloadManager and is valid from when
+   // OnDownloadStarted is called (with no error) until OnDownloadDestroyed().
+   raw_ptr<download::DownloadItem, DanglingUntriaged> download_item_ = nullptr;
+--- a/extensions/browser/webstore_installer.cc
++++ b/extensions/browser/webstore_installer.cc
+@@ -189,10 +189,11 @@
+     params.push_back(installsource_param);
+   }
+   params.push_back("uc");
++  const auto& prefs = *user_prefs::UserPrefs::Get(browser_context_);
+   std::string url_string =
+-      helium::GetExtensionUpdateURL(
+-          *user_prefs::UserPrefs::Get(browser_context_))
+-          .spec();
++      (allow_one_time_download_
++           ? helium::GetServicesBaseURL(prefs).Resolve("/ext")
++           : helium::GetExtensionUpdateURL(prefs)).spec();
+ 
+   GURL url(
+       url_string + "?response=redirect&" +
+@@ -217,13 +218,15 @@
+                                      content::WebContents* web_contents,
+                                      const ExtensionId& id,
+                                      std::unique_ptr<InstallApproval> approval,
+-                                     InstallSource source)
++                                     InstallSource source,
++                                     bool allow_one_time_download)
+     : web_contents_(web_contents->GetWeakPtr()),
+       browser_context_(browser_context),
+       success_callback_(std::move(success_callback)),
+       failure_callback_(std::move(failure_callback)),
+       id_(id),
+       install_source_(source),
++      allow_one_time_download_(allow_one_time_download),
+       approval_(approval.release()) {
+   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+   DCHECK(web_contents);
+--- a/components/helium_onboarding/BUILD.gn
++++ b/components/helium_onboarding/BUILD.gn
+@@ -48,6 +48,7 @@
+     "public/Syne-OFL.txt",
+     "src/app.css",
+     "src/lib/browser/prefs.ts",
++    "src/lib/browser/extensions.ts",
+     "src/lib/browser/appearance.ts",
+     "src/lib/browser/setup.ts",
+     "src/lib/browser/index.ts",
+@@ -57,6 +58,8 @@
+     "src/lib/onboarding-flow.ts",
+     "src/lib/browser/search-engines.ts",
+     "src/components/PageNavigation.svelte",
++    "src/components/PageHeader.svelte",
++    "src/pages/PasswordManager.svelte",
+     "src/components/WelcomeFooter.svelte",
+     "src/components/LuneLogo.svelte",
+     "src/components/HeliumPartner.svelte",
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -48,7 +48,7 @@
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_TITLE" desc="Title of the onboarding screen for Helium services consent.">
+-  Helium services
++  Services
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_SUBTITLE" desc="Subtitle explaining when Helium services consent choices take effect.">
+   Services are not active until you consent to using them. Changes will be applied after you go to the next page.
+@@ -60,22 +60,28 @@
+   Helium services provide additional functionality, such as: extension downloads, native !bangs, filter list updates. When disabled, none of these features will work, but Helium will not make any web requests.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_BANGS_TITLE" desc="Title of the toggle for downloading the Helium bangs list.">
+-  Allow downloading the !bangs list
++  Download !bang shortcuts from Helium
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_BANGS_DESC" desc="Description of the toggle for downloading the Helium bangs list.">
+-  Helium will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.
++  Search sites with !w and other shortcuts. Sends your IP address to Helium when downloading the list.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_TITLE" desc="Title of the toggle for proxying extension downloads and updates.">
+-  Proxy extension downloads and updates
++  Enable Chrome extensions proxied through Helium
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_DESC" desc="Description of the toggle for proxying extension downloads and updates.">
+-  When enabled, Helium will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.
++  Install password managers and other extensions. Sends your IP address, extension IDs, and versions to Helium.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_ENABLED_TITLE" desc="Title of the switch controlling the bundled ad and tracker blocker.">
++  Block ads and trackers
++</message>
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_ENABLED_DESC" desc="Description of the bundled ad and tracker blocker, separate from filter downloads.">
++  Enables the uBlock Origin extension with a pre-bundled filter list.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_TITLE" desc="Title of the toggle for downloading uBlock Origin filter lists.">
+-  Allow downloading filter lists for uBlock Origin
++  Update uBlock Origin filter lists through Helium
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_DESC" desc="Description of the toggle for downloading uBlock Origin filter lists.">
+-  Helium will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with Helium. Optional filter lists will be requested without proxying.
++  Refresh blocking lists. Sends your IP address and list requests to Helium. Optional lists may connect directly to their providers.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_AUTOUPDATES_TITLE" desc="Title of the toggle for automatic browser updates on platforms where Helium updates the browser.">
+   Allow automatic browser updates
+@@ -90,10 +96,10 @@
+   Helium will automatically check for component updates and install them. We recommend keeping this setting enabled. On Linux, browser updates are handled by your distro's package manager. Please check for Helium package updates at least every week.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_SPELLCHECK_TITLE" desc="Title of the toggle for downloading spell check dictionary files.">
+-  Allow downloading dictionary files for spell checking
++  Download spelling dictionaries from Helium
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_SPELLCHECK_DESC" desc="Description of the toggle for downloading spell check dictionary files.">
+-  Helium will fetch dictionary files used for spell checking when requested. When disabled, spell checking will not work.
++  Check spelling on your device. Helium receives your IP address and requested dictionary language.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_TITLE" desc="Title of the option describing custom Helium services instances.">
+   Use your own instance of Helium services
+@@ -253,7 +259,7 @@
+   Built on <ph name="BEGIN_LINK_HELIUM">$1</ph>Helium browser<ph name="END_LINK_HELIUM">$2</ph> and <ph name="BEGIN_LINK_UNGOOGLED">$3</ph>ungoogled-chromium<ph name="END_LINK_UNGOOGLED">$4</ph> with thanks to their authors and contributors
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_PROVIDER" desc="Lune service provider and update disclosure.">
+-  Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.
++  Control connections beyond the websites you visit.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_CONSENT" desc="Lune service provider and update disclosure.">
+   Allow Lune to connect to Helium-hosted services. Choosing Next confirms these settings.
+@@ -262,7 +268,7 @@
+   You can host your own Helium services instance and select it in Lune settings.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_LUNE_UPDATES" desc="Lune service provider and update disclosure.">
+-  Lune checks lune.computer for browser updates and Helium services for component updates. Keep this enabled to receive security fixes.
++  Get browser and security updates.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_UPDATES_TITLE" desc="Automatic browser update switch.">Update browser automatically</message>
+ 
+@@ -285,12 +291,15 @@
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_COVER" desc="Keep the toolbar visible and allow pages to opt into drawing beneath it.">Always cover (experimental)</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_ALWAYS" desc="Onboarding appearance choice.">Always</message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_TITLE" desc="Opt in to search-engine suggestions during setup.">Show search suggestions</message>
+-<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_DESC" desc="Explains partial query disclosure to the chosen search engine.">Sends what you type in the address bar to your search engine</message>
++<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_DESC" desc="Explains partial query disclosure to the chosen search engine.">Sends address bar text to your search engine for suggestions.</message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_SEARCH_SUGGESTIONS" desc="Discloses search suggestions included in the Use defaults setup choice.">Defaults include search suggestions from your selected search engine.</message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_TITLE" desc="Independent automatic Helium service component updates toggle.">
+-  Allow automatic Helium services updates
++  Update security and media components through Helium
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_DESC" desc="Description of automatic Helium service component updates.">
+-  Automatically download and install updates to Helium-provided browser components.
++  Update certificate protections and protected video playback. Sends your IP address, component IDs and versions, browser/OS details, and update results to Helium.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PASSWORD_ONE_TIME_NOTICE" desc="Explains the installation-only Helium permission when ongoing extension service access is off.">
++  Extension services are off. Choosing Install allows a one-time use of Helium’s extension proxy to install that password manager. Helium receives your IP address and the extension request. Your service settings stay unchanged; future extension updates remain disabled.
+ </message>
+ </grit-part>
+--- a/components/helium_onboarding/src/pages/Welcome.svelte
++++ b/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -2,17 +2,18 @@
+     import LuneLogo from "../components/LuneLogo.svelte";
+     import { IconArrowRight } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+-    import { preferences, setPref, acceptLatestSchema, openNewTab } from "../lib/browser";
++    import { setPref, acceptLatestSchema, openNewTab, setUBlockEnabled } from "../lib/browser";
+     import { currentPage, markIntroSeen, nextPage } from "../lib/onboarding-flow";
+     const visible = $derived($currentPage === "Welcome");
+     let working = $state(false);
+-    let updateWrite: Promise<void> = Promise.resolve();
+     const useDefaults = async () => {
+         working = true;
+         try {
+-            await updateWrite;
++            await setUBlockEnabled(true);
+             acceptLatestSchema();
+-            await setPref('services.component_updates', true);
++            for (const key of ['services.browser_updates', 'services.ext_proxy',
++                'services.bangs', 'services.ublock_assets', 'services.spellcheck_files',
++                'services.component_updates'] as const) await setPref(key, true);
+             await setPref('services.enabled', true);
+             await setPref('services.user_consented', true);
+             await setPref('search.suggest_enabled', true);
+@@ -21,7 +22,6 @@
+         } finally { working = false; }
+     };
+     const next = async () => {
+-        await updateWrite;
+         markIntroSeen();
+         nextPage();
+     };
+@@ -37,14 +37,6 @@
+             <button class="ghost" onclick={useDefaults} disabled={working}>{s.button.useDefaults}</button>
+             <button class="primary" onclick={next} disabled={working}>{s.button.configure}<IconArrowRight /></button>
+         </div>
+-        <div class="updates">
+-            <label>
+-                {s.welcome.updatesTitle}
+-                <input type="checkbox" role="switch"
+-                    checked={$preferences['services.browser_updates'] ?? true}
+-                    onchange={(event) => { updateWrite = setPref('services.browser_updates', event.currentTarget.checked); }} />
+-            </label>
+-        </div>
+         </div>
+     </div>
+ </div>
+@@ -74,13 +66,7 @@
+     .primary { background: var(--helium-blue); color: var(--white); padding-right: 16px; }
+     .primary:hover { background: var(--helium-blue-hover); }
+     .ghost { background: transparent; color: light-dark(#234550,#C9D9E3); box-shadow: inset 0 0 0 1px light-dark(#23455059,#C9D9E359); }
+-    button:focus-visible, input:focus-visible { outline: 2px solid var(--helium-blue); outline-offset: 4px; }
+-    .updates { margin-top: 28px; }
+-    label { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; cursor: pointer; }
+-    input { appearance: none; width: 30px; height: 18px; border-radius: 12px; background: color-mix(in srgb,var(--secondary) 30%,transparent); margin: 0; padding: 3px; cursor: pointer; }
+-    input::before { content: ''; display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--bg-gradient-start); transition: transform 150ms; }
+-    input:checked { background: var(--helium-blue); }
+-    input:checked::before { transform: translateX(12px); }
++    button:focus-visible { outline: 2px solid var(--helium-blue); outline-offset: 4px; }
+     /* Start the logo just above center, including when the content needs to scroll. */
+     @keyframes welcome-rise {
+         from { transform: translateY(min(calc(50% - 106px), calc(50svh - 138px))); }
+@@ -92,6 +78,5 @@
+         #welcome-page.visible :global(svg[aria-label="Lune"]),
+         #welcome-page.visible #welcome-page-container,
+         #welcome-page.visible .welcome-content { animation: none; }
+-        input::before { transition: none; }
+     }
+ </style>
+--- a/components/helium_onboarding/src/pages/SearchEngine.svelte
++++ b/components/helium_onboarding/src/pages/SearchEngine.svelte
+@@ -7,7 +7,6 @@
+ 
+     import PageHeader from "../components/PageHeader.svelte";
+     import SearchEngineItem from "../components/SearchEngineItem.svelte";
+-    import PreferenceToggle from "../components/PreferenceToggle.svelte";
+ 
+     const searchDescs: Record<string, string> = s.searchEngines;
+ 
+@@ -26,12 +25,6 @@
+         />
+ 
+         <div class="page-content">
+-            <PreferenceToggle
+-                title={s.search.suggestionsTitle}
+-                desc={s.search.suggestionsDesc}
+-                prefName="search.suggest_enabled"
+-                compact
+-            />
+             <div class="engine-options">
+             {#each $searchEngines as e}
+                 {@const engineKey = getKeyword(e)}
+@@ -55,7 +48,6 @@
+     }
+ 
+     .engine-options {
+-        margin-top: 12px;
+         display: grid;
+         grid-template-columns: repeat(2, minmax(0, 1fr));
+         justify-items: center;
+--- a/components/helium_onboarding/src/pages/HeliumServices.svelte
++++ b/components/helium_onboarding/src/pages/HeliumServices.svelte
+@@ -1,16 +1,13 @@
+ <script lang="ts">
+ 
+-    import { CardLink, HeliumLogo } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { platform } from "../lib/platform";
+     import { currentPage } from "../lib/onboarding-flow";
+-    import { preferences as pr } from "../lib/browser";
+ 
+     import PreferenceToggle from "../components/PreferenceToggle.svelte";
+     import PageHeader from "../components/PageHeader.svelte";
+ 
+     const visible = $derived($currentPage === "HeliumServices");
+-    const servicesEnabled = $derived($pr["services.enabled"]);
+     const services = ([
+         {
+             title: s.services.extensionsTitle,
+@@ -44,45 +41,43 @@
+         <PageHeader
+             title={s.services.title}
+             subtitle={s.services.provider}
+-            Icon={HeliumLogo}
+-            iconHeight="32px"
+         />
+         <div class="page-content">
+             <PreferenceToggle
+-                title={s.services.connectionTitle}
+-                desc={s.services.consent}
+-                prefName="services.enabled"
++                title={s.welcome.updatesTitle}
++                desc={s.services.luneUpdates}
++                prefName="services.browser_updates"
++                compact
+             />
+             <PreferenceToggle
+-                title={s.services.componentUpdatesTitle}
+-                desc={s.services.componentUpdatesDesc}
+-                prefName="services.component_updates"
+-                disabled={!servicesEnabled}
++                title={s.search.suggestionsTitle}
++                desc={s.search.suggestionsDesc}
++                prefName="search.suggest_enabled"
++                compact
+             />
++            {#if !platform.is.android}
++                <PreferenceToggle
++                    title={s.services.ublockEnabledTitle}
++                    desc={s.services.ublockEnabledDesc}
++                    prefName="ublock.enabled"
++                    compact
++                />
++            {/if}
+             <div class="toggle-separator"></div>
+             {#each services as service (service.prefName)}
+                 <PreferenceToggle
+                     title={service.title}
+                     desc={service.desc}
+                     prefName={service.prefName}
+-                    disabled={!servicesEnabled}
++                    compact
+                 />
+             {/each}
+-            <!-- TODO: wire instance settings on android -->
+-            {#if !platform.is.android}
+-                <div
+-                    class="instance-link"
+-                    class:inactive={!servicesEnabled}
+-                    inert={!servicesEnabled}
+-                >
+-                    <CardLink
+-                        title={s.services.instanceTitle}
+-                        desc={s.services.instanceProvider}
+-                        href="chrome://settings/privacy/services"
+-                        disabled={!servicesEnabled}
+-                    />
+-                </div>
+-            {/if}
++            <PreferenceToggle
++                title={s.services.componentUpdatesTitle}
++                desc={s.services.componentUpdatesDesc}
++                prefName="services.component_updates"
++                compact
++            />
+         </div>
+     </div>
+ </div>
+@@ -92,7 +87,13 @@
+         --page-in-delay: 0.1s;
+     }
+ 
++    .page-content { gap: 0; }
++    .page-content :global(.compact-preference) { width: 100%; }
++    .page-content :global(.compact-text) { flex: 1; }
++    .scrollable-page { max-width: 760px; }
++
+     .toggle-separator {
++        margin-block: 12px;
+         height: 2px;
+         width: calc(100% - 48px);
+         background: var(--helium-elevated-10);
+--- a/components/helium_onboarding/src/pages/PasswordManager.svelte
++++ b/components/helium_onboarding/src/pages/PasswordManager.svelte
+@@ -1,4 +1,5 @@
+ <script lang="ts">
++    import { preferences } from "../lib/browser";
+     import { s } from "../lib/strings";
+     import { platform } from "../lib/platform";
+     import { currentPage } from "../lib/onboarding-flow";
+@@ -20,6 +21,15 @@
+             Icon={IconLockStar}
+         />
+ 
++        {#if !$preferences['services.enabled'] || !$preferences['services.ext_proxy'] || !$preferences['services.user_consented']}
++            <div class="one-time-notice">
++                <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
++                    <path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
++                    <path d="M12 9v4m0 4h.01" />
++                </svg>
++                <p>{s.password.oneTimeNotice}</p>
++            </div>
++        {/if}
+         <div class="page-content">
+             {#each Object.entries(passwordManagers) as [id, info]}
+                 {#if !info.platforms || info.platforms.includes(platform.name)}
+@@ -35,6 +45,21 @@
+         max-width: 1000px;
+     }
+ 
++    .one-time-notice {
++        max-width: 640px;
++        display: flex;
++        align-items: center;
++        gap: 16px;
++        text-align: left;
++        padding: 14px 18px;
++        border: 1px solid color-mix(in srgb, var(--secondary) 15%, transparent);
++        border-radius: 14px;
++        backdrop-filter: blur(4px);
++        margin: 24px auto 0;
++        font: 400 12px/18px Inter, sans-serif;
++    }
++    .one-time-notice svg { flex: 0 0 24px; }
++    .one-time-notice p { margin: 0; font: inherit; }
+     .page-content {
+         display: grid;
+         grid-template-columns: repeat(2, minmax(0, 1fr));
+--- a/components/helium_onboarding/src/components/PageHeader.svelte
++++ b/components/helium_onboarding/src/components/PageHeader.svelte
+@@ -7,7 +7,7 @@
+         noTopMargin?: boolean;
+         verticalTitle?: boolean;
+         iconHeight?: string;
+-        Icon: Component;
++        Icon?: Component;
+     };
+ 
+     const {
+@@ -22,6 +22,7 @@
+ 
+ <div class="page-header" class:no-top-margin={noTopMargin}>
+     <div class="title" class:vertical={verticalTitle}>
++        {#if Icon}
+         <div class="header-icon">
+             {#if iconHeight}
+                 <Icon height={iconHeight} />
+@@ -29,6 +30,7 @@
+                 <Icon />
+             {/if}
+         </div>
++        {/if}
+         <h2>{title}</h2>
+     </div>
+     <p>{subtitle}</p>
+@@ -49,7 +51,7 @@
+         & p {
+             font-size: 16px;
+             max-width: 450px;
+-            text-wrap: pretty;
++            text-wrap: balance;
+         }
+ 
+         & .title {
+--- a/components/helium_onboarding/src/components/PageNavigation.svelte
++++ b/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -7,6 +7,7 @@
+         Spinner,
+     } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
++    import { platform } from "../lib/platform";
+     import WelcomeFooter from "./WelcomeFooter.svelte";
+     import { SvelteSet } from "svelte/reactivity";
+     import {
+@@ -16,6 +17,7 @@
+         importDiscovery,
+         importProfile,
+         setPref,
++        setUBlockEnabled,
+         preferences,
+     } from "../lib/browser";
+     import {
+@@ -56,13 +58,20 @@
+     const doNext = async () => {
+         switch ($currentPage) {
+         case "HeliumServices":
+-            // if the user pressed "next" on the HeliumServices page,
+-            // then we mark consent (having seen the page) as true
++            if (!platform.is.android) {
++                await setUBlockEnabled($preferences["ublock.enabled"]);
++            }
++            // Confirm only the services visible on this platform. Browser
++            // updates and search suggestions are independent of Helium.
++            await setPref("services.enabled",
++                $preferences["services.bangs"] ||
++                $preferences["services.component_updates"] ||
++                (!platform.is.android && ($preferences["services.ext_proxy"] ||
++                    $preferences["services.ublock_assets"])) ||
++                (!platform.is.android && !platform.is.macos &&
++                    $preferences["services.spellcheck_files"]));
+             await setPref("services.user_consented", true);
+             acceptLatestSchema();
+-            break;
+-
+-        case "SearchEngine":
+             // The untouched recommendation is only a setup selection until
+             // Next confirms it. Explicit changes already persist via setPref.
+             await setPref("search.suggest_enabled", $preferences["search.suggest_enabled"]);
+@@ -95,6 +104,23 @@
+         }
+     };
+ 
++    const navigate = async (page: Parameters<typeof goToPage>[0]) => {
++        // Forward progress-dot navigation confirms this screen just like Next.
++        // Skipping Services entirely does not authorize installing the blocker.
++        if ($currentPage === "HeliumServices" &&
++            $setupPages.indexOf(page) > currentStep) {
++            working = true;
++            try {
++                await doNext();
++                goToPage(page);
++            } finally {
++                working = false;
++            }
++        } else {
++            goToPage(page);
++        }
++    };
++
+     const next = () => {
+         working = true;
+         doNext()
+@@ -136,7 +162,7 @@
+                 aria-label={pageTitles[page]}
+                 aria-current={page === $currentPage ? 'step' : undefined}
+                 disabled={nextDisabled}
+-                onclick={() => goToPage(page)}
++                onclick={() => navigate(page)}
+             >
+                 <span class="step-dot"></span>
+                 <span class="step-tooltip" role="tooltip">{pageTitles[page]}</span>
+--- a/components/helium_onboarding/src/components/PasswordManagerOption.svelte
++++ b/components/helium_onboarding/src/components/PasswordManagerOption.svelte
+@@ -10,6 +10,7 @@
+ 
+     import {
+         extensionStatus,
++        preferences,
+         installExtension,
+         WebstoreInstallErrorCode,
+         type InstallResponse,
+@@ -52,7 +53,9 @@
+ 
+         working = true;
+ 
+-        await installExtension(info.extensionId)
++        await installExtension(info.extensionId,
++            !$preferences['services.enabled'] || !$preferences['services.ext_proxy'] ||
++            !$preferences['services.user_consented'])
+             .then(handleInstall)
+             .finally(() => working = false);
+     }
+--- a/components/helium_onboarding/src/lib/onboarding-flow.ts
++++ b/components/helium_onboarding/src/lib/onboarding-flow.ts
+@@ -8,8 +8,8 @@
+ 
+ export const flow = [
+     "Welcome",
+-    "HeliumServices",
+     "SearchEngine",
++    "HeliumServices",
+     "DataImport",
+     "PasswordManager",
+     "Finish"
+@@ -27,10 +27,9 @@
+         case 'DataImport':
+             return platform.is.android;
+         case 'PasswordManager':
+-            // skip if we aren't allowed to install extensions
+-            return platform.is.android
+-                || !pref['services.ext_proxy']
+-                || !pref['services.enabled'];
++            // Setup can authorize an individual installation without enabling
++            // ongoing extension downloads and updates.
++            return platform.is.android;
+         default:
+             return false;
+     }
+--- a/components/helium_onboarding/src/lib/browser/extensions.ts
++++ b/components/helium_onboarding/src/lib/browser/extensions.ts
+@@ -62,9 +62,10 @@
+ export type ExtensionStatus = Record<string, boolean>;
+ export const installExtension = async (
+     id: string,
++    allowOneTimeDownload = false,
+ ): Promise<InstallResponse> => {
+     try {
+-        await cr.sendWithPromise('installExtension', id);
++        await cr.sendWithPromise('installExtension', id, allowOneTimeDownload);
+         return { success: true };
+     } catch (err) {
+         let installError: InstallError | undefined;
+@@ -76,4 +77,10 @@
+     }
+ };
+ 
++// Keep in sync with components/helium_services/extension_ids.h.
++export const uBlockOriginId = 'blockjmkbacgjkknlgpkjjiijinjdanf';
++export const setUBlockEnabled = async (enabled: boolean) => {
++    await cr.sendWithPromise<boolean>('setUBlockEnabled', enabled);
++};
++
+ export const extensionStatus = readonly(_extensionStatus);
+--- a/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
++++ b/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
+@@ -21,6 +21,8 @@
+ 
+ const prefs: Record<string, unknown> = {
+     'completed_onboarding': false,
++    'ublock.enabled': true,
++    'ublock.install_allowed': false,
+     'services.bangs': true,
+     'services.enabled': true,
+     'browser.vertical_right_aligned': false,
+@@ -155,7 +157,6 @@
+ const extensionList: ExtensionStatus = {
+     aeblfdkhhhdcdjpifhhbdiojplfjncoa: true,
+     ahfgeienlihckogmohjhadlkjgocpleb: true,
+-    blockjmkbacgjkknlgpkjjiijinjdanf: true,
+     jfnekidfgkhnfagaabpddmioknbjglgp: true,
+     mhjfbmdgcfjbbpaeojofohoefgiehjai: true,
+ };
+@@ -258,12 +259,21 @@
+                 : cr.ImportDataStatus.SUCCEEDED
+             );
+         }, 2000);
++    } else if (msg === 'setUBlockEnabled') {
++        prefs['ublock.enabled'] = params![1];
++        if (params![1]) prefs['ublock.install_allowed'] = true;
++        if (params![1] || 'blockjmkbacgjkknlgpkjjiijinjdanf' in extensionList) {
++            extensionList.blockjmkbacgjkknlgpkjjiijinjdanf = params![1];
++        }
++        cr.webUIListenerCallback('helium-prefs-changed', {...prefs});
++        cr.webUIListenerCallback('extension-state-changed', {...extensionList});
++        cr.webUIResponse(params![0], true, params![1]);
+     } else if (msg === 'getExtensions') {
+         cr.webUIResponse(params![0], true, structuredClone(extensionList));
+     } else if (msg === 'installExtension') {
+         let err: InstallError | undefined;
+ 
+-        if (params?.length !== 2) {
++        if (params?.length !== 3) {
+             err = {
+                 code: 1,
+                 error: 'missing extension ID'
+--- a/chrome/browser/ui/webui/onboarding/onboarding_handler.h
++++ b/chrome/browser/ui/webui/onboarding/onboarding_handler.h
+@@ -53,6 +53,7 @@
+   void HandleSetProfileName(const base::ListValue& args);
+   void HandleGetExtensions(const base::ListValue& args);
+   void HandleInstallExtension(const base::ListValue& args);
++  void HandleSetUBlockEnabled(const base::ListValue& args);
+ #if BUILDFLAG(IS_MAC)
+   void HandleOpenFilesAndFoldersSettings(const base::ListValue& args);
+ #endif
+--- a/components/helium_onboarding/src/components/PreferenceToggle.svelte
++++ b/components/helium_onboarding/src/components/PreferenceToggle.svelte
+@@ -9,32 +9,42 @@
+     type Props = {
+         title: string;
+         desc: string;
+-        prefName: BooleanPreference;
++        prefName?: BooleanPreference;
++        id?: string;
++        checked?: boolean;
++        onchange?: (enabled: boolean) => void | Promise<void>;
+         disabled?: boolean;
+         compact?: boolean;
+     };
+ 
+-    const { title, desc, prefName, disabled, compact = false }: Props = $props();
+-    const checked = $derived($preferences[prefName]);
++    const { title, desc, prefName, id, checked = false, onchange,
++        disabled, compact = false }: Props = $props();
++    const value = $derived(prefName ? $preferences[prefName] : checked);
++    const toggleId = $derived(prefName ?? id);
++    const change = (enabled: boolean) => prefName
++        ? setPref(prefName, enabled) : onchange?.(enabled);
+ </script>
+ 
+ {#if compact}
+     <div class="compact-preference">
+         <div class="compact-text">
+-            <label for={`${prefName}-toggle`}>{title}</label>
+-            <p id={`${prefName}-description`} class="compact-description">{desc}</p>
++            <label for={`${toggleId}-toggle`}>{title}</label>
++            <p id={`${toggleId}-description`} class="compact-description">{desc}</p>
+         </div>
+-        <input id={`${prefName}-toggle`} type="checkbox" role="switch" {checked} {disabled}
+-            aria-describedby={`${prefName}-description`}
+-            onchange={(event) => setPref(prefName, event.currentTarget.checked)} />
++        <input id={`${toggleId}-toggle`} type="checkbox" role="switch" checked={value} {disabled}
++            aria-describedby={`${toggleId}-description`}
++            onchange={async (event) => {
++                const input = event.currentTarget;
++                try { await change(input.checked); } finally { input.checked = value; }
++            }} />
+     </div>
+ {:else}
+ <Toggle
+     name={title}
+     {desc}
+-    {checked}
++    checked={value}
+     {disabled}
+-    onchange={(enabled) => setPref(prefName, enabled)}
++    onchange={change}
+ />
+ {/if}
+ 
+@@ -46,7 +56,6 @@
+         width: fit-content;
+         max-width: 100%;
+         padding: 14px 18px;
+-        border: 1px solid color-mix(in srgb, var(--secondary) 15%, transparent);
+         border-radius: 14px;
+         background: transparent;
+         text-align: left;
+--- a/components/helium_onboarding/src/app.css
++++ b/components/helium_onboarding/src/app.css
+@@ -293,3 +293,6 @@
+     .setup-wallpaper { transition: none; }
+     .setup-wallpaper::before { animation: none; }
+ }
++
++/* Balance descriptive copy throughout setup, including shared cards. */
++.onboarding-page p { text-wrap: balance; }
+--- a/chrome/browser/extensions/component_loader.cc
++++ b/chrome/browser/extensions/component_loader.cc
+@@ -48,6 +48,8 @@
+ #include "components/crx_file/id_util.h"
+ #include "components/omnibox/common/omnibox_features.h"
+ #include "components/prefs/pref_service.h"
++#include "components/helium_services/extension_ids.h"
++#include "components/helium_services/pref_names.h"
+ #include "components/version_info/version_info.h"
+ #include "components/extstore_fixups/resources/grit/extstore_fixups_resources.h"
+ #include "content/public/browser/browser_thread.h"
+@@ -644,6 +646,14 @@
+ }
+ 
+ void ComponentLoader::AddUBlock() {
++  if (Exists(helium::kUBlockOriginComponentId)) return;
++  // Fresh profiles must explicitly confirm setup before their first install.
++  // Preserve existing installations (including user-disabled ones) on upgrade.
++  if (!profile_->GetPrefs()->GetBoolean(::prefs::kHeliumUBlockInstallAllowed) &&
++      !ExtensionPrefs::Get(profile_)->GetInstalledExtensionInfo(
++          helium::kUBlockOriginComponentId, true)) {
++    return;
++  }
+   Add(IDR_UBLOCK_MANIFEST_JSON, base::FilePath(FILE_PATH_LITERAL("ublock")));
+ 
+   using namespace extension_l10n_util;
+--- a/chrome/browser/extensions/component_loader.h
++++ b/chrome/browser/extensions/component_loader.h
+@@ -72,6 +72,10 @@
+   // Creates and loads all registered component extensions.
+   void LoadAll();
+ 
++  // Registers the bundled blocker after setup authorizes its first install.
++  // Existing installations remain eligible, retaining normal disabled state.
++  void AddUBlock();
++
+   // Registers and possibly loads a component extension. If ExtensionService
+   // has been initialized, the extension is loaded; otherwise, the load is
+   // deferred until LoadAll is called. The ID of the added extension is
+@@ -248,7 +252,6 @@
+                                  const std::string& name_string,
+                                  const std::string& description_string);
+   void AddWebStoreApp();
+-  void AddUBlock();
+   void AddExtstoreFixups();
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -300,6 +300,8 @@
+     registry->RegisterBooleanPref(prefs::kHeliumUBlockAssetsEnabled, true);
+     registry->RegisterBooleanPref(prefs::kHeliumWebPushEnabled, true);
+     registry->RegisterStringPref(prefs::kHeliumPushServer, "");
++    registry->RegisterBooleanPref(prefs::kHeliumUBlockEnabled, true);
++    registry->RegisterBooleanPref(prefs::kHeliumUBlockInstallAllowed, false);
+   }
+ 
+   registry->RegisterBooleanPref(
+--- a/components/helium_services/pref_names.h
++++ b/components/helium_services/pref_names.h
+@@ -52,6 +52,11 @@
+ inline constexpr char kHeliumSpellcheckEnabled[] =
+     "helium.services.spellcheck_files";
+ 
++// Setup selection is separate from authorization to install the bundled blocker.
++inline constexpr char kHeliumUBlockEnabled[] = "helium.ublock.enabled";
++inline constexpr char kHeliumUBlockInstallAllowed[] =
++    "helium.ublock.install_allowed";
++
+ inline constexpr char kHeliumUBlockAssetsEnabled[] =
+     "helium.services.ublock_assets";
+ 
+--- a/components/helium_onboarding/src/lib/browser/prefs.ts
++++ b/components/helium_onboarding/src/lib/browser/prefs.ts
+@@ -3,6 +3,7 @@
+ 
+ export type Preferences = {
+     'completed_onboarding': boolean,
++    'ublock.enabled': boolean,
+     'search.suggest_enabled': boolean,
+     'browser.vertical_right_aligned': boolean,
+     'browser.zen_mode_top_chrome_pinned': boolean,

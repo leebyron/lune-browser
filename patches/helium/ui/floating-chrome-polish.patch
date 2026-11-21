@@ -1,0 +1,539 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -308,35 +308,25 @@
+ // mask. AppKit chooses the ring color and accessibility contrast treatment.
+ @interface HeliumGlassAddressField : NSTextField
+ @property(nonatomic, weak) NSView* focusSurface;
++@property(nonatomic) BOOL userEditing;
+ @property(nonatomic, copy) void (^onInitialFocus)(void);
+ @end
+ @implementation HeliumGlassAddressField
+ @synthesize focusSurface = _focusSurface;
++@synthesize userEditing = _userEditing;
+ @synthesize onInitialFocus = _onInitialFocus;
+-- (BOOL)becomeFirstResponder {
+-  const BOOL accepted = [super becomeFirstResponder];
+-  if (accepted) {
+-    __weak HeliumGlassAddressField* weakSelf = self;
+-    dispatch_async(dispatch_get_main_queue(), ^{
+-      HeliumGlassAddressField* field = weakSelf;
+-      if (field.currentEditor && field.onInitialFocus) {
+-        field.onInitialFocus();
+-      }
+-    });
+-  }
+-  return accepted;
++- (BOOL)acceptsFirstResponder {
++  // Keep automatic window activation from silently starting URL editing.
++  return self.userEditing;
+ }
+ - (void)mouseDown:(NSEvent*)event {
+-  const BOOL wasEditing = self.currentEditor != nil;
+-  [super mouseDown:event];
+-  // NSTextField places the caret after its delegate begins editing. Select
+-  // after mouse-up so the first click has the same semantics as Cmd+L.
+-  if (!wasEditing) {
++  if (!self.userEditing) {
+     if (self.onInitialFocus) {
+       self.onInitialFocus();
+     }
+-    [self selectText:nil];
++    return;
+   }
++  [super mouseDown:event];
+ }
+ - (NSRect)focusRingMaskBounds {
+   return [self convertRect:self.focusSurface.bounds fromView:self.focusSurface];
+@@ -348,74 +338,93 @@
+ }
+ @end
+ 
+-@interface HeliumWindowControls : NSView
+-- (void)setPresented:(BOOL)presented;
++// Reuse Helium's native traffic-light group, including AppKit group hover and
++// fullscreen overlay suppression, rather than orphaning standard NSButtons.
++@interface HeliumWindowControls : HeliumFullscreenWindowControls
+ - (instancetype)initWithWindow:(NSWindow*)window;
++- (void)setTopPresented:(BOOL)presented sideReveal:(CGFloat)sideReveal;
+ - (void)refresh;
+-- (void)restoreTitlebarButtons;
+ @end
+ @implementation HeliumWindowControls {
+-  NSWindow* __weak _browserWindow;
+-  NSMutableArray<NSButton*>* _buttons;
+-  NSMutableDictionary<NSNumber*, NSNumber*>* _originalHidden;
++  NSWindow* __weak _ownerWindow;
++  BOOL _topPresented;
++  CGFloat _sideReveal;
++  NSUInteger _generation;
+ }
+ - (instancetype)initWithWindow:(NSWindow*)window {
+-  self = [super initWithFrame:NSMakeRect(0, 0, 96, 36)];
++  self = [super initWithWindow:window size:NSMakeSize(96, 36)];
+   if (!self) {
+     return nil;
+   }
+-  _browserWindow = window;
+-  _buttons = [[NSMutableArray alloc] init];
+-  _originalHidden = [[NSMutableDictionary alloc] init];
+-  const NSWindowStyleMask style =
+-      window.styleMask & ~NSWindowStyleMaskFullScreen;
+-  for (NSWindowButton type :
+-       {NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton}) {
+-    NSButton* original = [window standardWindowButton:type];
+-    if (original) {
+-      _originalHidden[@(type)] = @(original.hidden);
+-    }
+-    NSButton* button = [NSWindow standardWindowButton:type forStyleMask:style];
+-    if (!button) {
+-      continue;
+-    }
+-    button.target = window;
+-    button.action = type == NSWindowCloseButton ? @selector(performClose:)
+-                    : type == NSWindowMiniaturizeButton
+-                        ? @selector(performMiniaturize:)
+-                        : @selector(toggleFullScreen:);
++  _ownerWindow = window;
++  NSUInteger index = 0;
++  for (NSButton* button in self.subviews) {
+     NSRect frame = button.frame;
+-    frame.origin =
+-        NSMakePoint(12 + 26 * _buttons.count, (36 - frame.size.height) / 2);
++    // The first button is centered on the window's 26-point corner center.
++    frame.origin = NSMakePoint(18 - frame.size.width / 2 + 26 * index++,
++                               (36 - frame.size.height) / 2);
+     button.frame = frame;
+-    [_buttons addObject:button];
+-    [self addSubview:button];
+   }
++  self.wantsLayer = YES;
+   self.hidden = YES;
++  self.alphaValue = 0;
+   return self;
+ }
+-- (void)setPresented:(BOOL)presented {
+-  // Traffic lights stay at a fixed window-relative position. There is no
+-  // material behind them and no translation with the glass or sidebar.
+-  self.hidden = !presented;
++- (void)setTopPresented:(BOOL)presented sideReveal:(CGFloat)sideReveal {
++  if (_topPresented == presented && _sideReveal == sideReveal) {
++    return;
++  }
++  const BOOL wasTop = _topPresented;
++  _topPresented = presented;
++  _sideReveal = sideReveal;
++  const NSUInteger generation = ++_generation;
++  const CGFloat amount = presented ? 1 : sideReveal;
++  const BOOL reduced =
++      NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
++  self.hidden = NO;
++  if (!presented && !wasTop) {
++    // Follow the sidebar's existing animation without starting a second one.
++    self.alphaValue = amount;
++    self.layer.transform =
++        CATransform3DMakeTranslation(reduced ? 0 : -12 * (1 - amount), 0, 0);
++    self.hidden = amount == 0;
++    return;
++  }
++  const CGFloat from =
++      self.hiddenOrHasHiddenAncestor || self.alphaValue == 0
++          ? 12
++          : ((CALayer*)self.layer.presentationLayer).transform.m42;
++  const CGFloat to = reduced ? 0 : 12 * (1 - amount);
++  [CATransaction begin];
++  [CATransaction setDisableActions:YES];
++  self.layer.transform = CATransform3DMakeTranslation(0, to, 0);
++  [CATransaction commit];
++  if (!reduced) {
++    CABasicAnimation* motion =
++        [CABasicAnimation animationWithKeyPath:@"transform.translation.y"];
++    motion.fromValue = @(from);
++    motion.toValue = @(to);
++    motion.duration = .18;
++    [self.layer addAnimation:motion forKey:@"traffic-light-presentation"];
++  }
++  __weak HeliumWindowControls* weakSelf = self;
++  [NSAnimationContext
++      runAnimationGroup:^(NSAnimationContext* context) {
++        context.duration = reduced ? 0 : .18;
++        weakSelf.animator.alphaValue = amount;
++      }
++      completionHandler:^{
++        HeliumWindowControls* owner = weakSelf;
++        if (owner && owner->_generation == generation && amount == 0) {
++          owner.hidden = YES;
++        }
++      }];
+ }
+ - (void)refresh {
+-  for (NSNumber* type in _originalHidden) {
+-    [_browserWindow standardWindowButton:static_cast<NSWindowButton>(
+-                                             type.unsignedIntegerValue)]
+-        .hidden = YES;
+-  }
+-  if (_buttons.count > 1) {
+-    _buttons[1].enabled =
+-        !(_browserWindow.styleMask & NSWindowStyleMaskFullScreen);
+-  }
+-}
+-- (void)restoreTitlebarButtons {
+-  for (NSNumber* type in _originalHidden) {
+-    NSButton* button =
+-        [_browserWindow standardWindowButton:static_cast<NSWindowButton>(
+-                                                 type.unsignedIntegerValue)];
+-    button.hidden = _originalHidden[type].boolValue;
++  [self hideTitlebarButtons];
++  if (self.subviews.count > 1) {
++    ((NSButton*)self.subviews[1]).enabled =
++        !(_ownerWindow.styleMask & NSWindowStyleMaskFullScreen);
+   }
+ }
+ @end
+@@ -466,11 +475,16 @@ class HeliumGlassAutocompleteObserver
+     return nil;
+   }
+   _browserView = browserView->GetAsWeakPtr();
+-  _siteInfo = [NSButton
+-      buttonWithImage:[NSImage imageWithSystemSymbolName:@"slider.horizontal.3"
+-                                accessibilityDescription:nil]
+-               target:self
+-               action:@selector(showSiteInfo:)];
++  _siteInfo =
++      [NSButton buttonWithImage:[NSImage imageWithSystemSymbolName:@"gearshape"
++                                          accessibilityDescription:nil]
++                         target:self
++                         action:@selector(showSiteInfo:)];
++  _siteInfo.image =
++      [_siteInfo.image imageWithSymbolConfiguration:
++                           [NSImageSymbolConfiguration
++                               configurationWithPointSize:15
++                                                   weight:NSFontWeightMedium]];
+   _siteInfo.bordered = NO;
+   _siteInfo.frame = NSMakeRect(4, 2, 32, 32);
+   _siteInfo.autoresizingMask = NSViewMinYMargin;
+@@ -494,6 +508,10 @@ class HeliumGlassAutocompleteObserver
+   _address.usesSingleLineMode = YES;
+   _address.delegate = self;
+   _address.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
++  const CGFloat fieldHeight = [_address.cell cellSize].height;
++  _addressContainer.frame =
++      NSMakeRect(40, (36 - fieldHeight) / 2, 400, fieldHeight);
++  _address.frame = _addressContainer.bounds;
+   [_addressContainer addSubview:_address];
+   _suggestions = [[NSMutableArray alloc] init];
+   _autocomplete = std::make_unique<AutocompleteController>(
+@@ -574,6 +592,11 @@ class HeliumGlassAutocompleteObserver
+   _reload.image =
+       [NSImage imageWithSystemSymbolName:loading ? @"xmark" : @"arrow.clockwise"
+                 accessibilityDescription:nil];
++  _reload.image =
++      [_reload.image imageWithSymbolConfiguration:
++                         [NSImageSymbolConfiguration
++                             configurationWithPointSize:15
++                                                 weight:NSFontWeightMedium]];
+   _reload.toolTip = base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
+       loading ? IDS_TOOLTIP_STOP : IDS_TOOLTIP_RELOAD));
+   _reload.accessibilityLabel = _reload.toolTip;
+@@ -615,6 +638,7 @@ class HeliumGlassAutocompleteObserver
+           sizeWithAttributes:@{NSFontAttributeName : _address.font}]
+           .width;
+   _editing = YES;
++  _address.userEditing = YES;
+   _address.alignment = NSTextAlignmentLeft;
+   _address.stringValue = base::SysUTF8ToNSString(
+       LocationBarModel::From(_browserView->browser())->GetURL().spec());
+@@ -669,6 +693,7 @@ class HeliumGlassAutocompleteObserver
+ 
+ - (void)finishEditing {
+   _editing = NO;
++  _address.userEditing = NO;
+   _autocomplete->Stop(AutocompleteStopReason::kClobbered);
+   _matches.clear();
+   for (NSButton* button in _suggestions) {
+@@ -1025,7 +1050,8 @@ void BrowserFrameViewMac::UpdateFullscre
+   BrowserWindowInterface* browser = GetBrowserView()->browser();
+   // Update to the new toolbar style if needed.
+   FullscreenToolbarStyle new_style;
+-  if (fullscreen_utils::IsInContentFullscreen(browser)) {
++  if (HasFloatingAddressBar() ||
++      fullscreen_utils::IsInContentFullscreen(browser)) {
+     new_style = FullscreenToolbarStyle::TOOLBAR_NONE;
+   } else {
+     bool always_show = fullscreen_utils::IsAlwaysShowToolbarEnabled(browser);
+@@ -1433,6 +1459,11 @@ void BrowserFrameViewMac::Layout(PassKey
+     content.layer.cornerRadius =
+         GetBrowserView()->IsFullscreen() ? 0 : GetSystemWindowRadius();
+     content.layer.masksToBounds = YES;
++    // Native material is a sibling of the content view. Clip their common
++    // frame too so both sides use the same actual outer perimeter.
++    content.superview.wantsLayer = YES;
++    content.superview.layer.cornerRadius = content.layer.cornerRadius;
++    content.superview.layer.masksToBounds = YES;
+   }
+   UpdateFloatingAddressBar();
+ }
+@@ -1699,10 +1730,11 @@ void BrowserFrameViewMac::UpdateFloating
+ void BrowserFrameViewMac::UpdateFloatingWindowControls(bool presented) {
+   auto* view = GetBrowserView();
+   const bool eligible = HasFloatingAddressBar();
+-  const bool left_sidebar_visible = !view->IsVerticalTabStripRightAligned() &&
+-                                    (view->IsZenModeSideChromePinned() ||
+-                                     view->GetSideChromeRevealRatio() > 0);
+-  presented = presented || left_sidebar_visible;
++  const CGFloat side_reveal = view->IsVerticalTabStripRightAligned()
++                                  ? 0
++                                  : (view->IsZenModeSideChromePinned()
++                                         ? 1
++                                         : view->GetSideChromeRevealRatio());
+   auto* host = static_cast<views::NativeViewHost*>(
+       floating_window_controls_host_.view());
+   if (!eligible) {
+@@ -1719,11 +1751,12 @@ void BrowserFrameViewMac::UpdateFloating
+         initWithWindow:GetWidget()->GetNativeWindow().GetNativeNSWindow()];
+     host->Attach(gfx::NativeView(floating_window_controls_));
+   }
+-  host->SetBoundsRect(gfx::Rect(4, 4, 96, 36));
++  host->SetBoundsRect(gfx::Rect(8, 8 + TopUIFullscreenYOffset(), 96, 36));
+   floating_window_controls_.appearance = floating_address_bar_.appearance;
+   [floating_window_controls_ refresh];
+-  [floating_window_controls_ setPresented:presented];
+-  host->SetVisible(presented || !floating_window_controls_.hidden);
++  [floating_window_controls_ setTopPresented:presented sideReveal:side_reveal];
++  host->SetVisible(presented || side_reveal > 0 ||
++                   !floating_window_controls_.hidden);
+ }
+ 
+ int BrowserFrameViewMac::FloatingToolbarWidth() {
+@@ -1750,7 +1783,7 @@ int BrowserFrameViewMac::FloatingToolbar
+                                views::BoxLayout::Orientation::kHorizontal,
+                                gfx::Insets::VH(0, 4), 0))
+         ->set_cross_axis_alignment(
+-            views::BoxLayout::CrossAxisAlignment::kStretch);
++            views::BoxLayout::CrossAxisAlignment::kCenter);
+     floating_toolbar_widget_->SetContentsView(std::move(root));
+     NSView* native =
+         floating_toolbar_widget_->GetNativeView().GetNativeNSView();
+--- a/chrome/browser/ui/views/frame/contents_container_outline.cc
++++ b/chrome/browser/ui/views/frame/contents_container_outline.cc
+@@ -147,6 +147,11 @@ void ContentsContainerOutline::UpdateSta
+ }
+ 
+ void ContentsContainerOutline::OnPaint(gfx::Canvas* canvas) {
++#if BUILDFLAG(IS_MAC)
++  if (!is_highlighted_) {
++    return;  // The content edge has a shadow, not an additional outline.
++  }
++#endif
+   const int frame_thickness = GetThickness(false);
+   if (frame_thickness <= 0 && !is_highlighted_) {
+     return;
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -33,7 +33,9 @@
+ #include "chrome/browser/ui/views/animations/side_panel_animations.h"
+ #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
+ #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
++#include "chrome/browser/ui/views/frame/browser_frame_view.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/frame/browser_widget.h"
+ #include "chrome/browser/ui/views/frame/contents_container_outline.h"
+ #include "chrome/browser/ui/views/frame/custom_corners.h"
+ #include "chrome/browser/ui/views/frame/custom_corners_background.h"
+@@ -1107,9 +1109,18 @@ BrowserViewTabbedLayoutImpl::CalculatePr
+                     zen.vertical_tab_strip_padding;
+ 
+       int top_offset = vertical_tab_strip_animation.top_offset;
++
+       if (zen.enabled) {
+         top_offset = ScaleExtent(top_offset, zen.top_chrome_ratio);
+       }
++#if BUILDFLAG(IS_MAC)
++      if (static_cast<BrowserView*>(views().browser_view)
++              ->browser_widget()
++              ->GetFrameView()
++              ->HasFloatingAddressBar()) {
++        top_offset = zen.floating_vertical_tab_strip ? 0 : 8;
++      }
++#endif
+ 
+       const int vertical_tab_strip_height =
+           std::max(0, params.visual_client_area.height() - top_offset -
+--- a/chrome/browser/ui/views/frame/multi_contents_view.cc
++++ b/chrome/browser/ui/views/frame/multi_contents_view.cc
+@@ -590,7 +590,9 @@ views::ProposedLayout MultiContentsView:
+     single_insets.set_right(contents_separators_.trailing_side_chrome_attached
+                                 ? 0
+                                 : kSplitViewContentInset);
++#if !BUILDFLAG(IS_MAC)
+     available_space.Inset(single_insets);
++#endif
+   }
+   ViewSizes sizes = GetViewSizes(available_space);
+ 
+@@ -882,13 +884,8 @@ int MultiContentsView::GetMinViewSize(gf
+ }
+ 
+ bool MultiContentsView::ShouldUseRoundedFrame() const {
+-#if BUILDFLAG(IS_MAC)
+-  const bool is_fullscreen =
+-      fullscreen_utils::IsInContentFullscreen(browser_view_->browser());
+-#else
+   const views::Widget* widget = browser_view_->GetWidget();
+   const bool is_fullscreen = widget && widget->IsFullscreen();
+-#endif
+   return browser_view_->GetIsNormalType() && is_rounded_frame_pref_enabled_ &&
+          !is_fullscreen;
+ }
+--- a/chrome/browser/ui/views/helium/frame_corner_radius.cc
++++ b/chrome/browser/ui/views/helium/frame_corner_radius.cc
+@@ -22,6 +22,11 @@ int GetSystemWindowRadius() {
+ #endif
+ 
+ int GetPaddedFrameRadius() {
++#if BUILDFLAG(IS_MAC)
++  // The rail is already reserved by ContentsContainerView; no extra inset.
++  return GetSystemWindowRadius();
++#else
+   return GetSystemWindowRadius() -
+          GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
++#endif
+ }
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
+@@ -12,7 +12,9 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
+ #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
++#include "chrome/browser/ui/views/frame/browser_frame_view.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/frame/browser_widget.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
+ #include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
+@@ -27,6 +29,12 @@
+ 
+ namespace {
+ 
++bool HasFloatingControls(const BrowserView* browser_view) {
++  const auto* widget = browser_view->browser_widget();
++  return widget && widget->GetFrameView() &&
++         widget->GetFrameView()->HasFloatingAddressBar();
++}
++
+ constexpr int kToolbarControlRowSpacing = 4;
+ 
+ struct ToolbarControl {
+@@ -185,6 +193,9 @@ int VerticalTabStripHeaderView::GetToolb
+ 
+ gfx::Size VerticalTabStripHeaderView::CalculatePreferredSize(
+     const views::SizeBounds& available_size) const {
++  if (HasFloatingControls(browser_view_)) {
++    return gfx::Size(0, 36);
++  }
+   if (!GetVisible() || is_collapsed_) {
+     return gfx::Size(0, 0);
+   }
+@@ -217,6 +228,27 @@ gfx::Size VerticalTabStripHeaderView::Ge
+ 
+ void VerticalTabStripHeaderView::Layout(PassKey) {
+   LayoutSuperclass<views::View>(this);
++  const bool floating = HasFloatingControls(browser_view_);
++  const int horizontal_padding =
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++  SetProperty(views::kMarginsKey,
++              gfx::Insets::TLBR(floating ? 0 : 5, horizontal_padding, 4,
++                                horizontal_padding));
++  if (floating && GetVisible()) {
++    top_controls_container_->SetBounds(0, 0, width(), 36);
++    for (views::View* child : top_controls_container_->children()) {
++      if (child == sidebar_pin_button_) {
++        const gfx::Size size = child->GetPreferredSize();
++        child->SetBounds(browser_view_->IsVerticalTabStripRightAligned()
++                             ? 0
++                             : std::max(0, width() - size.width()),
++                         (36 - size.height()) / 2, size.width(), size.height());
++      } else {
++        child->SetVisible(false);
++      }
++    }
++    return;
++  }
+   if (!GetVisible() || is_collapsed_) {
+     return;
+   }
+@@ -376,7 +408,7 @@ void VerticalTabStripHeaderView::AttachT
+   }
+ 
+   top_controls_container_->SetVisible(true);
+-  SetVisible(!is_collapsed_);
++  SetVisible(HasFloatingControls(browser_view_) || !is_collapsed_);
+   InvalidateLayout();
+ }
+ 
+@@ -405,9 +437,10 @@ void VerticalTabStripHeaderView::SetColl
+   }
+   is_collapsed_ = collapsed;
+ 
+-  SetVisible(!is_collapsed_ && (location_bar_view_ != nullptr ||
+-                                (top_controls_container_ &&
+-                                 top_controls_container_->GetVisible())));
++  SetVisible(
++      (HasFloatingControls(browser_view_) || !is_collapsed_) &&
++      (location_bar_view_ != nullptr ||
++       (top_controls_container_ && top_controls_container_->GetVisible())));
+   InvalidateLayout();
+ }
+ 
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -237,6 +237,10 @@ void ToolbarButton::UpdateColorsAndInset
+     SetBorder(views::CreateEmptyBorder(target_insets));
+   }
+ 
++  if (GetWidget() && GetWidget()->GetName() == "Floating browser actions") {
++    SetBackground(nullptr);
++    SetBorder(views::CreateEmptyBorder(target_insets));
++  }
+   // Update spacing on the outer-side of the label to match the current
+   // highlight radius.
+   SetLabelSideSpacing(highlight_radius / 2);
+--- a/chrome/browser/ui/views/toolbar/toolbar_chip_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_chip_button.cc
+@@ -14,6 +14,7 @@
+ #include "ui/views/background.h"
+ #include "ui/views/controls/highlight_path_generator.h"
+ #include "ui/views/view_class_properties.h"
++#include "ui/views/widget/widget.h"
+ 
+ ToolbarChipButton::ToolbarChipButton(PressedCallback callback,
+                                      std::optional<Edge> flat_edge)
+@@ -52,7 +53,8 @@ void ToolbarChipButton::UpdateColorsAndI
+   const int rounded_corner_radius = GetRoundedCornerRadius();
+ 
+   const auto* color_provider = GetColorProvider();
+-  if (flat_edge_.has_value() && color_provider) {
++  if (flat_edge_.has_value() && color_provider &&
++      !(GetWidget() && GetWidget()->GetName() == "Floating browser actions")) {
+     const gfx::Size target_size = GetTargetSize();
+     const int extra_height =
+         std::max(0, target_size.height() -
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -2946,6 +2946,9 @@ void ToolbarView::SetFloatingControlsHos
+                        std::min(state.original_index, children().size()));
+       }
+     }
++    if (!floating_controls_state_.empty()) {
++      app_menu_button_->SetPreferredSize(std::nullopt);
++    }
+     floating_controls_state_.clear();
+     InvalidateLayout();
+     return;
+@@ -2953,6 +2956,7 @@ void ToolbarView::SetFloatingControlsHos
+   if (!floating_controls_state_.empty() || !sidebar_controls_host_) {
+     return;
+   }
++  app_menu_button_->SetPreferredSize(gfx::Size(32, 32));
+   const auto controls = children();
+   for (size_t i = 0; i < controls.size(); ++i) {
+     views::View* control = controls[i];

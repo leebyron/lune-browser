@@ -1,0 +1,22 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -3182,14 +3182,14 @@
+     [floating_address_bar_ refresh];
+   }
+   // Keyboard address editing reveals the same surface as pointer entry.
+-  // Preserve presentation while AppKit tracks a resize or the green-button
+-  // menu (or another chrome menu). Geometry still updates, and hidden
+-  // surfaces are not forced open.
++  // Preserve presentation while AppKit tracks a window drag, resize or
++  // native menu. In particular, dragging the sidebar must not reveal a hidden
++  // header. Geometry still updates throughout the gesture.
+   const bool present = browser_view->IsTopChromeRevealHeldForMenu() ||
+       browser_view->IsZenModeTopChromePinned() || customize_open ||
+-      ((resizing || window_menu_open)
++      ((dragging || resizing || window_menu_open)
+           ? [floating_address_bar_ isPresented]
+-          : dragging || in_rail || in_sidebar_header || within_retention ||
++          : in_rail || in_sidebar_header || within_retention ||
+                 editing || ([floating_address_bar_ isPresented] && bubble_open));
+   UpdateFloatingToolbar(bar_region, present);
+   UpdateFloatingWindowControls(present);

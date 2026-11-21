@@ -1,0 +1,16 @@
+--- a/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
++++ b/components/remote_cocoa/app_shim/native_widget_mac_nswindow.mm
+@@ -911,6 +911,13 @@
+ }
+ 
+ - (void)cursorUpdate:(NSEvent*)theEvent {
++  // Full-size browser content overlaps AppKit's interior resize hit targets.
++  // Use the same native predicate as frame mouse-down routing, rather than a
++  // guessed inset, so the content cursor cannot replace a working resize cursor.
++  if ([self _resizeDirectionForMouseLocation:theEvent.locationInWindow] != -1) {
++    [super cursorUpdate:theEvent];
++    return;
++  }
+   // The cursor provided by the delegate should only be applied within the
+   // content area. This is because we rely on the contentView to track the
+   // mouse cursor and forward cursorUpdate: messages up the responder chain.

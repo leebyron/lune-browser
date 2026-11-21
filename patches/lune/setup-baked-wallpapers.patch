@@ -1,0 +1,49 @@
+--- a/components/helium_onboarding/src/app.css
++++ b/components/helium_onboarding/src/app.css
+@@ -204,28 +204,24 @@
+ body, button { font-family: Inter, sans-serif; }
+ 
+ :root { --font: Inter, sans-serif; }
+-/* Served from the browser resource pack, including when offline.
+-   Precompose each theme's wallpaper tint, then fade the complete layer over
+-   its sampled 64x64 center average. The center stays steady during the fade. */
++/* Finished local wallpapers need no runtime tint or blending. Fade each over
++   its sampled 64x64 center average to keep the center steady during reveal. */
+ :root {
+-    --setup-background: light-dark(#E7EDE4, #0A2B44);
+-    --wallpaper-wash: light-dark(rgb(231 237 227 / .9), rgb(16 53 79 / .55));
+-    --wallpaper-shade: light-dark(transparent, rgb(0 0 0 / .3));
++    --setup-background: light-dark(#F1F6F2, #012034);
+ }
+ /* The renderer extends the root background into the reserved toolbar band. */
+ html, body { background: var(--setup-background); }
+ main::before {
+     content: ''; position: absolute; inset: -16px;
+-    background-image: linear-gradient(var(--wallpaper-wash), var(--wallpaper-wash)),
+-        linear-gradient(var(--wallpaper-shade), var(--wallpaper-shade)), url('/wallpaper.jpg');
+-    background-color: light-dark(#E7EDE3, #10354F);
++    background-image: url('/wallpaper-dark.jpg');
++    background-color: var(--setup-background);
+     background-position: center; background-size: cover;
+     opacity: 1; transform: scale(1.05); pointer-events: none;
+     animation: wallpaper-in 1600ms cubic-bezier(.25,.1,.25,1) 1300ms both,
+         wallpaper-rise 3500ms cubic-bezier(.45,0,.55,1) both;
+ }
+ @media (prefers-color-scheme: light) {
+-    main::before { background-blend-mode: normal, normal, screen; }
++    main::before { background-image: url('/wallpaper-light.jpg'); }
+ }
+ @keyframes wallpaper-rise { from { translate: 0 12px; } to { translate: 0 -4px; } }
+ @keyframes wallpaper-in { from { opacity: 0; transform: scale(1); } to { opacity: 1; transform: scale(1.05); } }
+--- a/components/helium_onboarding/BUILD.gn
++++ b/components/helium_onboarding/BUILD.gn
+@@ -42,7 +42,8 @@
+     "public/lune-app.svg",
+     "public/inter-latin.woff2",
+     "public/syne-latin.woff2",
+-    "public/wallpaper.jpg",
++    "public/wallpaper-light.jpg",
++    "public/wallpaper-dark.jpg",
+     "public/Inter-OFL.txt",
+     "public/Syne-OFL.txt",
+     "src/app.css",

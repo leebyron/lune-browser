@@ -1,0 +1,63 @@
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -57,10 +57,17 @@
+     SetImageLabelSpacing(7);
+     SetPreferredSize(
+         gfx::Size(-1, GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
+-    SetTooltipText(l10n_util::GetStringUTF16(message));
+     GetViewAccessibility().SetName(l10n_util::GetStringUTF16(message));
+   }
+ 
++  views::View* GetTooltipHandlerForPoint(const gfx::Point& point) override {
++    // The visible label already names the action. Keep the tooltip only for
++    // the icon-only collapsed sidebar; accessible names remain unchanged.
++    return GetText().empty()
++               ? views::LabelButton::GetTooltipHandlerForPoint(point)
++               : nullptr;
++  }
++
+   void OnThemeChanged() override {
+     views::LabelButton::OnThemeChanged();
+     const SkColor color = helium::NativeGlassControlColor(this).value_or(
+@@ -114,6 +121,11 @@
+     size.set_height(GetLayoutConstant(LayoutConstant::kVerticalTabHeight));
+     return size;
+   }
++  void ChildVisibilityChanged(views::View* child) override {
++    // This row lays out its children directly, without a layout manager to
++    // observe visibility changes. Reclaim the close target's width on hover.
++    InvalidateLayout();
++  }
+   void Layout(PassKey) override {
+     const auto close_size = close_->GetPreferredSize();
+     // Match the tab layout's equal top, bottom and trailing clearance.
+@@ -231,11 +243,18 @@
+                       IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL));
+   default_button_->GetViewAccessibility().SetName(
+       l10n_util::GetStringUTF16(IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL));
++  default_button_->SetTooltipText(
++      collapsed ? l10n_util::GetStringUTF16(
++                      IDS_DEFAULT_BROWSER_INFOBAR_OK_BUTTON_LABEL)
++                : u"");
+   update_button_->SetText(
+       collapsed ? u""
+                 : l10n_util::GetStringUTF16(IDS_APP_MENU_BUTTON_UPDATE_ALT2));
+   update_button_->GetViewAccessibility().SetName(
+       l10n_util::GetStringUTF16(IDS_APP_MENU_BUTTON_UPDATE_ALT2));
++  update_button_->SetTooltipText(
++      collapsed ? l10n_util::GetStringUTF16(IDS_APP_MENU_BUTTON_UPDATE_ALT2)
++                : u"");
+   static_cast<SidebarDefaultBrowserRow*>(default_prompt_.get())
+       ->SetCollapsed(collapsed);
+   default_prompt_->SetVisible(has_default_prompt_);
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
+@@ -16,7 +16,7 @@
+                               accessibilityDescription:nil];
+   symbol = [symbol imageWithSymbolConfiguration:
+                        [NSImageSymbolConfiguration
+-                           configurationWithPointSize:12
++                           configurationWithPointSize:11
+                                                weight:NSFontWeightMedium]];
+   NSImage* image = [NSImage
+        imageWithSize:NSMakeSize(16, 16)

@@ -1,0 +1,260 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -358,6 +358,23 @@
+ }
+ @end
+ 
++// An overlay hairline separates pinned sidebar chrome from the page without
++// consuming layout width or affecting native/sidebar resize hit testing.
++@interface HeliumSidebarDivider : NSView
++@property(nonatomic) BOOL rightAligned;
++@end
++@implementation HeliumSidebarDivider
++- (NSView*)hitTest:(NSPoint)point {
++  return nil;
++}
++- (void)drawRect:(NSRect)dirtyRect {
++  const CGFloat pixel = 1.0 / self.window.backingScaleFactor;
++  const CGFloat x = self.rightAligned ? 0 : NSWidth(self.bounds) - pixel;
++  [NSColor.separatorColor setFill];
++  NSRectFill(NSMakeRect(x, 0, pixel, NSHeight(self.bounds)));
++}
++@end
++
+ @interface HeliumGlassSidebarButton : HeliumGlassSurface
+ - (instancetype)initWithBrowserView:(BrowserView*)view;
+ - (void)refreshEmbedded:(BOOL)embedded;
+@@ -526,7 +543,10 @@
+ }
+ - (NSView*)hitTest:(NSPoint)point {
+   const NSPoint local = [self convertPoint:point fromView:self.superview];
+-  if (!self.enabled || self.hidden || !NSPointInRect(local, [self interactiveBounds]) ||
++  // Block document input throughout the visible header, including the strip
++  // reserved for native resizing. AppKit handles resizing before view dispatch;
++  // our cursor registration and window dragging still exclude that perimeter.
++  if (!self.enabled || self.hidden || !NSPointInRect(local, self.bounds) ||
+       NSPointInRect(local, self.addressBounds) ||
+       NSPointInRect(local, self.navigationBounds) ||
+       NSPointInRect(local, self.windowControlsBounds) ||
+@@ -536,11 +556,16 @@
+   return self;
+ }
+ - (void)mouseDown:(NSEvent*)event {
+-  if (!self.enabled || self.hidden) {
++  const NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
++  if (!self.enabled || self.hidden ||
++      !NSPointInRect(point, [self interactiveBounds])) {
+     return;
+   }
+   [self startWindowDrag:event];
+ }
++- (void)scrollWheel:(NSEvent*)event {
++  // Do not forward scrolling through this visible header to the document.
++}
+ - (void)startWindowDrag:(NSEvent*)event {
+   if (!_browser || event.type != NSEventTypeLeftMouseDown) {
+     return;
+@@ -1327,6 +1352,10 @@
+     static_cast<views::NativeViewHost*>(host)->Detach();
+   }
+   floating_address_bar_ = nil;
++  if (auto* host = pinned_sidebar_divider_host_.view()) {
++    static_cast<views::NativeViewHost*>(host)->Detach();
++  }
++  pinned_sidebar_divider_ = nil;
+   // Closing the window needs no titlebar restoration. AppKit can query the
+   // already-destroyed widget delegate if button visibility changes here.
+   if (auto* host = floating_window_controls_host_.view()) {
+@@ -2052,7 +2081,16 @@
+     }
+   }
+   const int glass_inset = 8;
+-  const gfx::Rect side = browser_view->GetFloatingSidebarBounds();
++  gfx::Rect side = browser_view->GetFloatingSidebarBounds();
++  if (browser_view->IsZenModeSideChromePinned()) {
++    if (auto* sidebar = browser_view->GetSidebarView();
++        sidebar && sidebar->GetVisible()) {
++      side = views::View::ConvertRectToTarget(sidebar, browser_view,
++                                              sidebar->GetLocalBounds());
++    }
++  }
++  // Use the same adjacent gap for pinned and fully revealed sidebars, so
++  // pinning changes page layout without moving the native navigation group.
+   if (!side.IsEmpty()) {
+     if (browser_view->IsVerticalTabStripRightAligned()) {
+       content.set_width(
+@@ -2153,8 +2191,9 @@
+     floating_navigation_.appearance = FloatingChromeAppearance(GetBrowserView());
+     floating_toolbar_material_.appearance = FloatingChromeAppearance(GetBrowserView());
+ 
+-    floating_drag_region_.addressBounds = NSMakeRect(
+-        bounds.x(), 8, bounds.width(), bounds.height());
++    floating_drag_region_.addressBounds =
++        [floating_drag_region_ convertRect:floating_address_bar_.bounds
++                                  fromView:floating_address_bar_];
+     return;
+   }
+   if (!host || !host->GetVisible()) {
+@@ -2198,11 +2237,8 @@
+       !view->IsVerticalTabStripRightAligned() && !presented && !side.IsEmpty()
+           ? side.x() + 8
+           : 8;
+-  // Pinned-sidebar controls stay fixed. Popover and toolbar controls follow
+-  // the fullscreen menu bar together.
+-  const bool in_pinned_sidebar = !view->IsVerticalTabStripRightAligned() &&
+-                                 view->IsZenModeSideChromePinned();
+-  const int y = in_pinned_sidebar ? 8 : 8 + TopUIFullscreenYOffset();
++  // All chrome follows the menu-bar fraction, including a pinned sidebar.
++  const int y = 8 + TopUIFullscreenYOffset();
+   host->SetBoundsRect(
+       gfx::Rect(x, y,
+                 base::ClampCeil(HeliumWindowControlsWidth(
+@@ -2325,7 +2361,9 @@
+   }
+   if (!region.IsEmpty() && nav) {
+     nav->SetBoundsRect(gfx::Rect(region.x(), region.y(), 76, 36));
+-    gfx::Rect drag_bounds(0, region.y() - 8, view->width(), 56);
++    // Cover the gap above controls even while the fullscreen menu bar lowers
++    // them. Only the controls move; the input shield stays at the window top.
++    gfx::Rect drag_bounds(0, 0, view->width(), region.y() - 8 + 56);
+     if (auto* panel = view->side_panel(); panel && panel->GetVisible()) {
+       const gfx::Rect panel_bounds = views::View::ConvertRectToTarget(
+           panel, view, panel->GetLocalBounds());
+@@ -2342,7 +2380,7 @@
+         [floating_drag_region_ convertRect:floating_navigation_.bounds
+                                   fromView:floating_navigation_];
+     floating_drag_region_.windowControlsBounds =
+-        NSMakeRect(8, 8 - TopUIFullscreenYOffset(),
++        NSMakeRect(8, 8 + TopUIFullscreenYOffset(),
+                    HeliumWindowControlsWidth(
+                        GetWidget()->GetNativeWindow().GetNativeNSWindow()),
+                    36);
+@@ -2459,6 +2497,11 @@
+   auto* sidebar =
+       static_cast<VerticalTabStripRegionView*>(view->GetSidebarView());
+   const bool eligible = HasFloatingAddressBar() && sidebar;
++  auto* divider =
++      static_cast<views::NativeViewHost*>(pinned_sidebar_divider_host_.view());
++  if (divider) {
++    divider->SetVisible(eligible && view->IsZenModeSideChromePinned());
++  }
+   auto* background = static_cast<views::NativeViewHost*>(
+       floating_sidebar_material_host_.view());
+   auto* button_host =
+@@ -2475,6 +2518,24 @@
+   }
+   const bool detached = !view->IsZenModeSideChromePinned();
+   const bool right = view->IsVerticalTabStripRightAligned();
++  if (!detached) {
++    if (!divider) {
++      divider = view->AddChildView(std::make_unique<views::NativeViewHost>());
++      divider->SetCanProcessEventsWithinSubtree(false);
++      pinned_sidebar_divider_host_.SetView(divider);
++      pinned_sidebar_divider_ =
++          [[HeliumSidebarDivider alloc] initWithFrame:NSZeroRect];
++      divider->Attach(gfx::NativeView(pinned_sidebar_divider_));
++    }
++    const gfx::Rect side = views::View::ConvertRectToTarget(
++        sidebar, view, sidebar->GetLocalBounds());
++    divider->SetBounds(right ? side.x() : side.right() - 1, 0, 1,
++                       view->height());
++    pinned_sidebar_divider_.rightAligned = right;
++    pinned_sidebar_divider_.appearance = FloatingChromeAppearance(view);
++    pinned_sidebar_divider_.needsDisplay = YES;
++    divider->SetVisible(true);
++  }
+   const CGFloat reveal = detached ? view->GetSideChromeRevealRatio() : 1;
+   if (detached) {
+     if (!background) {
+@@ -2573,10 +2634,10 @@
+       sidebar, view, sidebar->GetLocalBounds());
+   // Keep the toggle on the sidebar only. No independent toolbar pill or
+   // movement between surfaces as the unpinned panel opens and closes.
+-  const int inset = detached ? 2 : 4;
++  const int inset = 4;
+   const int x =
+       right ? sidebar_bounds.x() + inset : sidebar_bounds.right() - 36 - inset;
+-  button_host->SetBounds(x, detached ? sidebar_bounds.y() + 8 : 8, 36, 36);
++  button_host->SetBounds(x, sidebar_bounds.y() + 8, 36, 36);
+   floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   [floating_sidebar_button_ refreshEmbedded:YES];
+   const CGFloat visibility = sidebar_visible ? reveal : 0;
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -1122,12 +1122,11 @@
+               ->browser_widget()
+               ->GetFrameView()
+               ->HasFloatingAddressBar()) {
+-        top_offset = zen.floating_vertical_tab_strip
+-                         ? static_cast<BrowserView*>(views().browser_view)
+-                               ->browser_widget()
+-                               ->GetFrameView()
+-                               ->GetFloatingChromeTopOffset()
+-                         : 0;
++        // Both sidebar modes follow the same AppKit menu-bar animation.
++        top_offset = static_cast<BrowserView*>(views().browser_view)
++                         ->browser_widget()
++                         ->GetFrameView()
++                         ->GetFloatingChromeTopOffset();
+       }
+ #endif
+ 
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -356,6 +356,16 @@
+     return false;
+   }
+ 
++  // The tab-strip view fills its available height, including empty space.
++  // Ask it which parts are controls rather than treating that whole rectangle
++  // as a tab. Caption hits restore native dragging and the sidebar menu.
++  if (auto* strip = views::AsViewClass<TabStripView>(tab_strip_view());
++      strip && strip->GetVisible() && IsHitInView(strip, point)) {
++    gfx::Point local = point;
++    views::View::ConvertPointToTarget(this, strip, &local);
++    return strip->IsPositionInWindowCaption(local);
++  }
++
+   // For any of the other children, absorb the click as non window caption.
+   for (views::View* child : children()) {
+     if (!child->GetVisible() || child == floating_content_placeholder_) {
+@@ -1082,7 +1092,7 @@
+   if (browser && browser->IsZenModeEnabledForLayout() &&
+       browser->IsVerticalAddressBarInSidebar() &&
+       !browser->IsZenModeTopChromePinned()) {
+-    horizontal_padding = browser->IsZenModeSideChromePinned() ? 4 : 2;
++    horizontal_padding = 4;
+   }
+ #endif
+   interior_margin_ = gfx::Insets::TLBR(
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -192,7 +192,8 @@
+         screen_point.y < NSMinY(screen) || screen_point.y > NSMaxY(screen)) {
+       return false;
+     }
+-    return top ? screen_point.y >= NSMaxY(screen) - pixel
++    // Include one additional physical pixel at the fullscreen top edge.
++    return top ? screen_point.y >= NSMaxY(screen) - 2 * pixel
+                : (view->IsVerticalTabStripRightAligned()
+                       ? screen_point.x >= NSMaxX(screen) - pixel
+                       : screen_point.x < NSMinX(screen) + pixel);
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -36,6 +36,7 @@
+ @class HeliumGlassDragRegion;
+ @class HeliumGlassSidebarButton;
+ @class HeliumGlassCloseButton;
++@class HeliumSidebarDivider;
+ 
+ namespace views {
+ class NativeViewHost;
+@@ -162,6 +163,8 @@
+   views::ViewTracker floating_drag_host_;
+   views::ViewTracker floating_toolbar_owner_;
+   views::ViewTracker floating_toolbar_material_host_;
++  views::ViewTracker pinned_sidebar_divider_host_;
++  HeliumSidebarDivider* __strong pinned_sidebar_divider_ = nil;
+   views::ViewTracker floating_sidebar_material_host_;
+   views::ViewTracker floating_sidebar_button_host_;
+   views::ViewTracker floating_customize_close_host_;

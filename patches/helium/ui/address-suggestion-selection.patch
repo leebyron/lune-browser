@@ -1,0 +1,63 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1479,6 +1479,34 @@ static CGFloat HeliumWindowControlsWidth
+ }
+ @end
+ 
++@interface HeliumAddressSuggestionRow : NSButton
++@property(nonatomic) BOOL selected;
++@end
++
++@implementation HeliumAddressSuggestionRow
++@synthesize selected = _selected;
++- (void)setSelected:(BOOL)selected {
++  if (_selected != selected) {
++    _selected = selected;
++    self.needsDisplay = YES;
++  }
++}
++- (void)viewDidChangeEffectiveAppearance {
++  [super viewDidChangeEffectiveAppearance];
++  self.needsDisplay = YES;
++}
++- (void)drawRect:(NSRect)dirtyRect {
++  if (self.selected) {
++    [[NSColor.selectedContentBackgroundColor colorWithAlphaComponent:0.25]
++        setFill];
++    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0, 1)
++                                     xRadius:10
++                                     yRadius:10] fill];
++  }
++  [super drawRect:dirtyRect];
++}
++@end
++
+ @interface HeliumFloatingAddressBar : HeliumGlassSurface <NSTextFieldDelegate>
+ - (instancetype)initWithBrowserView:(BrowserView*)browserView;
+ - (void)refresh;
+@@ -1890,9 +1918,10 @@ class HeliumSiteInfoObserver : public vi
+     if (!match.description.empty()) {
+       text += u" — " + match.description;
+     }
+-    NSButton* button = [NSButton buttonWithTitle:base::SysUTF16ToNSString(text)
+-                                          target:self
+-                                          action:@selector(acceptSuggestion:)];
++    HeliumAddressSuggestionRow* button = [HeliumAddressSuggestionRow
++        buttonWithTitle:base::SysUTF16ToNSString(text)
++                 target:self
++                 action:@selector(acceptSuggestion:)];
+     button.tag = i;
+     button.bordered = NO;
+     button.alignment = NSTextAlignmentLeft;
+@@ -1901,9 +1930,8 @@ class HeliumSiteInfoObserver : public vi
+     button.frame = NSMakeRect(12, 4 + 32 * (_matches.size() - i - 1),
+                               self.bounds.size.width - 24, 32);
+     button.autoresizingMask = NSViewWidthSizable;
+-    button.contentTintColor = i == static_cast<size_t>(_selected)
+-                                  ? NSColor.controlAccentColor
+-                                  : NSColor.labelColor;
++    button.selected = i == static_cast<size_t>(_selected);
++    button.contentTintColor = NSColor.labelColor;
+     [_suggestions addObject:button];
+     [_controls addSubview:button];
+   }

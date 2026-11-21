@@ -1,0 +1,133 @@
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -3142,7 +3142,6 @@
+       *base::CommandLine::ForCurrentProcess();
+ 
+   static const char* const kCommonSwitchNames[] = {
+-      "lune-obscured-header-prototype",
+       embedder_support::kUserAgent,
+       switches::kUserDataDir,  // Make logs go to the right file.
+   };
+@@ -4723,20 +4722,17 @@
+   PrefService* prefs = profile->GetPrefs();
+ 
+ #if BUILDFLAG(IS_MAC)
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+-          "lune-obscured-header-prototype")) {
+-    auto* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+-        web_contents);
+-    auto* layout = browser ? HeliumLayoutStateController::From(browser) : nullptr;
+-    web_prefs->native_header_overlay =
+-        prefs->GetBoolean(prefs::kHeliumTopControlsOverlay);
+-    web_prefs->native_header_inset =
+-        browser && browser->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
+-                layout && layout->IsVerticalAddressBarInSidebar() &&
+-                prefs->GetBoolean(prefs::kHeliumZenModeTopChromePinned)
+-            ? 52.f
+-            : 0.f;
+-  }
++  auto* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
++      web_contents);
++  auto* layout = browser ? HeliumLayoutStateController::From(browser) : nullptr;
++  web_prefs->native_header_overlay =
++      prefs->GetBoolean(prefs::kHeliumTopControlsOverlay);
++  web_prefs->native_header_inset =
++      browser && browser->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
++              layout && layout->IsVerticalAddressBarInSidebar() &&
++              prefs->GetBoolean(prefs::kHeliumZenModeTopChromePinned)
++          ? 52.f
++          : 0.f;
+ #endif
+ 
+ // Fill font preferences. These are not registered on Android unless we're built
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -636,10 +636,6 @@
+ // Preference changes are infrequent. Update every tab, including background
+ // renderers, without adding work to scrolling or cursor tracking.
+ void UpdateHeaderInsetPreferences(BrowserWindowInterface* browser) {
+-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+-          "lune-obscured-header-prototype")) {
+-    return;
+-  }
+   auto* model = browser->GetTabStripModel();
+   for (int i = 0; i < model->count(); ++i) {
+     model->GetWebContentsAt(i)->OnWebPreferencesChanged();
+@@ -4706,10 +4702,7 @@
+   for ([[maybe_unused]] const auto& contents : change.GetInsert()->contents) {
+ #if BUILDFLAG(IS_MAC)
+     // A newly created or moved tab now has an owning browser window.
+-    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+-            "lune-obscured-header-prototype")) {
+-      contents.contents->OnWebPreferencesChanged();
+-    }
++    contents.contents->OnWebPreferencesChanged();
+ #endif
+ #if defined(USE_AURA)
+     // WebContents inserted in tabs might not have been added to the root
+--- a/third_party/blink/renderer/core/exported/web_view_impl.cc
++++ b/third_party/blink/renderer/core/exported/web_view_impl.cc
+@@ -3230,9 +3230,7 @@
+   }
+ 
+   view->SetLayoutSize(layout_size);
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+-          "lune-obscured-header-prototype") &&
+-      MainFrameImpl()->IsOutermostMainFrame()) {
++  if (BUILDFLAG(IS_MAC) && MainFrameImpl()->IsOutermostMainFrame()) {
+     // Meta viewport changes do not necessarily resize the native widget.
+     // Update the layout frame and paint transform while keeping its surface.
+     auto& viewport = GetPage()->GetVisualViewport();
+--- a/third_party/blink/renderer/core/frame/viewport_data.cc
++++ b/third_party/blink/renderer/core/frame/viewport_data.cc
+@@ -4,7 +4,7 @@
+ 
+ #include "third_party/blink/renderer/core/frame/viewport_data.h"
+ 
+-#include "base/command_line.h"
++#include "build/build_config.h"
+ 
+ #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
+ 
+@@ -84,8 +84,7 @@
+   }
+ 
+   // Opt-in is independent of mobile viewport width/zoom handling.
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+-          "lune-obscured-header-prototype")) {
++  if (BUILDFLAG(IS_MAC)) {
+     applied_viewport_description.SetViewportFit(
+         legacy_viewport_description_.GetViewportFit());
+   }
+--- a/third_party/blink/renderer/core/frame/visual_viewport.h
++++ b/third_party/blink/renderer/core/frame/visual_viewport.h
+@@ -113,7 +113,7 @@
+ 
+   void Trace(Visitor*) const override;
+ 
+-  // Launch-gated prototype: physical rendering pixels obscured by native UI.
++  // Physical rendering pixels obscured by the native toolbar.
+   float ObscuredTopInset() const;
+   float HeaderTopInset() const;
+   bool SetHeaderTopInset(float inset, bool allow_overlay);
+--- a/third_party/blink/renderer/core/html/html_meta_element.cc
++++ b/third_party/blink/renderer/core/html/html_meta_element.cc
+@@ -22,7 +22,7 @@
+ 
+ #include "third_party/blink/renderer/core/html/html_meta_element.h"
+ 
+-#include "base/command_line.h"
++#include "build/build_config.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/trace_event/typed_macros.h"
+ #include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink.h"
+@@ -410,8 +410,7 @@
+     // Ignore vendor-specific argument.
+   } else if (key_string == "viewport-fit") {
+     if (RuntimeEnabledFeatures::DisplayCutoutAPIEnabled() ||
+-        base::CommandLine::ForCurrentProcess()->HasSwitch(
+-            "lune-obscured-header-prototype")) {
++        BUILDFLAG(IS_MAC)) {
+       bool unknown_value = false;
+       description.SetViewportFit(
+           ParseViewportFitValueAsEnum(unknown_value, value_string));

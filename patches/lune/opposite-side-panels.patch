@@ -1,0 +1,22 @@
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -216,19 +216,6 @@
+       </settings-toggle-button>
+     ` : ''}
+ 
+-    <div class="cr-row">
+-      <div class="flex cr-padded-text" aria-hidden="true">
+-        $i18n{sidePanelPosition}
+-      </div>
+-      <settings-dropdown-menu id="sidePanelPosition"
+-<if expr="is_macosx">
+-          disabled
+-</if>
+-          label="$i18n{sidePanelPosition}"
+-          pref-key="side_panel.is_right_aligned"
+-          .menuOptions="${this.sidePanelAlignmentOptions_}">
+-      </settings-dropdown-menu>
+-    </div>
+     ${!this.showHoverCardImagesOption_ ? html`
+       <div class="hr" ?hidden="${!this.pageVisibility_.hoverCard}"></div>
+       <settings-toggle-button id="hoverCardMemoryUsageToggle"

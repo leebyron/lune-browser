@@ -1,0 +1,22 @@
+--- a/components/helium_onboarding/src/pages/Finish.svelte
++++ b/components/helium_onboarding/src/pages/Finish.svelte
+@@ -14,7 +14,7 @@
+         ...($appearance.theme === 'custom' ? [{value: 'custom', label: s.finish.themeCustom}] : []),
+     ]);
+     async function setHeader(value: string) {
+-        await setPref('browser.top_controls_overlay', value === 'cover');
++        await setPref('browser.top_controls_overlay', false);
+         await setPref('browser.zen_mode_top_chrome_pinned', value !== 'hover');
+     }
+     $effect(() => {
+@@ -45,8 +45,8 @@
+                 </div>
+                 <div class="option"><span>{s.finish.header}</span>
+                     <Dropdown aria-label={s.finish.header}
+-                        value={$preferences['browser.zen_mode_top_chrome_pinned'] ? ($preferences['browser.top_controls_overlay'] ? 'cover' : 'always') : 'hover'}
+-                        options={[{value: 'hover', label: s.finish.headerHover}, {value: 'always', label: s.finish.headerAlways}, {value: 'cover', label: s.finish.headerCover}]}
++                        value={$preferences['browser.zen_mode_top_chrome_pinned'] ? 'always' : 'hover'}
++                        options={[{value: 'hover', label: s.finish.headerHover}, {value: 'always', label: s.finish.headerAlways}]}
+                         onchange={(event) => setHeader(event.currentTarget.value)} />
+                 </div>
+             </div>

@@ -1,0 +1,73 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1378,7 +1378,7 @@
+                action:@selector(reload:)];
+   ConfigureNativeToolbarMenu(_reload, _browserView, VIEW_ID_RELOAD_BUTTON);
+   _reload.bordered = NO;
+-  _reload.frame = NSMakeRect(444, 2, 32, 32);
++  _reload.frame = NSMakeRect(446, 2, 32, 32);
+   _reload.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
+   [_controls addSubview:_reload];
+   return self;
+@@ -1424,6 +1424,25 @@
+   _reload.toolTip = base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
+       loading ? IDS_TOOLTIP_STOP : IDS_TOOLTIP_RELOAD));
+   _reload.accessibilityLabel = _reload.toolTip;
++  const bool show_reload = _browserView->GetProfile()->GetPrefs()->GetBoolean(
++      prefs::kShowReloadButton);
++  _reload.hidden = !show_reload;
++  NSRect address_frame = _addressContainer.frame;
++  // Reclaim Reload's 32 pt target without changing the leading inset.
++  const CGFloat standard_width = std::max<CGFloat>(
++      0, NSWidth(_controls.bounds) - NSMinX(address_frame) - 40);
++  address_frame.size.width = std::max<CGFloat>(
++      0, NSWidth(_controls.bounds) - NSMinX(address_frame) -
++             (show_reload ? 40 : 8));
++  _addressContainer.frame = address_frame;
++  NSRect field_bounds = _addressContainer.bounds;
++  if (!show_reload && ![self isEditing]) {
++    // Short display addresses retain their accepted center. Longer addresses
++    // can use the reclaimed width, and editing always gets the whole field.
++    field_bounds.size.width = std::clamp<CGFloat>(
++        _address.cell.cellSize.width, standard_width, NSWidth(field_bounds));
++  }
++  _address.frame = field_bounds;
+   self.appearance = FloatingChromeAppearance(_browserView.get());
+ }
+ 
+@@ -1463,12 +1482,14 @@
+     return;
+   }
+   const BOOL firstFocus = !_editing;
++  const CGFloat display_width = NSWidth(_address.bounds);
+   const CGFloat textWidth =
+       [_address.stringValue
+           sizeWithAttributes:@{NSFontAttributeName : _address.font}]
+           .width;
+   _editing = YES;
+   _address.userEditing = YES;
++  _address.frame = _addressContainer.bounds;
+   _address.alignment = NSTextAlignmentLeft;
+   // Match the normal omnibox's editing text, including an empty new-tab
+   // field. GetURL() supplies about:blank when the page URL should be hidden.
+@@ -1490,7 +1511,7 @@
+   if (firstFocus &&
+       !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion) {
+     const CGFloat offset =
+-        std::max<CGFloat>(0, (_address.bounds.size.width - textWidth) / 2);
++        std::max<CGFloat>(0, (display_width - textWidth) / 2);
+     CABasicAnimation* motion =
+         [CABasicAnimation animationWithKeyPath:@"transform.translation.x"];
+     motion.fromValue = @(offset);
+@@ -2530,7 +2551,10 @@
+       leading + (navigation_width > 0 ? navigation_width + 12 : 0);
+   const int address_right =
+       trailing - toolbar_width - (toolbar_width > 0 ? 12 : 0);
+-  const int capsule_width = std::min(480, address_right - address_left);
++  // Scale the capsule with the header outside the sidebar, while reserving
++  // room for navigation and the trailing actions on narrower windows.
++  const int capsule_width =
++      std::min(bar_region.width() / 2, address_right - address_left);
+   if (capsule_width < 160) {
+     UpdateFloatingToolbar(gfx::Rect(), false);
+     UpdateFloatingWindowControls(false);

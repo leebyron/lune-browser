@@ -1,0 +1,66 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -324,7 +324,7 @@
+   } else if (icon_name == "kQueueMusicIcon" ||
+              icon_name == "kMediaToolbarButtonChromeRefreshOldIcon" ||
+              icon_name == "kMediaToolbarButtonTouchOldIcon") {
+-    name = @"music.note.list";
++    name = @"waveform";
+   }
+   if (icon_name == "kArrowBackIcon" ||
+       icon_name == "kBackArrowChromeRefreshOldIcon") {
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -730,7 +730,9 @@
+ 
+   if (features::IsWebUIMediaButtonEnabled()) {
+     media_button_ = toolbar_webview_->GetMediaToolbarButton();
++    media_button_view_ = toolbar_webview_;
+   } else if (media_button) {
++    media_button_view_ = media_button.get();
+     media_button_ = AddChildView(std::move(media_button));
+   }
+ 
+@@ -2856,7 +2858,8 @@
+     return;
+   }
+   const bool can_show =
+-      show_media_button_.GetValue() && !sidebar_controls_host_;
++      show_media_button_.GetValue() &&
++      (!sidebar_controls_host_ || !floating_controls_state_.empty());
+   media_button_->GetController()->SetCanShowToolbarButton(can_show);
+   InvalidateLayout();
+ }
+@@ -2997,6 +3000,7 @@
+       }
+     }
+     floating_controls_state_.clear();
++    OnShowMediaButtonChanged();
+     InvalidateLayout();
+     return;
+   }
+@@ -3044,6 +3048,13 @@
+   if (home_ && home_->parent() == host) {
+     host->ReorderChildView(home_, 0);
+   }
++  if (media_button_view_ && media_button_view_->parent() == host) {
++    host->ReorderChildView(media_button_view_, 0);
++  }
++  // Reevaluate after reparenting so active sessions immediately occupy
++  // their slot in the floating group. The media controller still owns
++  // availability, enabled state, and the dialog lifecycle.
++  OnShowMediaButtonChanged();
+   AbortToolbarContainerAnimationsForZenReveal();
+ }
+ 
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
+@@ -498,6 +498,8 @@
+   raw_ptr<AvatarToolbarButton> avatar_ = nullptr;
+   raw_ptr<ToolbarButton> dynamic_new_tab_button_ = nullptr;
+   raw_ptr<MediaToolbarButton> media_button_ = nullptr;
++  // The standalone Views button, or the WebUI host that owns the button.
++  raw_ptr<views::View> media_button_view_ = nullptr;
+   raw_ptr<BrowserAppMenuButton> app_menu_button_ = nullptr;
+   raw_ptr<TabStripRegionView> tab_strip_region_view_ = nullptr;
+ 

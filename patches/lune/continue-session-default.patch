@@ -1,0 +1,22 @@
+--- a/chrome/browser/prefs/session_startup_pref.cc
++++ b/chrome/browser/prefs/session_startup_pref.cc
+@@ -66,7 +66,7 @@
+ 
+ // static
+ SessionStartupPref::Type SessionStartupPref::GetDefaultStartupType() {
+-#if BUILDFLAG(IS_CHROMEOS)
++#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+   return SessionStartupPref::LAST;
+ #else
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+--- a/chrome/browser/prefs/session_startup_pref_unittest.cc
++++ b/chrome/browser/prefs/session_startup_pref_unittest.cc
+@@ -41,7 +41,7 @@
+   SessionStartupPref result =
+       SessionStartupPref::GetStartupPref(pref_service_.get());
+   EXPECT_EQ(SessionStartupPref::GetDefaultStartupType(), result.type);
+-#if BUILDFLAG(IS_CHROMEOS)
++#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+   EXPECT_EQ(SessionStartupPref::LAST,
+             SessionStartupPref::GetDefaultStartupType());
+ #elif BUILDFLAG(IS_ANDROID)

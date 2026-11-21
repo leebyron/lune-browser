@@ -1,0 +1,42 @@
+Index: src/components/helium_onboarding/helium_onboarding_strings.grdp
+===================================================================
+--- src.orig/components/helium_onboarding/helium_onboarding_strings.grdp
++++ src/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -38,7 +38,7 @@
+   By continuing, you agree to the <ph name="BEGIN_LINK_PRIVACY">$1</ph>privacy policy<ph name="END_LINK_PRIVACY">$2</ph> and <ph name="BEGIN_LINK_TERMS">$3</ph>terms of use<ph name="END_LINK_TERMS">$4</ph>.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_FOOTER" desc="Footer text explaining that setup can be skipped but Helium services require consent.">
+-  If you use defaults, Helium services will be automatically enabled.
++  Choose Setup to review and change these defaults.
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_TITLE" desc="Title on the final onboarding screen.">
+@@ -256,7 +256,7 @@
+   Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_CONSENT" desc="Lune service provider and update disclosure.">
+-  Allow Lune to connect to Helium-hosted services. These requests stay disabled until you consent.
++  Allow Lune to connect to Helium-hosted services. Choosing Next confirms these settings.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_PROVIDER" desc="Lune service provider and update disclosure.">
+   You can host your own Helium services instance and select it in Lune settings.
+Index: src/components/helium_onboarding/src/pages/Welcome.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/pages/Welcome.svelte
++++ src/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -39,7 +39,6 @@
+             <button class="primary" onclick={next} disabled={working}>{s.button.configure}<IconArrowRight /></button>
+             <button class="ghost" onclick={useDefaults} disabled={working}>{s.button.useDefaults}</button>
+         </div>
+-        <p class="defaults-note">{s.welcome.searchSuggestions}</p>
+         <div class="updates">
+             <label>
+                 <input type="checkbox" role="switch"
+@@ -83,7 +82,6 @@
+     .primary:hover { background: var(--helium-blue-hover); }
+     .ghost { background: transparent; color: light-dark(#234550,#C9D9E3); box-shadow: inset 0 0 0 1px light-dark(#23455059,#C9D9E359); }
+     button:focus-visible, input:focus-visible { outline: 2px solid var(--helium-blue); outline-offset: 4px; }
+-    .defaults-note { font: 400 12px/18px Inter,sans-serif; color: var(--secondary); max-width: 400px; margin: 16px auto 0; }
+     .updates { margin-top: 28px; }
+     label { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; cursor: pointer; }
+     input { appearance: none; width: 30px; height: 18px; border-radius: 12px; background: color-mix(in srgb,var(--secondary) 30%,transparent); margin: 0; padding: 3px; cursor: pointer; }

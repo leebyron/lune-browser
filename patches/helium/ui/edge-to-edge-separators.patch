@@ -1,0 +1,12 @@
+--- a/chrome/browser/ui/views/frame/multi_contents_view.cc
++++ b/chrome/browser/ui/views/frame/multi_contents_view.cc
+@@ -770,7 +770,8 @@
+ gfx::Rect MultiContentsView::CalculateSeparatorLayouts(
+     const gfx::Rect& available_space,
+     views::ProposedLayout::ChildLayoutList& child_layouts) const {
+-  if (IsInSplitView() || ShouldUseRoundedFrame()) {
++  // Keep fullscreen and legacy profiles free of one-pixel outer separators.
++  if (BUILDFLAG(IS_MAC) || IsInSplitView() || ShouldUseRoundedFrame()) {
+     child_layouts.emplace_back(contents_separators_.top_separator.get(), false,
+                                gfx::Rect());
+     child_layouts.emplace_back(contents_separators_.leading_separator.get(),

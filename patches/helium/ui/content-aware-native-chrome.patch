@@ -1,0 +1,618 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -7789,6 +7789,9 @@
+       <message name="IDS_NTP_CUSTOMIZE_CHROME_RESET_TO_UPLOADED_IMAGE_COMPLETE" desc="Text for a screenreader to read aloud when the user's theme has finished changing to an uploaded image in the Customize Chrome side panel.">
+         Theme updated to uploaded image
+       </message>
++      <message name="IDS_HELIUM_CONTENT_AWARE_CHROME" desc="Label for adapting native browser glass and its controls to the content underneath.">
++        Content aware
++      </message>
+       <message name="IDS_NTP_CUSTOMIZE_CHROME_FOLLOW_THEME_LABEL" desc="The label for the toggle to use the system color scheme instead of that from the browser.">
+         Follow device colors
+       </message>
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.css
+@@ -123,6 +123,7 @@
+   --cr-icon-image: url('chrome://resources/images/open_in_new.svg');
+ }
+ 
++#contentAwareChrome,
+ #followThemeToggle {
+   display: flex;
+   justify-content: space-between;
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts
+@@ -14,6 +14,15 @@
+     hidden>
+ </customize-chrome-theme-snapshot>
+ <customize-color-scheme-mode></customize-color-scheme-mode>
++<div id="contentAwareChrome" class="sp-card-content"
++    ?hidden="${!this.theme_?.contentAwareChromeSupported}">
++  <span id="contentAwareChromeLabel">$i18n{contentAwareChrome}</span>
++  <cr-toggle id="contentAwareChromeToggle"
++      aria-labelledby="contentAwareChromeLabel"
++      ?checked="${!!this.theme_?.contentAwareChrome}"
++      @change="${this.onContentAwareChromeChange_}">
++  </cr-toggle>
++</div>
+ <cr-theme-color-picker id="chromeColors" ?hidden="${!this.showColorPicker_}">
+ </cr-theme-color-picker>
+ <div id="followThemeToggle" class="sp-card-content"
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.ts
+@@ -325,6 +325,10 @@
+         CustomizeChromeAction.SET_CLASSIC_CHROME_THEME_CLICKED);
+   }
+ 
++  protected onContentAwareChromeChange_(e: CustomEvent<boolean>) {
++    this.apiProxy_.handler.setContentAwareChrome(e.detail);
++  }
++
+   protected onFollowThemeToggleChange_(e: CustomEvent<boolean>) {
+     this.apiProxy_.handler.setFollowDeviceTheme(e.detail);
+   }
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -180,6 +180,7 @@
+ 
+   registry->RegisterBooleanPref(prefs::kShowBackButton, true);
+   registry->RegisterBooleanPref(prefs::kShowReloadButton, true);
++  registry->RegisterBooleanPref(prefs::kHeliumContentAwareChrome, true);
+   registry->RegisterBooleanPref(prefs::kShowAvatarButton, false);
+   registry->RegisterBooleanPref(prefs::kShowExtensionsButton, true);
+   registry->RegisterBooleanPref(prefs::kShowMenuButton, true);
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -8,7 +8,10 @@
+ #import <QuartzCore/QuartzCore.h>
+ 
+ #include "base/strings/sys_string_conversions.h"
++#include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/themes/theme_service.h"
++#include "chrome/common/pref_names.h"
++#include "components/prefs/pref_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "ui/gfx/image/image.h"
+@@ -376,15 +379,31 @@
+   }
+   NSAppearance* appearance = [NSAppearance
+       appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
++  const bool content_aware = browser_view &&
++      browser_view->GetProfile()->GetPrefs()->GetBoolean(
++          prefs::kHeliumContentAwareChrome);
+   if (@available(macOS 26, *)) {
++    NSView* material = [[NSView alloc] initWithFrame:pane.frame];
++    material.appearance = appearance;
++    NSView* backdrop = [[NSView alloc] initWithFrame:material.bounds];
++    backdrop.wantsLayer = YES;
++    backdrop.layer.cornerRadius = 20;
++    backdrop.layer.backgroundColor =
++        [(dark ? NSColor.blackColor : NSColor.whiteColor)
++            colorWithAlphaComponent:.8].CGColor;
++    backdrop.hidden = content_aware;
++    backdrop.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++    [material addSubview:backdrop];
+     NSGlassEffectView* glass =
+-        [[NSGlassEffectView alloc] initWithFrame:pane.frame];
+-    glass.appearance = appearance;
++        [[NSGlassEffectView alloc] initWithFrame:material.bounds];
+     glass.style = NSGlassEffectViewStyleRegular;
+     glass.cornerRadius = 20;
++    glass.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+     glass.contentView = pane;
+-    native_->material = glass;
+-  } else {
++    [material addSubview:glass];
++    native_->material = material;
++  }
++  if (!native_->material) {
+     NSVisualEffectView* effect =
+         [[NSVisualEffectView alloc] initWithFrame:pane.frame];
+     effect.appearance = appearance;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -61,6 +61,7 @@
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#import "chrome/browser/ui/views/helium/native_frame_materials_mac.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+@@ -242,12 +243,35 @@
+ }
+ @end
+ 
++// This view inherits the glass content appearance, which can differ from the
++// browser profile. Native descendants inherit it directly; the callback bridges
++// the same appearance to Views controls hosted in a separate transparent window.
++@interface HeliumGlassContent : NSView
++@property(nonatomic, copy) void (^onAppearanceChanged)(void);
++@end
++@implementation HeliumGlassContent
++@synthesize onAppearanceChanged = _onAppearanceChanged;
++- (void)viewDidChangeEffectiveAppearance {
++  [super viewDidChangeEffectiveAppearance];
++  if (_onAppearanceChanged) {
++    _onAppearanceChanged();
++  }
++}
++@end
++
+ // AppKit renders the material, focus ring and motion of the native surfaces.
+ @interface HeliumGlassSurface : HeliumChromeHitRegion {
+  @protected
+   NSView* _material;
+-  NSView* _controls;
+-}
++  NSView* _effect;
++  NSView* _backdrop;
++  HeliumGlassContent* _controls;
++}
++@property(nonatomic) BOOL contentAware;
++@property(nonatomic, copy) void (^onAppearanceChanged)(NSAppearance*);
++- (void)publishForegroundAppearance;
++- (NSAppearance*)foregroundAppearance;
++- (void)updateBackdrop;
+ - (CGFloat)materialCornerRadius;
+ - (void)setPresented:(BOOL)presented;
+ - (BOOL)isPresented;
+@@ -259,43 +283,102 @@
+   BOOL _fullyHidden;
+   NSUInteger _presentationGeneration;
+ }
++@synthesize contentAware = _contentAware;
++@synthesize onAppearanceChanged = _onAppearanceChanged;
+ - (instancetype)initWithFrame:(NSRect)frame {
+   self = [super initWithFrame:frame];
+   if (!self) {
+     return nil;
+   }
+-  _controls = [[NSView alloc] initWithFrame:self.bounds];
++  // Keep the material and its content attached for their entire lifetime.
++  // Reparenting NSGlassEffectView.contentView can collapse its dimensions.
++  _material = [[NSView alloc] initWithFrame:self.bounds];
++  _material.wantsLayer = YES;
++  _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  _backdrop = [[NSView alloc] initWithFrame:self.bounds];
++  _backdrop.wantsLayer = YES;
++  _backdrop.layer.cornerRadius = [self materialCornerRadius];
++  _backdrop.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  [_material addSubview:_backdrop];
++  _controls = [[HeliumGlassContent alloc] initWithFrame:self.bounds];
++  __weak HeliumGlassSurface* weakSelf = self;
++  _controls.onAppearanceChanged = ^{
++    [weakSelf publishForegroundAppearance];
++  };
+   _controls.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+   if (@available(macOS 26, *)) {
+     NSGlassEffectView* glass =
+         [[NSGlassEffectView alloc] initWithFrame:self.bounds];
+     glass.style = NSGlassEffectViewStyleRegular;
+     glass.cornerRadius = [self materialCornerRadius];
+-    glass.contentView = _controls;
+     if (@available(macOS 27, *)) {
+       glass.effectIsInteractive = YES;
+     }
+-    _material = glass;
++    // Inherit AppKit's actual foreground appearance in both modes, including
++    // transitions and accessibility overrides.
++    glass.contentView = _controls;
++    _effect = glass;
+   } else {
+-    NSVisualEffectView* material =
++    NSVisualEffectView* effect =
+         [[NSVisualEffectView alloc] initWithFrame:self.bounds];
+-    material.material = NSVisualEffectMaterialPopover;
+-    material.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+-    material.state = NSVisualEffectStateFollowsWindowActiveState;
+-    material.wantsLayer = YES;
+-    material.layer.cornerRadius = [self materialCornerRadius];
+-    material.layer.masksToBounds = YES;
+-    [material addSubview:_controls];
+-    _material = material;
++    effect.material = NSVisualEffectMaterialPopover;
++    effect.blendingMode = NSVisualEffectBlendingModeWithinWindow;
++    effect.state = NSVisualEffectStateFollowsWindowActiveState;
++    effect.wantsLayer = YES;
++    effect.layer.cornerRadius = [self materialCornerRadius];
++    effect.layer.masksToBounds = YES;
++    [effect addSubview:_controls];
++    _effect = effect;
+   }
+-  _material.wantsLayer = YES;
+-  _material.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  _effect.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  [_material addSubview:_effect];
+   [self addSubview:_material];
++  [self updateBackdrop];
+   self.hidden = YES;
+   _fullyHidden = YES;
+   _material.alphaValue = 0;
+   return self;
+ }
++- (void)setContentAware:(BOOL)contentAware {
++  if (_contentAware == contentAware) {
++    return;
++  }
++  _contentAware = contentAware;
++  [self updateBackdrop];
++}
++- (void)updateBackdrop {
++  // Regular glass has no public switch to disable backdrop adaptation. Keep
++  // that same glass, but bound the sampled luminance with a neutral profile
++  // backdrop. Content-aware mode removes it and samples the page directly.
++  // The remaining transparency retains the page's color and glass refraction.
++  BOOL has_glass = NO;
++  if (@available(macOS 26, *)) {
++    has_glass = [_effect isKindOfClass:NSGlassEffectView.class];
++  }
++  _backdrop.hidden = _contentAware || !has_glass;
++  const BOOL dark = [[self.effectiveAppearance bestMatchFromAppearancesWithNames:
++      @[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]]
++      isEqual:NSAppearanceNameDarkAqua];
++  _backdrop.layer.backgroundColor =
++      [(dark ? NSColor.blackColor : NSColor.whiteColor)
++          colorWithAlphaComponent:.8].CGColor;
++  [self publishForegroundAppearance];
++}
++- (NSAppearance*)foregroundAppearance {
++  if (@available(macOS 26, *)) {
++    return _controls.effectiveAppearance;
++  }
++  return nil;
++}
++- (void)setOnAppearanceChanged:(void (^)(NSAppearance*))callback {
++  _onAppearanceChanged = [callback copy];
++  [self publishForegroundAppearance];
++}
++- (void)publishForegroundAppearance {
++  if (_onAppearanceChanged) {
++    _onAppearanceChanged([self foregroundAppearance]);
++  }
++}
+ - (CGFloat)materialCornerRadius {
+   return 18;
+ }
+@@ -304,38 +387,7 @@
+     return;
+   }
+   [super setAppearance:appearance];
+-  _controls.appearance = appearance;
+-  if (@available(macOS 26, *)) {
+-    // Glass caches its backdrop treatment when attached. Recreate only the
+-    // effect on a scheme change, retaining the editor and actual controls.
+-    // Construct it in the requested drawing appearance as well as assigning
+-    // the view appearance before it joins the native host hierarchy.
+-    NSView* previous = _material;
+-    [appearance performAsCurrentDrawingAppearance:^{
+-      NSGlassEffectView* glass =
+-          [[NSGlassEffectView alloc] initWithFrame:previous.frame];
+-      glass.appearance = appearance;
+-      glass.style = NSGlassEffectViewStyleRegular;
+-      glass.cornerRadius = [self materialCornerRadius];
+-      if (@available(macOS 27, *)) {
+-        glass.effectIsInteractive = YES;
+-      }
+-      ((NSGlassEffectView*)previous).contentView = nil;
+-      glass.contentView = _controls;
+-      glass.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-      glass.wantsLayer = YES;
+-      glass.alphaValue = previous.alphaValue;
+-      glass.hidden = previous.hidden;
+-      glass.layer.transform = previous.layer.transform;
+-      [self addSubview:glass positioned:NSWindowBelow relativeTo:previous];
+-      [previous removeFromSuperview];
+-      _material = glass;
+-    }];
+-  } else {
+-    // NSVisualEffectView chooses its vibrant variant from the parent.
+-    _material.appearance = nil;
+-    _material.needsDisplay = YES;
+-  }
++  [self updateBackdrop];
+ }
+ - (void)setRevealFraction:(CGFloat)fraction {
+   ++_presentationGeneration;
+@@ -352,6 +404,9 @@
+ - (void)resizeSubviewsWithOldSize:(NSSize)oldSize {
+   [super resizeSubviewsWithOldSize:oldSize];
+   _material.frame = self.bounds;
++  _backdrop.frame = _material.bounds;
++  _effect.frame = _material.bounds;
++  _controls.frame = _effect.bounds;
+ }
+ - (void)setPresented:(BOOL)presented {
+   if (_presented == presented) {
+@@ -1485,6 +1540,8 @@
+         _address.cell.cellSize.width, standard_width, NSWidth(field_bounds));
+   }
+   _address.frame = field_bounds;
++  self.contentAware = _browserView->GetProfile()->GetPrefs()->GetBoolean(
++      prefs::kHeliumContentAwareChrome);
+   self.appearance = FloatingChromeAppearance(_browserView.get());
+ }
+ 
+@@ -2815,6 +2872,12 @@
+     floating_toolbar_material_ =
+         [[HeliumGlassSurface alloc] initWithFrame:NSZeroRect];
+     material_host->Attach(gfx::NativeView(floating_toolbar_material_));
++    auto weak_widget = floating_toolbar_widget_->GetWeakPtr();
++    floating_toolbar_material_.onAppearanceChanged = ^(NSAppearance* appearance) {
++      if (weak_widget) {
++        helium::SetNativeGlassControlAppearance(weak_widget.get(), appearance);
++      }
++    };
+     NSWindow* window =
+         floating_toolbar_widget_->GetNativeWindow().GetNativeNSWindow();
+     window.hasShadow = NO;
+@@ -2838,6 +2901,7 @@
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingToolbar() {
++  floating_toolbar_material_.onAppearanceChanged = nil;
+   floating_toolbar_material_.controlsWindow = nil;
+   ResetFloatingSidebar();
+   if (auto* toolbar =
+@@ -2885,6 +2949,8 @@
+     nav->Attach(gfx::NativeView(floating_navigation_));
+   }
+   if (nav) {
++    floating_navigation_.contentAware = view->GetProfile()->GetPrefs()->GetBoolean(
++        prefs::kHeliumContentAwareChrome);
+     [floating_navigation_ refresh];
+     const bool has_navigation = FloatingNavigationWidth(view) > 0;
+     if (has_navigation) {
+@@ -2960,6 +3026,9 @@
+     floating_toolbar_target_bounds_ = gfx::Rect();
+     return;
+   }
++  floating_toolbar_material_.contentAware =
++      GetBrowserView()->GetProfile()->GetPrefs()->GetBoolean(
++          prefs::kHeliumContentAwareChrome);
+   [floating_toolbar_material_ setPresented:presented];
+   material_host->SetVisible(presented || !floating_toolbar_material_.hidden);
+   NSAppearance* appearance = FloatingChromeAppearance(GetBrowserView());
+@@ -3061,6 +3130,8 @@
+   const gfx::Rect bounds =
+       views::View::ConvertRectToTarget(panel, view, panel->GetLocalBounds());
+   host->SetBounds(bounds.right() - 44, bounds.y() + 8, 36, 36);
++  floating_customize_close_.contentAware =
++      view->GetProfile()->GetPrefs()->GetBoolean(prefs::kHeliumContentAwareChrome);
+   floating_customize_close_.appearance = FloatingChromeAppearance(view);
+   host->SetVisible(true);
+ }
+@@ -3212,6 +3283,8 @@
+     const bool sidebar_appearance_changed =
+         ![floating_sidebar_material_.appearance
+             isEqual:FloatingChromeAppearance(view)];
++    floating_sidebar_material_.contentAware =
++        view->GetProfile()->GetPrefs()->GetBoolean(prefs::kHeliumContentAwareChrome);
+     floating_sidebar_material_.appearance = FloatingChromeAppearance(view);
+     // Exclude the actual native controls (8 pt inset + 36 pt height), not the
+     // whole header. Layout margins belong to the tab layout, not the child
+@@ -3271,7 +3344,20 @@
+   const int x =
+       right ? sidebar_bounds.x() + inset : sidebar_bounds.right() - 36 - inset;
+   button_host->SetBounds(x, sidebar_bounds.y() + 8, 36, 36);
+-  floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
++  floating_sidebar_button_.appearance =
++      detached ? ([floating_sidebar_material_ foregroundAppearance] ?:
++                  FloatingChromeAppearance(view)) : FloatingChromeAppearance(view);
++  if (detached && floating_sidebar_widget_) {
++    auto weak_widget = floating_sidebar_widget_->GetWeakPtr();
++    __weak HeliumGlassSidebarButton* weak_button = floating_sidebar_button_;
++    NSAppearance* profile_appearance = FloatingChromeAppearance(view);
++    floating_sidebar_material_.onAppearanceChanged = ^(NSAppearance* appearance) {
++      weak_button.appearance = appearance ?: profile_appearance;
++      if (weak_widget) {
++        helium::SetNativeGlassControlAppearance(weak_widget.get(), appearance);
++      }
++    };
++  }
+   [floating_sidebar_button_ refreshEmbedded:YES];
+   const CGFloat visibility = sidebar_visible && show_toggle ? reveal : 0;
+   // Avoid competing presentation animations when pinning reparents the tabs.
+@@ -3293,6 +3379,7 @@
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingSidebar() {
++  floating_sidebar_material_.onAppearanceChanged = nil;
+   floating_sidebar_material_.controlsWindow = nil;
+   if (auto* sidebar = static_cast<VerticalTabStripRegionView*>(
+           floating_sidebar_owner_.view())) {
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -1170,6 +1170,10 @@
+       prefs::kHeliumZenModeTopChromePinned,
+       base::BindRepeating(&BrowserView::OnZenModeTopChromePinnedPrefChanged,
+                           base::Unretained(this)));
++  registrar_.Add(
++      prefs::kHeliumContentAwareChrome,
++      base::BindRepeating(&BrowserView::UpdateZenModeRevealFromCursor,
++                          base::Unretained(this)));
+   UpdateFullscreenAllowedFromPolicy(CanFullscreen());
+ 
+   WebUIContentsPreloadManager::GetInstance()->WarmupForBrowser(browser_.get());
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.h
+@@ -10,8 +10,16 @@
+ #include "third_party/skia/include/core/SkColor.h"
+ #include "ui/color/color_provider_key.h"
+ 
++namespace views {
++class Widget;
++}
++
+ namespace helium {
+ 
++// A null appearance restores the profile-driven foreground policy.
++void SetNativeGlassControlAppearance(views::Widget* widget,
++                                     NSAppearance* appearance);
++
+ NSView* CreateNativeFrameMaterialBackgroundView(NSRect frame);
+ 
+ void UpdateNativeFrameMaterialBackgroundView(
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -5,6 +5,7 @@
+ #import "chrome/browser/ui/views/helium/native_frame_materials_mac.h"
+ 
+ #include <algorithm>
++#import <objc/runtime.h>
+ 
+ #include "base/apple/foundation_util.h"
+ #include "chrome/browser/browser_process.h"
+@@ -22,6 +23,9 @@
+ namespace helium {
+ namespace {
+ 
++// Per-native-host state keeps adaptive colors local to the owning surface.
++char kGlassControlAppearanceKey;
++
+ // Low-alpha black or white overlay applied before the browser theme tint.
+ constexpr CGFloat kFrameMaterialNeutralOverlayAlpha = 0.2;
+ 
+@@ -124,6 +128,22 @@
+ }  // namespace helium
+ 
+ namespace helium {
++void SetNativeGlassControlAppearance(views::Widget* widget,
++                                     NSAppearance* appearance) {
++  NSView* native = widget->GetNativeView().GetNativeNSView();
++  NSAppearance* previous =
++      objc_getAssociatedObject(native, &kGlassControlAppearanceKey);
++  if (previous == appearance || [previous isEqual:appearance]) {
++    return;
++  }
++  objc_setAssociatedObject(native, &kGlassControlAppearanceKey, appearance,
++                           OBJC_ASSOCIATION_RETAIN_NONATOMIC);
++  // Rebuild concrete Views image/color caches even though the profile's
++  // ColorProvider key has not changed. Do not mutate the browser theme.
++  widget->ResetLastColorProviderKey();
++  widget->ScheduleThemeChanged();
++}
++
+ std::optional<SkColor> NativeGlassControlColor(const views::View* view,
+                                                bool enabled) {
+   return NativeGlassColor(view, enabled ? NativeGlassColorRole::kLabel
+@@ -137,11 +157,13 @@
+   }
+   NSView* native = view->GetWidget()->GetNativeView().GetNativeNSView();
+   __block SkColor result = SK_ColorBLACK;
+-  NSAppearance* appearance = native.effectiveAppearance;
++  NSAppearance* glass_appearance =
++      objc_getAssociatedObject(native, &kGlassControlAppearanceKey);
++  NSAppearance* appearance = glass_appearance ?: native.effectiveAppearance;
+   // Resolve from the owning browser even during native child-window theme
+   // propagation, when its NSView/NSWindow appearance can still be stale.
+   if (auto* browser = BrowserView::GetBrowserViewForNativeWindow(
+-          view->GetWidget()->GetNativeWindow())) {
++          view->GetWidget()->GetNativeWindow()); browser && !glass_appearance) {
+     const auto scheme = ThemeServiceFactory::GetForProfile(browser->GetProfile())
+                             ->GetBrowserColorScheme();
+     const bool dark = scheme == ThemeService::BrowserColorScheme::kDark ||
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_page_handler.cc
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_page_handler.cc
+@@ -8,6 +8,10 @@
+ #include <utility>
+ #include <vector>
+ 
++#if BUILDFLAG(IS_MAC)
++#include "base/mac/mac_util.h"
++#endif
++
+ #include "base/metrics/field_trial_params.h"
+ #include "base/metrics/histogram_functions.h"
+ #include "base/metrics/histogram_macros.h"
+@@ -139,6 +143,10 @@
+ 
+   pref_change_registrar_.Init(profile_->GetPrefs());
+   pref_change_registrar_.Add(
++      prefs::kHeliumContentAwareChrome,
++      base::BindRepeating(&CustomizeChromePageHandler::UpdateTheme,
++                          base::Unretained(this)));
++  pref_change_registrar_.Add(
+       prefs::kNtpModulesVisible,
+       base::BindRepeating(&CustomizeChromePageHandler::UpdateModulesSettings,
+                           base::Unretained(this)));
+@@ -227,6 +235,14 @@
+   theme_service_->UseDefaultTheme();
+ }
+ 
++void CustomizeChromePageHandler::SetContentAwareChrome(bool enabled) {
++#if BUILDFLAG(IS_MAC)
++  if (base::mac::MacOSMajorVersion() >= 26) {
++    profile_->GetPrefs()->SetBoolean(prefs::kHeliumContentAwareChrome, enabled);
++  }
++#endif
++}
++
+ void CustomizeChromePageHandler::SetFollowDeviceTheme(bool follow) {
+   theme_service_->UseDeviceTheme(follow);
+ }
+@@ -338,6 +354,11 @@
+     ntp_custom_background_service_->RefreshBackgroundIfNeeded();
+   }
+   auto theme = side_panel::mojom::Theme::New();
++#if BUILDFLAG(IS_MAC)
++  theme->content_aware_chrome_supported = base::mac::MacOSMajorVersion() >= 26;
++  theme->content_aware_chrome =
++      profile_->GetPrefs()->GetBoolean(prefs::kHeliumContentAwareChrome);
++#endif
+   auto custom_background =
+       ntp_custom_background_service_
+           ? ntp_custom_background_service_->GetCustomBackground()
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_page_handler.h
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_page_handler.h
+@@ -114,6 +114,7 @@
+   // side_panel::mojom::CustomizeChromePageHandler:
+   void SetDefaultColor() override;
+   void SetFollowDeviceTheme(bool follow) override;
++  void SetContentAwareChrome(bool enabled) override;
+   void SetBackgroundImage(const std::string& attribution_1,
+                           const std::string& attribution_2,
+                           const GURL& attribution_url,
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
+@@ -148,6 +148,7 @@
+       {"updatedToUploadedImage",
+        IDS_NTP_CUSTOMIZE_CHROME_RESET_TO_UPLOADED_IMAGE_COMPLETE},
+       {"followThemeToggle", IDS_NTP_CUSTOMIZE_CHROME_FOLLOW_THEME_LABEL},
++      {"contentAwareChrome", IDS_HELIUM_CONTENT_AWARE_CHROME},
+       {"refreshDaily", IDS_NTP_CUSTOM_BG_DAILY_REFRESH},
+       {"managedByExtension", IDS_NTP_MANAGED_BY_EXTENSION},
+       {"managedBySearchEngine", IDS_NTP_MANAGED_BY_SEARCH_ENGINE},
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome.mojom
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome.mojom
+@@ -50,6 +50,8 @@
+   bool background_managed_by_policy;
+   // True if we are following the OS theme.
+   bool follow_device_theme;
++  bool content_aware_chrome_supported;
++  bool content_aware_chrome;
+ };
+ 
+ // A collection of background images.
+@@ -171,6 +173,7 @@
+ 
+   // Set that the theme should follow the device's.
+   SetFollowDeviceTheme(bool follow);
++  SetContentAwareChrome(bool enabled);
+ 
+   // Removes background image.
+   RemoveBackgroundImage();
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -759,6 +759,10 @@
+ 
+ // A boolean pref set to true if the Reload button should be visible on the
+ // toolbar.
++// Whether floating native chrome adapts its material and foreground to content.
++inline constexpr char kHeliumContentAwareChrome[] =
++    "helium.browser.content_aware_chrome";
++
+ inline constexpr char kShowReloadButton[] = "helium.browser.show_reload_button";
+ 
+ // A boolean pref set to true if the Avatar button should be visible on the

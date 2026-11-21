@@ -1,0 +1,190 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -3136,12 +3136,20 @@
+ int BrowserFrameViewMac::TopUIFullscreenYOffset() const {
+   if (!GetBrowserView()->GetTabStripVisible() ||
+       !GetBrowserView()->IsFullscreen() ||
+-      fullscreen_utils::IsInContentFullscreen(GetBrowserView()->browser()) ||
+       WindowFeatureController::From(GetBrowserView()->browser())
+           ->UsesImmersiveFullscreenMode()) {
+     return 0;
+   }
+ 
++  if (HasFloatingAddressBar()) {
++    return helium::NativeFullscreenTopControlsOffset(
++        GetBrowserView(),
++        [[fullscreen_toolbar_controller_ menubarTracker] menubarFraction]);
++  }
++  if (fullscreen_utils::IsInContentFullscreen(GetBrowserView()->browser())) {
++    return 0;
++  }
++
+   CGFloat menu_bar_height =
+       NSApplication.sharedApplication.mainMenu.menuBarHeight;
+   // If there's a camera notch, the window is already below where the menu bar
+@@ -3349,10 +3357,12 @@
+   const bool in_hover_area = browser_view->IsPointInTopChromeHoverArea(cursor);
+   const bool in_rail = in_hover_area &&
+                        browser_view->IsTopChromeHoverEnabled() &&
+-                       helium::IsPointerInNativeRevealRail(browser_view, true);
++                       helium::IsPointerInNativeRevealRail(
++                           browser_view, true, TopUIFullscreenYOffset());
+   const bool in_window =
+       browser_view->GetLocalBounds().Contains(cursor) ||
+-      helium::IsPointerAboveNativeFullscreenContent(browser_view) ||
++      helium::IsPointerAboveNativeFullscreenContent(
++          browser_view, TopUIFullscreenYOffset()) ||
+       helium::IsPointerInNativeWindowHoverArea(browser_view, true);
+   gfx::Rect sidebar_header;
+   if (auto* sidebar = browser_view->GetSidebarView(); sidebar &&
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2308,7 +2308,8 @@
+ #if BUILDFLAG(IS_MAC)
+   if (has_cursor && !GetLocalBounds().Contains(cursor) && GetFrameView() &&
+       GetFrameView()->HasFloatingAddressBar() &&
+-      helium::IsPointerAboveNativeFullscreenContent(this)) {
++      helium::IsPointerAboveNativeFullscreenContent(
++          this, GetFrameView()->GetFloatingChromeTopOffset())) {
+     // The fullscreen menu-bar strip belongs to the top reveal area, without
+     // making it an entry point for the sidebar or queuing a collapse timer.
+     zen_last_cursor_ = cursor;
+@@ -2605,7 +2606,8 @@
+   }
+ #if BUILDFLAG(IS_MAC)
+   if (GetFrameView() && GetFrameView()->HasFloatingAddressBar()) {
+-    return helium::IsPointerInNativeRevealRail(this, true);
++    return helium::IsPointerInNativeRevealRail(
++        this, true, GetFrameView()->GetFloatingChromeTopOffset());
+   }
+ #endif
+   const int thickness = IsVerticalAddressBarInSidebar()
+@@ -2618,7 +2620,7 @@
+ #if BUILDFLAG(IS_MAC)
+   if (GetFrameView() && GetFrameView()->HasFloatingAddressBar()) {
+     return ShouldDrawVerticalTabStrip() &&
+-           helium::IsPointerInNativeRevealRail(this, false);
++           helium::IsPointerInNativeRevealRail(this, false, 0);
+   }
+ #endif
+   if (!ShouldDrawVerticalTabStrip()) {
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -406,6 +406,29 @@
+   return view->GetWidget()->GetNativeWindow().GetNativeNSWindow().inLiveResize;
+ }
+ 
++int NativeFullscreenTopControlsOffset(const BrowserView* view,
++                                      double menubar_fraction) {
++  if (!view || !view->GetWidget() || !view->IsFullscreen()) {
++    return 0;
++  }
++  NSWindow* window = view->GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  NSScreen* screen = window.screen;
++  NSView* content = window.contentView;
++  if (!screen || !content) {
++    return 0;
++  }
++  const NSRect bounds = [window convertRectToScreen:
++      [content convertRect:content.bounds toView:nil]];
++  const CGFloat menu_height =
++      NSApplication.sharedApplication.mainMenu.menuBarHeight;
++  const CGFloat menu_bottom = NSMaxY(screen.frame) -
++      menu_height * std::clamp(menubar_fraction, 0.0, 1.0);
++  // Always-visible menus and camera safe areas may already lower the window.
++  // Derive the remaining occlusion on every layout, including initial entry.
++  return static_cast<int>(std::ceil(
++      std::max<CGFloat>(0, NSMaxY(bounds) - menu_bottom)));
++}
++
+ bool IsPointerInNativeWindowHoverArea(const BrowserView* view,
+                                       bool retention) {
+   if (!view || !view->GetWidget() || view->IsFullscreen()) {
+@@ -429,9 +452,9 @@
+          pointer.y <= NSMaxY(bounds) + vertical;
+ }
+ 
+-bool IsPointerAboveNativeFullscreenContent(const BrowserView* view) {
+-  if (!view || !view->GetWidget() || !view->IsFullscreen() ||
+-      fullscreen_utils::IsInContentFullscreen(view->browser())) {
++bool IsPointerAboveNativeFullscreenContent(const BrowserView* view,
++                                           int top_offset) {
++  if (!view || !view->GetWidget() || !view->IsFullscreen()) {
+     return false;
+   }
+   NSWindow* window = view->GetWidget()->GetNativeWindow().GetNativeNSWindow();
+@@ -450,11 +473,13 @@
+          pointer.x < NSMaxX(content_bounds) &&
+          pointer.x >= NSMinX(screen.frame) &&
+          pointer.x < NSMaxX(screen.frame) &&
+-         pointer.y >= NSMaxY(content_bounds) &&
++         pointer.y >= NSMaxY(content_bounds) - top_offset &&
++         pointer.y >= NSMinY(screen.frame) &&
+          pointer.y <= NSMaxY(screen.frame);
+ }
+ 
+-bool IsPointerInNativeRevealRail(const BrowserView* view, bool top) {
++bool IsPointerInNativeRevealRail(const BrowserView* view, bool top,
++                                  int top_offset) {
+   if (!top && fullscreen_utils::IsInContentFullscreen(view->browser())) {
+     return false;
+   }
+@@ -466,17 +491,27 @@
+   if (view->IsFullscreen()) {
+     const NSRect screen = window.screen.frame;
+     const CGFloat pixel = 1.0 / window.backingScaleFactor;
+-    if (screen_point.x < NSMinX(screen) || screen_point.x > NSMaxX(screen) ||
++    if (screen_point.x < NSMinX(screen) || screen_point.x >= NSMaxX(screen) ||
+         screen_point.y < NSMinY(screen) || screen_point.y > NSMaxY(screen)) {
+       return false;
+     }
+-    // Include the strip above app content when the menu bar stays visible.
+-    // Otherwise retain the four physical top pixels and one side pixel.
+-    return top ? (screen_point.y >= NSMaxY(screen) - 4 * pixel ||
+-                  IsPointerAboveNativeFullscreenContent(view))
+-               : (view->IsVerticalTabStripRightAligned()
+-                      ? screen_point.x >= NSMaxX(screen) - pixel
+-                      : screen_point.x < NSMinX(screen) + pixel);
++    if (top) {
++      NSView* content = window.contentView;
++      if (!content) {
++        return false;
++      }
++      const NSRect bounds = [window convertRectToScreen:
++          [content convertRect:content.bounds toView:nil]];
++      const CGFloat content_top = NSMaxY(bounds) - top_offset;
++      // A visible menu/camera strip is wholly eligible, plus one physical
++      // pixel inside the available content. Hidden-menu entry uses 16 DIPs.
++      const CGFloat rail = content_top < NSMaxY(screen)
++                               ? pixel : kNativeTopChromeRevealDistance;
++      return screen_point.y >= content_top - rail;
++    }
++    return view->IsVerticalTabStripRightAligned()
++        ? screen_point.x >= NSMaxX(screen) - kNativeSideChromeRevealDistance
++        : screen_point.x < NSMinX(screen) + kNativeSideChromeRevealDistance;
+   }
+   NSView* native = window.contentView;
+   const NSPoint point =
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -69,12 +69,16 @@
+ inline constexpr int kNativeSideChromeRevealDistance = 16;
+ inline constexpr int kNativeSideChromeRetentionDistance = 128;
+ 
+-// The menu bar and camera-safe strip above fullscreen app content.
+-// Excludes webpage fullscreen and other screens.
+-bool IsPointerAboveNativeFullscreenContent(const BrowserView* view);
++// Move only by menu-bar space that is not already outside the content window.
++int NativeFullscreenTopControlsOffset(const BrowserView* view,
++                                      double menubar_fraction);
++// The menu bar and camera-safe strip above the available fullscreen content.
++bool IsPointerAboveNativeFullscreenContent(const BrowserView* view,
++                                           int top_offset);
+ // Windowed proximity uses separate horizontal and vertical distances.
+ bool IsPointerInNativeWindowHoverArea(const BrowserView* view, bool retention);
+-bool IsPointerInNativeRevealRail(const BrowserView* view, bool top);
++bool IsPointerInNativeRevealRail(const BrowserView* view, bool top,
++                                  int top_offset);
+ // AppKit owns the lifetime of an interactive window resize.
+ bool IsNativeWindowLiveResizing(const BrowserView* view);
+ #endif

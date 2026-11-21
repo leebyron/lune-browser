@@ -1,0 +1,12 @@
+--- a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
+@@ -115,6 +115,9 @@
+   if (state == tabs::TabAlert::kAudioPlaying) {
+     return "speaker.wave.2";
+   }
++  if (state == tabs::TabAlert::kAudioMuting) {
++    return "speaker.slash";
++  }
+ #endif
+   return nullptr;
+ }

@@ -1,0 +1,82 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -30,10 +30,15 @@
+ // A window ending at the material bounds cuts those effects into square corners.
+ constexpr int kGlassOutset = 48;
+ constexpr size_t kVisibleResults = 5;
++// Match the selected row curve with an equal visible side and bottom gap.
++constexpr int kGlassCornerRadius =
++    kHeliumNativeResultCornerRadius + kHeliumNativeResultInset;
++constexpr int kResultsBottomInset =
++    kHeliumNativeResultInset - kHeliumNativeResultVerticalInset;
+ 
+ int CommandBarHeight(size_t result_count) {
+   return kInputHeight +
+-         (result_count ? kHeliumNativeResultInset +
++         (result_count ? kResultsBottomInset +
+                              std::min(kVisibleResults, result_count) *
+                                  kHeliumNativeResultRowHeight
+                        : 0);
+@@ -93,7 +98,8 @@
+   [self updateShadowPath];
+ }
+ - (void)updateShadowPath {
+-  CGPathRef path = CGPathCreateWithRoundedRect(self.bounds, 20, 20, nullptr);
++  CGPathRef path = CGPathCreateWithRoundedRect(self.bounds, kGlassCornerRadius,
++                                              kGlassCornerRadius, nullptr);
+   [CATransaction begin];
+   [CATransaction setDisableActions:YES];
+   self.layer.shadowPath = path;
+@@ -363,7 +369,7 @@
+     material.appearance = appearance;
+     NSView* backdrop = [[NSView alloc] initWithFrame:material.bounds];
+     backdrop.wantsLayer = YES;
+-    backdrop.layer.cornerRadius = 20;
++    backdrop.layer.cornerRadius = kGlassCornerRadius;
+     backdrop.layer.backgroundColor =
+         [(dark ? NSColor.blackColor : NSColor.whiteColor)
+             colorWithAlphaComponent:.8].CGColor;
+@@ -373,7 +379,7 @@
+     NSGlassEffectView* glass =
+         [[NSGlassEffectView alloc] initWithFrame:material.bounds];
+     glass.style = NSGlassEffectViewStyleRegular;
+-    glass.cornerRadius = 20;
++    glass.cornerRadius = kGlassCornerRadius;
+     glass.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+     glass.contentView = pane;
+     [material addSubview:glass];
+@@ -387,7 +393,7 @@
+     effect.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+     effect.state = NSVisualEffectStateActive;
+     effect.wantsLayer = YES;
+-    effect.layer.cornerRadius = 20;
++    effect.layer.cornerRadius = kGlassCornerRadius;
+     effect.layer.masksToBounds = YES;
+     [effect addSubview:pane];
+     native_->material = effect;
+--- a/chrome/browser/ui/helium/native_result_row_mac.h
++++ b/chrome/browser/ui/helium/native_result_row_mac.h
+@@ -9,6 +9,8 @@
+ 
+ inline constexpr int kHeliumNativeResultRowHeight = 52;
+ inline constexpr int kHeliumNativeResultInset = 8;
++inline constexpr int kHeliumNativeResultCornerRadius = 10;
++inline constexpr int kHeliumNativeResultVerticalInset = 1;
+ 
+ // Shared presentation for native address and Command-T autocomplete results.
+ // Callers retain selection, result semantics, activation, and optional hover.
+--- a/chrome/browser/ui/helium/native_result_row_mac.mm
++++ b/chrome/browser/ui/helium/native_result_row_mac.mm
+@@ -69,9 +69,9 @@
+   if (self.selected) {
+     [[NSColor.selectedContentBackgroundColor colorWithAlphaComponent:0.25]
+         setFill];
+-    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0, 1)
+-                                     xRadius:10
+-                                     yRadius:10] fill];
++    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0, kHeliumNativeResultVerticalInset)
++                                     xRadius:kHeliumNativeResultCornerRadius
++                                     yRadius:kHeliumNativeResultCornerRadius] fill];
+   }
+   const BOOL usesSymbol = !self.resultImage && self.symbolName.length > 0;
+   NSImage* image = self.resultImage;

@@ -1,0 +1,66 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2774,13 +2774,16 @@
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+     floating_sidebar_material_.controlsInsets = NSEdgeInsetsMake(
+         header_clearance, left_resize, outer_resize, right_resize);
++    const gfx::Point sidebar_origin = bounds.origin();
+     bounds.Inset(gfx::Insets::TLBR(header_clearance, left_resize, outer_resize,
+                                    right_resize));
+     // A child NSWindow is not clipped by its parent during the slide.
+     bounds.Intersect(view->GetLocalBounds());
++    const gfx::Point controls_origin =
++        bounds.origin() - sidebar_origin.OffsetFromOrigin();
+     views::View::ConvertRectToScreen(view, &bounds);
+     floating_sidebar_widget_->SetBounds(bounds);
+-    sidebar->LayoutFloatingControls();
++    sidebar->LayoutFloatingControls(controls_origin);
+     floating_sidebar_widget_->LayoutRootViewIfNecessary();
+     NSWindow* window =
+         floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -531,15 +531,21 @@
+   InvalidateLayout();
+ }
+ 
++void VerticalTabStripRegionView::LayoutFloatingControls(
++    const gfx::Point& host_origin) {
++  floating_controls_origin_ = host_origin;
++  LayoutFloatingControls();
++}
++
+ void VerticalTabStripRegionView::LayoutFloatingControls() {
+   if (!floating_content_placeholder_) {
+     return;
+   }
+   gfx::Rect bounds = floating_content_placeholder_->bounds();
+-  views::View::ConvertRectToScreen(this, &bounds);
+-  const gfx::Point origin =
+-      content_area_view_->parent()->GetBoundsInScreen().origin();
+-  bounds.Offset(-origin.x(), -origin.y());
++  // The glass and its child window may be at different native/compositor
++  // resize stages. Keep tab geometry in sidebar coordinates instead of
++  // subtracting independently updated screen origins.
++  bounds.Offset(-floating_controls_origin_.x(), -floating_controls_origin_.y());
+   content_area_view_->SetBoundsRect(bounds);
+   content_area_view_->SetVisible(floating_content_placeholder_->GetVisible());
+ }
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
+@@ -105,6 +105,7 @@
+ 
+   void SetFloatingControlsHost(views::View* host);
+   void LayoutFloatingControls();
++  void LayoutFloatingControls(const gfx::Point& host_origin);
+   bool ContainsRegionView(const views::View* view) const override;
+ 
+   void UpdateInteriorMargin();
+@@ -242,6 +243,7 @@
+ 
+   raw_ptr<views::View> content_area_view_ = nullptr;
+   raw_ptr<views::View> floating_content_placeholder_ = nullptr;
++  gfx::Point floating_controls_origin_;
+   // Whether a leading exclusion exists due to window controls.
+   bool has_leading_exclusion_ = false;
+   std::unique_ptr<views::ViewDecoration> floating_surface_shadow_;

@@ -1,0 +1,14 @@
+--- a/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
++++ b/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
+@@ -55,6 +55,11 @@
+     mixer[ui::kColorSysOmniboxContainer] = {SystemColor(NSColor.controlBackgroundColor)};
+     mixer[kColorTabBackgroundActiveFrameActive] = {SystemColor(NSColor.selectedContentBackgroundColor)};
+     mixer[kColorTabBackgroundActiveFrameInactive] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    // Selected tabs use active-tab text, so keep the matching native surface.
++    mixer[kColorTabBackgroundSelectedFrameActive] = {kColorTabBackgroundActiveFrameActive};
++    mixer[kColorTabBackgroundSelectedFrameInactive] = {kColorTabBackgroundActiveFrameInactive};
++    mixer[kColorTabBackgroundSelectedHoverFrameActive] = {kColorTabBackgroundActiveFrameActive};
++    mixer[kColorTabBackgroundSelectedHoverFrameInactive] = {kColorTabBackgroundActiveFrameInactive};
+     mixer[ui::kColorSysSurface3] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
+     mixer[ui::kColorSysSurface4] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
+     mixer[ui::kColorSysSurface5] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};

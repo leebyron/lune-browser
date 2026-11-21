@@ -1,0 +1,74 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1486,6 +1486,7 @@ static CGFloat HeliumWindowControlsWidth
+ - (void)beginEditing;
+ - (BOOL)isEditing;
+ - (CGFloat)preferredHeight;
++- (CGFloat)horizontalOutset;
+ - (void)updateSuggestions;
+ - (void)acceptAddress;
+ - (BOOL)dismissSiteInfo;
+@@ -1706,13 +1707,22 @@ class HeliumSiteInfoObserver : public vi
+   const bool show_reload = _browserView->GetProfile()->GetPrefs()->GetBoolean(
+       prefs::kShowReloadButton);
+   _reload.hidden = !show_reload;
++  const CGFloat outset = [self horizontalOutset];
++  NSRect site_frame = _siteInfo.frame;
++  site_frame.origin.x = 4 + outset;
++  _siteInfo.frame = site_frame;
++  NSRect reload_frame = _reload.frame;
++  reload_frame.origin.x = NSWidth(_controls.bounds) - 34 - outset;
++  _reload.frame = reload_frame;
+   NSRect address_frame = _addressContainer.frame;
++  address_frame.origin.x = 40 + outset;
++  // Widen only the glass/results; keep the header controls fixed on screen.
+   // Reclaim Reload's 32 pt target without changing the leading inset.
+   const CGFloat standard_width = std::max<CGFloat>(
+-      0, NSWidth(_controls.bounds) - NSMinX(address_frame) - 40);
++      0, NSWidth(_controls.bounds) - NSMinX(address_frame) - 40 - outset);
+   address_frame.size.width = std::max<CGFloat>(
+       0, NSWidth(_controls.bounds) - NSMinX(address_frame) -
+-             (show_reload ? 40 : 8));
++             (show_reload ? 40 : 8) - outset);
+   _addressContainer.frame = address_frame;
+   NSRect field_bounds = _addressContainer.bounds;
+   if (!show_reload && ![self isEditing]) {
+@@ -1766,6 +1776,11 @@ class HeliumSiteInfoObserver : public vi
+   return _editing || _address.currentEditor != nil;
+ }
+ 
++- (CGFloat)horizontalOutset {
++  // The shared result icon/text columns are 8 pt farther in than the header.
++  return _matches.empty() ? 0 : kHeliumNativeResultInset;
++}
++
+ - (CGFloat)preferredHeight {
+   // Keep 4 pt between the editor and the first result, and 8 pt below the list.
+   return 36 + (_matches.empty() ? 0 : 4 + kHeliumNativeResultInset +
+@@ -1853,7 +1868,10 @@ class HeliumSiteInfoObserver : public vi
+   [_suggestions removeAllObjects];
+   _address.alignment = NSTextAlignmentCenter;
+   [_addressContainer.layer removeAnimationForKey:@"address-alignment"];
+-  [self refresh];
++  // Shrink the glass before relaying out the fixed header controls.
++  if (_browserView) {
++    _browserView->browser_widget()->GetFrameView()->UpdateFloatingAddressBar();
++  }
+ }
+ 
+ - (void)controlTextDidEndEditing:(NSNotification*)notification {
+@@ -2910,9 +2928,12 @@ void BrowserFrameViewMac::UpdateFloating
+     }
+     return;
+   }
++  const int address_outset =
++      floating_address_bar_ ? [floating_address_bar_ horizontalOutset] : 0;
+   const gfx::Rect bounds(
+-      address_left + (address_right - address_left - capsule_width) / 2,
+-      8 + TopUIFullscreenYOffset(), capsule_width,
++      address_left + (address_right - address_left - capsule_width) / 2 -
++          address_outset,
++      8 + TopUIFullscreenYOffset(), capsule_width + 2 * address_outset,
+       floating_address_bar_ ? [floating_address_bar_ preferredHeight] : 36);
+   NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
+   NSView* native_view =

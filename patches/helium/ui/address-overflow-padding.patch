@@ -1,0 +1,64 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1301,6 +1301,24 @@
+ }
+ @end
+ 
++// AppKit's two-point line padding scrolls with the text. Reserve that margin
++// outside the editor instead, so clipped URLs still align with result titles.
++static NSRect HeliumAddressEditingFrame(NSRect frame) {
++  return NSInsetRect(frame, std::min<CGFloat>(2, NSWidth(frame) / 2), 0);
++}
++
++@interface HeliumAddressTextFieldCell : HeliumWordTextFieldCell
++@end
++@implementation HeliumAddressTextFieldCell
++- (NSText*)setUpFieldEditorAttributes:(NSText*)textObject {
++  NSText* result = [super setUpFieldEditorAttributes:textObject];
++  if ([result isKindOfClass:NSTextView.class]) {
++    ((NSTextView*)result).textContainer.lineFragmentPadding = 0;
++  }
++  return result;
++}
++@end
++
+ // Keep the system focus indicator but supply the whole glass surface as its
+ // mask. AppKit chooses the ring color and accessibility contrast treatment.
+ @interface HeliumGlassAddressField : HeliumNativeTextField
+@@ -1690,7 +1708,7 @@
+   [_controls addSubview:_addressContainer];
+   _address =
+       [[HeliumGlassAddressField alloc] initWithFrame:_addressContainer.bounds];
+-  _address.cell = [[HeliumWordTextFieldCell alloc] initTextCell:@""];
++  _address.cell = [[HeliumAddressTextFieldCell alloc] initTextCell:@""];
+   _address.focusSurface = _material;
+   _address.bezeled = NO;
+   _address.drawsBackground = NO;
+@@ -1847,7 +1865,8 @@
+     field_bounds.size.width = std::clamp<CGFloat>(
+         _address.cell.cellSize.width, standard_width, NSWidth(field_bounds));
+   }
+-  _address.frame = field_bounds;
++  _address.frame = [self isEditing] ? HeliumAddressEditingFrame(field_bounds)
++                                    : field_bounds;
+   [self layoutScope];
+   self.contentAware = _browserView->GetProfile()->GetPrefs()->GetBoolean(
+       prefs::kHeliumContentAwareChrome);
+@@ -1923,7 +1942,7 @@
+           .width;
+   _editing = YES;
+   _address.userEditing = YES;
+-  _address.frame = _addressContainer.bounds;
++  _address.frame = HeliumAddressEditingFrame(_addressContainer.bounds);
+   _address.alignment = NSTextAlignmentLeft;
+   // Match the normal omnibox's editing text, including an empty new-tab
+   // field. GetURL() supplies about:blank when the page URL should be hidden.
+@@ -1976,7 +1995,7 @@
+   NSRect field = _addressContainer.bounds;
+   field.origin.x = width + 8;
+   field.size.width = std::max<CGFloat>(0, field.size.width - field.origin.x);
+-  _address.frame = field;
++  _address.frame = HeliumAddressEditingFrame(field);
+ }
+ 
+ - (void)enterBang:(const std::string &)keyword

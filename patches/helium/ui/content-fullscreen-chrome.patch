@@ -1,0 +1,142 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2652,6 +2652,11 @@
+ }
+ 
+ void BrowserFrameViewMac::UpdateFullscreenTopUI() {
++  if (HasFloatingAddressBar()) {
++    // Browser and page fullscreen both use TOOLBAR_NONE. A content-fullscreen
++    // change still needs layout even when that legacy style does not change.
++    GetBrowserView()->InvalidateLayout();
++  }
+   BrowserWindowInterface* browser = GetBrowserView()->browser();
+   // Update to the new toolbar style if needed.
+   FullscreenToolbarStyle new_style;
+@@ -3131,6 +3136,7 @@
+ int BrowserFrameViewMac::TopUIFullscreenYOffset() const {
+   if (!GetBrowserView()->GetTabStripVisible() ||
+       !GetBrowserView()->IsFullscreen() ||
++      fullscreen_utils::IsInContentFullscreen(GetBrowserView()->browser()) ||
+       WindowFeatureController::From(GetBrowserView()->browser())
+           ->UsesImmersiveFullscreenMode()) {
+     return 0;
+@@ -3900,7 +3906,8 @@
+   auto* view = GetBrowserView();
+   auto* sidebar =
+       static_cast<VerticalTabStripRegionView*>(view->GetSidebarView());
+-  const bool eligible = HasFloatingAddressBar() && sidebar;
++  const bool eligible = HasFloatingAddressBar() && sidebar &&
++      !fullscreen_utils::IsInContentFullscreen(view->browser());
+   if (sidebar && sidebar->header_view()) {
+     sidebar->header_view()->UpdateFloatingHeaderLayout();
+   }
+@@ -3920,6 +3927,10 @@
+       static_cast<views::NativeViewHost*>(floating_sidebar_button_host_.view());
+   if (!eligible) {
+     ResetFloatingSidebar();
++    if (sidebar && fullscreen_utils::IsInContentFullscreen(view->browser())) {
++      sidebar->SetVisible(false);
++    }
++    floating_drag_region_.sidebarButtonBounds = NSZeroRect;
+     if (background) {
+       background->SetVisible(false);
+     }
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -1626,6 +1626,11 @@
+ }
+ 
+ bool BrowserView::ShouldDrawVerticalTabStrip() const {
++#if BUILDFLAG(IS_MAC)
++  if (fullscreen_utils::IsInContentFullscreen(browser())) {
++    return false;
++  }
++#endif
+   auto* controller = tabs::VerticalTabStripStateController::From(browser_);
+   return ShouldDrawTabStrip() && controller &&
+          controller->ShouldDisplayVerticalTabs() &&
+@@ -1771,7 +1776,8 @@
+ }
+ 
+ gfx::Rect BrowserView::GetFloatingSidebarBounds() const {
+-  if (IsZenModeSideChromePinned() || !vertical_tab_strip_region_view_ ||
++  if (!ShouldDrawVerticalTabStrip() || IsZenModeSideChromePinned() ||
++      !vertical_tab_strip_region_view_ ||
+       !vertical_tab_strip_region_view_->GetVisible()) {
+     return {};
+   }
+@@ -2115,6 +2121,13 @@
+ }
+ 
+ void BrowserView::UpdateZenModeState() {
++#if BUILDFLAG(IS_MAC)
++  if (fullscreen_utils::IsInContentFullscreen(browser())) {
++    // Discard a transient reveal on entry, including while a native menu or
++    // transition temporarily holds the ordinary reveal state machine.
++    zen_side_chrome_animation_.Reset(0);
++  }
++#endif
+   const bool zen_mode_enabled = IsZenModeEnabled();
+   UpdateZenModeEventMonitor();
+ 
+@@ -2278,6 +2291,14 @@
+ }
+ 
+ void BrowserView::UpdateZenModeRevealFromCursor() {
++#if BUILDFLAG(IS_MAC)
++  if (fullscreen_utils::IsInContentFullscreen(browser()) &&
++      (zen_side_chrome_animation_.IsShowing() ||
++       zen_side_chrome_animation_.GetCurrentValue() != 0)) {
++    // Clear transient reveal before drag, menu or transition holds can return.
++    zen_side_chrome_animation_.Reset(0);
++  }
++#endif
+   if (auto* controller = tabs::VerticalTabStripStateController::From(browser_);
+       controller && controller->IsResizing()) {
+     // Pointer capture may carry the resize drag outside the window. Keep the
+@@ -2422,10 +2443,6 @@
+     reveal_side = true;
+   }
+ 
+-  if (!ShouldDrawVerticalTabStrip()) {
+-    reveal_side = false;
+-  }
+-
+   // Pinned VTS stays visible regardless of cursor position.
+   if (IsZenModeSideChromePinned()) {
+     reveal_side = true;
+@@ -2484,6 +2501,12 @@
+     }
+   }
+ 
++  // Apply eligibility after menu/focus holds so none can reveal a sidebar in
++  // webpage fullscreen. Saved side and pin preferences remain unchanged.
++  if (!ShouldDrawVerticalTabStrip()) {
++    reveal_side = false;
++  }
++
+   // Floating controls fully replace the layout-based header in this mode.
+   // Revealing them must never resize or move the page.
+   if (auto* frame = GetFrameView(); frame && frame->HasFloatingAddressBar()) {
+@@ -2526,6 +2549,9 @@
+ }
+ 
+ void BrowserView::RevealZenModeSideChromeImmediately() {
++  if (!ShouldDrawVerticalTabStrip()) {
++    return;
++  }
+   zen_side_chrome_animation_.Reset(1);
+   InvalidateLayout();
+   DeprecatedLayoutImmediately();
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -456,6 +456,9 @@
+ }
+ 
+ bool IsPointerInNativeRevealRail(const BrowserView* view, bool top) {
++  if (!top && fullscreen_utils::IsInContentFullscreen(view->browser())) {
++    return false;
++  }
+   if (!view->GetWidget()) {
+     return false;
+   }

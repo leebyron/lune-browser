@@ -1,0 +1,44 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -488,6 +488,7 @@ bool IsPointerInNativeRevealRail(const B
+   }
+   NSWindow* window = view->GetWidget()->GetNativeWindow().GetNativeNSWindow();
+   const NSPoint screen_point = NSEvent.mouseLocation;
++  constexpr CGFloat inside_top_rail = 8;
+   if (view->IsFullscreen()) {
+     const NSRect screen = window.screen.frame;
+     const CGFloat pixel = 1.0 / window.backingScaleFactor;
+@@ -504,9 +505,10 @@ bool IsPointerInNativeRevealRail(const B
+           [content convertRect:content.bounds toView:nil]];
+       const CGFloat content_top = NSMaxY(bounds) - top_offset;
+       // A visible menu/camera strip is wholly eligible, plus one physical
+-      // pixel inside the available content. Hidden-menu entry uses 16 DIPs.
+-      const CGFloat rail = content_top < NSMaxY(screen)
+-                               ? pixel : kNativeTopChromeRevealDistance;
++      // pixel inside the available content. Without the strip, use the
++      // ordinary inside top rail.
++      const CGFloat rail =
++          content_top < NSMaxY(screen) ? pixel : inside_top_rail;
+       return screen_point.y >= content_top - rail;
+     }
+     return view->IsVerticalTabStripRightAligned()
+@@ -518,15 +520,16 @@ bool IsPointerInNativeRevealRail(const B
+       [native convertPoint:[window convertPointFromScreen:screen_point]
+                   fromView:nil];
+   // Observe the top and mounted side without reserving layout or resize space.
+-  constexpr CGFloat top_rail = kNativeTopChromeRevealDistance;
++  constexpr CGFloat outside_top_rail = kNativeTopChromeRevealDistance;
+   constexpr CGFloat side_rail = kNativeSideChromeRevealDistance;
+   if (point.x < -side_rail || point.x > NSWidth(native.bounds) + side_rail ||
+-      point.y < -top_rail || point.y > NSHeight(native.bounds) + top_rail) {
++      point.y < -outside_top_rail ||
++      point.y > NSHeight(native.bounds) + outside_top_rail) {
+     return false;
+   }
+   const CGFloat y =
+       native.isFlipped ? point.y : NSHeight(native.bounds) - point.y;
+-  return top ? y < top_rail
++  return top ? y < inside_top_rail
+              : (view->IsVerticalTabStripRightAligned()
+                     ? point.x >= NSWidth(native.bounds) - side_rail
+                     : point.x < side_rail);

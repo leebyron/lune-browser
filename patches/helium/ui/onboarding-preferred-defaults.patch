@@ -1,0 +1,105 @@
+Index: src/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
+===================================================================
+--- src.orig/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
++++ src/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
+@@ -73,8 +73,15 @@ base::DictValue OnboardingMessageHandler
+ 
+   // Explicitly allow this one non-Helium preference in onboarding. Keep the
+   // general settings API restricted to its existing Helium namespace.
++  // Show the preferred choice without enabling requests merely by opening
++  // setup. Next on the search step persists it. Explicit choices, policy values
++  // and completed profiles keep their existing value when setup is revisited.
++  const bool recommend_suggestions =
++      !pref_service_->GetBoolean(prefs::kHeliumDidOnboarding) &&
++      pref_service_->FindPreference(prefs::kSearchSuggestEnabled)->IsDefaultValue();
+   output.Set(prefs::kSearchSuggestEnabled,
+-             pref_service_->GetBoolean(prefs::kSearchSuggestEnabled));
++             recommend_suggestions ||
++                 pref_service_->GetBoolean(prefs::kSearchSuggestEnabled));
+   return output;
+ }
+ 
+Index: src/components/helium_onboarding/src/app.css
+===================================================================
+--- src.orig/components/helium_onboarding/src/app.css
++++ src/components/helium_onboarding/src/app.css
+@@ -64,6 +64,18 @@ h2 {
+     padding-bottom: var(--navigation-clearance);
+ }
+ 
++/* Soften secondary descriptions without fading their surrounding controls. */
++.onboarding-page .page-content p,
++.onboarding-page .page-header p {
++    color: color-mix(in srgb, var(--secondary) 70%, var(--setup-background));
++}
++
++/* Keep secondary setting descriptions smaller than control labels. */
++.onboarding-page .page-content p {
++    font-size: 14px;
++    line-height: 1.4;
++}
++
+ .page-content {
+     display: flex;
+     flex-direction: column;
+Index: src/components/helium_onboarding/src/components/PageHeader.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/PageHeader.svelte
++++ src/components/helium_onboarding/src/components/PageHeader.svelte
+@@ -47,7 +47,7 @@
+         }
+ 
+         & p {
+-            font-size: 18px;
++            font-size: 16px;
+             max-width: 450px;
+             text-wrap: pretty;
+         }
+Index: src/components/helium_onboarding/src/components/PageNavigation.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/PageNavigation.svelte
++++ src/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -15,6 +15,7 @@
+         importDiscovery,
+         importProfile,
+         setPref,
++        preferences,
+     } from "../lib/browser";
+     import {
+         nextPage,
+@@ -56,6 +57,12 @@
+             acceptLatestSchema();
+             break;
+ 
++        case "SearchEngine":
++            // The untouched recommendation is only a setup selection until
++            // Next confirms it. Explicit changes already persist via setPref.
++            await setPref("search.suggest_enabled", $preferences["search.suggest_enabled"]);
++            break;
++
+         case "Finish":
+             chrome.send('setOnboardingAppearance', [false]);
+             await setPref('completed_onboarding', true);
+@@ -141,8 +148,8 @@
+         transform: translateX(-50%);
+         background: linear-gradient(to bottom,
+             transparent,
+-            color-mix(in srgb, var(--setup-background) 92%, transparent) 65%,
+-            var(--setup-background));
++            color-mix(in srgb, var(--setup-background) 85%, transparent) 38px,
++            var(--setup-background) 50px);
+         pointer-events: none;
+         z-index: -1;
+     }
+Index: src/components/helium_onboarding/src/pages/Welcome.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/pages/Welcome.svelte
++++ src/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -24,7 +24,6 @@
+     };
+     const next = async () => {
+         await updateWrite;
+-        await setPref('services.enabled', false);
+         markIntroSeen();
+         nextPage();
+     };

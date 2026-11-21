@@ -1,0 +1,92 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1326,6 +1326,17 @@
+   return 36 + HeliumWindowControlOffset(window, 2);
+ }
+ 
++static void ConfigureWindowControlsCloseHandler(
++    HeliumFullscreenWindowControls* controls,
++    views::Widget* widget) {
++  auto weak_widget = widget->GetWeakPtr();
++  controls.closeHandler = ^{
++    if (weak_widget) {
++      weak_widget->CloseWithReason(views::Widget::ClosedReason::kCloseButtonClicked);
++    }
++  };
++}
++
+ // Reuse Helium's native traffic-light group, including AppKit group hover and
+ // fullscreen overlay suppression, rather than orphaning standard NSButtons.
+ @interface HeliumWindowControls : HeliumFullscreenWindowControls
+@@ -2107,7 +2118,6 @@
+     static_cast<views::NativeViewHost*>(host)->Detach();
+   }
+   floating_customize_close_ = nil;
+-  [helium_fullscreen_controls_ restoreTitlebarButtons];
+   if (helium_fullscreen_controls_host_) {
+     helium_fullscreen_controls_host_->Detach();
+   }
+@@ -2426,6 +2436,7 @@
+     helium_fullscreen_controls_ = [[HeliumFullscreenWindowControls alloc]
+         initWithWindow:window
+                   size:NSMakeSize(caption.width(), caption.height())];
++    ConfigureWindowControlsCloseHandler(helium_fullscreen_controls_, GetWidget());
+     helium_fullscreen_controls_host_->Attach(
+         gfx::NativeView(helium_fullscreen_controls_));
+   }
+@@ -3012,6 +3023,7 @@
+     floating_window_controls_host_.SetView(host);
+     floating_window_controls_ = [[HeliumWindowControls alloc]
+         initWithWindow:GetWidget()->GetNativeWindow().GetNativeNSWindow()];
++    ConfigureWindowControlsCloseHandler(floating_window_controls_, GetWidget());
+     host->Attach(gfx::NativeView(floating_window_controls_));
+   }
+   const gfx::Rect side = view->GetFloatingSidebarBounds();
+--- a/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h
++++ b/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h
+@@ -11,6 +11,8 @@
+ // titlebar is restored when entering content fullscreen or leaving fullscreen.
+ @interface HeliumFullscreenWindowControls : NSView
+ - (instancetype)initWithWindow:(NSWindow*)window size:(NSSize)size;
++// Ask the owning browser widget to close, preserving its close protections.
++@property(nonatomic, copy) void (^closeHandler)(void);
+ // Tracks only the native green-button menu belonging to these controls.
+ @property(nonatomic, readonly) BOOL windowManagementMenuOpen;
+ - (void)hideTitlebarButtons;
+--- a/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.mm
++++ b/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.mm
+@@ -38,7 +38,7 @@
+     SEL action;
+     bool enabled;
+   } buttons[] = {
+-      {NSWindowCloseButton, @selector(performClose:),
++      {NSWindowCloseButton, @selector(closeWindow:),
+        (style & NSWindowStyleMaskClosable) != 0},
+       // Fullscreen windows cannot be minimized.
+       {NSWindowMiniaturizeButton, @selector(performMiniaturize:), false},
+@@ -70,7 +70,7 @@
+     if (entry.type == NSWindowZoomButton) {
+       _zoomButton = button;
+     }
+-    button.target = window;
++    button.target = entry.type == NSWindowCloseButton ? self : window;
+     button.action = entry.action;
+     button.enabled = entry.enabled;
+     NSRect frame = button.frame;
+@@ -106,6 +106,16 @@
+   [NSNotificationCenter.defaultCenter removeObserver:self];
+ }
+ 
++- (void)closeWindow:(id)sender {
++  // AppKit's performClose: checks the original titlebar button's enabled
++  // state. That button can be disabled while our replacement is presented.
++  // Keep the callback alive if closing tears down these native controls.
++  void (^closeHandler)(void) = self.closeHandler;
++  if (closeHandler) {
++    closeHandler();
++  }
++}
++
+ - (BOOL)windowManagementMenuOpen {
+   if (_windowManagementMenu) {
+     return YES;

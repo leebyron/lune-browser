@@ -1,0 +1,33 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -14,8 +14,6 @@
+ #include "chrome/browser/ui/helium/native_result_row_mac.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials_mac.h"
+-#include "chrome/common/pref_names.h"
+-#include "components/prefs/pref_service.h"
+ #include "ui/gfx/image/image.h"
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/border.h"
+@@ -359,9 +357,6 @@
+   }
+   NSAppearance* appearance = [NSAppearance
+       appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+-  const bool content_aware = browser_view &&
+-      browser_view->GetProfile()->GetPrefs()->GetBoolean(
+-          prefs::kHeliumContentAwareChrome);
+   if (@available(macOS 26, *)) {
+     NSView* material = [[HeliumCommandMaterial alloc] initWithFrame:pane.frame];
+     material.appearance = appearance;
+@@ -371,7 +366,10 @@
+     backdrop.layer.backgroundColor =
+         [(dark ? NSColor.blackColor : NSColor.whiteColor)
+             colorWithAlphaComponent:.8].CGColor;
+-    backdrop.hidden = content_aware;
++    // Regular glass becomes clearer and can invert its tone on small surfaces.
++    // Keep this menu's neutral backing at every size so filtering results cannot
++    // turn the frosted panel into an adaptive transparent pill. Other browser
++    // chrome still follows the Content aware preference.
+     backdrop.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+     [material addSubview:backdrop];
+     NSGlassEffectView* glass =

@@ -1,0 +1,83 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -59,7 +59,8 @@
+     case LayoutConstant::kBookmarkBarButtonHeight:
+       return touch_ui ? 36 : 28;
+     case LayoutConstant::kBookmarkBarButtonPadding:
+-      return GetLayoutConstant(LayoutConstant::kToolbarElementPadding);
++      return spacious ? 4
++                      : GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
+     case LayoutConstant::kBookmarkBarButtonImageLabelPadding:
+       return 6;
+     case LayoutConstant::kWebAppMenuButtonSize:
+@@ -69,7 +70,7 @@
+       // stretching the container view.
+       return 16;
+     case LayoutConstant::kLocationBarBubbleFontVerticalPadding:
+-      return 2;
++      return touch_ui ? 3 : (spacious ? 5 : 2);
+     case LayoutConstant::kLocationBarBubbleAnchorVerticalInset:
+       return 1;
+     case LayoutConstant::kLocationBarChildInteriorPadding:
+@@ -109,7 +110,7 @@
+     case LayoutConstant::kLocationBarTrailingDecorationInnerPadding:
+       return touch_ui ? 3 : 8;
+     case LayoutConstant::kLocationBarHeight:
+-      return touch_ui ? 36 : (spacious ? 32 : 28);
++      return touch_ui ? 36 : (spacious ? 34 : 28);
+     // LINT.IfChange(LocationBarIconSize)
+     case LayoutConstant::kLocationBarIconSize:
+       return touch_ui ? 20 : 16;
+@@ -135,10 +136,7 @@
+     case LayoutConstant::kTabCloseButtonSize:
+       return touch_ui ? 24 : (features::IsRoundedIconsEnabled() ? 14 : 16);
+     case LayoutConstant::kTabHeight:
+-      // The visible part of the tab matches the location bar height.
+-      return GetLayoutConstant(LayoutConstant::kLocationBarHeight) +
+-             GetLayoutConstant(LayoutConstant::kTabStripPadding) +
+-             GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap);
++      return spacious ? 37 : 31;
+     case LayoutConstant::kTabStripHeight:
+       return GetLayoutConstant(LayoutConstant::kTabHeight) +
+              GetLayoutConstant(LayoutConstant::kTabStripPadding);
+@@ -159,7 +157,7 @@
+     case LayoutConstant::kTabstripToolbarOverlap:
+       return 0;
+     case LayoutConstant::kToolbarButtonHeight:
+-      return touch_ui ? 48 : (spacious ? 32 : 28);
++      return touch_ui ? 48 : (spacious ? 34 : 28);
+     case LayoutConstant::kToolbarButtonIconSize:
+       return touch_ui ? kDefaultTouchableIconSize
+                       : kDefaultIconSizeChromeRefresh;
+@@ -174,7 +172,9 @@
+     case LayoutConstant::kToolbarElementPadding:
+       return touch_ui ? 0 : GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
+     case LayoutConstant::kToolbarIconDefaultMargin:
+-      return touch_ui ? 0 : GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
++      return touch_ui ? 0
++                      : (spacious ? 4 : GetLayoutConstant(
++                                            LayoutConstant::kHeliumBasePadding));
+     case LayoutConstant::kToolbarButtonRefreshExpandedMargin:
+       return 5;
+     case LayoutConstant::kLocationBarMargin:
+@@ -262,17 +262,14 @@
+     }
+ 
+     case TOOLBAR_BUTTON:
+-      // Fills the toolbar button height.
+-      return gfx::Insets(
+-          (GetLayoutConstant(LayoutConstant::kToolbarButtonHeight) -
+-           GetLayoutConstant(LayoutConstant::kToolbarButtonIconSize)) /
+-          2);
++      return gfx::Insets(touch_ui ? 12 : (spacious ? 7 : 4));
+ 
+     case BROWSER_APP_MENU_CHIP_PADDING:
+       if (touch_ui) {
+         return GetLayoutInsets(TOOLBAR_BUTTON);
+       } else {
+-        return gfx::Insets::TLBR(7, 4, 7, 6);
++        const int vertical = spacious ? 7 : 4;
++        return gfx::Insets::TLBR(vertical, 4, vertical, 6);
+       }
+ 
+     case WEB_APP_APP_MENU_CHIP_PADDING:

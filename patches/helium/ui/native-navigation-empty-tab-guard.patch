@@ -1,0 +1,15 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1296,9 +1296,10 @@ void ConfigureNativeToolbarMenu(HeliumHe
+     _back.frame = NSMakeRect(forward ? 4 : 2, 2, 32, 32);
+     _forward.frame = NSMakeRect(back ? 36 : 2, 2, 32, 32);
+   }
+-  _back.enabled = _browserView && chrome::CanGoBack(_browserView->browser());
++  const bool has_contents = _browserView && _browserView->GetActiveWebContents();
++  _back.enabled = has_contents && chrome::CanGoBack(_browserView->browser());
+   _forward.enabled =
+-      _browserView && chrome::CanGoForward(_browserView->browser());
++      has_contents && chrome::CanGoForward(_browserView->browser());
+ }
+ - (void)goBack:(id)sender {
+   if (_browserView) {

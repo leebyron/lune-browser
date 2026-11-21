@@ -1,0 +1,15 @@
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -1076,7 +1076,11 @@
+   is_expanded_on_hover_ = false;
+   auto* tab_strip = views::AsViewClass<TabStripView>(view);
+   CHECK(tab_strip);
+-  content_area_view_->AddChildView(tab_strip->RemoveNewTabButtonContainer());
++  // Keep the placeholder in the tab strip's slot. Appending it after the
++  // footer would put the next attached vertical strip below the footer.
++  const size_t strip_index = content_area_view_->GetIndexOf(view).value();
++  content_area_view_->AddChildViewAt(tab_strip->RemoveNewTabButtonContainer(),
++                                   strip_index);
+   return BaseTabStripRegionView::RemoveTabStripView(view);
+ }
+ 

@@ -1,0 +1,11 @@
+--- a/chrome/browser/ui/color/chrome_color_mixers.cc
++++ b/chrome/browser/ui/color/chrome_color_mixers.cc
+@@ -62,4 +62,6 @@
+   mixer[ui::kColorSysOmniboxContainer] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
+-  mixer[kColorTabBackgroundActiveFrameActive] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
+-  mixer[kColorTabBackgroundActiveFrameInactive] = {dark ? 0xFF163B52 : 0xFFF1F4EC};
++  // Selected tabs use the palette's stronger surface: lighter than the sidebar
++  // in Dark mode and darker in Light mode, for both mounted and glass rows.
++  mixer[kColorTabBackgroundActiveFrameActive] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
++  mixer[kColorTabBackgroundActiveFrameInactive] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};
+   mixer[ui::kColorSysSurface3] = {dark ? 0xFF2A4C62 : 0xFFD6E1D2};

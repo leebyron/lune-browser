@@ -1,0 +1,435 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -20885,6 +20885,15 @@
+       <message name="IDS_PAGE_TOP_WINDOW_DRAG" desc="Appearance setting to allow moving a browser window by dragging on the blank background at the top of a webpage.">
+         Allow window dragging from the top of webpages
+       </message>
++      <message name="IDS_MANUAL_PIP_AUTO_OFFER_DESCRIPTION" desc="Question in the browser's Picture-in-Picture window asking whether to automatically pop out video from the named site when switching tabs.">
++        Open picture-in-picture automatically on <ph name="DOMAIN">$1<ex>example.com</ex></ph> when you switch tabs?
++      </message>
++      <message name="IDS_MANUAL_PIP_AUTO_OFFER_ALWAYS_ALLOW" desc="Button allowing automatic picture-in-picture on future visits to the site.">
++        Allow
++      </message>
++      <message name="IDS_MANUAL_PIP_AUTO_OFFER_NOT_NOW" desc="Button dismissing the offer to turn on automatic picture-in-picture. The video stays in picture-in-picture.">
++        Not Now
++      </message>
+   </messages>
+ </release>
+ </grit>
+\ No newline at end of file
+--- a/chrome/browser/picture_in_picture/BUILD.gn
++++ b/chrome/browser/picture_in_picture/BUILD.gn
+@@ -122,6 +122,10 @@
+     "//ui/gfx/geometry",
+   ]
+ 
++  if (is_mac) {
++    deps += [ "//components/prefs" ]
++  }
++
+   if (enable_extensions_core) {
+     deps += [ "//extensions/common:common_constants" ]
+   }
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+@@ -1048,13 +1048,20 @@
+ AutoPictureInPictureTabHelper::CreateOverlayPermissionViewIfNeeded(
+     base::OnceClosure close_pip_cb,
+     views::View* anchor_view,
+-    views::BubbleBorder::Arrow arrow) {
++    views::BubbleBorder::Arrow arrow,
++    bool is_video_pip) {
+   // Check both preconditions and "in pip", since we don't know if pip is
+   // officially ready yet or not.  This might be during the opening of the pip
+   // window, so we might not know about it yet.
+   if (!AreAutoPictureInPicturePreconditionsMet() &&
+       !IsInAutoPictureInPicture()) {
+-    // This isn't auto-pip, so the content setting doesn't matter.
++#if BUILDFLAG(IS_MAC)
++    if (is_video_pip) {
++      EnsureAutoPipSettingHelper();
++      return auto_pip_setting_helper_->CreateManualVideoOfferIfNeeded(
++          anchor_view, arrow);
++    }
++#endif
+     return nullptr;
+   }
+ 
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
+@@ -166,7 +166,8 @@
+   CreateOverlayPermissionViewIfNeeded(
+       base::OnceClosure close_pip_cb,
+       views::View* anchor_view,
+-      views::BubbleBorder::Arrow arrow);
++      views::BubbleBorder::Arrow arrow,
++      bool is_video_pip = false);
+ #endif  //! BUILDFLAG(IS_ANDROID)
+ 
+   // Should be called when the user closes the pip window manually, so that we
+--- a/chrome/browser/picture_in_picture/auto_pip_setting_helper.cc
++++ b/chrome/browser/picture_in_picture/auto_pip_setting_helper.cc
+@@ -27,6 +27,61 @@
+ #include "chrome/browser/picture_in_picture/hats/auto_picture_in_picture_hats_service_factory.h"
+ #endif
+ 
++#if BUILDFLAG(IS_MAC)
++#include "components/prefs/pref_registry_simple.h"
++#include "components/prefs/pref_service.h"
++#include "components/prefs/scoped_user_pref_update.h"
++#include "url/origin.h"
++
++namespace {
++
++constexpr char kManualPipAutoOffersShown[] = "profile.manual_pip_auto_offers_shown";
++
++}  // namespace
++
++// static
++void AutoPipSettingHelper::RegisterProfilePrefs(PrefRegistrySimple* registry) {
++  registry->RegisterDictionaryPref(kManualPipAutoOffersShown);
++}
++
++std::unique_ptr<AutoPipSettingOverlayView>
++AutoPipSettingHelper::CreateManualVideoOfferIfNeeded(
++    views::View* anchor_view,
++    views::BubbleBorder::Arrow arrow) {
++  auto* profile =
++      Profile::FromBrowserContext(web_contents_->GetBrowserContext());
++  if (!profile->IsRegularProfile() || !origin_.SchemeIsHTTPOrHTTPS() ||
++      GetEffectiveContentSetting() != CONTENT_SETTING_ASK) {
++    return nullptr;
++  }
++
++  const std::string origin_key = url::Origin::Create(origin_).Serialize();
++  PrefService* prefs = profile->GetPrefs();
++  if (prefs->GetDict(kManualPipAutoOffersShown).contains(origin_key)) {
++    return nullptr;
++  }
++
++  {
++    ScopedDictPrefUpdate shown(prefs, kManualPipAutoOffersShown);
++    shown->Set(origin_key, true);
++  }
++  ui_was_shown_but_not_acknowledged_ = false;
++
++  return std::make_unique<AutoPipSettingOverlayView>(
++      base::BindOnce(
++          [](base::WeakPtr<AutoPipSettingHelper> helper,
++             AutoPipSettingView::UiResult result) {
++            if (helper &&
++                result == AutoPipSettingView::UiResult::kAllowOnEveryVisit &&
++                helper->GetEffectiveContentSetting() == CONTENT_SETTING_ASK) {
++              helper->UpdateContentSetting(CONTENT_SETTING_ALLOW);
++            }
++          },
++          weak_factory_.GetWeakPtr()),
++      origin_, anchor_view, arrow, /*is_manual_offer=*/true);
++}
++#endif  // BUILDFLAG(IS_MAC)
++
+ // static
+ std::unique_ptr<AutoPipSettingHelper>
+ AutoPipSettingHelper::CreateForWebContents(
+--- a/chrome/browser/picture_in_picture/auto_pip_setting_helper.h
++++ b/chrome/browser/picture_in_picture/auto_pip_setting_helper.h
+@@ -34,6 +34,7 @@
+ #endif  // !BUILDFLAG(IS_ANDROID)
+ 
+ class HostContentSettingsMap;
++class PrefRegistrySimple;
+ 
+ // Helper class to manage the content setting for AutoPiP, including the
+ // permissions embargo.  It's intended to be kept around for the duration of the
+@@ -120,6 +121,14 @@
+       views::BubbleBorder::Arrow arrow);
+ #endif  // !BUILDFLAG(IS_ANDROID)
+ 
++#if BUILDFLAG(IS_MAC)
++  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
++
++  std::unique_ptr<AutoPipSettingOverlayView> CreateManualVideoOfferIfNeeded(
++      views::View* anchor_view,
++      views::BubbleBorder::Arrow arrow);
++#endif
++
+   // Called by the AutoPictureInPictureTabHelper when automatic
+   // picture-in-picture has been preemptively blocked. Used to record various
+   // `PromptResultV2` metrics.
+--- a/chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.cc
++++ b/chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.cc
+@@ -31,7 +31,8 @@
+     ResultCb result_cb,
+     const GURL& origin,
+     views::View* anchor_view,
+-    views::BubbleBorder::Arrow arrow)
++    views::BubbleBorder::Arrow arrow,
++    bool is_manual_offer)
+     : show_timer_(std::make_unique<base::OneShotTimer>()) {
+   CHECK(result_cb);
+ 
+@@ -39,7 +40,7 @@
+       std::move(result_cb),
+       base::BindOnce(&AutoPipSettingOverlayView::OnHideView,
+                      weak_factory_.GetWeakPtr()),
+-      origin, anchor_view, arrow);
++      origin, anchor_view, arrow, is_manual_offer);
+   // Create the content setting UI.
+   SetLayoutManager(std::make_unique<views::FillLayout>());
+   SetPaintToLayer(ui::LAYER_NOT_DRAWN);
+--- a/chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.h
++++ b/chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.h
+@@ -38,7 +38,8 @@
+       ResultCb result_cb,
+       const GURL& origin,
+       views::View* anchor_view,
+-      views::BubbleBorder::Arrow arrow);
++      views::BubbleBorder::Arrow arrow,
++      bool is_manual_offer = false);
+   ~AutoPipSettingOverlayView() override;
+ 
+   AutoPipSettingOverlayView(const AutoPipSettingOverlayView&) = delete;
+--- a/chrome/browser/picture_in_picture/auto_pip_setting_view.cc
++++ b/chrome/browser/picture_in_picture/auto_pip_setting_view.cc
+@@ -44,6 +44,7 @@
+ 
+ // Bubble margins.
+ constexpr gfx::Insets kBubbleMargins = gfx::Insets::TLBR(0, 20, 20, 20);
++constexpr gfx::Insets kManualOfferBubbleMargins(20);
+ 
+ // Bubble title margins.
+ constexpr gfx::Insets kBubbleTitleMargins = gfx::Insets::TLBR(20, 20, 10, 20);
+@@ -61,7 +62,8 @@
+     HideViewCb hide_view_cb,
+     const GURL& origin,
+     views::View* anchor_view,
+-    views::BubbleBorder::Arrow arrow)
++    views::BubbleBorder::Arrow arrow,
++    bool is_manual_offer)
+     : views::BubbleDialogDelegate(anchor_view, arrow),
+       result_cb_(std::move(result_cb)) {
+   SetOwnedByWidget(OwnedByWidgetPassKey());
+@@ -74,7 +76,9 @@
+   SetCloseCallback(std::move(hide_view_cb));
+ 
+   set_use_custom_frame(true);
+-  set_frame_margins({.contents = kBubbleMargins, .title = kBubbleTitleMargins});
++  set_frame_margins({.contents = is_manual_offer ? kManualOfferBubbleMargins
++                                                 : kBubbleMargins,
++                     .title = kBubbleTitleMargins});
+   set_shadow_config({.shadow_type = views::BubbleBorder::STANDARD_SHADOW,
+                      .elevation = kBubbleBorderMdShadowElevation});
+   set_border_style({.draw_border_stroke = true});
+@@ -86,11 +90,11 @@
+       std::make_unique<AutoPipSettingView::AnchorViewObserver>(anchor_view,
+                                                                this);
+ 
+-  // Init Bubble title view.
+-  InitBubbleTitleView(origin);
++  // Format the origin and add a title for the automatic prompt.
++  InitBubbleTitleView(origin, is_manual_offer);
+ 
+   // Initialize Bubble.
+-  InitBubble();
++  InitBubble(is_manual_offer);
+ }
+ 
+ AutoPipSettingView::~AutoPipSettingView() {
+@@ -100,7 +104,7 @@
+   dialog_title_view_.reset();
+ }
+ 
+-void AutoPipSettingView::InitBubble() {
++void AutoPipSettingView::InitBubble(bool is_manual_offer) {
+   std::unique_ptr<views::View> primary_view = std::make_unique<views::View>();
+ 
+   auto* layout_manager =
+@@ -115,6 +119,14 @@
+           .SetMainAxisAlignment(views::BoxLayout::MainAxisAlignment::kStart)
+           .Build());
+ 
++  const std::u16string description =
++      is_manual_offer
++          ? l10n_util::GetStringFUTF16(IDS_MANUAL_PIP_AUTO_OFFER_DESCRIPTION,
++                                      origin_text_)
++          : l10n_util::GetStringUTF16(IDS_AUTO_PICTURE_IN_PICTURE_DESCRIPTION);
++  if (is_manual_offer) {
++    SetAccessibleTitle(description);
++  }
+   description_view->AddChildView(
+       views::Builder<views::Label>()
+           .CopyAddressTo(&autopip_description_)
+@@ -123,8 +135,7 @@
+           .SetMultiLine(true)
+           .SetTextContext(views::style::CONTEXT_DIALOG_BODY_TEXT)
+           .SetTextStyle(views::style::STYLE_BODY_3)
+-          .SetText(l10n_util::GetStringUTF16(
+-              IDS_AUTO_PICTURE_IN_PICTURE_DESCRIPTION))
++          .SetText(description)
+           .Build());
+   autopip_description_->SetSize(
+       gfx::Size(kDescriptionViewWidth, kDescriptionViewHeight));
+@@ -140,13 +151,21 @@
+ 
+   allow_once_button_ = InitControlViewButton(
+       controls_view, UiResult::kAllowOnce,
+-      l10n_util::GetStringUTF16(IDS_PERMISSION_ALLOW_THIS_TIME));
++      l10n_util::GetStringUTF16(is_manual_offer
++                                  ? IDS_MANUAL_PIP_AUTO_OFFER_NOT_NOW
++                                  : IDS_PERMISSION_ALLOW_THIS_TIME));
+   allow_on_every_visit_button_ = InitControlViewButton(
+       controls_view, UiResult::kAllowOnEveryVisit,
+-      l10n_util::GetStringUTF16(IDS_PERMISSION_ALLOW_EVERY_VISIT));
+-  block_button_ = InitControlViewButton(
+-      controls_view, UiResult::kBlock,
+-      l10n_util::GetStringUTF16(IDS_PERMISSION_DONT_ALLOW));
++      l10n_util::GetStringUTF16(is_manual_offer
++                                  ? IDS_MANUAL_PIP_AUTO_OFFER_ALWAYS_ALLOW
++                                  : IDS_PERMISSION_ALLOW_EVERY_VISIT));
++  if (is_manual_offer) {
++    controls_view->ReorderChildView(allow_on_every_visit_button_, 0);
++  } else {
++    block_button_ = InitControlViewButton(
++        controls_view, UiResult::kBlock,
++        l10n_util::GetStringUTF16(IDS_PERMISSION_DONT_ALLOW));
++  }
+ 
+   SetContentsView(std::move(primary_view));
+ }
+@@ -169,19 +188,10 @@
+   return button;
+ }
+ 
+-void AutoPipSettingView::InitBubbleTitleView(const GURL& origin) {
++void AutoPipSettingView::InitBubbleTitleView(const GURL& origin,
++                                           bool is_manual_offer) {
+   CHECK(origin.has_host() || origin.SchemeIsFile(), base::NotFatalUntil::M162);
+ 
+-  dialog_title_view_ = std::make_unique<views::View>();
+-  auto* layout_manager = dialog_title_view_->SetLayoutManager(
+-      std::make_unique<views::FlexLayout>());
+-  layout_manager->SetOrientation(views::LayoutOrientation::kHorizontal);
+-
+-  dialog_title_view_->AddChildView(
+-      views::Builder<views::FlexLayoutView>()
+-          .SetOrientation(views::LayoutOrientation::kHorizontal)
+-          .Build());
+-
+   // For file URLs, we want to elide the tail, since the file name and/or query
+   // part of the file URL can be made to look like an origin for spoofing. For
+   // HTTPS URLs, we elide the head to prevent spoofing via long origins, since
+@@ -198,6 +208,20 @@
+   origin_text_ = gfx::ElideText(host, gfx::FontList(),
+                                 kBubbleOriginTextMaximumWidth, elide_behavior);
+ 
++  if (is_manual_offer) {
++    return;
++  }
++
++  dialog_title_view_ = std::make_unique<views::View>();
++  auto* layout_manager = dialog_title_view_->SetLayoutManager(
++      std::make_unique<views::FlexLayout>());
++  layout_manager->SetOrientation(views::LayoutOrientation::kHorizontal);
++
++  dialog_title_view_->AddChildView(
++      views::Builder<views::FlexLayoutView>()
++          .SetOrientation(views::LayoutOrientation::kHorizontal)
++          .Build());
++
+   dialog_title_view_->AddChildView(
+       views::Builder<views::Label>()
+           .SetHorizontalAlignment(gfx::ALIGN_LEFT)
+@@ -227,8 +251,9 @@
+          allow_on_every_visit_button_->HitTestPoint(
+              views::View::ConvertPointFromScreen(allow_on_every_visit_button_,
+                                                  point_in_screen)) ||
+-         block_button_->HitTestPoint(views::View::ConvertPointFromScreen(
+-             block_button_, point_in_screen));
++         (block_button_ && block_button_->HitTestPoint(
++                               views::View::ConvertPointFromScreen(
++                                   block_button_, point_in_screen)));
+ }
+ 
+ ///////////////////////////////////////////////////////////////////////////////
+@@ -252,7 +277,9 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ // views::WidgetDelegate:
+ void AutoPipSettingView::OnWidgetInitialized() {
+-  GetBubbleFrameView()->SetTitleView(std::move(dialog_title_view_));
++  if (dialog_title_view_) {
++    GetBubbleFrameView()->SetTitleView(std::move(dialog_title_view_));
++  }
+ }
+ 
+ ///////////////////////////////////////////////////////////////////////////////
+--- a/chrome/browser/picture_in_picture/auto_pip_setting_view.h
++++ b/chrome/browser/picture_in_picture/auto_pip_setting_view.h
+@@ -46,7 +46,8 @@
+                               HideViewCb hide_view_cb,
+                               const GURL& origin,
+                               views::View* anchor_view,
+-                              views::BubbleBorder::Arrow arrow);
++                              views::BubbleBorder::Arrow arrow,
++                              bool is_manual_offer = false);
+   AutoPipSettingView(const AutoPipSettingView&) = delete;
+   AutoPipSettingView(AutoPipSettingView&&) = delete;
+   AutoPipSettingView& operator=(const AutoPipSettingView&) = delete;
+@@ -130,7 +131,7 @@
+   std::u16string origin_text_;
+ 
+   // Initialize bubble with all it's child views. Called at construction time.
+-  void InitBubble();
++  void InitBubble(bool is_manual_offer);
+ 
+   // Helper method to initialize the bubble views.
+   raw_ptr<views::MdTextButton> InitControlViewButton(
+@@ -141,7 +142,7 @@
+   void OnButtonPressed(UiResult result);
+ 
+   // Initializes the bubble dialog title view.
+-  void InitBubbleTitleView(const GURL& origin);
++  void InitBubbleTitleView(const GURL& origin, bool is_manual_offer);
+ };
+ 
+ #endif  // CHROME_BROWSER_PICTURE_IN_PICTURE_AUTO_PIP_SETTING_VIEW_H_
+--- a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
++++ b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
+@@ -788,7 +788,7 @@
+   // close cb, if the pip window should be blocked.
+   auto overlay_view = auto_pip_tab_helper->CreateOverlayPermissionViewIfNeeded(
+       base::BindOnce(&PictureInPictureWindowManager::ExitPictureInPictureSoon),
+-      anchor_view, arrow);
++      anchor_view, arrow, /*is_video_pip=*/!GetChildWebContents());
+ 
+   if (!overlay_view) {
+     // It's already allowed or blocked / embargoed.
+--- a/chrome/browser/prefs/BUILD.gn
++++ b/chrome/browser/prefs/BUILD.gn
+@@ -94,6 +94,7 @@
+     "//chrome/browser/net",
+     "//chrome/browser/new_tab_page/prefs",
+     "//chrome/browser/permissions",
++    "//chrome/browser/picture_in_picture",
+     "//chrome/browser/platform_experience:prefs",
+     "//chrome/browser/preloading:prefs",
+     "//chrome/browser/preloading/prefetch/prefetch_service",
+--- a/chrome/browser/prefs/browser_prefs.cc
++++ b/chrome/browser/prefs/browser_prefs.cc
+@@ -518,6 +518,7 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/media/webrtc/system_media_capture_permissions_stats_mac.h"
++#include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
+ #include "chrome/browser/ui/cocoa/apps/quit_with_apps_controller_mac.h"
+ #include "chrome/browser/ui/cocoa/confirm_quit.h"
+ #include "chrome/browser/ui/views/frame/glass_frame_service.h"
+@@ -2203,6 +2204,9 @@
+   visited_url_ranking::GroupSuggestionsServiceImpl::RegisterProfilePrefs(
+       registry);
+   wallet::prefs::RegisterProfilePrefs(registry);
++#if BUILDFLAG(IS_MAC)
++  AutoPipSettingHelper::RegisterProfilePrefs(registry);
++#endif
+   omnibox::RegisterProfilePrefs(registry);
+ #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+   omnibox_everywhere::prefs::RegisterProfilePrefs(registry);

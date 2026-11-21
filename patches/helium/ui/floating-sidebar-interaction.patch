@@ -1,0 +1,287 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view.h
+@@ -176,6 +176,7 @@ class BrowserFrameView : public views::F
+   virtual bool HasFloatingAddressBar() const { return false; }
+   virtual bool FocusFloatingAddressBar() { return false; }
+   virtual void UpdateFloatingAddressBar() {}
++  virtual bool IsFloatingChromeDragging() const { return false; }
+   virtual void ResetFloatingToolbar() {}
+ 
+   // Signals that the frame's minimum size may have changed. This prompts the
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -84,6 +84,7 @@ class BrowserFrameViewMac : public Brows
+   bool HasFloatingAddressBar() const override;
+   bool FocusFloatingAddressBar() override;
+   void UpdateFloatingAddressBar() override;
++  bool IsFloatingChromeDragging() const override;
+   void ResetFloatingToolbar() override;
+ 
+   // views::View:
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -95,6 +95,7 @@
+ #include "ui/gfx/mac/coordinate_conversion.h"
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
++#include "ui/views/context_menu_controller.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/native/native_view_host.h"
+ #include "ui/views/layout/box_layout.h"
+@@ -241,31 +242,14 @@ NSAppearance* FloatingChromeAppearance(B
+   const NSUInteger generation = ++_presentationGeneration;
+   const BOOL reduceMotion =
+       NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
+-  const CGFloat from =
+-      presented && _fullyHidden
+-          ? 12
+-          : ((CALayer*)_material.layer.presentationLayer).transform.m42;
+-  const CGFloat to = presented || reduceMotion ? 0 : 12;
+   if (presented && _fullyHidden) {
+     _material.alphaValue = 0;
+   }
+   self.hidden = NO;
+   _fullyHidden = NO;
+   _material.frame = self.bounds;
+-  [CATransaction begin];
+-  [CATransaction setDisableActions:YES];
+-  _material.layer.transform = CATransform3DMakeTranslation(0, to, 0);
+-  [CATransaction commit];
+-  if (!reduceMotion) {
+-    CABasicAnimation* motion =
+-        [CABasicAnimation animationWithKeyPath:@"transform.translation.y"];
+-    motion.fromValue = @(from);
+-    motion.toValue = @(to);
+-    motion.duration = .18;
+-    motion.timingFunction = [CAMediaTimingFunction
+-        functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+-    [_material.layer addAnimation:motion forKey:@"glass-presentation"];
+-  }
++  [_material.layer removeAnimationForKey:@"glass-presentation"];
++  _material.layer.transform = CATransform3DIdentity;
+   __weak HeliumGlassSurface* weakSelf = self;
+   [NSAnimationContext
+       runAnimationGroup:^(NSAnimationContext* context) {
+@@ -362,6 +346,7 @@ NSAppearance* FloatingChromeAppearance(B
+ // controls above it retain their normal clicks, text selection and menus.
+ @interface HeliumGlassDragRegion : HeliumChromeHitRegion
+ - (instancetype)initWithBrowserView:(BrowserView*)view;
++- (void)startWindowDrag:(NSEvent*)event;
+ @property(nonatomic, readonly) BOOL dragging;
+ @property(nonatomic) BOOL enabled;
+ @property(nonatomic) NSRect addressBounds;
+@@ -440,13 +425,74 @@ NSAppearance* FloatingChromeAppearance(B
+   if (!self.enabled || self.hidden) {
+     return;
+   }
++  [self startWindowDrag:event];
++}
++- (void)startWindowDrag:(NSEvent*)event {
++  if (!_browser || event.type != NSEventTypeLeftMouseDown) {
++    return;
++  }
+   _dragging = YES;
+-  // AppKit can return while the mouse is still down. The presentation latch
+-  // ends on physical mouse-up, rather than on this method's return.
+-  [self.window performWindowDragWithEvent:event];
++  NSWindow* window =
++      _browser->GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  if (event.window != window) {
++    NSPoint location = [window convertPointFromScreen:
++        [event.window convertPointToScreen:event.locationInWindow]];
++    event = [NSEvent mouseEventWithType:event.type location:location
++        modifierFlags:event.modifierFlags timestamp:event.timestamp
++        windowNumber:window.windowNumber context:nil eventNumber:event.eventNumber
++        clickCount:event.clickCount pressure:event.pressure];
++  }
++  // AppKit returns before mouse-up. The common presentation latch also keeps
++  // the detached sidebar visible until the initiating button is released.
++  [window performWindowDragWithEvent:event];
+ }
+ @end
+ 
++namespace {
++// The transparent child window hosts existing tab controls. Unhandled blank
++// space must still behave like the original browser sidebar, on either side.
++class FloatingSidebarContents : public views::View,
++                                public views::ContextMenuController {
++ public:
++  FloatingSidebarContents(BrowserView* browser, HeliumGlassDragRegion* drag)
++      : browser_(browser->GetAsWeakPtr()), drag_(drag) {
++    set_context_menu_controller(this);
++  }
++  bool OnMousePressed(const ui::MouseEvent& event) override {
++    if (!event.IsOnlyLeftMouseButton() || !browser_) {
++      return false;
++    }
++    NSEvent* native = event.native_event().Get();
++    if (!native) {
++      // remote_cocoa can deliver a serialized Views event without its original
++      // NSEvent. Reconstruct this press, rather than using a later currentEvent.
++      gfx::Point screen = event.location();
++      views::View::ConvertPointToScreen(this, &screen);
++      NSWindow* window =
++          browser_->GetWidget()->GetNativeWindow().GetNativeNSWindow();
++      native = [NSEvent mouseEventWithType:NSEventTypeLeftMouseDown
++          location:[window convertPointFromScreen:gfx::ScreenPointToNSPoint(screen)]
++          modifierFlags:NSEvent.modifierFlags
++          timestamp:NSProcessInfo.processInfo.systemUptime
++          windowNumber:window.windowNumber context:nil eventNumber:0
++          clickCount:event.GetClickCount() pressure:1];
++    }
++    [drag_ startWindowDrag:native];
++    return true;
++  }
++  void ShowContextMenuForViewImpl(views::View*, const gfx::Point& point,
++                                  ui::mojom::MenuSourceType source) override {
++    if (browser_) {
++      browser_->browser_widget()->ShowContextMenuForViewImpl(
++          browser_->GetSidebarView(), point, source);
++    }
++  }
++ private:
++  base::WeakPtr<BrowserView> browser_;
++  __weak HeliumGlassDragRegion* drag_;
++};
++}  // namespace
++
+ @interface HeliumGlassNavigation : HeliumGlassSurface
+ - (instancetype)initWithBrowserView:(BrowserView*)browser;
+ - (void)refresh;
+@@ -633,23 +679,8 @@ NSAppearance* FloatingChromeAppearance(B
+     self.hidden = amount == 0;
+     return;
+   }
+-  const CGFloat from =
+-      self.hiddenOrHasHiddenAncestor || self.alphaValue == 0
+-          ? 12
+-          : ((CALayer*)self.layer.presentationLayer).transform.m42;
+-  const CGFloat to = reduced ? 0 : 12 * (1 - amount);
+-  [CATransaction begin];
+-  [CATransaction setDisableActions:YES];
+-  self.layer.transform = CATransform3DMakeTranslation(0, to, 0);
+-  [CATransaction commit];
+-  if (!reduced) {
+-    CABasicAnimation* motion =
+-        [CABasicAnimation animationWithKeyPath:@"transform.translation.y"];
+-    motion.fromValue = @(from);
+-    motion.toValue = @(to);
+-    motion.duration = .18;
+-    [self.layer addAnimation:motion forKey:@"traffic-light-presentation"];
+-  }
++  [self.layer removeAnimationForKey:@"traffic-light-presentation"];
++  self.layer.transform = CATransform3DIdentity;
+   __weak HeliumWindowControls* weakSelf = self;
+   [NSAnimationContext
+       runAnimationGroup:^(NSAnimationContext* context) {
+@@ -1845,8 +1876,7 @@ void BrowserFrameViewMac::UpdateFloating
+       break;
+     }
+   }
+-  const bool dragging =
+-      floating_drag_region_.dragging || floating_window_controls_.dragging;
++  const bool dragging = IsFloatingChromeDragging();
+   if (!HasFloatingAddressBar() ||
+       (!dragging &&
+        ((!GetWidget()->IsActive() && !command_bar_open && !bubble_open) ||
+@@ -1879,10 +1909,10 @@ void BrowserFrameViewMac::UpdateFloating
+   if (!side.IsEmpty()) {
+     if (browser_view->IsVerticalTabStripRightAligned()) {
+       content.set_width(
+-          std::max(0, std::min(content.right(), side.x()) - content.x()));
++          std::max(0, std::min(content.right(), side.x() - 12 + glass_inset) - content.x()));
+     } else {
+       const int right = content.right();
+-      content.set_x(std::max(content.x(), side.right()));
++      content.set_x(std::max(content.x(), side.right() + 12 - glass_inset));
+       content.set_width(std::max(0, right - content.x()));
+     }
+   }
+@@ -1924,7 +1954,16 @@ void BrowserFrameViewMac::UpdateFloating
+   views::View::ConvertPointFromWidget(browser_view, &cursor);
+   const bool in_rail = helium::IsPointerInNativeRevealRail(browser_view, true);
+   const bool in_window = browser_view->GetLocalBounds().Contains(cursor);
+-  // Distance hysteresis: entry still requires the rail. Once open, the whole
++  gfx::Rect sidebar_header;
++  if (auto* sidebar = browser_view->GetSidebarView(); sidebar &&
++      sidebar->IsDrawn() && browser_view->GetSideChromeRevealRatio() > 0) {
++    sidebar_header = views::View::ConvertRectToTarget(
++        sidebar, browser_view, sidebar->GetLocalBounds());
++    sidebar_header.set_height(std::min(44, sidebar_header.height()));
++  }
++  const bool in_sidebar_header = sidebar_header.Contains(cursor);
++  // Distance hysteresis: enter through the rail or a visible sidebar header.
++  // Once open, the whole
+   // window width down to 48 points below the glass retains it.
+   const bool within_retention = [floating_address_bar_ isPresented] &&
+                                 in_window && cursor.y() <= bounds.bottom() + 48;
+@@ -1936,7 +1975,7 @@ void BrowserFrameViewMac::UpdateFloating
+     [floating_address_bar_ refresh];
+   }
+   // Keyboard address editing reveals the same surface as pointer entry.
+-  const bool present = dragging || in_rail || within_retention || editing ||
++  const bool present = dragging || in_rail || in_sidebar_header || within_retention || editing ||
+                        ([floating_address_bar_ isPresented] && bubble_open);
+   UpdateFloatingToolbar(bar_region, present);
+   UpdateFloatingWindowControls(present);
+@@ -2208,6 +2247,10 @@ void BrowserFrameViewMac::UpdateFloating
+   floating_toolbar_presented_ = presented;
+ }
+ 
++bool BrowserFrameViewMac::IsFloatingChromeDragging() const {
++  return floating_drag_region_.dragging || floating_window_controls_.dragging;
++}
++
+ void BrowserFrameViewMac::UpdateFloatingSidebar(bool top_presented) {
+   auto* view = GetBrowserView();
+   auto* sidebar =
+@@ -2256,12 +2299,7 @@ void BrowserFrameViewMac::UpdateFloating
+       floating_sidebar_widget_->SetNativeWindowProperty(
+           BrowserView::kBrowserViewKey, view);
+       floating_sidebar_widget_->SetContentsView(
+-          std::make_unique<views::View>());
+-      // Reparenting the controls must preserve the original sidebar's blank
+-      // area context menu. Tab-specific menus continue to handle their own
+-      // hits.
+-      floating_sidebar_widget_->GetContentsView()->set_context_menu_controller(
+-          view->browser_widget());
++          std::make_unique<FloatingSidebarContents>(view, floating_drag_region_));
+       NSWindow* window =
+           floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
+       window.hasShadow = NO;
+@@ -2282,7 +2320,11 @@ void BrowserFrameViewMac::UpdateFloating
+     floating_sidebar_material_.appearance = FloatingChromeAppearance(view);
+     // Keep the entire native button row and 5-point resize band in the
+     // parent window, rather than relying on delayed mouse-event pass-through.
+-    bounds.Inset(gfx::Insets::TLBR(46, right ? 5 : 0, 0, right ? 0 : 5));
++    // Native controls end at y=44 in browser coordinates. The detached
++    // surface itself starts at y=8; adding 46 to that clipped the first row.
++    const int header_clearance = std::max(0, 46 - bounds.y());
++    bounds.Inset(gfx::Insets::TLBR(header_clearance, right ? 5 : 0,
++                                 0, right ? 0 : 5));
+     // A child NSWindow is not clipped by its parent during the slide.
+     bounds.Intersect(view->GetLocalBounds());
+     views::View::ConvertRectToScreen(view, &bounds);
+@@ -2321,7 +2363,7 @@ void BrowserFrameViewMac::UpdateFloating
+       sidebar, view, sidebar->GetLocalBounds());
+   // Keep the toggle on the sidebar only. No independent toolbar pill or
+   // movement between surfaces as the unpinned panel opens and closes.
+-  const int x = right ? sidebar_bounds.x() + 6 : sidebar_bounds.right() - 42;
++  const int x = right ? sidebar_bounds.x() + 4 : sidebar_bounds.right() - 40;
+   button_host->SetBounds(x, 8, 36, 36);
+   floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   [floating_sidebar_button_ refreshEmbedded:YES];
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2173,6 +2173,11 @@ bool BrowserView::IsLeavingZenSideGap(co
+ void BrowserView::UpdateZenModeRevealFromCursor() {
+   if (auto* frame = GetFrameView()) {
+     frame->UpdateFloatingAddressBar();
++    if (frame->IsFloatingChromeDragging()) {
++      // Native window dragging changes screen coordinates while the pointer
++      // stays down; preserve the sidebar until physical mouse-up.
++      return;
++    }
+   }
+   if (!zen_mode_enabled_ || zen_reveal_paused_ || !GetWidget()->IsActive()) {
+     return;

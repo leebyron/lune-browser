@@ -1,0 +1,247 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -20873,6 +20873,9 @@
+     <message name="IDS_TAB_GROUP_MENU_MOVE_WINDOW" desc="Move this group into a new window.">Move Group to New Window</message>
+     <message name="IDS_TAB_GROUP_MENU_FOCUS" desc="Focus the browser on this group.">Focus on Group</message>
+     <message name="IDS_TAB_GROUP_MENU_UNFOCUS" desc="Exit group focus mode.">Unfocus Group</message>
++      <message name="IDS_UPDATE_SEE_WHATS_NEW" desc="Accessible name for the button opening the downloaded browser update release notes.">
++        See what's new
++      </message>
+   </messages>
+ </release>
+ </grit>
+\ No newline at end of file
+--- a/chrome/browser/mac/sparkle_glue.h
++++ b/chrome/browser/mac/sparkle_glue.h
+@@ -91,6 +91,9 @@
+ // (with NEARLY_UPDATED status).
+ std::optional<std::string> CurrentlyDownloadedVersion();
+ 
++// Release notes supplied by the downloaded update, if available.
++std::optional<std::string> CurrentlyDownloadedReleaseNotesURL();
++
+ // Check if current application has an update which is ready to be installed.
+ bool ApplicationIsNearlyUpdated();
+ 
+--- a/chrome/browser/mac/sparkle_glue.mm
++++ b/chrome/browser/mac/sparkle_glue.mm
+@@ -60,6 +60,7 @@
+ 
+ // URL of the Sparkle appcast.xml file
+ @property(nonatomic, strong) NSString* currentlyDownloadedVersion;
++@property(nonatomic, copy) NSString* currentlyDownloadedReleaseNotesURL;
+ 
+ // Reopening About during a check/download must show its current state.
+ @property(nonatomic) VersionUpdater::Status lastStatus;
+@@ -125,6 +126,7 @@
+     shouldPostponeRelaunchForUpdate:(SUAppcastItem*)item
+                  untilInvokingBlock:(void (^)(void))installHandler {
+   currentlyDownloadedVersion_ = item.versionString;
++  self.currentlyDownloadedReleaseNotesURL = item.releaseNotesURL.absoluteString;
+   self.invocationBlock = installHandler;
+   [self updateStatus:VersionUpdater::NEARLY_UPDATED error_string:nil];
+   UpdateReadyCallbacks().Notify();
+@@ -435,6 +437,14 @@
+   return base::SysNSStringToUTF8(observer.currentlyDownloadedVersion);
+ }
+ 
++std::optional<std::string> CurrentlyDownloadedReleaseNotesURL() {
++  SparkleObserver* observer = VersionUpdaterSparkle::sparkle_observer_;
++  if (!observer || !observer.currentlyDownloadedReleaseNotesURL) {
++    return std::nullopt;
++  }
++  return base::SysNSStringToUTF8(observer.currentlyDownloadedReleaseNotesURL);
++}
++
+ bool ApplicationIsNearlyUpdated() {
+   SparkleObserver* observer = VersionUpdaterSparkle::sparkle_observer_;
+   if (!observer) {
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -18,6 +18,8 @@
+ #include "chrome/browser/ui/chrome_pages.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/navigator/browser_navigator.h"
++#include "chrome/browser/ui/navigator/browser_navigator_params.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+@@ -35,6 +37,7 @@
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/gfx/canvas.h"
++#include "ui/gfx/image/image_skia.h"
+ #include "ui/gfx/vector_icon_types.h"
+ #include "ui/strings/grit/ui_strings.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+@@ -43,6 +46,7 @@
+ #include "ui/views/controls/menu/menu_runner.h"
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/widget/widget.h"
++#include "url/gurl.h"
+ 
+ #if BUILDFLAG(ENABLE_SPARKLE)
+ #include "chrome/browser/mac/sparkle_glue.h"
+@@ -149,18 +153,47 @@
+ };
+ BEGIN_METADATA(FooterButton)
+ END_METADATA
++// Share the tab close button's hit target, ink drop, focus ring and colors.
++class ReleaseNotesButton : public TabCloseButton {
++  METADATA_HEADER(ReleaseNotesButton, TabCloseButton)
++ public:
++  ReleaseNotesButton()
++      : TabCloseButton(base::RepeatingClosure(),
++                       base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(),
++                       true) {}
++  void SetColors(TabStyle::TabColors colors) {
++    TabCloseButton::SetColors(colors);
++#if BUILDFLAG(IS_MAC)
++    const auto icon = ui::ImageModel::FromImageSkia(
++        helium::NativeSidebarSymbolForName("info.circle", colors.foreground_color));
++    for (auto state : {STATE_NORMAL, STATE_HOVERED, STATE_PRESSED}) {
++      SetImageModel(state, icon);
++    }
++#endif
++  }
++};
++
++BEGIN_METADATA(ReleaseNotesButton)
++END_METADATA
++
+ // One hover surface, including the trailing close control, like a tab row.
+ class SidebarDismissibleRow : public views::View {
+   METADATA_HEADER(SidebarDismissibleRow, views::View)
+  public:
+-  SidebarDismissibleRow(int message, const gfx::VectorIcon& icon) {
++  SidebarDismissibleRow(int message, const gfx::VectorIcon& icon,
++                        bool release_notes = false) {
+     SetNotifyEnterExitOnChild(true);
+     action_ = AddChildView(std::make_unique<FooterButton>(
+         base::RepeatingClosure(), message, icon, false));
+     action_->SetElideBehavior(gfx::FADE_TAIL);
+-    close_ = AddChildView(std::make_unique<TabCloseButton>(
+-        base::RepeatingClosure(),
+-        base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(), true));
++    if (release_notes) {
++      release_notes_ = AddChildView(std::make_unique<ReleaseNotesButton>());
++      close_ = release_notes_;
++    } else {
++      close_ = AddChildView(std::make_unique<TabCloseButton>(
++          base::RepeatingClosure(),
++          base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(), true));
++    }
+     close_->SetVisible(false);
+   }
+   gfx::Size CalculatePreferredSize(
+@@ -206,7 +239,11 @@
+         GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive));
+     colors.background_color = GetColorProvider()->GetColor(
+         kColorTabBackgroundInactiveHoverFrameActive);
+-    close_->SetColors(colors);
++    if (release_notes_) {
++      release_notes_->SetColors(colors);
++    } else {
++      close_->SetColors(colors);
++    }
+   }
+   void OnPaintBackground(gfx::Canvas* canvas) override {
+     if (!IsMouseHovered()) {
+@@ -226,6 +263,7 @@
+  private:
+   raw_ptr<views::LabelButton> action_;
+   raw_ptr<TabCloseButton> close_;
++  raw_ptr<ReleaseNotesButton> release_notes_ = nullptr;
+   bool collapsed_ = false;
+ };
+ BEGIN_METADATA(SidebarDismissibleRow)
+@@ -260,9 +298,34 @@
+   scroll_separator_->SetPaintToLayer();
+   scroll_separator_->layer()->SetFillsBoundsOpaquely(false);
+ 
+-  update_button_ = AddChildView(std::make_unique<FooterButton>(
+-      base::BindRepeating([] { chrome::AttemptRelaunch(); }),
+-      IDS_APP_MENU_BUTTON_UPDATE_ALT2, vector_icons::kRefreshIcon));
++  auto* update_row = AddChildView(std::make_unique<SidebarDismissibleRow>(
++      IDS_APP_MENU_BUTTON_UPDATE_ALT2, vector_icons::kRefreshIcon, true));
++  update_prompt_ = update_row;
++  update_button_ = update_row->action();
++  update_button_->SetCallback(
++      base::BindRepeating([] { chrome::AttemptRelaunch(); }));
++  release_notes_button_ = update_row->close();
++  release_notes_button_->GetViewAccessibility().SetName(
++      l10n_util::GetStringUTF16(IDS_UPDATE_SEE_WHATS_NEW));
++  release_notes_button_->SetTooltipText(
++      l10n_util::GetStringUTF16(IDS_UPDATE_SEE_WHATS_NEW));
++  release_notes_button_->SetCallback(base::BindRepeating(
++      [](BrowserWindowInterface* browser) {
++#if BUILDFLAG(ENABLE_SPARKLE)
++        const auto notes = helium::CurrentlyDownloadedReleaseNotesURL();
++        if (!helium::ApplicationIsNearlyUpdated() || !notes) {
++          return;
++        }
++        const GURL url(*notes);
++        if (!url.is_valid() || !url.SchemeIs("https")) {
++          return;
++        }
++        NavigateParams params(browser, url, ui::PAGE_TRANSITION_LINK);
++        params.disposition = WindowOpenDisposition::kNewForegroundTab;
++        Navigate(&params);
++#endif
++      },
++      base::Unretained(browser_.get())));
+ 
+   auto* services_row = AddChildView(std::make_unique<SidebarDismissibleRow>(
+       IDS_APP_MENU_BUTTON_HELIUM_SERVICES_UPDATE, kHeliumServicesIcon));
+@@ -396,7 +459,15 @@
+       helium::ShouldShowSchemaNotification(*browser_->GetProfile()->GetPrefs());
+   services_prompt_->SetVisible(services_updated);
+   default_prompt_->SetVisible(has_default_prompt_);
+-  update_button_->SetVisible(ready);
++  static_cast<SidebarDismissibleRow*>(update_prompt_.get())
++      ->SetCollapsed(collapsed);
++#if BUILDFLAG(ENABLE_SPARKLE)
++  const auto notes = helium::CurrentlyDownloadedReleaseNotesURL();
++  const GURL notes_url(notes.value_or(""));
++  release_notes_button_->SetEnabled(
++      ready && notes_url.is_valid() && notes_url.SchemeIs("https"));
++#endif
++  update_prompt_->SetVisible(ready);
+   SetVisible(has_default_prompt_ || ready || services_updated);
+   PreferredSizeChanged();
+ }
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.h
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.h
+@@ -76,7 +76,9 @@
+   raw_ptr<views::View> default_prompt_;
+   raw_ptr<views::LabelButton> default_button_;
+   raw_ptr<views::LabelButton> dismiss_button_;
++  raw_ptr<views::View> update_prompt_;
+   raw_ptr<views::LabelButton> update_button_;
++  raw_ptr<views::LabelButton> release_notes_button_;
+   raw_ptr<views::View> services_prompt_;
+   raw_ptr<views::LabelButton> services_button_;
+   PrefChangeRegistrar services_registrar_;
+--- a/chrome/browser/resources/settings/about_page/about_page.html.ts
++++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
+@@ -37,14 +37,13 @@
+     <div class="flex cr-padded-text">
+ <if expr="not is_chromeos">
+       <div id="updateStatusMessage" ?hidden="${!this.showUpdateStatus_}">
+-        <div role="alert" aria-live="polite"
+-            .innerHTML="${this.getUpdateStatusMessage_()}">
+-        </div>
+-      </div>
++        <span role="alert" aria-live="polite"
++            .innerHTML="${this.getUpdateStatusMessage_()}"></span>
+ <if expr="is_macosx">
+-      <a id="updateSettings" href="chrome://settings/privacy/services"
+-          ?hidden="${!this.shouldShowUpdateSettings_()}">$i18n{aboutUpdateSettings}</a>
++        <a id="updateSettings" href="chrome://settings/privacy"
++            ?hidden="${!this.shouldShowUpdateSettings_()}">$i18n{aboutUpdateSettings}</a>
+ </if>
++      </div>
+       <span id="deprecationWarning"
+           ?hidden="${!this.obsoleteSystemInfo_.obsolete}">
+         $i18n{aboutObsoleteSystem}

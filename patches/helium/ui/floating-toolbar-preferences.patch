@@ -1,0 +1,389 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -57,6 +57,7 @@
+ #include "chrome/browser/ui/views/frame/contents_container_view.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
++#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h"
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+@@ -141,6 +142,12 @@
+   }
+ }
+ 
++int FloatingNavigationWidth(BrowserView* view) {
++  auto* prefs = view->GetProfile()->GetPrefs();
++  return 36 * (static_cast<int>(prefs->GetBoolean(prefs::kShowBackButton)) +
++               static_cast<int>(prefs->GetBoolean(prefs::kShowForwardButton)));
++}
++
+ NSAppearance* FloatingChromeAppearance(BrowserView* view) {
+   const auto scheme = ThemeServiceFactory::GetForProfile(view->GetProfile())
+                           ->GetBrowserColorScheme();
+@@ -934,6 +941,16 @@
+   return self;
+ }
+ - (void)refresh {
++  if (_browserView) {
++    auto* prefs = _browserView->GetProfile()->GetPrefs();
++    const bool back = prefs->GetBoolean(prefs::kShowBackButton);
++    const bool forward = prefs->GetBoolean(prefs::kShowForwardButton);
++    _back.hidden = !back;
++    _forward.hidden = !forward;
++    _separator.hidden = !(back && forward);
++    _back.frame = NSMakeRect(forward ? 4 : 2, 2, 32, 32);
++    _forward.frame = NSMakeRect(back ? 36 : 2, 2, 32, 32);
++  }
+   _back.enabled = _browserView && chrome::CanGoBack(_browserView->browser());
+   _forward.enabled =
+       _browserView && chrome::CanGoForward(_browserView->browser());
+@@ -2399,7 +2416,9 @@
+       std::min(content.right() - glass_inset, browser_view->width() - 8);
+   const gfx::Rect bar_region(leading, 8 + TopUIFullscreenYOffset(),
+                              std::max(0, trailing - leading), 36);
+-  const int address_left = leading + 72 + 12;
++  const int navigation_width = FloatingNavigationWidth(browser_view);
++  const int address_left =
++      leading + (navigation_width > 0 ? navigation_width + 12 : 0);
+   const int address_right =
+       trailing - toolbar_width - (toolbar_width > 0 ? 12 : 0);
+   const int capsule_width = std::min(480, address_right - address_left);
+@@ -2658,15 +2677,22 @@
+   }
+   if (nav) {
+     [floating_navigation_ refresh];
+-    [floating_navigation_ setPresented:presented];
+-    nav->SetVisible(presented || !floating_navigation_.hidden);
++    const bool has_navigation = FloatingNavigationWidth(view) > 0;
++    if (has_navigation) {
++      [floating_navigation_ setPresented:presented];
++    } else {
++      [floating_navigation_ setRevealFraction:0];
++    }
++    nav->SetVisible(has_navigation &&
++                    (presented || !floating_navigation_.hidden));
+   }
+   if (drag) {
+     floating_drag_region_.enabled = presented;
+     drag->SetVisible(presented);
+   }
+   if (!region.IsEmpty() && nav) {
+-    nav->SetBoundsRect(gfx::Rect(region.x(), region.y(), 72, 36));
++    nav->SetBoundsRect(gfx::Rect(region.x(), region.y(),
++                                 FloatingNavigationWidth(view), 36));
+     // Cover the gap above controls even while the fullscreen menu bar lowers
+     // them. Only the controls move; the input shield stays at the window top.
+     gfx::Rect drag_bounds(0, 0, view->width(), region.y() - 8 + 52);
+@@ -2681,10 +2707,22 @@
+             std::max(0, view->width() - panel_bounds.right()));
+       }
+     }
++    // With no right-sidebar header, tab controls begin after the 10 pt
++    // inset. Do not leave the full-height header input shield over them.
++    if (auto* sidebar = view->GetSidebarView(); sidebar && sidebar->IsDrawn() &&
++        view->IsVerticalTabStripRightAligned() &&
++        !view->GetProfile()->GetPrefs()->GetBoolean(
++            prefs::kShowVerticalTabsCollapseButton)) {
++      const gfx::Rect side = views::View::ConvertRectToTarget(
++          sidebar, view, sidebar->GetLocalBounds());
++      drag_bounds.set_width(std::max(
++          0, std::min(drag_bounds.right(), side.x()) - drag_bounds.x()));
++    }
+     drag->SetBoundsRect(drag_bounds);
+-    floating_drag_region_.navigationBounds =
+-        [floating_drag_region_ convertRect:floating_navigation_.bounds
+-                                  fromView:floating_navigation_];
++    floating_drag_region_.navigationBounds = FloatingNavigationWidth(view) > 0
++        ? [floating_drag_region_ convertRect:floating_navigation_.bounds
++                                   fromView:floating_navigation_]
++        : NSZeroRect;
+     floating_drag_region_.windowControlsBounds =
+         NSMakeRect(8, 8 + TopUIFullscreenYOffset(),
+                    HeliumWindowControlsWidth(
+@@ -2846,6 +2884,9 @@
+   auto* sidebar =
+       static_cast<VerticalTabStripRegionView*>(view->GetSidebarView());
+   const bool eligible = HasFloatingAddressBar() && sidebar;
++  if (sidebar && sidebar->header_view()) {
++    sidebar->header_view()->UpdateFloatingHeaderLayout();
++  }
+   auto* input =
+       static_cast<views::NativeViewHost*>(pinned_sidebar_input_host_.view());
+   if (input) {
+@@ -2872,6 +2913,9 @@
+   }
+   const bool detached = !view->IsZenModeSideChromePinned();
+   const bool right = view->IsVerticalTabStripRightAligned();
++  const bool show_toggle = view->GetProfile()->GetPrefs()->GetBoolean(
++      prefs::kShowVerticalTabsCollapseButton);
++  const bool empty_header = right && !show_toggle;
+   if (!detached) {
+     if (!input) {
+       input = view->AddChildView(std::make_unique<views::NativeViewHost>());
+@@ -2886,6 +2930,7 @@
+         sidebar, view, sidebar->GetLocalBounds());
+     const int outer_resize = view->IsFullscreen() ? 0 : 6;
+     const int header =
++        empty_header ? 10 :
+         std::max(0, 52 + TopUIFullscreenYOffset() - input_bounds.y());
+     input_bounds.Inset(gfx::Insets::TLBR(header, right ? 5 : outer_resize,
+                                          outer_resize,
+@@ -2967,6 +3012,7 @@
+     // window clip; excluding them here can cut off the top of New Tab.
+     // Keep the existing tab geometry identical to the pinned sidebar.
+     const int header_clearance =
++        empty_header ? 10 :
+         std::max(0, 8 + 36 + TopUIFullscreenYOffset() - bounds.y());
+     const int outer_resize = view->IsFullscreen() ? 0 : 6;
+     const int left_resize = right ? 5 : outer_resize;
+@@ -3021,7 +3067,7 @@
+   button_host->SetBounds(x, sidebar_bounds.y() + 8, 36, 36);
+   floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   [floating_sidebar_button_ refreshEmbedded:YES];
+-  const CGFloat visibility = sidebar_visible ? reveal : 0;
++  const CGFloat visibility = sidebar_visible && show_toggle ? reveal : 0;
+   // Avoid competing presentation animations when pinning reparents the tabs.
+   [floating_sidebar_button_ setRevealFraction:visibility];
+   floating_sidebar_button_.alphaValue = visibility;
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
+@@ -280,8 +280,9 @@
+ 
+   views::View* new_tab_button = tab_strip_view->new_tab_button_container();
+   const int new_tab_height =
+-      new_tab_button ? new_tab_button->GetPreferredSize(size_bounds).height()
+-                     : 0;
++      new_tab_button && new_tab_button->GetVisible()
++          ? new_tab_button->GetPreferredSize(size_bounds).height()
++          : 0;
+   const int pinned_gap =
+       pinned_preferred_height && (new_tab_height || unpinned_preferred_height)
+           ? PinnedTabContainerView::kTabPadding
+@@ -331,7 +332,7 @@
+ 
+   if (new_tab_button) {
+     layouts.child_layouts.emplace_back(
+-        new_tab_button, true,
++        new_tab_button, new_tab_height > 0,
+         gfx::Rect(region_horizontal_padding, y,
+                   std::max(0, size_bounds.width().value() -
+                                   2 * region_horizontal_padding),
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.cc
+@@ -5,6 +5,9 @@
+ #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
+ 
+ #include "base/functional/bind.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/common/pref_names.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+@@ -37,6 +40,12 @@
+ 
+   new_tab_button_ = AddChildView(std::move(new_tab_button));
+ 
++  show_new_tab_.Init(prefs::kShowDynamicNewTabButton,
++                     browser_->GetProfile()->GetPrefs(),
++                     base::BindRepeating(
++                         &VerticalTabStripBottomContainer::UpdateNewTabVisibility,
++                         base::Unretained(this)));
++  UpdateNewTabVisibility();
+   OnCollapseStateChanged(state_controller->GetCollapseState());
+   collapsed_state_change_subscription_ =
+       state_controller->RegisterOnCollapseChanged(base::BindRepeating(
+@@ -62,6 +71,11 @@
+   return true;
+ }
+ 
++void VerticalTabStripBottomContainer::UpdateNewTabVisibility() {
++  SetVisible(show_new_tab_.GetValue());
++  PreferredSizeChanged();
++}
++
+ void VerticalTabStripBottomContainer::OnCollapseStateChanged(
+     tabs::VerticalTabStripCollapseState state) {
+   // Updating the styles immediately at start of the animation by including
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h
+@@ -7,6 +7,7 @@
+ 
+ #include "base/callback_list.h"
+ #include "base/memory/raw_ptr.h"
++#include "components/prefs/pref_member.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ #include "ui/views/layout/flex_layout_view.h"
+ 
+@@ -39,6 +40,8 @@
+   void OnCollapseStateChanged(tabs::VerticalTabStripCollapseState state);
+ 
+  private:
++  void UpdateNewTabVisibility();
++  BooleanPrefMember show_new_tab_;
+   void OnNewTabButtonContextMenuWillShow();
+   void OnNewTabButtonContextMenuClosed();
+ 
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc
+@@ -9,6 +9,10 @@
+ #include <utility>
+ #include <vector>
+ 
++#include "base/functional/bind.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/common/pref_names.h"
++
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
+ #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
+@@ -148,6 +152,11 @@
+ VerticalTabStripHeaderView::VerticalTabStripHeaderView(
+     BrowserView* browser_view)
+     : browser_view_(browser_view) {
++  show_sidebar_toggle_.Init(
++      prefs::kShowVerticalTabsCollapseButton,
++      browser_view_->GetProfile()->GetPrefs(),
++      base::BindRepeating(&VerticalTabStripHeaderView::UpdateFloatingHeaderLayout,
++                          base::Unretained(this)));
+   const int horizontal_padding =
+       GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
+ 
+@@ -196,7 +205,9 @@
+   if (HasFloatingControls(browser_view_)) {
+     // 36 pt controls + 8 pt above and below = 52 pt, including the
+     // four-point bottom margin supplied by the surrounding FlexLayout.
+-    return gfx::Size(0, 48);
++    return gfx::Size(0, browser_view_->IsVerticalTabStripRightAligned() &&
++                               !show_sidebar_toggle_.GetValue()
++                           ? 10 : 48);
+   }
+   if (!GetVisible() || is_collapsed_) {
+     return gfx::Size(0, 0);
+@@ -228,14 +239,27 @@
+       CalculatePreferredSize(views::SizeBounds(kMinimumWidth, 0)).height());
+ }
+ 
++void VerticalTabStripHeaderView::UpdateFloatingHeaderLayout() {
++  const bool empty = HasFloatingControls(browser_view_) &&
++      browser_view_->IsVerticalTabStripRightAligned() &&
++      !show_sidebar_toggle_.GetValue();
++  const int horizontal_padding =
++      GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
++  const auto margins = gfx::Insets::TLBR(
++      HasFloatingControls(browser_view_) ? 0 : 5, horizontal_padding,
++      empty ? 0 : 4, horizontal_padding);
++  if (*GetProperty(views::kMarginsKey) != margins) {
++    SetProperty(views::kMarginsKey, margins);
++    PreferredSizeChanged();
++  }
++}
++
+ void VerticalTabStripHeaderView::Layout(PassKey) {
++  UpdateFloatingHeaderLayout();
+   LayoutSuperclass<views::View>(this);
+   const bool floating = HasFloatingControls(browser_view_);
+   const int horizontal_padding =
+       GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
+-  SetProperty(views::kMarginsKey,
+-              gfx::Insets::TLBR(floating ? 0 : 5, horizontal_padding, 4,
+-                                horizontal_padding));
+   if (floating && GetVisible()) {
+     top_controls_container_->SetBounds(0, 0, width(), 36);
+     for (views::View* child : top_controls_container_->children()) {
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h
+@@ -7,6 +7,7 @@
+ 
+ #include "base/memory/raw_ptr.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
++#include "components/prefs/pref_member.h"
+ #include "ui/views/view.h"
+ 
+ class AvatarToolbarButton;
+@@ -59,6 +60,7 @@
+   bool IsHostingAppMenuButton() const { return app_menu_button_ != nullptr; }
+ 
+   void SetCollapsed(bool collapsed);
++  void UpdateFloatingHeaderLayout();
+ 
+   bool HasOpenBubbleOrMenu() const;
+ 
+@@ -72,6 +74,7 @@
+ 
+  private:
+   int GetToolbarControlsHeight(int width) const;
++  BooleanPrefMember show_sidebar_toggle_;
+   raw_ptr<BrowserView> browser_view_ = nullptr;
+ 
+   raw_ptr<views::View> top_controls_container_ = nullptr;
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -2308,9 +2308,12 @@
+     return;
+   }
+ 
++  const bool floating = browser_view_->browser_widget()->GetFrameView()
++                            ->HasFloatingAddressBar();
+   sidebar_controls_host_ = host;
+   if (sidebar_pin_button_) {
+-    sidebar_pin_button_->SetVisible(true);
++    sidebar_pin_button_->SetVisible(
++        !floating && show_vertical_tabs_collapse_button_.GetValue());
+   }
+   transferred_controls_state_.clear();
+ 
+@@ -2319,7 +2322,8 @@
+   // end via the layout's main-axis alignment (see UpdateToolbarLayout); they
+   // are not reparented, so no restore bookkeeping is needed for them.
+   views::View* views_to_transfer[] = {
+-      sidebar_pin_button_, back_, forward_, reload_, home_, location_bar_view_};
++      sidebar_pin_button_, back_, forward_, reload_,
++      floating ? nullptr : home_.get(), location_bar_view_};
+ 
+   for (views::View* view : views_to_transfer) {
+     if (view && view->parent() == this) {
+@@ -2334,7 +2338,8 @@
+   }
+ 
+   sidebar_controls_host_->AttachToolbarControls(
+-      nullptr, nullptr, nullptr, nullptr, back_, forward_, reload_, home_,
++      nullptr, nullptr, nullptr, nullptr, back_, forward_, reload_,
++      floating ? nullptr : home_.get(),
+       location_bar_view_, sidebar_pin_button_);
+ 
+   OnShowMediaButtonChanged();
+@@ -2412,7 +2417,9 @@
+     hide_if_child(back_);
+     hide_if_child(forward_);
+     hide_if_child(reload_);
+-    hide_if_child(home_);
++    if (!browser_view_->browser_widget()->GetFrameView()->HasFloatingAddressBar()) {
++      hide_if_child(home_);
++    }
+     hide_if_child(vertical_tabs_collapse_button_);
+     hide_if_child(dynamic_new_tab_button_);
+     hide_if_child(overflow_button_);
+@@ -2521,6 +2528,11 @@
+ }
+ 
+ void ToolbarView::UpdateVerticalTabsCollapseButton() {
++  if (sidebar_pin_button_ && sidebar_controls_host_) {
++    sidebar_pin_button_->SetVisible(
++        show_vertical_tabs_collapse_button_.GetValue() &&
++        !browser_view_->browser_widget()->GetFrameView()->HasFloatingAddressBar());
++  }
+   if (!vertical_tabs_collapse_button_) {
+     return;
+   }
+@@ -3029,6 +3041,9 @@
+           views::AnimatingLayoutManager::BoundsAnimationMode::kUseHostBounds);
+     }
+   }
++  if (home_ && home_->parent() == host) {
++    host->ReorderChildView(home_, 0);
++  }
+   AbortToolbarContainerAnimationsForZenReveal();
+ }
+ 

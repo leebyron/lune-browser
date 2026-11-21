@@ -1,0 +1,125 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -3344,7 +3344,9 @@
+   const bool in_rail = in_hover_area &&
+                        browser_view->IsTopChromeHoverEnabled() &&
+                        helium::IsPointerInNativeRevealRail(browser_view, true);
+-  const bool in_window = browser_view->GetLocalBounds().Contains(cursor);
++  const bool in_window =
++      browser_view->GetLocalBounds().Contains(cursor) ||
++      helium::IsPointerAboveNativeFullscreenContent(browser_view);
+   gfx::Rect sidebar_header;
+   if (auto* sidebar = browser_view->GetSidebarView(); sidebar &&
+       sidebar->IsDrawn() && browser_view->GetSideChromeRevealRatio() > 0) {
+@@ -3355,7 +3357,8 @@
+   const bool in_sidebar_header = sidebar_header.Contains(cursor);
+   // Distance hysteresis: enter through the rail or a visible sidebar header.
+   // Once open, page/sidebar columns down to 48 points below the glass retain
+-  // it. Side-docked DevTools neither reveal nor retain the header.
++  // it, including the fullscreen menu-bar strip above the content window.
++  // Side-docked DevTools neither reveal nor retain the header.
+   const bool within_retention = [floating_address_bar_ isPresented] &&
+                                 in_hover_area && in_window &&
+                                 cursor.y() <= bounds.bottom() + 48;
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2275,8 +2275,20 @@
+   }
+ 
+   gfx::Point cursor;
+-  if (!GetCursorLocationInBrowserView(&cursor) ||
+-      !GetLocalBounds().Contains(cursor)) {
++  const bool has_cursor = GetCursorLocationInBrowserView(&cursor);
++#if BUILDFLAG(IS_MAC)
++  if (has_cursor && !GetLocalBounds().Contains(cursor) && GetFrameView() &&
++      GetFrameView()->HasFloatingAddressBar() &&
++      helium::IsPointerAboveNativeFullscreenContent(this)) {
++    // The fullscreen menu-bar strip belongs to the top reveal area, without
++    // making it an entry point for the sidebar or queuing a collapse timer.
++    zen_last_cursor_ = cursor;
++    zen_cursor_exit_timer_.Stop();
++    UpdateZenModeReveal(IsPointInZenTopTrigger(cursor), false);
++    return;
++  }
++#endif
++  if (!has_cursor || !GetLocalBounds().Contains(cursor)) {
+     zen_last_cursor_.reset();
+     zen_cursor_exit_timer_.Stop();
+     UpdateZenModeReveal(false, false);
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -14,6 +14,7 @@
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/fullscreen_util_mac.h"
+ #include "chrome/browser/ui/helium/helium_command_symbols.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/browser_widget.h"
+@@ -405,6 +406,31 @@
+   return view->GetWidget()->GetNativeWindow().GetNativeNSWindow().inLiveResize;
+ }
+ 
++bool IsPointerAboveNativeFullscreenContent(const BrowserView* view) {
++  if (!view || !view->GetWidget() || !view->IsFullscreen() ||
++      fullscreen_utils::IsInContentFullscreen(view->browser())) {
++    return false;
++  }
++  NSWindow* window = view->GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  NSScreen* screen = window.screen;
++  NSView* content = window.contentView;
++  if (!screen || !content) {
++    return false;
++  }
++  const NSRect content_bounds = [window convertRectToScreen:
++      [content convertRect:content.bounds toView:nil]];
++  const NSPoint pointer = NSEvent.mouseLocation;
++  // AppKit can place the entire content window below the menu bar or camera
++  // safe area. Use that live boundary, independent of menu-bar preferences,
++  // screen origin, backing scale or which display owns the fullscreen space.
++  return pointer.x >= NSMinX(content_bounds) &&
++         pointer.x < NSMaxX(content_bounds) &&
++         pointer.x >= NSMinX(screen.frame) &&
++         pointer.x < NSMaxX(screen.frame) &&
++         pointer.y >= NSMaxY(content_bounds) &&
++         pointer.y <= NSMaxY(screen.frame);
++}
++
+ bool IsPointerInNativeRevealRail(const BrowserView* view, bool top) {
+   if (!view->GetWidget()) {
+     return false;
+@@ -418,8 +444,10 @@
+         screen_point.y < NSMinY(screen) || screen_point.y > NSMaxY(screen)) {
+       return false;
+     }
+-    // Fullscreen reveal uses four physical top pixels and one side pixel.
+-    return top ? screen_point.y >= NSMaxY(screen) - 4 * pixel
++    // Include the strip above app content when the menu bar stays visible.
++    // Otherwise retain the four physical top pixels and one side pixel.
++    return top ? (screen_point.y >= NSMaxY(screen) - 4 * pixel ||
++                  IsPointerAboveNativeFullscreenContent(view))
+                : (view->IsVerticalTabStripRightAligned()
+                       ? screen_point.x >= NSMaxX(screen) - pixel
+                       : screen_point.x < NSMinX(screen) + pixel);
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -64,6 +64,9 @@
+ std::optional<SkColor> NativeGlassControlColor(const views::View* view,
+                                                bool enabled = true);
+ #if BUILDFLAG(IS_MAC)
++// The menu bar and camera-safe strip above fullscreen app content.
++// Excludes webpage fullscreen and other screens.
++bool IsPointerAboveNativeFullscreenContent(const BrowserView* view);
+ bool IsPointerInNativeRevealRail(const BrowserView* view, bool top);
+ // AppKit owns the lifetime of an interactive window resize.
+ bool IsNativeWindowLiveResizing(const BrowserView* view);
+--- a/chrome/browser/ui/views/helium/BUILD.gn
++++ b/chrome/browser/ui/views/helium/BUILD.gn
+@@ -69,6 +69,7 @@
+     deps += [
+       "//chrome/browser:browser_process",
+       "//chrome/browser/themes",
++      "//chrome/browser/ui:fullscreen_util_mac",
+       "//ui/color",
+       "//ui/native_theme",
+     ]

@@ -1,0 +1,128 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -16,6 +16,7 @@
+ #include "base/logging.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/numerics/safe_conversions.h"
++#include "base/scoped_observation.h"
+ #include "base/strings/sys_string_conversions.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/time/time.h"
+@@ -26,6 +27,7 @@
+ #include "chrome/browser/headless/headless_mode_util.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/profile_observer.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+@@ -99,13 +101,13 @@
+ #include "ui/gfx/mac/coordinate_conversion.h"
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
+-#include "ui/views/view_targeter.h"
+-#include "ui/views/view_targeter_delegate.h"
+ #include "ui/views/context_menu_controller.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/native/native_view_host.h"
+ #include "ui/views/layout/box_layout.h"
+ #include "ui/views/layout/layout_types.h"
++#include "ui/views/view_targeter.h"
++#include "ui/views/view_targeter_delegate.h"
+ #include "ui/views/widget/widget.h"
+ #include "ui/views/widget/widget_delegate.h"
+ 
+@@ -946,21 +948,30 @@
+ - (CGFloat)preferredHeight;
+ - (void)updateSuggestions;
+ - (void)acceptAddress;
++- (void)shutdown;
+ @end
+ 
+ // Keep the native editor on Chromium's profile-aware autocomplete providers.
+ // The weak Objective-C owner avoids a view/controller ownership cycle.
+-class HeliumGlassAutocompleteObserver
+-    : public AutocompleteController::Observer {
++class HeliumGlassAutocompleteObserver : public AutocompleteController::Observer,
++                                        public ProfileObserver {
+  public:
+-  explicit HeliumGlassAutocompleteObserver(HeliumFloatingAddressBar* owner)
+-      : owner_(owner) {}
++  HeliumGlassAutocompleteObserver(HeliumFloatingAddressBar* owner,
++                                  Profile* profile)
++      : owner_(owner) {
++    profile_observation_.Observe(profile);
++  }
++  void OnProfileWillBeDestroyed(Profile*) override {
++    profile_observation_.Reset();
++    [owner_ shutdown];
++  }
+   void OnResultChanged(AutocompleteController*, bool) override {
+     [owner_ updateSuggestions];
+   }
+ 
+  private:
+   HeliumFloatingAddressBar* __weak owner_;
++  base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
+ };
+ 
+ @implementation HeliumFloatingAddressBar {
+@@ -1054,7 +1065,8 @@
+                                      }
+                                      return event;
+                                    }];
+-  _observer = std::make_unique<HeliumGlassAutocompleteObserver>(self);
++  _observer = std::make_unique<HeliumGlassAutocompleteObserver>(
++      self, browserView->GetProfile());
+   _autocomplete->AddObserver(_observer.get());
+ 
+   _reload = [NSButton
+@@ -1112,12 +1124,27 @@
+   self.appearance = FloatingChromeAppearance(_browserView.get());
+ }
+ 
+-- (void)dealloc {
++- (void)shutdown {
++  // AppKit can retain this view beyond the BrowserView and even its profile.
++  // Destroy profile-backed providers while their KeyedServices are still alive.
++  // The profile observer also covers incognito's last-window shutdown.
++  _browserView.reset();
++  _editing = NO;
++  _address.delegate = nil;
++  _address.onInitialFocus = nil;
+   if (_keyMonitor) {
+     [NSEvent removeMonitor:_keyMonitor];
++    _keyMonitor = nil;
+   }
+-  _autocomplete->RemoveObserver(_observer.get());
+-  _autocomplete.reset();
++  if (_autocomplete) {
++    _autocomplete->RemoveObserver(_observer.get());
++    _autocomplete.reset();
++  }
++  _matches.clear();
++}
++
++- (void)dealloc {
++  [self shutdown];
+ }
+ 
+ - (BOOL)isEditing {
+@@ -1194,6 +1221,9 @@
+ }
+ 
+ - (void)finishEditing {
++  if (!_autocomplete) {
++    return;
++  }
+   _editing = NO;
+   _address.userEditing = NO;
+   _autocomplete->Stop(AutocompleteStopReason::kClobbered);
+@@ -1420,6 +1450,7 @@
+ 
+ BrowserFrameViewMac::~BrowserFrameViewMac() {
+   floating_address_refresh_timer_->Stop();
++  [floating_address_bar_ shutdown];
+   if (auto* host = floating_address_host_.view()) {
+     static_cast<views::NativeViewHost*>(host)->Detach();
+   }

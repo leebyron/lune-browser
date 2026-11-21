@@ -1,0 +1,100 @@
+--- a/chrome/browser/ui/helium/native_result_row_mac.mm
++++ b/chrome/browser/ui/helium/native_result_row_mac.mm
+@@ -26,7 +26,7 @@ void DrawText(NSString* text,
+ 
+ @implementation HeliumNativeResultRow
+ @synthesize primaryText = _primaryText, secondaryText = _secondaryText,
+-            tagText = _tagText, resultImage = _resultImage,
++            tagText = _tagText, symbolName = _symbolName, resultImage = _resultImage,
+             selected = _selected, onHover = _onHover;
+ - (void)setSelected:(BOOL)selected {
+   if (_selected != selected) {
+@@ -73,19 +73,35 @@ void DrawText(NSString* text,
+                                      xRadius:10
+                                      yRadius:10] fill];
+   }
++  const BOOL usesSymbol = !self.resultImage && self.symbolName.length > 0;
+   NSImage* image = self.resultImage;
+-  if (image.isTemplate) {
+-    image =
+-        [image imageWithSymbolConfiguration:
+-                   [NSImageSymbolConfiguration
+-                       configurationWithHierarchicalColor:NSColor.labelColor]];
+-  }
+-  [image drawInRect:NSMakeRect(12, 18, 16, 16)
+-            fromRect:NSZeroRect
+-           operation:NSCompositingOperationSourceOver
+-            fraction:1
+-      respectFlipped:YES
+-               hints:nil];
++  if (usesSymbol) {
++    image = [[NSImage imageWithSystemSymbolName:self.symbolName
++                      accessibilityDescription:nil]
++        imageWithSymbolConfiguration:[NSImageSymbolConfiguration
++            configurationWithPointSize:16 weight:NSFontWeightMedium]];
++    image = [image imageWithSymbolConfiguration:[NSImageSymbolConfiguration
++        configurationWithHierarchicalColor:NSColor.labelColor]];
++  }
++  const NSSize imageSize = image.size;
++  if (imageSize.width > 0 && imageSize.height > 0) {
++    // SF Symbols already carry their requested 16-point optical sizing.
++    // Preserve that native size; only fit downloaded images into the icon slot.
++    const CGFloat scale = usesSymbol
++                              ? 1
++                              : std::min(16 / imageSize.width,
++                                         16 / imageSize.height);
++    const NSSize drawSize =
++        NSMakeSize(imageSize.width * scale, imageSize.height * scale);
++    [image drawInRect:NSMakeRect(12 + (16 - drawSize.width) / 2,
++                                18 + (16 - drawSize.height) / 2,
++                                drawSize.width, drawSize.height)
++              fromRect:NSZeroRect
++             operation:NSCompositingOperationSourceOver
++              fraction:1
++        respectFlipped:YES
++                 hints:nil];
++  }
+   CGFloat width = NSWidth(self.bounds);
+   const BOOL showTag = self.tagText.length > 0 && width >= 240;
+   const CGFloat textWidth = std::max<CGFloat>(0, width - (showTag ? 142 : 52));
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -393,11 +393,7 @@ void HeliumCommandBarView::SetResults(
+                 item.type == HeliumCommandBarItem::Type::kSiteSearch
+             ? @"magnifyingglass"
+             : @"globe";
+-    row.resultImage = [NSImage imageWithSystemSymbolName:symbol
+-                                accessibilityDescription:nil];
+-    row.resultImage = [row.resultImage imageWithSymbolConfiguration:
+-        [NSImageSymbolConfiguration configurationWithPointSize:16
+-                                                       weight:NSFontWeightMedium]];
++    row.symbolName = symbol;
+     row.accessibilityLabel =
+         [NSString stringWithFormat:@"%@, %@, %@", row.primaryText,
+                                    row.secondaryText, row.tagText];
+--- a/chrome/browser/ui/helium/native_result_row_mac.h
++++ b/chrome/browser/ui/helium/native_result_row_mac.h
+@@ -16,6 +16,8 @@ inline constexpr int kHeliumNativeResult
+ @property(nonatomic, copy) NSString* primaryText;
+ @property(nonatomic, copy) NSString* secondaryText;
+ @property(nonatomic, copy) NSString* tagText;
++// A downloaded favicon overrides the native symbol fallback.
++@property(nonatomic, copy) NSString* symbolName;
+ @property(nonatomic, strong) NSImage* resultImage;
+ @property(nonatomic) BOOL selected;
+ @property(nonatomic, copy) void (^onHover)(NSInteger);
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1914,11 +1914,7 @@ class HeliumSiteInfoObserver : public vi
+         title ? match.description : match.contents);
+     button.secondaryText = base::SysUTF16ToNSString(
+         title ? match.contents : match.description);
+-    button.resultImage = [[NSImage
+-        imageWithSystemSymbolName:search ? @"magnifyingglass" : @"globe"
+-         accessibilityDescription:nil]
+-        imageWithSymbolConfiguration:[NSImageSymbolConfiguration
+-            configurationWithPointSize:16 weight:NSFontWeightMedium]];
++    button.symbolName = search ? @"magnifyingglass" : @"globe";
+     button.accessibilityLabel = button.secondaryText.length
+         ? [NSString stringWithFormat:@"%@, %@", button.primaryText,
+                                                button.secondaryText]

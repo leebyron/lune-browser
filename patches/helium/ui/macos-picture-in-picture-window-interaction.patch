@@ -1,0 +1,1862 @@
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+@@ -6,43 +6,68 @@
+ 
+ #import <Cocoa/Cocoa.h>
+ #import <QuartzCore/QuartzCore.h>
+-#import <Symbols/Symbols.h>
+ 
+ #include <algorithm>
++#include <array>
+ #include <cmath>
+ #include <iterator>
++#include <numbers>
+ #include <optional>
+ #include <utility>
+ 
+ #include "base/apple/foundation_util.h"
++#import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
+ #include "chrome/grit/generated_resources.h"
+ #import "components/remote_cocoa/app_shim/bridged_content_view.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
+ #include "ui/base/l10n/l10n_util_mac.h"
++#include "ui/gfx/image/image_skia_util_mac.h"
+ 
+ @interface NSView (VideoPictureInPictureFrameRadius)
+ - (CGFloat)_cornerRadius;
+ @end
+ 
+-// AppKit caches the presentation of detached standard window buttons.
+-@interface NSButton (VideoPictureInPictureTrafficLightHover)
+-- (void)mouseEnteredOrExited;
++namespace {
++
++constexpr CGFloat kTransportTint = 0.10;
++constexpr CGFloat kPressedTransportTint = 0.18;
++
++}  // namespace
++
++@interface VideoPictureInPictureButtonCell : NSButtonCell
++@property(nonatomic, weak) CALayer* transportTintLayer;
++@end
++
++@implementation VideoPictureInPictureButtonCell
++@synthesize transportTintLayer = _transportTintLayer;
++
++- (void)highlight:(BOOL)highlighted
++        withFrame:(NSRect)frame
++           inView:(NSView*)view {
++  if (CALayer* tint = self.transportTintLayer) {
++    [CATransaction begin];
++    [CATransaction setDisableActions:YES];
++    tint.backgroundColor =
++        [NSColor colorWithWhite:1
++                         alpha:highlighted ? kPressedTransportTint
++                                           : kTransportTint].CGColor;
++    [CATransaction commit];
++  }
++  [super highlight:highlighted withFrame:frame inView:view];
++}
+ @end
+ 
+ @interface VideoPictureInPictureButton : NSButton
+ @end
+ @implementation VideoPictureInPictureButton
+-- (BOOL)acceptsFirstMouse:(NSEvent*)event {
+-  return YES;
+++ (Class)cellClass {
++  return VideoPictureInPictureButtonCell.class;
+ }
+-@end
+ 
+-@interface VideoPictureInPictureSymbolView : NSImageView
+-@end
+-@implementation VideoPictureInPictureSymbolView
+-- (NSView*)hitTest:(NSPoint)point {
+-  return nil;
++- (BOOL)acceptsFirstMouse:(NSEvent*)event {
++  return YES;
+ }
+ @end
+ 
+@@ -53,14 +78,130 @@ using PlaybackSymbol = VideoOverlayWindo
+ 
+ constexpr NSWindowButton kWindowButtons[] = {
+     NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton};
+-constexpr CGFloat kOpenTabHeight = 22;
++constexpr CGFloat kOpenTabSize = 28;
++constexpr CGFloat kOpenTabInset = 12;
++constexpr CGFloat kTrafficLightGroupHeight = 36;
++constexpr float kIdleTrafficLightBezelOpacity = 0.68f;
++using TrafficLightOffsets = std::array<CGFloat, std::size(kWindowButtons)>;
++constexpr CGFloat kPlayButtonSize =
++    VideoOverlayWindowNativeWidgetMac::kPlayButtonSize;
++constexpr CGFloat kSkipButtonSize = 40;
++constexpr CGFloat kSkipButtonOffset = 18;
++constexpr CGFloat kPlaySymbolSize = 33;
++constexpr CFTimeInterval kControlsFadeDuration = 0.14;
++constexpr CFTimeInterval kPlaybackSwapDuration = 0.24;
++constexpr CFTimeInterval kSkipRotationDuration = 0.57;
++constexpr CGFloat kPlaySymbolCanvas = 46;
++constexpr CGFloat kSkipSymbolCanvas = 24;
++
++constexpr std::array<const char*, 3> kPlaybackSymbolNames{
++    "play.fill", "pause.fill", "arrow.counterclockwise"};
++constexpr std::array<int, 3> kPlaybackLabels{
++    IDS_PICTURE_IN_PICTURE_PLAY_CONTROL_TEXT,
++    IDS_PICTURE_IN_PICTURE_PAUSE_CONTROL_TEXT,
++    IDS_PICTURE_IN_PICTURE_REPLAY_CONTROL_TEXT};
++
++void LayoutTrafficLightGroup(HeliumFullscreenWindowControls* group,
++                             const TrafficLightOffsets& offsets) {
++  for (size_t i = 0; i < group.subviews.count; ++i) {
++    NSView* button = group.subviews[i];
++    const NSSize size = button.frame.size;
++    [button setFrameOrigin:NSMakePoint(
++        kTrafficLightGroupHeight / 2 + offsets[i] - size.width / 2,
++        (kTrafficLightGroupHeight - size.height) / 2)];
++  }
++}
+ 
+-NSImage* MakeSymbol(NSString* name, CGFloat size) {
+-  NSImage* image = [NSImage imageWithSystemSymbolName:name
+-                             accessibilityDescription:nil];
+-  return [image imageWithSymbolConfiguration:
+-      [NSImageSymbolConfiguration configurationWithPointSize:size
+-                                                       weight:NSFontWeightMedium]];
++NSBitmapImageRep* RenderTrafficLightGlyphs(NSWindow* window,
++                                          const TrafficLightOffsets& offsets,
++                                          NSSize size) {
++  // Rasterize AppKit once, offscreen. A live color filter can corrupt the
++  // video surface during the titlebar fade.
++  NSWindow* drawingWindow = [[NSWindow alloc]
++      initWithContentRect:NSMakeRect(0, 0, size.width, size.height)
++                styleMask:window.styleMask & ~NSWindowStyleMaskFullSizeContentView
++                  backing:NSBackingStoreBuffered
++                    defer:NO];
++  drawingWindow.opaque = NO;
++  drawingWindow.backgroundColor = NSColor.clearColor;
++  drawingWindow.collectionBehavior = window.collectionBehavior;
++  HeliumFullscreenWindowControls* controls =
++      [[HeliumFullscreenWindowControls alloc] initWithWindow:drawingWindow
++                                                        size:size
++                                  allowsWindowManagementMenu:NO];
++  controls.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
++  LayoutTrafficLightGroup(controls, offsets);
++  for (NSButton* button in controls.subviews) {
++    button.enabled = YES;
++  }
++  [drawingWindow.contentView addSubview:controls];
++  [controls setMouseInsideControls:YES];
++  NSBitmapImageRep* artwork =
++      [controls bitmapImageRepForCachingDisplayInRect:controls.bounds];
++  if (!artwork) {
++    return nil;
++  }
++  [controls cacheDisplayInRect:controls.bounds toBitmapImageRep:artwork];
++
++  NSBitmapImageRep* glyphs = [[NSBitmapImageRep alloc]
++      initWithBitmapDataPlanes:nullptr
++                    pixelsWide:artwork.pixelsWide
++                    pixelsHigh:artwork.pixelsHigh
++                 bitsPerSample:8
++               samplesPerPixel:4
++                      hasAlpha:YES
++                      isPlanar:NO
++                colorSpaceName:NSDeviceRGBColorSpace
++                   bytesPerRow:0
++                  bitsPerPixel:0];
++  if (!glyphs) {
++    return nil;
++  }
++
++  // The white marks are brighter than the native faces. Write a
++  // premultiplied white mask so the clear pixels carry no color or opacity.
++  constexpr CGFloat kGlyphThreshold = 0.80;
++  bool hasGlyphs = false;
++  @autoreleasepool {
++    for (NSInteger y = 0; y < artwork.pixelsHigh; ++y) {
++      unsigned char* row = glyphs.bitmapData + y * glyphs.bytesPerRow;
++      for (NSInteger x = 0; x < artwork.pixelsWide; ++x) {
++        NSColor* color = [[artwork colorAtX:x y:y]
++            colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
++        unsigned char sample = 0;
++        if (color) {
++          const CGFloat brightness =
++              std::min({color.redComponent, color.greenComponent,
++                        color.blueComponent});
++          const CGFloat coverage = std::clamp(
++              (brightness - kGlyphThreshold) / (1 - kGlyphThreshold), 0.0, 1.0);
++          sample = std::round(255 * coverage * color.alphaComponent);
++        }
++        std::fill_n(row + x * 4, 4, sample);
++        hasGlyphs |= sample > 0;
++      }
++    }
++  }
++  glyphs.size = size;
++  return hasGlyphs ? glyphs : nil;
++}
++
++CAShapeLayer* MakeTrafficLightBezel(NSRect frame) {
++  CAShapeLayer* bezel = [CAShapeLayer layer];
++  bezel.frame = frame;
++  bezel.lineWidth = 1.0;
++  bezel.fillColor = [NSColor colorWithWhite:0 alpha:0.22].CGColor;
++  bezel.strokeColor = [NSColor colorWithWhite:0 alpha:0.18].CGColor;
++  bezel.opacity = kIdleTrafficLightBezelOpacity;
++  // Stroke inside the native button's bounds. Use an ellipse so the rim and
++  // fill share smooth circular coverage beneath the native artwork.
++  const CGFloat inset = bezel.lineWidth / 2;
++  CGPathRef path =
++      CGPathCreateWithEllipseInRect(CGRectInset(bezel.bounds, inset, inset),
++                                   nullptr);
++  bezel.path = path;
++  CGPathRelease(path);
++  return bezel;
+ }
+ 
+ void SetButtonLabel(NSButton* button, int message_id) {
+@@ -69,41 +210,158 @@ void SetButtonLabel(NSButton* button, in
+   button.accessibilityLabel = label;
+ }
+ 
+-NSView* MakeGlass(NSButton* button) {
++// Use the same modest tint and rim for every transport diameter. Lens
++// refraction over video makes the larger control look like a different material.
++NSView* MakeTransportSurface(NSButton* button) {
++  NSView* surface = [[NSView alloc] initWithFrame:NSZeroRect];
++  surface.wantsLayer = YES;
++  surface.layer.backgroundColor = [NSColor colorWithWhite:1 alpha:kTransportTint].CGColor;
++  surface.layer.borderColor = [NSColor colorWithWhite:1 alpha:0.19].CGColor;
++  surface.layer.borderWidth = 1;
++  VideoPictureInPictureButtonCell* cell =
++      base::apple::ObjCCastStrict<VideoPictureInPictureButtonCell>(button.cell);
++  cell.transportTintLayer = surface.layer;
+   button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-  if (@available(macOS 26, *)) {
+-    NSGlassEffectView* glass = [[NSGlassEffectView alloc] initWithFrame:NSZeroRect];
+-    glass.style = NSGlassEffectViewStyleRegular;
+-    if (@available(macOS 27, *)) {
+-      glass.effectIsInteractive = YES;
++  [surface addSubview:button];
++  return surface;
++}
++
++void FadeControl(NSView* view, BOOL visible, BOOL animate) {
++  if (!animate) {
++    view.alphaValue = visible ? 1 : 0;
++    view.hidden = !visible;
++    return;
++  }
++  if (visible) {
++    view.hidden = NO;
++  }
++  [NSAnimationContext runAnimationGroup:^(NSAnimationContext* context) {
++    context.duration = kControlsFadeDuration;
++    context.timingFunction =
++        [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
++    view.animator.alphaValue = visible ? 1 : 0;
++  } completionHandler:^{
++    if (view.alphaValue == 0) {
++      view.hidden = YES;
+     }
+-    glass.contentView = button;
+-    return glass;
++  }];
++}
++
++CALayer* MakeSymbolLayer(const char* name, int canvas, int pointSize) {
++  NSImage* image = gfx::NSImageFromImageSkia(
++      helium::NativeToolbarSymbolForName(name, canvas, SK_ColorWHITE, pointSize));
++  CALayer* layer = [CALayer layer];
++  layer.anchorPoint = CGPointMake(0.5, 0.5);
++  layer.bounds = CGRectMake(0, 0, canvas, canvas);
++  layer.contentsGravity = kCAGravityResizeAspect;
++  layer.contents = (__bridge id)[image CGImageForProposedRect:nullptr
++                                                     context:nil
++                                                       hints:nil];
++  return layer;
++}
++
++void SwapPlaybackSymbol(CALayer* layer, bool show, bool animate) {
++  const CGRect current = (layer.presentationLayer ?: layer).bounds;
++  const CGRect target = show ? CGRectMake(0, 0, kPlaySymbolCanvas,
++                                           kPlaySymbolCanvas)
++                             : CGRectZero;
++  [CATransaction begin];
++  [CATransaction setDisableActions:YES];
++  layer.bounds = target;
++  [CATransaction commit];
++  [layer removeAnimationForKey:@"playbackSymbolSize"];
++  if (!animate) {
++    return;
+   }
+-  NSVisualEffectView* glass = [[NSVisualEffectView alloc] initWithFrame:NSZeroRect];
+-  glass.material = NSVisualEffectMaterialHUDWindow;
+-  glass.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+-  glass.state = NSVisualEffectStateActive;
+-  glass.wantsLayer = YES;
+-  glass.layer.masksToBounds = YES;
+-  [glass addSubview:button];
+-  return glass;
+-}
+-
+-void LayoutGlass(NSView* glass, NSRect frame) {
+-  glass.hidden = NSIsEmptyRect(frame);
+-  if (glass.hidden || NSEqualRects(glass.frame, frame)) {
++  // Animate the image bounds about their fixed center. The outgoing image
++  // reaches zero before the new image grows on the same timeline.
++  CAKeyframeAnimation* animation =
++      [CAKeyframeAnimation animationWithKeyPath:@"bounds"];
++  animation.values = @[
++    [NSValue valueWithRect:current],
++    [NSValue valueWithRect:show ? current : CGRectZero],
++    [NSValue valueWithRect:target],
++  ];
++  animation.keyTimes = @[@0, @0.5, @1];
++  CAMediaTimingFunction* ease = [CAMediaTimingFunction
++      functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
++  animation.timingFunctions = @[ease, ease];
++  animation.duration = kPlaybackSwapDuration;
++  [layer addAnimation:animation forKey:@"playbackSymbolSize"];
++}
++
++CALayer* AddSkipSymbol(NSButton* button, bool forward) {
++  button.wantsLayer = YES;
++  CALayer* arrow = MakeSymbolLayer(
++      forward ? "goforward.10" : "gobackward.10", kSkipSymbolCanvas, 18);
++  CALayer* number = [CALayer layer];
++  number.bounds = arrow.bounds;
++  number.contentsGravity = arrow.contentsGravity;
++  number.contents = arrow.contents;
++
++  // Keep both digits and their antialiased baseline in the stationary
++  // mask. The SF Symbol's numeral sits slightly below its canvas midpoint.
++  const CGRect numberRect = CGRectMake(6.5, 8.5, 10.5, 9);
++  CAShapeLayer* numberMask = [CAShapeLayer layer];
++  numberMask.frame = number.bounds;
++  CGPathRef numberPath = CGPathCreateWithRect(numberRect, nullptr);
++  numberMask.path = numberPath;
++  CGPathRelease(numberPath);
++  number.mask = numberMask;
++
++  CAShapeLayer* arrowMask = [CAShapeLayer layer];
++  arrowMask.frame = arrow.bounds;
++  CGMutablePathRef arrowPath = CGPathCreateMutable();
++  CGPathAddRect(arrowPath, nullptr, arrow.bounds);
++  CGPathAddRect(arrowPath, nullptr, numberRect);
++  arrowMask.path = arrowPath;
++  arrowMask.fillRule = kCAFillRuleEvenOdd;
++  CGPathRelease(arrowPath);
++  arrow.mask = arrowMask;
++
++  // Both SF Symbols share a ring offset even though their arrowheads point
++  // in opposite directions. Preserve the artwork position when moving the pivot.
++  const CGPoint circleOffset = CGPointMake(-0.5, 1);
++  arrow.anchorPoint = CGPointMake(0.5 + circleOffset.x / kSkipSymbolCanvas,
++                                  0.5 + circleOffset.y / kSkipSymbolCanvas);
++  const CGFloat center = kSkipButtonSize / 2;
++  arrow.position = CGPointMake(center + circleOffset.x, center + circleOffset.y);
++  number.position = CGPointMake(center, center);
++
++  [button.layer addSublayer:arrow];
++  [button.layer addSublayer:number];
++  return arrow;
++}
++
++void RotateSkipArrow(CALayer* arrow, bool forward) {
++  if (NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion) {
+     return;
+   }
+-  glass.frame = frame;
+-  if (@available(macOS 26, *)) {
+-    NSGlassEffectView* effect = (NSGlassEffectView*)glass;
+-    effect.cornerRadius = NSHeight(frame) / 2;
+-    effect.contentView.frame = glass.bounds;
+-  } else {
+-    glass.layer.cornerRadius = NSHeight(frame) / 2;
+-    glass.subviews.firstObject.frame = glass.bounds;
++  CABasicAnimation* animation =
++      [CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];
++  animation.fromValue = @0;
++  animation.toValue = @((forward ? 2 : -2) * std::numbers::pi);
++  animation.duration = kSkipRotationDuration;
++  animation.timingFunction = [CAMediaTimingFunction
++      functionWithName:kCAMediaTimingFunctionEaseOut];
++  [arrow addAnimation:animation forKey:@"skipArrowRotation"];
++}
++
++void LayoutTransportSurface(NSView* surface, NSRect frame) {
++  if (NSIsEmptyRect(frame) || NSEqualRects(surface.frame, frame)) {
++    return;
++  }
++  surface.frame = frame;
++  surface.layer.cornerRadius = NSHeight(frame) / 2;
++  surface.subviews.firstObject.frame = surface.bounds;
++}
++
++NSRect ExpandedTransportButton(NSRect frame, CGFloat diameter, CGFloat x_offset) {
++  if (NSIsEmptyRect(frame)) {
++    return NSZeroRect;
+   }
++  return NSMakeRect(NSMidX(frame) - diameter / 2 + x_offset,
++                    NSMidY(frame) - diameter / 2, diameter, diameter);
+ }
+ 
+ NSRect ToNSRect(const gfx::Rect& bounds) {
+@@ -114,7 +372,7 @@ NSRect ToNSRect(const gfx::Rect& bounds)
+ 
+ @interface VideoPictureInPictureControls : NSView
+ - (instancetype)initWithWindow:(NSWindow*)window actions:(Actions)actions;
+-- (void)setHeaderVisible:(BOOL)visible;
++- (void)setHeaderVisible:(BOOL)visible animate:(BOOL)animate;
+ - (void)setPlayFrame:(NSRect)play
+            backFrame:(NSRect)back
+         forwardFrame:(NSRect)forward;
+@@ -123,15 +381,24 @@ NSRect ToNSRect(const gfx::Rect& bounds)
+ 
+ @implementation VideoPictureInPictureControls {
+   Actions _actions;
+-  NSArray<NSButton*>* _lights;
+-  NSRect _trafficLightBounds;
++  HeliumFullscreenWindowControls* _trafficLightGroup;
++  NSView* _trafficLightContainer;
++  CALayer* _trafficLightGlyphs;
++  std::array<CAShapeLayer* __strong, std::size(kWindowButtons)>
++      _trafficLightBezels;
+   BOOL _trafficLightsHovered;
+-  NSView* _openTabGlass;
++  BOOL _headerVisible;
++  BOOL _playVisible;
++  BOOL _skipBackVisible;
++  BOOL _skipForwardVisible;
++  NSButton* _openTabButton;
+   NSView* _playGlass;
+   NSView* _skipBackGlass;
+   NSView* _skipForwardGlass;
+   NSButton* _playButton;
+-  NSImageView* _playSymbolView;
++  std::array<CALayer* __strong, kPlaybackSymbolNames.size()> _playSymbolLayers;
++  CALayer* _skipBackArrow;
++  CALayer* _skipForwardArrow;
+   std::optional<PlaybackSymbol> _playbackSymbol;
+ }
+ 
+@@ -141,53 +408,92 @@ NSRect ToNSRect(const gfx::Rect& bounds)
+   }
+   _actions = std::move(actions);
+   self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-  self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+ 
+   const SEL selectors[] = {@selector(closePictureInPicture:),
+                            @selector(minimizePictureInPicture:),
+                            @selector(fullscreenPictureInPicture:)};
+-  NSMutableArray<NSButton*>* lights = [NSMutableArray array];
+-  for (size_t i = 0; i < std::size(kWindowButtons); ++i) {
+-    NSButton* button = [NSWindow standardWindowButton:kWindowButtons[i]
+-                                        forStyleMask:window.styleMask];
+-    if (!button) {
+-      continue;
+-    }
++  TrafficLightOffsets offsets;
++  NSButton* first = [window standardWindowButton:kWindowButtons[0]];
++  for (size_t i = 0; i < offsets.size(); ++i) {
++    NSButton* button = [window standardWindowButton:kWindowButtons[i]];
++    offsets[i] = first && button ? std::abs(NSMidX(button.frame) - NSMidX(first.frame))
++                                : 23 * i;
++    button.hidden = YES;
++  }
++  const NSSize groupSize =
++      NSMakeSize(kTrafficLightGroupHeight + offsets.back(), kTrafficLightGroupHeight);
++  _trafficLightGroup = [[HeliumFullscreenWindowControls alloc]
++      initWithWindow:window size:groupSize allowsWindowManagementMenu:NO];
++  LayoutTrafficLightGroup(_trafficLightGroup, offsets);
++  // Aqua supplies the native white traffic-light glyphs over video.
++  _trafficLightGroup.appearance =
++      [NSAppearance appearanceNamed:NSAppearanceNameAqua];
++  _trafficLightGroup.wantsLayer = YES;
++  _trafficLightContainer = [[NSView alloc] initWithFrame:_trafficLightGroup.frame];
++  _trafficLightContainer.wantsLayer = YES;
++  [_trafficLightContainer addSubview:_trafficLightGroup];
++  for (size_t i = 0; i < _trafficLightGroup.subviews.count; ++i) {
++    NSButton* button = (NSButton*)_trafficLightGroup.subviews[i];
+     button.target = self;
+     button.action = selectors[i];
+     button.enabled = YES;
++    CAShapeLayer* bezel = MakeTrafficLightBezel(button.frame);
++    _trafficLightBezels[i] = bezel;
++    [_trafficLightContainer.layer addSublayer:bezel];
+     if (kWindowButtons[i] == NSWindowZoomButton) {
+       SetButtonLabel(button, IDS_ENTER_FULLSCREEN_MAC);
+     }
+-    [self addSubview:button];
+-    [lights addObject:button];
+   }
+-  _lights = lights;
+-
+-  _openTabGlass = MakeGlass([self buttonWithSymbol:MakeSymbol(@"pip.exit", 14)
+-                                           label:IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT
+-                                          action:@selector(openSourceTab:)]);
++  NSBitmapImageRep* glyphs = RenderTrafficLightGlyphs(window, offsets, groupSize);
++  if (CGImageRef image = glyphs.CGImage) {
++    // Suppress only the native drawing. The same AppKit buttons handle
++    // hit-testing, focus, accessibility, and actions.
++    _trafficLightGroup.layer.opacity = 0;
++    _trafficLightGlyphs = [CALayer layer];
++    _trafficLightGlyphs.frame = _trafficLightGroup.frame;
++    _trafficLightGlyphs.contents = (__bridge id)image;
++    _trafficLightGlyphs.contentsScale = glyphs.pixelsWide / groupSize.width;
++    _trafficLightGlyphs.hidden = YES;
++    [_trafficLightContainer.layer addSublayer:_trafficLightGlyphs];
++  }
++  [self addSubview:_trafficLightContainer];
++  FadeControl(_trafficLightContainer, NO, NO);
++
++  NSImage* openTabImage = gfx::NSImageFromImageSkia(
++      helium::NativeToolbarSymbolForName("pip.exit", 20, SK_ColorWHITE, 15));
++  _openTabButton = [self buttonWithSymbol:openTabImage
++                                   label:IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT
++                                  action:@selector(openSourceTab:)];
++  _openTabButton.wantsLayer = YES;
++  _openTabButton.layer.cornerRadius = kOpenTabSize / 2;
++  [self addSubview:_openTabButton];
++  FadeControl(_openTabButton, NO, NO);
+   _playButton = [self buttonWithSymbol:nil
+                                 label:IDS_PICTURE_IN_PICTURE_PLAY_CONTROL_TEXT
+                                action:@selector(togglePlayback:)];
+-  _playSymbolView = [[VideoPictureInPictureSymbolView alloc] initWithFrame:NSZeroRect];
+-  _playSymbolView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-  _playSymbolView.imageScaling = NSImageScaleNone;
+-  _playSymbolView.contentTintColor = NSColor.whiteColor;
+-  [_playSymbolView setAccessibilityElement:NO];
+-  [_playButton addSubview:_playSymbolView];
+-  _playGlass = MakeGlass(_playButton);
+-  _skipBackGlass = MakeGlass([self buttonWithSymbol:MakeSymbol(@"gobackward.10", 18)
+-                                            label:IDS_PICTURE_IN_PICTURE_REPLAY_10_TEXT
+-                                           action:@selector(skipBack:)]);
+-  _skipForwardGlass =
+-      MakeGlass([self buttonWithSymbol:MakeSymbol(@"goforward.10", 18)
+-                                label:IDS_PICTURE_IN_PICTURE_FORWARD_10_TEXT
+-                               action:@selector(skipForward:)]);
+-  for (NSView* glass in @[_openTabGlass, _playGlass, _skipBackGlass,
+-                         _skipForwardGlass]) {
+-    glass.hidden = YES;
++  _playGlass = MakeTransportSurface(_playButton);
++  for (size_t i = 0; i < kPlaybackSymbolNames.size(); ++i) {
++    CALayer* layer =
++        MakeSymbolLayer(kPlaybackSymbolNames[i], kPlaySymbolCanvas, kPlaySymbolSize);
++    _playSymbolLayers[i] = layer;
++    layer.opacity = 0.94;
++    layer.bounds = CGRectZero;
++    [_playGlass.layer addSublayer:layer];
++  }
++  NSButton* back = [self buttonWithSymbol:nil
++                                    label:IDS_PICTURE_IN_PICTURE_REPLAY_10_TEXT
++                                   action:@selector(skipBack:)];
++  _skipBackArrow = AddSkipSymbol(back, /*forward=*/false);
++  _skipBackGlass = MakeTransportSurface(back);
++  NSButton* forward =
++      [self buttonWithSymbol:nil
++                       label:IDS_PICTURE_IN_PICTURE_FORWARD_10_TEXT
++                      action:@selector(skipForward:)];
++  _skipForwardArrow = AddSkipSymbol(forward, /*forward=*/true);
++  _skipForwardGlass = MakeTransportSurface(forward);
++  for (NSView* glass in @[_playGlass, _skipBackGlass, _skipForwardGlass]) {
+     [self addSubview:glass];
++    FadeControl(glass, NO, NO);
+   }
+   [self setPlaybackSymbol:PlaybackSymbol::kPlay];
+   return self;
+@@ -217,117 +523,120 @@ NSRect ToNSRect(const gfx::Rect& bounds)
+   [super layout];
+   NSWindow* window = self.window;
+   NSView* frameView = window.contentView.superview;
+-  NSButton* standardClose = [window standardWindowButton:NSWindowCloseButton];
+-  const NSRect closeFrame =
+-      [self convertRect:standardClose.frame fromView:standardClose.superview];
+-  const CGFloat standardCenter =
+-      std::max(NSMidY(closeFrame), kOpenTabHeight / 2 + 4);
+   const CGFloat radius = [frameView respondsToSelector:@selector(_cornerRadius)]
+                              ? frameView._cornerRadius
+-                             : standardCenter;
+-  const CGFloat center = radius > 0 ? radius : standardCenter;
++                             : 0;
++  const CGFloat center = kOpenTabInset + kOpenTabSize / 2;
+   window.contentView.layer.cornerRadius = radius;
+   window.contentView.layer.masksToBounds = YES;
+ 
+-  _trafficLightBounds = NSZeroRect;
+-  for (NSUInteger i = 0; i < _lights.count; ++i) {
+-    NSButton* standardButton = [window standardWindowButton:kWindowButtons[i]];
+-    const CGFloat offset =
+-        std::abs(NSMidX(standardButton.frame) - NSMidX(standardClose.frame));
+-    standardButton.hidden = YES;
+-    NSButton* button = _lights[i];
+-    NSRect frame = button.frame;
+-    frame.origin = NSMakePoint(center + offset - NSWidth(frame) / 2,
+-                              center - NSHeight(frame) / 2);
+-    button.frame = frame;
+-    _trafficLightBounds = NSUnionRect(_trafficLightBounds, frame);
+-  }
+-
+-  const CGFloat side = std::min(kOpenTabHeight, 2 * (center - 2));
+-  const BOOL openTabHidden = _openTabGlass.hidden;
+-  LayoutGlass(_openTabGlass,
+-              NSMakeRect(NSWidth(self.bounds) - center - side / 2,
+-                         center - side / 2, side, side));
+-  _openTabGlass.hidden = openTabHidden;
+-}
+-
+-- (void)setHeaderVisible:(BOOL)visible {
+-  _openTabGlass.hidden = !visible;
+-  for (NSButton* button in _lights) {
+-    button.hidden = !visible;
++  [_trafficLightContainer setFrameOrigin:NSMakePoint(
++      center - kTrafficLightGroupHeight / 2,
++      center - kTrafficLightGroupHeight / 2)];
++
++  _openTabButton.frame =
++      NSMakeRect(NSWidth(self.bounds) - kOpenTabInset - kOpenTabSize,
++                 kOpenTabInset, kOpenTabSize, kOpenTabSize);
++}
++
++- (void)setHeaderVisible:(BOOL)visible animate:(BOOL)animate {
++  if (_headerVisible != visible) {
++    _headerVisible = visible;
++    FadeControl(_openTabButton, visible, animate);
++    FadeControl(_trafficLightContainer, visible, animate);
+   }
+   const NSPoint pointer = [self convertPoint:
+       [self.window convertPointFromScreen:NSEvent.mouseLocation] fromView:nil];
+-  const BOOL hovered = visible && NSPointInRect(
+-      pointer, NSInsetRect(_trafficLightBounds, -3, -3));
+-  if (hovered != _trafficLightsHovered) {
+-    _trafficLightsHovered = hovered;
+-    for (NSButton* button in _lights) {
+-      if ([button respondsToSelector:@selector(mouseEnteredOrExited)]) {
+-        [button mouseEnteredOrExited];
+-      }
+-      button.needsDisplay = YES;
++  // Use the same full 36-point row as the floating browser controls.
++  const BOOL overLights =
++      visible && NSPointInRect(pointer, _trafficLightContainer.frame);
++  [_trafficLightGroup setMouseInsideControls:overLights];
++  if (_trafficLightsHovered != overLights) {
++    _trafficLightsHovered = overLights;
++    [CATransaction begin];
++    [CATransaction setDisableActions:YES];
++    _trafficLightGlyphs.hidden = !overLights;
++    for (CAShapeLayer* bezel : _trafficLightBezels) {
++      bezel.opacity = overLights ? 1.0f : kIdleTrafficLightBezelOpacity;
+     }
++    [CATransaction commit];
+   }
+-}
+-
+-// The detached standard buttons ask their superview to track group hover.
+-- (BOOL)_mouseInGroup:(id)sender {
+-  return _trafficLightsHovered;
++  const BOOL overOpenTab = visible && NSPointInRect(pointer, _openTabButton.frame);
++  _openTabButton.layer.backgroundColor =
++      overOpenTab ? [NSColor colorWithWhite:1 alpha:0.14].CGColor : nil;
+ }
+ 
+ - (void)setPlayFrame:(NSRect)play
+            backFrame:(NSRect)back
+         forwardFrame:(NSRect)forward {
+-  LayoutGlass(_playGlass, play);
+-  LayoutGlass(_skipBackGlass, back);
+-  LayoutGlass(_skipForwardGlass, forward);
+-  _playSymbolView.frame = _playButton.bounds;
++  const BOOL animate = !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
++  const BOOL playVisible = !NSIsEmptyRect(play);
++  const BOOL backVisible = !NSIsEmptyRect(back);
++  const BOOL forwardVisible = !NSIsEmptyRect(forward);
++  LayoutTransportSurface(_playGlass, ExpandedTransportButton(play, kPlayButtonSize, 0));
++  LayoutTransportSurface(_skipBackGlass,
++              ExpandedTransportButton(back, kSkipButtonSize, -kSkipButtonOffset));
++  LayoutTransportSurface(_skipForwardGlass,
++              ExpandedTransportButton(forward, kSkipButtonSize, kSkipButtonOffset));
++  if (_playVisible != playVisible) {
++    _playVisible = playVisible;
++    FadeControl(_playGlass, playVisible, animate);
++  }
++  if (_skipBackVisible != backVisible) {
++    _skipBackVisible = backVisible;
++    FadeControl(_skipBackGlass, backVisible, animate);
++  }
++  if (_skipForwardVisible != forwardVisible) {
++    _skipForwardVisible = forwardVisible;
++    FadeControl(_skipForwardGlass, forwardVisible, animate);
++  }
++  [CATransaction begin];
++  [CATransaction setDisableActions:YES];
++  const CGPoint playCenter =
++      CGPointMake(NSMidX(_playGlass.bounds), NSMidY(_playGlass.bounds));
++  for (CALayer* layer : _playSymbolLayers) {
++    layer.position = playCenter;
++  }
++  [CATransaction commit];
+ }
+ 
+ - (void)setPlaybackSymbol:(PlaybackSymbol)symbol {
+   if (_playbackSymbol == symbol) {
+     return;
+   }
+-  NSString* name = @"play.fill";
+-  int messageId = IDS_PICTURE_IN_PICTURE_PLAY_CONTROL_TEXT;
+-  switch (symbol) {
+-    case PlaybackSymbol::kPlay:
+-      break;
+-    case PlaybackSymbol::kPause:
+-      name = @"pause.fill";
+-      messageId = IDS_PICTURE_IN_PICTURE_PAUSE_CONTROL_TEXT;
+-      break;
+-    case PlaybackSymbol::kReplay:
+-      name = @"arrow.counterclockwise";
+-      messageId = IDS_PICTURE_IN_PICTURE_REPLAY_CONTROL_TEXT;
+-      break;
+-  }
+-  NSImage* image = MakeSymbol(name, 22);
+-  const BOOL animate = _playbackSymbol.has_value() && !_playGlass.hidden &&
++  const auto index = static_cast<size_t>(symbol);
++  const BOOL animate = _playbackSymbol.has_value() && _playVisible &&
+       !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
+   _playbackSymbol = symbol;
+-  SetButtonLabel(_playButton, messageId);
+-
+-  if (@available(macOS 14, *)) {
+-    if (animate) {
+-      [_playSymbolView setSymbolImage:image
+-               withContentTransition:[NSSymbolReplaceContentTransition replaceDownUpTransition]];
+-      return;
+-    }
+-  } else if (animate) {
+-    _playSymbolView.wantsLayer = YES;
+-    CATransition* transition = [CATransition animation];
+-    transition.type = kCATransitionFade;
+-    transition.duration = 0.15;
+-    [_playSymbolView.layer addAnimation:transition forKey:@"playbackSymbol"];
++  SetButtonLabel(_playButton, kPlaybackLabels[index]);
++  [CATransaction begin];
++  for (size_t i = 0; i < _playSymbolLayers.size(); ++i) {
++    SwapPlaybackSymbol(_playSymbolLayers[i], i == index, animate);
+   }
+-  _playSymbolView.image = image;
++  [CATransaction commit];
+ }
+ 
+ - (NSView*)hitTest:(NSPoint)point {
+   NSView* hit = [super hitTest:point];
+-  return hit == self ? nil : hit;
++  if (hit == self ||
++      (!_headerVisible &&
++       ([hit isDescendantOf:_openTabButton] ||
++        [hit isDescendantOf:_trafficLightContainer])) ||
++      hit == _trafficLightContainer ||
++      (!_playVisible && [hit isDescendantOf:_playGlass]) ||
++      (!_skipBackVisible && [hit isDescendantOf:_skipBackGlass]) ||
++      (!_skipForwardVisible && [hit isDescendantOf:_skipForwardGlass])) {
++    return nil;
++  }
++  return hit;
++}
++
++- (BOOL)acceptsFirstMouse:(NSEvent*)event {
++  return YES;
++}
++
++- (void)mouseDown:(NSEvent*)event {
++  [self.window performWindowDragWithEvent:event];
+ }
+ 
+ - (void)closePictureInPicture:(id)sender {
+@@ -355,10 +664,12 @@ NSRect ToNSRect(const gfx::Rect& bounds)
+ }
+ 
+ - (void)skipBack:(id)sender {
++  RotateSkipArrow(_skipBackArrow, false);
+   _actions.skip_back.Run();
+ }
+ 
+ - (void)skipForward:(id)sender {
++  RotateSkipArrow(_skipForwardArrow, true);
+   _actions.skip_forward.Run();
+ }
+ @end
+@@ -376,6 +687,7 @@ struct VideoOverlayWindowNativeWidgetMac
+   VideoPictureInPictureControls* view;
+   id local_mouse_monitor;
+   id global_mouse_monitor;
++  std::unique_ptr<views::Widget::PaintAsActiveLock> paint_as_active;
+ };
+ 
+ VideoOverlayWindowNativeWidgetMac::VideoOverlayWindowNativeWidgetMac(
+@@ -401,7 +713,14 @@ void VideoOverlayWindowNativeWidgetMac::
+   window.titleVisibility = NSWindowTitleHidden;
+   window.titlebarAppearsTransparent = YES;
+   window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleNone;
++  // This button makes the video fullscreen. The PiP window stays floating
++  // and should not participate in AppKit window tiling.
++  window.collectionBehavior &= ~NSWindowCollectionBehaviorFullScreenAllowsTiling;
++  window.collectionBehavior |= NSWindowCollectionBehaviorFullScreenAuxiliary |
++                               NSWindowCollectionBehaviorFullScreenPrimary |
++                               NSWindowCollectionBehaviorFullScreenDisallowsTiling;
+   titlebar_ = std::make_unique<Titlebar>();
++  titlebar_->paint_as_active = GetWidget()->LockPaintAsActive();
+   auto update_hover = std::move(actions.update_hover);
+   titlebar_->view = [[VideoPictureInPictureControls alloc]
+       initWithWindow:window
+@@ -411,13 +730,15 @@ void VideoOverlayWindowNativeWidgetMac::
+       base::apple::ObjCCast<BridgedContentView>(window.contentView);
+   content_view.nativeChromeHitTestView = titlebar_->view;
+   [titlebar_->view layout];
+-  SetWindowControlsVisible(false);
++  SetWindowControlsVisible(false, false);
+ 
+   constexpr NSEventMask kPointerMotion =
+       NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged |
+       NSEventMaskRightMouseDragged | NSEventMaskOtherMouseDragged;
+   titlebar_->local_mouse_monitor = [NSEvent
+       addLocalMonitorForEventsMatchingMask:kPointerMotion |
++                                         NSEventMaskLeftMouseDown |
++                                         NSEventMaskLeftMouseUp |
+                                          NSEventMaskMouseEntered |
+                                          NSEventMaskMouseExited
+                                   handler:^NSEvent*(NSEvent* event) {
+@@ -431,9 +752,10 @@ void VideoOverlayWindowNativeWidgetMac::
+                                             }];
+ }
+ 
+-void VideoOverlayWindowNativeWidgetMac::SetWindowControlsVisible(bool visible) {
++void VideoOverlayWindowNativeWidgetMac::SetWindowControlsVisible(bool visible,
++                                                                 bool animate) {
+   if (titlebar_) {
+-    [titlebar_->view setHeaderVisible:visible];
++    [titlebar_->view setHeaderVisible:visible animate:animate];
+   }
+ }
+ 
+@@ -442,6 +764,7 @@ void VideoOverlayWindowNativeWidgetMac::
+     const gfx::Rect& skip_back,
+     const gfx::Rect& skip_forward) {
+   if (titlebar_) {
++    [titlebar_->view layoutSubtreeIfNeeded];
+     [titlebar_->view setPlayFrame:ToNSRect(play_pause)
+                         backFrame:ToNSRect(skip_back)
+                      forwardFrame:ToNSRect(skip_forward)];
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -102,6 +102,9 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h"
++#include "ui/compositor/scoped_layer_animation_settings.h"
++#include "ui/gfx/animation/animation.h"
++#include "ui/views/accessibility/view_accessibility.h"
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ namespace {
+@@ -128,8 +131,29 @@ constexpr int kBottomControlsHeight = 2
+                                       kBottomControlsVerticalMargin +
+                                       kBottomControlsHorizontalMargin;
+ 
++constexpr int kMacEdgeScrimHeight = 160;
++constexpr float kMacEdgeScrimAlpha = 64.0f / 255;
++constexpr float kMacFullScrimAlpha = 36.0f / 255;
++constexpr auto kMacControlsFadeDuration = base::Milliseconds(140);
++
++void FadeMacControlLayer(ui::Layer* layer, bool visible, bool animate) {
++  const float opacity = visible ? 1.0f : 0.0f;
++  if (animate && opacity == layer->GetTargetOpacity()) {
++    return;
++  }
++  ui::ScopedLayerAnimationSettings settings(layer->GetAnimator());
++  settings.SetTransitionDuration(animate ? kMacControlsFadeDuration
++                                         : base::TimeDelta());
++  settings.SetTweenType(gfx::Tween::EASE_IN_OUT);
++  settings.SetPreemptionStrategy(
++      ui::LayerAnimator::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
++  layer->SetOpacity(opacity);
++}
++
+ // Expand just the relevant edge strip. A pointer outside the middle of the
+ // window's side cannot reveal either group from there.
++enum class MacControlReveal { kHidden, kHeader, kFooter, kAll };
++
+ bool IsPointerNearControlBar(const gfx::Point& cursor,
+                              const gfx::Rect& bar,
+                              bool was_hovered) {
+@@ -234,6 +258,34 @@ class GradientBackground : public views:
+   const SkColor4f bottom_color_;
+ };
+ 
++#if BUILDFLAG(IS_MAC)
++class MacFullControlsScrim : public views::Background {
++ public:
++  void Paint(gfx::Canvas* canvas, views::View* view) const override {
++    const gfx::Rect bounds = view->GetContentsBounds();
++    if (bounds.IsEmpty()) {
++      return;
++    }
++    // Keep the standalone edge gradients until they reach the center dim.
++    // One gradient avoids stacking the center and edge darkness.
++    const float fraction_to_center =
++        std::min(0.5f, kMacEdgeScrimHeight *
++                           (1 - kMacFullScrimAlpha / kMacEdgeScrimAlpha) /
++                           bounds.height());
++    const SkScalar stops[] = {0, fraction_to_center, 1 - fraction_to_center, 1};
++    const SkColor4f edge = {0, 0, 0, kMacEdgeScrimAlpha};
++    const SkColor4f center = {0, 0, 0, kMacFullScrimAlpha};
++    const SkColor4f colors[] = {edge, center, center, edge};
++    const SkPoint points[] = {gfx::PointToSkPoint(bounds.top_center()),
++                              gfx::PointToSkPoint(bounds.bottom_center())};
++    cc::PaintFlags flags;
++    flags.setShader(cc::PaintShader::MakeLinearGradient(
++        points, colors, stops, std::size(colors), SkTileMode::kClamp));
++    canvas->DrawRect(bounds, flags);
++  }
++};
++#endif
++
+ }  // namespace
+ 
+ // OverlayWindow implementation of FrameView.
+@@ -657,6 +709,11 @@ void VideoOverlayWindowViews::OnNativeWi
+ 
+ void VideoOverlayWindowViews::OnNativeWidgetSizeChanged(
+     const gfx::Size& new_size) {
++#if BUILDFLAG(IS_MAC)
++  views::Widget::OnNativeWidgetSizeChanged(new_size);
++  UpdateLayerBoundsWithLetterboxing(new_size);
++  UpdateControlsForCursor();
++#else
+   // Hide the controls when the window is being resized. The controls will
+   // reappear when the user interacts with the window again.
+   UpdateControlsVisibility(false);
+@@ -665,6 +722,7 @@ void VideoOverlayWindowViews::OnNativeWi
+   UpdateLayerBoundsWithLetterboxing(new_size);
+ 
+   views::Widget::OnNativeWidgetSizeChanged(new_size);
++#endif
+ }
+ 
+ void VideoOverlayWindowViews::OnKeyEvent(ui::KeyEvent* event) {
+@@ -836,6 +894,9 @@ void VideoOverlayWindowViews::FireEnable
+ }
+ 
+ bool VideoOverlayWindowViews::AreControlsVisible() const {
++#if BUILDFLAG(IS_MAC)
++  return footer_controls_visible_ || center_controls_visible_;
++#else
+   // If we're animating to a visibility state, then we'll act as if we're in
+   // that state.
+   if (fade_animation_) {
+@@ -843,6 +904,7 @@ bool VideoOverlayWindowViews::AreControl
+             OverlayControlsFadeAnimation::Type::kToShown);
+   }
+   return GetControlsContainerView()->layer()->opacity() > 0;
++#endif
+ }
+ 
+ void VideoOverlayWindowViews::UpdateControlsVisibility(bool is_visible,
+@@ -864,47 +926,65 @@ void VideoOverlayWindowViews::UpdateCont
+ 
+   const bool dragging_progress = progress_view_drag_state_ ==
+                                  global_media_controls::DragState::kDragStarted;
+-  const bool can_show_controls = !IsOverlayViewShown();
+ #if BUILDFLAG(IS_MAC)
++  const bool can_show_controls = !IsOverlayViewShown() && !is_live_resizing_;
+   const gfx::Rect bounds = GetWindowBoundsInScreen();
+   const gfx::Point cursor = display::Screen::Get()->GetCursorScreenPoint();
+   const bool can_hover = can_show_controls && IsVisible() && !IsMinimized() &&
+                          !bounds.IsEmpty();
+   const bool inside = can_hover && bounds.Contains(cursor);
+   const gfx::Rect header(bounds.x(), bounds.y(), bounds.width(),
+-                         kTopControlsHeight);
++                         kBottomControlsHeight);
+   const gfx::Rect footer(bounds.x(), bounds.bottom() - kBottomControlsHeight,
+                          bounds.width(), kBottomControlsHeight);
+-  header_hovered_ = inside || (can_hover && IsPointerNearControlBar(
+-                                               cursor, header, header_hovered_));
+-  footer_hovered_ = inside || (can_hover && IsPointerNearControlBar(
+-                                               cursor, footer, footer_hovered_));
+-
+-  const bool inside_center =
+-      inside && !header.Contains(cursor) && !footer.Contains(cursor);
+-  center_controls_visible_ = can_show_controls && !dragging_progress &&
+-      force_controls_visible_.value_or(inside_center);
+-  // Keep the scrubber alive until Views delivers the end of the drag.
+-  footer_controls_visible_ = can_show_controls &&
+-      (dragging_progress || force_controls_visible_.value_or(footer_hovered_));
++  const bool compact =
++      bounds.height() < 2 * kBottomControlsHeight +
++                            VideoOverlayWindowNativeWidgetMac::kPlayButtonSize;
++  MacControlReveal reveal = MacControlReveal::kHidden;
++  if (can_show_controls && dragging_progress) {
++    // Keep the scrubber alive until Views delivers the end of the drag.
++    reveal = compact ? MacControlReveal::kAll : MacControlReveal::kFooter;
++  } else if (can_show_controls && force_controls_visible_.has_value()) {
++    reveal = *force_controls_visible_ ? MacControlReveal::kAll
++                                      : MacControlReveal::kHidden;
++  } else if (compact && can_hover) {
++    if (IsPointerNearControlBar(cursor, bounds, center_controls_visible_)) {
++      reveal = MacControlReveal::kAll;
++    }
++  } else if (inside) {
++    reveal = header.Contains(cursor)   ? MacControlReveal::kHeader
++             : footer.Contains(cursor) ? MacControlReveal::kFooter
++                                       : MacControlReveal::kAll;
++  } else if (can_hover) {
++    // A fresh edge takes precedence over retention from the opposite edge.
++    const bool near_header = IsPointerNearControlBar(cursor, header, false);
++    const bool near_footer = IsPointerNearControlBar(cursor, footer, false);
++    const bool keep_header =
++        header_hovered_ && IsPointerNearControlBar(cursor, header, true);
++    const bool keep_footer =
++        footer_hovered_ && IsPointerNearControlBar(cursor, footer, true);
++    if (near_header || near_footer) {
++      reveal = near_header ? MacControlReveal::kHeader : MacControlReveal::kFooter;
++    } else if (keep_header || keep_footer) {
++      const bool closer_to_header = cursor.y() < bounds.CenterPoint().y();
++      reveal = keep_header && (!keep_footer || closer_to_header)
++                   ? MacControlReveal::kHeader
++                   : MacControlReveal::kFooter;
++    }
++  }
++  center_controls_visible_ = reveal == MacControlReveal::kAll;
++  header_hovered_ = center_controls_visible_ || reveal == MacControlReveal::kHeader;
++  footer_hovered_ = center_controls_visible_ || reveal == MacControlReveal::kFooter;
++  footer_controls_visible_ = footer_hovered_;
+   center_controls_container_view_->SetVisible(
+       center_controls_visible_ && force_controls_visible_.has_value());
+-  footer_controls_container_view_->SetVisible(footer_controls_visible_);
+   UpdateScrubberThumbVisibility(cursor);
+-  vc_controls_container_view_->SetVisible(center_controls_visible_ &&
+-                                          HasVideoConferenceControls());
+-  if (auto* mac_widget =
+-          static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget())) {
+-    mac_widget->SetWindowControlsVisible(header_hovered_);
+-  }
+   UpdateNativeTransportControls();
+-  controls_scrim_view_->layer()->SetOpacity(center_controls_visible_ ? 1 : 0);
+-  controls_bottom_scrim_view_->layer()->SetOpacity(
+-      footer_controls_visible_ && !center_controls_visible_ ? 1 : 0);
+   const bool wanted_visibility =
+       center_controls_visible_ || footer_controls_visible_;
+   const bool wanted_title = header_hovered_ || force_controls_visible_ == true;
+ #else
++  const bool can_show_controls = !IsOverlayViewShown();
+   // Preserve the progress view while it owns the drag.
+   if (dragging_progress) {
+     return;
+@@ -939,13 +1019,35 @@ void VideoOverlayWindowViews::UpdateCont
+                 !can_hide_title_and_scrim;
+ 
+ #if BUILDFLAG(IS_MAC)
+-  // The full-window scrim and edge gradients are mutually exclusive.
+-  title_is_visible &= !center_controls_visible_;
+-  GetTitleView()->layer()->SetOpacity(title_is_visible ? 1.0 : 0.0);
+-  GetControlsTopScrimView()->layer()->SetOpacity(title_is_visible ? 1.0 : 0.0);
+-#endif
++  // The macOS header and its shadow follow the cursor from the first frame.
++  // The separately shown permission bubble identifies the site when needed.
++  title_is_visible = !is_live_resizing_ &&
++                     force_title_and_scrim_visible_.value_or(wanted_title) &&
++                     !center_controls_visible_ && !footer_controls_visible_;
++  const bool animate = should_animate && !force_controls_visible_.has_value() &&
++                       gfx::Animation::ShouldRenderRichAnimation();
++  GetControlsContainerView()->SetVisible(animate || wanted_visibility);
++  footer_controls_container_view_->SetVisible(animate || footer_controls_visible_);
++  footer_controls_container_view_->SetCanProcessEventsWithinSubtree(
++      footer_controls_visible_);
++  footer_controls_container_view_->GetViewAccessibility().SetIsInvisible(
++      !footer_controls_visible_);
++  FadeMacControlLayer(GetTitleView()->layer(), title_is_visible, animate);
++  FadeMacControlLayer(controls_top_scrim_view_->layer(), title_is_visible, animate);
++  FadeMacControlLayer(controls_bottom_scrim_view_->layer(),
++                      footer_controls_visible_ && !center_controls_visible_,
++                      animate);
++  FadeMacControlLayer(controls_scrim_view_->layer(), center_controls_visible_,
++                      animate);
++  FadeMacControlLayer(footer_controls_container_view_->layer(),
++                      footer_controls_visible_, animate);
++  UpdateMacVideoConferenceControls(animate);
++  auto* mac_widget =
++      static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget());
++  mac_widget->SetWindowControlsVisible(
++      can_show_controls && header_hovered_, animate);
++#else
+   if (should_animate) {
+-#if !BUILDFLAG(IS_MAC)
+     // Animate the title and top scrim.
+     if (title_is_visible != AreTitleAndScrimVisible()) {
+       const std::vector<raw_ptr<views::View>> title_and_scrim = {
+@@ -957,14 +1059,11 @@ void VideoOverlayWindowViews::UpdateCont
+                                : OverlayControlsFadeAnimation::Type::kToHidden);
+       title_and_top_scrim_fade_animation_->Start();
+     }
+-#endif
+ 
+     // Animate the main controls.
+     if (wanted_visibility != AreControlsVisible()) {
+       const std::vector<raw_ptr<views::View>> controls = {
+-#if !BUILDFLAG(IS_MAC)
+           controls_scrim_view_, controls_bottom_scrim_view_,
+-#endif
+           controls_container_view_};
+       fade_animation_ = std::make_unique<OverlayControlsFadeAnimation>(
+           controls, wanted_visibility
+@@ -980,15 +1079,14 @@ void VideoOverlayWindowViews::UpdateCont
+     GetTitleView()->layer()->SetOpacity(title_is_visible ? 1.0 : 0.0);
+     GetControlsTopScrimView()->layer()->SetOpacity(title_is_visible ? 1.0
+                                                                     : 0.0);
+-#if !BUILDFLAG(IS_MAC)
+     controls_scrim_view_->layer()->SetOpacity(wanted_visibility ? 1.0 : 0.0);
+     controls_bottom_scrim_view_->layer()->SetOpacity(wanted_visibility ? 1.0
+                                                                        : 0.0);
+-#endif
+     GetControlsContainerView()->layer()->SetOpacity(wanted_visibility ? 1.0
+                                                                       : 0.0);
+     GetControlsContainerView()->SetVisible(wanted_visibility);
+   }
++#endif
+ }
+ 
+ #if BUILDFLAG(IS_MAC)
+@@ -1029,6 +1127,27 @@ void VideoOverlayWindowViews::UpdateNati
+           : gfx::Rect());
+ }
+ 
++void VideoOverlayWindowViews::UpdateMacVideoConferenceControls(bool animate) {
++  const bool has_controls = HasVideoConferenceControls();
++  const bool visible = has_controls && center_controls_visible_;
++  vc_controls_container_view_->SetVisible(visible || (has_controls && animate));
++  vc_controls_container_view_->SetCanProcessEventsWithinSubtree(visible);
++  vc_controls_container_view_->GetViewAccessibility().SetIsInvisible(!visible);
++  FadeMacControlLayer(vc_controls_container_view_->layer(), visible, animate);
++}
++
++void VideoOverlayWindowViews::OnNativeWidgetUserResizeStarted() {
++  views::Widget::OnNativeWidgetUserResizeStarted();
++  is_live_resizing_ = true;
++  UpdateControlsForCursor();
++}
++
++void VideoOverlayWindowViews::OnNativeWidgetUserResizeEnded() {
++  views::Widget::OnNativeWidgetUserResizeEnded();
++  is_live_resizing_ = false;
++  UpdateControlsForCursor();
++}
++
+ void VideoOverlayWindowViews::EnterVideoFullscreen() {
+   controller_->RequestFullscreen();
+ }
+@@ -1040,6 +1159,10 @@ void VideoOverlayWindowViews::OnNativeWi
+ #endif
+ 
+ void VideoOverlayWindowViews::UpdateControlsBounds() {
++#if BUILDFLAG(IS_MAC)
++  // Keep the Views and AppKit controls in sync throughout a native resize.
++  OnUpdateControlsBounds();
++#else
+   // If controls are hidden, let's update controls bounds immediately.
+   // Otherwise, wait a bit before updating controls bounds to avoid too many
+   // changes happening too quickly.
+@@ -1053,6 +1176,7 @@ void VideoOverlayWindowViews::UpdateCont
+       FROM_HERE, base::Seconds(1),
+       base::BindOnce(&VideoOverlayWindowViews::OnUpdateControlsBounds,
+                      base::Unretained(this)));
++#endif
+ }
+ 
+ bool VideoOverlayWindowViews::IsLayoutPendingForTesting() const {
+@@ -1190,7 +1314,11 @@ bool VideoOverlayWindowViews::ControlsHi
+   bool center_visible = true;
+   bool footer_visible = true;
+ #if BUILDFLAG(IS_MAC)
+-  center_visible = center_controls_visible_;
++  // Native transport buttons handle their own hit testing. The legacy Views
++  // bounds should only reserve space while those controls are drawn.
++  center_visible = center_controls_visible_ &&
++                   (HasVideoConferenceControls() ||
++                    force_controls_visible_.has_value());
+   footer_visible = footer_controls_visible_;
+ #endif
+   if ((back_to_tab_button_->GetVisible() &&
+@@ -1253,7 +1381,7 @@ void VideoOverlayWindowViews::SetUpViews
+   auto controls_scrim_view = std::make_unique<views::View>();
+ #if BUILDFLAG(IS_MAC)
+   controls_scrim_view->SetBackground(
+-      views::CreateSolidBackground(SkColorSetA(SK_ColorBLACK, 0x1A)));
++      std::make_unique<MacFullControlsScrim>());
+ #else
+   controls_scrim_view->SetBackground(
+       views::CreateSolidBackground(kColorPipWindowScrimFull));
+@@ -1274,10 +1402,15 @@ void VideoOverlayWindowViews::SetUpViews
+   auto playback_controls_container_view = std::make_unique<views::View>();
+ 
+   auto vc_controls_container_view = std::make_unique<views::View>();
++#if BUILDFLAG(IS_MAC)
++  vc_controls_container_view->SetPaintToLayer(ui::LAYER_TEXTURED);
++  vc_controls_container_view->layer()->SetFillsBoundsOpaquely(false);
++  vc_controls_container_view->layer()->SetOpacity(0.0f);
++#endif
+ 
+   auto controls_top_scrim_view = std::make_unique<views::View>();
+ #if BUILDFLAG(IS_MAC)
+-  const SkColor4f edge = SkColor4f::FromColor(SkColorSetA(SK_ColorBLACK, 0x40));
++  const SkColor4f edge = {0, 0, 0, kMacEdgeScrimAlpha};
+   const SkColor4f clear = SkColor4f::FromColor(SK_ColorTRANSPARENT);
+   controls_top_scrim_view->SetBackground(
+       std::make_unique<GradientBackground>(edge, clear));
+@@ -1603,6 +1736,9 @@ void VideoOverlayWindowViews::SetUpViews
+   footer_controls_container_view_ = footer_controls =
+       playback_controls_container_view_->AddChildView(
+           std::make_unique<views::View>());
++  footer_controls->SetPaintToLayer(ui::LAYER_TEXTURED);
++  footer_controls->layer()->SetFillsBoundsOpaquely(false);
++  footer_controls->layer()->SetOpacity(0.0f);
+ #endif
+   replay_10_seconds_button_ =
+       center_controls->AddChildView(std::move(replay_10_seconds_button));
+@@ -1737,8 +1873,13 @@ void VideoOverlayWindowViews::OnUpdateCo
+   UpdateResizeHandleBounds(quadrant);
+ #endif
+ 
++#if BUILDFLAG(IS_MAC)
++  constexpr int kTopScrimHeight = kMacEdgeScrimHeight;
++  constexpr int kBottomScrimHeight = kMacEdgeScrimHeight;
++#else
+   constexpr int kTopScrimHeight = 160;
+   constexpr int kBottomScrimHeight = 160;
++#endif
+   constexpr int kFaviconLeftMargin = 8;
+   constexpr int kFaviconTopMargin = 5;
+   constexpr int kFaviconRightMargin = 4;
+@@ -1812,21 +1953,24 @@ void VideoOverlayWindowViews::OnUpdateCo
+   gfx::Rect effective_middle_controls_bounds =
+       showing_vc_controls ? vc_middle_controls_bounds : middle_controls_bounds;
+ 
+-  // Positioning of the middle row of controls.
+-  const gfx::Point center_control_position(
+-      effective_middle_controls_bounds.CenterPoint().x() -
+-          kCenterButtonSize / 2,
+-      effective_middle_controls_bounds.CenterPoint().y() -
+-          kCenterButtonSize / 2);
++  // Position the playback row at the center of the macOS PiP window.
++  gfx::Point middle_controls_center =
++      effective_middle_controls_bounds.CenterPoint();
++#if BUILDFLAG(IS_MAC)
++  if (!showing_vc_controls) {
++    middle_controls_center = bounds.CenterPoint();
++  }
++#endif
++  const gfx::Point center_control_position =
++      middle_controls_center - gfx::Vector2d(kCenterButtonSize / 2,
++                                             kCenterButtonSize / 2);
+   const gfx::Point center_left_control_position(
+       center_control_position.x() - kCenterControlMargin -
+           kActionButtonSize.width(),
+-      effective_middle_controls_bounds.CenterPoint().y() -
+-          kActionButtonSize.height() / 2);
++      middle_controls_center.y() - kActionButtonSize.height() / 2);
+   const gfx::Point center_right_control_position(
+       center_control_position.x() + kCenterButtonSize + kCenterControlMargin,
+-      effective_middle_controls_bounds.CenterPoint().y() -
+-          kActionButtonSize.height() / 2);
++      middle_controls_center.y() - kActionButtonSize.height() / 2);
+ 
+   // If any VC control is visible, then we will hide the playback controls
+   // and just show VC controls.
+@@ -1842,7 +1986,11 @@ void VideoOverlayWindowViews::OnUpdateCo
+     toggle_camera_button_->SetPosition(center_left_control_position);
+     toggle_microphone_button_->SetPosition(center_right_control_position);
+ #if BUILDFLAG(IS_MAC)
+-    vc_controls_container_view_->SetVisible(center_controls_visible_);
++    if (!vc_controls_container_view_->GetVisible()) {
++      // The video conferencing controls may have just become available
++      // without a pointer or window event.
++      UpdateMacVideoConferenceControls(/*animate=*/false);
++    }
+ #else
+     vc_controls_container_view_->SetVisible(true);
+ #endif
+@@ -1975,7 +2123,8 @@ void VideoOverlayWindowViews::LayoutMacP
+   const int row_y =
+       bounds.bottom() - kBottomControlsHorizontalMargin - control_height;
+   const int text_y = row_y + (control_height - kTimestampHeight) / 2;
+-  const int left = bounds.x() + kBottomControlsHorizontalMargin;
++  constexpr int kElapsedClockInset = 16;
++  const int left = bounds.x() + kElapsedClockInset;
+   int right = bounds.right() - kBottomControlsHorizontalMargin;
+ 
+   if (toggle_mute_button_) {
+@@ -2837,6 +2986,9 @@ void VideoOverlayWindowViews::OnInitialT
+ }
+ 
+ bool VideoOverlayWindowViews::AreTitleAndScrimVisible() const {
++#if BUILDFLAG(IS_MAC)
++  return GetControlsTopScrimView()->layer()->GetTargetOpacity() > 0;
++#else
+   if (title_and_top_scrim_fade_animation_) {
+     return (title_and_top_scrim_fade_animation_->type() ==
+             OverlayControlsFadeAnimation::Type::kToShown);
+@@ -2848,6 +3000,7 @@ bool VideoOverlayWindowViews::AreTitleAn
+            GetControlsTopScrimView()->layer()->opacity(),
+            base::NotFatalUntil::M162);
+   return GetTitleView()->layer()->opacity() > 0;
++#endif
+ }
+ 
+ void VideoOverlayWindowViews::MaybeUpdateMeetsUserInteraction(
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -1606,8 +1606,11 @@ TEST_F(VideoOverlayWindowViewsTest, Init
+   EXPECT_TRUE(
+       overlay_window().initial_title_hide_timer_for_testing().IsRunning());
+ 
+-  // Title and scrim should be visible.
++#if BUILDFLAG(IS_MAC)
++  EXPECT_FALSE(overlay_window().AreTitleAndScrimVisibleForTesting());
++#else
+   EXPECT_TRUE(overlay_window().AreTitleAndScrimVisibleForTesting());
++#endif
+ }
+ 
+ TEST_F(VideoOverlayWindowViewsTest, TitleAndScrimHideAfterTimer) {
+@@ -1667,11 +1670,12 @@ TEST_F(VideoOverlayWindowViewsTest, Poin
+   const int footer_top = window.bottom() -
+                          overlay_window().progress_view_for_testing()
+                              ->parent()->height();
++  const int header_bottom = window.y() + window.bottom() - footer_top;
+   auto check = [&](gfx::Point cursor, bool header, bool footer, bool center) {
+     SCOPED_TRACE(cursor.ToString());
+     SetCursorScreenPoint(cursor);
+     EXPECT_EQ(header, overlay_window().header_hovered_for_testing());
+-    EXPECT_EQ(footer, overlay_window().progress_view_for_testing()->IsDrawn());
++    EXPECT_EQ(footer, overlay_window().footer_controls_visible_for_testing());
+     EXPECT_EQ(center, overlay_window().center_controls_visible_for_testing());
+   };
+   const int mid_x = window.CenterPoint().x();
+@@ -1679,9 +1683,9 @@ TEST_F(VideoOverlayWindowViewsTest, Poin
+   check({mid_x, window.y() - 16}, true, false, false);
+   check({mid_x, window.y() - 64}, true, false, false);
+   check({mid_x, window.y() - 65}, false, false, false);
+-  check({window.x() - 16, window.y() + 51}, false, false, false);
+-  check({window.x() - 16, window.y() + 50}, true, false, false);
+-  check({window.x() - 64, window.y() + 50}, true, false, false);
++  check({window.x() - 16, header_bottom + 17}, false, false, false);
++  check({window.x() - 16, header_bottom + 16}, true, false, false);
++  check({window.x() - 64, header_bottom + 16}, true, false, false);
+ 
+   check({mid_x, window.bottom() + 17}, false, false, false);
+   check({mid_x, window.bottom() + 16}, false, true, false);
+@@ -1692,12 +1696,91 @@ TEST_F(VideoOverlayWindowViewsTest, Poin
+   check({window.right() + 64, footer_top - 16}, false, true, false);
+ 
+   check(window.CenterPoint(), true, true, true);
+-  check({mid_x, window.y() + 10}, true, true, false);
+-  check({mid_x, window.bottom() - 10}, true, true, false);
++  check({mid_x, header_bottom - 1}, true, false, false);
++  check({mid_x, header_bottom}, true, true, true);
++  check({mid_x, footer_top - 1}, true, true, true);
++  check({mid_x, footer_top}, false, true, false);
++  check({mid_x, window.y() + 10}, true, false, false);
++  auto* top_scrim = overlay_window().controls_top_scrim_view_for_testing();
++  EXPECT_EQ(1.0f, top_scrim->layer()->GetTargetOpacity());
++  check({mid_x, window.bottom() - 10}, false, true, false);
++  EXPECT_EQ(0.0f, top_scrim->layer()->GetTargetOpacity());
+   check({mid_x, window.bottom() + 32}, false, true, false);
+ }
+ 
+-TEST_F(VideoOverlayWindowViewsTest, ScrubberThumbHasRailAndGrabHoverStates) {
++TEST_F(VideoOverlayWindowViewsTest, CompactWindowRevealsAllControlsOnResize) {
++  overlay_window().UpdateNaturalSize({640, 360});
++  overlay_window().ShowInactive();
++  overlay_window().SetPlayPauseButtonVisibility(true);
++  overlay_window().SetBounds({100, 100, 480, 270});
++  WaitForLayout();
++
++  const auto expect_centered_transport = [this] {
++    const int center_y = overlay_window().GetBounds().height() / 2;
++    EXPECT_EQ(center_y,
++              overlay_window().GetPlayPauseControlsBounds().CenterPoint().y());
++    EXPECT_EQ(center_y, overlay_window()
++                            .GetReplay10SecondsButtonBounds()
++                            .CenterPoint().y());
++    EXPECT_EQ(center_y, overlay_window()
++                            .GetForward10SecondsButtonBounds()
++                            .CenterPoint().y());
++  };
++  expect_centered_transport();
++
++
++  SetCursorScreenPoint({150, 125});
++  EXPECT_TRUE(overlay_window().header_hovered_for_testing());
++  EXPECT_FALSE(overlay_window().footer_controls_visible_for_testing());
++  EXPECT_FALSE(overlay_window().center_controls_visible_for_testing());
++
++  overlay_window().SetBounds({100, 100, 320, 180});
++  WaitForLayout();
++  expect_centered_transport();
++  EXPECT_TRUE(overlay_window().header_hovered_for_testing());
++  EXPECT_TRUE(overlay_window().footer_controls_visible_for_testing());
++  EXPECT_TRUE(overlay_window().center_controls_visible_for_testing());
++
++  overlay_window().SetBounds({100, 100, 480, 270});
++  WaitForLayout();
++  EXPECT_TRUE(overlay_window().header_hovered_for_testing());
++  EXPECT_FALSE(overlay_window().footer_controls_visible_for_testing());
++  EXPECT_FALSE(overlay_window().center_controls_visible_for_testing());
++}
++
++TEST_F(VideoOverlayWindowViewsTest, LiveResizeHidesControlsUntilMouseUp) {
++  overlay_window().UpdateNaturalSize({640, 360});
++  overlay_window().SetBounds({100, 100, 480, 270});
++  overlay_window().ShowInactive();
++  WaitForLayout();
++
++  SetCursorScreenPoint({340, 235});
++  ASSERT_TRUE(overlay_window().center_controls_visible_for_testing());
++  overlay_window().OnNativeWidgetUserResizeStarted();
++
++  const auto expect_hidden = [this] {
++    EXPECT_FALSE(overlay_window().header_hovered_for_testing());
++    EXPECT_FALSE(overlay_window().footer_controls_visible_for_testing());
++    EXPECT_FALSE(overlay_window().center_controls_visible_for_testing());
++    EXPECT_EQ(0.0f, overlay_window()
++                        .controls_top_scrim_view_for_testing()
++                        ->layer()
++                        ->GetTargetOpacity());
++  };
++  expect_hidden();
++
++  overlay_window().SetBounds({100, 100, 320, 180});
++  WaitForLayout();
++  SetCursorScreenPoint({250, 120});
++  expect_hidden();
++
++  overlay_window().OnNativeWidgetUserResizeEnded();
++  EXPECT_TRUE(overlay_window().header_hovered_for_testing());
++  EXPECT_TRUE(overlay_window().footer_controls_visible_for_testing());
++  EXPECT_TRUE(overlay_window().center_controls_visible_for_testing());
++}
++
++TEST_F(VideoOverlayWindowViewsTest, ScrubberThumbAppearsAcrossSeekTarget) {
+   overlay_window().UpdateNaturalSize({640, 480});
+   overlay_window().ShowInactive();
+   overlay_window().SetMediaPosition(media_session::MediaPosition(
+@@ -1717,9 +1800,8 @@ TEST_F(VideoOverlayWindowViewsTest, Scru
+   EXPECT_FALSE(progress->round_thumb_visible_for_testing());
+   SetCursorScreenPoint({scrubber.right() - 2, playhead.y()});
+   EXPECT_TRUE(progress->round_thumb_visible_for_testing());
+-  EXPECT_FALSE(progress->round_thumb_grabbed_for_testing());
+   SetCursorScreenPoint(playhead);
+-  EXPECT_TRUE(progress->round_thumb_grabbed_for_testing());
++  EXPECT_TRUE(progress->round_thumb_visible_for_testing());
+   SetCursorScreenPoint({playhead.x(), scrubber.bottom()});
+   EXPECT_FALSE(progress->round_thumb_visible_for_testing());
+ }
+--- a/components/remote_cocoa/app_shim/bridged_content_view.h
++++ b/components/remote_cocoa/app_shim/bridged_content_view.h
+@@ -56,6 +56,7 @@ REMOTE_COCOA_APP_SHIM_EXPORT
+ @property(readonly, nonatomic) remote_cocoa::NativeWidgetNSWindowBridge* bridge;
+ 
+ // A direct native chrome subview whose controls handle hits before Views.
++// The subview also receives left presses on the draggable background.
+ @property(nonatomic, weak) NSView* nativeChromeHitTestView;
+ @property(assign, nonatomic) BOOL drawMenuBackgroundForBlur;
+ @property(strong, nonatomic) NSEvent* keyDownEventForTesting;
+--- a/components/remote_cocoa/app_shim/bridged_content_view.mm
++++ b/components/remote_cocoa/app_shim/bridged_content_view.mm
+@@ -381,12 +381,17 @@ ui::TextEditCommand GetTextEditCommandFo
+   remote_cocoa::mojom::HitTestResult hitTestResult;
+   _bridge->host()->GetHitTestResult(flippedPoint, &hitTestResult);
+ 
+-  if (hitTestResult != remote_cocoa::mojom::HitTestResult::kBlockedSubView) {
+-    if (NSView* chrome = self.nativeChromeHitTestView;
+-        chrome.superview == self && !chrome.hiddenOrHasHiddenAncestor) {
+-      if (NSView* target = [chrome hitTest:pointInView]) {
+-        return target;
+-      }
++  NSView* chrome = self.nativeChromeHitTestView;
++  if (chrome.superview == self && !chrome.hiddenOrHasHiddenAncestor &&
++      hitTestResult != remote_cocoa::mojom::HitTestResult::kBlockedSubView) {
++    if (NSView* target = [chrome hitTest:pointInView];
++        [target isDescendantOf:chrome]) {
++      return target;
++    }
++    if (hitTestResult ==
++            remote_cocoa::mojom::HitTestResult::kDraggableBackground &&
++        NSApp.currentEvent.type == NSEventTypeLeftMouseDown) {
++      return chrome;
+     }
+   }
+ 
+--- a/chrome/browser/ui/views/overlay/BUILD.gn
++++ b/chrome/browser/ui/views/overlay/BUILD.gn
+@@ -87,13 +87,13 @@ source_set("impl") {
+   if (is_mac) {
+     sources += [ "video_overlay_window_native_widget_mac.mm" ]
+     deps += [
++      "//chrome/browser/ui/views/helium:fullscreen_window_controls_mac",
+       "//chrome/browser/ui/views/helium:native_frame_materials",
+       "//components/remote_cocoa/app_shim",
+       "//components/remote_cocoa/common:mojo",
+       "//ui/color",
+     ]
+     frameworks = [ "Cocoa.framework" ]
+-    weak_frameworks = [ "Symbols.framework" ]
+   }
+ 
+   if (is_win) {
+--- a/components/global_media_controls/public/views/media_progress_view.cc
++++ b/components/global_media_controls/public/views/media_progress_view.cc
+@@ -60,9 +60,7 @@ constexpr float kProgressPhaseSpeed = 28
+ // squiggly or straight progress.
+ constexpr gfx::SizeF kSquigglyProgressIndicatorSize = gfx::SizeF(6, 14);
+ constexpr gfx::SizeF kStraightProgressIndicatorSize = gfx::SizeF(4, 16);
+-constexpr float kRoundThumbDiameter = 8.0f;
+-constexpr float kGrabbedThumbDiameter = 12.0f;
+-constexpr float kThumbGrabRadius = 8.0f;
++constexpr float kRoundThumbDiameter = 12.0f;
+ 
+ // The width of the gap between the progress indicator and the straight lines.
+ constexpr float kStraightProgressIndicatorGap = 4.0f;
+@@ -140,14 +138,12 @@ MediaProgressView::MediaProgressView(
+       seek_callback_(std::move(seek_callback)),
+       on_update_progress_callback_(std::move(on_update_progress_callback)),
+       slide_animation_(this),
+-      thickness_animation_(this),
+-      grab_animation_(this) {
++      thickness_animation_(this) {
+   SetFlipCanvasOnPaintForRTLUI(true);
+   SetFocusBehavior(FocusBehavior::ALWAYS);
+ 
+   slide_animation_.SetSlideDuration(kSlideAnimationDuration);
+   thickness_animation_.SetSlideDuration(kThicknessAnimationDuration);
+-  grab_animation_.SetSlideDuration(kThicknessAnimationDuration);
+   straight_progress_stroke_width_ = kStrokeWidth;
+ 
+   GetViewAccessibility().SetRole(ax::mojom::Role::kSlider);
+@@ -175,23 +171,11 @@ void MediaProgressView::UpdateRoundThumb
+   const bool over_track =
+       round_thumb_cursor_ && !is_live_ &&
+       IsValidSeekPosition(round_thumb_cursor_->x(), round_thumb_cursor_->y());
+-  const double playhead = base::i18n::IsRTL() ? 1 - current_value_
+-                                               : current_value_;
+-  const gfx::Rect track = GetTrackBounds();
+-  const float thumb_x = track.x() + track.width() * playhead;
+-  const bool over_thumb =
+-      over_track &&
+-      std::abs(round_thumb_cursor_->x() - thumb_x) <= kThumbGrabRadius;
+   if (over_track || is_dragging_) {
+     thickness_animation_.Show();
+   } else {
+     thickness_animation_.Hide();
+   }
+-  if (over_thumb || is_dragging_) {
+-    grab_animation_.Show();
+-  } else {
+-    grab_animation_.Hide();
+-  }
+ }
+ 
+ gfx::Rect MediaProgressView::GetTrackBounds() const {
+@@ -217,8 +201,6 @@ void MediaProgressView::AnimationProgres
+       OnPropertyChanged(&straight_progress_stroke_width_,
+                         views::PropertyEffects::kPaint);
+     }
+-  } else if (animation == &grab_animation_ && IsDrawn()) {
+-    SchedulePaint();
+   }
+ }
+ 
+@@ -348,9 +330,7 @@ void MediaProgressView::OnPaint(gfx::Can
+     indicator_size = kSquigglyProgressIndicatorSize;
+   } else if (round_thumb_) {
+     const float diameter =
+-        kRoundThumbDiameter * thickness_animation_.GetCurrentValue() +
+-        (kGrabbedThumbDiameter - kRoundThumbDiameter) *
+-            grab_animation_.GetCurrentValue();
++        kRoundThumbDiameter * thickness_animation_.GetCurrentValue();
+     indicator_size = gfx::SizeF(diameter, diameter);
+   }
+   if (is_live_) {
+@@ -421,7 +401,8 @@ void MediaProgressView::OnMouseExited(co
+ }
+ 
+ ui::Cursor MediaProgressView::GetCursor(const ui::MouseEvent& event) {
+-  return ui::mojom::CursorType::kHand;
++  return round_thumb_ ? ui::mojom::CursorType::kPointer
++                      : ui::mojom::CursorType::kHand;
+ }
+ 
+ bool MediaProgressView::OnMousePressed(const ui::MouseEvent& event) {
+@@ -559,9 +540,6 @@ void MediaProgressView::UpdateProgress(
+   if (progress_changed) {
+     current_value_ = new_value;
+   }
+-  if (round_thumb_ && round_thumb_cursor_) {
+-    UpdateRoundThumbAnimations();
+-  }
+ 
+   const bool should_animate_waves = !is_paused_ && use_squiggly_line_;
+ 
+--- a/components/global_media_controls/public/views/media_progress_view.h
++++ b/components/global_media_controls/public/views/media_progress_view.h
+@@ -113,9 +113,6 @@ class COMPONENT_EXPORT(GLOBAL_MEDIA_CONT
+   bool round_thumb_visible_for_testing() const {
+     return thickness_animation_.IsShowing();
+   }
+-  bool round_thumb_grabbed_for_testing() const {
+-    return grab_animation_.IsShowing();
+-  }
+   bool is_paused_for_testing() const;
+   bool is_live_for_testing() const;
+   bool use_paused_colors_for_testing() const;
+@@ -206,7 +203,6 @@ class COMPONENT_EXPORT(GLOBAL_MEDIA_CONT
+   // Animation for progress line to transition between thicker and less thick
+   // states.
+   gfx::SlideAnimation thickness_animation_;
+-  gfx::SlideAnimation grab_animation_;
+ 
+   // Timer to continuously update the progress value if the media is playing.
+   std::unique_ptr<base::OneShotTimer> update_progress_timer_ =
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
+@@ -35,9 +35,10 @@ class VideoOverlayWindowNativeWidgetMac
+     base::RepeatingClosure update_hover;
+   };
+   enum class PlaybackSymbol { kPlay, kPause, kReplay };
++  static constexpr int kPlayButtonSize = 72;
+ 
+   void InstallWindowControls(Actions actions);
+-  void SetWindowControlsVisible(bool visible);
++  void SetWindowControlsVisible(bool visible, bool animate);
+   void SetTransportControls(const gfx::Rect& play_pause,
+                             const gfx::Rect& skip_back,
+                             const gfx::Rect& skip_forward);
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.h
+@@ -142,6 +142,8 @@ class VideoOverlayWindowViews : public c
+ #if BUILDFLAG(IS_MAC)
+   void OnAnyBrowserEnteredFullscreen() override;
+   void OnNativeWidgetVisibilityChanged(bool visible) override;
++  void OnNativeWidgetUserResizeStarted() override;
++  void OnNativeWidgetUserResizeEnded() override;
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+   // AutoPipSettingOverlayView::Delegate:
+@@ -280,6 +282,9 @@ class VideoOverlayWindowViews : public c
+ 
+ #if BUILDFLAG(IS_MAC)
+   bool header_hovered_for_testing() const { return header_hovered_; }
++  bool footer_controls_visible_for_testing() const {
++    return footer_controls_visible_;
++  }
+   bool center_controls_visible_for_testing() const {
+     return center_controls_visible_;
+   }
+@@ -318,6 +323,7 @@ class VideoOverlayWindowViews : public c
+ #if BUILDFLAG(IS_MAC)
+   void UpdateControlsForCursor();
+   void UpdateNativeTransportControls();
++  void UpdateMacVideoConferenceControls(bool animate);
+   void EnterVideoFullscreen();
+   void LayoutMacPlaybackFooter(const gfx::Rect& bounds);
+   void UpdateScrubberThumbVisibility(const gfx::Point& cursor);
+@@ -507,6 +513,7 @@ class VideoOverlayWindowViews : public c
+   bool footer_hovered_ = false;
+   bool center_controls_visible_ = false;
+   bool footer_controls_visible_ = false;
++  bool is_live_resizing_ = false;
+ #endif
+   raw_ptr<views::ImageView> favicon_view_ = nullptr;
+   raw_ptr<views::Label> origin_ = nullptr;
+--- a/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h
++++ b/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h
+@@ -11,6 +11,10 @@
+ // titlebar is restored when entering content fullscreen or leaving fullscreen.
+ @interface HeliumFullscreenWindowControls : NSView
+ - (instancetype)initWithWindow:(NSWindow*)window size:(NSSize)size;
++- (instancetype)initWithWindow:(NSWindow*)window
++                          size:(NSSize)size
++    allowsWindowManagementMenu:(BOOL)allowsMenu;
++- (void)setMouseInsideControls:(BOOL)inside;
+ // Ask the owning browser widget to close, preserving its close protections.
+ @property(nonatomic, copy) void (^closeHandler)(void);
+ // Tracks only the native green-button menu belonging to these controls.
+--- a/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.mm
++++ b/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.mm
+@@ -7,6 +7,7 @@
+ #import <objc/runtime.h>
+ 
+ #include <cstring>
++#include <initializer_list>
+ #include <iterator>
+ 
+ #include "base/apple/foundation_util.h"
+@@ -18,20 +19,76 @@
+ - (void)mouseEnteredOrExited;
+ @end
+ 
++@interface NSCell (HeliumWindowManagementMenu)
++- (BOOL)wantsMenu;
++- (BOOL)wantsHoverTracking;
++- (BOOL)accessibilityPerformShowMenu;
++- (void)_hoverTriggeredShowMenuForView:(NSView*)view;
++- (void)showMenu:(id)sender;
++@end
++
++namespace {
++
++// The standard zoom cell can open Move & Resize even for non-tiling windows.
++// Narrow the behavior on this cell only, leaving all other AppKit controls
++// (including the browser window's own green button) on their original class.
++void SuppressWindowManagementMenu(NSCell* cell) {
++  Class original = object_getClass(cell);
++  if (!original) {
++    return;
++  }
++  NSString* name = [@"HeliumNoWindowManagementMenu_"
++      stringByAppendingString:NSStringFromClass(original)];
++  Class suppressed = objc_lookUpClass(name.UTF8String);
++  if (!suppressed) {
++    suppressed = objc_allocateClassPair(original, name.UTF8String, 0);
++    if (!suppressed) {
++      return;
++    }
++    IMP no = imp_implementationWithBlock(^BOOL(id receiver) { return NO; });
++    for (SEL selector : {@selector(wantsMenu), @selector(wantsHoverTracking),
++                         @selector(accessibilityPerformShowMenu)}) {
++      if (Method method = class_getInstanceMethod(original, selector)) {
++        class_addMethod(suppressed, selector, no, method_getTypeEncoding(method));
++      }
++    }
++    for (SEL selector : {@selector(_hoverTriggeredShowMenuForView:),
++                         @selector(showMenu:)}) {
++      if (Method method = class_getInstanceMethod(original, selector)) {
++        class_addMethod(suppressed, selector,
++                        imp_implementationWithBlock(^(id receiver, id sender) {}),
++                        method_getTypeEncoding(method));
++      }
++    }
++    objc_registerClassPair(suppressed);
++  }
++  object_setClass(cell, suppressed);
++}
++
++}  // namespace
++
+ @implementation HeliumFullscreenWindowControls {
+   BrowserNativeWidgetWindow* __weak _browserWindow;
+   NSDictionary<NSNumber*, NSNumber*>* _originalWindowButtonHiddenStates;
+   BOOL _mouseInsideControls;
++  BOOL _allowsWindowManagementMenu;
+   NSButton* __weak _zoomButton;
+   NSMenu* __weak _windowManagementMenu;
+ }
+ 
+ - (instancetype)initWithWindow:(NSWindow*)window size:(NSSize)size {
++  return [self initWithWindow:window size:size allowsWindowManagementMenu:YES];
++}
++
++- (instancetype)initWithWindow:(NSWindow*)window
++                          size:(NSSize)size
++    allowsWindowManagementMenu:(BOOL)allowsMenu {
+   self = [super initWithFrame:NSMakeRect(0, 0, size.width, size.height)];
+   if (!self) {
+     return nil;
+   }
+   _browserWindow = base::apple::ObjCCast<BrowserNativeWidgetWindow>(window);
++  _allowsWindowManagementMenu = allowsMenu;
+   const NSWindowStyleMask style = window.styleMask & ~NSWindowStyleMaskFullScreen;
+   const struct {
+     NSWindowButton type;
+@@ -69,6 +126,9 @@
+     }
+     if (entry.type == NSWindowZoomButton) {
+       _zoomButton = button;
++      if (!allowsMenu) {
++        SuppressWindowManagementMenu(button.cell);
++      }
+     }
+     button.target = entry.type == NSWindowCloseButton ? self : window;
+     button.action = entry.action;
+@@ -83,9 +143,11 @@
+ 
+   // NSTrackingInVisibleRect follows layout changes without replacing the
+   // tracking area and queuing enter/exit events for obsolete areas.
++  const NSTrackingAreaOptions activation =
++      allowsMenu ? NSTrackingActiveInKeyWindow : NSTrackingActiveAlways;
+   NSTrackingArea* trackingArea = [[NSTrackingArea alloc]
+       initWithRect:NSZeroRect
+-           options:NSTrackingMouseEnteredAndExited | NSTrackingActiveInKeyWindow |
++           options:NSTrackingMouseEnteredAndExited | activation |
+                    NSTrackingInVisibleRect
+              owner:self
+           userInfo:nil];
+@@ -223,7 +285,8 @@
+ 
+ // AppKit's standard window buttons ask their container for group hover state.
+ - (BOOL)_mouseInGroup:(id)sender {
+-  return _mouseInsideControls && self.window.isKeyWindow &&
++  return _mouseInsideControls &&
++         (!_allowsWindowManagementMenu || self.window.isKeyWindow) &&
+          !self.hiddenOrHasHiddenAncestor && self.alphaValue > 0;
+ }
+ 
+--- a/chrome/browser/ui/views/overlay/toggle_mute_button.cc
++++ b/chrome/browser/ui/views/overlay/toggle_mute_button.cc
+@@ -4,10 +4,12 @@
+ 
+ #include "chrome/browser/ui/views/overlay/toggle_mute_button.h"
+ 
++#include "build/build_config.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/views/overlay/constants.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/vector_icons/vector_icons.h"
++#include "ui/base/cursor/cursor.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/models/image_model.h"
+@@ -31,6 +33,14 @@ void ToggleMuteButton::OnBoundsChanged(c
+   UpdateImageAndTooltipText();
+ }
+ 
++ui::Cursor ToggleMuteButton::GetCursor(const ui::MouseEvent& event) {
++#if BUILDFLAG(IS_MAC)
++  return ui::mojom::CursorType::kPointer;
++#else
++  return OverlayWindowImageButton::GetCursor(event);
++#endif
++}
++
+ void ToggleMuteButton::UpdateImageAndTooltipText() {
+   if (bounds().IsEmpty()) {
+     return;
+@@ -50,7 +60,7 @@ void ToggleMuteButton::UpdateImageAndToo
+   const int icon_size = std::max(0, width() - (2 * kPipWindowIconPadding));
+ 
+   SetImageModel(views::Button::STATE_NORMAL,
+-                ControlImage(icon, is_muted_ ? "speaker.slash.fill"
++                ControlImage(icon, is_muted_ ? "speaker.slash"
+                                             : "speaker.wave.2.fill",
+                              kColorPipWindowForeground, icon_size));
+   SetTooltipText(l10n_util::GetStringUTF16(text));
+--- a/chrome/browser/ui/views/overlay/toggle_mute_button.h
++++ b/chrome/browser/ui/views/overlay/toggle_mute_button.h
+@@ -25,6 +25,7 @@ class ToggleMuteButton : public OverlayW
+  protected:
+   // views::View:
+   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
++  ui::Cursor GetCursor(const ui::MouseEvent& event) override;
+ 
+  private:
+   void UpdateImageAndTooltipText();

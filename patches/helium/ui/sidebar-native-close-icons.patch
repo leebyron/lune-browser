@@ -1,0 +1,255 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2214,7 +2214,7 @@
+   const int controls_right =
+       8 + base::ClampCeil(HeliumWindowControlsWidth(
+               GetWidget()->GetNativeWindow().GetNativeNSWindow()));
+-  const int leading = std::max(content.x() + glass_inset, controls_right + 4);
++  const int leading = std::max(content.x() + glass_inset, controls_right + 8);
+   const int trailing =
+       std::min(content.right() - glass_inset, browser_view->width() - 8);
+   const gfx::Rect bar_region(leading, 8 + TopUIFullscreenYOffset(),
+@@ -2785,7 +2785,7 @@
+       sidebar, view, sidebar->GetLocalBounds());
+   // Keep the toggle on the sidebar only. No independent toolbar pill or
+   // movement between surfaces as the unpinned panel opens and closes.
+-  const int inset = 4;
++  const int inset = right ? 8 : 4;
+   const int x =
+       right ? sidebar_bounds.x() + inset : sidebar_bounds.right() - 36 - inset;
+   button_host->SetBounds(x, sidebar_bounds.y() + 8, 36, 36);
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -108,13 +108,14 @@
+                                  views::MaximumFlexSizeRule::kUnbounded));
+     close_ = AddChildView(std::make_unique<TabCloseButton>(
+         base::RepeatingClosure(),
+-        base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(), 4));
++        base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(), true));
+     const int close_margin =
+         (GetLayoutConstant(LayoutConstant::kVerticalTabHeight) -
+          close_->GetPreferredSize().width()) /
+         2;
+-    close_->SetProperty(views::kMarginsKey,
+-                        gfx::Insets::TLBR(0, 0, 0, close_margin));
++    close_->SetProperty(
++        views::kMarginsKey,
++        gfx::Insets::TLBR(close_margin, 0, close_margin, close_margin));
+     close_->SetVisible(false);
+   }
+   views::LabelButton* action() { return action_; }
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -206,7 +206,7 @@
+       content_area_view_->AddChildView(std::make_unique<SidebarFooterView>(
+           browser_view->browser(), state_controller_));
+   footer_->SetProperty(views::kMarginsKey,
+-                       gfx::Insets::TLBR(4, region_horizontal_padding, 6,
++                       gfx::Insets::TLBR(4, region_horizontal_padding, 5,
+                                          region_horizontal_padding));
+ 
+   gemini_button_ =
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -332,7 +332,7 @@
+                               base::Unretained(this)),
+           // TODO(crbug.com/467733947): Hook up metrics logging callback.
+           base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(),
+-          orientation_ == TabStripOrientation::kVertical ? 4 : 0))),
++          orientation_ == TabStripOrientation::kVertical))),
+       hover_controller_(gfx::Animation::ShouldRenderRichAnimation()
+                             ? std::make_unique<GlowHoverController>(
+                                   this,
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
+@@ -31,7 +31,7 @@
+   TabView::LayoutManager::OnInstalled(host);
+   tab_children_configs_ = {
+       TabChildConfig(TabView().close_button_,
+-                     GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) + 4,
++                     GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) + 6,
+                      kDefaultPadding,
+                      /*align_leading=*/false,
+                      /*expand=*/false),
+--- a/chrome/browser/ui/views/tabs/tab/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/tab/BUILD.gn
+@@ -81,6 +81,10 @@
+     "//ui/views",
+   ]
+ 
++  if (is_mac) {
++    sources += [ "tab_close_button_mac.mm" ]
++  }
++
+   if (enable_extensions_core) {
+     deps += [ "//chrome/browser/extensions" ]
+   }
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
+@@ -33,12 +33,12 @@
+ #endif
+ 
+ namespace {
+-gfx::Size GetButtonSize(int extra_icon_size) {
++gfx::Size GetButtonSize(bool sidebar_style) {
+   // The close button is larger than the icon inside to provide a larger hit
+   // target.
+   constexpr int kButtonPadding = 12;
+-  const int icon_size =
+-      GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) + extra_icon_size;
++  const int icon_size = GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
++                        (sidebar_style ? 6 : 0);
+   const int button_size = icon_size + kButtonPadding;
+   return gfx::Size(button_size, button_size);
+ }
+@@ -49,9 +49,9 @@
+ 
+ TabCloseButton::TabCloseButton(PressedCallback pressed_callback,
+                                MouseEventCallback mouse_event_callback,
+-                               int extra_icon_size)
++                               bool sidebar_style)
+     : views::LabelButton(std::move(pressed_callback)),
+-      extra_icon_size_(extra_icon_size),
++      sidebar_style_(sidebar_style),
+       mouse_event_callback_(std::move(mouse_event_callback)) {
+   SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
+   GetViewAccessibility().SetName(l10n_util::GetStringUTF16(IDS_ACCNAME_CLOSE));
+@@ -174,7 +174,7 @@
+ 
+ gfx::Size TabCloseButton::CalculatePreferredSize(
+     const views::SizeBounds& available_size) const {
+-  return GetButtonSize(extra_icon_size_);
++  return GetButtonSize(sidebar_style_);
+ }
+ 
+ views::View* TabCloseButton::TargetForRect(views::View* root,
+@@ -212,6 +212,15 @@
+   return true;
+ }
+ void TabCloseButton::UpdateIcon() {
++#if BUILDFLAG(IS_MAC)
++  if (sidebar_style_) {
++    const auto icon = GetSidebarIcon();
++    SetImageModel(views::Button::STATE_NORMAL, icon);
++    SetImageModel(views::Button::STATE_HOVERED, icon);
++    SetImageModel(views::Button::STATE_PRESSED, icon);
++    return;
++  }
++#endif
+   const auto& icon = features::IsRoundedIconsEnabled()
+                          ? kCloseWeight500CustomIcon
+                          : kCloseTabChromeRefreshOldIcon;
+@@ -220,17 +229,17 @@
+                 ui::ImageModel::FromVectorIcon(
+                     icon, colors_.foreground_color,
+                     GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
+-                        extra_icon_size_));
++                        (sidebar_style_ ? 4 : 0)));
+   SetImageModel(views::Button::STATE_HOVERED,
+                 ui::ImageModel::FromVectorIcon(
+                     icon, colors_.foreground_color,
+                     GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
+-                        extra_icon_size_));
++                        (sidebar_style_ ? 4 : 0)));
+   SetImageModel(views::Button::STATE_PRESSED,
+                 ui::ImageModel::FromVectorIcon(
+                     icon, colors_.foreground_color,
+                     GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
+-                        extra_icon_size_));
++                        (sidebar_style_ ? 4 : 0)));
+ }
+ 
+ BEGIN_METADATA(TabCloseButton)
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.h
+@@ -6,6 +6,7 @@
+ #define CHROME_BROWSER_UI_VIEWS_TABS_TAB_TAB_CLOSE_BUTTON_H_
+ 
+ #include "base/functional/callback_forward.h"
++#include "build/build_config.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ #include "ui/views/controls/button/label_button.h"
+@@ -29,7 +30,7 @@
+   // See note on SetTabColor.
+   TabCloseButton(PressedCallback pressed_callback,
+                  MouseEventCallback mouse_event_callback,
+-                 int extra_icon_size = 0);
++                 bool sidebar_style = false);
+   TabCloseButton(const TabCloseButton&) = delete;
+   TabCloseButton& operator=(const TabCloseButton&) = delete;
+   ~TabCloseButton() override;
+@@ -64,7 +65,11 @@
+   views::View* TargetForRect(views::View* root, const gfx::Rect& rect) override;
+   bool GetHitTestMask(SkPath* mask) const override;
+ 
+-  const int extra_icon_size_;
++#if BUILDFLAG(IS_MAC)
++  ui::ImageModel GetSidebarIcon() const;
++#endif
++
++  const bool sidebar_style_;
+   MouseEventCallback mouse_event_callback_;
+ 
+   TabStyle::TabColors colors_;
+--- /dev/null
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
+@@ -0,0 +1,34 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
++
++#import <AppKit/AppKit.h>
++
++#include "ui/gfx/image/image_skia_operations.h"
++#include "ui/gfx/image/image_skia_util_mac.h"
++
++ui::ImageModel TabCloseButton::GetSidebarIcon() const {
++  // Keep the symbol's weight close to the 16 pt New Tab plus, independently of
++  // the larger button target. AppKit supplies the native xmark geometry.
++  NSImage* symbol = [NSImage imageWithSystemSymbolName:@"xmark"
++                              accessibilityDescription:nil];
++  symbol = [symbol imageWithSymbolConfiguration:
++                       [NSImageSymbolConfiguration
++                           configurationWithPointSize:12
++                                               weight:NSFontWeightMedium]];
++  NSImage* image = [NSImage
++       imageWithSize:NSMakeSize(16, 16)
++             flipped:NO
++      drawingHandler:^BOOL(NSRect bounds) {
++        const NSSize size = symbol.size;
++        [symbol drawInRect:NSMakeRect((NSWidth(bounds) - size.width) / 2,
++                                      (NSHeight(bounds) - size.height) / 2,
++                                      size.width, size.height)];
++        return YES;
++      }];
++  return ui::ImageModel::FromImageSkia(
++      gfx::ImageSkiaOperations::CreateColorMask(
++          gfx::ImageSkiaFromNSImage(image), colors_.foreground_color));
++}
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -45,6 +45,11 @@
+ 
+ VerticalNewTabButton::~VerticalNewTabButton() = default;
+ 
++views::View* VerticalNewTabButton::GetTooltipHandlerForPoint(
++    const gfx::Point& point) {
++  return nullptr;
++}
++
+ void VerticalNewTabButton::OnPaintBackground(gfx::Canvas* canvas) {
+   if (GetState() != STATE_HOVERED && GetState() != STATE_PRESSED) {
+     return;
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
+@@ -20,6 +20,7 @@
+ 
+   void OnPaintBackground(gfx::Canvas* canvas) override;
+   void OnThemeChanged() override;
++  View* GetTooltipHandlerForPoint(const gfx::Point& point) override;
+ 
+  protected:
+   void StateChanged(ButtonState old_state) override;

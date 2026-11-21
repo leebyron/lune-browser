@@ -1,0 +1,182 @@
+--- a/components/helium_onboarding/BUILD.gn
++++ b/components/helium_onboarding/BUILD.gn
+@@ -37,6 +37,14 @@
+     "index.html",
+     "src",
+     "public",
++    "public/favicon.png",
++    "public/lune.svg",
++    "src/components/LuneLogo.svelte",
++    "src/components/HeliumPartner.svelte",
++    "src/components/BrowserImportGraphic.svelte",
++    "src/pages/Welcome.svelte",
++    "src/pages/Finish.svelte",
++    "src/pages/HeliumServices.svelte",
+     "package.json",
+     "vite.config.ts",
+     "svelte.config.js",
+--- a/components/helium_onboarding/index.html
++++ b/components/helium_onboarding/index.html
+@@ -5,7 +5,7 @@
+     <meta charset="UTF-8" />
+     <link rel="icon" type="image/png" href="/favicon.png" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <title>Helium Setup</title>
++    <title>Lune Setup</title>
+ </head>
+ 
+ <body>
+--- a/components/helium_onboarding/src/components/BrowserImportGraphic.svelte
++++ b/components/helium_onboarding/src/components/BrowserImportGraphic.svelte
+@@ -37,7 +37,7 @@
+     <div class="icon-stage">
+         <img
+             class="browser-icon helium-icon"
+-            src={browserIcons.helium}
++            src="/lune.svg"
+             alt=""
+             draggable="false"
+         />
+--- /dev/null
++++ b/components/helium_onboarding/src/components/LuneLogo.svelte
+@@ -0,0 +1,5 @@
++<script lang="ts">
++    const { height = "32px" }: { height?: string } = $props();
++</script>
++
++<img src="/lune.svg" alt="Lune" style:height style:width={height} />
+--- a/components/helium_onboarding/src/pages/Finish.svelte
++++ b/components/helium_onboarding/src/pages/Finish.svelte
+@@ -1,7 +1,7 @@
+ <script lang="ts">
++    import LuneLogo from "../components/LuneLogo.svelte";
+     import {
+         Button,
+-        HeliumLogo,
+         IconArrowLeft,
+         IconCheck,
+     } from "@imput/helium-prism";
+@@ -26,7 +26,7 @@
+         <div id="finish-top">
+             <div id="finish-logo-text">
+                 <div id="finish-logo">
+-                    <HeliumLogo height="64px" />
++                    <LuneLogo height="64px" />
+                 </div>
+                 <div id="finish-text">
+                     <h1>{s.finish.title}</h1>
+--- a/components/helium_onboarding/src/pages/HeliumServices.svelte
++++ b/components/helium_onboarding/src/pages/HeliumServices.svelte
+@@ -1,5 +1,6 @@
+ <script lang="ts">
+-    import { CardLink, HeliumLogo } from "@imput/helium-prism";
++    import LuneLogo from "../components/LuneLogo.svelte";
++    import { CardLink } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { platform } from "../lib/platform";
+     import { currentPage } from "../lib/onboarding-flow";
+@@ -53,7 +54,7 @@
+         <PageHeader
+             title={s.services.title}
+             subtitle={s.services.subtitle}
+-            Icon={HeliumLogo}
++            Icon={LuneLogo}
+             iconHeight="32px"
+         />
+         <div class="page-content">
+--- a/components/helium_onboarding/src/pages/Welcome.svelte
++++ b/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -1,8 +1,8 @@
+ <script lang="ts">
++    import LuneLogo from "../components/LuneLogo.svelte";
+     import { flushSync, onMount } from "svelte";
+     import {
+         Button,
+-        HeliumLogo,
+         IconArrowRight,
+         IconCheck,
+         Link,
+@@ -70,7 +70,7 @@
+ 
+ {#if introLogoVisible}
+     <div id="welcome-logo-intro">
+-        <HeliumLogo height="84px" />
++        <LuneLogo height="84px" />
+     </div>
+ {/if}
+ 
+@@ -85,7 +85,7 @@
+         <div id="welcome-top">
+             <div id="welcome-logo-text">
+                 <div id="welcome-logo" class:visible={finalLogoVisible}>
+-                    <HeliumLogo height="48px" />
++                    <LuneLogo height="48px" />
+                 </div>
+                 <div id="welcome-text">
+                     <h1>
+--- a/components/helium_onboarding/src/components/HeliumPartner.svelte
++++ b/components/helium_onboarding/src/components/HeliumPartner.svelte
+@@ -1,5 +1,5 @@
+ <script lang="ts">
+-    import { HeliumLogo, Tooltip } from "@imput/helium-prism";
++    import { Tooltip } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+ </script>
+ 
+@@ -7,7 +7,6 @@
+     <Tooltip>
+         {#snippet anchor()}
+             <div class="helium-partner-badge">
+-                <HeliumLogo height="13px" />
+                 {s.partner.title}
+             </div>
+         {/snippet}
+--- a/chrome/BUILD.gn
++++ b/chrome/BUILD.gn
+@@ -705,11 +705,6 @@
+     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+   }
+ 
+-  bundle_data("chrome_asset_catalog") {
+-    sources = [ "app/theme/$branding_path_component/mac/Assets.car" ]
+-    outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+-  }
+-
+   bundle_data("chrome_resources") {
+     sources = [
+       "$root_out_dir/$chrome_mac_bundle_id.manifest",
+@@ -719,7 +714,6 @@
+     public_deps = [
+       ":chrome_app_icon",
+       ":chrome_app_strings",
+-      ":chrome_asset_catalog",
+       "//components/policy:chrome_manifest_bundle",
+     ]
+   }
+@@ -988,7 +982,6 @@
+     info_plist_target = ":chrome_helper_app_alerts_plist"
+     deps = [
+       ":chrome_app_icon",
+-      ":chrome_asset_catalog",
+       ":chrome_helper_app_alerts_resources",
+     ]
+   }
+@@ -1000,7 +993,6 @@
+     is_aperitif_helper = true
+     deps = [
+       ":chrome_app_icon",
+-      ":chrome_asset_catalog",
+       ":chrome_helper_app_alerts_resources",
+     ]
+   }
+--- a/chrome/app/helper-alerts-Info.plist
++++ b/chrome/app/helper-alerts-Info.plist
+@@ -6,8 +6,6 @@
+ 	<string>${CHROMIUM_BUNDLE_ID}.framework.AlertNotificationService</string>
+ 	<key>CFBundleIconFile</key>
+ 	<string>app.icns</string>
+-	<key>CFBundleIconName</key>
+-	<string>AppIcon</string>
+ 	<key>NSUserNotificationAlertStyle</key>
+ 	<string>alert</string>
+ </dict>

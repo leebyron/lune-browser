@@ -1,0 +1,263 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
+@@ -4,7 +4,10 @@
+ 
+ #include "chrome/browser/ui/views/tabs/common/tab_group_header_view.h"
+ 
++#include "base/i18n/break_iterator.h"
++#include "base/i18n/char_iterator.h"
+ #include "base/i18n/rtl.h"
++#include "base/strings/string_util.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "build/build_config.h"
+ #include "build/buildflag.h"
+@@ -31,13 +34,19 @@
+ #include "components/tab_groups/tab_group_visual_data.h"
+ #include "components/tabs/public/tab_group.h"
+ #include "components/vector_icons/vector_icons.h"
++#include "third_party/icu/source/common/unicode/uchar.h"
++#include "third_party/skia/include/core/SkCanvas.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/models/image_model.h"
+ #include "ui/base/mojom/menu_source_type.mojom-shared.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/color/color_provider.h"
++#include "ui/gfx/canvas.h"
+ #include "ui/gfx/color_utils.h"
++#include "ui/gfx/image/image_skia.h"
++#include "ui/gfx/image/image_skia_rep.h"
++#include "ui/gfx/image/image_skia_source.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/animation/ink_drop.h"
+ #include "ui/views/background.h"
+@@ -55,6 +64,10 @@
+ #include "ui/views/view.h"
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/widget/widget.h"
++#include <algorithm>
++#include <utility>
++
++
+ 
+ namespace {
+ constexpr int kIconSize = 16;
+@@ -63,6 +76,98 @@
+ // The amount of padding between the label and any sync icon.
+ constexpr int kSyncIconLabelPadding = 2;
+ 
++// Use the favicon design size and center the painted glyph rather than its
++// font advance: color emoji fallback can have asymmetric sidebearings.
++constexpr int kEmojiFontSize = kIconSize;
++constexpr int kEmojiCanvasSize = 24;
++
++class TabGroupEmojiImageSource : public gfx::ImageSkiaSource {
++ public:
++  TabGroupEmojiImageSource(std::u16string text,
++                          const gfx::FontList& font,
++                          SkColor color)
++      : text_(std::move(text)),
++        font_(font.DeriveWithSizeDelta(kEmojiFontSize - font.GetFontSize())),
++        color_(SkColorSetA(color, SK_AlphaOPAQUE)) {}
++
++  gfx::ImageSkiaRep GetImageForScale(float scale) override {
++    gfx::Canvas glyph_canvas(gfx::Size(64, 64), scale, false);
++    glyph_canvas.DrawStringRectWithFlags(
++        text_, font_, color_, gfx::Rect(64, 64),
++        gfx::Canvas::TEXT_ALIGN_CENTER | gfx::Canvas::NO_ELLIPSIS);
++    const SkBitmap glyph = glyph_canvas.GetBitmap();
++    int left = glyph.width();
++    int top = glyph.height();
++    int right = 0;
++    int bottom = 0;
++    for (int y = 0; y < glyph.height(); ++y) {
++      for (int x = 0; x < glyph.width(); ++x) {
++        if (SkColorGetA(glyph.getColor(x, y))) {
++          left = std::min(left, x);
++          top = std::min(top, y);
++          right = std::max(right, x + 1);
++          bottom = std::max(bottom, y + 1);
++        }
++      }
++    }
++    gfx::Canvas output(gfx::Size(kEmojiCanvasSize, kEmojiCanvasSize), scale,
++                       false);
++    SkBitmap bitmap = output.GetBitmap();
++    if (right > left && bottom > top) {
++      SkBitmap cropped;
++      if (glyph.extractSubset(&cropped,
++                              SkIRect::MakeLTRB(left, top, right, bottom))) {
++        SkCanvas canvas(bitmap);
++        canvas.drawImage(cropped.asImage(),
++                         (bitmap.width() - cropped.width()) / 2.0f,
++                         (bitmap.height() - cropped.height()) / 2.0f);
++      }
++    }
++    return gfx::ImageSkiaRep(bitmap, scale);
++  }
++
++  bool HasRepresentationAtAllScales() const override { return true; }
++
++ private:
++  const std::u16string text_;
++  const gfx::FontList font_;
++  const SkColor color_;
++};
++
++// Classify complete user-perceived characters, preserving flags, modifiers and
++// joined emoji rather than counting their individual UTF-16 code units.
++bool IsEmojiGrapheme(std::u16string_view character) {
++  if (u_stringHasBinaryProperty(
++          reinterpret_cast<const UChar*>(character.data()), character.size(),
++          UCHAR_RGI_EMOJI)) {
++    return true;
++  }
++  // Accept unqualified pictographs such as a bare heart, while honoring an
++  // explicit text-presentation selector and excluding ordinary digits.
++  base::i18n::UTF16CharIterator codepoint(character);
++  return !codepoint.end() &&
++         u_hasBinaryProperty(codepoint.get(), UCHAR_EXTENDED_PICTOGRAPHIC) &&
++         character.find(u'\uFE0E') == std::u16string_view::npos;
++}
++
++size_t LeadingEmojiLength(std::u16string_view title) {
++  base::i18n::BreakIterator characters(
++      title, base::i18n::BreakIterator::BREAK_CHARACTER);
++  if (!characters.Init() || !characters.Advance() ||
++      !IsEmojiGrapheme(characters.GetString())) {
++    return 0;
++  }
++  const size_t prefix_length = characters.GetString().size();
++  // This treatment is only for a single emoji name prefix. Multiple emoji
++  // anywhere in the name keep the ordinary, unsplit label presentation.
++  while (characters.Advance()) {
++    if (IsEmojiGrapheme(characters.GetString())) {
++      return 0;
++    }
++  }
++  return prefix_length;
++}
++
+ views::ScrollView* GetScrollView(views::View* view) {
+   views::View* ancestor = view;
+   while (ancestor) {
+@@ -101,6 +206,9 @@
+       sync_icon_(AddChildView(std::make_unique<views::ImageView>())),
+       group_header_label_(
+           AddChildView(std::make_unique<TabGroupHeaderLabel>())),
++      emoji_icon_(orientation == TabStripOrientation::kVertical
++                      ? AddChildView(std::make_unique<views::ImageView>())
++                      : nullptr),
+       attention_indicator_(AddChildView(std::make_unique<views::ImageView>())),
+       collapse_icon_(orientation == TabStripOrientation::kVertical
+                          ? AddChildView(std::make_unique<views::ImageView>())
+@@ -121,6 +229,12 @@
+         views::Label().font_list().DeriveWithWeight(
+             gfx::Font::Weight::SEMIBOLD));
+   }
++  if (emoji_icon_) {
++    emoji_icon_->SetProperty(views::kViewIgnoredByLayoutKey, true);
++    emoji_icon_->SetCanProcessEventsWithinSubtree(false);
++    emoji_icon_->GetViewAccessibility().SetIsIgnored(true);
++    emoji_icon_->SetVisible(false);
++  }
+   SetNotifyEnterExitOnChild(true);
+ 
+   editor_bubble_opened_subscription_ =
+@@ -472,17 +586,29 @@
+   tab_group_visual_data_ = tab_group_data.visual_data;
+   is_shared_ = tab_group_data.is_sharing_group;
+ 
++  if (emoji_icon_) {
++    leading_emoji_.clear();
++    emoji_icon_->SetVisible(false);
++  }
+   if (delegate_->IsValid() && delegate_->GetTabGroup().is_ephemeral()) {
+     OnTabCountChanged();
+   } else {
+     const auto& title = tab_group_visual_data_.title();
+     // A neutral unnamed group still needs a visible, draggable heading.
+-    group_header_label_->SetText(
+-        orientation_ == TabStripOrientation::kVertical && title.empty()
+-            ? l10n_util::GetPluralStringFUTF16(
+-                  IDS_TAB_GROUPS_UNNAMED_GROUP_HOVER_CARD_HEADER,
+-                  tab_group_data.num_tabs_in_group)
+-            : title);
++    const size_t emoji_length = emoji_icon_ ? LeadingEmojiLength(title) : 0;
++    if (emoji_length) {
++      leading_emoji_ = title.substr(0, emoji_length);
++      emoji_icon_->SetVisible(true);
++      group_header_label_->SetText(std::u16string(base::TrimWhitespace(
++          std::u16string_view(title).substr(emoji_length), base::TRIM_ALL)));
++    } else {
++      group_header_label_->SetText(
++          orientation_ == TabStripOrientation::kVertical && title.empty()
++              ? l10n_util::GetPluralStringFUTF16(
++                    IDS_TAB_GROUPS_UNNAMED_GROUP_HOVER_CARD_HEADER,
++                    tab_group_data.num_tabs_in_group)
++              : title);
++    }
+   }
+ 
+   SetInteriorMargin(GetHeaderInsets());
+@@ -589,6 +715,12 @@
+ 
+   // Update label.
+   group_header_label_->SetEnabledColor(foreground_color);
++  if (emoji_icon_ && !leading_emoji_.empty()) {
++    emoji_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::ImageSkia(
++        std::make_unique<TabGroupEmojiImageSource>(
++            leading_emoji_, group_header_label_->font_list(), foreground_color),
++        gfx::Size(kEmojiCanvasSize, kEmojiCanvasSize))));
++  }
+ 
+   // Update save tab group related items, the sync icon and attention
+   // indicator.
+@@ -638,6 +770,13 @@
+ 
+ void TabGroupHeaderView::Layout(PassKey) {
+   LayoutSuperclass<views::FlexLayoutView>(this);
++  if (emoji_icon_ && emoji_icon_->GetVisible()) {
++    const int inset =
++        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
++    emoji_icon_->SetBounds(inset + (kIconSize - kEmojiCanvasSize) / 2,
++                           (height() - kEmojiCanvasSize) / 2,
++                           kEmojiCanvasSize, kEmojiCanvasSize);
++  }
+   if (collapse_icon_) {
+     collapse_icon_->SetVisible(!delegate_->IsGroupFocused() && width() > 64 &&
+                                IsMouseHovered());
+@@ -734,7 +873,12 @@
+     const int inset =
+         GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
+     return gfx::Insets::TLBR(
+-        0, inset, 0, GetLayoutConstant(LayoutConstant::kVerticalTabHeight));
++        0,
++        inset + (emoji_icon_ && emoji_icon_->GetVisible()
++                     ? kIconSize +
++                           GetLayoutConstant(LayoutConstant::kTabHorizontalPadding)
++                     : 0),
++        0, GetLayoutConstant(LayoutConstant::kVerticalTabHeight));
+   }
+   return gfx::Insets::VH(0, GetHorizontalInset());
+ }
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view.h
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view.h
+@@ -6,6 +6,7 @@
+ #define CHROME_BROWSER_UI_VIEWS_TABS_COMMON_TAB_GROUP_HEADER_VIEW_H_
+ 
+ #include <optional>
++#include <string>
+ 
+ #include "base/callback_list.h"
+ #include "base/memory/raw_ptr.h"
+@@ -163,6 +164,9 @@
+   // the tabstrip.
+   const raw_ptr<views::ImageView> sync_icon_ = nullptr;
+   const raw_ptr<views::Label> group_header_label_ = nullptr;
++  // Presentation only; the full name remains in TabGroupVisualData.
++  const raw_ptr<views::ImageView> emoji_icon_ = nullptr;
++  std::u16string leading_emoji_;
+   // The circle indicator rendered after the title when a tab group needs
+   // attention.
+   const raw_ptr<views::ImageView> attention_indicator_ = nullptr;

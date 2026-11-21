@@ -1,0 +1,10 @@
+--- a/chrome/browser/ui/customize_chrome/side_panel_controller_base.cc
++++ b/chrome/browser/ui/customize_chrome/side_panel_controller_base.cc
+@@ -125,6 +125,7 @@
+       kSidePanelTitleKey,
+       l10n_util::GetStringUTF16(IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE));
+ #endif
++  entry->set_should_show_ephemerally_in_toolbar(false);
+   entry->AddObserver(this);
+   registry->Register(std::move(entry));
+ }

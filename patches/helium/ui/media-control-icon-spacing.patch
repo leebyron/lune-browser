@@ -1,0 +1,27 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -324,7 +324,7 @@
+   } else if (icon_name == "kQueueMusicIcon" ||
+              icon_name == "kMediaToolbarButtonChromeRefreshOldIcon" ||
+              icon_name == "kMediaToolbarButtonTouchOldIcon") {
+-    name = @"waveform";
++    name = @"play.circle";
+   }
+   if (icon_name == "kArrowBackIcon" ||
+       icon_name == "kBackArrowChromeRefreshOldIcon") {
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -3033,7 +3033,12 @@
+     // Overflow may have hidden a control without changing its intended
+     // visibility. Preserve that intent when the new layout takes ownership.
+     const bool can_be_visible = layout_manager_->CanBeVisible(control);
+-    control->SetProperty(views::kMarginsKey, gfx::Insets());
++    // Cancel the floating BoxLayout's 2 pt inter-child gap after Media
++    // Controls while preserving its full hit target and other spacing.
++    control->SetProperty(
++        views::kMarginsKey, control == media_button_view_
++                                ? gfx::Insets::TLBR(0, 0, 0, -2)
++                                : gfx::Insets());
+     auto owned_control = RemoveChildViewT(control);
+     owned_control->SetVisible(can_be_visible);
+     host->AddChildView(std::move(owned_control));

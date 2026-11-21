@@ -1,0 +1,194 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc
+@@ -88,6 +88,11 @@
+   return false;
+ }
+ 
++bool TabCollectionAnimatingLayoutManager::Delegate::ShouldClipChildToAnimatedHost(
++    const views::View& child_view) const {
++  return false;
++}
++
+ void TabCollectionAnimatingLayoutManager::Delegate::OnAnimationEnded() {}
+ 
+ bool TabCollectionAnimatingLayoutManager::Delegate::ShouldAnimateLayout() {
+@@ -472,6 +477,18 @@
+ }
+ 
+ void TabCollectionAnimatingLayoutManager::SetStartingLayoutToCurrent() {
++  // A clipped section keeps full-sized row bounds while its host shrinks.
++  // Reversals must start at the currently drawn height, not the old target.
++  if (animate_host_size_ && std::ranges::any_of(
++          host_view()->children(), [this](const views::View* child) {
++            return delegate_->ShouldClipChildToAnimatedHost(*child);
++          })) {
++    if (IsVerticalOrWrappingVertically()) {
++      current_layout_.host_size.set_height(current_layout_content_size_);
++    } else {
++      current_layout_.host_size.set_width(current_layout_content_size_);
++    }
++  }
+   if (animation_axis_ == AnimationAxis::kHorizontal) {
+     // `CalculateClosingViewsTargetX()` assumes the child layouts of
+     // starting_layout_ are sorted. Typically starting_layout_ is set from
+@@ -819,7 +836,17 @@
+         // (e.g. drag-and-drop or split-tabs which explicitly requires no
+         // animated transition).
+       }
+-      if (!interpolated_child.bounds.IsEmpty()) {
++      const bool clip_to_host =
++          delegate_->ShouldClipChildToAnimatedHost(*child_view);
++      if (clip_to_host) {
++        child_view->SetClipLayerToVisibleBounds(true);
++      }
++      if (clip_to_host && value < 1.0) {
++        const auto start = start_view_layout_map_.find(child_view);
++        interpolated_child.visible |=
++            start != start_view_layout_map_.end() && start->second.visible;
++      }
++      if (!clip_to_host && !interpolated_child.bounds.IsEmpty()) {
+         current_layout_content_size_ =
+             std::max(current_layout_content_size_,
+                      get_animation_axis_end(interpolated_child.bounds));
+--- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h
++++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h
+@@ -98,6 +98,10 @@
+     virtual bool ShouldSnapToTarget(const views::View& child_view) const;
+     virtual bool ShouldAnimateOpacityForAddAndRemove(
+         const views::View& child_view) const;
++    // Section rows retain their bounds and are revealed by the animated host
++    // height instead of enlarging that height or hiding at animation start.
++    virtual bool ShouldClipChildToAnimatedHost(
++        const views::View& child_view) const;
+     virtual void OnAnimationEnded();
+     virtual bool ShouldAnimateLayout();
+ 
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -7,6 +7,7 @@
+ #include <algorithm>
+ #include <set>
+ 
++#include "base/auto_reset.h"
+ #include "base/i18n/case_conversion.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/chrome_pages.h"
+@@ -433,6 +434,17 @@
+   return views::IsViewClass<TabView>(&child_view);
+ }
+ 
++bool UnpinnedTabContainerView::ShouldClipChildToAnimatedHost(
++    const views::View& child_view) const {
++  if (orientation_ != TabStripOrientation::kVertical) {
++    return false;
++  }
++  return IsOlderView(&child_view) ||
++         std::ranges::any_of(older_day_labels_, [&child_view](const auto& entry) {
++           return entry.second.get() == &child_view;
++         });
++}
++
+ bool UnpinnedTabContainerView::ShouldSnapToTarget(
+     const views::View& child_view) const {
+   return views::IsViewClass<SplitTabView>(&child_view);
+@@ -575,6 +587,13 @@
+   }
+   auto* model =
+       collection_node_->GetController()->GetDragHandler().GetTabStripModel();
++  const bool collapsed = OlderTabsCollapsed();
++  std::optional<base::AutoReset<bool>> allow_animation;
++  if (last_older_collapsed_ && *last_older_collapsed_ != collapsed) {
++    allow_animation.emplace(
++        collection_node_->GetController()->ScopedAnimateLayout());
++  }
++  last_older_collapsed_ = collapsed;
+   const bool enabled = model->older_tabs_controller()->IsEnabled();
+   const bool narrow = GetTabStripCollapseState() !=
+                       tabs::VerticalTabStripCollapseState::kExpanded;
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
+@@ -79,6 +79,8 @@
+   bool ShouldAnimateOpacityForAddAndRemove(
+       const views::View& child_view) const override;
+   bool ShouldAnimateLayout() override;
++  bool ShouldClipChildToAnimatedHost(
++      const views::View& child_view) const override;
+ 
+   // DraggedTabsContainer:
+   DraggedTabsContainer& GetTabDragTarget(
+@@ -122,6 +124,7 @@
+   void OnCollapseStateChanged(tabs::VerticalTabStripCollapseState state);
+ 
+   bool has_older_tabs_ = false;
++  std::optional<bool> last_older_collapsed_;
+   raw_ptr<views::LabelButton> older_header_ = nullptr;
+   std::map<const views::View*, raw_ptr<views::Label>> older_date_headings_;
+   // Calendar buckets own stable presentation views, independently of tabs.
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -83,7 +83,8 @@
+   const auto older = container.has_older_tabs_
+                          ? container.OlderViewsInDateOrder()
+                          : std::vector<views::View*>();
+-  const bool show_older = !container.OlderTabsCollapsed() && !focused_group_id;
++  const bool layout_older = !focused_group_id;
++  const bool show_older = !container.OlderTabsCollapsed() && layout_older;
+   const int row_height = GetLayoutConstant(LayoutConstant::kVerticalTabHeight);
+   const int text_inset =
+       GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
+@@ -116,21 +117,21 @@
+       if (auto* heading = container.OlderDateHeading(child)) {
+         // Consume the preceding tab's 2px row gap, preserving the label's
+         // clearance to its following tab and the first section heading.
+-        if (show_older && previous_older_tab) {
++        if (layout_older && previous_older_tab) {
+           height -= kTabVerticalPadding;
+         }
+         layouts.child_layouts.emplace_back(
+             heading, show_older,
+             gfx::Rect(x + text_inset, height,
+                       std::max(0, bounds.width() - text_inset), 16));
+-        if (show_older) {
++        if (layout_older) {
+           height += 16;
+         }
+       }
+       if (!container.IsOlderView(child)) {
+         // While dragged above the divider, the tab is drawn in the regular
+         // stack. Its former chronological slot and heading stay behind.
+-        if (show_older) {
++        if (layout_older) {
+           height += bounds.height() + kTabVerticalPadding;
+           previous_older_tab = true;
+         }
+@@ -147,11 +148,11 @@
+       height += 6;
+     }
+     bounds.set_y(drag_data ? drag_data->offset.y() : height);
+-    if (!visible) {
++    if (!visible && !older_slot) {
+       bounds.set_height(0);
+     }
+     layouts.child_layouts.emplace_back(child, visible, bounds);
+-    if (visible) {
++    if (visible || (older_slot && layout_older)) {
+       previous_visible_group = is_group;
+       previous_older_tab = older_slot;
+       height += bounds.height() + kTabVerticalPadding;
+@@ -183,11 +184,16 @@
+   }
+   // Use frozen date order even while Chromium transiently moves dragged tabs
+   // through the model. Headings are presentation rows, never dragged views.
++  const int collapsed_height = height;
+   for (auto* child : older) {
+     layout_tab(child, true);
+   }
++  if (!show_older) {
++    height = collapsed_height;
++  }
+   if (height > 0) {
+     height -= kTabVerticalPadding;
++
+   }
+ 
+   if (UnpinnedTabContainerView().IsHandlingDrag()) {

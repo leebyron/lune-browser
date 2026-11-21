@@ -1,0 +1,104 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2342,4 +2342,11 @@
+   floating_toolbar_material_.themeTintColor = tint;
+-  floating_sidebar_material_.themeTintColor = tint;
++  floating_sidebar_material_.themeTintColor =
++      helium::NativeSidebarGlassTintColor(GetBrowserView());
+   floating_customize_close_.themeTintColor = tint;
++  // Detached controls are a separate widget and must repaint when only the
++  // theme palette changes, including while the popover is hidden.
++  if (floating_sidebar_widget_) {
++    floating_sidebar_widget_->ResetLastColorProviderKey();
++    floating_sidebar_widget_->ScheduleThemeChanged();
++  }
+ }
+@@ -3579,3 +3586,4 @@
+             isEqual:FloatingChromeAppearance(view)];
+-    floating_sidebar_material_.themeTintColor = helium::NativeGlassThemeTintColor(view);
++    floating_sidebar_material_.themeTintColor =
++        helium::NativeSidebarGlassTintColor(view);
+     floating_sidebar_material_.contentAware =
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.h
+@@ -22,2 +22,4 @@
+ NSColor* NativeGlassThemeTintColor(BrowserView* view);
++// Match the mounted sidebar background in the owning window's current scheme.
++NSColor* NativeSidebarGlassTintColor(BrowserView* view);
+ 
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -20,2 +20,3 @@
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+@@ -131,2 +132,23 @@
+ 
++NSColor* NativeSidebarGlassTintColor(BrowserView* view) {
++  const auto* colors = view ? view->GetColorProvider() : nullptr;
++  // Keep accessibility's high-contrast material treatment.
++  if (!colors ||
++      view->browser_widget()->GetColorProviderKey().contrast_mode ==
++          ui::ColorProviderKey::ContrastMode::kHigh) {
++    return nil;
++  }
++  // Derive the hue and saturation from the mounted sidebar's theme color.
++  // Calibrate lightness and glass strength separately: native glass does not
++  // render like the mounted material's ordinary overlay.
++  const bool dark = view->browser_widget()->GetColorProviderKey().color_mode ==
++                    ui::ColorProviderKey::ColorMode::kDark;
++  color_utils::HSL tone;
++  color_utils::SkColorToHSL(colors->GetColor(kColorToolbar), &tone);
++  tone.l = std::min(1.0, tone.l * (dark ? .65 : 1.05));
++  NSColor* background = GetFrameMaterialThemeTintOverlayColor(
++      color_utils::HSLToSkColor(tone, 255), dark);
++  return [background colorWithAlphaComponent:dark ? .4 : .3];
++}
++
+ }  // namespace helium
+@@ -231,2 +253,45 @@
+   }
++  // Only detached sidebar rows adopt the browser palette. Header actions and
++  // System theme keep their native semantic colors. Resolve the owning theme in
++  // the actual glass scheme so adaptive foregrounds and themed fills agree.
++  if (view->GetWidget()->GetName() == "Floating sidebar controls") {
++    auto* browser = BrowserView::GetBrowserViewForNativeWindow(
++        view->GetWidget()->GetNativeWindow());
++    if (browser && browser->GetColorProvider() &&
++        !ThemeServiceFactory::GetForProfile(browser->GetProfile())
++             ->UsingDeviceTheme()) {
++      auto key = browser->browser_widget()->GetColorProviderKey();
++      NSAppearanceName match = [appearance bestMatchFromAppearancesWithNames:@[
++        NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
++        NSAppearanceNameAccessibilityHighContrastAqua,
++        NSAppearanceNameAccessibilityHighContrastDarkAqua]];
++      const bool high_contrast =
++          [match isEqual:NSAppearanceNameAccessibilityHighContrastAqua] ||
++          [match isEqual:NSAppearanceNameAccessibilityHighContrastDarkAqua];
++      if (!high_contrast &&
++          key.contrast_mode != ui::ColorProviderKey::ContrastMode::kHigh &&
++          key.forced_colors == ui::ColorProviderKey::ForcedColors::kNone) {
++        key.color_mode = [match isEqual:NSAppearanceNameDarkAqua]
++                             ? ui::ColorProviderKey::ColorMode::kDark
++                             : ui::ColorProviderKey::ColorMode::kLight;
++        const auto* colors =
++            ui::ColorProviderManager::Get().GetColorProviderFor(key);
++        const bool active = browser->GetWidget()->ShouldPaintAsActive();
++        switch (role) {
++          case NativeGlassColorRole::kSelection:
++            return colors->GetColor(active ? kColorTabBackgroundActiveFrameActive
++                                          : kColorTabBackgroundActiveFrameInactive);
++          case NativeGlassColorRole::kSelectedLabel:
++            return colors->GetColor(active ? kColorTabForegroundActiveFrameActive
++                                          : kColorTabForegroundActiveFrameInactive);
++          case NativeGlassColorRole::kHover:
++            return colors->GetColor(
++                active ? kColorTabBackgroundInactiveHoverFrameActive
++                       : kColorTabBackgroundInactiveHoverFrameInactive);
++          default:
++            break;
++        }
++      }
++    }
++  }
+   [appearance performAsCurrentDrawingAppearance:^{

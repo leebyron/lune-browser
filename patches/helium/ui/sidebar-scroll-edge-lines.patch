@@ -1,0 +1,290 @@
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -544,6 +544,7 @@
+     "//chrome/app:generated_resources",
+     "//chrome/browser:buildflags",
+     "//chrome/browser/lifetime",
++    "//chrome/browser/themes",
+     "//chrome/browser/ui:layout_constants",
+     "//chrome/browser/ui/color:color_headers",
+     "//chrome/browser/ui/tabs:tab_strip",
+@@ -553,6 +554,7 @@
+     "//components/strings:components_strings_grit",
+     "//components/vector_icons",
+     "//ui/base",
++    "//ui/compositor",
+     "//ui/strings",
+   ]
+   if (is_mac) {
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -13,6 +13,8 @@
+ #include "chrome/browser/buildflags.h"
+ #include "chrome/browser/lifetime/application_lifetime.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/themes/theme_service.h"
++#include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/chrome_pages.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
+@@ -31,6 +33,7 @@
+ #include "components/vector_icons/vector_icons.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/compositor/layer.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/gfx/vector_icon_types.h"
+ #include "ui/strings/grit/ui_strings.h"
+@@ -229,6 +232,18 @@
+ END_METADATA
+ }  // namespace
+ 
++SidebarScrollSeparator::SidebarScrollSeparator(Profile* profile)
++    : profile_(profile) {}
++
++SkColor SidebarScrollSeparator::GetForegroundColor() const {
++  const bool dark =
++      ThemeServiceFactory::GetForProfile(profile_)->BrowserUsesDarkColors();
++  return SkColorSetA(SK_ColorBLACK, dark ? 31 : 15);
++}
++
++BEGIN_METADATA(SidebarScrollSeparator)
++END_METADATA
++
+ SidebarFooterView::SidebarFooterView(
+     BrowserWindowInterface* browser,
+     tabs::VerticalTabStripStateController* state_controller)
+@@ -237,6 +252,14 @@
+   SetCrossAxisAlignment(views::LayoutAlignment::kStretch);
+   SetDefault(views::kMarginsKey, gfx::Insets::TLBR(2, 0, 0, 0));
+   SetContentPadding(0);
++  scroll_separator_ = AddChildView(
++      std::make_unique<SidebarScrollSeparator>(browser_->GetProfile()));
++  scroll_separator_->SetProperty(views::kViewIgnoredByLayoutKey, true);
++  scroll_separator_->SetCanProcessEventsWithinSubtree(false);
++  scroll_separator_->SetVisible(false);
++  scroll_separator_->SetPaintToLayer();
++  scroll_separator_->layer()->SetFillsBoundsOpaquely(false);
++
+   update_button_ = AddChildView(std::make_unique<FooterButton>(
+       base::BindRepeating([] { chrome::AttemptRelaunch(); }),
+       IDS_APP_MENU_BUTTON_UPDATE_ALT2, vector_icons::kRefreshIcon));
+@@ -303,6 +326,20 @@
+       gfx::Insets::TLBR(6, side_padding, 5 + padding, side_padding));
+ }
+ 
++void SidebarFooterView::SetScrollOverflow(bool overflow,
++                                        gfx::Insets sidebar_insets) {
++  sidebar_insets_ = sidebar_insets;
++  scroll_separator_->SetVisible(overflow);
++  scroll_separator_->SetBounds(-sidebar_insets_.left(), 0,
++                              width() + sidebar_insets_.width(), 1);
++}
++
++void SidebarFooterView::Layout(PassKey) {
++  LayoutSuperclass<views::FlexLayoutView>(this);
++  scroll_separator_->SetBounds(-sidebar_insets_.left(), 0,
++                              width() + sidebar_insets_.width(), 1);
++}
++
+ void SidebarFooterView::SetDefaultBrowserPrompt(base::RepeatingClosure accept,
+                                                 base::RepeatingClosure dismiss,
+                                                 base::RepeatingClosure reject) {
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.h
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.h
+@@ -11,10 +11,12 @@
+ #include "components/prefs/pref_change_registrar.h"
+ #include "ui/menus/simple_menu_model.h"
+ #include "ui/views/context_menu_controller.h"
++#include "ui/views/controls/separator.h"
+ #include "ui/views/layout/flex_layout_view.h"
+ 
+ class BrowserWindowInterface;
+ class ExpandOnHoverLock;
++class Profile;
+ namespace views {
+ class LabelButton;
+ class MenuRunner;
+@@ -23,6 +25,19 @@
+ class VerticalTabStripStateController;
+ }
+ 
++// Shared appearance for the sidebar's top and footer scroll boundaries.
++class SidebarScrollSeparator : public views::Separator {
++  METADATA_HEADER(SidebarScrollSeparator, views::Separator)
++ public:
++  explicit SidebarScrollSeparator(Profile* profile);
++
++ protected:
++  SkColor GetForegroundColor() const override;
++
++ private:
++  raw_ptr<Profile> profile_;
++};
++
+ // Browser-level actions below the scrolling tabs. Intentionally not a general
+ // infobar host: security, sharing and page-specific notices remain in place.
+ class SidebarFooterView : public views::FlexLayoutView,
+@@ -33,7 +48,11 @@
+   SidebarFooterView(BrowserWindowInterface* browser,
+                     tabs::VerticalTabStripStateController* state_controller);
+   ~SidebarFooterView() override;
++  // The footer owns its spacing and overflow divider. Hiding the footer hides
++  // both automatically; the tab viewport never reserves footer padding.
+   void SetContentPadding(int padding);
++  void SetScrollOverflow(bool overflow, gfx::Insets sidebar_insets);
++  void Layout(PassKey) override;
+   void SetDefaultBrowserPrompt(base::RepeatingClosure accept,
+                                base::RepeatingClosure dismiss,
+                                base::RepeatingClosure reject);
+@@ -45,6 +64,8 @@
+       const gfx::Point& point,
+       ui::mojom::MenuSourceType source_type) override;
+   void ExecuteCommand(int command_id, int event_flags) override;
++  raw_ptr<views::Separator> scroll_separator_;
++  gfx::Insets sidebar_insets_;
+   raw_ptr<BrowserWindowInterface> browser_;
+   base::RepeatingClosure dismiss_;
+   base::RepeatingClosure reject_;
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -210,6 +210,19 @@
+   gemini_button_ =
+       content_area_view_->AddChildView(std::make_unique<views::View>());
+ 
++  auto add_scroll_separator = [&]() {
++    auto* separator = content_area_view_->AddChildView(
++        std::make_unique<SidebarScrollSeparator>(
++            browser_view->browser()->GetProfile()));
++    separator->SetProperty(views::kViewIgnoredByLayoutKey, true);
++    separator->SetCanProcessEventsWithinSubtree(false);
++    separator->SetVisible(false);
++    separator->SetPaintToLayer();
++    separator->layer()->SetFillsBoundsOpaquely(false);
++    return separator;
++  };
++  scroll_top_separator_ = add_scroll_separator();
++
+   // Views that go into the content area above
+   // --------------
+ 
+@@ -617,6 +630,7 @@
+ void VerticalTabStripRegionView::Layout(PassKey) {
+   LayoutSuperclass<BaseTabStripRegionView>(this);
+   LayoutFloatingControls();
++  UpdateScrollEdgeSeparators();
+ 
+   // Manually position the resize area as it overlaps views handled by the flex
+   // layout.
+@@ -1059,11 +1073,41 @@
+               &VerticalTabStripRegionView::OnExpandOnHoverEnabledChanged,
+               base::Unretained(this)));
+ 
++  scroll_edge_subscription_ =
++      tab_strip->unpinned_tabs_scroll_view()->AddContentsScrolledCallback(
++          base::BindRepeating(
++              &VerticalTabStripRegionView::UpdateScrollEdgeSeparators,
++              base::Unretained(this)));
+   OnCollapseStateChanged(state_controller_->GetCollapseState());
+ }
+ 
++void VerticalTabStripRegionView::UpdateScrollEdgeSeparators() {
++  auto* strip = tab_strip_view();
++  auto* scroll = strip ? strip->unpinned_tabs_scroll_view() : nullptr;
++  if (!scroll || !scroll->contents() || scroll->height() <= 0) {
++    scroll_top_separator_->SetVisible(false);
++    footer_->SetScrollOverflow(false, interior_margin_);
++    return;
++  }
++  const gfx::Rect visible = scroll->GetVisibleRect();
++  const gfx::Rect viewport = views::View::ConvertRectToTarget(
++      scroll, content_area_view_, scroll->GetLocalBounds());
++  // Span the sidebar's outer edges, including its content side insets.
++  // Overlay the lines without consuming row or footer space.
++  const int line_x = -interior_margin_.left();
++  const int line_width =
++      content_area_view_->width() + interior_margin_.width();
++  scroll_top_separator_->SetBounds(line_x, viewport.y(), line_width, 1);
++  scroll_top_separator_->SetVisible(visible.y() > 0);
++  footer_->SetScrollOverflow(
++      visible.bottom() < scroll->contents()->height(), interior_margin_);
++}
++
+ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
+     views::View* view) {
++  scroll_edge_subscription_ = {};
++  scroll_top_separator_->SetVisible(false);
++  footer_->SetScrollOverflow(false, interior_margin_);
+   on_animation_update_subscription_.reset();
+   expand_on_hover_enabled_changed_subscription_.reset();
+   omnibox_tab_helper_observation_.Reset();
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
+@@ -206,6 +206,7 @@
+   void OnCollapseStateChanged(
+       tabs::VerticalTabStripCollapseState collapse_state);
+   void UpdateResizeAreaVisibility();
++  void UpdateScrollEdgeSeparators();
+ 
+   void OnAnimationProgressed(const BrowserAnimationController* controller,
+                              BrowserAnimationUpdate status);
+@@ -256,6 +257,8 @@
+ 
+   raw_ptr<VerticalTabStripHeaderView> header_view_ = nullptr;
+   raw_ptr<SidebarFooterView> footer_ = nullptr;
++  raw_ptr<views::Separator> scroll_top_separator_ = nullptr;
++  base::CallbackListSubscription scroll_edge_subscription_;
+   raw_ptr<VerticalTabStripBottomContainer> bottom_button_container_ = nullptr;
+   raw_ptr<views::View> gemini_button_ = nullptr;
+   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
+--- a/chrome/browser/ui/views/tabs/common/tab_drag_scroll_handler.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_drag_scroll_handler.cc
+@@ -70,15 +70,6 @@
+     views::ScrollView& scroll_view,
+     float scroll_increment) {
+   scroll_increment_ = scroll_increment;
+-  if (IsVerticalScrollEnabled(scroll_view)) {
+-    if (scroll_increment_ > 0) {
+-      scroll_view.SetOverflowGradientMask(
+-          views::ScrollView::GradientDirection::kVerticalTrailing);
+-    } else if (scroll_increment_ < 0) {
+-      scroll_view.SetOverflowGradientMask(
+-          views::ScrollView::GradientDirection::kVerticalLeading);
+-    }
+-  }
+ 
+   if (scroll_timer_.IsRunning()) {
+     return;
+@@ -93,10 +84,6 @@
+ 
+ void TabDragScrollHandler::StopScrolling(views::ScrollView& scroll_view) {
+   scroll_timer_.Stop();
+-  if (IsVerticalScrollEnabled(scroll_view)) {
+-    scroll_view.SetOverflowGradientMask(
+-        views::ScrollView::GradientDirection::kVertical);
+-  }
+ }
+ 
+ void TabDragScrollHandler::UpdateScrollOffset(views::ScrollView& scroll_view) {
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
+@@ -594,8 +594,8 @@
+   if (orientation_ == TabStripOrientation::kVertical) {
+     scroll_view->SetHorizontalScrollBarMode(
+         views::ScrollView::ScrollBarMode::kDisabled);
+-    scroll_view->SetOverflowGradientMask(
+-        views::ScrollView::GradientDirection::kVertical);
++    // Sidebar overflow is indicated by full-width region hairlines.
++    scroll_view->SetDrawOverflowIndicator(false);
+     scroll_view->SetVerticalScrollBar(
+         std::make_unique<VerticalTabStripScrollBar>(
+             collection_node_->GetController()->GetStateController()));
+@@ -766,7 +766,7 @@
+   // from running.
+   scroll_view->RegisterPostLayoutCallback(base::DoNothing());
+   if (orientation_ == TabStripOrientation::kVertical) {
+-    scroll_view->SetDrawOverflowIndicator(true);
++    scroll_view->SetDrawOverflowIndicator(false);
+     scroll_view->SetVerticalScrollBarMode(
+         views::ScrollView::ScrollBarMode::kEnabled);
+ 

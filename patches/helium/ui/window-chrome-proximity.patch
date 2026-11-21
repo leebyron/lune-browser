@@ -1,0 +1,121 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -3346,7 +3346,8 @@
+                        helium::IsPointerInNativeRevealRail(browser_view, true);
+   const bool in_window =
+       browser_view->GetLocalBounds().Contains(cursor) ||
+-      helium::IsPointerAboveNativeFullscreenContent(browser_view);
++      helium::IsPointerAboveNativeFullscreenContent(browser_view) ||
++      helium::IsPointerInNativeWindowHoverArea(browser_view, true);
+   gfx::Rect sidebar_header;
+   if (auto* sidebar = browser_view->GetSidebarView(); sidebar &&
+       sidebar->IsDrawn() && browser_view->GetSideChromeRevealRatio() > 0) {
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2154,19 +2154,26 @@
+ }
+ 
+ void BrowserView::UpdateZenModeEventMonitor() {
+-  if (!GetWidget() || !IsZenModeEnabled()) {
++  if (!GetWidget() || GetWidget()->IsClosed() || !IsZenModeEnabled()) {
+     zen_mode_event_monitor_.reset();
+-    zen_fullscreen_cursor_timer_.Stop();
++    zen_native_cursor_timer_.Stop();
+     return;
+   }
+ 
+-  if (IsFullscreen() && !zen_fullscreen_cursor_timer_.IsRunning()) {
+-    zen_fullscreen_cursor_timer_.Start(
++  bool poll_cursor = IsFullscreen();
++#if BUILDFLAG(IS_MAC)
++  // Mouse events stop outside the window. Poll the active native window so
++  // proximity can reveal hidden chrome before the pointer enters its bounds.
++  poll_cursor |= GetFrameView() && GetFrameView()->HasFloatingAddressBar();
++  poll_cursor &= GetWidget()->IsActive();
++#endif
++  if (poll_cursor && !zen_native_cursor_timer_.IsRunning()) {
++    zen_native_cursor_timer_.Start(
+         FROM_HERE, base::Milliseconds(100),
+         base::BindRepeating(&BrowserView::UpdateZenModeRevealFromCursor,
+                             base::Unretained(this)));
+-  } else if (!IsFullscreen()) {
+-    zen_fullscreen_cursor_timer_.Stop();
++  } else if (!poll_cursor) {
++    zen_native_cursor_timer_.Stop();
+   }
+   if (!zen_mode_event_monitor_) {
+     zen_mode_event_monitor_ = views::EventMonitor::CreateWindowMonitor(
+@@ -2288,7 +2295,13 @@
+     return;
+   }
+ #endif
+-  if (!has_cursor || !GetLocalBounds().Contains(cursor)) {
++  bool in_hover_window = has_cursor && GetLocalBounds().Contains(cursor);
++#if BUILDFLAG(IS_MAC)
++  in_hover_window |= has_cursor && GetFrameView() &&
++      GetFrameView()->HasFloatingAddressBar() &&
++      helium::IsPointerInNativeWindowHoverArea(this, true);
++#endif
++  if (!in_hover_window) {
+     zen_last_cursor_.reset();
+     zen_cursor_exit_timer_.Stop();
+     UpdateZenModeReveal(false, false);
+@@ -5415,6 +5428,7 @@
+ 
+ void BrowserView::OnWidgetActivationChanged(views::Widget* widget,
+                                             bool active) {
++  UpdateZenModeEventMonitor();
+   if (browser_->GetWindow()) {
+     if (active) {
+       if (restore_focus_on_activation_.has_value() &&
+--- a/chrome/browser/ui/views/frame/browser_view.h
++++ b/chrome/browser/ui/views/frame/browser_view.h
+@@ -1548,7 +1548,7 @@
+   gfx::SlideAnimation zen_top_chrome_animation_;
+   gfx::SlideAnimation zen_side_chrome_animation_;
+   base::OneShotTimer zen_cursor_exit_timer_;
+-  base::RepeatingTimer zen_fullscreen_cursor_timer_;
++  base::RepeatingTimer zen_native_cursor_timer_;
+   std::optional<gfx::Point> zen_last_cursor_;
+   bool zen_mode_enabled_ = false;
+   // Ignore hover changes during native macOS fullscreen transitions.
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -406,6 +406,26 @@
+   return view->GetWidget()->GetNativeWindow().GetNativeNSWindow().inLiveResize;
+ }
+ 
++bool IsPointerInNativeWindowHoverArea(const BrowserView* view,
++                                      bool retention) {
++  if (!view || !view->GetWidget() || view->IsFullscreen()) {
++    return false;
++  }
++  NSWindow* window = view->GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  NSView* content = window.contentView;
++  if (!content) {
++    return false;
++  }
++  const NSRect bounds = [window convertRectToScreen:
++      [content convertRect:content.bounds toView:nil]];
++  const CGFloat margin = retention ? 16 : 8;
++  const NSPoint pointer = NSEvent.mouseLocation;
++  return pointer.x >= NSMinX(bounds) - margin &&
++         pointer.x <= NSMaxX(bounds) + margin &&
++         pointer.y >= NSMinY(bounds) - margin &&
++         pointer.y <= NSMaxY(bounds) + margin;
++}
++
+ bool IsPointerAboveNativeFullscreenContent(const BrowserView* view) {
+   if (!view || !view->GetWidget() || !view->IsFullscreen() ||
+       fullscreen_utils::IsInContentFullscreen(view->browser())) {
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -67,6 +67,8 @@
+ // The menu bar and camera-safe strip above fullscreen app content.
+ // Excludes webpage fullscreen and other screens.
+ bool IsPointerAboveNativeFullscreenContent(const BrowserView* view);
++// Eight-point windowed entry area; sixteen-point exterior retention area.
++bool IsPointerInNativeWindowHoverArea(const BrowserView* view, bool retention);
+ bool IsPointerInNativeRevealRail(const BrowserView* view, bool top);
+ // AppKit owns the lifetime of an interactive window resize.
+ bool IsNativeWindowLiveResizing(const BrowserView* view);

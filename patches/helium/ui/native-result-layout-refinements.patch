@@ -1,0 +1,56 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -102,14 +102,17 @@ NSString* TagForType(HeliumCommandBarIte
+   if (!self.scope.hidden) {
+     const CGFloat tokenWidth = std::min(self.scope.fittingSize.width + 24,
+                                         std::min(220.0, width * 0.4));
+-    self.scopePill.frame = NSMakeRect(16, 17, tokenWidth, 28);
++    self.scopePill.frame =
++        NSMakeRect(16, (kInputHeight - 28) / 2, tokenWidth, 28);
+     self.scope.frame = NSMakeRect(12, 6, tokenWidth - 24, 17);
+     inputX = NSMaxX(self.scopePill.frame) + 10;
+   }
+-  self.input.frame = NSMakeRect(inputX, 19, width - inputX - 20, 26);
++  const CGFloat inputHeight = self.input.fittingSize.height;
++  self.input.frame = NSMakeRect(inputX, (kInputHeight - inputHeight) / 2,
++                                width - inputX - 20, inputHeight);
+   const CGFloat resultsWidth = width - 2 * kHeliumNativeResultInset;
+   self.scroll.frame =
+-      NSMakeRect(kHeliumNativeResultInset, kInputHeight + kHeliumNativeResultInset, resultsWidth,
++      NSMakeRect(kHeliumNativeResultInset, kInputHeight, resultsWidth,
+                  std::min(kVisibleResults, self.rows.count) * kHeliumNativeResultRowHeight);
+   self.results.frame =
+       NSMakeRect(0, 0, resultsWidth, self.rows.count * kHeliumNativeResultRowHeight);
+@@ -168,7 +171,7 @@ HeliumCommandBarView* HeliumCommandBarVi
+   widget->SetBounds(
+       gfx::Rect(bounds.x() + (bounds.width() - window_width) / 2,
+                 bounds.y() + bounds.height() / 5 - kGlassOutset, window_width,
+-                kInputHeight + 2 * kHeliumNativeResultInset + 2 * kGlassOutset));
++                kInputHeight + 2 * kGlassOutset));
+   view->native_->host->Attach(gfx::NativeView(view->native_->material));
+   widget->Show();
+   widget->AddObserver(view);
+@@ -200,7 +203,7 @@ HeliumCommandBarView::HeliumCommandBarVi
+       contents->AddChildView(std::make_unique<views::NativeViewHost>());
+   SetContentsView(std::move(contents));
+   auto* pane =
+-      [[HeliumCommandPane alloc] initWithFrame:NSMakeRect(0, 0, kWidth, 68)];
++      [[HeliumCommandPane alloc] initWithFrame:NSMakeRect(0, 0, kWidth, kInputHeight)];
+   native_->pane = pane;
+   pane.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+   pane.rows = [[NSMutableArray alloc] init];
+@@ -394,8 +397,12 @@ void HeliumCommandBarView::ResizeToConte
+   if (!GetWidget()) {
+     return;
+   }
+-  int height = kInputHeight + 2 * kHeliumNativeResultInset + 2 * kGlassOutset +
+-               std::min(kVisibleResults, native_->pane.rows.count) * kHeliumNativeResultRowHeight;
++  const size_t visible_rows =
++      std::min(kVisibleResults, native_->pane.rows.count);
++  const int height = kInputHeight + 2 * kGlassOutset +
++      (visible_rows ? kHeliumNativeResultInset +
++                          visible_rows * kHeliumNativeResultRowHeight
++                    : 0);
+   if (GetWidget()->GetWindowBoundsInScreen().height() != height) {
+     GetWidget()->SetSize(gfx::Size(native_->width + 2 * kGlassOutset, height));
+   }

@@ -1,0 +1,89 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -696,6 +696,26 @@
+ }
+ @end
+ 
++// Preserve AppKit's relative button positions while anchoring the first
++// center to the rounded corner. The 36-point row leaves 18 points on either
++// side of the first/last centers, so its hit region follows the compact group.
++static CGFloat HeliumWindowControlOffset(NSWindow* window, NSUInteger index) {
++  constexpr NSWindowButton types[] = {
++      NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton};
++  NSButton* first = [window standardWindowButton:types[0]];
++  NSButton* button = [window standardWindowButton:types[index]];
++  if (!first || !button) {
++    // Normal titled windows have all three controls. Retain standard spacing
++    // if AppKit temporarily removes them while changing window style.
++    return 23 * index;
++  }
++  return std::abs(NSMidX(button.frame) - NSMidX(first.frame));
++}
++
++static CGFloat HeliumWindowControlsWidth(NSWindow* window) {
++  return 36 + HeliumWindowControlOffset(window, 2);
++}
++
+ // Reuse Helium's native traffic-light group, including AppKit group hover and
+ // fullscreen overlay suppression, rather than orphaning standard NSButtons.
+ @interface HeliumWindowControls : HeliumFullscreenWindowControls
+@@ -712,7 +732,9 @@
+   NSUInteger _generation;
+ }
+ - (instancetype)initWithWindow:(NSWindow*)window {
+-  self = [super initWithWindow:window size:NSMakeSize(96, 36)];
++  self =
++      [super initWithWindow:window
++                       size:NSMakeSize(HeliumWindowControlsWidth(window), 36)];
+   if (!self) {
+     return nil;
+   }
+@@ -722,8 +744,9 @@
+   for (NSButton* button in self.subviews) {
+     NSRect frame = button.frame;
+     // The first button is centered on the window's 26-point corner center.
+-    frame.origin = NSMakePoint(18 - frame.size.width / 2 + 26 * index++,
+-                               (36 - frame.size.height) / 2);
++    frame.origin = NSMakePoint(
++        18 - frame.size.width / 2 + HeliumWindowControlOffset(window, index++),
++        (36 - frame.size.height) / 2);
+     button.frame = frame;
+   }
+   self.wantsLayer = YES;
+@@ -2033,7 +2056,10 @@
+   }
+   const int toolbar_width = FloatingToolbarWidth();
+   // Fixed traffic lights have priority when the left sidebar is absent.
+-  const int leading = std::max(content.x() + glass_inset, 108);
++  const int controls_right =
++      8 + base::ClampCeil(HeliumWindowControlsWidth(
++              GetWidget()->GetNativeWindow().GetNativeNSWindow()));
++  const int leading = std::max(content.x() + glass_inset, controls_right + 4);
+   const int trailing =
+       std::min(content.right() - glass_inset, browser_view->width() - 8);
+   const gfx::Rect bar_region(leading, 8 + TopUIFullscreenYOffset(),
+@@ -2168,7 +2194,11 @@
+   const bool in_pinned_sidebar = !view->IsVerticalTabStripRightAligned() &&
+                                  view->IsZenModeSideChromePinned();
+   const int y = in_pinned_sidebar ? 8 : 8 + TopUIFullscreenYOffset();
+-  host->SetBoundsRect(gfx::Rect(x, y, 96, 36));
++  host->SetBoundsRect(
++      gfx::Rect(x, y,
++                base::ClampCeil(HeliumWindowControlsWidth(
++                    GetWidget()->GetNativeWindow().GetNativeNSWindow())),
++                36));
+   floating_drag_region_.windowControlsBounds =
+       [floating_drag_region_ convertRect:floating_window_controls_.bounds
+                                fromView:floating_window_controls_];
+@@ -2303,7 +2333,10 @@
+         [floating_drag_region_ convertRect:floating_navigation_.bounds
+                                   fromView:floating_navigation_];
+     floating_drag_region_.windowControlsBounds =
+-        NSMakeRect(8, 8 - TopUIFullscreenYOffset(), 96, 36);
++        NSMakeRect(8, 8 - TopUIFullscreenYOffset(),
++                   HeliumWindowControlsWidth(
++                       GetWidget()->GetNativeWindow().GetNativeNSWindow()),
++                   36);
+     // Address bounds are updated after its editor and popup have laid out.
+   }
+   if (!floating_toolbar_widget_) {

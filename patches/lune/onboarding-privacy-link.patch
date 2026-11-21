@@ -1,0 +1,13 @@
+Index: src/components/helium_onboarding/src/components/WelcomeFooter.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/WelcomeFooter.svelte
++++ src/components/helium_onboarding/src/components/WelcomeFooter.svelte
+@@ -9,7 +9,7 @@
+ 
+ <footer id="welcome-footer">
+     <p class="upstream-credit">{#each creditParts as part}{#if part.kind === "linkHelium"}<Link href="https://helium.computer/">{part.text}</Link>{:else if part.kind === "linkUngoogled"}<Link href="https://github.com/ungoogled-software/ungoogled-chromium">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
+-    <p class="policy">{#each termsParts as part}{#if part.kind === "linkPrivacy"}<Link href="https://helium.computer/privacy">{part.text}</Link>{:else if part.kind === "linkTerms"}<Link href="https://helium.computer/terms">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
++    <p class="policy">{#each termsParts as part}{#if part.kind === "linkPrivacy"}<Link href="https://lune.computer/privacy">{part.text}</Link>{:else if part.kind === "linkTerms"}<Link href="https://helium.computer/terms">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
+ </footer>
+ 
+ <style>

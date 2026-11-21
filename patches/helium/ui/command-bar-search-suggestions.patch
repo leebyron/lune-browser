@@ -1,0 +1,753 @@
+--- a/chrome/browser/ui/helium/BUILD.gn
++++ b/chrome/browser/ui/helium/BUILD.gn
+@@ -71,13 +71,18 @@
+     "helium_command_bar_controller.h",
+     "helium_command_bar_model.cc",
+     "helium_command_bar_model.h",
++    "helium_command_bar_suggestions.cc",
++    "helium_command_bar_suggestions.h",
+     "helium_command_bar_view.h",
+   ]
+ 
+   deps = []
+   if (is_mac) {
+     sources += [ "helium_command_bar_view_mac.mm" ]
+-    deps += [ ":native_result_row" ]
++    deps += [
++      ":native_result_row",
++      "//chrome/browser/ui/views/helium:native_frame_materials",
++    ]
+     frameworks = [ "AppKit.framework", "QuartzCore.framework" ]
+   } else {
+     sources += [ "helium_command_bar_view.cc" ]
+--- a/chrome/browser/ui/helium/helium_command_bar_controller.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_controller.cc
+@@ -10,6 +10,7 @@
+ #include "base/strings/string_util.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/task/sequenced_task_runner.h"
++#include "chrome/browser/ui/helium/helium_command_bar_suggestions.h"
+ #include "chrome/browser/bookmarks/bookmark_model_factory.h"
+ #include "chrome/browser/favicon/favicon_service_factory.h"
+ #include "chrome/browser/history/history_service_factory.h"
+@@ -54,6 +55,7 @@
+   for (size_t i = 0; i < a.size(); ++i) {
+     if (a[i].type != b[i].type || a[i].title != b[i].title ||
+         a[i].url_spec != b[i].url_spec ||
++        a[i].description != b[i].description ||
+         a[i].site_keyword != b[i].site_keyword ||
+         a[i].command != b[i].command || a[i].tab_index != b[i].tab_index) {
+       return false;
+@@ -83,9 +85,20 @@
+ HeliumCommandBarController::HeliumCommandBarController(
+     BrowserWindowInterface* browser)
+     : browser_(browser),
+-      scoped_unowned_user_data_(browser->GetUnownedUserDataHost(), *this) {}
++      scoped_unowned_user_data_(browser->GetUnownedUserDataHost(), *this) {
++  suggestions_ = std::make_unique<HeliumCommandBarSuggestions>(
++      browser_->GetProfile(),
++      base::BindRepeating(&HeliumCommandBarController::OnSuggestionsChanged,
++                          weak_factory_.GetWeakPtr()));
++  suggest_pref_registrar_.Init(browser_->GetProfile()->GetPrefs());
++  suggest_pref_registrar_.Add(
++      prefs::kSearchSuggestEnabled,
++      base::BindRepeating(&HeliumCommandBarController::OnSuggestPreferenceChanged,
++                          weak_factory_.GetWeakPtr()));
++}
+ 
+ HeliumCommandBarController::~HeliumCommandBarController() {
++  StopSuggestions();
+   if (focus_manager_) {
+     focus_manager_->RemoveFocusChangeListener(this);
+     focus_manager_->UnregisterAccelerators(this);
+@@ -138,11 +151,12 @@
+ 
+ void HeliumCommandBarController::OnTemplateURLServiceChanged() {
+   if (view_) {
+-    PushItems(CollectResults(last_query_, &last_history_rows_));
++    OnSuggestPreferenceChanged();
+   }
+ }
+ 
+ void HeliumCommandBarController::OnTemplateURLServiceShuttingDown() {
++  StopSuggestions();
+   template_observation_.Reset();
+ }
+ 
+@@ -150,6 +164,7 @@
+   if (!widget_) {
+     return;
+   }
++  StopSuggestions();
+   // Scope is per-invocation: never leak it into the next opening.
+   scope_keyword_.clear();
+   // Null first: closing runs WindowClosing synchronously, which would
+@@ -233,6 +248,7 @@
+ }
+ 
+ void HeliumCommandBarController::OnQueryChanged(const std::u16string& query) {
++  StopSuggestions();
+   last_query_ = query;
+   if (query.empty()) {
+     last_history_rows_ = history::QueryResults();
+@@ -263,9 +279,12 @@
+   PushItems(CollectResults(
+       query, last_history_rows_.empty() ? nullptr : &last_history_rows_));
+ 
++  StartSuggestions();
++
+   // History is async. Sequence-guard so a slow query from an older keystroke
+   // can never overwrite newer results.
+   history_tracker_.TryCancelAll();
++  ++history_seq_;
+   if (query.empty()) {
+     return;
+   }
+@@ -284,6 +303,45 @@
+       &history_tracker_);
+ }
+ 
++void HeliumCommandBarController::StartSuggestions() {
++  if (!view_) {
++    return;
++  }
++  if (scope_keyword_.empty()) {
++    if (auto split = helium_command_bar_model::SplitKeyword(
++            last_query_, /*require_remainder=*/true)) {
++      auto* service =
++          TemplateURLServiceFactory::GetForProfile(browser_->GetProfile());
++      if (helium_command_bar_model::EngineOwnsKeyword(service, split->keyword)) {
++        suggestions_->Start(split->remainder, split->keyword);
++        return;
++      }
++      if (split->keyword == "tab") {
++        return;
++      }
++    }
++  }
++  suggestions_->Start(last_query_, scope_keyword_);
++}
++
++void HeliumCommandBarController::StopSuggestions() {
++  if (suggestions_) {
++    suggestions_->Stop();
++  }
++}
++
++void HeliumCommandBarController::OnSuggestionsChanged() {
++  if (view_) {
++    PushItems(CollectResults(last_query_, &last_history_rows_));
++  }
++}
++
++void HeliumCommandBarController::OnSuggestPreferenceChanged() {
++  StopSuggestions();
++  OnSuggestionsChanged();
++  StartSuggestions();
++}
++
+ void HeliumCommandBarController::OnHistoryResults(
+     int seq,
+     const std::u16string& query,
+@@ -418,7 +476,7 @@
+     const std::u16string& query,
+     const history::QueryResults* history_rows) {
+   using namespace helium_command_bar_model;
+-  std::vector<HeliumCommandBarItem> items;
++  std::vector<HeliumCommandBarItem> items = suggestions_->items();
+   if (!scope_keyword_.empty()) {
+     // Scoped: the engine search row (or tabs only), plus matching tabs,
+     // bookmarks and history. Everything else stays out of the way.
+@@ -612,6 +670,8 @@
+         }
+       }
+       break;
++    case HeliumCommandBarItem::Type::kSearchSuggestion:
++    case HeliumCommandBarItem::Type::kNavigationSuggestion:
+     case HeliumCommandBarItem::Type::kBookmark:
+     case HeliumCommandBarItem::Type::kHistory:
+     case HeliumCommandBarItem::Type::kUrl:
+--- a/chrome/browser/ui/helium/helium_command_bar_controller.h
++++ b/chrome/browser/ui/helium/helium_command_bar_controller.h
+@@ -19,6 +19,7 @@
+ #include "chrome/browser/ui/helium/helium_command_bar_model.h"
+ #include "components/favicon_base/favicon_types.h"
+ #include "components/history/core/browser/history_types.h"
++#include "components/prefs/pref_change_registrar.h"
+ #include "components/search_engines/template_url_service.h"
+ #include "components/search_engines/template_url_service_observer.h"
+ #include "ui/base/accelerators/accelerator.h"
+@@ -34,6 +35,7 @@
+ }  // namespace views
+ 
+ class HeliumCommandBarView;
++class HeliumCommandBarSuggestions;
+ 
+ // Per-window native command bar (floating URL/command palette).
+ //
+@@ -111,9 +113,14 @@
+ 
+  private:
+   void OnTemplateURLServiceChanged() override;
++  void StartSuggestions();
++  void StopSuggestions();
++  void OnSuggestionsChanged();
++  void OnSuggestPreferenceChanged();
+   void OnTemplateURLServiceShuttingDown() override;
+ 
+   void OnWidgetClosed() {
++    StopSuggestions();
+     widget_ = nullptr;
+     view_ = nullptr;
+     // Same per-invocation rule as Hide(): a focus-loss close must not leak
+@@ -161,6 +168,8 @@
+   // Active scope keyword ("gh", or "tab" for the tabs-only scope). Empty
+   // means mixed results.
+   std::string scope_keyword_;
++  std::unique_ptr<HeliumCommandBarSuggestions> suggestions_;
++  PrefChangeRegistrar suggest_pref_registrar_;
+   int history_seq_ = 0;
+   // Cancels in-flight history queries on each keystroke and on destruction.
+   base::CancelableTaskTracker history_tracker_;
+--- a/chrome/browser/ui/helium/helium_command_bar_model.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_model.cc
+@@ -30,6 +30,11 @@
+ constexpr int kScoreWord = 45;
+ constexpr int kScoreSubstring = 20;
+ constexpr int kScoreTabBoost = 10;
++// Explicit URLs outrank scopes; scopes outrank ordinary typed searches.
++// All stay above local matches and remote suggestions before the result cap.
++constexpr int kScoreSearch = 1000;
++constexpr int kScoreScope = 10000;
++constexpr int kScoreUrl = kScoreScope + 1;
+ 
+ bool IsWordBoundary(char16_t c) {
+   return c == u' ' || c == u'/' || c == u'.' || c == u'-' || c == u'_' ||
+@@ -207,7 +212,7 @@
+     item.title = base::UTF8ToUTF16(url.spec());
+     item.url = url;
+     item.url_spec = url.spec();
+-    item.score = 1;
++    item.score = kScoreUrl;
+     return item;
+   }
+   // Fall back to the default search engine.
+@@ -227,34 +232,37 @@
+   HeliumCommandBarItem item;
+   item.type = HeliumCommandBarItem::Type::kSearch;
+   item.title = query;
++  item.description = provider->short_name();
+   item.url = search_url;
+   item.url_spec = search_url.spec();
+-  item.score = 1;
++  item.score = kScoreSearch;
+   return item;
+ }
+ 
++bool SameItem(const HeliumCommandBarItem& a, const HeliumCommandBarItem& b) {
++  return a.type == b.type && a.url == b.url && a.tab_index == b.tab_index &&
++         a.command == b.command && a.site_keyword == b.site_keyword;
++}
++
+ void SortAndCap(std::vector<HeliumCommandBarItem>& items) {
++  // Locally known destinations retain their action (especially Switch to Tab).
++  // A remote suggestion must not duplicate the typed search or an existing URL.
++  const auto all_items = items;
++  std::erase_if(items, [&all_items](const HeliumCommandBarItem& item) {
++    if (item.type != HeliumCommandBarItem::Type::kSearchSuggestion &&
++        item.type != HeliumCommandBarItem::Type::kNavigationSuggestion) {
++      return false;
++    }
++    return std::ranges::any_of(all_items, [&item](const auto& other) {
++      return other.type != HeliumCommandBarItem::Type::kSearchSuggestion &&
++             other.type != HeliumCommandBarItem::Type::kNavigationSuggestion &&
++             other.url.is_valid() && other.url == item.url;
++    });
++  });
+   std::ranges::stable_sort(items, [](const HeliumCommandBarItem& a,
+                                      const HeliumCommandBarItem& b) {
+     return a.score > b.score;
+   });
+-  // Promote before capping: otherwise a crowded tab/history list can remove
+-  // the action for the text the user actually typed. Explicit URLs come first;
+-  // searches leave the best matching tab/command/scope first, and come second.
+-  const auto direct = std::ranges::find_if(items, [](const auto& item) {
+-    return item.type == HeliumCommandBarItem::Type::kUrl ||
+-           item.type == HeliumCommandBarItem::Type::kSearch;
+-  });
+-  if (direct != items.end()) {
+-    const auto target =
+-        items.begin() + (direct->type == HeliumCommandBarItem::Type::kSearch &&
+-                                 direct != items.begin()
+-                             ? 1
+-                             : 0);
+-    if (direct > target) {
+-      std::rotate(target, direct, direct + 1);
+-    }
+-  }
+   if (items.size() > kMaxResults) {
+     items.resize(kMaxResults);
+   }
+@@ -309,7 +317,7 @@
+     item.title = u"Search open tabs for \"" + remainder + u"\"";
+   }
+   // Pinned above everything: typing the scope means scoping.
+-  item.score = 10000;
++  item.score = kScoreScope;
+   return item;
+ }
+ 
+@@ -338,7 +346,7 @@
+     item.icon_url = provider->favicon_url();
+   }
+   // Pinned above everything: typing the keyword means scoping.
+-  item.score = 10000;
++  item.score = kScoreScope;
+   return item;
+ }
+ 
+--- a/chrome/browser/ui/helium/helium_command_bar_model.h
++++ b/chrome/browser/ui/helium/helium_command_bar_model.h
+@@ -34,6 +34,8 @@
+     kUrl,
+     kSearch,
+     kSiteSearch,
++    kSearchSuggestion,
++    kNavigationSuggestion,
+   };
+ 
+   enum class Command {
+@@ -46,6 +48,7 @@
+ 
+   Type type;
+   std::u16string title;
++  std::u16string description;
+   // Display URL (empty for commands and the search row until composed).
+   std::string url_spec;
+   GURL url;
+@@ -67,7 +70,7 @@
+ 
+ namespace helium_command_bar_model {
+ 
+-// Maximum rows shown. Extras are clipped, never scrolled.
++// Maximum results; the native menu scrolls after five visible rows.
+ inline constexpr size_t kMaxResults = 9;
+ 
+ // Scores |text| (already lowercased title or URL) against |query|
+@@ -132,6 +135,8 @@
+     Profile* profile,
+     const std::u16string& query);
+ 
++// Stable activation identity across asynchronous result updates.
++bool SameItem(const HeliumCommandBarItem& a, const HeliumCommandBarItem& b);
+ void SortAndCap(std::vector<HeliumCommandBarItem>& items);
+ 
+ }  // namespace helium_command_bar_model
+--- /dev/null
++++ b/chrome/browser/ui/helium/helium_command_bar_suggestions.cc
+@@ -0,0 +1,151 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/ui/helium/helium_command_bar_suggestions.h"
++
++#include <algorithm>
++
++#include "base/strings/utf_string_conversions.h"
++#include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
++#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/search_engines/template_url_service_factory.h"
++#include "chrome/common/pref_names.h"
++#include "components/omnibox/browser/autocomplete_input.h"
++#include "components/omnibox/browser/search_provider.h"
++#include "components/prefs/pref_service.h"
++#include "components/search_engines/template_url.h"
++#include "components/search_engines/template_url_service.h"
++
++namespace {
++
++class SuggestionsClient : public ChromeAutocompleteProviderClient {
++ public:
++  explicit SuggestionsClient(Profile* profile)
++      : ChromeAutocompleteProviderClient(profile) {}
++  // Cmd-T already queries its local history. Do not add search-history matches
++  // or fetch remote suggestion images merely because a row became visible.
++  history::URLDatabase* GetInMemoryDatabase() override { return nullptr; }
++  void PrefetchImage(const GURL&) override {}
++  GeolocationHeaderService* GetGeolocationHeaderService() const override {
++    return nullptr;
++  }
++};
++
++bool IsRemoteSuggestion(omnibox::AutocompleteMatchType type) {
++  switch (type) {
++    case omnibox::AutocompleteMatchType::kSearchSuggest:
++    case omnibox::AutocompleteMatchType::kSearchSuggestEntity:
++    case omnibox::AutocompleteMatchType::kSearchSuggestTail:
++    case omnibox::AutocompleteMatchType::kSearchSuggestPersonalized:
++    case omnibox::AutocompleteMatchType::kNavsuggest:
++    case omnibox::AutocompleteMatchType::kNavsuggestPersonalized:
++      return true;
++    default:
++      return false;
++  }
++}
++
++}  // namespace
++
++HeliumCommandBarSuggestions::HeliumCommandBarSuggestions(
++    Profile* profile, base::RepeatingClosure changed)
++    : profile_(profile), changed_(std::move(changed)),
++      client_(std::make_unique<SuggestionsClient>(profile)),
++      provider_(base::MakeRefCounted<SearchProvider>(client_.get(), this)) {}
++
++HeliumCommandBarSuggestions::~HeliumCommandBarSuggestions() {
++  Stop();
++}
++
++void HeliumCommandBarSuggestions::Stop() {
++  // Clear the previous query as well as its timers and loaders. SearchProvider
++  // cannot deliver a cancelled response to a new query or a reopened palette.
++  provider_->Stop(AutocompleteStopReason::kClobbered);
++  engine_keyword_.clear();
++  keyword_mode_ = false;
++  items_.clear();
++}
++
++void HeliumCommandBarSuggestions::Start(const std::u16string& query,
++                                      const std::string& keyword) {
++  Stop();
++  if (query.empty() || (keyword.empty() && query.starts_with(u"!")) ||
++      profile_->IsOffTheRecord() ||
++      !profile_->GetPrefs()->GetBoolean(prefs::kSearchSuggestEnabled)) {
++    return;
++  }
++  auto* service = TemplateURLServiceFactory::GetForProfile(profile_);
++  if (!service || !service->loaded()) {
++    return;
++  }
++  const TemplateURL* engine = keyword.empty()
++      ? service->GetDefaultSearchProvider()
++      : service->GetTemplateURLForKeyword(base::UTF8ToUTF16(keyword));
++  if (!engine || engine->suggestions_url().empty() ||
++      !engine->SupportsReplacement(service->search_terms_data())) {
++    return;
++  }
++  engine_keyword_ = engine->keyword();
++  keyword_mode_ = !keyword.empty();
++  AutocompleteInput input(
++      keyword.empty() ? query : engine_keyword_ + u" " + query,
++      metrics::OmniboxEventProto::OTHER,
++      ChromeAutocompleteSchemeClassifier(profile_));
++  input.set_prevent_inline_autocomplete(true);
++  input.set_allow_exact_keyword_match(!keyword.empty());
++  // SearchProvider suppresses the default-engine request in keyword mode.
++  // A bang without a suggestions URL returns above, never falling back.
++  input.set_in_keyword_mode(!keyword.empty());
++  provider_->Start(input, false);
++  UpdateItems();
++}
++
++void HeliumCommandBarSuggestions::OnProviderUpdate(
++    bool updated_matches, const AutocompleteProvider* provider) {
++  if (updated_matches) {
++    UpdateItems();
++  }
++}
++
++void HeliumCommandBarSuggestions::UpdateItems() {
++  items_.clear();
++  auto* service = TemplateURLServiceFactory::GetForProfile(profile_);
++  const auto* engine = service
++      ? service->GetTemplateURLForKeyword(engine_keyword_) : nullptr;
++  if (engine && profile_->GetPrefs()->GetBoolean(prefs::kSearchSuggestEnabled)) {
++    int score = 60;
++    for (const auto& match : provider_->matches()) {
++      // Navigation matches carry from_keyword, but have no keyword string.
++      // Search matches also name their engine; check both without discarding
++      // the website hits supplied by the selected engine.
++      if (!IsRemoteSuggestion(match.type) ||
++          match.from_keyword != keyword_mode_ ||
++          (AutocompleteMatch::IsSearchType(match.type) &&
++           match.keyword != engine_keyword_) ||
++          !match.destination_url.SchemeIsHTTPOrHTTPS()) {
++        continue;
++      }
++      if (std::ranges::any_of(items_, [&match](const auto& item) {
++            return item.url == match.destination_url;
++          })) {
++        continue;
++      }
++      const bool search = AutocompleteMatch::IsSearchType(match.type);
++      HeliumCommandBarItem item;
++      item.type = search ? HeliumCommandBarItem::Type::kSearchSuggestion
++                         : HeliumCommandBarItem::Type::kNavigationSuggestion;
++      item.title = !search && !match.description.empty()
++          ? match.description : match.contents;
++      item.url = match.destination_url;
++      item.url_spec = item.url.spec();
++      item.description = search ? engine->short_name()
++                                : base::UTF8ToUTF16(item.url_spec);
++      item.icon_url = search ? engine->favicon_url() : GURL();
++      item.score = score--;
++      items_.push_back(std::move(item));
++    }
++  }
++  changed_.Run();
++}
+--- /dev/null
++++ b/chrome/browser/ui/helium/helium_command_bar_suggestions.h
+@@ -0,0 +1,45 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_HELIUM_HELIUM_COMMAND_BAR_SUGGESTIONS_H_
++#define CHROME_BROWSER_UI_HELIUM_HELIUM_COMMAND_BAR_SUGGESTIONS_H_
++
++#include <memory>
++#include <string>
++#include <vector>
++
++#include "base/functional/callback.h"
++#include "base/memory/raw_ptr.h"
++#include "base/memory/scoped_refptr.h"
++#include "chrome/browser/ui/helium/helium_command_bar_model.h"
++#include "components/omnibox/browser/autocomplete_provider_listener.h"
++
++class ChromeAutocompleteProviderClient;
++class Profile;
++
++// Remote search results only. Local providers and direct actions belong to the
++// command bar; Chromium owns suggestion requests, parsing and privacy gates.
++class HeliumCommandBarSuggestions : public AutocompleteProviderListener {
++ public:
++  HeliumCommandBarSuggestions(Profile* profile, base::RepeatingClosure changed);
++  ~HeliumCommandBarSuggestions() override;
++  void Start(const std::u16string& query, const std::string& keyword);
++  void Stop();
++  const std::vector<HeliumCommandBarItem>& items() const { return items_; }
++
++ private:
++  void OnProviderUpdate(bool updated_matches,
++                        const AutocompleteProvider* provider) override;
++  void UpdateItems();
++
++  raw_ptr<Profile> profile_;
++  base::RepeatingClosure changed_;
++  std::unique_ptr<ChromeAutocompleteProviderClient> client_;
++  scoped_refptr<AutocompleteProvider> provider_;
++  std::u16string engine_keyword_;
++  bool keyword_mode_ = false;
++  std::vector<HeliumCommandBarItem> items_;
++};
++
++#endif  // CHROME_BROWSER_UI_HELIUM_HELIUM_COMMAND_BAR_SUGGESTIONS_H_
+--- a/chrome/browser/ui/helium/helium_command_bar_view.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_view.cc
+@@ -59,7 +59,10 @@
+     case HeliumCommandBarItem::Type::kUrl:
+       return "Open";
+     case HeliumCommandBarItem::Type::kSearch:
++    case HeliumCommandBarItem::Type::kSearchSuggestion:
+       return "Search";
++    case HeliumCommandBarItem::Type::kNavigationSuggestion:
++      return "Top hit";
+     case HeliumCommandBarItem::Type::kSiteSearch:
+       return "Scope";
+   }
+@@ -115,7 +118,8 @@
+     const bool has_subtitle = !item.url_spec.empty();
+     views::Label* url = nullptr;
+     if (has_subtitle) {
+-      const std::u16string subtitle = base::UTF8ToUTF16(item.url_spec);
++      const std::u16string subtitle = item.description.empty()
++          ? base::UTF8ToUTF16(item.url_spec) : item.description;
+       url = text->AddChildView(std::make_unique<views::Label>(
+           subtitle, views::style::CONTEXT_LABEL,
+           views::style::STYLE_SECONDARY));
+@@ -295,7 +299,20 @@
+     std::optional<size_t> scope_hint) {
+   scope_hint_ = scope_hint;
+   results_->RemoveAllChildViews();
++  std::optional<HeliumCommandBarItem> selected;
++  if (selected_ < displayed_items_.size()) {
++    selected = displayed_items_[selected_];
++  }
+   selected_ = 0;
++  if (selected) {
++    for (size_t i = 0; i < items.size(); ++i) {
++      if (helium_command_bar_model::SameItem(*selected, items[i])) {
++        selected_ = i;
++        break;
++      }
++    }
++  }
++  displayed_items_ = items;
+   for (size_t i = 0; i < items.size(); ++i) {
+     auto row = std::make_unique<ResultRowView>(
+         items[i],
+--- a/chrome/browser/ui/helium/helium_command_bar_view.h
++++ b/chrome/browser/ui/helium/helium_command_bar_view.h
+@@ -105,6 +105,7 @@
+   raw_ptr<views::Label> scope_bar_ = nullptr;
+   std::optional<size_t> scope_hint_;
+   size_t selected_ = 0;
++  std::vector<HeliumCommandBarItem> displayed_items_;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_HELIUM_HELIUM_COMMAND_BAR_VIEW_H_
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -68,7 +68,10 @@
+     case HeliumCommandBarItem::Type::kUrl:
+       return @"New tab";
+     case HeliumCommandBarItem::Type::kSearch:
++    case HeliumCommandBarItem::Type::kSearchSuggestion:
+       return @"Search";
++    case HeliumCommandBarItem::Type::kNavigationSuggestion:
++      return @"Top hit";
+     case HeliumCommandBarItem::Type::kSiteSearch:
+       return @"Search site";
+   }
+@@ -423,7 +426,20 @@
+     [row removeFromSuperview];
+   }
+   [native_->pane.rows removeAllObjects];
++  std::optional<HeliumCommandBarItem> selected;
++  if (selected_ < displayed_items_.size()) {
++    selected = displayed_items_[selected_];
++  }
+   selected_ = 0;
++  if (selected) {
++    for (size_t i = 0; i < items.size(); ++i) {
++      if (helium_command_bar_model::SameItem(*selected, items[i])) {
++        selected_ = i;
++        break;
++      }
++    }
++  }
++  displayed_items_ = items;
+   for (size_t i = 0; i < items.size(); ++i) {
+     const auto& item = items[i];
+     HeliumNativeResultRow* row = [[HeliumNativeResultRow alloc] init];
+@@ -431,10 +447,13 @@
+     row.title = @"";
+     row.tag = i;
+     row.primaryText = base::SysUTF16ToNSString(item.title);
+-    row.secondaryText = base::SysUTF8ToNSString(item.url_spec);
++    row.secondaryText = item.description.empty()
++        ? base::SysUTF8ToNSString(item.url_spec)
++        : base::SysUTF16ToNSString(item.description);
+     row.tagText = TagForType(item.type);
+     NSString* symbol =
+         item.type == HeliumCommandBarItem::Type::kSearch ||
++                item.type == HeliumCommandBarItem::Type::kSearchSuggestion ||
+                 item.type == HeliumCommandBarItem::Type::kSiteSearch
+             ? @"magnifyingglass"
+             : @"globe";
+@@ -453,7 +472,10 @@
+   UpdateRowHighlight();
+   ResizeToContents();
+   [native_->pane layoutSubtreeIfNeeded];
+-  [native_->pane.results scrollPoint:NSZeroPoint];
++  if (selected_ < native_->pane.rows.count) {
++    HeliumNativeResultRow* row = native_->pane.rows[selected_];
++    [row scrollRectToVisible:row.bounds];
++  }
+ }
+ void HeliumCommandBarView::ResizeToContents() {
+   if (!GetWidget()) {
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -28,6 +28,7 @@
+ #include "chrome/browser/headless/headless_mode_util.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/search_engines/template_url_service_factory.h"
+ #include "chrome/browser/profiles/profile_observer.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/themes/theme_service.h"
+@@ -89,6 +90,7 @@
+ #include "components/omnibox/browser/autocomplete_input.h"
+ #include "components/omnibox/browser/location_bar_model.h"
+ #include "components/prefs/pref_service.h"
++#include "components/prefs/pref_change_registrar.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "content/public/browser/navigation_controller.h"
+@@ -1459,6 +1461,7 @@
+ - (CGFloat)preferredHeight;
+ - (CGFloat)horizontalOutset;
+ - (void)updateSuggestions;
++- (void)reloadSuggestions;
+ - (void)acceptAddress;
+ - (BOOL)dismissSiteInfo;
+ - (void)siteInfoClosing;
+@@ -1474,6 +1477,11 @@
+                                   Profile* profile)
+       : owner_(owner) {
+     profile_observation_.Observe(profile);
++    suggest_prefs_.Init(profile->GetPrefs());
++    suggest_prefs_.Add(
++        prefs::kSearchSuggestEnabled,
++        base::BindRepeating(&HeliumGlassAutocompleteObserver::OnSuggestChanged,
++                            base::Unretained(this)));
+   }
+   void OnProfileWillBeDestroyed(Profile*) override {
+     profile_observation_.Reset();
+@@ -1484,6 +1492,8 @@
+   }
+ 
+  private:
++  void OnSuggestChanged() { [owner_ reloadSuggestions]; }
++  PrefChangeRegistrar suggest_prefs_;
+   HeliumFloatingAddressBar* __weak owner_;
+   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
+ };
+@@ -1821,6 +1831,16 @@
+   input.set_current_url(
+       LocationBarModel::From(_browserView->browser())->GetURL());
+   input.set_prevent_inline_autocomplete(true);
++  // A recognized engine query belongs only to that engine. Chromium otherwise
++  // also sends its full keyword-prefixed text to the default suggest server.
++  AutocompleteInput keyword_input(input);
++  if (auto* service = TemplateURLServiceFactory::GetForProfile(
++          _browserView->GetProfile());
++      service && AutocompleteInput::GetSubstitutingTemplateURLForInput(
++                     service, &keyword_input) &&
++      !keyword_input.text().empty()) {
++    input.set_in_keyword_mode(true);
++  }
+   _selected = 0;
+   _autocomplete->Start(input);
+ }
+@@ -1857,6 +1877,16 @@
+   });
+ }
+ 
++- (void)reloadSuggestions {
++  if (!_editing || !_browserView) {
++    return;
++  }
++  _autocomplete->Stop(AutocompleteStopReason::kClobbered);
++  _matches.clear();
++  [self controlTextDidChange:[NSNotification
++      notificationWithName:NSControlTextDidChangeNotification object:_address]];
++}
++
+ - (void)updateSuggestions {
+   if (!_editing || !_browserView) {
+     return;
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -2016,6 +2016,7 @@
+       "//chrome/browser/headless",
+       "//chrome/browser/picture_in_picture",
+       "//chrome/browser/profiles:profile",
++      "//chrome/browser/search_engines",
+       "//chrome/browser/themes",
+       "//chrome/browser/ui:browser_commands",
+       "//chrome/browser/ui:fullscreen_util_mac",

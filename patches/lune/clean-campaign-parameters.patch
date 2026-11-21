@@ -1,0 +1,47 @@
+--- a/net/base/tracking_query.cc
++++ b/net/base/tracking_query.cc
+@@ -467,7 +467,7 @@
+ }
+ 
+ std::optional<GURL> StripTrackingQuery(const GURL& url,
+-                                      TrackingQueryAction action,
++                                      TrackingQueryAction,
+                                       const TrackingQueryRules* rules,
+                                       base::span<const std::string> excluded_domains) {
+   if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() || url.query().empty() ||
+@@ -517,8 +517,7 @@
+     const auto value = equals == std::string_view::npos
+                            ? std::string_view()
+                            : field.substr(equals + 1);
+-    if ((action == TrackingQueryAction::kNavigate && name.starts_with("utm_")) ||
+-        !data.ShouldRemove(url, candidate.spec(), key, value)) {
++    if (!data.ShouldRemove(url, candidate.spec(), key, value)) {
+       kept.push_back(field);
+     }
+   }
+--- a/net/base/tracking_query_unittest.cc
++++ b/net/base/tracking_query_unittest.cc
+@@ -22,13 +22,18 @@
+             GURL("https://example.test/#details"));
+ }
+ 
+-TEST(TrackingQueryTest, RemovesCampaignTagsOnCopy) {
+-  const GURL url("https://example.test/?utm_source=mail&id=7&s=price");
++TEST(TrackingQueryTest, RemovesMatchedCampaignTags) {
++  const GURL url(
++      "https://example.test/?utm_source=mail&id=7&s=price&utm_unlisted=keep");
+   auto rules = TrackingQueryRules::FromDownloadedList("$removeparam=utm_source");
+   ASSERT_TRUE(rules);
+-  EXPECT_FALSE(StripTrackingQuery(url, TrackingQueryAction::kNavigate, rules.get()));
+-  EXPECT_EQ(StripTrackingQuery(url, TrackingQueryAction::kCopy, rules.get()),
+-            GURL("https://example.test/?id=7&s=price"));
++  for (const auto action :
++       {TrackingQueryAction::kNavigate, TrackingQueryAction::kCopy}) {
++    EXPECT_EQ(StripTrackingQuery(url, action, rules.get()),
++              GURL("https://example.test/?id=7&s=price&utm_unlisted=keep"));
++    EXPECT_FALSE(StripTrackingQuery(
++        GURL("https://uploadnow.io/share?utm_source=service&keep=1"), action));
++  }
+ }
+ 
+ TEST(TrackingQueryTest, RestrictsShareIdentifiersToDocumentedSites) {

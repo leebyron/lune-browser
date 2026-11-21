@@ -1,0 +1,112 @@
+--- a/chrome/browser/ui/tabs/older_tabs_controller.cc
++++ b/chrome/browser/ui/tabs/older_tabs_controller.cc
+@@ -488,7 +488,12 @@
+     }
+     auto& data = Get(tab);
+     if (completed && (!IsOlder(tab) || data.drag_regular)) {
+-      ReturnToRegular(data, base::Time::Now());
++      // Placement is not page use, including a batch drag that ends where it
++      // began or only moves the window. Crossing out of Older is an explicit
++      // Keep action; ordinary rearrangement preserves both inactivity clocks.
++      if (IsOlder(tab)) {
++        ReturnToRegular(data, base::Time::Now());
++      }
+       AssignOrder(tab);
+     }
+     if ((!completed || (IsOlder(tab) && !data.drag_regular)) &&
+@@ -747,8 +752,9 @@
+     if (IsOlder(contents)) {
+       ReturnToRegular(Get(contents), base::Time::Now());
+     }
++    // Reordering through the model (including extension and group moves)
++    // changes placement only. Activation below records actual tab use.
+     AssignOrder(contents);
+-    Interact(contents);
+   }
+   if (selection.active_tab_changed() && selection.new_contents) {
+     Interact(selection.new_contents);
+--- a/chrome/browser/ui/tabs/tab_strip_model_unittest.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model_unittest.cc
+@@ -8793,6 +8793,12 @@
+              base::JSON_PARSE_RFC)
+       .value();
+ }
++void ExpectCleanupClocksEqual(const base::DictValue& before,
++                              const base::DictValue& after) {
++  for (const char* key : {"id", "last_use", "age", "close_clock", "frozen"}) {
++    EXPECT_EQ(*before.Find(key), *after.Find(key)) << key;
++  }
++}
+ }  // namespace
+ 
+ TEST_F(TabStripModelTest, OlderInteractionOnlyExtendsRetention) {
+@@ -8870,6 +8876,69 @@
+   EXPECT_EQ(c, tabstrip()->GetWebContentsAt(1));
+ }
+ 
++TEST_F(TabStripModelTest, CompletedRegularBatchDragPreservesClocks) {
++  PrepareTabs(tabstrip(), 4);
++  std::vector<WebContents*> contents;
++  std::vector<base::DictValue> before;
++  for (int i = 0; i < tabstrip()->count(); ++i) {
++    auto* tab = tabstrip()->GetWebContentsAt(i);
++    tabs::OlderTabsController::Restore(tab, CleanupFixture(tab, i + 1, false),
++                                       true);
++    contents.push_back(tab);
++    before.push_back(CleanupState(tab));
++  }
++  // Selecting all tabs and completing a drag can leave every model index
++  // unchanged. It must not give the entire window another aging cycle.
++  tabstrip()->older_tabs_controller()->FinishDrag(contents, true);
++  for (size_t i = 0; i < contents.size(); ++i) {
++    EXPECT_EQ(contents[i], tabstrip()->GetWebContentsAt(i));
++    ExpectCleanupClocksEqual(before[i], CleanupState(contents[i]));
++  }
++}
++
++TEST_F(TabStripModelTest, RegularModelReorderPreservesClocks) {
++  PrepareTabs(tabstrip(), 3);
++  auto* contents = tabstrip()->GetWebContentsAt(1);
++  tabs::OlderTabsController::Restore(contents,
++                                     CleanupFixture(contents, 2, false), true);
++  const auto before = CleanupState(contents);
++  tabstrip()->MoveWebContentsAt(1, 2, false);
++  EXPECT_EQ(contents, tabstrip()->GetWebContentsAt(2));
++  ExpectCleanupClocksEqual(before, CleanupState(contents));
++  tabstrip()->MoveWebContentsAt(2, 1, false);
++  ExpectCleanupClocksEqual(before, CleanupState(contents));
++}
++
++TEST_F(TabStripModelTest, RegularDragChangesPlacementWithoutFreshening) {
++  PrepareTabs(tabstrip(), 3);
++  auto* contents = tabstrip()->GetWebContentsAt(1);
++  tabs::OlderTabsController::Restore(contents,
++                                     CleanupFixture(contents, 2, false), true);
++  const auto before = CleanupState(contents);
++  auto* controller = tabstrip()->older_tabs_controller();
++  controller->SetDragDestination(contents, true);
++  tabstrip()->MoveWebContentsAt(1, 0, false);
++  controller->FinishDrag({contents}, true);
++  EXPECT_EQ(contents, tabstrip()->GetWebContentsAt(0));
++  const auto after = CleanupState(contents);
++  ExpectCleanupClocksEqual(before, after);
++  EXPECT_NE(*before.Find("order"), *after.Find("order"));
++}
++
++TEST_F(TabStripModelTest, RegularInteractionStillResetsInactivity) {
++  PrepareTabs(tabstrip(), 2);
++  auto* contents = tabstrip()->GetWebContentsAt(1);
++  tabs::OlderTabsController::Restore(contents,
++                                     CleanupFixture(contents, 2, false), true);
++  const auto before = CleanupState(contents);
++  tabstrip()->older_tabs_controller()->Interact(contents);
++  const auto after = CleanupState(contents);
++  EXPECT_NE(*before.Find("age"), *after.Find("age"));
++  EXPECT_NE(*before.Find("last_use"), *after.Find("last_use"));
++  EXPECT_EQ(*after.Find("age"), *after.Find("last_use"));
++  EXPECT_FALSE(tabs::OlderTabsController::IsOlder(contents));
++}
++
+ TEST_F(TabStripModelTest, CanceledOlderDragRetainsClocksAndMembership) {
+   PrepareTabs(tabstrip(), 3);
+   auto* contents = tabstrip()->GetWebContentsAt(1);

@@ -1,0 +1,518 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -18,6 +18,7 @@
+ #include "base/metrics/histogram_macros.h"
+ #include "base/numerics/safe_conversions.h"
+ #include "base/scoped_observation.h"
++#include "base/strings/string_util.h"
+ #include "base/strings/sys_string_conversions.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/time/time.h"
+@@ -41,6 +42,7 @@
+ #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
+ #include "chrome/browser/ui/fullscreen_util_mac.h"
+ #include "chrome/browser/ui/helium/helium_command_bar_controller.h"
++#include "chrome/browser/ui/helium/helium_command_bar_model.h"
+ #include "chrome/browser/ui/helium/helium_command_symbols.h"
+ #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
+ #include "chrome/browser/ui/helium/native_result_row_mac.h"
+@@ -93,6 +95,8 @@
+ #include "components/prefs/pref_change_registrar.h"
+ #include "components/prefs/pref_service.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
++#include "components/search_engines/template_url_service.h"
++#include "components/search_engines/template_url_service_observer.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/navigation_entry.h"
+@@ -1465,6 +1469,11 @@
+ - (void)updateSuggestions;
+ - (void)reloadSuggestions;
+ - (void)acceptAddress;
++- (void)layoutScope;
++- (void)enterBang:(const std::string &)keyword
++            query:(const std::u16string &)query
++            typed:(BOOL)typed;
++- (void)leaveBangRestoringTrigger:(BOOL)restore;
+ - (BOOL)dismissSiteInfo;
+ - (void)siteInfoClosing;
+ - (void)shutdown;
+@@ -1473,12 +1482,17 @@
+ // Keep the native editor on Chromium's profile-aware autocomplete providers.
+ // The weak Objective-C owner avoids a view/controller ownership cycle.
+ class HeliumGlassAutocompleteObserver : public AutocompleteController::Observer,
+-                                        public ProfileObserver {
+- public:
++                                        public ProfileObserver,
++                                        public TemplateURLServiceObserver {
++public:
+   HeliumGlassAutocompleteObserver(HeliumFloatingAddressBar* owner,
+                                   Profile* profile)
+       : owner_(owner) {
+     profile_observation_.Observe(profile);
++    if (auto *service = TemplateURLServiceFactory::GetForProfile(profile)) {
++      template_observation_.Observe(service);
++      service->Load();
++    }
+     suggest_prefs_.Init(profile->GetPrefs());
+     suggest_prefs_.Add(
+         prefs::kSearchSuggestEnabled,
+@@ -1486,15 +1500,22 @@
+                             base::Unretained(this)));
+   }
+   void OnProfileWillBeDestroyed(Profile*) override {
++    template_observation_.Reset();
+     profile_observation_.Reset();
+     [owner_ shutdown];
+   }
++  void OnTemplateURLServiceChanged() override { [owner_ reloadSuggestions]; }
++  void OnTemplateURLServiceShuttingDown() override {
++    template_observation_.Reset();
++  }
+   void OnResultChanged(AutocompleteController*, bool) override {
+     [owner_ updateSuggestions];
+   }
+ 
+  private:
+   void OnSuggestChanged() { [owner_ reloadSuggestions]; }
++  base::ScopedObservation<TemplateURLService, TemplateURLServiceObserver>
++      template_observation_{this};
+   PrefChangeRegistrar suggest_prefs_;
+   HeliumFloatingAddressBar* __weak owner_;
+   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
+@@ -1522,6 +1543,11 @@
+   base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{this};
+ };
+ 
++struct HeliumAddressResult {
++  AutocompleteMatch match;
++  std::optional<HeliumCommandBarItem> bang;
++};
++
+ @implementation HeliumFloatingAddressBar {
+   base::WeakPtr<BrowserView> _browserView;
+   HeliumGlassAddressField* _address;
+@@ -1529,7 +1555,11 @@
+   NSMutableArray<NSButton*>* _suggestions;
+   std::unique_ptr<AutocompleteController> _autocomplete;
+   std::unique_ptr<HeliumGlassAutocompleteObserver> _observer;
+-  std::vector<AutocompleteMatch> _matches;
++  std::vector<HeliumAddressResult> _results;
++  std::string _scopeKeyword;
++  BOOL _scopeWasTyped;
++  BOOL _selectionIsExplicit;
++  HeliumNativeScopePill *_scopePill;
+   NSInteger _selected;
+   BOOL _editing;
+   id _keyMonitor;
+@@ -1585,6 +1615,9 @@
+       NSMakeRect(40, (36 - fieldHeight) / 2, 400, fieldHeight);
+   _address.frame = _addressContainer.bounds;
+   [_addressContainer addSubview:_address];
++  _scopePill = [[HeliumNativeScopePill alloc] init];
++  _scopePill.hidden = YES;
++  [_controls addSubview:_scopePill];
+   _suggestions = [[NSMutableArray alloc] init];
+   _autocomplete = std::make_unique<AutocompleteController>(
+       std::make_unique<ChromeAutocompleteProviderClient>(
+@@ -1666,8 +1699,10 @@
+   if (!_editing) {
+     _address.stringValue = base::SysUTF16ToNSString(display);
+   }
+-  _address.placeholderString =
+-      base::SysUTF16ToNSString(l10n_util::GetStringUTF16(IDS_ACCNAME_LOCATION));
++  if (_scopeKeyword.empty()) {
++    _address.placeholderString = base::SysUTF16ToNSString(
++        l10n_util::GetStringUTF16(IDS_ACCNAME_LOCATION));
++  }
+   _address.toolTip = base::SysUTF16ToNSString(model->GetFormattedFullURL());
+   _address.accessibilityLabel =
+       base::SysUTF16ToNSString(l10n_util::GetStringUTF16(IDS_ACCNAME_LOCATION));
+@@ -1715,6 +1750,7 @@
+         _address.cell.cellSize.width, standard_width, NSWidth(field_bounds));
+   }
+   _address.frame = field_bounds;
++  [self layoutScope];
+   self.contentAware = _browserView->GetProfile()->GetPrefs()->GetBoolean(
+       prefs::kHeliumContentAwareChrome);
+   self.appearance = FloatingChromeAppearance(_browserView.get());
+@@ -1743,7 +1779,7 @@
+     _autocomplete->RemoveObserver(_observer.get());
+     _autocomplete.reset();
+   }
+-  _matches.clear();
++  _results.clear();
+ }
+ 
+ - (void)dealloc {
+@@ -1761,19 +1797,24 @@
+ 
+ - (CGFloat)horizontalOutset {
+   // Expand around the fixed header controls to align the padded result rows.
+-  return _matches.empty() ? 0 : kHeliumNativeResultInset + 2;
++  return _results.empty() ? 0 : kHeliumNativeResultInset + 2;
+ }
+ 
+ - (CGFloat)preferredHeight {
+   // Keep 4 pt between the editor and the first result, and 8 pt below the list.
+-  return 36 + (_matches.empty() ? 0 : 4 + kHeliumNativeResultInset +
+-                                         kHeliumNativeResultRowHeight * _matches.size());
++  return 36 + (_results.empty()
++                   ? 0
++                   : 4 + kHeliumNativeResultInset +
++                         kHeliumNativeResultRowHeight * _results.size());
+ }
+ 
+ - (void)beginEditing {
+   if (!_browserView) {
+     return;
+   }
++  _scopeKeyword.clear();
++  _scopeWasTyped = NO;
++  _scopePill.hidden = YES;
+   const BOOL firstFocus = !_editing;
+   const CGFloat display_width = NSWidth(_address.bounds);
+   const CGFloat textWidth =
+@@ -1822,29 +1863,105 @@
+   }
+ }
+ 
+-- (void)controlTextDidChange:(NSNotification*)notification {
+-  if (!_browserView) {
++- (void)layoutScope {
++  if (_scopeKeyword.empty()) {
++    _scopePill.hidden = YES;
++    return;
++  }
++  _scopePill.hidden = NO;
++  const CGFloat width = std::min(_scopePill.fittingSize.width,
++                                 NSWidth(_addressContainer.bounds) * .4);
++  _scopePill.frame = NSMakeRect(NSMinX(_addressContainer.frame), 4, width, 28);
++  NSRect field = _addressContainer.bounds;
++  field.origin.x = width + 8;
++  field.size.width = std::max<CGFloat>(0, field.size.width - field.origin.x);
++  _address.frame = field;
++}
++
++- (void)enterBang:(const std::string &)keyword
++            query:(const std::u16string &)query
++            typed:(BOOL)typed {
++  if (!_browserView)
++    return;
++  auto *service =
++      TemplateURLServiceFactory::GetForProfile(_browserView->GetProfile());
++  if (!keyword.starts_with("!") ||
++      !helium_command_bar_model::EngineOwnsKeyword(service, keyword))
++    return;
++  _scopeKeyword = keyword;
++  _scopeWasTyped = typed;
++  _scopePill.label.stringValue = base::SysUTF16ToNSString(
++      helium_command_bar_model::SiteScopeName(service, keyword));
++  _address.placeholderString =
++      [@"Search " stringByAppendingString:_scopePill.label.stringValue];
++  _address.stringValue = base::SysUTF16ToNSString(query);
++  [self layoutScope];
++  [self.window makeFirstResponder:_address];
++  [_address selectText:nil];
++  [self controlTextDidChange:nil];
++}
++
++- (void)leaveBangRestoringTrigger:(BOOL)restore {
++  const std::u16string keyword = restore && _scopeWasTyped
++                                     ? base::UTF8ToUTF16(_scopeKeyword)
++                                     : std::u16string();
++  const std::u16string query = base::SysNSStringToUTF16(_address.stringValue);
++  const std::u16string text =
++      keyword.empty() ? query : keyword + (query.empty() ? u"" : u" " + query);
++  _scopeKeyword.clear();
++  _scopeWasTyped = NO;
++  _scopePill.hidden = YES;
++  _address.frame = _addressContainer.bounds;
++  _address.placeholderString =
++      base::SysUTF16ToNSString(l10n_util::GetStringUTF16(IDS_ACCNAME_LOCATION));
++  _address.stringValue = base::SysUTF16ToNSString(text);
++  [_address selectText:nil];
++  _address.currentEditor.selectedRange = NSMakeRange(keyword.size(), 0);
++  [self controlTextDidChange:nil];
++}
++
++- (void)controlTextDidChange:(NSNotification *)notification {
++  if (!_browserView)
++    return;
++  _selected = 0;
++  _selectionIsExplicit = NO;
++  const std::u16string query = base::SysNSStringToUTF16(_address.stringValue);
++  NSTextView *editor = (NSTextView *)_address.currentEditor;
++  // Keep composition under AppKit's control; Space may commit marked text.
++  if (_scopeKeyword.empty() && !editor.hasMarkedText && !query.empty() &&
++      query.back() == u' ') {
++    auto split = helium_command_bar_model::SplitKeyword(query, false);
++    if (split && split->keyword.starts_with("!") && !split->has_remainder &&
++        helium_command_bar_model::EngineOwnsKeyword(
++            TemplateURLServiceFactory::GetForProfile(
++                _browserView->GetProfile()),
++            split->keyword)) {
++      [self enterBang:split->keyword query:std::u16string() typed:YES];
++      return;
++    }
++  }
++  if (!_scopeKeyword.empty()) {
++    _autocomplete->Stop(AutocompleteStopReason::kClobbered);
++    [self updateSuggestions];
+     return;
+   }
+   AutocompleteInput input(
+-      base::SysNSStringToUTF16(_address.stringValue),
+-      metrics::OmniboxEventProto::OTHER,
++      query, metrics::OmniboxEventProto::OTHER,
+       ChromeAutocompleteSchemeClassifier(_browserView->GetProfile()));
+   input.set_current_url(
+       LocationBarModel::From(_browserView->browser())->GetURL());
+   input.set_prevent_inline_autocomplete(true);
+-  // A recognized engine query belongs only to that engine. Chromium otherwise
+-  // also sends its full keyword-prefixed text to the default suggest server.
+   AutocompleteInput keyword_input(input);
+-  if (auto* service = TemplateURLServiceFactory::GetForProfile(
+-          _browserView->GetProfile());
+-      service && AutocompleteInput::GetSubstitutingTemplateURLForInput(
+-                     service, &keyword_input) &&
++  if (auto *service =
++          TemplateURLServiceFactory::GetForProfile(_browserView->GetProfile());
++      service &&
++      AutocompleteInput::GetSubstitutingTemplateURLForInput(service,
++                                                            &keyword_input) &&
+       !keyword_input.text().empty()) {
+     input.set_in_keyword_mode(true);
+   }
+-  _selected = 0;
+   _autocomplete->Start(input);
++  [self updateSuggestions];
+ }
+ 
+ - (void)finishEditing {
+@@ -1852,9 +1969,13 @@
+     return;
+   }
+   _editing = NO;
++  _scopeKeyword.clear();
++  _scopeWasTyped = NO;
++  _scopePill.hidden = YES;
++  _address.frame = _addressContainer.bounds;
+   _address.userEditing = NO;
+   _autocomplete->Stop(AutocompleteStopReason::kClobbered);
+-  _matches.clear();
++  _results.clear();
+   for (NSButton* button in _suggestions) {
+     [button removeFromSuperview];
+   }
+@@ -1884,7 +2005,7 @@
+     return;
+   }
+   _autocomplete->Stop(AutocompleteStopReason::kClobbered);
+-  _matches.clear();
++  _results.clear();
+   [self controlTextDidChange:[NSNotification
+       notificationWithName:NSControlTextDidChangeNotification object:_address]];
+ }
+@@ -1893,23 +2014,63 @@
+   if (!_editing || !_browserView) {
+     return;
+   }
+-  _matches.clear();
+-  for (const auto& match : _autocomplete->result()) {
+-    if (match.destination_url.is_valid()) {
+-      _matches.push_back(match);
++  std::optional<HeliumAddressResult> previous;
++  if (_selectionIsExplicit && static_cast<size_t>(_selected) < _results.size())
++    previous = _results[_selected];
++  _results.clear();
++  if (_scopeKeyword.empty()) {
++    const std::u16string query = base::SysNSStringToUTF16(_address.stringValue);
++    auto bangs = helium_command_bar_model::BangsForQuery(
++        TemplateURLServiceFactory::GetForProfile(_browserView->GetProfile()),
++        _browserView->GetProfile()->GetPrefs(), query);
++    const bool explicit_bang =
++        base::TrimWhitespace(query, base::TRIM_ALL).starts_with(u"!");
++    auto append_bangs = [&] {
++      for (const auto &bang : bangs) {
++        if (_results.size() == 6)
++          break;
++        _results.push_back({AutocompleteMatch(), bang});
++      }
++    };
++    if (explicit_bang)
++      append_bangs();
++    // Keep ordinary navigation/search priority and a slot for a matching
++    // service.
++    const size_t normal_limit = !explicit_bang && !bangs.empty() ? 5 : 6;
++    for (const auto &match : _autocomplete->result()) {
++      if (_results.size() >= normal_limit)
++        break;
++      if (match.destination_url.is_valid())
++        _results.push_back({match, std::nullopt});
+     }
+-    if (_matches.size() == 6) {
+-      break;
++    if (!explicit_bang)
++      append_bangs();
++  }
++  _selected = 0;
++  _selectionIsExplicit = NO;
++  if (previous) {
++    for (size_t i = 0; i < _results.size(); ++i) {
++      const auto &row = _results[i];
++      const bool same =
++          previous->bang && row.bang
++              ? helium_command_bar_model::SameItem(*previous->bang, *row.bang)
++              : !previous->bang && !row.bang &&
++                    previous->match.destination_url ==
++                        row.match.destination_url;
++      if (same) {
++        _selected = i;
++        _selectionIsExplicit = YES;
++        break;
++      }
+     }
+   }
+-  _selected = std::clamp<NSInteger>(
+-      _selected, 0, std::max<NSInteger>(0, _matches.size() - 1));
+   for (NSButton* button in _suggestions) {
+     [button removeFromSuperview];
+   }
+   [_suggestions removeAllObjects];
+-  for (size_t i = 0; i < _matches.size(); ++i) {
+-    const auto& match = _matches[i];
++  for (size_t i = 0; i < _results.size(); ++i) {
++    const auto &result = _results[i];
++    const auto &match = result.match;
+     HeliumNativeResultRow* button = [[HeliumNativeResultRow alloc] init];
+     const bool search = AutocompleteMatch::IsSearchType(match.type);
+     const bool title = !search && !match.description.empty();
+@@ -1922,17 +2083,27 @@
+         ? [NSString stringWithFormat:@"%@, %@", button.primaryText,
+                                                button.secondaryText]
+         : button.primaryText;
++    if (result.bang) {
++      button.showsScopePill = YES;
++      button.primaryText = base::SysUTF16ToNSString(result.bang->site_name);
++      button.secondaryText =
++          [@"Search " stringByAppendingString:button.primaryText];
++      button.tagText = base::SysUTF8ToNSString(result.bang->site_keyword);
++      button.symbolName = nil;
++      button.accessibilityLabel = [NSString
++          stringWithFormat:@"%@, %@", button.secondaryText, button.tagText];
++    }
+     button.target = self;
+     button.action = @selector(acceptSuggestion:);
+     button.tag = i;
+     button.bordered = NO;
+     button.title = @"";
+-    button.frame = NSMakeRect(
+-        kHeliumNativeResultInset,
+-        kHeliumNativeResultInset +
+-            kHeliumNativeResultRowHeight * (_matches.size() - i - 1),
+-        self.bounds.size.width - 2 * kHeliumNativeResultInset,
+-        kHeliumNativeResultRowHeight);
++    button.frame =
++        NSMakeRect(kHeliumNativeResultInset,
++                   kHeliumNativeResultInset +
++                       kHeliumNativeResultRowHeight * (_results.size() - i - 1),
++                   self.bounds.size.width - 2 * kHeliumNativeResultInset,
++                   kHeliumNativeResultRowHeight);
+     button.autoresizingMask = NSViewWidthSizable;
+     button.selected = i == static_cast<size_t>(_selected);
+     [_suggestions addObject:button];
+@@ -1943,6 +2114,7 @@
+ 
+ - (void)acceptSuggestion:(NSButton*)sender {
+   _selected = sender.tag;
++  _selectionIsExplicit = YES;
+   [self acceptAddress];
+ }
+ 
+@@ -1950,20 +2122,36 @@
+   if (!_browserView) {
+     return;
+   }
+-  if (_matches.empty()) {
+-    [self controlTextDidChange:
+-              [NSNotification
+-                  notificationWithName:NSControlTextDidChangeNotification
+-                                object:_address]];
+-  }
+-  if (_matches.empty()) {
+-    return;
++  GURL destination;
++  ui::PageTransition transition = ui::PAGE_TRANSITION_GENERATED;
++  if (!_scopeKeyword.empty()) {
++    auto url = helium_command_bar_model::BuildSiteSearchUrl(
++        TemplateURLServiceFactory::GetForProfile(_browserView->GetProfile()),
++        _scopeKeyword, base::SysNSStringToUTF16(_address.stringValue));
++    if (!url)
++      return;
++    destination = *url;
++    helium_command_bar_model::RecordBangUse(_browserView->GetProfile(),
++                                            _scopeKeyword);
++  } else {
++    if (_results.empty())
++      [self controlTextDidChange:nil];
++    if (_results.empty())
++      return;
++    const auto result = _results[_selected];
++    if (result.bang) {
++      [self enterBang:result.bang->site_keyword
++                query:result.bang->site_query
++                typed:NO];
++      return;
++    }
++    destination = result.match.destination_url;
++    transition = result.match.transition;
+   }
+-  const AutocompleteMatch match = _matches[_selected];
+   auto* browser = _browserView->browser();
+   [self.window makeFirstResponder:nil];
+   [self finishEditing];
+-  NavigateParams params(browser, match.destination_url, match.transition);
++  NavigateParams params(browser, destination, transition);
+   params.disposition =
+       (NSApp.currentEvent.modifierFlags & NSEventModifierFlagCommand)
+           ? WindowOpenDisposition::kNewForegroundTab
+@@ -1981,6 +2169,10 @@
+     return YES;
+   }
+   if (command == @selector(cancelOperation:)) {
++    if (!_scopeKeyword.empty()) {
++      [self leaveBangRestoringTrigger:NO];
++      return YES;
++    }
+     [self.window makeFirstResponder:nil];
+     [self finishEditing];
+     if (_browserView) {
+@@ -1988,12 +2180,24 @@
+     }
+     return YES;
+   }
++  if (command == @selector(deleteBackward:) && !_scopeKeyword.empty() &&
++      !textView.hasMarkedText && textView.selectedRange.location == 0 &&
++      textView.selectedRange.length == 0) {
++    [self leaveBangRestoringTrigger:YES];
++    return YES;
++  }
++  if (command == @selector(insertTab:) && !_results.empty() &&
++      _results[_selected].bang) {
++    [self acceptAddress];
++    return YES;
++  }
+   if ((command == @selector(moveDown:) || command == @selector(moveUp:)) &&
+-      !_matches.empty()) {
++      !_results.empty()) {
+     _autocomplete->Stop(AutocompleteStopReason::kInteraction);
++    _selectionIsExplicit = YES;
+     _selected = (_selected + (command == @selector(moveDown:) ? 1 : -1) +
+-                 static_cast<NSInteger>(_matches.size())) %
+-                static_cast<NSInteger>(_matches.size());
++                 static_cast<NSInteger>(_results.size())) %
++                static_cast<NSInteger>(_results.size());
+     [self updateSuggestions];
+     return YES;
+   }

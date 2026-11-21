@@ -1,0 +1,336 @@
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -48,6 +48,37 @@
+   Choose your appearance, theme, and browser layout.
+ </message>
+ 
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_TITLE" desc="Title of the privacy choices page in Setup">
++  Privacy
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_BODY" desc="Introductory text for the privacy choices page in Setup">
++  Choose how Lune protects your privacy while you browse.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_TRACKING_TITLE" desc="Title of the switch for removing tracking parameters">
++  Remove tracking parameters
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_TRACKING_DESC" desc="Description of the switch for removing tracking parameters">
++  Removes known tracking parameters from links you open or copy using a pre-bundled filter list.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_FINGERPRINTING_TITLE" desc="Title of the switch for fingerprinting protection">
++  Fingerprinting protection
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_FINGERPRINTING_DESC" desc="Description of browser fingerprinting protection">
++  Limit the information websites can use to identify your browser.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_GLOBAL_PRIVACY_CONTROL_TITLE" desc="Title of the Global Privacy Control switch">
++  Opt out of websites sharing your information
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_GLOBAL_PRIVACY_CONTROL_DESC" desc="Description of the Global Privacy Control switch">
++  Send a Global Privacy Control signal to limit the sale or sharing of your data.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_DO_NOT_TRACK_TITLE" desc="Title of the Do Not Track switch">
++  Do Not Track
++</message>
++<message name="IDS_HELIUM_ONBOARDING_PRIVACY_DO_NOT_TRACK_DESC" desc="Description of the Do Not Track switch">
++  Send a Do Not Track request to websites.
++</message>
++
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_TITLE" desc="Title of the onboarding screen for Helium services consent.">
+   Services
+ </message>
+@@ -79,10 +110,10 @@
+   Enables the uBlock Origin extension with a pre-bundled filter list.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_TITLE" desc="Title of the toggle for downloading uBlock Origin filter lists.">
+-  Update uBlock Origin filter lists through Helium
++  Update privacy filter lists through Helium
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_DESC" desc="Description of the toggle for downloading uBlock Origin filter lists.">
+-  Refresh blocking lists. Sends your IP address and list requests to Helium. Optional lists may connect directly to their providers.
++  Keep uBlock Origin and link cleanup up to date. Helium receives your IP address and list requests. Optional uBlock Origin lists may contact their providers.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_AUTOUPDATES_TITLE" desc="Title of the toggle for automatic browser updates on platforms where Helium updates the browser.">
+   Allow automatic browser updates
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -201,9 +201,9 @@ void RegisterBrowserUserPrefs(user_prefs
+   registry->RegisterDictionaryPref(prefs::kBrowserWindowPlacementPopup);
+   registry->RegisterDictionaryPref(prefs::kAppWindowPlacement);
+   registry->RegisterBooleanPref(
+-      prefs::kEnableDoNotTrack, false,
++      prefs::kEnableDoNotTrack, true,
+       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+-  registry->RegisterBooleanPref(prefs::kHeliumGlobalPrivacyControl, false);
++  registry->RegisterBooleanPref(prefs::kHeliumGlobalPrivacyControl, true);
+ #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+   registry->RegisterBooleanPref(prefs::kPrintPreviewUseSystemDefaultPrinter,
+                                 false);
+--- a/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
++++ b/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
+@@ -62,6 +62,13 @@ constexpr const char* kSetupServicePrefs
+     prefs::kHeliumSpellcheckEnabled,
+ #endif
+ };
++std::string SetupPreferenceName(const std::string& key) {
++  if (key == prefs::kSearchSuggestEnabled || key == prefs::kEnableDoNotTrack) {
++    return key;
++  }
++  return prefs::kHeliumPrefPrefix + key;
++}
++
+ bool IsSetupServicePref(std::string_view name) {
+   for (auto* key : kSetupServicePrefs) {
+     if (name == key) return true;
+@@ -92,7 +99,7 @@ OnboardingMessageHandler::OnboardingMess
+ 
+   for (const auto [key, _] : GetPreferencesDict()) {
+     pref_change_registrar_.Add(
+-        key == prefs::kSearchSuggestEnabled ? key : prefs::kHeliumPrefPrefix + key,
++        SetupPreferenceName(key),
+         base::BindRepeating(&OnboardingMessageHandler::OnPreferencesChanged,
+                             base::Unretained(this)));
+   }
+@@ -115,9 +122,10 @@ base::DictValue OnboardingMessageHandler
+                value.Clone());
+   }
+ 
+-  // Explicitly allow this one non-Helium preference in onboarding. Keep the
+-  // general settings API restricted to its existing Helium namespace.
+-  // Show the preferred choice without enabling requests merely by opening
++  output.Set(prefs::kEnableDoNotTrack,
++             pref_service_->GetBoolean(prefs::kEnableDoNotTrack));
++
++  // Show the preferred search choice without enabling requests merely by opening
+   // setup. Next on the Services step persists it. Explicit choices, policy values
+   // and completed profiles keep their existing value when setup is revisited.
+   const bool recommend_suggestions =
+@@ -407,8 +415,7 @@ void OnboardingMessageHandler::HandleSet
+   }
+ 
+   const std::string key = args[1].GetString();
+-  const std::string pref_name = key == prefs::kSearchSuggestEnabled
+-      ? key : prefs::kHeliumPrefPrefix + key;
++  const std::string pref_name = SetupPreferenceName(key);
+   // A pending checkbox selection must not authorize the first installation.
+   if (pref_name == prefs::kHeliumUBlockInstallAllowed) {
+     return RejectJavascriptCallback(callback_id, "Use setup confirmation");
+--- a/components/helium_onboarding/src/components/PageNavigation.svelte
++++ b/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -40,6 +40,7 @@
+     const pageTitles = $derived({
+         Welcome: s.page.title,
+         HeliumServices: s.services.title,
++        Privacy: s.privacy.title,
+         SearchEngine: s.search.title,
+         DataImport: s.dataImport.title,
+         PasswordManager: s.password.title,
+@@ -57,10 +58,13 @@
+ 
+     const doNext = async () => {
+         switch ($currentPage) {
+-        case "HeliumServices":
++        case "Privacy":
+             if (!platform.is.android) {
+                 await setUBlockEnabled($preferences["ublock.enabled"]);
+             }
++            break;
++
++        case "HeliumServices":
+             // Confirm only the services visible on this platform. Browser
+             // updates and search suggestions are independent of Helium.
+             await setPref("services.enabled",
+@@ -106,8 +110,8 @@
+ 
+     const navigate = async (page: Parameters<typeof goToPage>[0]) => {
+         // Forward progress-dot navigation confirms this screen just like Next.
+-        // Skipping Services entirely does not authorize installing the blocker.
+-        if ($currentPage === "HeliumServices" &&
++        // Each page confirms only its own choices.
++        if (($currentPage === "Privacy" || $currentPage === "HeliumServices") &&
+             $setupPages.indexOf(page) > currentStep) {
+             working = true;
+             try {
+--- a/components/helium_onboarding/src/lib/browser/prefs.ts
++++ b/components/helium_onboarding/src/lib/browser/prefs.ts
+@@ -4,6 +4,10 @@ import * as cr from "../cr";
+ export type Preferences = {
+     'completed_onboarding': boolean,
+     'ublock.enabled': boolean,
++    'clean_tracking_links': boolean,
++    'noise.enabled': boolean,
++    'global_privacy_control': boolean,
++    'enable_do_not_track': boolean,
+     'search.suggest_enabled': boolean,
+     'browser.vertical_right_aligned': boolean,
+     'browser.zen_mode_top_chrome_pinned': boolean,
+--- a/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
++++ b/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
+@@ -22,6 +22,10 @@ if (!('chrome' in globalThis)) {
+ const prefs: Record<string, unknown> = {
+     'completed_onboarding': false,
+     'ublock.enabled': true,
++    'clean_tracking_links': true,
++    'noise.enabled': true,
++    'global_privacy_control': true,
++    'enable_do_not_track': true,
+     'ublock.install_allowed': false,
+     'services.bangs': true,
+     'services.enabled': true,
+--- a/components/helium_onboarding/src/lib/onboarding-flow.ts
++++ b/components/helium_onboarding/src/lib/onboarding-flow.ts
+@@ -9,6 +9,7 @@ import {
+ export const flow = [
+     "Welcome",
+     "SearchEngine",
++    "Privacy",
+     "HeliumServices",
+     "DataImport",
+     "PasswordManager",
+--- a/components/helium_onboarding/src/pages/HeliumServices.svelte
++++ b/components/helium_onboarding/src/pages/HeliumServices.svelte
+@@ -55,14 +55,6 @@
+                 prefName="search.suggest_enabled"
+                 compact
+             />
+-            {#if !platform.is.android}
+-                <PreferenceToggle
+-                    title={s.services.ublockEnabledTitle}
+-                    desc={s.services.ublockEnabledDesc}
+-                    prefName="ublock.enabled"
+-                    compact
+-                />
+-            {/if}
+             <div class="toggle-separator"></div>
+             {#each services as service (service.prefName)}
+                 <PreferenceToggle
+--- /dev/null
++++ b/components/helium_onboarding/src/pages/Privacy.svelte
+@@ -0,0 +1,47 @@
++<script lang="ts">
++    // Copyright 2026 The Lune Authors
++    // You can use, redistribute, and/or modify this source code under
++    // the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++    import { platform } from "../lib/platform";
++    import { s } from "../lib/strings";
++    import { currentPage } from "../lib/onboarding-flow";
++
++    import PageHeader from "../components/PageHeader.svelte";
++    import PreferenceToggle from "../components/PreferenceToggle.svelte";
++
++    const visible = $derived($currentPage === "Privacy");
++    const choices = [
++        { title: s.services.ublockEnabledTitle, desc: s.services.ublockEnabledDesc,
++          prefName: "ublock.enabled", available: !platform.is.android },
++        { title: s.privacy.trackingTitle, desc: s.privacy.trackingDesc,
++          prefName: "clean_tracking_links", available: true },
++        { title: s.privacy.fingerprintingTitle, desc: s.privacy.fingerprintingDesc,
++          prefName: "noise.enabled", available: true },
++        { title: s.privacy.globalPrivacyControlTitle, desc: s.privacy.globalPrivacyControlDesc,
++          prefName: "global_privacy_control", available: true },
++        { title: s.privacy.doNotTrackTitle, desc: s.privacy.doNotTrackDesc,
++          prefName: "enable_do_not_track", available: true },
++    ] as const;
++</script>
++
++<div id="privacy-page" class="onboarding-page" class:visible inert={!visible}>
++    <div class="scrollable-page">
++        <PageHeader title={s.privacy.title} subtitle={s.privacy.body} />
++        <div class="page-content">
++            {#each choices as choice (choice.prefName)}
++                {#if choice.available}
++                    <PreferenceToggle title={choice.title} desc={choice.desc}
++                        prefName={choice.prefName} compact />
++                {/if}
++            {/each}
++        </div>
++    </div>
++</div>
++
++<style>
++    .page-content { gap: 0; }
++    .page-content :global(.compact-preference) { width: 100%; }
++    .page-content :global(.compact-text) { flex: 1; }
++    .scrollable-page { max-width: 760px; }
++</style>
+--- a/components/helium_onboarding/src/pages/Welcome.svelte
++++ b/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -10,6 +10,10 @@
+         working = true;
+         try {
+             await setUBlockEnabled(true);
++            await setPref('clean_tracking_links', true);
++            await setPref('noise.enabled', true);
++            await setPref('global_privacy_control', true);
++            await setPref('enable_do_not_track', true);
+             acceptLatestSchema();
+             for (const key of ['services.browser_updates', 'services.ext_proxy',
+                 'services.bangs', 'services.ublock_assets', 'services.spellcheck_files',
+--- a/components/helium_onboarding/src/pages/index.ts
++++ b/components/helium_onboarding/src/pages/index.ts
+@@ -1,6 +1,7 @@
+ export { default as Welcome } from "./Welcome.svelte";
+ export { default as HeliumServices } from "./HeliumServices.svelte";
+ export { default as SearchEngine } from "./SearchEngine.svelte";
++export { default as Privacy } from "./Privacy.svelte";
+ export { default as DataImport } from "./DataImport.svelte";
+ export { default as PasswordManager } from "./PasswordManager.svelte";
+ export { default as Finish } from "./Finish.svelte";
+--- a/components/helium_onboarding/src/components/PreferenceToggle.svelte
++++ b/components/helium_onboarding/src/components/PreferenceToggle.svelte
+@@ -26,18 +26,19 @@
+ </script>
+ 
+ {#if compact}
+-    <div class="compact-preference">
+-        <div class="compact-text">
+-            <label for={`${toggleId}-toggle`}>{title}</label>
+-            <p id={`${toggleId}-description`} class="compact-description">{desc}</p>
+-        </div>
++    <label class="compact-preference" for={`${toggleId}-toggle`}>
++        <span class="compact-text">
++            <span id={`${toggleId}-title`} class="compact-title">{title}</span>
++            <span id={`${toggleId}-description`} class="compact-description">{desc}</span>
++        </span>
+         <input id={`${toggleId}-toggle`} type="checkbox" role="switch" checked={value} {disabled}
++            aria-labelledby={`${toggleId}-title`}
+             aria-describedby={`${toggleId}-description`}
+             onchange={async (event) => {
+                 const input = event.currentTarget;
+                 try { await change(input.checked); } finally { input.checked = value; }
+             }} />
+-    </div>
++    </label>
+ {:else}
+ <Toggle
+     name={title}
+@@ -59,21 +60,26 @@
+         border-radius: 14px;
+         background: transparent;
+         text-align: left;
++        cursor: pointer;
+     }
+ 
++    .compact-preference:has(input:disabled) { cursor: default; }
++
+     .compact-text {
+         min-width: 0;
+     }
+ 
+-    label {
++    .compact-title {
+         display: block;
+         font: 400 14px/20px Inter, sans-serif;
+-        cursor: pointer;
+     }
+ 
+-    .compact-preference .compact-description {
++    .compact-description {
++        display: block;
+         margin: 2px 0 0;
+         font: 400 12px/16px Inter, sans-serif;
++        color: color-mix(in srgb, var(--secondary) 70%, var(--setup-background));
++        text-wrap: balance;
+     }
+ 
+     input {

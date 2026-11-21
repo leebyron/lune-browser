@@ -1,0 +1,24 @@
+--- a/components/remote_cocoa/app_shim/bridged_content_view.mm
++++ b/components/remote_cocoa/app_shim/bridged_content_view.mm
+@@ -20,6 +20,7 @@
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_host_helper.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+ #import "ui/base/cocoa/appkit_utils.h"
++#import "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/cocoa/drag_permission.h"
+ #include "ui/base/cocoa/find_pasteboard.h"
+ #include "ui/base/cocoa/tracking_area.h"
+@@ -369,6 +370,13 @@
+   // This is important when the window has a native titlebar, in which case the
+   // superview is taller than the contentView.
+   NSPoint pointInView = [self convertPoint:point fromView:self.superview];
++  // NSWindow can query contentView directly, bypassing the frame view's
++  // native resize hit test. Full-size content must yield these same points
++  // before routing them to web content or a floating chrome input shield.
++  if (ui::GetWindowResizeCursor(
++          self.window, [self convertPoint:pointInView toView:nil])) {
++    return nil;
++  }
+   gfx::Point flippedPoint(point.x, NSHeight(self.frame) - pointInView.y);
+   remote_cocoa::mojom::HitTestResult hitTestResult;
+   _bridge->host()->GetHitTestResult(flippedPoint, &hitTestResult);

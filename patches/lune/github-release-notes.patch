@@ -1,0 +1,65 @@
+--- a/chrome/browser/mac/sparkle_glue.mm
++++ b/chrome/browser/mac/sparkle_glue.mm
+@@ -20,6 +20,7 @@
+ #include "base/strings/sys_string_conversions.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/task/thread_pool.h"
++#include "base/version.h"
+ #include "build/branding_buildflags.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/channel_selection.h"
+@@ -439,9 +440,16 @@
+ 
+ std::optional<std::string> CurrentlyDownloadedReleaseNotesURL() {
+   SparkleObserver* observer = VersionUpdaterSparkle::sparkle_observer_;
+-  if (!observer || !observer.currentlyDownloadedReleaseNotesURL) {
++  if (!observer) {
+     return std::nullopt;
+   }
++  if (!observer.currentlyDownloadedReleaseNotesURL) {
++    const auto version = CurrentlyDownloadedVersion();
++    if (!version || !base::Version(*version).IsValid()) {
++      return std::nullopt;
++    }
++    return "https://github.com/leebyron/lune-browser/releases/tag/v" + *version;
++  }
+   return base::SysNSStringToUTF8(observer.currentlyDownloadedReleaseNotesURL);
+ }
+ 
+--- a/chrome/browser/resources/settings/about_page/about_page.css
++++ b/chrome/browser/resources/settings/about_page/about_page.css
+@@ -51,3 +51,7 @@
+ cr-button {
+   white-space: nowrap;
+ }
++
++#releaseNotes {
++  white-space: nowrap;
++}
+--- a/chrome/browser/resources/settings/about_page/about_page.html.ts
++++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
+@@ -53,7 +53,11 @@
+         </a>
+       </span>
+ </if>
+-      <div class="secondary">$i18n{aboutBrowserVersion}</div>
++      <div class="secondary">
++        $i18n{aboutBrowserVersion}
++        <a id="releaseNotes" href="$i18n{aboutReleaseNotesURL}"
++            target="_blank" rel="noopener">$i18n{aboutReleaseNotes}</a>
++      </div>
+     </div>
+ <if expr="not is_chromeos">
+     <div class="separator" ?hidden="${!this.showButtonContainer_}"></div>
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -375,6 +375,9 @@
+   std::u16string browser_version = VersionUI::GetAnnotatedVersionStringForUi();
+ 
+   html_source->AddString("aboutBrowserVersion", browser_version);
++  html_source->AddString("aboutReleaseNotes", "Release notes");
++  html_source->AddString("aboutReleaseNotesURL",
++                        "https://github.com/leebyron/lune-browser/releases/latest");
+   html_source->AddString(
+       "aboutProductCopyright",
+       base::i18n::MessageFormatter::FormatWithNumberedArgs(

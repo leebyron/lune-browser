@@ -1,0 +1,47 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -24,7 +24,7 @@
+ #include "ui/views/widget/widget.h"
+ 
+ namespace {
+-constexpr int kWidth = 600;
++constexpr int kWidth = 720;
+ constexpr int kWindowSideMargin = 36;
+ constexpr int kInputHeight = 52;
+ // Keep the glass's native edge effects inside the translucent popup window.
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -149,6 +149,10 @@
+ #include "ui/views/widget/widget_observer.h"
+ 
+ namespace {
++
++constexpr int kExpandedAddressBarMaxWidth = 720;
++constexpr int kAddressResultOutset = kHeliumNativeResultInset + 2;
++
+ // Count intended layout visibility, not the previous painted layout. New
+ // actions and zero-width containers can be temporarily hidden by animation or
+ // overflow; consulting GetVisible() would prevent them from receiving space.
+@@ -2038,7 +2042,7 @@
+ 
+ - (CGFloat)horizontalOutset {
+   // Expand around the fixed header controls to align the padded result rows.
+-  return _results.empty() ? 0 : kHeliumNativeResultInset + 2;
++  return _results.empty() ? 0 : kAddressResultOutset;
+ }
+ 
+ - (CGFloat)preferredHeight {
+@@ -3417,10 +3421,10 @@
+       leading + (navigation_width > 0 ? navigation_width + 12 : 0);
+   const int address_right =
+       trailing - toolbar_width - (toolbar_width > 0 ? 12 : 0);
+-  // Scale the capsule with the header outside the sidebar, while reserving
+-  // room for navigation and the trailing actions on narrower windows.
++  // Reserve the result outset so the expanded capsule fits the width cap.
+   const int capsule_width =
+-      std::min(bar_region.width() / 2, address_right - address_left);
++      std::min({kExpandedAddressBarMaxWidth - 2 * kAddressResultOutset,
++                bar_region.width() / 2, address_right - address_left});
+   if (capsule_width < 160) {
+     UpdateFloatingToolbar(gfx::Rect(), false);
+     UpdateFloatingWindowControls(false);

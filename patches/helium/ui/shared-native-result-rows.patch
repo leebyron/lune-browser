@@ -1,0 +1,497 @@
+--- a/chrome/browser/ui/helium/BUILD.gn
++++ b/chrome/browser/ui/helium/BUILD.gn
+@@ -74,8 +74,10 @@ source_set("helium_command_bar") {
+     "helium_command_bar_view.h",
+   ]
+ 
++  deps = []
+   if (is_mac) {
+     sources += [ "helium_command_bar_view_mac.mm" ]
++    deps += [ ":native_result_row" ]
+     frameworks = [ "AppKit.framework", "QuartzCore.framework" ]
+   } else {
+     sources += [ "helium_command_bar_view.cc" ]
+@@ -87,7 +89,7 @@ source_set("helium_command_bar") {
+     "//ui/base/unowned_user_data",
+   ]
+ 
+-  deps = [
++  deps += [
+     "//chrome/app/vector_icons",
+     "//chrome/browser/autocomplete",
+     "//components/omnibox/browser",
+@@ -121,3 +123,13 @@ source_set("helium_command_bar") {
+   ]
+ }
+ 
++
++if (is_mac) {
++  source_set("native_result_row") {
++    sources = [
++      "native_result_row_mac.h",
++      "native_result_row_mac.mm",
++    ]
++    frameworks = [ "AppKit.framework" ]
++  }
++}
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -3,6 +3,7 @@
+ // the terms of the GPL-3.0 license that can be found in the LICENSE file.
+ 
+ #include "chrome/browser/ui/helium/helium_command_bar_view.h"
++#include "chrome/browser/ui/helium/native_result_row_mac.h"
+ 
+ #import <AppKit/AppKit.h>
+ #import <QuartzCore/QuartzCore.h>
+@@ -23,8 +24,6 @@
+ namespace {
+ constexpr int kWidth = 560;
+ constexpr int kInputHeight = 52;
+-constexpr int kRowHeight = 52;
+-constexpr int kInset = 8;
+ constexpr size_t kVisibleResults = 5;
+ 
+ NSString* TagForType(HeliumCommandBarItem::Type type) {
+@@ -46,94 +45,8 @@ NSString* TagForType(HeliumCommandBarIte
+   }
+ }
+ 
+-void DrawText(NSString* text,
+-              NSRect rect,
+-              CGFloat size,
+-              NSColor* color,
+-              NSTextAlignment alignment = NSTextAlignmentLeft) {
+-  NSMutableParagraphStyle* style = [[NSMutableParagraphStyle alloc] init];
+-  style.lineBreakMode = NSLineBreakByTruncatingTail;
+-  style.alignment = alignment;
+-  [text drawInRect:rect
+-      withAttributes:@{
+-        NSFontAttributeName : [NSFont systemFontOfSize:size],
+-        NSForegroundColorAttributeName : color,
+-        NSParagraphStyleAttributeName : style
+-      }];
+-}
+ }  // namespace
+ 
+-@interface HeliumCommandRow : NSButton
+-@property(nonatomic, copy) NSString* primaryText;
+-@property(nonatomic, copy) NSString* secondaryText;
+-@property(nonatomic, copy) NSString* tagText;
+-@property(nonatomic, strong) NSImage* resultImage;
+-@property(nonatomic) BOOL selected;
+-@property(nonatomic, copy) void (^onHover)(NSInteger);
+-@end
+-
+-@implementation HeliumCommandRow
+-@synthesize primaryText = _primaryText, secondaryText = _secondaryText,
+-            tagText = _tagText, resultImage = _resultImage,
+-            selected = _selected, onHover = _onHover;
+-- (BOOL)isFlipped {
+-  return YES;
+-}
+-- (BOOL)acceptsFirstResponder {
+-  return NO;
+-}
+-- (void)updateTrackingAreas {
+-  [super updateTrackingAreas];
+-  for (NSTrackingArea* area in self.trackingAreas.copy) {
+-    [self removeTrackingArea:area];
+-  }
+-  [self addTrackingArea:[[NSTrackingArea alloc]
+-                            initWithRect:NSZeroRect
+-                                 options:NSTrackingMouseEnteredAndExited |
+-                                         NSTrackingActiveInKeyWindow |
+-                                         NSTrackingInVisibleRect
+-                                   owner:self
+-                                userInfo:nil]];
+-}
+-- (void)mouseEntered:(NSEvent*)event {
+-  if (self.onHover) {
+-    self.onHover(self.tag);
+-  }
+-}
+-- (void)drawRect:(NSRect)dirtyRect {
+-  if (self.selected) {
+-    [[NSColor.selectedContentBackgroundColor colorWithAlphaComponent:0.25]
+-        setFill];
+-    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0, 1)
+-                                     xRadius:10
+-                                     yRadius:10] fill];
+-  }
+-  NSImage* image = self.resultImage;
+-  if (image.isTemplate) {
+-    image =
+-        [image imageWithSymbolConfiguration:
+-                   [NSImageSymbolConfiguration
+-                       configurationWithHierarchicalColor:NSColor.labelColor]];
+-  }
+-  [image drawInRect:NSMakeRect(12, 18, 16, 16)
+-            fromRect:NSZeroRect
+-           operation:NSCompositingOperationSourceOver
+-            fraction:1
+-      respectFlipped:YES
+-               hints:nil];
+-  CGFloat width = NSWidth(self.bounds);
+-  BOOL subtitle = self.secondaryText.length > 0;
+-  DrawText(self.primaryText, NSMakeRect(40, subtitle ? 7 : 17, width - 142, 20),
+-           13, NSColor.labelColor);
+-  if (subtitle) {
+-    DrawText(self.secondaryText, NSMakeRect(40, 28, width - 142, 17), 11,
+-             NSColor.secondaryLabelColor);
+-  }
+-  DrawText(self.tagText, NSMakeRect(width - 94, 18, 82, 18), 11,
+-           NSColor.secondaryLabelColor, NSTextAlignmentRight);
+-}
+-@end
+-
+ @interface HeliumCommandResults : NSView
+ @end
+ 
+@@ -149,7 +62,7 @@ void DrawText(NSString* text,
+ @property(nonatomic, strong) NSBox* scopePill;
+ @property(nonatomic, strong) NSScrollView* scroll;
+ @property(nonatomic, strong) HeliumCommandResults* results;
+-@property(nonatomic, strong) NSMutableArray<HeliumCommandRow*>* rows;
++@property(nonatomic, strong) NSMutableArray<HeliumNativeResultRow*>* rows;
+ @property(nonatomic, copy) void (^onQuery)(NSString*);
+ @property(nonatomic, copy) BOOL (^onCommand)(SEL);
+ @property(nonatomic, copy) void (^onActivate)(NSInteger);
+@@ -190,16 +103,16 @@ void DrawText(NSString* text,
+     inputX = NSMaxX(self.scopePill.frame) + 10;
+   }
+   self.input.frame = NSMakeRect(inputX, 19, width - inputX - 20, 26);
+-  const CGFloat resultsWidth = width - 2 * kInset;
++  const CGFloat resultsWidth = width - 2 * kHeliumNativeResultInset;
+   self.scroll.frame =
+-      NSMakeRect(kInset, kInputHeight + kInset, resultsWidth,
+-                 std::min(kVisibleResults, self.rows.count) * kRowHeight);
++      NSMakeRect(kHeliumNativeResultInset, kInputHeight + kHeliumNativeResultInset, resultsWidth,
++                 std::min(kVisibleResults, self.rows.count) * kHeliumNativeResultRowHeight);
+   self.results.frame =
+-      NSMakeRect(0, 0, resultsWidth, self.rows.count * kRowHeight);
++      NSMakeRect(0, 0, resultsWidth, self.rows.count * kHeliumNativeResultRowHeight);
+   CGFloat y = 0;
+-  for (HeliumCommandRow* row in self.rows) {
+-    row.frame = NSMakeRect(0, y, resultsWidth, kRowHeight);
+-    y += kRowHeight;
++  for (HeliumNativeResultRow* row in self.rows) {
++    row.frame = NSMakeRect(0, y, resultsWidth, kHeliumNativeResultRowHeight);
++    y += kHeliumNativeResultRowHeight;
+   }
+ }
+ @end
+@@ -214,7 +127,7 @@ struct HeliumCommandBarView::Native {
+     pane.onQuery = nil;
+     pane.onCommand = nil;
+     pane.onActivate = nil;
+-    for (HeliumCommandRow* row in pane.rows) {
++    for (HeliumNativeResultRow* row in pane.rows) {
+       row.onHover = nil;
+       row.target = nil;
+     }
+@@ -249,7 +162,7 @@ HeliumCommandBarView* HeliumCommandBarVi
+   widget->SetBounds(
+       gfx::Rect(bounds.x() + (bounds.width() - view->native_->width) / 2,
+                 bounds.y() + bounds.height() / 5, view->native_->width,
+-                kInputHeight + 2 * kInset));
++                kInputHeight + 2 * kHeliumNativeResultInset));
+   view->native_->host->Attach(gfx::NativeView(view->native_->material));
+   widget->Show();
+   widget->AddObserver(view);
+@@ -430,14 +343,14 @@ void HeliumCommandBarView::SetResults(
+     const std::vector<HeliumCommandBarItem>& items,
+     std::optional<size_t> scope_hint) {
+   scope_hint_ = scope_hint;
+-  for (HeliumCommandRow* row in native_->pane.rows) {
++  for (HeliumNativeResultRow* row in native_->pane.rows) {
+     [row removeFromSuperview];
+   }
+   [native_->pane.rows removeAllObjects];
+   selected_ = 0;
+   for (size_t i = 0; i < items.size(); ++i) {
+     const auto& item = items[i];
+-    HeliumCommandRow* row = [[HeliumCommandRow alloc] init];
++    HeliumNativeResultRow* row = [[HeliumNativeResultRow alloc] init];
+     row.bordered = NO;
+     row.title = @"";
+     row.tag = i;
+@@ -474,8 +387,8 @@ void HeliumCommandBarView::ResizeToConte
+   if (!GetWidget()) {
+     return;
+   }
+-  int height = kInputHeight + 2 * kInset +
+-               std::min(kVisibleResults, native_->pane.rows.count) * kRowHeight;
++  int height = kInputHeight + 2 * kHeliumNativeResultInset +
++               std::min(kVisibleResults, native_->pane.rows.count) * kHeliumNativeResultRowHeight;
+   if (GetWidget()->GetWindowBoundsInScreen().height() != height) {
+     GetWidget()->SetSize(gfx::Size(native_->width, height));
+   }
+@@ -515,7 +428,7 @@ void HeliumCommandBarView::MoveSelection
+   if (count) {
+     SetSelected((selected_ + count + delta) % count);
+     [native_->pane layoutSubtreeIfNeeded];
+-    HeliumCommandRow* row = native_->pane.rows[selected_];
++    HeliumNativeResultRow* row = native_->pane.rows[selected_];
+     [row scrollRectToVisible:row.bounds];
+   }
+ }
+@@ -527,7 +440,7 @@ void HeliumCommandBarView::SetSelected(s
+   UpdateRowHighlight();
+ }
+ void HeliumCommandBarView::UpdateRowHighlight() {
+-  for (HeliumCommandRow* row in native_->pane.rows) {
++  for (HeliumNativeResultRow* row in native_->pane.rows) {
+     row.selected = static_cast<size_t>(row.tag) == selected_;
+     row.needsDisplay = YES;
+     row.accessibilityValue = row.selected ? @"Selected" : @"";
+--- /dev/null
++++ b/chrome/browser/ui/helium/native_result_row_mac.h
+@@ -0,0 +1,24 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_HELIUM_NATIVE_RESULT_ROW_MAC_H_
++#define CHROME_BROWSER_UI_HELIUM_NATIVE_RESULT_ROW_MAC_H_
++
++#import <AppKit/AppKit.h>
++
++inline constexpr int kHeliumNativeResultRowHeight = 52;
++inline constexpr int kHeliumNativeResultInset = 8;
++
++// Shared presentation for native address and Command-T autocomplete results.
++// Callers retain selection, result semantics, activation, and optional hover.
++@interface HeliumNativeResultRow : NSButton
++@property(nonatomic, copy) NSString* primaryText;
++@property(nonatomic, copy) NSString* secondaryText;
++@property(nonatomic, copy) NSString* tagText;
++@property(nonatomic, strong) NSImage* resultImage;
++@property(nonatomic) BOOL selected;
++@property(nonatomic, copy) void (^onHover)(NSInteger);
++@end
++
++#endif  // CHROME_BROWSER_UI_HELIUM_NATIVE_RESULT_ROW_MAC_H_
+--- /dev/null
++++ b/chrome/browser/ui/helium/native_result_row_mac.mm
+@@ -0,0 +1,105 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/ui/helium/native_result_row_mac.h"
++
++#include <algorithm>
++
++namespace {
++void DrawText(NSString* text,
++              NSRect rect,
++              CGFloat size,
++              NSColor* color,
++              NSTextAlignment alignment = NSTextAlignmentLeft) {
++  NSMutableParagraphStyle* style = [[NSMutableParagraphStyle alloc] init];
++  style.lineBreakMode = NSLineBreakByTruncatingTail;
++  style.alignment = alignment;
++  [text drawInRect:rect
++      withAttributes:@{
++        NSFontAttributeName : [NSFont systemFontOfSize:size],
++        NSForegroundColorAttributeName : color,
++        NSParagraphStyleAttributeName : style
++      }];
++}
++}  // namespace
++
++@implementation HeliumNativeResultRow
++@synthesize primaryText = _primaryText, secondaryText = _secondaryText,
++            tagText = _tagText, resultImage = _resultImage,
++            selected = _selected, onHover = _onHover;
++- (void)setSelected:(BOOL)selected {
++  if (_selected != selected) {
++    _selected = selected;
++    self.needsDisplay = YES;
++  }
++}
++- (void)viewDidChangeEffectiveAppearance {
++  [super viewDidChangeEffectiveAppearance];
++  self.needsDisplay = YES;
++}
++- (BOOL)isFlipped {
++  return YES;
++}
++- (BOOL)acceptsFirstResponder {
++  return NO;
++}
++- (void)updateTrackingAreas {
++  [super updateTrackingAreas];
++  for (NSTrackingArea* area in self.trackingAreas.copy) {
++    [self removeTrackingArea:area];
++  }
++  if (!self.onHover) {
++    return;
++  }
++  [self addTrackingArea:[[NSTrackingArea alloc]
++                            initWithRect:NSZeroRect
++                                 options:NSTrackingMouseEnteredAndExited |
++                                         NSTrackingActiveInKeyWindow |
++                                         NSTrackingInVisibleRect
++                                   owner:self
++                                userInfo:nil]];
++}
++- (void)mouseEntered:(NSEvent*)event {
++  if (self.onHover) {
++    self.onHover(self.tag);
++  }
++}
++- (void)drawRect:(NSRect)dirtyRect {
++  if (self.selected) {
++    [[NSColor.selectedContentBackgroundColor colorWithAlphaComponent:0.25]
++        setFill];
++    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0, 1)
++                                     xRadius:10
++                                     yRadius:10] fill];
++  }
++  NSImage* image = self.resultImage;
++  if (image.isTemplate) {
++    image =
++        [image imageWithSymbolConfiguration:
++                   [NSImageSymbolConfiguration
++                       configurationWithHierarchicalColor:NSColor.labelColor]];
++  }
++  [image drawInRect:NSMakeRect(12, 18, 16, 16)
++            fromRect:NSZeroRect
++           operation:NSCompositingOperationSourceOver
++            fraction:1
++      respectFlipped:YES
++               hints:nil];
++  CGFloat width = NSWidth(self.bounds);
++  const BOOL showTag = self.tagText.length > 0 && width >= 240;
++  const CGFloat textWidth = std::max<CGFloat>(0, width - (showTag ? 142 : 52));
++  BOOL subtitle = self.secondaryText.length > 0;
++  DrawText(self.primaryText, NSMakeRect(40, subtitle ? 7 : 17, textWidth, 20),
++           13, NSColor.labelColor);
++  if (subtitle) {
++    DrawText(self.secondaryText, NSMakeRect(40, 28, textWidth, 17), 11,
++             NSColor.secondaryLabelColor);
++  }
++  if (showTag) {
++    DrawText(self.tagText, NSMakeRect(width - 94, 18, 82, 18), 11,
++             NSColor.secondaryLabelColor, NSTextAlignmentRight);
++  }
++}
++@end
++
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -2027,6 +2027,7 @@ if (is_mac) {
+       "//chrome/browser/ui/color:mixers",
+       "//chrome/browser/ui/exclusive_access",
+       "//chrome/browser/ui/helium:helium_command_bar",
++      "//chrome/browser/ui/helium:native_result_row",
+       "//chrome/browser/ui/helium:helium_layout_state_controller",
+       "//chrome/browser/ui/immersive:immersive_mode_controller",
+       "//chrome/browser/ui/navigator",
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -40,6 +40,7 @@
+ #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
+ #include "chrome/browser/ui/fullscreen_util_mac.h"
+ #include "chrome/browser/ui/helium/helium_command_bar_controller.h"
++#include "chrome/browser/ui/helium/native_result_row_mac.h"
+ #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
+ #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
+ #include "chrome/browser/ui/layout_constants.h"
+@@ -1479,34 +1480,6 @@ static CGFloat HeliumWindowControlsWidth
+ }
+ @end
+ 
+-@interface HeliumAddressSuggestionRow : NSButton
+-@property(nonatomic) BOOL selected;
+-@end
+-
+-@implementation HeliumAddressSuggestionRow
+-@synthesize selected = _selected;
+-- (void)setSelected:(BOOL)selected {
+-  if (_selected != selected) {
+-    _selected = selected;
+-    self.needsDisplay = YES;
+-  }
+-}
+-- (void)viewDidChangeEffectiveAppearance {
+-  [super viewDidChangeEffectiveAppearance];
+-  self.needsDisplay = YES;
+-}
+-- (void)drawRect:(NSRect)dirtyRect {
+-  if (self.selected) {
+-    [[NSColor.selectedContentBackgroundColor colorWithAlphaComponent:0.25]
+-        setFill];
+-    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0, 1)
+-                                     xRadius:10
+-                                     yRadius:10] fill];
+-  }
+-  [super drawRect:dirtyRect];
+-}
+-@end
+-
+ @interface HeliumFloatingAddressBar : HeliumGlassSurface <NSTextFieldDelegate>
+ - (instancetype)initWithBrowserView:(BrowserView*)browserView;
+ - (void)refresh;
+@@ -1794,7 +1767,8 @@ class HeliumSiteInfoObserver : public vi
+ }
+ 
+ - (CGFloat)preferredHeight {
+-  return 36 + (_matches.empty() ? 0 : 8 + 32 * _matches.size());
++  return 36 + (_matches.empty() ? 0 : 2 * kHeliumNativeResultInset +
++                                         kHeliumNativeResultRowHeight * _matches.size());
+ }
+ 
+ - (void)beginEditing {
+@@ -1914,24 +1888,35 @@ class HeliumSiteInfoObserver : public vi
+   [_suggestions removeAllObjects];
+   for (size_t i = 0; i < _matches.size(); ++i) {
+     const auto& match = _matches[i];
+-    std::u16string text = match.contents;
+-    if (!match.description.empty()) {
+-      text += u" — " + match.description;
+-    }
+-    HeliumAddressSuggestionRow* button = [HeliumAddressSuggestionRow
+-        buttonWithTitle:base::SysUTF16ToNSString(text)
+-                 target:self
+-                 action:@selector(acceptSuggestion:)];
++    HeliumNativeResultRow* button = [[HeliumNativeResultRow alloc] init];
++    const bool search = AutocompleteMatch::IsSearchType(match.type);
++    const bool title = !search && !match.description.empty();
++    button.primaryText = base::SysUTF16ToNSString(
++        title ? match.description : match.contents);
++    button.secondaryText = base::SysUTF16ToNSString(
++        title ? match.contents : match.description);
++    button.resultImage = [[NSImage
++        imageWithSystemSymbolName:search ? @"magnifyingglass" : @"globe"
++         accessibilityDescription:nil]
++        imageWithSymbolConfiguration:[NSImageSymbolConfiguration
++            configurationWithPointSize:16 weight:NSFontWeightMedium]];
++    button.accessibilityLabel = button.secondaryText.length
++        ? [NSString stringWithFormat:@"%@, %@", button.primaryText,
++                                               button.secondaryText]
++        : button.primaryText;
++    button.target = self;
++    button.action = @selector(acceptSuggestion:);
+     button.tag = i;
+     button.bordered = NO;
+-    button.alignment = NSTextAlignmentLeft;
+-    button.font = [NSFont systemFontOfSize:13];
+-    button.lineBreakMode = NSLineBreakByTruncatingTail;
+-    button.frame = NSMakeRect(12, 4 + 32 * (_matches.size() - i - 1),
+-                              self.bounds.size.width - 24, 32);
++    button.title = @"";
++    button.frame = NSMakeRect(
++        kHeliumNativeResultInset,
++        kHeliumNativeResultInset +
++            kHeliumNativeResultRowHeight * (_matches.size() - i - 1),
++        self.bounds.size.width - 2 * kHeliumNativeResultInset,
++        kHeliumNativeResultRowHeight);
+     button.autoresizingMask = NSViewWidthSizable;
+     button.selected = i == static_cast<size_t>(_selected);
+-    button.contentTintColor = NSColor.labelColor;
+     [_suggestions addObject:button];
+     [_controls addSubview:button];
+   }

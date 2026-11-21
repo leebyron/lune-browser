@@ -1,0 +1,43 @@
+--- a/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.mm
++++ b/chrome/browser/ui/views/helium/fullscreen_window_controls_mac.mm
+@@ -4,6 +4,9 @@
+ 
+ #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
+ 
++#import <objc/runtime.h>
++
++#include <cstring>
+ #include <iterator>
+ 
+ #include "base/apple/foundation_util.h"
+@@ -109,14 +112,25 @@
+   }
+   // Recent AppKit versions host the green-button menu in another process:
+   // no NSMenu tracking notifications or local popup NSWindow are produced.
+-  // AppKit attaches this remote view to the zoom button for the synchronous
+-  // showMenu: call and removes it on return (dismissal/cancel/service failure).
+-  // Inspect the existing view only; the private placeholder getter creates it.
++  // The remote helper can remain attached after dismissal or be created before
++  // a menu opens. Its presence alone must not keep the sidebar open forever.
++  // Read its actual tracking flag, resolving the private layout at runtime.
++  // Fail open for chrome dismissal if AppKit changes the class or flag type.
+   Class remote_menu_class = NSClassFromString(@"NSThemeWidgetZoomMenuRemoteView");
+-  if (remote_menu_class) {
++  Ivar running_menu = remote_menu_class
++                          ? class_getInstanceVariable(remote_menu_class,
++                                                      "_runningMenu")
++                          : nullptr;
++  const char* type = running_menu ? ivar_getTypeEncoding(running_menu) : nullptr;
++  if (type && (std::strcmp(type, @encode(bool)) == 0 ||
++               std::strcmp(type, @encode(BOOL)) == 0)) {
+     for (NSView* child in _zoomButton.subviews) {
+       if ([child isKindOfClass:remote_menu_class]) {
+-        return YES;
++        const auto* storage =
++            static_cast<const unsigned char*>((__bridge const void*)child);
++        if (storage[ivar_getOffset(running_menu)] != 0) {
++          return YES;
++        }
+       }
+     }
+   }

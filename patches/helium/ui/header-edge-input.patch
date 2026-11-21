@@ -1,0 +1,63 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -522,7 +522,7 @@
+ - (NSRect)interactiveBounds {
+   NSRect bounds = self.bounds;
+   if (_browser && !_browser->IsFullscreen()) {
+-    // Leave the window perimeter to AppKit's native resize hit targets.
++    // Do not replace AppKit's cursor in the native resize perimeter.
+     bounds.origin.x += 6;
+     bounds.size.width = std::max<CGFloat>(0, bounds.size.width - 12);
+     bounds.origin.y += 6;
+@@ -548,7 +548,7 @@
+   const NSPoint local = [self convertPoint:point fromView:self.superview];
+   // Block document input throughout the visible header, including the strip
+   // reserved for native resizing. AppKit handles resizing before view dispatch;
+-  // our cursor registration and window dragging still exclude that perimeter.
++  // cursor registration still leaves the resize perimeter to AppKit.
+   if (!self.enabled || self.hidden || !NSPointInRect(local, self.bounds) ||
+       NSPointInRect(local, self.addressBounds) ||
+       NSPointInRect(local, self.navigationBounds) ||
+@@ -560,10 +560,12 @@
+ }
+ - (void)mouseDown:(NSEvent*)event {
+   const NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+-  if (!self.enabled || self.hidden ||
+-      !NSPointInRect(point, [self interactiveBounds])) {
++  if (!self.enabled || self.hidden || !NSPointInRect(point, self.bounds)) {
+     return;
+   }
++  // AppKit has first refusal for native edge resizing. A press delivered here
++  // was not claimed for resize, so the full exposed header can drag, including
++  // the narrow strip above its controls. Do not leave an inert six-point band.
+   [self startWindowDrag:event];
+ }
+ - (void)scrollWheel:(NSEvent*)event {
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -192,8 +192,8 @@
+         screen_point.y < NSMinY(screen) || screen_point.y > NSMaxY(screen)) {
+       return false;
+     }
+-    // Include one additional physical pixel at the fullscreen top edge.
+-    return top ? screen_point.y >= NSMaxY(screen) - 2 * pixel
++    // Fullscreen reveal uses four physical top pixels and one side pixel.
++    return top ? screen_point.y >= NSMaxY(screen) - 4 * pixel
+                : (view->IsVerticalTabStripRightAligned()
+                       ? screen_point.x >= NSMaxX(screen) - pixel
+                       : screen_point.x < NSMinX(screen) + pixel);
+@@ -202,10 +202,10 @@
+   const NSPoint point =
+       [native convertPoint:[window convertPointFromScreen:screen_point]
+                   fromView:nil];
+-  // Reserve the same six-point perimeter excluded by the native drag region.
+-  // AppKit owns resizing; this band only observes the pointer, including the
+-  // exterior half of the native edge hit area. It consumes no layout space.
+-  constexpr CGFloat rail = 6;
++  // Reveal within eight logical pixels of the top or mounted side. This
++  // observer is independent of AppKit's resize hit targets and consumes no
++  // layout space. Retain the adjacent exterior edge for resize-hover reveal.
++  constexpr CGFloat rail = 8;
+   if (point.x < -rail || point.x > NSWidth(native.bounds) + rail ||
+       point.y < -rail || point.y > NSHeight(native.bounds) + rail) {
+     return false;

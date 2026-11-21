@@ -1,0 +1,32 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -190,12 +190,8 @@
+     case LayoutConstant::kVerticalTabCornerRadius:
+       return 8;
+     case LayoutConstant::kVerticalTabHeight:
+-      // Spacious density matches the height of horizontal tabs.
+-      return spacious ? GetLayoutConstant(LayoutConstant::kLocationBarHeight)
+-                      : 30;
+     case LayoutConstant::kVerticalTabPinnedHeight:
+-      // Pinned tabs are square.
+-      return GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth);
++      return spacious ? 36 : 30;
+     case LayoutConstant::kVerticalTabMinWidth:
+       return spacious ? 32 : 30;
+     case LayoutConstant::kVerticalTabStripHorizontalPadding:
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
+@@ -21,12 +21,11 @@
+ constexpr int kTabVerticalPadding = 2;
+ constexpr int kGroupLineWidth = 2;
+ constexpr int kGroupLineCollapsedLeadingPadding = 2;
+-constexpr int kGroupHeaderHeight = 26;
+ constexpr int kGroupHeaderVerticalMargin = 3;
+ constexpr int kFocusedHeadersGap = 2;
+ 
+ int GetGroupHeaderHeight() {
+-  return IsSpaciousUiDensity() ? kGroupHeaderHeight + 4 : kGroupHeaderHeight;
++  return GetHeliumUiDensity() == HeliumUiDensity::kComfortable ? 32 : 26;
+ }
+ }  // namespace
+ 

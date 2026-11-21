@@ -1,0 +1,12 @@
+--- a/components/helium_onboarding/src/app.css
++++ b/components/helium_onboarding/src/app.css
+@@ -212,7 +212,8 @@
+     --wallpaper-wash: light-dark(rgb(231 237 227 / .9), rgb(16 53 79 / .55));
+     --wallpaper-shade: light-dark(transparent, rgb(0 0 0 / .3));
+ }
+-body { background: var(--setup-background); }
++/* The renderer extends the root background into the reserved toolbar band. */
++html, body { background: var(--setup-background); }
+ main::before {
+     content: ''; position: absolute; inset: -16px;
+     background-image: linear-gradient(var(--wallpaper-wash), var(--wallpaper-wash)),

@@ -1,0 +1,276 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -11812,6 +11812,9 @@
+ 
+         <!-- Import progress popup -->
+         <if expr="is_macosx">
++          <message name="IDS_CHECK_FOR_UPDATES_MENU_MAC" desc="Title Case label for the macOS application menu item that checks for browser updates. The ellipsis indicates that update status opens in the About page.">
++            Check for Updates…
++          </message>
+           <message name="IDS_IMPORT_SETTINGS_MENU_MAC" desc="The text label for the Import menu item.">
+             Import Bookmarks and Settings...
+           </message>
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -59,6 +59,14 @@
+       Learn more about system requirements
+     </message>
+     <if expr="not is_chromeos">
++      <if expr="is_macosx">
++        <message name="IDS_SETTINGS_ABOUT_UPDATES_DISABLED" desc="Status on the About page when browser update checking is unavailable or disabled in settings.">
++          Browser updates are unavailable or turned off.
++        </message>
++        <message name="IDS_SETTINGS_ABOUT_UPDATE_SETTINGS" desc="Link from the About page to the existing browser update consent setting.">
++          Update settings
++        </message>
++      </if>
+       <message name="IDS_SETTINGS_ABOUT_PAGE_RELAUNCH" desc="The label for the relaunch button that relaunches the browser once update is complete">
+         Relaunch
+       </message>
+--- a/chrome/browser/app_controller_mac.h
++++ b/chrome/browser/app_controller_mac.h
+@@ -120,6 +120,8 @@
+ 
+ // Redirect in the menu item from the expected target of "File's
+ // Owner" (NSApplication) for a Branded About Box
++// Open About and explicitly refresh update status without bypassing consent.
++- (IBAction)checkForUpdates:(id)sender;
+ - (IBAction)orderFrontStandardAboutPanel:(id)sender;
+ - (IBAction)orderFrontStandardAboutPanelForProfile:(Profile*)profile;
+ 
+--- a/chrome/browser/app_controller_mac.mm
++++ b/chrome/browser/app_controller_mac.mm
+@@ -1713,6 +1713,10 @@
+     enable = YES;
+   } else if (action == @selector(showPreferences:)) {
+     enable = canOpenNewBrowser;
++  } else if (action == @selector(checkForUpdates:)) {
++    // Keep the action available when updates are off: About explains the state
++    // and links to the existing setting without changing consent.
++    enable = canOpenNewBrowser;
+   } else if (action == @selector(orderFrontStandardAboutPanel:)) {
+     enable = canOpenNewBrowser;
+   } else if (action == @selector(toggleConfirmToQuit:)) {
+@@ -2159,6 +2163,25 @@
+   }
+ }
+ 
++- (IBAction)checkForUpdates:(id)sender {
++  if (![self canOpenNewBrowser]) {
++    return;
++  }
++  app_controller_mac::RunInLastProfileSafely(
++      base::BindOnce(^(Profile* profile) {
++        if (!profile || ![self canOpenNewBrowser]) {
++          return;
++        }
++        if (BrowserWindowInterface* browser = ActivateBrowser(profile)) {
++          chrome::ShowAboutChrome(browser, /*check_for_updates=*/true);
++        } else {
++          // A new About page requests update status as it becomes ready.
++          chrome::OpenAboutWindow(profile);
++        }
++      }),
++      app_controller_mac::kShowProfilePickerOnFailure);
++}
++
+ - (IBAction)orderFrontStandardAboutPanel:(id)sender {
+   // Asynchronously load profile first if needed.
+   app_controller_mac::RunInLastProfileSafely(
+--- a/chrome/browser/mac/sparkle_glue.mm
++++ b/chrome/browser/mac/sparkle_glue.mm
+@@ -61,6 +61,11 @@
+ // URL of the Sparkle appcast.xml file
+ @property(nonatomic, strong) NSString* currentlyDownloadedVersion;
+ 
++// Reopening About during a check/download must show its current state.
++@property(nonatomic) VersionUpdater::Status lastStatus;
++@property(nonatomic) int lastProgress;
++@property(nonatomic, copy) NSString* lastError;
++
+ @end  // @interface SparkleObserver
+ 
+ @implementation SparkleObserver {
+@@ -83,6 +88,7 @@
+ - (id)initWithProfile:(Profile*)profile {
+   if ((self = [super init])) {
+     DETACH_FROM_SEQUENCE(sequence_checker_);
++    self.lastStatus = VersionUpdater::CHECKING;
+     [self updateProfile:profile];
+   }
+ 
+@@ -192,11 +198,17 @@
+ - (void)updateStatus:(VersionUpdater::Status)status
+         error_string:(NSString*)error_string {
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++  self.lastStatus = status;
++  self.lastProgress = 0;
++  self.lastError = error_string;
+   status_callbacks_.Notify(status, 0, error_string);
+ }
+ 
+ - (void)updateProgress:(int)progress {
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++  self.lastStatus = VersionUpdater::UPDATING;
++  self.lastProgress = progress;
++  self.lastError = nil;
+   status_callbacks_.Notify(VersionUpdater::UPDATING, progress, @"");
+ }
+ 
+@@ -309,14 +321,13 @@
+       // When updater already has update, don't interrupt it by new check,
+       // instead suggest user to "Relaunch" browser.
+       UpdateStatus(NEARLY_UPDATED, 0, nil);
+-    } else {
+-      // Set initial status to CHECKING, callback will advance that status as
+-      // progress of updates continue.
+-      UpdateStatus(CHECKING, 0, nil);
+-      // Launch a new update check, even if one was already completed, because
+-      // a new update may be available or a new update may have been installed
+-      // in the background since the last time the Help page was displayed.
++    } else if (updater.canCheckForUpdates) {
++      [observer updateStatus:CHECKING error_string:nil];
+       [updater checkForUpdatesInBackground];
++    } else {
++      // Sparkle already owns a check or download. Reuse it, including progress
++      // and errors, instead of resetting the About page to an empty check.
++      UpdateStatus(observer.lastStatus, observer.lastProgress, observer.lastError);
+     }
+   } else {
+     // There is no glue, or the application is on a read-only filesystem.
+@@ -387,13 +398,18 @@
+     return;
+   }
+ 
+-  if (updater) {
++  static bool started = false;
++  if (updater && !started) {
+     NSError* err = nullptr;
+     updater.automaticallyChecksForUpdates = YES;
+     updater.automaticallyDownloadsUpdates = YES;
+ 
+     if ([updater startUpdater:&err]) {
+-      [updater checkForUpdatesInBackground];
++      started = true;
++      if (updater.canCheckForUpdates) {
++        [observer updateStatus:VersionUpdater::CHECKING error_string:nil];
++        [updater checkForUpdatesInBackground];
++      }
+     } else if (err && observer) {
+       [observer updateStatus:VersionUpdater::FAILED
+                 error_string:[err.localizedDescription copy]];
+--- a/chrome/browser/resources/settings/about_page/about_page.html.ts
++++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
+@@ -41,6 +41,10 @@
+             .innerHTML="${this.getUpdateStatusMessage_()}">
+         </div>
+       </div>
++<if expr="is_macosx">
++      <a id="updateSettings" href="chrome://settings/privacy/services"
++          ?hidden="${!this.shouldShowUpdateSettings_()}">$i18n{aboutUpdateSettings}</a>
++</if>
+       <span id="deprecationWarning"
+           ?hidden="${!this.obsoleteSystemInfo_.obsolete}">
+         $i18n{aboutObsoleteSystem}
+--- a/chrome/browser/resources/settings/about_page/about_page.ts
++++ b/chrome/browser/resources/settings/about_page/about_page.ts
+@@ -234,16 +234,31 @@
+       this.showUpdateStatus_ = false;
+       return;
+     }
++    // <if expr="is_macosx">
++    this.showUpdateStatus_ = true;
++    // </if>
++    // <if expr="not is_macosx">
+     this.showUpdateStatus_ =
+         this.currentUpdateStatusEvent_!.status !== UpdateStatus.DISABLED;
++    // </if>
+   }
+ 
++  // <if expr="is_macosx">
++  protected shouldShowUpdateSettings_(): boolean {
++    return this.checkStatus_(UpdateStatus.DISABLED);
++  }
++  // </if>
++
+   protected shouldShowLearnMoreLink_(): boolean {
+     return this.currentUpdateStatusEvent_!.status === UpdateStatus.FAILED;
+   }
+ 
+   protected getUpdateStatusMessage_(): TrustedHTML {
+     switch (this.currentUpdateStatusEvent_!.status) {
++      // <if expr="is_macosx">
++      case UpdateStatus.DISABLED:
++        return this.i18nAdvanced('aboutUpdatesDisabled');
++      // </if>
+       case UpdateStatus.CHECKING:
+       case UpdateStatus.NEED_PERMISSION_TO_UPDATE:
+         return this.i18nAdvanced('aboutUpgradeCheckStarted');
+--- a/chrome/browser/ui/chrome_pages.cc
++++ b/chrome/browser/ui/chrome_pages.cc
+@@ -63,6 +63,7 @@
+ #include "components/search_engines/search_engines_switches.h"
+ #include "components/signin/public/base/consent_level.h"
+ #include "components/version_info/version_info.h"
++#include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/web_contents.h"
+ #include "extensions/browser/extension_prefs.h"
+ #include "extensions/common/constants.h"
+@@ -614,9 +615,18 @@
+   ShowSettingsSubPage(browser, kImportDataSubPage);
+ }
+ 
+-void ShowAboutChrome(BrowserWindowInterface* browser) {
++void ShowAboutChrome(BrowserWindowInterface* browser, bool check_for_updates) {
+   base::RecordAction(UserMetricsAction("AboutChrome"));
+-  ShowSingletonTabIgnorePathOverwriteNTP(browser, GURL(kChromeUIHelpURL));
++  NavigateParams params(
++      GetSingletonTabNavigateParams(browser, GURL(kChromeUIHelpURL)));
++  params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
++  ShowSingletonTabOverwritingNTP(&params);
++  // Loading a new About page already requests status. Refresh an existing page
++  // explicitly so choosing the menu action always gives visible feedback.
++  content::WebContents* contents = params.navigated_or_inserted_contents;
++  if (check_for_updates && contents && !contents->IsLoading()) {
++    contents->GetController().Reload(content::ReloadType::NORMAL, false);
++  }
+ }
+ 
+ void ShowHeliumServices(BrowserWindowInterface* browser) {
+--- a/chrome/browser/ui/chrome_pages.h
++++ b/chrome/browser/ui/chrome_pages.h
+@@ -138,7 +138,9 @@
+     BrowserWindowInterface* browser,
+     safe_browsing::SafeBrowsingSettingReferralMethod referral_method);
+ void ShowImportDialog(BrowserWindowInterface* browser);
+-void ShowAboutChrome(BrowserWindowInterface* browser);
++// A user-initiated update action also refreshes an already-open About page.
++void ShowAboutChrome(BrowserWindowInterface* browser,
++                     bool check_for_updates = false);
+ void ShowHeliumServices(BrowserWindowInterface* browser);
+ void ShowSearchEngineSettings(BrowserWindowInterface* browser);
+ void ShowWebStore(BrowserWindowInterface* browser,
+--- a/chrome/browser/ui/cocoa/main_menu_builder.mm
++++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
+@@ -72,6 +72,10 @@
+               Item(IDS_IMPORT_SETTINGS_MENU_MAC)
+                   .command_id(IDC_IMPORT_SETTINGS)
+                   .remove_if(is_pwa),
++              Item(IDS_CHECK_FOR_UPDATES_MENU_MAC)
++                  .target(app_delegate)
++                  .action(@selector(checkForUpdates:))
++                  .remove_if(is_pwa),
+               Item().is_separator(),
+               Item(IDS_SERVICES_MAC)
+                   .tag(-1)
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -352,6 +352,8 @@
+        IDS_SETTINGS_ABOUT_PAGE_LEARN_MORE_SYSTEM_REQUIREMENTS},
+ #if BUILDFLAG(IS_MAC)
+       {"aboutLearnMoreUpdating", IDS_SETTINGS_ABOUT_PAGE_LEARN_MORE_UPDATING},
++      {"aboutUpdatesDisabled", IDS_SETTINGS_ABOUT_UPDATES_DISABLED},
++      {"aboutUpdateSettings", IDS_SETTINGS_ABOUT_UPDATE_SETTINGS},
+ #endif
+ #if BUILDFLAG(GOOGLE_CHROME_BRANDING) || \
+     BUILDFLAG(GOOGLE_CHROME_FOR_TESTING_BRANDING)

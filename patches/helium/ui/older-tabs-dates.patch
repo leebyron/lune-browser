@@ -1,0 +1,478 @@
+Index: src/chrome/app/settings_strings.grdp
+===================================================================
+--- src.orig/chrome/app/settings_strings.grdp
++++ src/chrome/app/settings_strings.grdp
+@@ -4839,6 +4839,9 @@
+   <message name="IDS_SETTINGS_HELIUM_SERVICES_COMPONENT_UPDATES_DESCRIPTION" desc="Description of automatic Helium component updates.">
+     Lune will automatically check for component updates and install them. We recommend keeping this setting enabled.
+   </message>
++  <message name="IDS_OLDER_TABS_TODAY" desc="Short date for a tab last used today.">Today</message>
++  <message name="IDS_OLDER_TABS_YESTERDAY" desc="Short date for a tab last used yesterday.">Yesterday</message>
++  <message name="IDS_OLDER_TABS_LAST_USED" desc="Last use of an Older tab, with a short date and local time."><ph name="DATE">$1<ex>Thursday</ex></ph> at <ph name="TIME">$2<ex>8:23am</ex></ph></message>
+   <message name="IDS_OLDER_TABS" desc="olderTabs: automatic sidebar tab cleanup.">Older Tabs</message>
+   <message name="IDS_OLDER_TABS_KEEP" desc="olderTabsKeep: automatic sidebar tab cleanup.">Keep Tab</message>
+   <message name="IDS_OLDER_TABS_MOVE_AFTER" desc="olderTabsMoveAfter: automatic sidebar tab cleanup.">Move inactive tabs to Older Tabs after</message>
+Index: src/chrome/browser/ui/tabs/older_tabs_controller.cc
+===================================================================
+--- src.orig/chrome/browser/ui/tabs/older_tabs_controller.cc
++++ src/chrome/browser/ui/tabs/older_tabs_controller.cc
+@@ -13,6 +13,7 @@
+ #include <tuple>
+ 
+ #include "base/auto_reset.h"
++#include "base/i18n/time_formatting.h"
+ #include "base/json/json_reader.h"
+ #include "base/json/json_writer.h"
+ #include "base/json/values_util.h"
+@@ -30,6 +31,7 @@
+ #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
++#include "chrome/grit/generated_resources.h"
+ #include "components/prefs/pref_service.h"
+ #include "components/saved_tab_groups/public/tab_group_sync_service.h"
+ #include "components/sessions/content/session_tab_helper.h"
+@@ -37,6 +39,8 @@
+ #include "content/public/browser/download_manager.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_contents_observer.h"
++#include "third_party/icu/source/i18n/unicode/smpdtfmt.h"
++#include "ui/base/l10n/l10n_util.h"
+ 
+ namespace tabs {
+ namespace {
+@@ -189,6 +193,64 @@ base::Time OlderTabsController::FrozenLa
+   auto* data = Find(contents);
+   return data ? data->frozen : base::Time();
+ }
++base::Time OlderTabsController::LastUse(const content::WebContents* contents) {
++  const auto* data = Find(contents);
++  return data ? data->last_use : base::Time();
++}
++int OlderTabsController::DateKey(base::Time time) {
++  base::Time::Exploded parts;
++  time.LocalExplode(&parts);
++  parts.hour = parts.minute = parts.second = parts.millisecond = 0;
++  base::Time midnight;
++  return base::Time::FromUTCExploded(parts, &midnight)
++             ? (midnight - base::Time::UnixEpoch()).InDays()
++             : 0;
++}
++std::u16string OlderTabsController::ShortDate(base::Time time, base::Time now) {
++  const int days = DateKey(now) - DateKey(time);
++  if (days == 0) {
++    return l10n_util::GetStringUTF16(IDS_OLDER_TABS_TODAY);
++  }
++  if (days == 1) {
++    return l10n_util::GetStringUTF16(IDS_OLDER_TABS_YESTERDAY);
++  }
++  UErrorCode error = U_ZERO_ERROR;
++  icu::SimpleDateFormat formatter(
++      icu::UnicodeString(days >= 2 && days <= 4 ? "EEEE" : "MMM"), error);
++  icu::UnicodeString text;
++  if (U_FAILURE(error)) {
++    return base::TimeFormatShortDate(time);
++  }
++  formatter.format(time.InMillisecondsFSinceUnixEpoch(), text);
++  if (days < 2 || days > 4) {
++    base::Time::Exploded parts;
++    time.LocalExplode(&parts);
++    text.append(" ");
++    formatter.applyPattern(icu::UnicodeString("d"));
++    formatter.format(time.InMillisecondsFSinceUnixEpoch(), text);
++    // Chromium omits ICU's rule-based ordinal data. English day suffixes
++    // are small and deterministic; other locales retain localized digits.
++    if (std::string_view(icu::Locale::getDefault().getLanguage()) == "en") {
++      const int day = parts.day_of_month;
++      const char* suffix = "th";
++      if (day < 11 || day > 13) {
++        switch (day % 10) {
++          case 1:
++            suffix = "st";
++            break;
++          case 2:
++            suffix = "nd";
++            break;
++          case 3:
++            suffix = "rd";
++            break;
++        }
++      }
++      text.append(suffix);
++    }
++  }
++  return std::u16string(text.getBuffer(), text.length());
++}
+ std::string OlderTabsController::Serialize(
+     const content::WebContents* contents) {
+   auto* data = Find(contents);
+Index: src/chrome/browser/ui/tabs/older_tabs_controller.h
+===================================================================
+--- src.orig/chrome/browser/ui/tabs/older_tabs_controller.h
++++ src/chrome/browser/ui/tabs/older_tabs_controller.h
+@@ -54,6 +54,10 @@ class OlderTabsController : public TabSt
+                           const content::WebContents* b);
+   static bool IsDraggingToRegular(const content::WebContents* contents);
+   static base::Time FrozenLastUse(const content::WebContents* contents);
++  static base::Time LastUse(const content::WebContents* contents);
++  // Local civil date, independent of elapsed hours and daylight saving.
++  static int DateKey(base::Time time);
++  static std::u16string ShortDate(base::Time time, base::Time now);
+   static std::string Serialize(const content::WebContents* contents);
+   static void Restore(content::WebContents* contents,
+                       const std::string& data,
+Index: src/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+===================================================================
+--- src.orig/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ src/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -34,7 +34,6 @@
+ #include "components/prefs/pref_service.h"
+ #include "components/tabs/public/tab_group.h"
+ #include "content/public/browser/navigation_controller.h"
+-#include "third_party/icu/source/i18n/unicode/smpdtfmt.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/models/image_model.h"
+@@ -601,34 +600,6 @@ content::WebContents* ContentsForView(co
+   return tab && tab->GetTabInterface() ? tab->GetTabInterface()->GetContents()
+                                        : nullptr;
+ }
+-// Convert a local calendar date to a synthetic UTC midnight. Subtraction of
+-// these dates counts civil days without treating a DST day as 24 elapsed hours.
+-int CivilDaysBetween(base::Time newer, base::Time older) {
+-  auto date = [](base::Time time) {
+-    base::Time::Exploded parts;
+-    time.LocalExplode(&parts);
+-    parts.hour = parts.minute = parts.second = parts.millisecond = 0;
+-    base::Time result;
+-    return base::Time::FromUTCExploded(parts, &result) ? result : base::Time();
+-  };
+-  return (date(newer) - date(older)).InDays();
+-}
+-bool IsOlderDateBucket(int days) {
+-  return days > 6;
+-}
+-
+-std::u16string OlderDate(base::Time time, int days) {
+-  if (IsOlderDateBucket(days)) {
+-    return l10n_util::GetStringUTF16(IDS_OLDER_TABS_OLDER_LABEL);
+-  }
+-  UErrorCode error = U_ZERO_ERROR;
+-  icu::SimpleDateFormat formatter(icu::UnicodeString("EEEE"), error);
+-  icu::UnicodeString text;
+-  if (U_SUCCESS(error)) {
+-    formatter.format(time.InMillisecondsFSinceUnixEpoch(), text);
+-  }
+-  return std::u16string(text.getBuffer(), text.length());
+-}
+ }  // namespace
+ 
+ bool UnpinnedTabContainerView::IsOlderView(const views::View* view) const {
+@@ -734,6 +705,7 @@ void UnpinnedTabContainerView::UpdateOld
+   has_older_tabs_ = !older.empty();
+   older_date_headings_.clear();
+   std::set<int> used_days;
++  std::optional<int> preceding_day;
+   const auto now = base::Time::Now();
+   for (auto* child : older) {
+     // Date headings follow the tabs still targeting the Older section.
+@@ -742,17 +714,15 @@ void UnpinnedTabContainerView::UpdateOld
+     }
+     const auto frozen =
+         tabs::OlderTabsController::FrozenLastUse(ContentsForView(child));
+-    const int days = CivilDaysBetween(now, frozen);
+-    if (narrow || days < 2) {
+-      continue;
+-    }
+-    // Weekdays cover the preceding six days; earlier dates share Older.
+-    const int key =
+-        IsOlderDateBucket(days) ? -1
+-                                : CivilDaysBetween(frozen, base::Time::UnixEpoch());
+-    if (!used_days.insert(key).second) {
++    const int key = tabs::OlderTabsController::DateKey(frozen);
++    const bool boundary = preceding_day && *preceding_day != key;
++    preceding_day = key;
++    // Headings separate visible dates; the first visible tab never has one,
++    // including while preceding tabs are being dragged into the regular stack.
++    if (narrow || !boundary) {
+       continue;
+     }
++    used_days.insert(key);
+     auto& label = older_day_labels_[key];
+     if (!label) {
+       label = AddChildView(std::make_unique<views::Label>());
+@@ -763,7 +733,7 @@ void UnpinnedTabContainerView::UpdateOld
+       // Trim two pixels from each edge without recentering the text.
+       label->SetVerticalAlignment(gfx::ALIGN_TOP);
+       label->SetBorder(views::CreateEmptyBorder(gfx::Insets().set_top(
+-          std::max(0, (20 - label->font_list().GetHeight()) / 2 - 3))));
++          std::max(0, (20 - label->font_list().GetHeight()) / 2 - 4))));
+       label->SetCanProcessEventsWithinSubtree(false);
+       label->GetViewAccessibility().SetRole(ax::mojom::Role::kHeading);
+     }
+@@ -776,7 +746,7 @@ void UnpinnedTabContainerView::UpdateOld
+               .value_or(SkColorSetA(secondary, SkColorGetA(secondary) * 0.65f));
+       label->SetEnabledColor(SkColorSetA(color, SkColorGetA(color) * 0.85f));
+     }
+-    const auto name = OlderDate(frozen, days);
++    const auto name = tabs::OlderTabsController::ShortDate(frozen, now);
+     label->SetText(base::i18n::ToUpper(name));
+     label->GetViewAccessibility().SetName(name);
+     older_date_headings_[child] = label;
+Index: src/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
+===================================================================
+--- src.orig/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
++++ src/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
+@@ -11,22 +11,33 @@
+ #include <string_view>
+ 
+ #include "base/byte_size.h"
++#include "base/i18n/case_conversion.h"
++#include "base/i18n/time_formatting.h"
+ #include "base/memory/raw_ptr.h"
++#include "base/strings/string_util.h"
+ #include "base/metrics/field_trial_params.h"
+ #include "build/build_config.h"
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
+ #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
++#include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "chrome/browser/ui/tabs/tab_data.h"
+ #include "chrome/browser/ui/tabs/tab_group_data.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/thumbnails/thumbnail_image.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/chrome_typography.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "chrome/browser/ui/views/tabs/common/tab_view.h"
+ #include "chrome/browser/ui/views/tabs/hovercard/fade_label_view.h"
+ #include "chrome/browser/ui/views/tabs/hovercard/hover_card_anchor_target.h"
++#include "chrome/grit/generated_resources.h"
+ #include "ui/accessibility/ax_enums.mojom.h"
++#include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/mojom/dialog_button.mojom.h"
+@@ -48,6 +59,8 @@
+ #include "ui/views/layout/flex_layout.h"
+ #include "ui/views/style/typography.h"
+ #include "ui/views/view_class_properties.h"
++#include "ui/views/view_utils.h"
++#include "ui/views/vector_icons.h"
+ #include "ui/views/widget/widget.h"
+ 
+ namespace {
+@@ -403,6 +416,42 @@ class TabHoverCardBubbleView::TabCardVie
+             footer_view_->flex_layout()->GetDefaultFlexRule())
+             .WithWeight(0));
+ 
++    // FadeView measures its primary label directly, ignoring its own border.
++    // Put padding on a normal container so the label retains its full height.
++    last_used_container_ = AddChildView(std::make_unique<views::View>());
++    last_used_container_->SetLayoutManager(std::make_unique<views::FlexLayout>())
++        ->SetOrientation(views::LayoutOrientation::kHorizontal)
++        .SetCrossAxisAlignment(views::LayoutAlignment::kStart);
++    last_used_container_->SetBackground(
++        views::CreateSolidBackground(ui::kColorBubbleFooterBackground));
++    last_used_container_->SetBorder(views::CreateEmptyBorder(kTextMargins));
++    const int icon_size =
++        GetLayoutConstant(LayoutConstant::kTabAlertIndicatorIconWidth);
++    last_used_icon_ =
++        last_used_container_->AddChildView(std::make_unique<views::ImageView>());
++    last_used_icon_->SetImageSize(gfx::Size(icon_size, icon_size));
++    last_used_icon_->SetPreferredSize(gfx::Size(icon_size, icon_size));
++    last_used_icon_->SetVerticalAlignment(views::ImageView::Alignment::kLeading);
++    last_used_icon_->GetViewAccessibility().SetIsIgnored(true);
++    last_used_icon_->SetBackground(
++        views::CreateSolidBackground(ui::kColorBubbleFooterBackground));
++    last_used_label_ =
++        last_used_container_->AddChildView(std::make_unique<FadeLabelView>(
++            2, views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_BODY_4));
++    last_used_label_->SetEnabledColor(kColorTabHoverCardSecondaryText);
++    last_used_label_->SetBackgroundColor(ui::kColorBubbleFooterBackground);
++    last_used_label_->SetProperty(
++        views::kFlexBehaviorKey,
++        views::FlexSpecification(views::LayoutOrientation::kHorizontal,
++                                 views::MinimumFlexSizeRule::kScaleToZero,
++                                 views::MaximumFlexSizeRule::kUnbounded, true));
++    // Match FooterRow's icon slot, first-line alignment and icon-to-text gap.
++    const int icon_offset =
++        (last_used_label_->GetLineHeight() - icon_size) / 2;
++    last_used_icon_->SetProperty(views::kMarginsKey,
++                                gfx::Insets::TLBR(icon_offset, 0, 0, 8));
++    last_used_container_->SetVisible(false);
++
+     // Set up layout.
+     views::FlexLayout* const layout =
+         SetLayoutManager(std::make_unique<views::FlexLayout>());
+@@ -510,7 +559,44 @@ class TabHoverCardBubbleView::TabCardVie
+     footer_view_->SetCollaborationMessagingData(
+         {collaboration_messaging_row_data});
+ 
+-    const bool show_footer = card_data.alert_data.alert_state.has_value() ||
++    const auto* tab_view = views::AsViewClass<TabView>(anchor_target->GetView());
++    const auto* contents = tab_view && tab_view->GetTabInterface()
++                               ? tab_view->GetTabInterface()->GetContents()
++                               : nullptr;
++    const auto last_use = tabs::OlderTabsController::LastUse(contents);
++    const auto* browser = tab_view && tab_view->GetTabInterface()
++                              ? tab_view->GetTabInterface()->GetBrowserWindowInterface()
++                              : nullptr;
++    const bool show_last_used =
++        browser && browser->GetTabStripModel()->older_tabs_controller()->IsEnabled() &&
++        tabs::OlderTabsController::IsOlder(contents) && !last_use.is_null();
++    last_used_container_->SetVisible(show_last_used);
++    if (show_last_used) {
++      UpdateLastUsedIcon();
++    }
++    // Share one outer inset, retaining the existing footer's inter-row gap.
++    auto footer_insets = kTextMargins;
++    if (show_last_used) {
++      footer_insets.set_bottom(0);
++    }
++    footer_view_->flex_layout()->SetInteriorMargin(footer_insets);
++    auto last_used_insets = kTextMargins;
++    if (footer_view_->GetVisible()) {
++      last_used_insets.set_top(0);
++    }
++    last_used_container_->SetBorder(views::CreateEmptyBorder(last_used_insets));
++    auto short_time = base::i18n::ToLower(base::TimeFormatTimeOfDay(last_use));
++    base::RemoveChars(short_time, u" \u00a0\u202f", &short_time);
++    last_used_label_->SetData({
++        show_last_used
++            ? l10n_util::GetStringFUTF16(
++                  IDS_OLDER_TABS_LAST_USED,
++                  tabs::OlderTabsController::ShortDate(last_use, base::Time::Now()),
++                  short_time)
++            : std::u16string()});
++
++    const bool show_footer = show_last_used ||
++                             card_data.alert_data.alert_state.has_value() ||
+                              card_data.show_discard_status ||
+                              show_memory_usage || show_collaboration_messaging;
+ 
+@@ -530,12 +616,37 @@ class TabHoverCardBubbleView::TabCardVie
+     title_label_->SetFade(percent);
+     domain_label_->SetFade(percent);
+     footer_view_->SetFade(percent);
++    last_used_label_->SetFade(percent);
+   }
+ 
+  private:
+   raw_ptr<FadeLabelView> title_label_ = nullptr;
+   raw_ptr<FadeLabelView> domain_label_ = nullptr;
+   raw_ptr<FooterView> footer_view_ = nullptr;
++  void OnThemeChanged() override {
++    views::View::OnThemeChanged();
++    UpdateLastUsedIcon();
++  }
++
++  void UpdateLastUsedIcon() {
++    if (!last_used_icon_ || !GetColorProvider()) {
++      return;
++    }
++    const int size = last_used_icon_->GetPreferredSize().width();
++    const auto color =
++        GetColorProvider()->GetColor(kColorHoverCardTabAlertAudioPlayingIcon);
++    auto eye = helium::NativeToolbarSymbolForName("eye", size, color);
++    last_used_icon_->SetImage(
++        eye.isNull()
++            ? ui::ImageModel::FromVectorIcon(views::kVisibilityIcon,
++                                            kColorHoverCardTabAlertAudioPlayingIcon,
++                                            size)
++            : ui::ImageModel::FromImageSkia(eye));
++  }
++
++  raw_ptr<views::View> last_used_container_ = nullptr;
++  raw_ptr<views::ImageView> last_used_icon_ = nullptr;
++  raw_ptr<FadeLabelView> last_used_label_ = nullptr;
+   raw_ptr<ThumbnailView> thumbnail_view_ = nullptr;
+   const raw_ptr<TabHoverCardBubbleView> bubble_view_;
+ };
+Index: src/chrome/browser/ui/views/tabs/hovercard/fade_label_view.cc
+===================================================================
+--- src.orig/chrome/browser/ui/views/tabs/hovercard/fade_label_view.cc
++++ src/chrome/browser/ui/views/tabs/hovercard/fade_label_view.cc
+@@ -86,11 +86,35 @@ std::u16string_view FadeLabelView::GetTe
+   return primary_view_->GetText();
+ }
+ 
++int FadeLabelView::GetLineHeight() const {
++  return primary_view_->GetLineHeight();
++}
++
+ void FadeLabelView::SetEnabledColor(ui::ColorId color) {
+   primary_view_->SetEnabledColor(color);
+   fade_out_view_->SetEnabledColor(color);
+ }
+ 
++void FadeLabelView::SetBackgroundColor(ui::ColorVariant color) {
++  background_color_ = color;
++  UpdateBackgroundColor();
++}
++
++void FadeLabelView::OnThemeChanged() {
++  views::View::OnThemeChanged();
++  UpdateBackgroundColor();
++}
++
++void FadeLabelView::UpdateBackgroundColor() {
++  if (!background_color_) {
++    return;
++  }
++  primary_view_->SetBackgroundColor(*background_color_);
++  fade_out_view_->SetBackgroundColor(*background_color_);
++  // Retain the current opacity when a theme change updates the surface color.
++  fade_out_view_->SetFade(percent_);
++}
++
+ using FadeWrapper_Label_FadeLabelViewData =
+     FadeWrapper<views::Label, FadeLabelViewData>;
+ BEGIN_TEMPLATE_METADATA(FadeWrapper_Label_FadeLabelViewData, FadeWrapper)
+Index: src/chrome/browser/ui/views/tabs/hovercard/fade_label_view.h
+===================================================================
+--- src.orig/chrome/browser/ui/views/tabs/hovercard/fade_label_view.h
++++ src/chrome/browser/ui/views/tabs/hovercard/fade_label_view.h
+@@ -5,6 +5,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_TABS_HOVERCARD_FADE_LABEL_VIEW_H_
+ #define CHROME_BROWSER_UI_VIEWS_TABS_HOVERCARD_FADE_LABEL_VIEW_H_
+ 
++#include <optional>
+ #include <string_view>
+ 
+ #include "chrome/browser/ui/views/tabs/hovercard/fade_view.h"
+@@ -80,8 +81,18 @@ class FadeLabelView : public FadeView<Fa
+   ~FadeLabelView() override = default;
+ 
+   std::u16string_view GetText() const;
++  int GetLineHeight() const;
+ 
+   void SetEnabledColor(ui::ColorId color);
++  // Match the fade-out mask to surfaces such as a hover card footer.
++  void SetBackgroundColor(ui::ColorVariant color);
++
++ protected:
++  void OnThemeChanged() override;
++
++ private:
++  void UpdateBackgroundColor();
++  std::optional<ui::ColorVariant> background_color_;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_TABS_HOVERCARD_FADE_LABEL_VIEW_H_
+Index: src/chrome/browser/ui/views/tabs/hovercard/BUILD.gn
+===================================================================
+--- src.orig/chrome/browser/ui/views/tabs/hovercard/BUILD.gn
++++ src/chrome/browser/ui/views/tabs/hovercard/BUILD.gn
+@@ -96,6 +96,7 @@ source_set("impl") {
+     "//chrome/browser/ui/views",
+     "//chrome/browser/ui/views:layout_provider",
+     "//chrome/browser/ui/views/frame",
++    "//chrome/browser/ui/views/helium:native_frame_materials",
+     "//chrome/browser/ui/web_applications",
+     "//chrome/common:constants",
+     "//components/collaboration/public",

@@ -1,0 +1,279 @@
+--- a/chrome/app/chrome_command_ids.h
++++ b/chrome/app/chrome_command_ids.h
+@@ -113,6 +113,10 @@
+ 
+ #define IDC_CTRL_S_SHORTCUT             34090
+ #define IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN 34091
++#define IDC_TOP_CONTROLS_MENU             34092
++#define IDC_TOP_CONTROLS_HOVER            34093
++#define IDC_TOP_CONTROLS_ALWAYS           34094
++#define IDC_TOP_CONTROLS_OVERLAY          34095
+ 
+ // Tab group Commands
+ #define IDC_ADD_NEW_TAB_TO_GROUP      34100
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -10387,8 +10387,17 @@ Keep your key file in a safe place. You
+         Use the split view menu to switch between side by side and stacked layouts.
+       </message>
+ 
+-      <message name="IDS_ALWAYS_SHOW_CONTROLS" desc="Checkbox in the window context menu to keep the native browser controls visible.">
+-        Always show controls
++      <message name="IDS_TOP_CONTROLS_MENU" desc="Submenu selecting when the top browser controls are visible.">
++        Show top controls
++      </message>
++      <message name="IDS_TOP_CONTROLS_HOVER" desc="Show browser controls only when the pointer approaches them.">
++        Show on hover
++      </message>
++      <message name="IDS_TOP_CONTROLS_ALWAYS" desc="Keep browser controls visible with a protective page inset.">
++        Always show
++      </message>
++      <message name="IDS_TOP_CONTROLS_OVERLAY" desc="Experimental mode allowing opted-in pages beneath browser controls.">
++        Always show with overlay (experimental)
+       </message>
+ 
+       <!-- Helium Browser Layout Strings -->
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -4728,6 +4728,8 @@ void ChromeContentBrowserClient::Overrid
+     auto* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+         web_contents);
+     auto* layout = browser ? HeliumLayoutStateController::From(browser) : nullptr;
++    web_prefs->native_header_overlay =
++        prefs->GetBoolean(prefs::kHeliumTopControlsOverlay);
+     web_prefs->native_header_inset =
+         browser && browser->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
+                 layout && layout->IsVerticalAddressBarInSidebar() &&
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -241,6 +241,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumZenModeTopChromePinned] =
+       settings_api::PrefType::kBoolean;
++  (*s_allowlist)[::prefs::kHeliumTopControlsOverlay] =
++      settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumNativeFrameMaterials] =
+       settings_api::PrefType::kBoolean;
+ 
+--- a/chrome/browser/ui/tabs/tab_strip_prefs.cc
++++ b/chrome/browser/ui/tabs/tab_strip_prefs.cc
+@@ -40,6 +40,7 @@ void RegisterProfilePrefs(user_prefs::Pr
+   registry->RegisterBooleanPref(prefs::kHeliumZenMode, true);
+   registry->RegisterBooleanPref(prefs::kHeliumZenModeSidebarPinned, true);
+   registry->RegisterBooleanPref(prefs::kHeliumZenModeTopChromePinned, false);
++  registry->RegisterBooleanPref(prefs::kHeliumTopControlsOverlay, false);
+   registry->RegisterBooleanPref(prefs::kHeliumVerticalAddressBarInSidebar,
+                                 true);
+ }
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -1184,6 +1184,10 @@ BrowserView::BrowserView(BrowserWindowIn
+       base::BindRepeating(&BrowserView::OnZenModeTopChromePinnedPrefChanged,
+                           base::Unretained(this)));
+   registrar_.Add(
++      prefs::kHeliumTopControlsOverlay,
++      base::BindRepeating(&BrowserView::OnZenModeTopChromePinnedPrefChanged,
++                          base::Unretained(this)));
++  registrar_.Add(
+       prefs::kHeliumContentAwareChrome,
+       base::BindRepeating(&BrowserView::UpdateZenModeRevealFromCursor,
+                           base::Unretained(this)));
+--- a/chrome/browser/ui/views/frame/system_menu_model_builder.cc
++++ b/chrome/browser/ui/views/frame/system_menu_model_builder.cc
+@@ -186,8 +186,16 @@ void SystemMenuModelBuilder::BuildSystem
+ #if BUILDFLAG(IS_MAC)
+     model->AddCheckItemWithStringId(
+         IDC_BROWSER_LAYOUT_VERTICAL_RIGHT, IDS_BROWSER_LAYOUT_VERTICAL_RIGHT);
+-    model->AddCheckItemWithStringId(
+-        IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN, IDS_ALWAYS_SHOW_CONTROLS);
++    top_controls_menu_contents_ =
++        std::make_unique<ui::SimpleMenuModel>(&menu_delegate_);
++    top_controls_menu_contents_->AddRadioItemWithStringId(
++        IDC_TOP_CONTROLS_HOVER, IDS_TOP_CONTROLS_HOVER, 0);
++    top_controls_menu_contents_->AddRadioItemWithStringId(
++        IDC_TOP_CONTROLS_ALWAYS, IDS_TOP_CONTROLS_ALWAYS, 0);
++    top_controls_menu_contents_->AddRadioItemWithStringId(
++        IDC_TOP_CONTROLS_OVERLAY, IDS_TOP_CONTROLS_OVERLAY, 0);
++    model->AddSubMenuWithStringId(IDC_TOP_CONTROLS_MENU, IDS_TOP_CONTROLS_MENU,
++                                  top_controls_menu_contents_.get());
+ #else
+     browser_layout_menu_contents_ =
+         std::make_unique<ui::SimpleMenuModel>(&menu_delegate_);
+--- a/chrome/browser/ui/views/frame/system_menu_model_builder.h
++++ b/chrome/browser/ui/views/frame/system_menu_model_builder.h
+@@ -61,6 +61,7 @@ class SystemMenuModelBuilder {
+   std::unique_ptr<ui::MenuModel> menu_model_;
+   std::unique_ptr<ui::SimpleMenuModel> zoom_menu_contents_;
+   std::unique_ptr<ui::SimpleMenuModel> browser_layout_menu_contents_;
++  std::unique_ptr<ui::SimpleMenuModel> top_controls_menu_contents_;
+ #if BUILDFLAG(IS_CHROMEOS)
+   std::unique_ptr<chromeos::MoveToDesksMenuModel> move_to_desks_model_;
+ #endif
+--- a/chrome/browser/ui/views/frame/system_menu_model_delegate.cc
++++ b/chrome/browser/ui/views/frame/system_menu_model_delegate.cc
+@@ -86,6 +86,17 @@ bool SystemMenuModelDelegate::IsCommandI
+            vertical_tab_controller->IsTabStripRightAligned();
+   }
+ 
++  if (command_id >= IDC_TOP_CONTROLS_HOVER &&
++      command_id <= IDC_TOP_CONTROLS_OVERLAY) {
++    const auto* prefs = browser_->GetProfile()->GetPrefs();
++    const bool pinned = prefs->GetBoolean(prefs::kHeliumZenModeTopChromePinned);
++    const bool overlay = prefs->GetBoolean(prefs::kHeliumTopControlsOverlay);
++    const int selected = !pinned ? IDC_TOP_CONTROLS_HOVER
++                                : overlay ? IDC_TOP_CONTROLS_OVERLAY
++                                          : IDC_TOP_CONTROLS_ALWAYS;
++    return command_id == selected;
++  }
++
+   if (command_id == IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN) {
+     return browser_->GetProfile()->GetPrefs()->GetBoolean(
+         prefs::kHeliumZenModeTopChromePinned);
+@@ -95,6 +106,10 @@ bool SystemMenuModelDelegate::IsCommandI
+ }
+ 
+ bool SystemMenuModelDelegate::IsCommandIdEnabled(int command_id) const {
++  if (command_id >= IDC_TOP_CONTROLS_MENU &&
++      command_id <= IDC_TOP_CONTROLS_OVERLAY) {
++    return chrome::IsCommandEnabled(browser_, IDC_TOGGLE_ZEN_MODE_TOP_CHROME_PIN);
++  }
+ #if BUILDFLAG(IS_CHROMEOS)
+   if (command_id == chromeos::MoveToDesksMenuModel::kMenuCommandId) {
+     return chromeos::MoveToDesksMenuDelegate::ShouldShowMoveToDesksMenu();
+@@ -290,6 +305,18 @@ std::u16string SystemMenuModelDelegate::
+ }
+ 
+ void SystemMenuModelDelegate::ExecuteCommand(int command_id, int event_flags) {
++  if (command_id >= IDC_TOP_CONTROLS_HOVER &&
++      command_id <= IDC_TOP_CONTROLS_OVERLAY) {
++    auto* prefs = browser_->GetProfile()->GetPrefs();
++    // Keep existing pin consumers and shortcuts intact. The radio selection is
++    // derived from pinning plus the optional overlay policy, never independent
++    // checked states.
++    prefs->SetBoolean(prefs::kHeliumTopControlsOverlay,
++                      command_id == IDC_TOP_CONTROLS_OVERLAY);
++    prefs->SetBoolean(prefs::kHeliumZenModeTopChromePinned,
++                      command_id != IDC_TOP_CONTROLS_HOVER);
++    return;
++  }
+   switch (command_id) {
+     case IDC_BOOKMARK_ALL_TABS:
+       base::RecordAction(
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -660,6 +660,11 @@ inline constexpr char kHeliumZenModeSide
+ inline constexpr char kHeliumZenModeTopChromePinned[] =
+     "helium.browser.zen_mode_top_chrome_pinned";
+ 
++// Allow viewport-fit=cover pages to draw beneath pinned native controls.
++// False keeps the protective inset regardless of page metadata.
++inline constexpr char kHeliumTopControlsOverlay[] =
++    "helium.browser.top_controls_overlay";
++
+ // A boolean pref set to true if the address bar and navigation buttons are
+ // embedded in the vertical sidebar.
+ inline constexpr char kHeliumVerticalAddressBarInSidebar[] =
+--- a/third_party/blink/common/web_preferences/web_preferences_mojom_traits.cc
++++ b/third_party/blink/common/web_preferences/web_preferences_mojom_traits.cc
+@@ -245,6 +245,7 @@ bool StructTraits<blink::mojom::WebPrefe
+       data.renderer_wide_named_frame_lookup();
+   out->modal_context_menu = data.modal_context_menu();
+   out->native_header_inset = data.native_header_inset();
++  out->native_header_overlay = data.native_header_overlay();
+   out->payment_request_enabled = data.payment_request_enabled();
+   out->ai_ot_apis_enabled = data.ai_ot_apis_enabled();
+ 
+--- a/third_party/blink/public/common/web_preferences/web_preferences.h
++++ b/third_party/blink/public/common/web_preferences/web_preferences.h
+@@ -466,6 +466,8 @@ struct BLINK_COMMON_EXPORT WebPreference
+ 
+   // Browser-owned overlay inset in device-independent pixels. Zero disables it.
+   float native_header_inset = 0;
++  // Only the experimental overlay mode exposes the inset to opted-in pages.
++  bool native_header_overlay = false;
+ 
+   // Whether the safe-area-insets should be changed dynamically based on
+   // browser controls shown ratio on Android.
+--- a/third_party/blink/public/common/web_preferences/web_preferences_mojom_traits.h
++++ b/third_party/blink/public/common/web_preferences/web_preferences_mojom_traits.h
+@@ -839,6 +839,11 @@ struct BLINK_COMMON_EXPORT StructTraits<
+     return r.modal_context_menu;
+   }
+ 
++  static bool native_header_overlay(
++      const blink::web_pref::WebPreferences& r) {
++    return r.native_header_overlay;
++  }
++
+   static float native_header_inset(
+       const blink::web_pref::WebPreferences& r) {
+     return r.native_header_inset;
+--- a/third_party/blink/public/mojom/webpreferences/web_preferences.mojom
++++ b/third_party/blink/public/mojom/webpreferences/web_preferences.mojom
+@@ -514,6 +514,8 @@ struct WebPreferences {
+ 
+   // Browser-owned overlay inset in device-independent pixels. Zero disables it.
+   float native_header_inset = 0;
++  // Only the experimental overlay mode exposes the inset to opted-in pages.
++  bool native_header_overlay = false;
+ 
+   // Whether the safe-area-insets should be changed dynamically based on
+   // browser controls shown ratio on Android.
+--- a/third_party/blink/renderer/core/exported/web_view_impl.cc
++++ b/third_party/blink/renderer/core/exported/web_view_impl.cc
+@@ -4019,7 +4019,8 @@ void WebViewImpl::UpdateWebPreferences(
+   ApplyWebPreferences(web_preferences_, this);
+   ApplyCommandLineToSettings(SettingsImpl());
+   auto& viewport = GetPage()->GetVisualViewport();
+-  if (viewport.SetHeaderTopInset(web_preferences_.native_header_inset) &&
++  if (viewport.SetHeaderTopInset(web_preferences_.native_header_inset,
++                                web_preferences_.native_header_overlay) &&
+       MainFrameImpl()) {
+     UpdateICBAndResizeViewport(viewport.Size());
+     SendResizeEventForMainFrame();
+--- a/third_party/blink/renderer/core/frame/visual_viewport.cc
++++ b/third_party/blink/renderer/core/frame/visual_viewport.cc
+@@ -526,6 +526,9 @@ float VisualViewport::ObscuredTopInset()
+   if (!inset) {
+     return 0;
+   }
++  if (!header_overlay_allowed_) {
++    return inset;
++  }
+   const auto fit = LocalMainFrame().GetDocument()->GetViewportData()
+                        .GetViewportDescription().GetViewportFit();
+   return fit == mojom::ViewportFit::kCover ||
+@@ -546,11 +549,12 @@ float VisualViewport::HeaderTopInset() c
+          GetChromeClient()->GetScreenInfo(LocalMainFrame()).device_scale_factor;
+ }
+ 
+-bool VisualViewport::SetHeaderTopInset(float inset) {
+-  if (header_top_inset_ == inset) {
++bool VisualViewport::SetHeaderTopInset(float inset, bool allow_overlay) {
++  if (header_top_inset_ == inset && header_overlay_allowed_ == allow_overlay) {
+     return false;
+   }
+   header_top_inset_ = inset;
++  header_overlay_allowed_ = allow_overlay;
+   SetNeedsPaintPropertyUpdate();
+   return true;
+ }
+--- a/third_party/blink/renderer/core/frame/visual_viewport.h
++++ b/third_party/blink/renderer/core/frame/visual_viewport.h
+@@ -116,7 +116,7 @@ class CORE_EXPORT VisualViewport : publi
+   // Launch-gated prototype: physical rendering pixels obscured by native UI.
+   float ObscuredTopInset() const;
+   float HeaderTopInset() const;
+-  bool SetHeaderTopInset(float inset);
++  bool SetHeaderTopInset(float inset, bool allow_overlay);
+ 
+   void InitializeScrollbars();
+ 
+@@ -381,6 +381,7 @@ class CORE_EXPORT VisualViewport : publi
+   TraceablePropertyTreeStateOrAlias parent_property_tree_state_{
+       TraceablePropertyTreeStateOrAlias::kUninitialized};
+   float header_top_inset_ = 0;
++  bool header_overlay_allowed_ = false;
+   Member<TransformPaintPropertyNode> obscured_content_transform_node_;
+   Member<TransformPaintPropertyNode> device_emulation_transform_node_;
+   Member<TransformPaintPropertyNode> overscroll_elasticity_transform_node_;

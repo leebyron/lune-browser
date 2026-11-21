@@ -1,0 +1,203 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -37,6 +37,7 @@
+ @class HeliumGlassSidebarButton;
+ @class HeliumGlassCloseButton;
+ @class HeliumSidebarDivider;
++@class HeliumPinnedSidebarInput;
+ 
+ namespace views {
+ class NativeViewHost;
+@@ -163,6 +164,8 @@
+   views::ViewTracker floating_drag_host_;
+   views::ViewTracker floating_toolbar_owner_;
+   views::ViewTracker floating_toolbar_material_host_;
++  views::ViewTracker pinned_sidebar_input_host_;
++  HeliumPinnedSidebarInput* __strong pinned_sidebar_input_ = nil;
+   views::ViewTracker pinned_sidebar_divider_host_;
+   HeliumSidebarDivider* __strong pinned_sidebar_divider_ = nil;
+   views::ViewTracker floating_sidebar_material_host_;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -13,6 +13,7 @@
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/functional/bind.h"
+ #include "base/i18n/rtl.h"
++#include "base/logging.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/numerics/safe_conversions.h"
+ #include "base/strings/sys_string_conversions.h"
+@@ -98,6 +99,8 @@
+ #include "ui/gfx/mac/coordinate_conversion.h"
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
++#include "ui/views/view_targeter.h"
++#include "ui/views/view_targeter_delegate.h"
+ #include "ui/views/context_menu_controller.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/native/native_view_host.h"
+@@ -587,7 +590,74 @@
+ }
+ @end
+ 
++// AppKit's default caption dispatch bypasses Views on a full-size content
++// window. Route only the pinned sidebar's blank background through the same
++// native drag/menu path as the floating header; real tab controls pass through.
++@interface HeliumPinnedSidebarInput : HeliumGlassDragRegion
++@end
++@implementation HeliumPinnedSidebarInput {
++  base::WeakPtr<BrowserView> _sidebarBrowser;
++}
++- (instancetype)initWithBrowserView:(BrowserView*)view {
++  self = [super initWithBrowserView:view];
++  if (self) {
++    _sidebarBrowser = view->GetAsWeakPtr();
++    self.enabled = YES;
++  }
++  return self;
++}
++- (NSRect)interactiveBounds {
++  // The host already excludes the window perimeter and sidebar resize handle.
++  return self.bounds;
++}
++- (void)resetCursorRects {
++  // Registering the entire rectangle would override cursors on tab controls.
++}
++- (NSView*)hitTest:(NSPoint)point {
++  const NSPoint local = [self convertPoint:point fromView:self.superview];
++  if (!self.enabled || self.hidden || !_sidebarBrowser ||
++      !NSPointInRect(local, self.bounds) ||
++      NSApp.currentEvent.type == NSEventTypeScrollWheel) {
++    return nil;
++  }
++  auto* sidebar = static_cast<VerticalTabStripRegionView*>(
++      _sidebarBrowser->GetSidebarView());
++  if (!sidebar || !_sidebarBrowser->IsZenModeSideChromePinned()) {
++    return nil;
++  }
++  gfx::Point position = gfx::ScreenPointFromNSPoint(
++      [self.window convertPointToScreen:[self convertPoint:local toView:nil]]);
++  views::View::ConvertPointFromScreen(sidebar, &position);
++  const bool caption = sidebar->IsPositionInWindowCaption(position);
++  VLOG(1) << "Native pinned sidebar input " << position.ToString() << " caption=" << caption;
++  return caption ? self : nil;
++}
++@end
++
+ namespace {
++class PinnedSidebarInputTargeter : public views::ViewTargeterDelegate {
++ public:
++  explicit PinnedSidebarInputTargeter(BrowserView* browser)
++      : browser_(browser->GetAsWeakPtr()) {}
++  bool DoesIntersectRect(const views::View* target,
++                         const gfx::Rect& rect) const override {
++    if (!browser_ || !browser_->IsZenModeSideChromePinned() ||
++        !target->GetLocalBounds().Intersects(rect)) {
++      return false;
++    }
++    auto* sidebar = static_cast<VerticalTabStripRegionView*>(browser_->GetSidebarView());
++    if (!sidebar) {
++      return false;
++    }
++    gfx::Point local = rect.CenterPoint();
++    views::View::ConvertPointToTarget(target, sidebar, &local);
++    const bool caption = sidebar->IsPositionInWindowCaption(local);
++    VLOG(1) << "Pinned sidebar input " << local.ToString() << " caption=" << caption;
++    return caption;
++  }
++ private:
++  base::WeakPtr<BrowserView> browser_;
++};
+ // The transparent child window hosts existing tab controls. Unhandled blank
+ // space must still behave like the original browser sidebar, on either side.
+ class FloatingSidebarContents : public views::View,
+@@ -1356,6 +1426,10 @@
+     static_cast<views::NativeViewHost*>(host)->Detach();
+   }
+   pinned_sidebar_divider_ = nil;
++  if (auto* host = pinned_sidebar_input_host_.view()) {
++    static_cast<views::NativeViewHost*>(host)->Detach();
++  }
++  pinned_sidebar_input_ = nil;
+   // Closing the window needs no titlebar restoration. AppKit can query the
+   // already-destroyed widget delegate if button visibility changes here.
+   if (auto* host = floating_window_controls_host_.view()) {
+@@ -1729,7 +1803,7 @@
+ int BrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
+   for (auto* host :
+        {floating_navigation_host_.view(), floating_drag_host_.view(),
+-        floating_sidebar_button_host_.view(),
++        pinned_sidebar_input_host_.view(), floating_sidebar_button_host_.view(),
+         floating_customize_close_host_.view()}) {
+     if (host && host->IsDrawn() &&
+         views::View::ConvertRectToTarget(host, this, host->GetLocalBounds())
+@@ -2489,7 +2563,8 @@
+ }
+ 
+ bool BrowserFrameViewMac::IsFloatingChromeDragging() const {
+-  return floating_drag_region_.dragging || floating_window_controls_.dragging;
++  return floating_drag_region_.dragging || floating_window_controls_.dragging ||
++         pinned_sidebar_input_.dragging;
+ }
+ 
+ void BrowserFrameViewMac::UpdateFloatingSidebar(bool top_presented) {
+@@ -2497,6 +2572,11 @@
+   auto* sidebar =
+       static_cast<VerticalTabStripRegionView*>(view->GetSidebarView());
+   const bool eligible = HasFloatingAddressBar() && sidebar;
++  auto* input =
++      static_cast<views::NativeViewHost*>(pinned_sidebar_input_host_.view());
++  if (input) {
++    input->SetVisible(eligible && view->IsZenModeSideChromePinned());
++  }
+   auto* divider =
+       static_cast<views::NativeViewHost*>(pinned_sidebar_divider_host_.view());
+   if (divider) {
+@@ -2519,6 +2599,25 @@
+   const bool detached = !view->IsZenModeSideChromePinned();
+   const bool right = view->IsVerticalTabStripRightAligned();
+   if (!detached) {
++    if (!input) {
++      input = view->AddChildView(std::make_unique<views::NativeViewHost>());
++      pinned_sidebar_input_host_.SetView(input);
++      input->SetEventTargeter(std::make_unique<views::ViewTargeter>(
++          std::make_unique<PinnedSidebarInputTargeter>(view)));
++      pinned_sidebar_input_ =
++          [[HeliumPinnedSidebarInput alloc] initWithBrowserView:view];
++      input->Attach(gfx::NativeView(pinned_sidebar_input_));
++    }
++    gfx::Rect input_bounds = views::View::ConvertRectToTarget(
++        sidebar, view, sidebar->GetLocalBounds());
++    const int outer_resize = view->IsFullscreen() ? 0 : 6;
++    const int header =
++        std::max(0, 56 + TopUIFullscreenYOffset() - input_bounds.y());
++    input_bounds.Inset(gfx::Insets::TLBR(header, right ? 5 : outer_resize,
++                                         outer_resize,
++                                         right ? outer_resize : 5));
++    input->SetBoundsRect(input_bounds);
++    input->SetVisible(true);
+     if (!divider) {
+       divider = view->AddChildView(std::make_unique<views::NativeViewHost>());
+       divider->SetCanProcessEventsWithinSubtree(false);
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -368,12 +368,17 @@
+ 
+   // For any of the other children, absorb the click as non window caption.
+   for (views::View* child : children()) {
+-    if (!child->GetVisible() || child == floating_content_placeholder_) {
++    // Decorative views (notably the full-size shadow frame) must not turn
++    // otherwise empty sidebar space into an interactive control.
++    if (!child->GetVisible() || !child->GetCanProcessEventsWithinSubtree() ||
++        child == floating_content_placeholder_) {
+       continue;
+     }
+     if (child == content_area_view_) {
+       for (views::View* grandchild : child->children()) {
+-        if (grandchild->GetVisible() && IsHitInView(grandchild, point)) {
++        if (grandchild->GetVisible() &&
++            grandchild->GetCanProcessEventsWithinSubtree() &&
++            IsHitInView(grandchild, point)) {
+           return false;
+         }
+       }

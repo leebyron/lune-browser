@@ -1,0 +1,606 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -786,10 +786,33 @@
+   return NativeToolbarSymbolForName(name.UTF8String, size, color);
+ }
+ 
+-gfx::ImageSkia NativeSidebarSymbolForName(const char* symbol_name,
+-                                          SkColor color) {
+-  NSImage* symbol = [NSImage imageWithSystemSymbolName:@(symbol_name)
+-                              accessibilityDescription:nil];
++SkColor NativeTabCaptureColor(const views::View* view) {
++  NSView* native = view->GetWidget()->GetNativeView().GetNativeNSView();
++  __block SkColor result = SK_ColorRED;
++  [native.effectiveAppearance performAsCurrentDrawingAppearance:^{
++    NSColor* color =
++        [NSColor.systemRedColor colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
++    result = SkColorSetRGB(lround(color.redComponent * 255),
++                           lround(color.greenComponent * 255),
++                           lround(color.blueComponent * 255));
++  }];
++  return result;
++}
++
++gfx::ImageSkia NativeSidebarSymbolForName(
++    const char* symbol_name,
++    SkColor color,
++    std::optional<double> variable_value) {
++  NSImage* symbol =
++      variable_value
++          ? [NSImage imageWithSystemSymbolName:@(symbol_name)
++                                  variableValue:*variable_value
++                        accessibilityDescription:nil]
++          : [NSImage imageWithSystemSymbolName:@(symbol_name)
++                        accessibilityDescription:nil];
++  if (!symbol) {
++    return {};
++  }
+   symbol = [symbol imageWithSymbolConfiguration:
+                        [NSImageSymbolConfiguration
+                            configurationWithPointSize:11
+--- a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
+@@ -14,7 +14,6 @@
+ #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/tabs/alert/tab_alert_icon.h"
+-#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/tab.h"
+ #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
+ #include "chrome/common/chrome_features.h"
+@@ -24,6 +23,7 @@
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/resource/resource_bundle.h"
++#include "ui/color/color_provider.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/gfx/animation/multi_animation.h"
+ #include "ui/gfx/canvas.h"
+@@ -36,6 +36,11 @@
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/widget/widget.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "base/functional/bind.h"
++#include "chrome/browser/ui/views/helium/native_tab_alert_icon.h"
++#endif
++
+ namespace {
+ 
+ // Fade-in/out duration for the tab indicator animations.  Fade-in is quick to
+@@ -107,20 +112,6 @@
+   return tabs::GetAlertImageModel(pressed_alert_state, button_color);
+ }
+ 
+-const char* MediaTabSymbol(std::optional<tabs::TabAlert> state) {
+-#if BUILDFLAG(IS_MAC)
+-  if (state == tabs::TabAlert::kPipPlaying) {
+-    return "pip";
+-  }
+-  if (state == tabs::TabAlert::kAudioPlaying) {
+-    return "speaker.wave.2";
+-  }
+-  if (state == tabs::TabAlert::kAudioMuting) {
+-    return "speaker.slash";
+-  }
+-#endif
+-  return nullptr;
+-}
+ 
+ }  // namespace
+ 
+@@ -247,6 +238,9 @@
+   std::optional<tabs::TabAlert> previous_alert_showing_state =
+       showing_alert_state_;
+ 
++#if BUILDFLAG(IS_MAC)
++  bluetooth_scan_animation_.reset();
++#endif
+   if (next_state) {
+     UpdateIconForAlertState(next_state.value());
+   }
+@@ -285,20 +279,30 @@
+ }
+ 
+ bool AlertIndicatorButton::UsesCloseButtonSlot() const {
+-  return MediaTabSymbol(showing_alert_state_) != nullptr;
++#if BUILDFLAG(IS_MAC)
++  return helium::GetTabAlertSymbol(showing_alert_state_).has_value();
++#else
++  return false;
++#endif
+ }
+ 
+ void AlertIndicatorButton::OnParentTabButtonColorChanged(
+     SkColor foreground_color) {
++#if BUILDFLAG(IS_MAC)
+   const bool changed = tab_foreground_color_ != foreground_color;
++#endif
+   tab_foreground_color_ = foreground_color;
+-  if (UsesCloseButtonSlot()) {
+-    if (changed && alert_state_) {
++#if BUILDFLAG(IS_MAC)
++  if (const auto symbol = helium::GetTabAlertSymbol(alert_state_)) {
++    if (changed || !symbol->use_tab_foreground) {
+       UpdateIconForAlertState(*alert_state_);
+     }
+-  } else if (alert_state_ == tabs::TabAlert::kAudioPlaying ||
++    return;
++  }
++#endif
++  if (alert_state_ == tabs::TabAlert::kAudioPlaying ||
+       alert_state_ == tabs::TabAlert::kAudioMuting) {
+-    UpdateIconForAlertState(alert_state_.value());
++    UpdateIconForAlertState(*alert_state_);
+   }
+ }
+ 
+@@ -325,6 +329,12 @@
+ void AlertIndicatorButton::VisibilityChanged(View* starting_from,
+                                              bool is_visible) {
+   UpdateEnabledForMuteToggle();
++#if BUILDFLAG(IS_MAC)
++  if (alert_state_ == tabs::TabAlert::kBluetoothScanActive) {
++    UpdateIconForAlertState(*alert_state_);
++    SchedulePaint();
++  }
++#endif
+ }
+ 
+ void AlertIndicatorButton::UpdateSpinnerTheme() {
+@@ -368,6 +378,12 @@
+ void AlertIndicatorButton::OnThemeChanged() {
+   ImageButton::OnThemeChanged();
+ 
++#if BUILDFLAG(IS_MAC)
++  if (helium::GetTabAlertSymbol(alert_state_)) {
++    UpdateIconForAlertState(*alert_state_);
++  }
++#endif
++
+   if (!actor_indicator_spinner_ ||
+       !base::FeatureList::IsEnabled(features::kActorUiThemed)) {
+     return;
+@@ -437,6 +453,12 @@
+ }
+ 
+ gfx::ImageSkia AlertIndicatorButton::GetImageToPaint() {
++#if BUILDFLAG(IS_MAC)
++  if (bluetooth_scan_animation_ &&
++      gfx::Animation::ShouldRenderRichAnimation()) {
++    return bluetooth_scan_animation_->image();
++  }
++#endif
+   return views::ImageButton::GetImageToPaint();
+ }
+ 
+@@ -509,20 +531,47 @@
+ }
+ 
+ void AlertIndicatorButton::UpdateIconForAlertState(tabs::TabAlert state) {
+-  if (const char* symbol = MediaTabSymbol(state);
+-      symbol && tab_foreground_color_) {
+-    const ui::ImageModel image = ui::ImageModel::FromImageSkia(
+-        helium::NativeSidebarSymbolForName(symbol, *tab_foreground_color_));
+-    SetImageModel(views::Button::STATE_NORMAL, image);
+-    SetImageModel(views::Button::STATE_DISABLED, image);
+-    SetImageModel(views::Button::STATE_PRESSED, image);
+-    return;
+-  }
++  const ui::ColorProvider* color_provider = GetColorProvider();
+   const ui::ColorId color =
+-      GetColorProvider()
++      color_provider
+           ? tabs::GetAlertIndicatorColor(state, delegate_->IsApparentlyActive(),
+                                          GetWidget()->ShouldPaintAsActive())
+           : gfx::kPlaceholderColor;
++
++#if BUILDFLAG(IS_MAC)
++  if (const auto symbol = helium::GetTabAlertSymbol(state);
++      symbol && color_provider) {
++    const SkColor foreground =
++        symbol->use_tab_foreground && tab_foreground_color_
++            ? *tab_foreground_color_
++            : color_provider->GetColor(color);
++    gfx::ImageSkia native_image =
++        helium::NativeTabAlertImage(*symbol, this, foreground);
++    if (!native_image.isNull()) {
++      if (state == tabs::TabAlert::kBluetoothScanActive && IsDrawn() &&
++          gfx::Animation::ShouldRenderRichAnimation()) {
++        if (!bluetooth_scan_animation_ ||
++            bluetooth_scan_animation_->color() != foreground) {
++          bluetooth_scan_animation_ =
++              std::make_unique<helium::BluetoothScanAnimation>(
++                  symbol->name, foreground,
++                  base::BindRepeating(&AlertIndicatorButton::SchedulePaint,
++                                      base::Unretained(this)));
++        }
++      } else {
++        bluetooth_scan_animation_.reset();
++      }
++
++      const auto image = ui::ImageModel::FromImageSkia(native_image);
++      SetImageModel(views::Button::STATE_NORMAL, image);
++      SetImageModel(views::Button::STATE_DISABLED, image);
++      SetImageModel(views::Button::STATE_PRESSED, image);
++      return;
++    }
++  }
++  bluetooth_scan_animation_.reset();
++#endif
++
+   const ui::ImageModel indicator_image = tabs::GetAlertImageModel(state, color);
+ 
+   SetImageModel(views::Button::STATE_NORMAL, indicator_image);
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -40,8 +40,14 @@
+                                           int symbol_point_size = 16);
+ 
+ // Sidebar action artwork matches TabCloseButton: 11pt medium, 16px canvas.
+-gfx::ImageSkia NativeSidebarSymbolForName(const char* symbol_name,
+-                                          SkColor color);
++gfx::ImageSkia NativeSidebarSymbolForName(
++    const char* symbol_name,
++    SkColor color,
++    std::optional<double> variable_value = std::nullopt);
++
++#if BUILDFLAG(IS_MAC)
++SkColor NativeTabCaptureColor(const views::View* view);
++#endif
+ 
+ // Shared artwork for native chrome and the Customize toolbar list.
+ gfx::ImageSkia NativeToolbarSymbolForIcon(const char* icon_name, int size,
+--- a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.h
++++ b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.h
+@@ -9,6 +9,7 @@
+ #include <optional>
+ 
+ #include "base/memory/raw_ptr.h"
++#include "build/build_config.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ #include "ui/base/models/image_model.h"
+ #include "ui/color/color_id.h"
+@@ -25,6 +26,12 @@
+ class AnimatedImageView;
+ }  // namespace views
+ 
++#if BUILDFLAG(IS_MAC)
++namespace helium {
++class BluetoothScanAnimation;
++}  // namespace helium
++#endif
++
+ namespace tabs {
+ enum class TabAlert;
+ }  // namespace tabs
+@@ -155,6 +162,9 @@
+ 
+   std::optional<tabs::TabAlert> alert_state_;
+   std::optional<SkColor> tab_foreground_color_;
++#if BUILDFLAG(IS_MAC)
++  std::unique_ptr<helium::BluetoothScanAnimation> bluetooth_scan_animation_;
++#endif
+ 
+   // Alert indicator fade-in/out animation (i.e., only on show/hide, not a
+   // continuous animation).
+--- a/chrome/browser/ui/views/helium/BUILD.gn
++++ b/chrome/browser/ui/views/helium/BUILD.gn
+@@ -62,14 +62,17 @@
+       "native_frame_materials_mac.h",
+       "native_frame_materials_mac.mm",
+       "native_frame_separator.h",
++      "native_tab_alert_icon.h",
+       "native_text_field_mac.h",
+       "native_text_field_mac.mm",
+     ]
+ 
+     deps += [
++      "//base",
+       "//chrome/browser:browser_process",
+       "//chrome/browser/themes",
+       "//chrome/browser/ui:fullscreen_util_mac",
++      "//components/tabs:public",
+       "//ui/color",
+       "//ui/native_theme",
+     ]
+--- /dev/null
++++ b/chrome/browser/ui/views/helium/native_tab_alert_icon.h
+@@ -0,0 +1,119 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_TAB_ALERT_ICON_H_
++#define CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_TAB_ALERT_ICON_H_
++
++#include <array>
++#include <optional>
++#include <utility>
++
++#include "base/functional/callback.h"
++#include "base/timer/timer.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "components/tabs/public/tab_alert.h"
++#include "ui/gfx/image/image_skia.h"
++
++namespace helium {
++
++struct TabAlertSymbol {
++  const char* name;
++  const char* fallback = nullptr;
++  bool use_tab_foreground = false;
++  bool use_capture_color = false;
++};
++
++inline std::optional<TabAlertSymbol> GetTabAlertSymbol(
++    std::optional<tabs::TabAlert> state) {
++  switch (state.value_or(tabs::TabAlert::kNone)) {
++    case tabs::TabAlert::kPipPlaying:
++      return TabAlertSymbol{.name = "pip",
++                            .use_tab_foreground = true};
++    case tabs::TabAlert::kAudioPlaying:
++      return TabAlertSymbol{.name = "speaker.wave.2",
++                            .use_tab_foreground = true};
++    case tabs::TabAlert::kAudioMuting:
++      return TabAlertSymbol{.name = "speaker.slash",
++                            .use_tab_foreground = true};
++    case tabs::TabAlert::kVideoRecording:
++      return TabAlertSymbol{.name = "video", .use_capture_color = true};
++    case tabs::TabAlert::kAudioRecording:
++      return TabAlertSymbol{.name = "microphone",
++                            .fallback = "mic",
++                            .use_capture_color = true};
++    case tabs::TabAlert::kMediaRecording:
++      return TabAlertSymbol{.name = "video.badge.waveform",
++                            .fallback = "record.circle",
++                            .use_capture_color = true};
++    case tabs::TabAlert::kTabCapturing:
++      return TabAlertSymbol{.name = "interface.window.on.rectangle",
++                            .fallback = "macwindow.on.rectangle",
++                            .use_capture_color = true};
++    case tabs::TabAlert::kDesktopCapturing:
++      return TabAlertSymbol{.name = "display", .use_capture_color = true};
++    case tabs::TabAlert::kBluetoothConnected:
++    case tabs::TabAlert::kBluetoothScanActive:
++      return TabAlertSymbol{.name = "antenna.radiowaves.left.and.right"};
++    case tabs::TabAlert::kUsbConnected:
++      return TabAlertSymbol{.name = "cable.connector"};
++    case tabs::TabAlert::kHidConnected:
++      return TabAlertSymbol{.name = "gamecontroller"};
++    case tabs::TabAlert::kSerialConnected:
++      return TabAlertSymbol{.name = "cpu"};
++    case tabs::TabAlert::kVrPresentingInHeadset:
++      return TabAlertSymbol{.name = "vision.pro", .fallback = "eyeglasses"};
++    default:
++      break;
++  }
++  return std::nullopt;
++}
++
++inline gfx::ImageSkia NativeTabAlertImage(const TabAlertSymbol& symbol,
++                                         const views::View* view,
++                                         SkColor foreground) {
++  if (symbol.use_capture_color) {
++    foreground = NativeTabCaptureColor(view);
++  }
++  gfx::ImageSkia image = NativeSidebarSymbolForName(symbol.name, foreground);
++  if (image.isNull() && symbol.fallback) {
++    image = NativeSidebarSymbolForName(symbol.fallback, foreground);
++  }
++  return image;
++}
++
++class BluetoothScanAnimation {
++ public:
++  BluetoothScanAnimation(const char* symbol,
++                         SkColor color,
++                         base::RepeatingClosure on_frame)
++      : color_(color),
++        frames_{NativeSidebarSymbolForName(symbol, color, 0.0),
++                NativeSidebarSymbolForName(symbol, color, 0.5),
++                NativeSidebarSymbolForName(symbol, color, 1.0)},
++        on_frame_(std::move(on_frame)) {
++    timer_.Start(FROM_HERE, base::Milliseconds(260), this,
++                 &BluetoothScanAnimation::Advance);
++  }
++
++  SkColor color() const { return color_; }
++  const gfx::ImageSkia& image(bool animate = true) const {
++    return animate ? frames_[index_] : frames_.back();
++  }
++
++ private:
++  void Advance() {
++    index_ = (index_ + 1) % frames_.size();
++    on_frame_.Run();
++  }
++
++  const SkColor color_;
++  const std::array<gfx::ImageSkia, 3> frames_;
++  const base::RepeatingClosure on_frame_;
++  size_t index_ = 0;
++  base::RepeatingTimer timer_;
++};
++
++}  // namespace helium
++
++#endif  // CHROME_BROWSER_UI_VIEWS_HELIUM_NATIVE_TAB_ALERT_ICON_H_
+--- a/chrome/browser/ui/views/tabs/hovercard/fade_footer_view.cc
++++ b/chrome/browser/ui/views/tabs/hovercard/fade_footer_view.cc
+@@ -26,6 +26,13 @@
+ #include "ui/views/view.h"
+ #include "ui/views/view_class_properties.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "base/functional/bind.h"
++#include "chrome/browser/ui/views/helium/native_tab_alert_icon.h"
++#include "ui/color/color_provider.h"
++#include "ui/gfx/animation/animation.h"
++#endif
++
+ namespace {
+ // Spacing to separate the icon from its corresponding label.
+ constexpr int kIconLabelSpacing = 8;
+@@ -166,8 +173,24 @@
+ // FadeAlertFooterRow
+ // -----------------------------------------------------------------------
+ 
++FadeAlertFooterRow::FadeAlertFooterRow(bool is_fade_out_view)
++    : FooterRow<AlertFooterRowData>(is_fade_out_view)
++#if BUILDFLAG(IS_MAC)
++      , animate_bluetooth_scan_(!is_fade_out_view)
++#endif
++{
++}
++
++FadeAlertFooterRow::~FadeAlertFooterRow() = default;
++
+ void FadeAlertFooterRow::SetData(const AlertFooterRowData& data) {
+-  std::optional<tabs::TabAlert> alert_state = data.alert_state;
++  data_ = data;
++#if BUILDFLAG(IS_MAC)
++  if (data.should_show_discard_status ||
++      data.alert_state != tabs::TabAlert::kBluetoothScanActive) {
++    bluetooth_scan_animation_.reset();
++  }
++#endif
+   if (data.should_show_discard_status) {
+     std::u16string row_text;
+     if (data.memory_savings.is_positive()) {
+@@ -185,16 +208,71 @@
+             kColorHoverCardTabAlertAudioPlayingIcon,
+             GetLayoutConstant(LayoutConstant::kTabAlertIndicatorIconWidth)),
+         row_text);
+-  } else if (alert_state.has_value()) {
+-    const tabs::TabAlert alert = alert_state.value();
+-    SetContent(tabs::GetAlertImageModel(alert, GetTabAlertColor(alert)),
+-               tabs::TabAlertController::GetTabAlertStateText(alert));
++  } else if (data.alert_state) {
++    footer_label()->SetText(
++        tabs::TabAlertController::GetTabAlertStateText(*data.alert_state));
++    UpdateAlertIcon();
+   } else {
+     SetContent(ui::ImageModel(), std::u16string());
+   }
+-  data_ = data;
+ }
+ 
++void FadeAlertFooterRow::UpdateAlertIcon() {
++  if (data_.should_show_discard_status || !data_.alert_state) {
++    return;
++  }
++
++  const tabs::TabAlert alert = *data_.alert_state;
++  const ui::ColorId color_id = GetTabAlertColor(alert);
++#if BUILDFLAG(IS_MAC)
++  if (const auto symbol = helium::GetTabAlertSymbol(alert);
++      symbol && GetColorProvider()) {
++    const SkColor color = GetColorProvider()->GetColor(color_id);
++    const gfx::ImageSkia image = helium::NativeTabAlertImage(*symbol, this, color);
++    if (!image.isNull()) {
++      if (alert == tabs::TabAlert::kBluetoothScanActive &&
++          animate_bluetooth_scan_ && IsDrawn() &&
++          gfx::Animation::ShouldRenderRichAnimation()) {
++        if (!bluetooth_scan_animation_ ||
++            bluetooth_scan_animation_->color() != color) {
++          bluetooth_scan_animation_ =
++              std::make_unique<helium::BluetoothScanAnimation>(
++                  symbol->name, color,
++                  base::BindRepeating(&FadeAlertFooterRow::UpdateBluetoothScanFrame,
++                                      base::Unretained(this)));
++        }
++        UpdateBluetoothScanFrame();
++      } else {
++        bluetooth_scan_animation_.reset();
++        icon()->SetImage(ui::ImageModel::FromImageSkia(image));
++      }
++      return;
++    }
++  }
++  bluetooth_scan_animation_.reset();
++#endif
++  icon()->SetImage(tabs::GetAlertImageModel(alert, color_id));
++}
++
++#if BUILDFLAG(IS_MAC)
++void FadeAlertFooterRow::UpdateBluetoothScanFrame() {
++  icon()->SetImage(ui::ImageModel::FromImageSkia(
++      bluetooth_scan_animation_->image(
++          gfx::Animation::ShouldRenderRichAnimation())));
++}
++
++void FadeAlertFooterRow::OnThemeChanged() {
++  FooterRow<AlertFooterRowData>::OnThemeChanged();
++  UpdateAlertIcon();
++}
++
++void FadeAlertFooterRow::VisibilityChanged(views::View* starting_from,
++                                          bool is_visible) {
++  FooterRow<AlertFooterRowData>::VisibilityChanged(starting_from, is_visible);
++  UpdateAlertIcon();
++}
++#endif
++
+ BEGIN_METADATA(FadeAlertFooterRow)
+ END_METADATA
+ 
+--- a/chrome/browser/ui/views/tabs/hovercard/fade_footer_view.h
++++ b/chrome/browser/ui/views/tabs/hovercard/fade_footer_view.h
+@@ -5,9 +5,11 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_TABS_HOVERCARD_FADE_FOOTER_VIEW_H_
+ #define CHROME_BROWSER_UI_VIEWS_TABS_HOVERCARD_FADE_FOOTER_VIEW_H_
+ 
++#include <memory>
+ #include <string>
+ 
+ #include "base/byte_size.h"
++#include "build/build_config.h"
+ #include "chrome/browser/ui/views/tabs/hovercard/fade_view.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ #include "ui/gfx/geometry/size.h"
+@@ -15,6 +17,12 @@
+ #include "ui/views/controls/label.h"
+ #include "ui/views/layout/flex_layout.h"
+ 
++#if BUILDFLAG(IS_MAC)
++namespace helium {
++class BluetoothScanAnimation;
++}  // namespace helium
++#endif
++
+ namespace tabs {
+ enum class TabAlert;
+ }  // namespace tabs
+@@ -101,12 +109,28 @@
+   METADATA_HEADER(FadeAlertFooterRow, FooterRowAlertFooterRowData)
+ 
+  public:
+-  explicit FadeAlertFooterRow(bool is_fade_out_view)
+-      : FooterRow<AlertFooterRowData>(is_fade_out_view) {}
+-  ~FadeAlertFooterRow() override = default;
++  explicit FadeAlertFooterRow(bool is_fade_out_view);
++  ~FadeAlertFooterRow() override;
+ 
+   // FadeWrapper:
+   void SetData(const AlertFooterRowData& data) override;
++
++#if BUILDFLAG(IS_MAC)
++ protected:
++  // views::View:
++  void OnThemeChanged() override;
++  void VisibilityChanged(views::View* starting_from, bool is_visible) override;
++#endif
++
++ private:
++  void UpdateAlertIcon();
++
++#if BUILDFLAG(IS_MAC)
++  void UpdateBluetoothScanFrame();
++
++  const bool animate_bluetooth_scan_;
++  std::unique_ptr<helium::BluetoothScanAnimation> bluetooth_scan_animation_;
++#endif
+ };
+ 
+ class FadePerformanceFooterRow : public FooterRow<PerformanceRowData> {

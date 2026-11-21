@@ -1,0 +1,14 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -126,7 +126,10 @@ std::optional<SkColor> NativeGlassContro
+   }
+   NSView* native = view->GetWidget()->GetNativeView().GetNativeNSView();
+   __block SkColor result = SK_ColorBLACK;
+-  [native.effectiveAppearance performAsCurrentDrawingAppearance:^{
++  // Floating child windows explicitly track the browser appearance override.
++  // Their content NSView can retain an older appearance during theme updates.
++  NSAppearance* appearance = native.window.appearance ?: native.effectiveAppearance;
++  [appearance performAsCurrentDrawingAppearance:^{
+     NSColor* color =
+         [(enabled ? NSColor.labelColor : NSColor.disabledControlTextColor)
+             colorUsingColorSpace:NSColorSpace.sRGBColorSpace];

@@ -1,0 +1,20 @@
+Index: quilt-source/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+===================================================================
+--- quilt-source.orig/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ quilt-source/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -797,10 +797,12 @@ void UnpinnedTabContainerView::UpdateOld
+       label->SetEnabledColor(ui::kColorLabelForegroundSecondary);
+       label->SetAutoColorReadabilityEnabled(false);
+       label->SetFontList(label->font_list().DeriveWithSizeDelta(-3));
+-      // Trim two pixels from each edge without recentering the text.
+       label->SetVerticalAlignment(gfx::ALIGN_TOP);
+-      label->SetBorder(views::CreateEmptyBorder(gfx::Insets().set_top(
+-          std::max(0, (20 - label->font_list().GetHeight()) / 2 - 4))));
++      const int top_inset =
++          std::max(0, (20 - label->font_list().GetHeight()) / 2 - 4);
++      // Shift the text up one pixel within its existing date row.
++      label->SetBorder(
++          views::CreateEmptyBorder(gfx::Insets::TLBR(top_inset - 1, 0, 1, 0)));
+       label->SetCanProcessEventsWithinSubtree(false);
+       label->GetViewAccessibility().SetRole(ax::mojom::Role::kHeading);
+     }

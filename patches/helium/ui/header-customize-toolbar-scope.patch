@@ -1,0 +1,138 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -778,6 +778,7 @@
+ @interface HeliumGlassDragRegion : HeliumChromeHitRegion
+ - (instancetype)initWithBrowserView:(BrowserView*)view;
+ - (void)startWindowDrag:(NSEvent*)event;
++- (views::View*)contextMenuSourceAtPoint:(NSPoint)point;
+ @property(nonatomic, readonly) BOOL dragging;
+ @property(nonatomic) BOOL enabled;
+ @property(nonatomic) NSRect addressBounds;
+@@ -799,12 +800,27 @@
+ - (void)rightMouseDown:(NSEvent*)event {
+   if (self.enabled && _browser) {
+     _browser->browser_widget()->ShowContextMenuForViewImpl(
+-        _browser->GetSidebarView(),
++        [self contextMenuSourceAtPoint:
++            [event.window convertPointToScreen:event.locationInWindow]],
+         gfx::ScreenPointFromNSPoint(
+             [event.window convertPointToScreen:event.locationInWindow]),
+         ui::mojom::MenuSourceType::kMouse);
+   }
+ }
++- (views::View*)contextMenuSourceAtPoint:(NSPoint)point {
++  if (_browser) {
++    auto* sidebar = _browser->GetSidebarView();
++    if (sidebar && sidebar->GetVisible()) {
++      const gfx::Rect bounds = sidebar->GetBoundsInScreen();
++      const gfx::Point screen = gfx::ScreenPointFromNSPoint(point);
++      // The native header above the sidebar rows belongs to the sidebar too.
++      if (screen.x() >= bounds.x() && screen.x() < bounds.right()) {
++        return sidebar;
++      }
++    }
++  }
++  return _browser.get();
++}
+ - (BOOL)dragging {
+   if (_dragging && !(NSEvent.pressedMouseButtons & 1)) {
+     _dragging = NO;
+@@ -906,6 +922,9 @@
+   }
+   return self;
+ }
++- (views::View*)contextMenuSourceAtPoint:(NSPoint)point {
++  return _sidebarBrowser ? _sidebarBrowser->GetSidebarView() : nullptr;
++}
+ - (NSRect)interactiveBounds {
+   // The host already excludes the window perimeter and sidebar resize handle.
+   return self.bounds;
+--- a/chrome/browser/ui/views/frame/browser_widget.cc
++++ b/chrome/browser/ui/views/frame/browser_widget.cc
+@@ -425,9 +425,9 @@
+   int hit_test = non_client_view()->NonClientHitTest(point_in_view_coords);
+   if (source_type == ui::mojom::MenuSourceType::kKeyboard ||
+       hit_test == HTCAPTION || hit_test == HTNOWHERE ||
+-      source == browser_view_->GetSidebarView()) {
++      source == browser_view_ || source == browser_view_->GetSidebarView()) {
+     menu_runner_ = std::make_unique<views::MenuRunner>(
+-        GetSystemMenuModel(),
++        GetSystemMenuModel(source != browser_view_->GetSidebarView()),
+         views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU,
+         base::BindRepeating(&BrowserWidget::OnMenuClosed,
+                             base::Unretained(this)));
+@@ -447,14 +447,14 @@
+   return menu_runner_ && menu_runner_->IsRunning();
+ }
+ 
+-ui::MenuModel* BrowserWidget::GetSystemMenuModel() {
++ui::MenuModel* BrowserWidget::GetSystemMenuModel(bool customize_toolbar) {
+   // TODO(b/271137301): Refactor this class to remove chromeos specific code to
+   // subclasses.
+   if (!menu_model_builder_.get()) {
+     menu_model_builder_ = std::make_unique<SystemMenuModelBuilder>(
+         browser_view_, browser_view_->browser());
+   }
+-  menu_model_builder_->Init();
++  menu_model_builder_->Init(customize_toolbar);
+   return menu_model_builder_->menu_model();
+ }
+ 
+--- a/chrome/browser/ui/views/frame/browser_widget.h
++++ b/chrome/browser/ui/views/frame/browser_widget.h
+@@ -128,7 +128,7 @@
+ 
+   // Returns the menu model. BrowserWidget owns the returned model.
+   // Note that in multi user mode this will upon each call create a new model.
+-  ui::MenuModel* GetSystemMenuModel();
++  ui::MenuModel* GetSystemMenuModel(bool customize_toolbar = false);
+ 
+   BrowserNativeWidget* browser_native_widget() const {
+     return browser_native_widget_;
+--- a/chrome/browser/ui/views/frame/system_menu_model_builder.cc
++++ b/chrome/browser/ui/views/frame/system_menu_model_builder.cc
+@@ -96,7 +96,8 @@
+ 
+ SystemMenuModelBuilder::~SystemMenuModelBuilder() = default;
+ 
+-void SystemMenuModelBuilder::Init() {
++void SystemMenuModelBuilder::Init(bool customize_toolbar) {
++  customize_toolbar_ = customize_toolbar;
+   ui::SimpleMenuModel* model = new ui::SimpleMenuModel(&menu_delegate_);
+   menu_model_.reset(model);
+   BuildMenu(model);
+@@ -221,8 +222,13 @@
+ 
+ #endif
+ 
+-    model->AddItemWithStringId(IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR,
+-                               IDS_SHOW_CUSTOMIZE_CHROME_TOOLBAR);
++    if (customize_toolbar_) {
++      model->AddItemWithStringId(IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR,
++                                 IDS_SHOW_CUSTOMIZE_CHROME_TOOLBAR);
++    } else {
++      model->AddItemWithStringId(IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL,
++                                 IDS_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL);
++    }
+   }
+ 
+ #if BUILDFLAG(IS_WIN)
+--- a/chrome/browser/ui/views/frame/system_menu_model_builder.h
++++ b/chrome/browser/ui/views/frame/system_menu_model_builder.h
+@@ -36,7 +36,7 @@
+   ~SystemMenuModelBuilder();
+ 
+   // Populates the menu.
+-  void Init();
++  void Init(bool customize_toolbar = false);
+ 
+   // Returns the menu model. SystemMenuModelBuilder owns the returned model.
+   ui::MenuModel* menu_model() { return menu_model_.get(); }
+@@ -57,6 +57,7 @@
+   // Add the items to allow the window to visit the desktop of another user.
+   void AppendTeleportMenu(ui::SimpleMenuModel* model);
+ 
++  bool customize_toolbar_ = false;
+   SystemMenuModelDelegate menu_delegate_;
+   std::unique_ptr<ui::MenuModel> menu_model_;
+   std::unique_ptr<ui::SimpleMenuModel> zoom_menu_contents_;

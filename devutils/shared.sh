@@ -14,6 +14,7 @@ helium_resources() {
   python3 "$_main_repo/utils/generate_resources.py" "$_main_repo/resources/generate_resources.txt" "$_main_repo/resources"
   python3 "$_main_repo/utils/replace_resources.py" "$_root_dir/resources/platform_resources.txt" "$_root_dir/resources" "$_src_dir"
   python3 "$_main_repo/utils/replace_resources.py" "$_main_repo/resources/helium_resources.txt" "$_main_repo/resources" "$_src_dir"
+  python3 "$_main_repo/utils/replace_resources.py" "$_root_dir/resources/lune_resources.txt" "$_root_dir/resources" "$_src_dir"
 }
 
 fetch_sources() {
@@ -31,6 +32,10 @@ fetch_sources() {
       *) echo "Unsupported macOS host architecture: $(uname -m)" >&2; return 1 ;;
     esac
     downloads=("$_main_repo/downloads.ini" "$_root_dir/downloads.$host_arch.ini" "${downloads[@]}")
+  fi
+
+  if [ -n "${LUNE_DOWNLOADS_INI:-}" ]; then
+    downloads=("$LUNE_DOWNLOADS_INI")
   fi
 
   python3 "$_main_repo/utils/downloads.py" retrieve -i "${downloads[@]}" -c "$_download_cache" || return
@@ -51,10 +56,11 @@ prepare_sources() {
   mkdir -p "$_out_dir"
   python3 "$_main_repo/utils/prune_binaries.py" --keep-build-dependencies "$_src_dir" "$_main_repo/pruning.list"
 
-  python3 "$_main_repo/utils/patches.py" apply "$_src_dir" "$_main_repo/patches" "$_root_dir/patches"
+  python3 "$_main_repo/utils/patches.py" apply --no-fuzz "$_src_dir" "$_main_repo/patches" "$_root_dir/patches"
   python3 "$_main_repo/utils/domain_substitution.py" apply -r "$_main_repo/domain_regex.list" -f "$_main_repo/domain_substitution.list" "$_src_dir"
-  python3 "$_main_repo/utils/name_substitution.py" --sub -t "$_src_dir"
+  python3 "$_root_dir/lune_names.py" --helium "$_src_dir"
   python3 "$_main_repo/utils/i18n_apply.py" -t "$_src_dir"
+  python3 "$_root_dir/lune_names.py" "$_src_dir"
   python3 "$_main_repo/utils/helium_version.py" \
     --tree "$_main_repo" --platform-tree "$_root_dir" --chromium-tree "$_src_dir"
 

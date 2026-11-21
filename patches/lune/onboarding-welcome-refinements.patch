@@ -1,0 +1,186 @@
+Index: src/components/helium_onboarding/BUILD.gn
+===================================================================
+--- src.orig/components/helium_onboarding/BUILD.gn
++++ src/components/helium_onboarding/BUILD.gn
+@@ -57,6 +57,7 @@ action("build") {
+     "src/lib/onboarding-flow.ts",
+     "src/lib/browser/search-engines.ts",
+     "src/components/PageNavigation.svelte",
++    "src/components/WelcomeFooter.svelte",
+     "src/components/LuneLogo.svelte",
+     "src/components/HeliumPartner.svelte",
+     "src/components/BrowserImportGraphic.svelte",
+Index: src/components/helium_onboarding/helium_onboarding_strings.grdp
+===================================================================
+--- src.orig/components/helium_onboarding/helium_onboarding_strings.grdp
++++ src/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -6,7 +6,7 @@
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_BUTTON_USE_DEFAULTS" desc="Button label that skips detailed setup and applies the default onboarding choices.">
+-  Use defaults
++  Use Defaults
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_BUTTON_CONFIGURE" desc="Button label that starts the detailed onboarding setup flow.">
+   Setup
+@@ -250,7 +250,7 @@
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
+-  Built on Helium browser, with thanks to its authors and contributors.
++  Built on <ph name="BEGIN_LINK_HELIUM">$1</ph>Helium browser<ph name="END_LINK_HELIUM">$2</ph> and <ph name="BEGIN_LINK_UNGOOGLED">$3</ph>ungoogled-chromium<ph name="END_LINK_UNGOOGLED">$4</ph> with thanks to their authors and contributors
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_PROVIDER" desc="Lune service provider and update disclosure.">
+   Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates.
+@@ -264,7 +264,7 @@
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_LUNE_UPDATES" desc="Lune service provider and update disclosure.">
+   Lune checks lune.computer for browser updates and Helium services for component updates. Keep this enabled to receive security fixes.
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_WELCOME_UPDATES_TITLE" desc="Automatic browser update switch.">Allow automatic browser updates</message>
++<message name="IDS_HELIUM_ONBOARDING_WELCOME_UPDATES_TITLE" desc="Automatic browser update switch.">Update browser automatically</message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_BUTTON_IMPORT" desc="Button to import from other browsers.">Import</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_TABS_POSITION" desc="Label for the tab sidebar position choice.">Tab sidebar</message>
+Index: src/components/helium_onboarding/src/components/PageNavigation.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/components/PageNavigation.svelte
++++ src/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -7,6 +7,7 @@
+         Spinner,
+     } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
++    import WelcomeFooter from "./WelcomeFooter.svelte";
+     import { SvelteSet } from "svelte/reactivity";
+     import {
+         acceptLatestSchema,
+@@ -29,6 +30,10 @@
+ 
+     const welcome = $derived($currentPage === "Welcome");
+ 
++    let footerHeight = $state(0);
++    $effect(() => {
++        document.documentElement.style.setProperty('--setup-footer-height', `${footerHeight}px`);
++    });
+     let working = $state(false);
+     const pageTitles = $derived({
+         Welcome: s.page.title,
+@@ -101,9 +106,11 @@
+     }
+ </script>
+ 
+-<div id="setup-footer" class="glass-children">
++<div id="setup-footer" class="glass-children" bind:clientHeight={footerHeight}>
+     <div id="setup-footer-fade" aria-hidden="true"></div>
+-    {#if !welcome}
++    {#if welcome}
++    <WelcomeFooter />
++    {:else}
+     <div id="setup-buttons" class="action-buttons">
+         <Button disabled={working} onclick={previousPage}>
+             <IconArrowLeft />
+Index: src/components/helium_onboarding/src/components/WelcomeFooter.svelte
+===================================================================
+--- /dev/null
++++ src/components/helium_onboarding/src/components/WelcomeFooter.svelte
+@@ -0,0 +1,20 @@
++<!-- Copyright 2026 The Lune Authors. SPDX-License-Identifier: GPL-3.0-or-later -->
++<script lang="ts">
++    import { Link } from "@imput/helium-prism";
++    import { s } from "../lib/strings";
++    import { parseLocalizedString } from "../lib/i18n";
++    const creditParts = parseLocalizedString(s.welcome.upstreamCredit);
++    const termsParts = parseLocalizedString(s.welcome.terms);
++</script>
++
++<footer id="welcome-footer">
++    <p class="upstream-credit">{#each creditParts as part}{#if part.kind === "linkHelium"}<Link href="https://helium.computer/">{part.text}</Link>{:else if part.kind === "linkUngoogled"}<Link href="https://github.com/ungoogled-software/ungoogled-chromium">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
++    <p class="policy">{#each termsParts as part}{#if part.kind === "linkPrivacy"}<Link href="https://helium.computer/privacy">{part.text}</Link>{:else if part.kind === "linkTerms"}<Link href="https://helium.computer/terms">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
++</footer>
++
++<style>
++    footer { width: min(760px, calc(100vw - 40px)); text-align: center; }
++    p { font: 400 11px/1.2 Inter,sans-serif; color: var(--secondary); margin: 0; text-wrap: balance; }
++    .upstream-credit { font-size: 13px; line-height: 20px; margin-bottom: 8px; }
++    :global(#welcome-footer a) { font: inherit; color: inherit; }
++</style>
+Index: src/components/helium_onboarding/src/pages/Welcome.svelte
+===================================================================
+--- src.orig/components/helium_onboarding/src/pages/Welcome.svelte
++++ src/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -1,12 +1,10 @@
+ <script lang="ts">
+     import LuneLogo from "../components/LuneLogo.svelte";
+-    import { IconArrowRight, Link } from "@imput/helium-prism";
++    import { IconArrowRight } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+-    import { parseLocalizedString } from "../lib/i18n";
+     import { preferences, setPref, acceptLatestSchema, openNewTab } from "../lib/browser";
+     import { currentPage, markIntroSeen, nextPage } from "../lib/onboarding-flow";
+     const visible = $derived($currentPage === "Welcome");
+-    const termsParts = parseLocalizedString(s.welcome.terms);
+     let working = $state(false);
+     let updateWrite: Promise<void> = Promise.resolve();
+     const useDefaults = async () => {
+@@ -36,28 +34,23 @@
+         <h1>{s.welcome.greeting}</h1>
+         <p class="description">{s.welcome.body}</p>
+         <div class="welcome-actions">
+-            <button class="primary" onclick={next} disabled={working}>{s.button.configure}<IconArrowRight /></button>
+             <button class="ghost" onclick={useDefaults} disabled={working}>{s.button.useDefaults}</button>
++            <button class="primary" onclick={next} disabled={working}>{s.button.configure}<IconArrowRight /></button>
+         </div>
+         <div class="updates">
+             <label>
++                {s.welcome.updatesTitle}
+                 <input type="checkbox" role="switch"
+                     checked={$preferences['services.browser_updates'] ?? true}
+                     onchange={(event) => { updateWrite = setPref('services.browser_updates', event.currentTarget.checked); }} />
+-                {s.welcome.updatesTitle}
+             </label>
+         </div>
+-        <footer>
+-            <p class="upstream-credit">{s.welcome.upstreamCredit}</p>
+-            <p class="policy">{#each termsParts as part}{#if part.kind === "linkPrivacy"}<Link href="https://helium.computer/privacy">{part.text}</Link>{:else if part.kind === "linkTerms"}<Link href="https://helium.computer/terms">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
+-            <p>{s.welcome.footer}</p>
+-        </footer>
+         </div>
+     </div>
+ </div>
+ 
+ <style>
+-    #welcome-page { overflow-y: auto; justify-content: safe center; padding: 32px 20px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 60px); box-sizing: border-box; }
++    #welcome-page { overflow-y: auto; justify-content: safe center; padding: 32px 20px; padding-bottom: calc(var(--navigation-bottom-space) + var(--setup-footer-height, 100px) + 24px); box-sizing: border-box; }
+     #welcome-page.visible { animation: none; }
+     #welcome-page.visible #welcome-page-container {
+         animation: welcome-rise 3300ms cubic-bezier(.45,0,.55,1) 200ms both;
+@@ -88,10 +81,6 @@
+     input::before { content: ''; display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--bg-gradient-start); transition: transform 150ms; }
+     input:checked { background: var(--helium-blue); }
+     input:checked::before { transform: translateX(12px); }
+-    footer p { font: 400 11px/1.2 Inter,sans-serif; color: var(--secondary); margin: 0; }
+-    footer { margin-top: 48px; }
+-    footer .upstream-credit { font-size: 13px; line-height: 20px; margin-bottom: 8px; }
+-    footer :global(a) { font: inherit; color: inherit; }
+     /* Start the logo just above center, including when the content needs to scroll. */
+     @keyframes welcome-rise {
+         from { transform: translateY(min(calc(50% - 106px), calc(50svh - 138px))); }
+Index: src/components/helium_onboarding/src/app.css
+===================================================================
+--- src.orig/components/helium_onboarding/src/app.css
++++ src/components/helium_onboarding/src/app.css
+@@ -6,6 +6,15 @@
+     --navigation-clearance: calc(env(safe-area-inset-bottom, 0px) + 102px);
+ }
+ 
++a {
++    text-underline-offset: auto;
++    text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
++}
++
++a:hover {
++    text-decoration-color: currentColor;
++}
++
+ body {
+     display: flex;
+     justify-content: center;

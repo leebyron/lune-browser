@@ -1,0 +1,24 @@
+--- a/chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_mac_util.h
++++ b/chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_mac_util.h
+@@ -7,8 +7,7 @@
+ 
+ namespace default_browser {
+ 
+-// Returns true if Chrome is not in the Dock, false if it is or there was an
+-// error getting the Dock's state.
++// Returns whether to offer the Dock-pinning infobar. Disabled on macOS.
+ bool ShouldOfferToPin();
+ 
+ // Adds Chrome to the Dock so it remains there after closing.
+--- a/chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_mac_util.mm
++++ b/chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_mac_util.mm
+@@ -10,7 +10,8 @@
+ namespace default_browser {
+ 
+ bool ShouldOfferToPin() {
+-  return dock::ChromeIsInTheDock() == dock::ChromeInDockStatus::kNotPresent;
++  // Dock pinning is a user choice; do not promote it with an infobar.
++  return false;
+ }
+ 
+ void PinChromeToDock() {

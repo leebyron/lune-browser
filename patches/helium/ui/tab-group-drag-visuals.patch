@@ -1,0 +1,159 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view.cc
+@@ -426,6 +426,9 @@
+ void TabGroupView::UpdateTargetLayoutForDrag(
+     const std::vector<const views::View*>& views_to_snap) {
+   layout_manager_->ResetViewsToTargetLayout(views_to_snap);
++  if (orientation_ == TabStripOrientation::kVertical && parent()) {
++    parent()->SchedulePaint();
++  }
+ }
+ 
+ const views::ProposedLayout& TabGroupView::GetLayoutForDrag() const {
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
+@@ -36,6 +36,13 @@
+ 
+ views::ProposedLayout TabGroupViewVerticalLayout::CalculateProposedLayout(
+     const views::SizeBounds& size_bounds) const {
++  // Minimum-size measurement runs this layout with a zero-width constraint.
++  // Keep that measurement from clearing the active slot.
++  const bool has_drop_slot_bounds =
++      size_bounds.width().is_bounded() && size_bounds.width().value() > 0;
++  if (has_drop_slot_bounds) {
++    TabGroupView().SetDropPlaceholderBounds(gfx::Rect());
++  }
+   views::ProposedLayout layouts;
+   int width = 0;
+   int height = 0;
+@@ -118,6 +125,14 @@
+     const bool visible = is_group_collapsed && TabGroupView().is_collapsed()
+                              ? drag_data.has_value()
+                              : child->GetVisible();
++    if (has_drop_slot_bounds && visible && drag_data &&
++        TabGroupView().CanPreviewIndividualTabDrop()) {
++      gfx::Rect slot_bounds = bounds;
++      slot_bounds.set_y(is_group_collapsed
++                            ? header_bounds.bottom() + collapsed_drop_height
++                            : height);
++      TabGroupView().SetDropPlaceholderBounds(slot_bounds);
++    }
+     layouts.child_layouts.emplace_back(child, visible, bounds);
+     if (is_group_collapsed && drag_data) {
+       // The model appends at the end, but its temporary visible slot is the
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -593,9 +593,15 @@
+ 
+ void TabView::Layout(PassKey) {
+   LayoutSuperclass<views::View>(this);
+-  if (title_->layer()) {
+-    title_->layer()->SetOpacity(IsPinDragAnimating()
+-                                   ? 1.0 - GetPinDragProgress() : 1.0);
++  if (IsPinDragAnimating() && IsDragging()) {
++    if (!title_->layer()) {
++      title_->SetPaintToLayer();
++      title_->layer()->SetFillsBoundsOpaquely(false);
++    }
++    title_->layer()->SetOpacity(1.0 - GetPinDragProgress());
++  } else if (title_->layer()) {
++    // Paint with the tab again so its parent can clip the title on collapse.
++    title_->DestroyLayer();
+   }
+   alert_indicator_->UpdateAlertIndicatorAnimation();
+   if (orientation_ == TabStripOrientation::kHorizontal) {
+@@ -1218,8 +1224,6 @@
+     pin_drag_start_icon_x_ = icon_->x();
+     pin_drag_animation_.SetSlideDuration(
+         gfx::Animation::RichAnimationDuration(base::Milliseconds(240)));
+-    title_->SetPaintToLayer();
+-    title_->layer()->SetFillsBoundsOpaquely(false);
+     pin_drag_animation_.SetTweenType(gfx::Tween::EASE_IN_OUT);
+     if (pinned) {
+       pin_drag_animation_.Show();
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -40,6 +40,7 @@
+ #include "ui/color/color_id.h"
+ #include "ui/color/color_provider.h"
+ #include "ui/gfx/geometry/rect.h"
++#include "ui/gfx/scoped_canvas.h"
+ #include "ui/menus/simple_menu_model.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/border.h"
+@@ -928,6 +929,11 @@
+   const views::ProposedLayout& target_layout = layout_manager_->target_layout();
+   const bool is_horizontal = orientation_ == TabStripOrientation::kHorizontal;
+   const bool can_change_pin = !is_horizontal && CanPreviewIndividualTabDrop();
++  const auto* scroll_view = can_change_pin ? GetScrollViewForContainer() : nullptr;
++  const bool can_target_pinned_group =
++      scroll_view && scroll_view->GetVisibleRect().Contains(point_in_container);
++  TabGroupView* previous_pinned_group = nullptr;
++  gfx::Rect previous_pinned_bounds;
+   for (const views::ChildLayout& layout : target_layout.child_layouts) {
+     if (!layout.visible || IsViewDragging(*layout.child_view)) {
+       continue;
+@@ -942,12 +948,37 @@
+     if (can_change_pin && IsPinnedGroupView(group_view)) {
+       // A floating tab can overlap a pinned group while the pointer is still
+       // crossing the grid boundary. Only the pointer can target the group.
+-      if (GetScrollViewForContainer()->GetVisibleRect().Contains(
+-              point_in_container) &&
+-          (GetMirroredRect(layout.bounds).Contains(point_in_container) ||
+-           group_view->IsNearPinnedTabGroupEntry(point_in_screen))) {
++      if (!can_target_pinned_group) {
++        continue;
++      }
++      const gfx::Rect group_bounds = GetMirroredRect(layout.bounds);
++      if (group_bounds.Contains(point_in_container) ||
++          group_view->IsNearPinnedTabGroupEntry(point_in_screen)) {
+         return *group_view;
+       }
++      if (previous_pinned_group) {
++        const int left = std::max(previous_pinned_bounds.x(), group_bounds.x());
++        const int right =
++            std::min(previous_pinned_bounds.right(), group_bounds.right());
++        const int top = previous_pinned_bounds.bottom();
++        const int bottom = group_bounds.y();
++        if (point_in_container.x() >= left && point_in_container.x() < right &&
++            point_in_container.y() >= top && point_in_container.y() < bottom) {
++          // Keep the active group through the shared gap. With neither group
++          // active, a pointer entering the gap lands in the nearer group.
++          if (previous_pinned_group->IsHandlingDrag()) {
++            return *previous_pinned_group;
++          }
++          if (group_view->IsHandlingDrag()) {
++            return *group_view;
++          }
++          return point_in_container.y() - top < bottom - point_in_container.y()
++                     ? *previous_pinned_group
++                     : *group_view;
++        }
++      }
++      previous_pinned_group = group_view;
++      previous_pinned_bounds = group_bounds;
+       continue;
+     }
+     if (group_view->IsCollapsed()) {
+@@ -1052,6 +1083,21 @@
+ void UnpinnedTabContainerView::OnPaint(gfx::Canvas* canvas) {
+   views::View::OnPaint(canvas);
+   PaintDropPlaceholder(canvas);
++  if (!CanPreviewIndividualTabDrop() || IsHandlingDrag()) {
++    return;
++  }
++  for (const auto& child : GetLayoutForDrag().child_layouts) {
++    const auto* group = views::AsViewClass<TabGroupView>(child.child_view);
++    if (!child.visible || !group || !group->IsHandlingDrag()) {
++      continue;
++    }
++    // Draw at the group's final position so its insertion slot stays still
++    // while other groups and rows animate to their new positions.
++    gfx::ScopedCanvas scoped_canvas(canvas);
++    canvas->Translate(GetMirroredRect(child.bounds).OffsetFromOrigin());
++    group->PaintDropPlaceholder(canvas);
++    break;
++  }
+ }
+ 
+ BEGIN_METADATA(UnpinnedTabContainerView)

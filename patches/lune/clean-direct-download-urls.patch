@@ -1,0 +1,58 @@
+--- a/chrome/browser/download/chrome_download_manager_delegate.cc
++++ b/chrome/browser/download/chrome_download_manager_delegate.cc
+@@ -49,6 +49,8 @@
+ #include "chrome/browser/download/save_package_file_picker.h"
+ #include "chrome/browser/enterprise/connectors/common.h"
+ #include "chrome/browser/history/history_service_factory.h"
++#include "chrome/browser/net/profile_network_context_service.h"
++#include "chrome/browser/net/profile_network_context_service_factory.h"
+ #include "chrome/browser/platform_util.h"
+ #include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
+ #include "chrome/browser/profiles/profile.h"
+@@ -68,7 +70,10 @@
+ #include "components/download/public/common/download_interrupt_reasons.h"
+ #include "components/download/public/common/download_item.h"
+ #include "components/download/public/common/download_item_rename_handler.h"
++#include "components/download/public/common/download_save_info.h"
++#include "components/download/public/common/download_source.h"
+ #include "components/download/public/common/download_stats.h"
++#include "components/download/public/common/download_url_parameters.h"
+ #include "components/enterprise/connectors/core/reporting_utils.h"
+ #include "components/offline_pages/buildflags/buildflags.h"
+ #include "components/pdf/common/constants.h"
+@@ -100,6 +105,8 @@
+ #include "net/base/filename_util.h"
+ #include "net/base/mime_util.h"
+ #include "net/base/network_change_notifier.h"
++#include "net/base/tracking_query.h"
++#include "net/http/http_request_headers.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/page_transition_types.h"
+ #include "ui/base/window_open_disposition.h"
+@@ -1439,6 +1446,26 @@
+       params->set_url(std::move(safe_url));
+     }
+   }
++
++  // Renderer downloads and Save link as bypass document navigation cleanup.
++  // Sanitize the initial URL before the request or its service worker starts.
++  const auto source = params->download_source();
++  const auto [range_start, range_end] = params->range_request_offset();
++  if ((source != download::DownloadSource::FROM_RENDERER &&
++       source != download::DownloadSource::CONTEXT_MENU) ||
++      params->method() != net::HttpRequestHeaders::kGetMethod ||
++      params->offset() != 0 || range_start != download::kInvalidRange ||
++      range_end != download::kInvalidRange || !params->url().has_query()) {
++    return;
++  }
++
++  if (auto* service =
++          ProfileNetworkContextServiceFactory::GetForContext(profile_)) {
++    if (auto cleaned = service->StripTrackingQuery(
++            params->url(), net::TrackingQueryAction::kNavigate)) {
++      params->set_url(std::move(*cleaned));
++    }
++  }
+ }
+ 
+ void ChromeDownloadManagerDelegate::OpenDownloadUsingPlatformHandler(

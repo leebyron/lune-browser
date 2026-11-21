@@ -1,0 +1,14 @@
+--- a/chrome/browser/ui/views/helium/frame_corner_radius_mac.mm
++++ b/chrome/browser/ui/views/helium/frame_corner_radius_mac.mm
+@@ -5,5 +5,10 @@
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ 
+ int GetSystemWindowRadius() {
+-  return 16;
++  // Only macOS 26+ uses Lune's native frame-radius override. Earlier AppKit
++  // frames retain their system shape; match Helium's original content radius.
++  if (@available(macOS 26, *)) {
++    return 16;
++  }
++  return 12;
+ }

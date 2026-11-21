@@ -1,0 +1,150 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -120,8 +120,75 @@ NSAppearance* FloatingChromeAppearance(B
+ }  // namespace
+ 
+ @interface HeliumChromeHitRegion : NSView
++@property(nonatomic, weak) NSWindow* controlsWindow;
++@property(nonatomic) NSEdgeInsets controlsInsets;
++- (void)synchronizeControlsWindow;
+ @end
+ @implementation HeliumChromeHitRegion
++@synthesize controlsWindow = _controlsWindow;
++@synthesize controlsInsets = _controlsInsets;
++- (instancetype)initWithFrame:(NSRect)frame {
++  self = [super initWithFrame:frame];
++  if (self) {
++    // NativeViewHost attaches to an unflipped content view. Let AppKit keep
++    // the top edge fixed while Views waits for the next compositor frame.
++    self.autoresizingMask = NSViewMinYMargin;
++  }
++  return self;
++}
++- (void)dealloc {
++  [NSNotificationCenter.defaultCenter removeObserver:self];
++}
++- (void)viewDidMoveToWindow {
++  [super viewDidMoveToWindow];
++  [NSNotificationCenter.defaultCenter
++      removeObserver:self
++                name:NSWindowDidResizeNotification
++              object:nil];
++  if (self.window) {
++    [NSNotificationCenter.defaultCenter
++        addObserver:self
++           selector:@selector(parentWindowResized:)
++               name:NSWindowDidResizeNotification
++             object:self.window];
++  }
++}
++- (void)parentWindowResized:(NSNotification*)notification {
++  [self synchronizeControlsWindow];
++}
++- (void)setFrame:(NSRect)frame {
++  [super setFrame:frame];
++  [self synchronizeControlsWindow];
++}
++- (void)resizeWithOldSuperviewSize:(NSSize)oldSize {
++  [super resizeWithOldSuperviewSize:oldSize];
++  [self synchronizeControlsWindow];
++}
++- (void)synchronizeControlsWindow {
++  NSWindow* controls = self.controlsWindow;
++  NSWindow* parent = self.window;
++  if (!controls || !parent || NSIsEmptyRect(self.bounds)) {
++    return;
++  }
++  // Child NSWindows follow the parent's bottom-left origin during a bottom
++  // resize. Reattach their screen frame to the material's actual native frame
++  // in the same AppKit resize transaction, without a timer or animation.
++  NSRect rect = [self convertRect:self.bounds toView:nil];
++  rect.origin.x += self.controlsInsets.left;
++  rect.origin.y += self.controlsInsets.bottom;
++  rect.size.width -= self.controlsInsets.left + self.controlsInsets.right;
++  rect.size.height -= self.controlsInsets.top + self.controlsInsets.bottom;
++  rect = NSIntersectionRect(
++      rect, [parent.contentView convertRect:parent.contentView.bounds
++                                     toView:nil]);
++  if (NSIsEmptyRect(rect)) {
++    return;
++  }
++  rect = [parent convertRectToScreen:rect];
++  if (!NSEqualRects(controls.frame, rect)) {
++    [controls setFrame:rect display:NO animate:NO];
++  }
++}
+ - (void)resetCursorRects {
+   [self addCursorRect:self.bounds cursor:NSCursor.arrowCursor];
+ }
+@@ -650,6 +717,7 @@ class FloatingSidebarContents : public v
+     return nil;
+   }
+   _ownerWindow = window;
++  self.autoresizingMask = NSViewMinYMargin;
+   NSUInteger index = 0;
+   for (NSButton* button in self.subviews) {
+     NSRect frame = button.frame;
+@@ -2163,6 +2231,7 @@ int BrowserFrameViewMac::FloatingToolbar
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingToolbar() {
++  floating_toolbar_material_.controlsWindow = nil;
+   ResetFloatingSidebar();
+   if (auto* toolbar =
+           static_cast<ToolbarView*>(floating_toolbar_owner_.view())) {
+@@ -2263,6 +2332,7 @@ void BrowserFrameViewMac::UpdateFloating
+     gfx::Rect bounds(region.right() - width, region.y(), width, 36);
+     material_host->SetBoundsRect(bounds);
+     window.ignoresMouseEvents = NO;
++    floating_toolbar_material_.controlsWindow = window;
+     views::View::ConvertRectToScreen(view, &bounds);
+     const bool layout_changed =
+         floating_toolbar_widget_->GetWindowBoundsInScreen().size() !=
+@@ -2415,6 +2485,10 @@ void BrowserFrameViewMac::UpdateFloating
+     // surface itself starts at y=8; adding 46 to that clipped the first row.
+     const int header_clearance =
+         std::max(0, 46 + TopUIFullscreenYOffset() - bounds.y());
++    floating_sidebar_material_.controlsWindow =
++        floating_sidebar_widget_->GetNativeWindow().GetNativeNSWindow();
++    floating_sidebar_material_.controlsInsets =
++        NSEdgeInsetsMake(header_clearance, right ? 5 : 0, 0, right ? 0 : 5);
+     bounds.Inset(gfx::Insets::TLBR(header_clearance, right ? 5 : 0,
+                                  0, right ? 0 : 5));
+     // A child NSWindow is not clipped by its parent during the slide.
+@@ -2481,6 +2555,7 @@ void BrowserFrameViewMac::UpdateFloating
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingSidebar() {
++  floating_sidebar_material_.controlsWindow = nil;
+   if (auto* sidebar = static_cast<VerticalTabStripRegionView*>(
+           floating_sidebar_owner_.view())) {
+     sidebar->SetFloatingControlsHost(nullptr);
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -1140,8 +1140,8 @@ BrowserViewTabbedLayoutImpl::CalculatePr
+ #if BUILDFLAG(IS_MAC)
+         // Narrow the popover at its inner edge without moving the outer inset.
+         vertical_tab_strip_bounds.Inset(
+-            gfx::Insets::TLBR(0, vertical_right_aligned ? 2 : 0, 0,
+-                              vertical_right_aligned ? 0 : 2));
++            gfx::Insets::TLBR(0, vertical_right_aligned ? 4 : 0, 0,
++                              vertical_right_aligned ? 0 : 4));
+ #endif
+         vertical_tab_strip_bounds = SlideBoundsFromSide(
+             vertical_tab_strip_bounds, params.visual_client_area,
+--- a/ui/views/controls/native/native_view_host_mac.mm
++++ b/ui/views/controls/native/native_view_host_mac.mm
+@@ -299,6 +299,13 @@ void NativeViewHostMac::ShowWidget(int x
+                                                   superview_height);
+     native_view_hostable_->ViewsHostableSetVisible(true);
+   } else {
++    if (native_view_.autoresizingMask & NSViewMinYMargin) {
++      // During asynchronous live resize the Widget already has the next
++      // compositor size, but AppKit has not applied it yet. Top-anchored native
++      // views must use the current content height. Their autoresizing mask
++      // advances them with AppKit when the pending window frame is committed.
++      superview_height = NSHeight(native_view_.window.contentView.bounds);
++    }
+     // Coordinates will be from the top left of the parent Widget. The
+     // NativeView is already in the same NSWindow, so just flip to get Cocoa
+     // coordinates and then convert to the containing view.

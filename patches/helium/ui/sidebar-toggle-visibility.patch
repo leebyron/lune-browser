@@ -1,0 +1,106 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1960,8 +1960,15 @@ void BrowserFrameViewMac::UpdateFloating
+   }
+   const gfx::Rect side = view->GetFloatingSidebarBounds();
+   const int x = !presented && !side.IsEmpty() ? side.x() : 8;
+-  // Sidebar chrome stays fixed when the system menu bar overlays fullscreen.
+-  host->SetBoundsRect(gfx::Rect(x, 8, 96, 36));
++  // Only controls contained in the left sidebar stay fixed below the menu.
++  // Toolbar-owned controls follow the fullscreen menu bar's reveal offset.
++  const bool in_sidebar = !view->IsVerticalTabStripRightAligned() &&
++      (view->IsZenModeSideChromePinned() || view->GetSideChromeRevealRatio() > 0);
++  const int y = in_sidebar ? 8 : 8 + TopUIFullscreenYOffset();
++  host->SetBoundsRect(gfx::Rect(x, y, 96, 36));
++  floating_drag_region_.windowControlsBounds =
++      [floating_drag_region_ convertRect:floating_window_controls_.bounds
++                               fromView:floating_window_controls_];
+   floating_window_controls_.appearance = FloatingChromeAppearance(GetBrowserView());
+   [floating_window_controls_ refresh];
+   // Move the host with the surface, avoiding clipping translated buttons
+@@ -2227,9 +2234,9 @@ void BrowserFrameViewMac::UpdateFloating
+         ![floating_sidebar_material_.appearance
+             isEqual:FloatingChromeAppearance(view)];
+     floating_sidebar_material_.appearance = FloatingChromeAppearance(view);
+-    // Keep the 38-point native header row and 5-point resize band in the
++    // Keep the entire native button row and 5-point resize band in the
+     // parent window, rather than relying on delayed mouse-event pass-through.
+-    bounds.Inset(gfx::Insets::TLBR(38, right ? 5 : 0, 0, right ? 0 : 5));
++    bounds.Inset(gfx::Insets::TLBR(46, right ? 5 : 0, 0, right ? 0 : 5));
+     // A child NSWindow is not clipped by its parent during the slide.
+     bounds.Intersect(view->GetLocalBounds());
+     views::View::ConvertRectToScreen(view, &bounds);
+@@ -2263,24 +2270,36 @@ void BrowserFrameViewMac::UpdateFloating
+         [[HeliumGlassSidebarButton alloc] initWithBrowserView:view];
+     button_host->Attach(gfx::NativeView(floating_sidebar_button_));
+   }
+-  const CGFloat closed_x = right ? view->width() - 44 : 108;
+-  // Use the resting edge; the reveal interpolation already supplies motion.
+-  const int outer_inset = detached ? 8 : 0;
+-  const CGFloat open_x = right
+-      ? view->width() - outer_inset - sidebar->width() + 8
+-      : outer_inset + sidebar->width() - 44;
+-  const int x = base::ClampRound(closed_x + (open_x - closed_x) * reveal);
+-  button_host->SetBounds(x, 8, 36, 36);
+-  // This host can precede the drag region in native z-order. Let physical
+-  // clicks reach its NSButton instead of starting a window drag.
+-  floating_drag_region_.sidebarButtonBounds =
+-      NSMakeRect(x, 8 - TopUIFullscreenYOffset(), 36, 36);
+-  // Use the same effective scheme as the window pane and other glass surfaces.
++  const bool sidebar_visible = reveal > 0;
++  const gfx::Rect sidebar_bounds = views::View::ConvertRectToTarget(
++      sidebar, view, sidebar->GetLocalBounds());
++  // The toolbar control is present only while the sidebar is closed. Once
++  // revealed, place the control directly on that surface, without a separate
++  // interpolation between the two positions.
++  const int x = sidebar_visible
++      ? (right ? sidebar_bounds.x() + 6 : sidebar_bounds.right() - 42)
++      : (right ? view->width() - 44 : 108);
++  const int y = sidebar_visible ? 8 : 8 + TopUIFullscreenYOffset();
++  button_host->SetBounds(x, y, 36, 36);
+   floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+-  [floating_sidebar_button_ setPresented:top_presented || reveal > 0];
+-  [floating_sidebar_button_ refreshEmbedded:reveal > 0];
+-  button_host->SetVisible(top_presented || reveal > 0 ||
+-                          !floating_sidebar_button_.hidden);
++  [floating_sidebar_button_ refreshEmbedded:sidebar_visible];
++  const CGFloat visibility = sidebar_visible ? reveal : (top_presented ? 1 : 0);
++  // Avoid competing presentation animations when pinning reparents the tabs.
++  [floating_sidebar_button_ setRevealFraction:visibility];
++  floating_sidebar_button_.alphaValue = visibility;
++  button_host->SetVisible(visibility > 0);
++  NSView* parent = floating_sidebar_button_.superview;
++  if (visibility > 0 && parent.subviews.lastObject != floating_sidebar_button_) {
++    // NativeViewHosts attach in creation order. A later drag/material host
++    // must never cover the sidebar's actual NSButton.
++    [parent addSubview:floating_sidebar_button_
++            positioned:NSWindowAbove relativeTo:nil];
++  }
++  floating_drag_region_.sidebarButtonBounds = visibility > 0
++      ? [floating_drag_region_ convertRect:floating_sidebar_button_.bounds
++                                 fromView:floating_sidebar_button_]
++      : NSZeroRect;
++
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingSidebar() {
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -1066,7 +1066,16 @@ void VerticalTabStripRegionView::UpdateI
+     }
+   }
+ 
+-  interior_margin_ = gfx::Insets::TLBR(top_padding, 0, padding, 0);
++  int horizontal_padding = 0;
++#if BUILDFLAG(IS_MAC)
++  if (browser && browser->IsZenModeEnabledForLayout() &&
++      browser->IsVerticalAddressBarInSidebar() &&
++      !browser->IsZenModeTopChromePinned()) {
++    horizontal_padding = 2;
++  }
++#endif
++  interior_margin_ = gfx::Insets::TLBR(
++      top_padding, horizontal_padding, padding, horizontal_padding);
+   InvalidateLayout();
+ }
+ 

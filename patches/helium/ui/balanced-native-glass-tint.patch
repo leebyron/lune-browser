@@ -1,0 +1,196 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -7,6 +7,7 @@
+ #import <QuartzCore/QuartzCore.h>
+ 
+ #include <algorithm>
++#include <cmath>
+ #include <vector>
+ 
+ #include "base/command_line.h"
+@@ -96,8 +97,12 @@
+ #include "ui/base/metadata/metadata_utils.h"
+ #include "ui/base/page_transition_types.h"
+ #include "ui/base/theme_provider.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_provider.h"
++#include "ui/color/color_provider_manager.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/gfx/canvas.h"
++#include "ui/gfx/color_utils.h"
+ #include "ui/gfx/geometry/insets.h"
+ #include "ui/gfx/geometry/outsets_f.h"
+ #include "ui/gfx/geometry/rect.h"
+@@ -153,6 +158,52 @@
+                static_cast<int>(prefs->GetBoolean(prefs::kShowForwardButton)));
+ }
+ 
++// Glass supplies its own light/dark tone. Average the theme's two accents in
++// HSL so switching the browser scheme does not also change the glass tint.
++SkColor GlassTintMidpoint(SkColor light, SkColor dark) {
++  color_utils::HSL a, b;
++  color_utils::SkColorToHSL(light, &a);
++  color_utils::SkColorToHSL(dark, &b);
++  // An achromatic endpoint has no hue; retain the chromatic endpoint's hue.
++  if (a.s == 0) {
++    a.h = b.h;
++  }
++  if (b.s == 0) {
++    b.h = a.h;
++  }
++  // Take the shorter arc across the hue wrap, including reds around 0/1.
++  double delta = b.h - a.h;
++  if (delta > .5) {
++    delta -= 1;
++  } else if (delta < -.5) {
++    delta += 1;
++  }
++  const color_utils::HSL midpoint{
++      std::fmod(a.h + delta / 2 + 1, 1), (a.s + b.s) / 2, (a.l + b.l) / 2};
++  return color_utils::HSLToSkColor(midpoint, 255);
++}
++
++NSColor* FloatingChromeTintColor(BrowserView* view) {
++  // Frame theme notifications can precede BrowserView's widget attachment.
++  // Surface setup reapplies the tint once the owning color provider exists.
++  if (!view->GetColorProvider()) {
++    return nil;
++  }
++  auto key = view->browser_widget()->GetColorProviderKey();
++  auto& manager = ui::ColorProviderManager::Get();
++  key.color_mode = ui::ColorProviderKey::ColorMode::kLight;
++  const SkColor light =
++      manager.GetColorProviderFor(key)->GetColor(ui::kColorSysPrimary);
++  key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
++  const SkColor dark =
++      manager.GetColorProviderFor(key)->GetColor(ui::kColorSysPrimary);
++  const SkColor color = GlassTintMidpoint(light, dark);
++  return [NSColor colorWithSRGBRed:SkColorGetR(color) / 255.0
++                            green:SkColorGetG(color) / 255.0
++                             blue:SkColorGetB(color) / 255.0
++                            alpha:.05];
++}
++
+ NSAppearance* FloatingChromeAppearance(BrowserView* view) {
+   const auto scheme = ThemeServiceFactory::GetForProfile(view->GetProfile())
+                           ->GetBrowserColorScheme();
+@@ -268,6 +319,7 @@
+   HeliumGlassContent* _controls;
+ }
+ @property(nonatomic) BOOL contentAware;
++@property(nonatomic, copy) NSColor* themeTintColor;
+ @property(nonatomic, copy) void (^onAppearanceChanged)(NSAppearance*);
+ - (void)publishForegroundAppearance;
+ - (NSAppearance*)foregroundAppearance;
+@@ -284,6 +336,7 @@
+   NSUInteger _presentationGeneration;
+ }
+ @synthesize contentAware = _contentAware;
++@synthesize themeTintColor = _themeTintColor;
+ @synthesize onAppearanceChanged = _onAppearanceChanged;
+ - (instancetype)initWithFrame:(NSRect)frame {
+   self = [super initWithFrame:frame];
+@@ -339,6 +392,15 @@
+   _material.alphaValue = 0;
+   return self;
+ }
++- (void)setThemeTintColor:(NSColor*)color {
++  if ([_themeTintColor isEqual:color] || _themeTintColor == color) {
++    return;
++  }
++  _themeTintColor = [color copy];
++  if (@available(macOS 26, *)) {
++    ((NSGlassEffectView*)_effect).tintColor = color;
++  }
++}
+ - (void)setContentAware:(BOOL)contentAware {
+   if (_contentAware == contentAware) {
+     return;
+@@ -1543,6 +1605,7 @@
+   self.contentAware = _browserView->GetProfile()->GetPrefs()->GetBoolean(
+       prefs::kHeliumContentAwareChrome);
+   self.appearance = FloatingChromeAppearance(_browserView.get());
++  self.themeTintColor = FloatingChromeTintColor(_browserView.get());
+ }
+ 
+ - (void)shutdown {
+@@ -2158,6 +2221,14 @@
+   }
+   UpdateCaptionButtonPlaceholderContainerBackground();
+   BrowserFrameView::OnThemeChanged();
++  // Update existing surfaces immediately, including a sidebar with its header
++  // hidden. New surfaces get the same color from their regular setup paths.
++  NSColor* tint = FloatingChromeTintColor(GetBrowserView());
++  floating_address_bar_.themeTintColor = tint;
++  floating_navigation_.themeTintColor = tint;
++  floating_toolbar_material_.themeTintColor = tint;
++  floating_sidebar_material_.themeTintColor = tint;
++  floating_customize_close_.themeTintColor = tint;
+ }
+ 
+ views::LayoutAlignment BrowserFrameViewMac::GetWindowTitleAlignment() const {
+@@ -2949,6 +3020,7 @@
+     nav->Attach(gfx::NativeView(floating_navigation_));
+   }
+   if (nav) {
++    floating_navigation_.themeTintColor = FloatingChromeTintColor(view);
+     floating_navigation_.contentAware = view->GetProfile()->GetPrefs()->GetBoolean(
+         prefs::kHeliumContentAwareChrome);
+     [floating_navigation_ refresh];
+@@ -3026,6 +3098,7 @@
+     floating_toolbar_target_bounds_ = gfx::Rect();
+     return;
+   }
++  floating_toolbar_material_.themeTintColor = FloatingChromeTintColor(view);
+   floating_toolbar_material_.contentAware =
+       GetBrowserView()->GetProfile()->GetPrefs()->GetBoolean(
+           prefs::kHeliumContentAwareChrome);
+@@ -3130,6 +3203,7 @@
+   const gfx::Rect bounds =
+       views::View::ConvertRectToTarget(panel, view, panel->GetLocalBounds());
+   host->SetBounds(bounds.right() - 44, bounds.y() + 8, 36, 36);
++  floating_customize_close_.themeTintColor = FloatingChromeTintColor(view);
+   floating_customize_close_.contentAware =
+       view->GetProfile()->GetPrefs()->GetBoolean(prefs::kHeliumContentAwareChrome);
+   floating_customize_close_.appearance = FloatingChromeAppearance(view);
+@@ -3283,6 +3357,7 @@
+     const bool sidebar_appearance_changed =
+         ![floating_sidebar_material_.appearance
+             isEqual:FloatingChromeAppearance(view)];
++    floating_sidebar_material_.themeTintColor = FloatingChromeTintColor(view);
+     floating_sidebar_material_.contentAware =
+         view->GetProfile()->GetPrefs()->GetBoolean(prefs::kHeliumContentAwareChrome);
+     floating_sidebar_material_.appearance = FloatingChromeAppearance(view);
+--- a/chrome/browser/ui/views/frame/browser_widget.h
++++ b/chrome/browser/ui/views/frame/browser_widget.h
+@@ -66,6 +66,9 @@
+ 
+   ~BrowserWidget() override;
+ 
++  // Native glass resolves both scheme variants of the owning browser theme.
++  ui::ColorProviderKey GetColorProviderKey() const override;
++
+ #if BUILDFLAG(IS_LINUX)
+   // Returns whether the frame is in a tiled state.
+   bool tiled() const { return tiled_; }
+@@ -137,7 +140,6 @@
+  protected:
+   // views::Widget:
+   void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+-  ui::ColorProviderKey GetColorProviderKey() const override;
+ 
+  private:
+   const ui::ThemeProvider* GetBaseThemeProvider() const;
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -2051,8 +2051,10 @@
+       "//content/public/browser",
+       "//ui/base",
+       "//ui/base:features",
++      "//ui/color",
+       "//ui/compositor",
+       "//ui/gfx",
++      "//ui/gfx:color_utils",
+       "//ui/native_theme",
+       "//ui/views",
+     ]

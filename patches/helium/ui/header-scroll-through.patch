@@ -1,0 +1,346 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -38,6 +38,9 @@
+ @class HeliumGlassCloseButton;
+ @class HeliumSidebarDivider;
+ @class HeliumPinnedSidebarInput;
++@class HeliumHeaderScrollRouter;
++@class NSEvent;
++@class NSView;
+ 
+ namespace views {
+ class NativeViewHost;
+@@ -132,6 +135,7 @@
+   void UpdateFloatingSidebar(bool top_presented);
+   void ResetFloatingSidebar();
+   void UpdateFloatingCustomizeClose();
++  NSView* HeaderScrollTarget(NSEvent* event, NSView* momentum_target);
+ 
+   void UpdateCaptionButtonPlaceholderContainerBackground();
+ 
+@@ -181,6 +185,7 @@
+   HeliumGlassDragRegion* __strong floating_drag_region_ = nil;
+   HeliumGlassSurface* __strong floating_toolbar_material_ = nil;
+   std::unique_ptr<views::Widget> floating_toolbar_widget_;
++  HeliumHeaderScrollRouter* __strong header_scroll_router_ = nil;
+   bool floating_toolbar_presented_ = false;
+   gfx::Rect floating_toolbar_target_bounds_;
+   bool floating_address_focus_requested_ = false;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -56,6 +56,7 @@
+ #include "chrome/browser/ui/views/frame/caption_button_placeholder_container.h"
+ #include "chrome/browser/ui/views/frame/contents_container_outline.h"
+ #include "chrome/browser/ui/views/frame/contents_container_view.h"
++#include "chrome/browser/ui/views/frame/contents_web_view.h"
+ #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h"
+@@ -119,6 +120,7 @@
+ #include "ui/views/layout/box_layout.h"
+ #include "ui/views/layout/layout_manager_base.h"
+ #include "ui/views/layout/layout_types.h"
++#include "ui/views/view_class_properties.h"
+ #include "ui/views/view_targeter.h"
+ #include "ui/views/view_targeter_delegate.h"
+ #include "ui/views/widget/widget.h"
+@@ -216,6 +218,69 @@
+ }
+ }  // namespace
+ 
++// Window-local wheel routing preserves the original native event. In particular,
++// momentum must stay with the content that received the end of the direct scroll,
++// even if the pointer subsequently moves over a different pane or toolbar item.
++@interface HeliumHeaderScrollRouter : NSObject
++@property(nonatomic, copy) NSView* (^resolveTarget)(NSEvent*, NSView*);
++- (NSEvent*)routeEvent:(NSEvent*)event;
++- (void)shutdown;
++@end
++@implementation HeliumHeaderScrollRouter {
++  id _monitor;
++  __weak NSView* _momentumTarget;
++}
++@synthesize resolveTarget = _resolveTarget;
++- (instancetype)init {
++  self = [super init];
++  if (self) {
++    __weak HeliumHeaderScrollRouter* weakSelf = self;
++    _monitor = [NSEvent
++        addLocalMonitorForEventsMatchingMask:NSEventMaskScrollWheel
++                                    handler:^NSEvent*(NSEvent* event) {
++      HeliumHeaderScrollRouter* owner = weakSelf;
++      return owner ? [owner routeEvent:event] : event;
++    }];
++  }
++  return self;
++}
++- (NSEvent*)routeEvent:(NSEvent*)event {
++  if (event.type != NSEventTypeScrollWheel || !self.resolveTarget) {
++    return event;
++  }
++  const bool momentum = event.momentumPhase != NSEventPhaseNone;
++  NSView* target = self.resolveTarget(event, momentum ? _momentumTarget : nil);
++  // Do not steal momentum from a scroll that AppKit delivered to the page or
++  // another control directly. Only continue streams this router forwarded.
++  if (momentum && !_momentumTarget) {
++    return event;
++  }
++  if (!target) {
++    _momentumTarget = nil;
++    return event;
++  }
++  _momentumTarget = event.phase != NSEventPhaseNone || momentum ? target : nil;
++  if (event.phase == NSEventPhaseCancelled ||
++      event.momentumPhase == NSEventPhaseEnded) {
++    _momentumTarget = nil;
++  }
++  // Direct delivery avoids redispatching through this monitor or the overlay.
++  [target scrollWheel:event];
++  return nil;
++}
++- (void)shutdown {
++  if (_monitor) {
++    [NSEvent removeMonitor:_monitor];
++    _monitor = nil;
++  }
++  self.resolveTarget = nil;
++  _momentumTarget = nil;
++}
++- (void)dealloc {
++  [self shutdown];
++}
++@end
++
+ @interface HeliumChromeHitRegion : NSView
+ @property(nonatomic, weak) NSWindow* controlsWindow;
+ @property(nonatomic) NSEdgeInsets controlsInsets;
+@@ -833,7 +898,8 @@
+   [self startWindowDrag:event];
+ }
+ - (void)scrollWheel:(NSEvent*)event {
+-  // Do not forward scrolling through this visible header to the document.
++  // The header router forwards eligible wheel events before view dispatch.
++  // Remaining events have no page target or belong to retained browser UI.
+ }
+ - (void)startWindowDrag:(NSEvent*)event {
+   if (!_browser || event.type != NSEventTypeLeftMouseDown) {
+@@ -1690,6 +1756,11 @@
+   [self shutdown];
+ }
+ 
++- (void)scrollWheel:(NSEvent*)event {
++  // The fixed-height autocomplete rows have no scroll range. Keep their wheel
++  // events in browser UI instead of letting the responder chain scroll a page.
++}
++
+ - (BOOL)isEditing {
+   return _editing || _address.currentEditor != nil;
+ }
+@@ -2022,6 +2093,8 @@
+ }
+ 
+ BrowserFrameViewMac::~BrowserFrameViewMac() {
++  [header_scroll_router_ shutdown];
++  header_scroll_router_ = nil;
+   floating_address_refresh_timer_->Stop();
+   [floating_address_bar_ shutdown];
+   if (auto* host = floating_address_host_.view()) {
+@@ -3025,6 +3098,8 @@
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingToolbar() {
++  [header_scroll_router_ shutdown];
++  header_scroll_router_ = nil;
+   floating_toolbar_material_.onAppearanceChanged = nil;
+   floating_toolbar_material_.controlsWindow = nil;
+   ResetFloatingSidebar();
+@@ -3058,6 +3133,13 @@
+   if (!HasFloatingAddressBar()) {
+     ResetFloatingToolbar();
+   }
++  if (presented && !header_scroll_router_) {
++    header_scroll_router_ = [[HeliumHeaderScrollRouter alloc] init];
++    header_scroll_router_.resolveTarget = ^NSView*(NSEvent* event,
++                                                   NSView* momentum_target) {
++      return HeaderScrollTarget(event, momentum_target);
++    };
++  }
+   if (presented && !nav) {
+     drag = view->AddChildView(std::make_unique<views::NativeViewHost>());
+     floating_drag_host_.SetView(drag);
+@@ -3234,6 +3316,95 @@
+   floating_toolbar_presented_ = presented;
+ }
+ 
++NSView* BrowserFrameViewMac::HeaderScrollTarget(NSEvent* event,
++                                                NSView* momentum_target) {
++  auto* browser = GetBrowserView();
++  if (!HasFloatingAddressBar() || !GetWidget() || GetWidget()->IsClosed() ||
++      !GetWidget()->IsVisible() || browser->IsChromeRevealHeldForMenu() ||
++      IsWindowControlsMenuOpen() || NSApp.modalWindow) {
++    return nil;
++  }
++  NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  NSWindow* toolbar_window = floating_toolbar_widget_
++      ? floating_toolbar_widget_->GetNativeWindow().GetNativeNSWindow() : nil;
++  if (!event.window || (event.window != window && event.window != toolbar_window) ||
++      window.attachedSheet) {
++    return nil;
++  }
++  const NSPoint screen =
++      [event.window convertPointToScreen:event.locationInWindow];
++  gfx::Point point = gfx::ScreenPointFromNSPoint(screen);
++  views::View::ConvertPointFromScreen(browser, &point);
++  // Autocomplete extends beyond the header band. Deliver to its native
++  // owner, which deliberately keeps these non-scrolling rows off the page.
++  if (momentum_target == floating_address_bar_ && momentum_target) {
++    return floating_address_bar_;
++  }
++  if (!momentum_target && [floating_address_bar_ isEditing]) {
++    NSPoint local = [floating_address_bar_
++        convertPoint:[window convertPointFromScreen:screen] fromView:nil];
++    if (NSPointInRect(local, floating_address_bar_.bounds) &&
++        local.y < NSHeight(floating_address_bar_.bounds) - 36) {
++      return floating_address_bar_;
++    }
++  }
++  if (!momentum_target) {
++    auto* drag = floating_drag_host_.view();
++    if (!drag || !drag->IsDrawn() || !floating_drag_region_.enabled ||
++        !views::View::ConvertRectToTarget(drag, browser, drag->GetLocalBounds())
++             .Contains(point)) {
++      return nil;
++    }
++    if (auto* sidebar = browser->GetSidebarView();
++        sidebar && sidebar->IsDrawn() &&
++        views::View::ConvertRectToTarget(sidebar, browser,
++                                         sidebar->GetLocalBounds()).Contains(point)) {
++      return nil;
++    }
++  }
++  // Hit-test each actual content container, below the header, rather than using
++  // the active tab. Views target selection also protects modal scrims and other
++  // content overlays. Docked DevTools has its own WebView and native receiver.
++  for (const auto& container : browser->GetContentsContainerViews()) {
++    if (!container->IsDrawn()) {
++      continue;
++    }
++    gfx::Point local = point;
++    views::View::ConvertPointToTarget(browser, container.get(), &local);
++    views::View* hit = container->GetEventHandlerForPoint(local);
++    for (views::WebView* web_view :
++         {static_cast<views::WebView*>(container->contents_view()),
++          container->devtools_web_view()}) {
++      if (!web_view || !web_view->IsDrawn() || !web_view->GetEnabled() ||
++          !web_view->web_contents() ||
++          web_view->holder()->GetProperty(views::kIsBlockedByModalKey)) {
++        continue;
++      }
++      NSView* native = web_view->web_contents()->GetNativeView().GetNativeNSView();
++      if (!native || native.window != window || native.hiddenOrHasHiddenAncestor) {
++        continue;
++      }
++      if (momentum_target) {
++        if ([momentum_target isDescendantOf:native]) {
++          return momentum_target;
++        }
++        continue;
++      }
++      if (!hit || !web_view->Contains(hit)) {
++        continue;
++      }
++      NSPoint location = [native convertPoint:
++          [window convertPointFromScreen:screen] fromView:nil];
++      if (!NSPointInRect(location, native.visibleRect)) {
++        continue;
++      }
++      return [native hitTest:[native.superview convertPoint:
++          [window convertPointFromScreen:screen] fromView:nil]];
++    }
++  }
++  return nil;
++}
++
+ void BrowserFrameViewMac::UpdateFloatingCustomizeClose() {
+   auto* view = GetBrowserView();
+   auto* panel = view->side_panel();
+--- a/components/input/web_input_event_builders_mac.mm
++++ b/components/input/web_input_event_builders_mac.mm
+@@ -132,8 +132,11 @@
+     bool unaccelerated_movement = false) {
+   EventLocationInfo result;
+ 
++  // A native overlay can forward the original event from a child window.
++  // Keep its deltas/phases intact and translate only the source coordinates.
++  NSWindow* source_window = event.window ?: view.window;
+   NSPoint screen_local =
+-      [view.window convertPointToScreen:event.locationInWindow];
++      [source_window convertPointToScreen:event.locationInWindow];
+   NSScreen* primary_screen =
+       (NSScreen.screens.count > 0) ? NSScreen.screens.firstObject : nil;
+ 
+@@ -143,8 +146,8 @@
+                           ? primary_screen.frame.size.height - screen_local.y
+                           : screen_local.y);
+ 
+-  NSPoint content_local = [view convertPoint:event.locationInWindow
+-                                    fromView:nil];
++  NSPoint window_local = [view.window convertPointFromScreen:screen_local];
++  NSPoint content_local = [view convertPoint:window_local fromView:nil];
+   // Flip y.
+   result.position_in_widget.SetPoint(content_local.x,
+                                      view.frame.size.height - content_local.y);
+--- a/components/input/web_input_event_builders_mac_unittest.mm
++++ b/components/input/web_input_event_builders_mac_unittest.mm
+@@ -706,6 +706,35 @@
+ 
+ // Test that a ui::Event and blink::WebInputEvent made from the same NSEvent
+ // have the same values for comparable fields.
++TEST(WebInputEventBuilderMacTest, ScrollWheelFromChildWindow) {
++  NSWindow* parent = [[NSWindow alloc]
++      initWithContentRect:NSMakeRect(100, 200, 800, 600)
++                styleMask:NSWindowStyleMaskBorderless
++                  backing:NSBackingStoreBuffered defer:NO];
++  NSWindow* child = [[NSWindow alloc]
++      initWithContentRect:NSMakeRect(500, 700, 100, 36)
++                styleMask:NSWindowStyleMaskBorderless
++                  backing:NSBackingStoreBuffered defer:NO];
++  parent.releasedWhenClosed = NO;
++  child.releasedWhenClosed = NO;
++  NSView* target = [[NSView alloc] initWithFrame:NSMakeRect(50, 40, 700, 550)];
++  [parent.contentView addSubview:target];
++  NSEvent* event = cocoa_test_event_utils::TestScrollEvent(
++      NSMakePoint(11, 22), child, 3, -7, true, NSEventPhaseChanged,
++      NSEventPhaseNone);
++  auto forwarded = input::WebMouseWheelEventBuilder::Build(event, target);
++  auto original = input::WebMouseWheelEventBuilder::Build(event, child.contentView);
++  EXPECT_EQ(gfx::PointF(361, 68), forwarded.PositionInWidget());
++  EXPECT_EQ(original.PositionInScreen(), forwarded.PositionInScreen());
++  EXPECT_EQ(original.delta_x, forwarded.delta_x);
++  EXPECT_EQ(original.delta_y, forwarded.delta_y);
++  EXPECT_EQ(original.delta_units, forwarded.delta_units);
++  EXPECT_EQ(original.phase, forwarded.phase);
++  EXPECT_EQ(original.momentum_phase, forwarded.momentum_phase);
++  EXPECT_EQ(original.GetModifiers(), forwarded.GetModifiers());
++  EXPECT_EQ(original.TimeStamp(), forwarded.TimeStamp());
++}
++
+ TEST(WebInputEventBuilderMacTest, ScrollWheelMatchesUIEvent) {
+   bool precise = false;
+   CGFloat delta_x = 123;
+--- a/content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm
++++ b/content/app_shim_remote_cocoa/render_widget_host_view_cocoa.mm
+@@ -1834,6 +1834,13 @@
+ }
+ 
+ - (void)scrollWheel:(NSEvent*)event {
++  // An overlay may forward a wheel event from a local monitor and consume it
++  // before our end monitor runs. Complete the same cleanup for direct delivery;
++  // if the monitor already ran, it cleared the token and this is a no-op.
++  if (_endWheelMonitor) {
++    [self shortCircuitScrollWheelEvent:event];
++  }
++
+   // Consult with the delegate to see if it wants to handle the event. If the
+   // delegate has handled the event, it takes priority over the page scrolling.
+   if ([_responderDelegate respondsToSelector:@selector(handleEvent:)]) {

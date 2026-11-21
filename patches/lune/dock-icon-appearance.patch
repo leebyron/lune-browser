@@ -1,0 +1,256 @@
+--- a/chrome/browser/app_controller_mac.mm
++++ b/chrome/browser/app_controller_mac.mm
+@@ -10,6 +10,7 @@
+ 
+ #include <algorithm>
+ #include <memory>
++#include <optional>
+ #include <vector>
+ 
+ #include "base/apple/bridging.h"
+@@ -78,6 +79,9 @@
+ #include "chrome/browser/shortcuts/chrome_webloc_file.h"
+ #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
+ #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
++#include "chrome/browser/themes/theme_service.h"
++#include "chrome/browser/themes/theme_service_factory.h"
++#include "chrome/browser/themes/theme_service_observer.h"
+ #include "chrome/browser/ui/browser_command_controller.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_live_tab_context.h"
+@@ -93,6 +97,7 @@
+ #import "chrome/browser/ui/cocoa/bookmarks/bookmark_menu_bridge.h"
+ #import "chrome/browser/ui/cocoa/confirm_quit.h"
+ #import "chrome/browser/ui/cocoa/confirm_quit_panel_controller.h"
++#import "chrome/browser/ui/cocoa/dock_icon.h"
+ #include "chrome/browser/ui/cocoa/handoff_observer.h"
+ #import "chrome/browser/ui/cocoa/history_menu_bridge.h"
+ #import "chrome/browser/ui/cocoa/profiles/profile_menu_controller.h"
+@@ -155,6 +160,7 @@
+ #include "ui/gfx/native_ui_types.h"
+ #include "ui/menus/cocoa/menu_controller.h"
+ #include "ui/native_theme/native_theme.h"
++#include "ui/native_theme/native_theme_observer.h"
+ #include "url/gurl.h"
+ 
+ namespace {
+@@ -524,6 +530,70 @@
+   }
+ }
+ 
++// The Dock has one tile for the process. Use the active profile's browser
++// appearance, including its underlying preference for off-the-record windows.
++class LuneIconAppearanceObserver : public ProfileObserver,
++                                   public ThemeServiceObserver,
++                                   public ui::NativeThemeObserver {
++ public:
++  explicit LuneIconAppearanceObserver(Profile* profile) {
++    native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
++    SetProfile(profile);
++  }
++
++  void SetProfile(Profile* profile) {
++    if (profile) {
++      profile = profile->GetOriginalProfile();
++    }
++    if (profile != profile_observation_.GetSource()) {
++      theme_observation_.Reset();
++      profile_observation_.Reset();
++      if (profile) {
++        profile_observation_.Observe(profile);
++        if (auto* service = ThemeServiceFactory::GetForProfile(profile)) {
++          theme_observation_.Observe(service);
++        }
++      }
++    }
++    UpdateIcon();
++  }
++
++ private:
++  void OnProfileWillBeDestroyed(Profile* profile) override {
++    SetProfile(nullptr);
++  }
++
++  void OnThemeChanged() override { UpdateIcon(); }
++  void OnNativeThemeUpdated(ui::NativeTheme* theme) override { UpdateIcon(); }
++
++  void UpdateIcon() {
++    const auto* service = theme_observation_.GetSource();
++    const auto system_scheme =
++        native_theme_observation_.GetSource()->preferred_color_scheme();
++    const bool dark = service ? service->BrowserUsesDarkColors()
++                              : system_scheme ==
++                                    ui::NativeTheme::PreferredColorScheme::kDark;
++    if (dark_ == dark) {
++      return;
++    }
++
++    NSString* name = dark ? @"app-dark" : @"app-light";
++    NSString* path = [NSBundle.mainBundle pathForResource:name ofType:@"icns"];
++    NSImage* icon = path ? [[NSImage alloc] initWithContentsOfFile:path] : nil;
++    if (icon) {
++      [DockIcon setApplicationIconImage:icon];
++      dark_ = dark;
++    }
++  }
++
++  std::optional<bool> dark_;
++  base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
++  base::ScopedObservation<ThemeService, ThemeServiceObserver> theme_observation_{
++      this};
++  base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
++      native_theme_observation_{this};
++};
++
+ }  // namespace
+ 
+ // This is extracted as a standalone function in order
+@@ -541,48 +611,6 @@
+   return profile_manager->GetProfile(profile_path);
+ }
+ 
+-// The static bundle icon is Pelagic Signal; the running Dock icon follows
+-// macOS appearance without changing the user's browser theme preference.
+-@interface LuneIconAppearanceObserver : NSObject
+-@end
+-
+-@implementation LuneIconAppearanceObserver
+-- (void)updateIcon {
+-  NSAppearanceName appearance =
+-      [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:@[
+-        NSAppearanceNameAqua, NSAppearanceNameDarkAqua
+-      ]];
+-  NSString* name = [appearance isEqual:NSAppearanceNameDarkAqua]
+-                       ? @"app-dark" : @"app-light";
+-  NSString* path = [NSBundle.mainBundle pathForResource:name ofType:@"icns"];
+-  NSImage* icon = path ? [[NSImage alloc] initWithContentsOfFile:path] : nil;
+-  if (icon) {
+-    NSApp.applicationIconImage = icon;
+-  }
+-}
+-
+-- (instancetype)init {
+-  self = [super init];
+-  if (self) {
+-    [NSApp addObserver:self forKeyPath:@"effectiveAppearance"
+-               options:0 context:nullptr];
+-    [self updateIcon];
+-  }
+-  return self;
+-}
+-
+-- (void)dealloc {
+-  [NSApp removeObserver:self forKeyPath:@"effectiveAppearance"];
+-}
+-
+-- (void)observeValueForKeyPath:(NSString*)keyPath
+-                    ofObject:(id)object
+-                      change:(NSDictionary*)change
+-                     context:(void*)context {
+-  [self updateIcon];
+-}
+-@end
+-
+ @interface AppController () <HandoffObserverDelegate>
+ - (void)initMenuState;
+ - (void)initProfileMenu;
+@@ -724,7 +752,7 @@
+ };
+ 
+ @implementation AppController {
+-  LuneIconAppearanceObserver* __strong _luneIconAppearanceObserver;
++  std::unique_ptr<LuneIconAppearanceObserver> _luneIconAppearanceObserver;
+   // Manages the state of the command menu items.
+   std::unique_ptr<CommandUpdater> _menuState;
+ 
+@@ -1122,6 +1150,8 @@
+ 
+   _isShuttingDown = true;
+ 
++  _luneIconAppearanceObserver.reset();
++
+   // `_historyMenuBridge` has a dependency on `_lastProfile`, so that's why it's
+   // deleted first.
+   _historyMenuBridge.reset();
+@@ -1349,8 +1379,6 @@
+     return;
+   }
+ 
+-  _luneIconAppearanceObserver = [[LuneIconAppearanceObserver alloc] init];
+-
+   [self setUpdateCheckInterval];
+ 
+   // If enabled, keep Chrome alive when apps are open instead of quitting all
+@@ -1391,6 +1419,8 @@
+     activeWebContents = browser->GetTabStripModel()->GetActiveWebContents();
+     _lastActiveBrowser = browser->GetWeakPtr();
+   }
++  _luneIconAppearanceObserver = std::make_unique<LuneIconAppearanceObserver>(
++      browser ? browser->GetProfile() : [self lastProfileIfLoaded]);
+   [self updateHandoffManager:activeWebContents];
+   [self openStartupUrls];
+ 
+@@ -2370,6 +2400,10 @@
+ 
+   _lastProfile = profile;
+ 
++  if (_luneIconAppearanceObserver) {
++    _luneIconAppearanceObserver->SetProfile(profile);
++  }
++
+   if (_lastProfile == nullptr)
+     return;
+ 
+--- a/chrome/browser/ui/cocoa/dock_icon.h
++++ b/chrome/browser/ui/cocoa/dock_icon.h
+@@ -18,6 +18,9 @@
+ 
+ @property (class, strong, readonly) DockIcon* sharedDockIcon;
+ 
++// Sets the application icon, including the artwork behind download progress.
+++ (void)setApplicationIconImage:(NSImage*)image;
++
+ // Updates the icon. Use the setters below to set the details first.
+ - (void)updateIcon;
+ 
+--- a/chrome/browser/ui/cocoa/dock_icon.mm
++++ b/chrome/browser/ui/cocoa/dock_icon.mm
+@@ -21,6 +21,8 @@
+ NSString* const kIconAppearanceConfigurationDidChangeNotification =
+     @"NSWorkspaceIconAppearanceConfigurationDidChangeNotification";
+ 
++NSImage* g_application_icon;
++
+ // The fraction of the size of the dock icon that the badge is.
+ constexpr CGFloat kBadgeFraction = 0.375;
+ constexpr CGFloat kBadgeMargin = 4;
+@@ -73,7 +75,8 @@
+   //
+   // Therefore, use [NSImage imageNamed:NSImageNameApplicationIcon].
+ 
+-  NSImage* appIcon = [NSImage imageNamed:NSImageNameApplicationIcon];
++  NSImage* appIcon =
++      g_application_icon ?: [NSImage imageNamed:NSImageNameApplicationIcon];
+   [appIcon drawInRect:self.bounds
+              fromRect:NSZeroRect
+             operation:NSCompositingOperationSourceOver
+@@ -202,6 +205,19 @@
+   return icon;
+ }
+ 
+++ (void)setApplicationIconImage:(NSImage*)image {
++  NSDockTile* tile = NSApp.dockTile;
++  DockTileView* progress_view =
++      base::apple::ObjCCast<DockTileView>(tile.contentView);
++  g_application_icon = image;
++  NSApp.applicationIconImage = image;
++  // AppKit can replace the custom Dock view when setting the application icon.
++  if (progress_view) {
++    tile.contentView = progress_view;
++    [tile display];
++  }
++}
++
+ - (instancetype)init {
+   if (self = [super init]) {
+     // Register for the icon appearance configuration change. This is an

@@ -1,0 +1,40 @@
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
+@@ -212,9 +212,9 @@
+       undefined;
+   protected readonly toolbarOptions_: DropdownMenuOptionList = [
+     {value: 'hover', name: loadTimeData.getString('showToolbarHover')},
++    {value: 'no-hover', name: loadTimeData.getString('showToolbarNoHover')},
+     {value: 'always', name: loadTimeData.getString('showToolbarAlways')},
+     {value: 'cover', name: loadTimeData.getString('showToolbarCover')},
+-    {value: 'no-hover', name: loadTimeData.getString('showToolbarNoHover')},
+   ];
+ 
+   protected getToolbarMode_(): string {
+--- a/chrome/browser/ui/views/frame/system_menu_model_builder.cc
++++ b/chrome/browser/ui/views/frame/system_menu_model_builder.cc
+@@ -192,11 +192,11 @@
+     top_controls_menu_contents_->AddRadioItemWithStringId(
+         IDC_TOP_CONTROLS_HOVER, IDS_TOP_CONTROLS_HOVER, 0);
+     top_controls_menu_contents_->AddRadioItemWithStringId(
++        IDC_TOP_CONTROLS_NO_HOVER, IDS_TOP_CONTROLS_NO_HOVER, 0);
++    top_controls_menu_contents_->AddRadioItemWithStringId(
+         IDC_TOP_CONTROLS_ALWAYS, IDS_TOP_CONTROLS_ALWAYS, 0);
+     top_controls_menu_contents_->AddRadioItemWithStringId(
+         IDC_TOP_CONTROLS_OVERLAY, IDS_TOP_CONTROLS_OVERLAY, 0);
+-    top_controls_menu_contents_->AddRadioItemWithStringId(
+-        IDC_TOP_CONTROLS_NO_HOVER, IDS_TOP_CONTROLS_NO_HOVER, 0);
+     model->AddSubMenuWithStringId(IDC_TOP_CONTROLS_MENU, IDS_TOP_CONTROLS_MENU,
+                                   top_controls_menu_contents_.get());
+ #else
+--- a/components/helium_onboarding/src/pages/Finish.svelte
++++ b/components/helium_onboarding/src/pages/Finish.svelte
+@@ -47,7 +47,7 @@
+                 <div class="option"><span>{s.finish.header}</span>
+                     <Dropdown aria-label={s.finish.header}
+                         value={$preferences['browser.zen_mode_top_chrome_pinned'] ? 'always' : ($preferences['browser.top_controls_hover_disabled'] ? 'no-hover' : 'hover')}
+-                        options={[{value: 'hover', label: s.finish.headerHover}, {value: 'always', label: s.finish.headerAlways}, {value: 'no-hover', label: s.finish.headerNoHover}]}
++                        options={[{value: 'hover', label: s.finish.headerHover}, {value: 'no-hover', label: s.finish.headerNoHover}, {value: 'always', label: s.finish.headerAlways}]}
+                         onchange={(event) => setHeader(event.currentTarget.value)} />
+                 </div>
+             </div>
