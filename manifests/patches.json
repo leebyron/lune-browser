@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "27d3bb1ca55104221386ef4a592d0b3d6a7ad728",
+    "commit": "b5abc65dd1cd214b9b41fc83724d69013785ac9f",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1077,6 +1077,10 @@
       {
         "path": "patches/helium/ui/page-top-window-drag-eligibility.patch",
         "sha256": "44f94bebfb0b57bd89b6db1f351e40292b7b64065da089e7c15e3fd71d9a28ad"
+      },
+      {
+        "path": "patches/lune/dock-icon-appearance.patch",
+        "sha256": "b508c93c3c1ec4f224879ca0613b3c228910519c84e54e59dd610ab9227d6538"
       }
     ]
   },
@@ -3402,6 +3406,21 @@
       "adaptation": "Use renderer hit testing and gesture ownership after input dispatch. Honor cancellation, capture and interactive targets while allowing passive and delegated listeners.",
       "commits": [
         "27d3bb1ca55104221386ef4a592d0b3d6a7ad728"
+      ]
+    },
+    {
+      "id": "dock-icon-appearance",
+      "depends_on": [
+        "lune-day-night"
+      ],
+      "patches": [
+        "patches/lune/dock-icon-appearance.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match the running Dock icon to the resolved browser appearance.",
+      "adaptation": "Observe the active profile ThemeService and the native theme. Preserve the download badge view across AppKit icon replacement and redraw it on the selected artwork.",
+      "commits": [
+        "b5abc65dd1cd214b9b41fc83724d69013785ac9f"
       ]
     }
   ],

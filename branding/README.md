@@ -152,8 +152,9 @@ schemes. All six raster fallback sizes pass transparency and full-width checks.
 See `.work/icon-shape/favicon-check/report.json`. The development lock,
 previously installed previews, published builds, and live website are unchanged.
 
-The running Dock icon follows macOS appearance. Finder and legacy raster icon
-surfaces use the dark tile. Web SVGs, onboarding and default browser colors
+The running Dock icon follows the browser's Light, Dark or System appearance
+setting. In System mode it follows macOS appearance. Finder and legacy raster
+icon surfaces use the dark tile. Web SVGs, onboarding and default browser colors
 follow light/dark mode. Custom themes, chosen accent colors and accessibility
 palettes retain precedence. See [implementation and validation](../agent-docs/project/features/day-night-branding.md).
 

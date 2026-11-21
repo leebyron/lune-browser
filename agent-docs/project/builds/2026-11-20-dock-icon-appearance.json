@@ -1,0 +1,149 @@
+{
+  "description": "Match Lune’s running Dock icon to the browser’s resolved appearance.",
+  "scope": "Development input adopted on main",
+  "host_macos": "26.6.2",
+  "platform_input_ref": "refs/tags/inputs/dock-icon-appearance-2/macos",
+  "platform_tree": "3273da72fd284588b4e2b6345c320166d0f2c27d",
+  "patch_sha256": "b508c93c3c1ec4f224879ca0613b3c228910519c84e54e59dd610ab9227d6538",
+  "verified_input_signature": true,
+  "prepared_sources": {
+    "macos": "b5abc65dd1cd214b9b41fc83724d69013785ac9f",
+    "helium": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+    "base_platform": "27d3bb1ca55104221386ef4a592d0b3d6a7ad728",
+    "chromium": "158.0.8127.37",
+    "strict_replay_passed": true,
+    "full_source_parity": true,
+    "patch_hunk_offsets": [],
+    "affected": [
+      "chrome/browser/app_controller_mac.mm",
+      "chrome/browser/ui/cocoa/dock_icon.h",
+      "chrome/browser/ui/cocoa/dock_icon.mm"
+    ],
+    "inventory_files": 596108,
+    "inventory_symlinks": 141,
+    "changed_sha256": {
+      "chrome/browser/app_controller_mac.mm": "17da60c06da8a6b5bdf0c59dbe674855e619f3c7ac6110f2b9f2d5e93cc12767",
+      "chrome/browser/ui/cocoa/dock_icon.h": "9cf396d19598f777b8c99254e0e549cc7180b279e30e8233388dc17fbe23b65c",
+      "chrome/browser/ui/cocoa/dock_icon.mm": "86fa1a03e7e44b3ddc63aba61611b62c59e88b24e061caf0d250d332450a2104"
+    },
+    "preparation_log_sha256": "f56ffd7d09c4b11dd30274a72c46ce098c17f024d2b23847ddf35357b8d016c8"
+  },
+  "baseline_reproduction": "The previous arm64 build kept its light Dock icon after Lune switched to Dark on light macOS.",
+  "owner_acceptance": {
+    "date": "2026-11-20",
+    "build": "arm64",
+    "result": "The owner switched among Light, Dark, and System and confirmed the Dock icon updated as expected."
+  },
+  "builds": {
+    "arm64": {
+      "execution": "native arm64",
+      "framework_sha256": "7224d4bc6450d1168d57ab8b4a805187a3748e48c36be1cee44ad1f771f99c68",
+      "executable_sha256": "c095b824b2c1754d4618bace66907ed3b468fe0f6fec2c759d36abc0a6f19c6b",
+      "compile_and_headed_smoke": "passed",
+      "smoke_coverage": [
+        "page execution and profile persistence",
+        "Settings",
+        "Appearance",
+        "bundled internal and helper icons"
+      ],
+      "dock_icon_checks": "passed"
+    },
+    "x86_64": {
+      "execution": "x86_64 under Rosetta on arm64",
+      "framework_sha256": "b37af4d3aa608d3536c1aef83980514311711ece3a67924697b72936de10699a",
+      "executable_sha256": "67b548935f1b5d74fd68e54325ea41e7584d7250ef24bb2c643699b2d38acd8d",
+      "compile_and_headed_smoke": "passed",
+      "smoke_coverage": [
+        "page execution and profile persistence",
+        "Settings",
+        "Appearance",
+        "bundled internal and helper icons"
+      ],
+      "dock_icon_checks": "passed"
+    }
+  },
+  "dock_icon_cases_exercised_on_both_builds": [
+    {
+      "case": "Launch with System appearance on light macOS",
+      "icon": "light",
+      "with_download_badge": false
+    },
+    {
+      "case": "Dark override on light macOS",
+      "icon": "dark",
+      "with_download_badge": false
+    },
+    {
+      "case": "Dark override survives macOS appearance round trip",
+      "icon": "dark",
+      "with_download_badge": false
+    },
+    {
+      "case": "Switch back to System while macOS is light",
+      "icon": "light",
+      "with_download_badge": false
+    },
+    {
+      "case": "System follows live dark macOS change",
+      "icon": "dark",
+      "with_download_badge": false
+    },
+    {
+      "case": "System follows live light macOS change",
+      "icon": "light",
+      "with_download_badge": false
+    },
+    {
+      "case": "Light override on dark macOS",
+      "icon": "light",
+      "with_download_badge": false
+    },
+    {
+      "case": "Light override survives macOS appearance round trip",
+      "icon": "light",
+      "with_download_badge": false
+    },
+    {
+      "case": "Light artwork behind an active download badge",
+      "icon": "light",
+      "with_download_badge": true
+    },
+    {
+      "case": "Switch to Dark with an active download badge",
+      "icon": "dark",
+      "with_download_badge": true
+    },
+    {
+      "case": "Switch to Light with an active download badge",
+      "icon": "light",
+      "with_download_badge": true
+    },
+    {
+      "case": "Save Light override before restart",
+      "icon": "light",
+      "with_download_badge": false
+    },
+    {
+      "case": "Saved Light override applies on launch on dark macOS",
+      "icon": "light",
+      "with_download_badge": false
+    }
+  ],
+  "method": [
+    "The browser’s own Settings change the real appearance preference. The test compares Settings color tokens, AppKit’s icon readback, and the exact artwork assigned to the Dock.",
+    "A process-local AppKit appearance change reaches the same effective appearance observer used for native system changes.",
+    "A slow local download creates a real download badge. The test observes the artwork drawn by the Dock tile view underneath it."
+  ],
+  "tooling": {
+    "lock_and_git_objects": "passed",
+    "platform_patch_lint": "passed",
+    "repository_tests": {
+      "passed": 107,
+      "skipped": 1,
+      "skip_reason": "Native dependency-log interoperability test requires explicit pinned tool paths."
+    }
+  },
+  "limits": [
+    "No physical Intel or older macOS run."
+  ]
+}

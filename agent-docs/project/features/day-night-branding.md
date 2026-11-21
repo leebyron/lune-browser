@@ -15,8 +15,8 @@ The canonical geometry and palettes are in
 - Website marks, app tiles and SVG favicon follow system appearance. CSS covers
   the desktop, browser illustration, story, glass controls and focus states.
   PNG/ICO/Apple touch fallbacks retain the dark tile; Apple touch is opaque.
-- Both `.icns` variants ship in the macOS bundle. An AppKit appearance observer
-  updates the running Dock icon on launch and macOS appearance changes. Finder
+- Both `.icns` variants ship in the macOS bundle. The initial implementation
+  used an AppKit observer to follow macOS directly. Finder
   and helper fallback icons use the dark tile. No upstream asset catalog is bundled.
 - All existing browser-logo resource destinations use the thicker artwork.
   Onboarding SVG and CSS follow appearance; light/dark wordmarks and monochrome
@@ -123,3 +123,22 @@ is resolved. Published browser releases retain their frozen artwork; production
 website deployment is separate. Temporary review apps, profiles, board, tabs and
 servers are cleaned up, retaining evidence and reusable build/source caches.
 Native Intel and older-macOS visual review were not repeated.
+
+## Running Dock icon appearance
+
+The running app uses the light icon when Lune resolves to Light and the dark
+icon when it resolves to Dark. Under System, it resolves to the current macOS
+appearance. The icon updates at launch and when the browser preference or the
+resolved macOS appearance changes. Finder uses the bundled dark icon.
+
+The Dock tile uses the most recently active browser profile's appearance
+setting. Private windows use their original profile's setting. If no profile
+is available, the icon follows macOS. ThemeService resolves the browser
+appearance and NativeTheme provides system change notifications. Download
+progress draws over the same selected icon. AppKit can replace the Dock tile
+content view when setting the app icon, so preserve and redraw the existing
+download view.
+
+The owner accepted Light, Dark, and System switching in the Apple silicon
+preview on November 20, 2026. The [Dock icon validation](../builds/2026-11-20-dock-icon-appearance.json)
+records the prepared sources, paired browser builds and appearance checks.
