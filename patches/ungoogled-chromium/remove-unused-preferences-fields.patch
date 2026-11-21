@@ -5620,7 +5620,11 @@
  source_set("safe_browsing_policy_handler") {
 --- a/components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.cc
 +++ b/components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.cc
-@@ -11,7 +11,6 @@
+@@ -7,11 +7,9 @@
+ #include <algorithm>
+ 
+ #include "base/metrics/histogram_functions.h"
+-#include "base/strings/strcat.h"
  #include "build/branding_buildflags.h"
  #include "components/prefs/pref_service.h"
  #include "components/safe_browsing/core/common/features.h"
@@ -5628,7 +5632,55 @@
  #include "components/safe_browsing/core/common/utils.h"
  #include "components/variations/pref_names.h"
  #include "components/variations/service/variations_service.h"
-@@ -172,87 +171,7 @@
+@@ -30,47 +28,6 @@
+ #endif
+ }
+ 
+-bool IsBackgroundLookupEligible(SafeBrowsingState safe_browsing_state,
+-                                bool are_background_lookups_allowed) {
+-  // Check feature flag after ESB check so that the Finch experiment
+-  // groups only include clients that can send sample pings.
+-  return safe_browsing_state == SafeBrowsingState::ENHANCED_PROTECTION &&
+-         are_background_lookups_allowed &&
+-         base::FeatureList::IsEnabled(kHashPrefixRealTimeLookupsSamplePing);
+-}
+-
+-struct CommonRequirements {
+-  // Whether the user's browser session and country location are eligible for
+-  // hash-prefix real-time lookups.
+-  bool eligible_for_session_and_location;
+-  // Whether the user's Safe Browsing protection state is eligible.
+-  bool eligible_for_safe_browsing_state;
+-  // Whether hash-prefix real-time lookups are allowed by enterprise policy.
+-  bool allowed_by_policy;
+-
+-  // Returns true if all common requirements are met.
+-  bool AreAllMet() const {
+-    return eligible_for_session_and_location &&
+-           eligible_for_safe_browsing_state && allowed_by_policy;
+-  }
+-};
+-
+-CommonRequirements GetCommonRequirements(
+-    PrefService* prefs,
+-    const std::optional<std::string>& latest_country,
+-    bool eligible_for_safe_browsing_state) {
+-  // All prefs used in this method must match the ones returned by
+-  // |GetHashRealTimeSelectionConfiguringPrefs| so that consumers listening for
+-  // changes can receive them correctly.
+-  return {
+-      .eligible_for_session_and_location =
+-          hash_realtime_utils::IsHashRealTimeLookupEligibleInSessionAndLocation(
+-              latest_country),
+-      .eligible_for_safe_browsing_state = eligible_for_safe_browsing_state,
+-      .allowed_by_policy =
+-          safe_browsing::AreHashPrefixRealTimeLookupsAllowedByPolicy(*prefs),
+-  };
+-}
+ }  // namespace
+ 
+ bool CanCheckUrl(const GURL& url) {
+@@ -172,118 +129,18 @@
      std::optional<std::string> latest_country,
      bool log_usage_histograms,
      bool are_background_lookups_allowed) {
@@ -5717,13 +5769,35 @@
  }
  
  bool AreOhttpKeyFetchesEnabled(PrefService* prefs,
-@@ -282,8 +201,7 @@
+                                std::optional<std::string> latest_country,
+                                bool are_background_lookups_allowed) {
+-#if BUILDFLAG(IS_ANDROID)
+   return false;
+-#else
+-  // All prefs used in this method must match the ones returned by
+-  // |GetHashRealTimeSelectionConfiguringPrefs| so that consumers listening for
+-  // changes can receive them correctly.
+-  SafeBrowsingState safe_browsing_state =
+-      safe_browsing::GetSafeBrowsingState(*prefs);
+-  bool eligible_for_safe_browsing_state =
+-      safe_browsing_state == SafeBrowsingState::STANDARD_PROTECTION ||
+-      (safe_browsing_state == SafeBrowsingState::ENHANCED_PROTECTION &&
+-       base::FeatureList::IsEnabled(
+-           kHashPrefixRealTimeLookupsOhttpKeyServiceForEsb)) ||
+-      IsBackgroundLookupEligible(safe_browsing_state,
+-                                 are_background_lookups_allowed);
+-  return GetCommonRequirements(prefs, latest_country,
+-                               eligible_for_safe_browsing_state)
+-      .AreAllMet();
+-#endif
+ }
+ 
  HashRealTimeSelectionConfiguringPrefs
  GetHashRealTimeSelectionConfiguringPrefs() {
-   std::vector<const char*> profile_prefs = {
+-  std::vector<const char*> profile_prefs = {
 -      prefs::kSafeBrowsingEnabled, prefs::kSafeBrowsingEnhanced,
 -      prefs::kHashPrefixRealTimeChecksAllowedByPolicy};
-+      };
++  std::vector<const char*> profile_prefs;
    // |kVariationsCountry| is used by |VariationsService::GetLatestCountry|.
    std::vector<const char*> local_state_prefs = {
        variations::prefs::kVariationsCountry};

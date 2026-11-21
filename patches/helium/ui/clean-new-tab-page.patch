@@ -420,7 +420,15 @@
        theme_: {type: Object},
        showCustomize_: {type: Boolean},
        showCustomizeChromeText_: {type: Boolean},
-@@ -369,8 +342,6 @@
+@@ -332,7 +305,6 @@
+       },
+ 
+       contextMenuGlifAnimationState_: {type: String},
+-      undoToastCallback_: {type: Object},
+       undoToastMessage_: {type: String},
+ 
+       /**
+@@ -369,8 +341,6 @@
    accessor composeboxEnabled: boolean =
        loadTimeData.getBoolean('searchboxShowComposebox');
  
@@ -429,7 +437,15 @@
    protected accessor theme_: Theme|null = null;
    protected accessor showCustomize_: boolean = false;
    protected accessor showCustomizeChromeText_: boolean = false;
-@@ -491,7 +462,6 @@
+@@ -474,7 +444,6 @@
+   private realboxContextMenuAnimationAllowed_: boolean = false;
+   protected accessor contextMenuGlifAnimationState_: GlifAnimationState =
+       GlifAnimationState.INELIGIBLE;
+-  private accessor undoToastCallback_: (() => void)|null = null;
+   protected accessor undoToastMessage_: string|null = null;
+   protected accessor enableThreadsRail_: boolean =
+       loadTimeData.getBoolean('enableThreadsRail');
+@@ -491,7 +460,6 @@
    protected accessor searchboxCallbackRouter_: SearchboxPageCallbackRouter;
    protected accessor rhsWidth_: number|null = null;
  
@@ -437,7 +453,7 @@
    private accessor selectedCustomizeDialogPage_: string|null = null;
    private accessor modulesLoadedStatus_: ModuleLoadStatus =
        ModuleLoadStatus.MODULE_LOAD_IN_PROGRESS;
-@@ -530,13 +500,6 @@
+@@ -530,13 +498,6 @@
      this.shouldPrintPerformance_ =
          new URLSearchParams(location.search).has('print_perf');
  
@@ -451,7 +467,7 @@
      this.showCustomize_ =
          WindowProxy.getInstance().url.searchParams.has(CUSTOMIZE_URL_PARAM);
  
-@@ -643,28 +606,9 @@
+@@ -643,28 +604,9 @@
        this.setCustomizeChromeSidePanelVisible_(this.showCustomize_);
        recordCustomizeChromeOpen(NtpCustomizeChromeEntryPoint.URL);
      }
@@ -480,7 +496,7 @@
      if (loadTimeData.getString('backgroundImageUrl')) {
        this.backgroundManager_.getBackgroundImageLoadTime().then(
            time => {
-@@ -832,13 +776,6 @@
+@@ -832,13 +774,6 @@
        this.recordBrowserPromoMetrics_();
      }
  
@@ -494,7 +510,7 @@
      if (this.enableThreadsRail_) {
        this.observeRhsWrapperWidth_();
      }
-@@ -881,33 +818,7 @@
+@@ -881,33 +816,7 @@
        this.onShowComposeboxChange_();
      }
  
@@ -529,7 +545,7 @@
    }
  
    // For voice coherence: when error event is fired, this will run.
-@@ -925,19 +836,6 @@
+@@ -925,19 +834,6 @@
      this.voiceSearchTranscript_ = '';
    }
  
@@ -549,7 +565,7 @@
    private computeShowCustomizeChromeText_(): boolean {
      if (this.showWallpaperSearchButton_) {
        return false;
-@@ -1021,7 +919,6 @@
+@@ -1021,7 +917,6 @@
      }
      this.pageHandler_.onContextualSearchIPHEngaged();
      if (this.hasRealboxOverride(detail.fuseboxAction)) {
@@ -557,7 +573,7 @@
        return;
      }
      this.openComposeboxForActionChip_(detail);
-@@ -1124,31 +1021,17 @@
+@@ -1124,31 +1019,17 @@
        const composebox =
            this.shadowRoot.querySelector<NtpComposeboxElement>('#composebox');
        assert(composebox);
@@ -591,7 +607,7 @@
      const composebox =
          this.shadowRoot.querySelector<NtpComposeboxElement>('#composebox');
      assert(composebox);
-@@ -1159,11 +1042,10 @@
+@@ -1159,11 +1040,10 @@
      this.closeComposebox_();
      this.logoColor_ = this.computeLogoColor_();
      this.singleColoredLogo_ = this.computeSingleColoredLogo_();
@@ -604,7 +620,7 @@
      // When the experiment is enabled, voice search metrics are logged directly
      // by the shared component instead of NTP to prevent duplicate emissions.
      if (!this.voiceSearchCoherenceAnySearchboxExperimentEnabled_) {
-@@ -1171,12 +1053,11 @@
+@@ -1171,12 +1051,11 @@
      }
    }
  
@@ -618,7 +634,7 @@
      this.showVoiceSearchOverlay_ = true;
    }
  
-@@ -1352,33 +1233,10 @@
+@@ -1352,33 +1231,10 @@
      WindowProxy.getInstance().navigate(queryUrl.href);
    }
  
@@ -652,7 +668,7 @@
      if (e.key === 'Escape' &&
          (this.composeboxOutsideClickEnabled_ ? this.composeboxFocused_ :
                                                 this.showComposebox_)) {
-@@ -1390,12 +1248,6 @@
+@@ -1390,12 +1246,6 @@
          return;
        }
      }
@@ -665,7 +681,7 @@
    }
  
    private rgbaOrInherit_(skColor: SkColor|null): string {
-@@ -1489,104 +1341,6 @@
+@@ -1489,104 +1339,6 @@
      return !!this.theme_ && (!!this.theme_.logoColor || this.theme_.isDark);
    }
  
@@ -770,7 +786,7 @@
    protected onModulesLoaded_(e: CustomEvent<number|null>) {
      this.modulesLoadedStatus_ = e.detail ?
          ModuleLoadStatus.MODULE_LOAD_COMPLETE :
-@@ -1696,17 +1450,6 @@
+@@ -1696,17 +1448,6 @@
    }
  
    private onWindowClick_(e: Event) {
@@ -788,7 +804,7 @@
      if (e.composedPath()[0] === $$(this, '#rhsContent')) {
        recordClick(NtpElement.BACKGROUND);
        return;
-@@ -1896,35 +1639,14 @@
+@@ -1896,35 +1637,14 @@
     * multiple toasts at the same time. Otherwise, the first pending toast is
     * popped and shown.
     */
