@@ -2763,7 +2763,13 @@
      device_signals::AvProduct av_product);
 --- a/components/enterprise/buildflags/buildflags.gni
 +++ b/components/enterprise/buildflags/buildflags.gni
-@@ -10,11 +10,11 @@
+@@ -5,16 +5,17 @@
+ import("//build/config/cast.gni")
+ import("//build/config/chromeos/args.gni")
+ import("//build/config/ui.gni")
++import("//components/safe_browsing/buildflags.gni")
+ 
+ declare_args() {
    # Indicates support for content analysis against a cloud agent for Enterprise
    # Connector policies.
    enterprise_cloud_content_analysis =
@@ -2777,6 +2783,24 @@
  
    # Indicates support for Data Control rules.
    enterprise_data_controls =
+@@ -33,13 +34,13 @@
+   # Indicates support for Enterprise Proxy policy and service.
+   enterprise_proxy =
+       is_win || is_mac || is_linux || is_chromeos || is_android || is_ios
+-
+-  # Indicates support for external CDP process attribution in enterprise
+-  # security event reporting.
+-  enterprise_cdp_attribution = is_mac
+ }
+ 
+ declare_args() {
++  # External CDP process attribution requires the desktop reporting backend.
++  enterprise_cdp_attribution =
++      is_mac && (enterprise_cloud_content_analysis || safe_browsing_mode == 1)
++
+   # Indicates if any content analysis support is present, whether local or
+   # cloud. This is used to improve readability of code and avoid relying on
+   # the fact that `enterprise_cloud_content_analysis` is a superset of
 --- a/components/enterprise/connectors/core/analysis_service_settings_base.cc
 +++ b/components/enterprise/connectors/core/analysis_service_settings_base.cc
 @@ -335,8 +335,6 @@
