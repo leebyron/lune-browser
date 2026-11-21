@@ -1,0 +1,283 @@
+--- a/chrome/browser/resources/settings/appearance_page/appearance_behavior_page.html
++++ b/chrome/browser/resources/settings/appearance_page/appearance_behavior_page.html
+@@ -1,8 +1,4 @@
+-<style include="cr-shared-style settings-shared">
+-  #visualTabSwitcherList {
+-    padding-inline-start: var(--cr-section-indent-padding);
+-  }
+-</style>
++<style include="cr-shared-style settings-shared"></style>
+ <settings-section page-title="$i18n{behaviorPageTitle}">
+ 
+   <settings-toggle-button id="newTabNextToActive"
+@@ -25,7 +21,7 @@
+       checked="{{visualTabSwitcherEnabled_}}"
+       label="$i18n{visualTabSwitcher}">
+   </settings-toggle-button>
+-  <settings-toggle-button id="visualTabSwitcherList"
++  <settings-toggle-button id="visualTabSwitcherList" class="indented-setting"
+       pref-key="helium.browser.visual_tab_switcher_list"
+       disabled="[[!visualTabSwitcherEnabled_]]"
+       label="$i18n{visualTabSwitcherList}">
+@@ -71,7 +67,8 @@
+         menu-options="[[cleanupMoveOptions_]]">
+     </settings-dropdown-menu>
+   </div>
+-  <cr-collapse id="olderTabsDetails" opened="[[cleanupMoveEnabled_]]">
++  <cr-collapse id="olderTabsDetails" class="settings-row-stack"
++      opened="[[cleanupMoveEnabled_]]">
+     <div class="cr-row">
+       <div class="flex" aria-hidden="true">$i18n{olderTabsCloseAfter}</div>
+       <settings-dropdown-menu id="olderTabsCloseAfter"
+--- a/chrome/browser/resources/settings/appearance_page/appearance_layout_page.css
++++ b/chrome/browser/resources/settings/appearance_page/appearance_layout_page.css
+@@ -113,11 +113,3 @@
+   background-color: var(--cr-fallback-color-surface);
+   grid-area: content;
+ }
+-
+-.indented-toggles {
+-  padding-inline-end: 0;
+-}
+-
+-.indented-toggles settings-toggle-button {
+-  padding-inline-start: 0;
+-}
+--- a/chrome/browser/resources/settings/appearance_page/appearance_layout_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_layout_page.html.ts
+@@ -84,7 +84,7 @@
+       label="$i18n{browserZenMode}"
+       sub-label="$i18n{browserZenModeDescription}">
+   </settings-toggle-button>
+-  <div class="list-frame indented-toggles"
++  <div class="settings-row-stack indented-toggles"
+       ?hidden="${!this.zenModePref_?.value}">
+     <settings-toggle-button class="hr"
+         pref-key="helium.browser.zen_mode_sidebar_pinned"
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.css
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.css
+@@ -36,13 +36,3 @@
+ #toolbarRow {
+   border-top: var(--cr-separator-line);
+ }
+-
+-.indented-toggles,
+-.indented-rows {
+-  padding-inline-end: 0;
+-}
+-
+-.indented-toggles settings-toggle-button,
+-.indented-rows .cr-row {
+-  padding-inline-start: 0;
+-}
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -231,7 +231,7 @@
+       <div class="cr-row" ?hidden="${!this.pageVisibility_.hoverCard}">
+         $i18n{hoverCardTitle}
+       </div>
+-      <div class="list-frame indented-toggles">
++      <div class="settings-row-stack indented-toggles">
+         <settings-toggle-button id="hoverCardImagesToggle"
+             ?hidden="${!this.pageVisibility_.hoverCard}"
+             @settings-boolean-control-change="${
+@@ -283,7 +283,7 @@
+         `)}
+       </select>
+     </div>
+-    <div class="list-frame indented-toggles"
++    <div class="settings-row-stack indented-toggles"
+         ?hidden="${!this.pageVisibility_.pageZoom}">
+       <settings-toggle-button id="showZoomIndicator"
+           pref-key="helium.browser.show_zoom_indicator"
+--- a/chrome/browser/resources/settings/search_page/search_page.css
++++ b/chrome/browser/resources/settings/search_page/search_page.css
+@@ -29,11 +29,3 @@
+ .search-engine-name {
+   margin-inline-end: auto;
+ }
+-
+-.indented-toggles {
+-  padding-inline-end: 0;
+-}
+-
+-.indented-toggles settings-toggle-button {
+-  padding-inline-start: 0;
+-}
+--- a/chrome/browser/resources/settings/search_page/search_page.html.ts
++++ b/chrome/browser/resources/settings/search_page/search_page.html.ts
+@@ -106,7 +106,7 @@
+   <div class="cr-row">
+     $i18n{localSuggestions}
+   </div>
+-  <div class="list-frame indented-toggles">
++  <div class="settings-row-stack indented-toggles">
+     <settings-toggle-button id="localSuggestionsHistoryToggle"
+         pref-key="helium.omnibox.autocomplete.history_enabled"
+         label="$i18n{showLocalSuggestionsHistory}">
+--- a/chrome/browser/resources/settings/settings_page/settings_section.css
++++ b/chrome/browser/resources/settings/settings_page/settings_section.css
+@@ -34,10 +34,11 @@
+     padding: 16px 20px;
+   }
+ 
+-  #card {
++  #card,
++  ::slotted(div[route-path='default']:not([hidden])) {
+     display: flex;
+     flex-direction: column;
+-    row-gap: 2px;
++    row-gap: var(--settings-row-gap);
+   }
+ }
+ 
+--- a/chrome/browser/resources/settings/settings_shared_lit.css
++++ b/chrome/browser/resources/settings/settings_shared_lit.css
+@@ -62,6 +62,22 @@
+     background-color: var(--color-settings-section-background);
+   }
+ 
++  .settings-row-stack:not([hidden], .collapse-closed) {
++    display: flex;
++    flex-direction: column;
++    row-gap: var(--settings-row-gap);
++  }
++
++  /* The row gap replaces the legacy divider between rows. */
++  settings-section > div[route-path='default'] > div[class='hr'] {
++    display: none;
++  }
++}
++
++.indented-toggles > settings-toggle-button,
++settings-toggle-button.indented-setting {
++  padding-inline-start: calc(
++      var(--cr-section-padding) + var(--cr-section-indent-width) / 2);
+ }
+ 
+ /* Common styles for Material Design settings. */
+--- a/chrome/browser/resources/settings/settings_vars.css
++++ b/chrome/browser/resources/settings/settings_vars.css
+@@ -37,6 +37,7 @@
+   --search-highlight-hit-background-color: transparent;
+   --search-highlight-hit-color: inherit;
+   --search-highlight-hit-font-weight: bold;
++  --settings-row-gap: 2px;
+ }
+ 
+ @media (prefers-color-scheme: dark) {
+--- a/chrome/browser/resources/settings/privacy_page/services_page.html
++++ b/chrome/browser/resources/settings/privacy_page/services_page.html
+@@ -46,7 +46,7 @@
+ </style>
+ 
+ <settings-subpage page-title="$i18n{heliumServicesTitle}" route-path$="[[routePath]]">
+-<div class="cr-col first">
++<div class="cr-col first settings-row-stack">
+ 
+     <template is="dom-if" if="[[!userConsentedPref_.value]]">
+         <div class="cr-row" id="onboarding-notice">
+@@ -68,8 +68,8 @@
+         label="$i18n{heliumServicesToggle}"
+         sub-label="$i18n{heliumServicesToggleDescription}">
+     </settings-toggle-button>
+-    <div class="cr-col">
+-        <cr-collapse id="servicesCollapse" opened="[[servicesEnabledPref_.value]]">
++        <cr-collapse id="servicesCollapse" class="settings-row-stack"
++            opened="[[servicesEnabledPref_.value]]">
+             <settings-toggle-button id="servicesUpdatesToggleButton"
+                 pref-key="helium.services.component_updates"
+                 label="$i18n{heliumServicesUpdatesToggle}"
+@@ -152,7 +152,6 @@
+             </cr-collapse>
+             </template>
+         </cr-collapse>
+-    </div>
+     </template>
+     <div class="cr-row hr">
+       <div class="flex label-wrapper" aria-hidden="true">
+@@ -169,8 +168,6 @@
+         on-settings-control-change="onCrashReportingChange_">
+       </settings-dropdown-menu>
+     </div>
+-</div>
+-
+ 
+ <div class="cr-row">
+   <div class="flex">
+@@ -198,4 +195,5 @@
+     </cr-input>
+   </div>
+ </div>
++</div>
+ </settings-subpage>
+--- a/chrome/browser/resources/settings/privacy_page/tracking_parameters_page.html
++++ b/chrome/browser/resources/settings/privacy_page/tracking_parameters_page.html
+@@ -23,35 +23,39 @@
+ 
+ <settings-subpage page-title="$i18n{cleanTrackingLinks}"
+     route-path="${this.routePath}">
+-  <settings-toggle-button id="cleanTrackingLinksToggle"
+-      pref-key="helium.clean_tracking_links"
+-      label="$i18n{cleanTrackingLinks}"
+-      sub-label="$i18n{cleanTrackingLinksDescription}">
+-  </settings-toggle-button>
+-  <div class="cr-row hr">
++  <div class="settings-row-stack">
++    <settings-toggle-button id="cleanTrackingLinksToggle"
++        pref-key="helium.clean_tracking_links"
++        label="$i18n{cleanTrackingLinks}"
++        sub-label="$i18n{cleanTrackingLinksDescription}">
++    </settings-toggle-button>
+     <div>
+-      <h2 class="excluded-domains-heading">$i18n{trackingExcludedDomains}</h2>
+-      <div class="cr-secondary-text">$i18n{trackingExcludedDomainsDescription}</div>
++      <div class="cr-row hr">
++        <div>
++          <h2 class="excluded-domains-heading">$i18n{trackingExcludedDomains}</h2>
++          <div class="cr-secondary-text">$i18n{trackingExcludedDomainsDescription}</div>
++        </div>
++      </div>
++      <div id="domainControls" class="cr-row continuation">
++        <cr-input id="excludedDomainInput" label="$i18n{trackingExcludedDomainLabel}"
++            .value="${this.domain_}" ?invalid="${this.invalidDomain_}"
++            error-message="$i18n{trackingExcludedDomainInvalid}"
++            @value-changed="${this.onDomainValueChanged_}"
++            @keydown="${this.onDomainKeydown_}">
++        </cr-input>
++        <cr-button id="addExcludedDomain" ?disabled="${!this.domain_.trim()}"
++            @click="${this.onAddDomainClick_}">$i18n{add}</cr-button>
++      </div>
+     </div>
++    ${this.domains_.map(domain => html`
++      <div class="cr-row hr">
++        <div class="excluded-domain">${domain}</div>
++        <cr-icon-button iron-icon="cr:delete" class="remove-excluded-domain"
++            data-domain="${domain}"
++            aria-label="${this.i18n('trackingExcludedDomainRemove', domain)}"
++            @click="${this.onRemoveDomainClick_}">
++        </cr-icon-button>
++      </div>
++    `)}
+   </div>
+-  <div id="domainControls" class="cr-row continuation">
+-    <cr-input id="excludedDomainInput" label="$i18n{trackingExcludedDomainLabel}"
+-        .value="${this.domain_}" ?invalid="${this.invalidDomain_}"
+-        error-message="$i18n{trackingExcludedDomainInvalid}"
+-        @value-changed="${this.onDomainValueChanged_}"
+-        @keydown="${this.onDomainKeydown_}">
+-    </cr-input>
+-    <cr-button id="addExcludedDomain" ?disabled="${!this.domain_.trim()}"
+-        @click="${this.onAddDomainClick_}">$i18n{add}</cr-button>
+-  </div>
+-  ${this.domains_.map(domain => html`
+-    <div class="cr-row hr">
+-      <div class="excluded-domain">${domain}</div>
+-      <cr-icon-button iron-icon="cr:delete" class="remove-excluded-domain"
+-          data-domain="${domain}"
+-          aria-label="${this.i18n('trackingExcludedDomainRemove', domain)}"
+-          @click="${this.onRemoveDomainClick_}">
+-      </cr-icon-button>
+-    </div>
+-  `)}
+ </settings-subpage>
