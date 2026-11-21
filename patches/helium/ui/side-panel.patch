@@ -274,12 +274,19 @@
  void SidePanel::UpdateWidthOnEntryChanged() {
    SidePanelUI* side_panel_ui = SidePanelUI::From(browser_view_->browser());
    if (!side_panel_ui) {
-@@ -370,7 +434,7 @@
+@@ -370,13 +434,13 @@
      SetPanelWidth(width_from_pref.value());
    } else {
      SetPanelWidth(side_panel_ui->GetCurrentEntryDefaultContentWidth() +
 -                  GetBorderInsets().width());
 +                  GetBorderInsets(this).width());
+   }
+ }
+ 
+ void SidePanel::OverrideContentsWidth(int width) {
+   if (CanOverrideWidth()) {
+-    SetPanelWidth(ClampPanelWidth(width + GetBorderInsets().width()));
++    SetPanelWidth(ClampPanelWidth(width + GetBorderInsets(this).width()));
    }
  }
  

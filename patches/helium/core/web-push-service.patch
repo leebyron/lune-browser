@@ -297,7 +297,7 @@
    ]
 --- /dev/null
 +++ b/chrome/browser/gcm/autopush_driver.cc
-@@ -0,0 +1,759 @@
+@@ -0,0 +1,741 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -460,21 +460,8 @@
 +  std::move(callback).Run(false);
 +}
 +
-+void AutopushDriver::AddConnectionObserver(GCMConnectionObserver* observer) {}
-+
-+void AutopushDriver::RemoveConnectionObserver(GCMConnectionObserver* observer) {
-+}
-+
 +GCMClient* AutopushDriver::GetGCMClientForTesting() const {
 +  return nullptr;
-+}
-+
-+bool AutopushDriver::IsStarted() const {
-+  return client_ != nullptr;
-+}
-+
-+bool AutopushDriver::IsConnected() const {
-+  return hello_done_;
 +}
 +
 +void AutopushDriver::GetGCMStatistics(GetGCMStatisticsCallback callback,
@@ -489,11 +476,6 @@
 +InstanceIDHandler* AutopushDriver::GetInstanceIDHandlerInternal() {
 +  return this;
 +}
-+
-+void AutopushDriver::AddHeartbeatInterval(const std::string& scope,
-+                                          int interval_ms) {}
-+
-+void AutopushDriver::RemoveHeartbeatInterval(const std::string& scope) {}
 +
 +// Only InstanceID-based push subscriptions are supported, so the legacy GCM
 +// registration and messaging paths always report GCM as disabled.
@@ -1059,7 +1041,7 @@
 +}  // namespace gcm
 --- /dev/null
 +++ b/chrome/browser/gcm/autopush_driver.h
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,171 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -1119,18 +1101,12 @@
 +                            const std::vector<std::string>& sender_ids,
 +                            const std::string& registration_id,
 +                            ValidateRegistrationCallback callback) override;
-+  void AddConnectionObserver(GCMConnectionObserver* observer) override;
-+  void RemoveConnectionObserver(GCMConnectionObserver* observer) override;
 +  GCMClient* GetGCMClientForTesting() const override;
-+  bool IsStarted() const override;
-+  bool IsConnected() const override;
 +  void GetGCMStatistics(GetGCMStatisticsCallback callback,
 +                        ClearActivityLogs clear_logs) override;
 +  void SetGCMRecording(const GCMStatisticsRecordingCallback& callback,
 +                       bool recording) override;
 +  InstanceIDHandler* GetInstanceIDHandlerInternal() override;
-+  void AddHeartbeatInterval(const std::string& scope, int interval_ms) override;
-+  void RemoveHeartbeatInterval(const std::string& scope) override;
 +
 + protected:
 +  // GCMDriver:

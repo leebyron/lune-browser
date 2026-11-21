@@ -109,6 +109,24 @@
          <include name="IDR_SEARCH_ENGINE_HISTORICAL_SEARCH_URLS_JSON" file="../../third_party/search_engines_data/resources_internal/definitions/historical_search_urls.json" type="BINDATA" />
 --- a/chrome/browser/ui/views/search_ai_mode/signin_promo_view.cc
 +++ b/chrome/browser/ui/views/search_ai_mode/signin_promo_view.cc
+@@ -98,7 +98,7 @@
+     std::unique_ptr<BubbleSignInPromoDelegate> delegate,
+     int signin_title_resource_id,
+     std::optional<int> verify_title_resource_id,
+-    int lottie_resource_id)
++    std::optional<int> lottie_resource_id)
+     : BubbleSignInPromoDialogView(anchor,
+                                   web_contents,
+                                   access_point,
+@@ -201,7 +201,7 @@
+           std::make_unique<ComposeboxDriveSignInPromoDelegate>(*web_contents),
+           IDS_COMPOSEBOX_DRIVE_CONTEXT_MENU_OPTION_SIGNIN_PROMO_TITLE,
+           IDS_COMPOSEBOX_DRIVE_CONTEXT_MENU_OPTION_VERIFY_PROMO_TITLE,
+-          IDR_COMPOSEBOX_DRIVE_SIGNIN_PROMO_LOTTIE) {
++          /*lottie_resource_id=*/std::nullopt) {
+   CHECK(base::FeatureList::IsEnabled(
+       omnibox::kComposeboxDriveContextMenuOptionSigninPromo));
+   SetProperty(views::kElementIdentifierKey, kComposeboxDriveSignInPromoViewId);
 @@ -211,8 +211,6 @@
  
  void ComposeboxDriveSignInPromoView::AddedToWidget() {
@@ -118,3 +136,14 @@
  }
  
  BEGIN_METADATA(ComposeboxDriveSignInPromoView)
+--- a/chrome/browser/ui/views/search_ai_mode/signin_promo_view.h
++++ b/chrome/browser/ui/views/search_ai_mode/signin_promo_view.h
+@@ -32,7 +32,7 @@
+       std::unique_ptr<BubbleSignInPromoDelegate> delegate,
+       int signin_title_resource_id,
+       std::optional<int> verify_title_resource_id,
+-      int lottie_resource_id);
++      std::optional<int> lottie_resource_id);
+   AIModeSignInPromoViewBase(const AIModeSignInPromoViewBase&) = delete;
+   AIModeSignInPromoViewBase& operator=(const AIModeSignInPromoViewBase&) =
+       delete;

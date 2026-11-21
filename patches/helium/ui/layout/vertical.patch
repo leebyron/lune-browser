@@ -1933,12 +1933,164 @@
  inline constexpr int kOrganizerPanelDefaultWidth = 320;
 --- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
 +++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
-@@ -275,7 +275,7 @@
+@@ -275,9 +275,9 @@
      const int horizontal_padding =
          GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
      const int collapsed_width =
 -        tabs::kVerticalTabStripCollapsedWidth - 2 * horizontal_padding;
 +        GetVerticalTabStripCollapsedWidth() - 2 * horizontal_padding;
      const int expected_uncollapsed_width =
-         tabs::kVerticalTabStripDefaultUncollapsedWidth - 2 * horizontal_padding;
+-        tabs::kVerticalTabStripDefaultUncollapsedWidth - 2 * horizontal_padding;
++        GetVerticalTabStripDefaultUncollapsedWidth() - 2 * horizontal_padding;
      const int layout_width =
+         keep_horizontal_layout
+             ? std::max(host_size.width(), expected_uncollapsed_width)
+--- a/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_unittest.cc
++++ b/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_unittest.cc
+@@ -9,6 +9,7 @@
+ #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+ #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
+ #include "chrome/browser/ui/tabs/test_vertical_tab_strip_state_controller_delegate.h"
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.h"
+ #include "chrome/browser/ui/toasts/api/toast_id.h"
+@@ -78,7 +79,7 @@
+ TEST_F(VerticalTabStripStateControllerTest, Initial) {
+   EXPECT_FALSE(controller()->ShouldDisplayVerticalTabs());
+   EXPECT_FALSE(controller()->IsCollapsed());
+-  EXPECT_EQ(kVerticalTabStripDefaultUncollapsedWidth,
++  EXPECT_EQ(GetVerticalTabStripDefaultUncollapsedWidth(),
+             controller()->GetUncollapsedWidth());
+ }
+ 
+@@ -291,7 +292,7 @@
+ TEST_F(VerticalTabStripStateControllerTest, VerifyRecentlyUsedPrefs) {
+   // Initially, recently used prefs should be default.
+   EXPECT_FALSE(pref_service()->GetBoolean(prefs::kVerticalTabsCollapsedState));
+-  EXPECT_EQ(kVerticalTabStripDefaultUncollapsedWidth,
++  EXPECT_EQ(GetVerticalTabStripDefaultUncollapsedWidth(),
+             pref_service()->GetInteger(prefs::kVerticalTabsUncollapsedWidth));
+ 
+   // Change state.
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view_browsertest.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view_browsertest.cc
+@@ -28,6 +28,7 @@
+ #include "chrome/browser/ui/tabs/tab_enums.h"
+ #include "chrome/browser/ui/tabs/tab_group_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/ui_features.h"
+@@ -265,7 +266,7 @@
+       gfx::Animation::RichAnimationRenderMode::FORCE_ENABLED);
+   gfx::ScopedAnimationDurationScaleMode scoped_animation_duration_scale_mode(
+       gfx::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+-  const int initial_width = tabs::kVerticalTabStripDefaultUncollapsedWidth;
++  const int initial_width = GetVerticalTabStripDefaultUncollapsedWidth();
+ 
+   // Verify the initial state of the region view.
+   ASSERT_EQ(initial_width, region_view()->GetPreferredSize().width());
+@@ -340,7 +341,7 @@
+ }
+ 
+ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeSnapsToDefault) {
+-  const int default_width = tabs::kVerticalTabStripDefaultUncollapsedWidth;
++  const int default_width = GetVerticalTabStripDefaultUncollapsedWidth();
+ 
+   // 1. Resize smaller within snap distance (-10).
+   {
+@@ -404,7 +405,7 @@
+   ASSERT_EQ(initial_width, region_view()->GetPreferredSize().width());
+   ASSERT_TRUE(region_view()->target_collapse_state_for_testing().collapsed);
+   ASSERT_EQ(
+-      tabs::kVerticalTabStripDefaultUncollapsedWidth,
++      GetVerticalTabStripDefaultUncollapsedWidth(),
+       region_view()->target_collapse_state_for_testing().uncollapsed_width);
+   ASSERT_FALSE(IsAnimatingSize());
+   ASSERT_TRUE(state_controller()->IsCollapsed());
+@@ -419,7 +420,7 @@
+     EXPECT_EQ(initial_width, region_view()->GetPreferredSize().width());
+     EXPECT_TRUE(region_view()->target_collapse_state_for_testing().collapsed);
+     EXPECT_EQ(
+-        tabs::kVerticalTabStripDefaultUncollapsedWidth,
++        GetVerticalTabStripDefaultUncollapsedWidth(),
+         region_view()->target_collapse_state_for_testing().uncollapsed_width);
+     EXPECT_FALSE(IsAnimatingSize());
+     EXPECT_TRUE(state_controller()->IsCollapsed());
+@@ -581,7 +582,7 @@
+ 
+ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
+                        RestoreUncollapsedWidth) {
+-  const int initial_width = tabs::kVerticalTabStripDefaultUncollapsedWidth;
++  const int initial_width = GetVerticalTabStripDefaultUncollapsedWidth();
+ 
+   // Verify the initial state of the region view.
+   ASSERT_EQ(initial_width, region_view()->GetPreferredSize().width());
+@@ -666,7 +667,7 @@
+ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, LogsResizeMetrics) {
+   base::UserActionTester user_action_tester;
+   base::HistogramTester histogram_tester;
+-  const int initial_width = tabs::kVerticalTabStripDefaultUncollapsedWidth;
++  const int initial_width = GetVerticalTabStripDefaultUncollapsedWidth();
+ 
+   ASSERT_EQ(initial_width, region_view()->GetPreferredSize().width());
+   ASSERT_EQ(initial_width, state_controller()->GetUncollapsedWidth());
+--- a/chrome/browser/ui/views/tabs/organizer/organizer_panel_interactive_uitest.cc
++++ b/chrome/browser/ui/views/tabs/organizer/organizer_panel_interactive_uitest.cc
+@@ -16,6 +16,7 @@
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/tabs/organizer/organizer_panel_controller.h"
+ #include "chrome/browser/ui/tabs/organizer/organizer_panel_utils.h"
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/views/animations/common_animation_values.h"
+@@ -589,7 +590,7 @@
+       SendAccelerator(kBrowserViewElementId, tab_search_accelerator),
+       WaitForExpandOnHover(),
+       ExpectPanelLocation(OrganizerPanelLocation::kVerticalTabStrip),
+-      CheckPanelVisuals(tabs::kVerticalTabStripDefaultUncollapsedWidth, false));
++      CheckPanelVisuals(GetVerticalTabStripDefaultUncollapsedWidth(), false));
+ }
+ 
+ IN_PROC_BROWSER_TEST_F(OrganizerPanelUiTest,
+@@ -599,7 +600,7 @@
+       MoveMouseTo(kOmniboxElementId), CollapseTabStrip(), ExpandOnHover(),
+       OpenOrganizerPanel(),
+       ExpectPanelLocation(OrganizerPanelLocation::kVerticalTabStrip),
+-      CheckPanelVisuals(tabs::kVerticalTabStripDefaultUncollapsedWidth, false));
++      CheckPanelVisuals(GetVerticalTabStripDefaultUncollapsedWidth(), false));
+ }
+ 
+ IN_PROC_BROWSER_TEST_F(
+@@ -608,7 +609,7 @@
+   RunTestSequence(
+       SetVerticalTabsEnabled(true, /*expand_on_hover_enabled=*/true),
+       ResizeVerticalTabsRegionToWidth(
+-          tabs::kVerticalTabStripDefaultUncollapsedWidth + 100),
++          GetVerticalTabStripDefaultUncollapsedWidth() + 100),
+       MoveMouseTo(kOmniboxElementId), CollapseTabStrip(), ExpandOnHover(),
+       WaitForShow(kTabSearchButtonElementId),
+       CheckView(kTabSearchButtonElementId,
+@@ -621,7 +622,7 @@
+                 }),
+       OpenOrganizerPanel(),
+       ExpectPanelLocation(OrganizerPanelLocation::kVerticalTabStrip),
+-      CheckPanelVisuals(tabs::kVerticalTabStripDefaultUncollapsedWidth, false));
++      CheckPanelVisuals(GetVerticalTabStripDefaultUncollapsedWidth(), false));
+ }
+ 
+ class OrganizerPanelAnimationUiTest : public OrganizerPanelUiTest {
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container_unittest.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container_unittest.cc
+@@ -305,7 +305,7 @@
+   // the default expand-on-hover container width even when the uncollapsed
+   // width is wider, and has no layer clip rect so focus rings are not clipped.
+   const int expanded_on_hover_container_width =
+-      tabs::kVerticalTabStripDefaultUncollapsedWidth -
++      GetVerticalTabStripDefaultUncollapsedWidth() -
+       2 * GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
+   LayoutView(expanded_on_hover_container_width);
+   EXPECT_TRUE(combo_button()->GetVisible());
