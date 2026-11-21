@@ -1,0 +1,211 @@
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -44,6 +44,7 @@
+ #include "ui/views/border.h"
+ #include "ui/views/controls/button/label_button.h"
+ #include "ui/views/controls/menu/menu_runner.h"
++#include "ui/views/style/typography.h"
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/widget/widget.h"
+ #include "url/gurl.h"
+@@ -106,6 +107,9 @@
+                            l10n_util::GetStringUTF16(message)),
+         icon_(icon),
+         paint_hover_(paint_hover) {
++    if (IsSpaciousUiDensity()) {
++      SetLabelStyle(views::style::STYLE_BODY_2);
++    }
+     SetHorizontalAlignment(gfx::ALIGN_LEFT);
+     const int padding = GetLayoutConstant(LayoutConstant::kTabHorizontalPadding);
+     SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(4, padding + 2, 4,
+--- a/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_header_view.cc
+@@ -308,10 +308,7 @@
+     collapse_icon_->SetCanProcessEventsWithinSubtree(false);
+     collapse_icon_->GetViewAccessibility().SetIsIgnored(true);
+     collapse_icon_->SetProperty(views::kViewIgnoredByLayoutKey, true);
+-    // Use the same native section typography as Older Tabs.
+-    group_header_label_->SetFontList(
+-        views::Label().font_list().DeriveWithWeight(
+-            gfx::Font::Weight::SEMIBOLD));
++    group_header_label_->SetFontList(GetSidebarSectionFont());
+   }
+   if (emoji_icon_) {
+     emoji_icon_->SetProperty(views::kViewIgnoredByLayoutKey, true);
+--- a/chrome/browser/ui/views/tabs/common/tab_group_unfocus_button.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_unfocus_button.cc
+@@ -16,6 +16,7 @@
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_style.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/tabs/public/tab_group.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -52,8 +53,7 @@
+   SetHorizontalAlignment(gfx::ALIGN_LEFT);
+   label()->SetElideBehavior(gfx::NO_ELIDE);
+   if (orientation_ == TabStripOrientation::kVertical) {
+-    label()->SetFontList(views::Label().font_list().DeriveWithWeight(
+-        gfx::Font::Weight::SEMIBOLD));
++    label()->SetFontList(GetSidebarSectionFont());
+     label()->SetAutoColorReadabilityEnabled(false);
+   }
+   UpdateBorder();
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
+@@ -23,7 +23,7 @@
+ constexpr int kFocusedHeadersGap = 2;
+ 
+ int GetGroupHeaderHeight() {
+-  return 24;  // 18px section content plus the 6px extended hit target.
++  return IsSpaciousUiDensity() ? 28 : 24;
+ }
+ }  // namespace
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
+@@ -20,6 +20,8 @@
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/scroll_view.h"
+ #include "ui/views/layout/proposed_layout.h"
++#include "ui/views/style/typography.h"
++#include "ui/views/style/typography_provider.h"
+ #include "ui/views/view.h"
+ #include "ui/views/view_utils.h"
+ 
+@@ -108,6 +110,18 @@
+   return 0;
+ }
+ 
++gfx::FontList GetSidebarSectionFont() {
++  const auto style = IsSpaciousUiDensity() ? views::style::STYLE_BODY_2
++                                          : views::style::STYLE_PRIMARY;
++  return views::TypographyProvider::Get()
++      .GetFont(views::style::CONTEXT_LABEL, style)
++      .DeriveWithWeight(gfx::Font::Weight::SEMIBOLD);
++}
++
++int GetSidebarDateHeadingHeight() {
++  return IsSpaciousUiDensity() ? 20 : 16;
++}
++
+ void LayoutSidebarSectionHeader(views::ProposedLayout& layout,
+                                 views::Label* title,
+                                 views::ImageView* disclosure,
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.h
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.h
+@@ -11,6 +11,10 @@
+ class BrowserView;
+ class TabStripView;
+ 
++namespace gfx {
++class FontList;
++}
++
+ namespace ui {
+ class GestureEvent;
+ }
+@@ -61,6 +65,9 @@
+ // Padding inside sidebar rows, never around their scroll viewports.
+ int GetSidebarContentPadding(const BrowserView* browser);
+ 
++gfx::FontList GetSidebarSectionFont();
++int GetSidebarDateHeadingHeight();
++
+ // Shared final title and disclosure placement for sidebar section headings.
+ // Keep the caller's horizontal title allocation; center text in the full cell,
+ // as LabelButton does for Older Tabs, without applying vertical border insets.
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
+@@ -16,6 +16,7 @@
+ #include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
+ #include "chrome/browser/ui/views/tabs/tab/tab_title.h"
+ #include "chrome/browser/ui/views/tabs/tab_style_views.h"
++#include "ui/views/style/typography.h"
+ #include "ui/views/view_utils.h"
+ 
+ namespace {
+@@ -30,6 +31,9 @@
+ 
+ void TabViewVerticalLayout::OnInstalled(views::View* host) {
+   TabView::LayoutManager::OnInstalled(host);
++  if (IsSpaciousUiDensity()) {
++    TabView().title_->SetTextStyle(views::style::STYLE_BODY_2);
++  }
+   tab_children_configs_ = {
+       TabChildConfig(TabView().close_button_,
+                      GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) + 6,
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -125,13 +125,7 @@
+       : views::LabelButton(std::move(callback), text),
+         menu_command_(std::move(menu_command)) {
+     set_context_menu_controller(this);
+-    // macOS sidebar section headings use a semibold system font and
+-    // secondary label color. The disclosure occupies the trailing close slot.
+-    // TabTitle uses a default Label font. Match its metrics while retaining
+-    // the section heading's semibold weight and native secondary color.
+-    const auto section_font = views::Label().font_list();
+-    label()->SetFontList(
+-        section_font.DeriveWithWeight(gfx::Font::Weight::SEMIBOLD));
++    label()->SetFontList(GetSidebarSectionFont());
+     label()->SetAutoColorReadabilityEnabled(false);
+     SetEnabledTextColors(ui::kColorLabelForegroundSecondary);
+     chevron_ = AddChildView(std::make_unique<views::ImageView>());
+@@ -908,11 +902,13 @@
+       label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+       label->SetEnabledColor(ui::kColorLabelForegroundSecondary);
+       label->SetAutoColorReadabilityEnabled(false);
+-      label->SetFontList(label->font_list().DeriveWithSizeDelta(-3));
++      label->SetFontList(label->font_list().DeriveWithSizeDelta(
++          IsSpaciousUiDensity() ? -2 : -3));
+       label->SetVerticalAlignment(gfx::ALIGN_TOP);
+-      const int top_inset =
+-          std::max(0, (20 - label->font_list().GetHeight()) / 2 - 4);
+-      // Shift the text up one pixel within its existing date row.
++      // Center the additional row space around the existing optical inset.
++      const int spare_height =
++          GetSidebarDateHeadingHeight() - label->font_list().GetHeight();
++      const int top_inset = std::max(0, spare_height / 2 - 2);
+       label->SetBorder(
+           views::CreateEmptyBorder(gfx::Insets::TLBR(top_inset - 1, 0, 1, 0)));
+       label->SetCanProcessEventsWithinSubtree(false);
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
+@@ -179,12 +179,13 @@
+         if (layout_older && previous_older_tab) {
+           height -= kTabVerticalPadding;
+         }
++        const int heading_height = GetSidebarDateHeadingHeight();
+         layouts.child_layouts.emplace_back(
+             heading, show_older,
+             gfx::Rect(x + text_inset, height,
+-                      std::max(0, bounds.width() - text_inset), 16));
++                      std::max(0, bounds.width() - text_inset), heading_height));
+         if (layout_older) {
+-          height += 16;
++          height += heading_height;
+         }
+       }
+     }
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -13,6 +13,7 @@
+ #include "ui/compositor/layer.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/views/animation/ink_drop.h"
++#include "ui/views/style/typography.h"
+ #include "ui/views/widget/widget.h"
+ 
+ namespace {
+@@ -28,6 +29,9 @@
+           browser,
+           GetLayoutConstant(LayoutConstant::kVerticalTabStripNewTabButtonSize),
+           kIconSize) {
++  if (IsSpaciousUiDensity()) {
++    SetLabelStyle(views::style::STYLE_BODY_2);
++  }
+   SetCornerRadius(GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius));
+   SetForegroundColorId(kColorTabForegroundInactiveFrameActive);
+   // Paint exactly one tab-style hover fill; no toolbar ink-drop overlay.
