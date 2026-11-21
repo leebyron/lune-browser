@@ -339,6 +339,56 @@ reports all three sections as reversed or previously applied, and a zero-fuzz
 reverse dry run succeeds in all three files. This establishes that the patch
 effect is present in the tested V8 source. Replay stopped at that patch.
 
+### Checksum-verified replay audit
+
+The follow-up downloaded the Chromium 159 base archive and macOS arm64
+overlay, verified their SHA-256 hashes and checked 1,746 extracted source
+paths against the archive inventory. The scratch replay used the 665-patch
+Helium/Lune candidate and the same auxiliary inputs as its M158 build.
+
+The strict ordered attempt stopped at the first V8 patch. A separate
+diagnostic continued on independent paths. The first two patches both
+reverse-applied with zero fuzz, and the third applied forward. The first
+unresolved conflict was `inox-patchset/fix-building-without-safebrowsing.patch`,
+where two GN hunks and a renderer-client hunk fail.
+
+Across the 665 candidate patches, 142 applied, 2 reverse-applied, 24 had
+observed conflicts, and 497 were blocked by an earlier unported patch in
+the whole-patch diagnostic. This diagnostic holds back an entire failed
+patch and treats its paths as unresolved. Observed conflicts also include
+new-tab page, omnibox, DevTools and privacy paths. The working copy used
+for that diagnostic is disposable.
+
+A second diagnostic replayed file sections in queue order and stopped on
+each affected file after its first unresolved section. The same method
+applied all 665 patches plus the two pending tab-status patches on M158.
+
+| M159 file-section result | Candidate patches |
+| --- | ---: |
+| All sections applied | 334 |
+| All sections reverse-applied | 2 |
+| At least one observed conflict | 119 |
+| Held by an earlier conflict on the same file | 210 |
+
+This measures textual conflicts. Some patches span files that must compile
+and work together. Partial applications in the scratch tree are evidence
+for locating conflicts and must be discarded before full preparation.
+
+- The campaign-parameter patch and sidebar scrollbar patch applied in the
+  file-section diagnostic. The direct-download patch applies at the
+  sanitizer hook. Its include hunk needs a refresh because Chromium moved
+  the window-disposition header. Copy Download Link has conflicts in the
+  download UI model, and rules updates have a conflict in the network
+  context header.
+- Manual PiP permission has a conflict in the tab-helper header. Pinned
+  tab drag has one in the tab collection animation layout manager. The
+  persistent-pins opt-out still depends on the tab features and profile
+  reset changes.
+- Both pending tab badge and hover-card patches applied on M158 and passed
+  the isolated M159 file checks. Recheck the exact inputs that land on main
+  and rerun full ordered replay and native browser checks. The snapshot was
+  `8789aabfa8c2d08309e2ef8e5b906cd0b88ba0e8`.
+
 The archive inventory comparison gives the size of the remaining review:
 
 | Series | Patches | Patches touching altered or removed source paths | Paths removed from the source inventories |
@@ -361,6 +411,31 @@ bytes. Budget for cold builds on both targets. The macOS SDK selection file
 has the same bytes, and runtime verification still needs to cover Lune's
 macOS 13 deployment target.
 
+### Chromium 159 regression targets
+
+Chromium Dash lists `159.0.8154.13` for the macOS early-stable rollout.
+Recheck the target before changing the lock.
+[Chromium Dash](https://chromiumdash.appspot.com/releases?platform=Mac)
+
+| Change or overlap | Check on the port |
+| --- | --- |
+| Cross-origin iframe prerendering and the service-worker static-routing cancellation change | Check the first HTTP request, service-worker URL and referrer for ordinary and speculative navigation. Check a prerendered page with an opted-in cross-origin iframe. Preserve frame and resource queries. Retest both download paths, the signed URL, domain exclusions and the cleanup toggle with extensions disabled. |
+| Media Session camera and microphone setters now return promises | Exercise the promise results with an active media session. Check that the sidebar and hover cards still show capture and sharing status, and that manual and automatic PiP, audio controls, and permission prompts still work. |
+| CSS system accent colors and single-axis scroll snap | Check an explicit accent alongside native form controls. Check nested containers that snap on separate axes when the experimental feature is enabled. |
+
+The exact `.13` source confirms the Media Session promise signatures, the
+updated CSS accent resolution, and stable status for cross-origin iframe
+prerendering. The single-axis scroll-snap flag remains experimental in
+`.13`. Check the service-worker result on the actual port before asserting
+the new cancellation error text.
+[Chrome Platform Status 159 release notes](https://chromestatus.com/release-notes/159)
+
+The patched browser surfaces need their own checks. Prioritize sidebar
+visibility and pin drag, fullscreen and native window dragging, fresh-profile
+Setup, the Settings privacy and download pages, and the DevTools header.
+Run the packaged smoke test on arm64 and x86_64, with Rosetta identified in the
+Intel report.
+
 ## Validation sequence
 
 1. Compose the new Helium core and macOS upstream revisions with Lune's
@@ -378,5 +453,7 @@ macOS 13 deployment target.
 Investigation evidence is under the ignored `.work/input-audit/` directory
 inside this worktree. It includes both Git simulations, the source inventory
 analysis, the checksum-verified metadata and the forward and reverse patch
-logs. Full M159 archives were not downloaded. M159 preparation, compilation
-and runtime behavior remain unverified.
+logs. The isolated workspace linked by `.work/input-audit/m159-source-audit-path.txt`
+contains the 159 base and arm64 archives, `results.json` for the whole-patch
+diagnostic, and `per-file-results.json` for the narrower file checks. Full
+M159 preparation, compilation and runtime behavior remain unverified.
