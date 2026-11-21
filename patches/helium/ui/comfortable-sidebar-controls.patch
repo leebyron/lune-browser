@@ -1,0 +1,193 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -189,8 +189,9 @@
+       return 20;
+     case LayoutConstant::kMainBackgroundRegionCornerRadius:
+     case LayoutConstant::kToolbarCornerRadius:
+-    case LayoutConstant::kVerticalTabCornerRadius:
+       return 8;
++    case LayoutConstant::kVerticalTabCornerRadius:
++      return spacious ? 12 : 8;
+     case LayoutConstant::kVerticalTabHeight:
+       return spacious ? 36 : 30;
+     case LayoutConstant::kVerticalTabPinnedHeight:
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -107,7 +107,9 @@
+         icon_(icon),
+         paint_hover_(paint_hover) {
+     SetHorizontalAlignment(gfx::ALIGN_LEFT);
+-    SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(4, 9, 4, 7)));
++    const int padding = GetLayoutConstant(LayoutConstant::kTabHorizontalPadding);
++    SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(4, padding + 2, 4,
++                                                       padding)));
+     SetImageLabelSpacing(7);
+     SetPreferredSize(
+         gfx::Size(-1, GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
+@@ -209,13 +211,13 @@
+     InvalidateLayout();
+   }
+   void Layout(PassKey) override {
+-    const auto close_size = close_->GetPreferredSize();
+-    // Match the tab layout's equal top, bottom and trailing clearance.
+-    const int close_x = width() - (height() + close_size.width()) / 2;
+-    close_->SetBounds(close_x, (height() - close_size.height()) / 2,
+-                      close_size.width(), close_size.height());
+-    action_->SetBounds(
+-        0, 0, close_->GetVisible() ? std::max(0, close_x) : width(), height());
++    const gfx::Rect close_bounds = TabCloseButton::GetSidebarTrailingControlBounds(
++        size(), close_->GetPreferredSize());
++    close_->SetBoundsRect(close_bounds);
++    action_->SetBounds(0, 0,
++                       close_->GetVisible() ? std::max(0, close_bounds.x())
++                                            : width(),
++                       height());
+     LayoutSuperclass<views::View>(this);
+   }
+   views::LabelButton* action() { return action_; }
+--- a/chrome/browser/ui/views/tabs/common/tab_group_style.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_style.cc
+@@ -24,7 +24,6 @@
+ constexpr int kCornerRadius = 6;
+ constexpr int kFocusedCornerRadius = 10;
+ constexpr int kFocusedInnerCornerRadius = 2;
+-constexpr int kVerticalCornerRadius = 8;
+ constexpr int kVerticalHeaderChipHorizontalInset = 8;
+ constexpr int kTabGroupOverlapAdjustment = 2;
+ constexpr gfx::Insets kFocusedHeaderChipInsets =
+@@ -43,14 +42,14 @@
+ int TabGroupStyle::GetChipCornerRadius(TabStripOrientation orientation) {
+   return orientation == TabStripOrientation::kHorizontal
+              ? kCornerRadius
+-             : kVerticalCornerRadius;
++             : GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius);
+ }
+ 
+ // static
+ int TabGroupStyle::GetFocusedChipCornerRadius(TabStripOrientation orientation) {
+   return orientation == TabStripOrientation::kHorizontal
+              ? kFocusedCornerRadius
+-             : kVerticalCornerRadius;
++             : GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius);
+ }
+ 
+ // static
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
+@@ -12,6 +12,7 @@
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
++#include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
+ #include "ui/base/class_property.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/events/event.h"
+@@ -120,9 +121,7 @@
+   title_layout->bounds.set_y(0);
+   title_layout->bounds.set_height(size.height());
+   // Match the tab close slot, using the native symbol's 16px canvas.
+-  const int tab_height = GetLayoutConstant(LayoutConstant::kVerticalTabHeight);
+   layout.child_layouts.emplace_back(
+       disclosure, show_disclosure && size.width() > 64,
+-      gfx::Rect(size.width() - tab_height / 2 - 8, (size.height() - 16) / 2, 16,
+-                16));
++      TabCloseButton::GetSidebarTrailingControlBounds(size, gfx::Size(16, 16)));
+ }
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
+@@ -116,8 +116,8 @@
+             child_bounds.x(), child_bounds.width()));
+       }
+       if (child.view == TabView().close_button_ && !is_centered) {
+-        // Equal outer clearance above, below and to the trailing row edge.
+-        child_bounds.set_x(width - (height + child_bounds.width()) / 2);
++        child_bounds = TabCloseButton::GetSidebarTrailingControlBounds(
++            layouts.host_size, child_bounds.size());
+       }
+       layouts.child_layouts.emplace_back(child.view.get(), is_child_visible,
+                                          child_bounds);
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
+@@ -39,7 +39,9 @@
+   constexpr int kButtonPadding = 12;
+   const int icon_size = GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
+                         (sidebar_style ? 6 : 0);
+-  const int button_size = icon_size + kButtonPadding;
++  const int button_size =
++      icon_size + kButtonPadding -
++      (sidebar_style && IsSpaciousUiDensity() ? 6 : 0);
+   return gfx::Size(button_size, button_size);
+ }
+ 
+@@ -52,6 +54,19 @@
+ gfx::Insets GetInkDropInsets() {
+   return IsSpaciousUiDensity() ? gfx::Insets(1) : kInkDropInsets;
+ }
++
++int GetHighlightCornerRadius(bool sidebar_style, const gfx::Insets& insets) {
++  if (!sidebar_style || !IsSpaciousUiDensity()) {
++    return kCornerRadius;
++  }
++  // The highlight follows the tab corner's center, inset by the button's
++  // clearance from the tab edge plus its own ink drop inset.
++  const int clearance =
++      (GetLayoutConstant(LayoutConstant::kVerticalTabHeight) -
++       GetButtonSize(/*sidebar_style=*/true).height()) / 2;
++  return GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius) -
++         clearance - insets.top();
++}
+ }  // namespace
+ 
+ TabCloseButton::TabCloseButton(PressedCallback pressed_callback,
+@@ -92,8 +107,10 @@
+   // TODO(http://crbug.com/40120351): Make ink drops in RTL work the same way as
+   // focus rings.
+ 
++  const gfx::Insets insets = GetInkDropInsets();
++  const int radius = GetHighlightCornerRadius(sidebar_style_, insets);
+   auto ink_drop_highlight_path =
+-      std::make_unique<views::RoundRectHighlightPathGenerator>(GetInkDropInsets(), kCornerRadius);
++      std::make_unique<views::RoundRectHighlightPathGenerator>(insets, radius);
+   ink_drop_highlight_path->set_use_contents_bounds(!IsSpaciousUiDensity());
+   ink_drop_highlight_path->set_use_mirrored_rect(true);
+   views::HighlightPathGenerator::Install(this,
+@@ -103,7 +120,7 @@
+   // TODO(http://crbug.com/40120351): Once this bug is solved and explicit
+   // mirroring for ink drops is not needed, we can combine these two.
+   auto ring_highlight_path =
+-      std::make_unique<views::RoundRectHighlightPathGenerator>(GetInkDropInsets(), kCornerRadius);
++      std::make_unique<views::RoundRectHighlightPathGenerator>(insets, radius);
+   ring_highlight_path->set_use_contents_bounds(!IsSpaciousUiDensity());
+   views::FocusRing::Get(this)->SetPathGenerator(std::move(ring_highlight_path));
+ 
+@@ -112,6 +129,17 @@
+ 
+ TabCloseButton::~TabCloseButton() = default;
+ 
++// static
++gfx::Rect TabCloseButton::GetSidebarTrailingControlBounds(
++    const gfx::Size& row_size,
++    const gfx::Size& control_size) {
++  const int center_x =
++      row_size.width() - GetLayoutConstant(LayoutConstant::kVerticalTabHeight) / 2;
++  return gfx::Rect(center_x - control_size.width() / 2,
++                   (row_size.height() - control_size.height()) / 2,
++                   control_size.width(), control_size.height());
++}
++
+ TabStyle::TabColors TabCloseButton::GetColors() const {
+   return colors_;
+ }
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.h
+@@ -35,6 +35,10 @@
+   TabCloseButton& operator=(const TabCloseButton&) = delete;
+   ~TabCloseButton() override;
+ 
++  // Status icons, section chevrons and footer controls share this center.
++  static gfx::Rect GetSidebarTrailingControlBounds(const gfx::Size& row_size,
++                                                   const gfx::Size& control_size);
++
+   TabStyle::TabColors GetColors() const;
+   // This function must be called before the tab is painted so it knows what
+   // colors to use. It must also be called when the background color of the tab
