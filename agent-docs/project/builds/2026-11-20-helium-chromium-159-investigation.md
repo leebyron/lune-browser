@@ -157,6 +157,31 @@ change either service default during this port. Preserve Lune's distinct
 browser-update and component-update consent and keep its pin grid and drag
 behavior for subsequent runtime review.
 
+## Sidebar source port continuation
+
+The native Lune sidebar has a pinned state that reserves space beside the
+page and an unpinned state that hides until revealed as a full-width
+popover over the page. Chrome and Helium can keep a narrow icon rail
+visible. The inherited collapse helpers still participate in the Chromium
+layout code. They do not define the native Lune presentation. Validate the
+pinned sidebar and hidden/revealed popover on both sides, including content
+position across reveal and dismiss. [Native sidebar geometry](../features/edge-to-edge-frame.md)
+
+The reference tree replayed all 638 patches from current Lune
+main `caa3ee33` and its macOS input `5b2a0949` with zero fuzz, retaining
+each patch's exact preimage for subsequent ports. The integration queue
+includes the newly adopted sidebar scrollbar patch at the end.
+
+The integration replay advanced from 412 to 429 of 665
+patches with zero fuzz. Refreshed platform patches preserve the sidebar
+edge and frame-band behavior, route the inherited width helper through
+Lune's square-tile calculation, keep the pinned-row preference in the
+compiled layout, and carry forward the frame-thickness, floating address
+bar and appearance defaults. The next stop is
+`helium/ui/chromium-157-dependencies.patch` in layout constants and the tab hover
+card. Replay evidence remains in `.work/input-audit/`. Full preparation,
+compilation and native layout checks are pending.
+
 ## Porting the engine
 
 The first ordered patch in Helium 0.22.2,
