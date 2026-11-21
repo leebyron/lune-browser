@@ -273,15 +273,30 @@ struct TabStripModel {
   void OnRemovingAllTabsFromGroups(std::vector<int> ids,base::OnceClosure callback){assert(ids==marked);pending=std::move(callback);}
   bool active_present=true,pin_enabled=true,mute_enabled=true;
   bool pinned[2]={false,true},muted[2]={false,false};
+  struct TabHandle {
+    bool* muted;
+    TabHandle GetHandle() const { return *this; }
+  };
+  TabHandle active_tab{nullptr};
   content::WebContents page;
   int active_index(){return 0;}
   content::WebContents* GetActiveWebContents(){return active_present?&page:nullptr;}
+  TabHandle* GetActiveTab() {
+    active_tab.muted = &muted[active_index()];
+    return active_present ? &active_tab : nullptr;
+  }
   bool IsContextMenuCommandEnabled(int i,int command){assert(i==0);return command==CommandTogglePinned?pin_enabled:command==CommandToggleSiteMuted?mute_enabled:group_enabled;}
   bool IsTabPinned(int i){return pinned[i];}
   void SetTabPinned(int i,bool pin){pinned[i]=pin;}
   void SetSitesMuted(std::vector<int> indices,bool mute){for(int i:indices)muted[i]=mute;}
+  void SetSitesMuted(const std::vector<TabHandle>& tabs, bool mute) {
+    for (const TabHandle& tab : tabs) {
+      *tab.muted = mute;
+    }
+  }
 };
 bool IsSiteMuted(const TabStripModel& strip,int i){return strip.muted[i];}
+bool IsSiteMuted(TabStripModel::TabHandle tab) { return *tab.muted; }
 struct Window {bool fullscreen=false;bool IsFullscreen(){return fullscreen;}};
 struct BrowserWindowInterface {
   enum class Type {TYPE_NORMAL,TYPE_APP};
