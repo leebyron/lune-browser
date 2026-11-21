@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/layout_constants.cc
 +++ b/chrome/browser/ui/layout_constants.cc
-@@ -38,7 +38,10 @@ HeliumUiDensity GetHeliumUiDensity() {
+@@ -38,7 +38,10 @@
  
  int GetLayoutConstant(LayoutConstant constant) {
    const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
@@ -11,7 +11,7 @@
      case LayoutConstant::kAppMenuProfileRowAvatarIconSize:
        return 24;
      case LayoutConstant::kAppMenuMaximumCharacterLength:
-@@ -48,7 +51,8 @@ int GetLayoutConstant(LayoutConstant con
+@@ -48,7 +51,8 @@
      case LayoutConstant::kBookmarkBarHeight: {
        // The fixed margin ensures the bookmark buttons appear centered relative
        // to the white space above and below.
@@ -21,7 +21,7 @@
        return GetLayoutConstant(LayoutConstant::kBookmarkBarButtonHeight) +
               bookmark_bar_attached_vertical_margin;
      }
-@@ -71,9 +75,9 @@ int GetLayoutConstant(LayoutConstant con
+@@ -71,9 +75,9 @@
      case LayoutConstant::kLocationBarChildInteriorPadding:
        return 3;
      case LayoutConstant::kLocationBarChildInternalSpacing:
@@ -33,7 +33,7 @@
      case LayoutConstant::kLocationBarChipIconSize:
        return 16;
      case LayoutConstant::kLocationBarChipPadding:
-@@ -81,7 +85,7 @@ int GetLayoutConstant(LayoutConstant con
+@@ -81,7 +85,7 @@
      case LayoutConstant::kLocationBarElementPadding:
        return touch_ui ? 3 : 2;
      case LayoutConstant::kLocationBarPageInfoIconVerticalPadding:
@@ -42,9 +42,9 @@
      case LayoutConstant::kLocationBarPageInfoIconLabelExtraTrailingPadding:
        return 4;
      case LayoutConstant::kLocationBarPageInfoIconDangerousLeadingPadding:
-@@ -97,13 +101,13 @@ int GetLayoutConstant(LayoutConstant con
-     case LayoutConstant::kLocationBarInputTextIndent:
-       return 6;
+@@ -101,13 +105,13 @@
+     case LayoutConstant::kLocationBarKeywordInputTextIndent:
+       return -9;
      case LayoutConstant::kLocationBarTrailingDecorationEdgePadding:
 -      return touch_ui ? 3 : 12;
 +      return touch_ui ? 3 : 2;
@@ -58,7 +58,7 @@
      // LINT.IfChange(LocationBarIconSize)
      case LayoutConstant::kLocationBarIconSize:
        return touch_ui ? 20 : 16;
-@@ -115,9 +119,9 @@ int GetLayoutConstant(LayoutConstant con
+@@ -119,9 +123,9 @@
      case LayoutConstant::kLocationBarLeadingIconSize:
        return GetLayoutConstant(LayoutConstant::kLocationBarIconSize);
      case LayoutConstant::kLocationBarTrailingIconSize:
@@ -70,7 +70,7 @@
      case LayoutConstant::kStarRatingIconSize:
        return 14;
      case LayoutConstant::kTabAfterTitlePadding:
-@@ -129,16 +133,19 @@ int GetLayoutConstant(LayoutConstant con
+@@ -133,16 +137,19 @@
      case LayoutConstant::kTabCloseButtonSize:
        return touch_ui ? 24 : (features::IsRoundedIconsEnabled() ? 14 : 16);
      case LayoutConstant::kTabHeight:
@@ -93,7 +93,7 @@
      case LayoutConstant::kTabVerticalPadding:
        return 6;
      case LayoutConstant::kTabHorizontalPadding:
-@@ -146,9 +153,9 @@ int GetLayoutConstant(LayoutConstant con
+@@ -150,9 +157,9 @@
      case LayoutConstant::kTabStackDistance:
        return touch_ui ? 4 : 6;
      case LayoutConstant::kTabstripToolbarOverlap:
@@ -105,7 +105,7 @@
      case LayoutConstant::kToolbarButtonIconSize:
        return touch_ui ? kDefaultTouchableIconSize
                        : kDefaultIconSizeChromeRefresh;
-@@ -157,17 +164,17 @@ int GetLayoutConstant(LayoutConstant con
+@@ -161,17 +168,17 @@
      case LayoutConstant::kToolbarDividerHeight:
        return touch_ui ? 20 : 16;
      case LayoutConstant::kToolbarDividerSpacing:
@@ -128,7 +128,7 @@
      case LayoutConstant::kSidePanelInset:
        return 8;
      case LayoutConstant::kPageInfoIconSize:
-@@ -216,6 +223,7 @@ int GetLayoutConstant(LayoutConstant con
+@@ -220,6 +227,7 @@
  
  gfx::Insets GetLayoutInsets(LayoutInset inset) {
    const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
@@ -136,7 +136,7 @@
    switch (inset) {
      case DOWNLOAD_ICON:
        return gfx::Insets(4);
-@@ -224,16 +232,24 @@ gfx::Insets GetLayoutInsets(LayoutInset
+@@ -228,16 +236,24 @@
        return gfx::Insets::VH(8, 20);
  
      case LOCATION_BAR_ICON_INTERIOR_PADDING:
@@ -167,7 +167,7 @@
  
      case TOOLBAR_ACTION_VIEW: {
        // TODO(afakhry): Unify all toolbar button sizes on all platforms.
-@@ -242,7 +258,11 @@ gfx::Insets GetLayoutInsets(LayoutInset
+@@ -246,7 +262,11 @@
      }
  
      case TOOLBAR_BUTTON:
@@ -180,7 +180,7 @@
  
      case BROWSER_APP_MENU_CHIP_PADDING:
        if (touch_ui) {
-@@ -261,11 +281,17 @@ gfx::Insets GetLayoutInsets(LayoutInset
+@@ -265,11 +285,17 @@
        if (touch_ui) {
          return GetLayoutInsets(TOOLBAR_BUTTON);
        } else {
@@ -215,7 +215,7 @@
  
 --- a/chrome/browser/ui/webui/webui_toolbar/webui_toolbar_layout_css_helper.cc
 +++ b/chrome/browser/ui/webui/webui_toolbar/webui_toolbar_layout_css_helper.cc
-@@ -31,6 +31,8 @@ constexpr int kAvatarChipIconLabelSpacin
+@@ -31,6 +31,8 @@
  std::string_view LayoutConstantToCssVarName(LayoutConstant layout_constant) {
    using enum LayoutConstant;
    switch (layout_constant) {

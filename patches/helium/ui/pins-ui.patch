@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/layout_constants.cc
 +++ b/chrome/browser/ui/layout_constants.cc
-@@ -221,7 +221,8 @@ int GetLayoutConstant(LayoutConstant con
+@@ -223,7 +223,8 @@
      case LayoutConstant::kVerticalTabStripTopContainerButtonSize:
        return 28;
      case LayoutConstant::kVerticalTabPinnedBorderThickness:
@@ -12,7 +12,7 @@
    }
 --- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.h
 +++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.h
-@@ -103,6 +103,9 @@ class DraggedTabsContainer : public TabD
+@@ -110,6 +110,9 @@
      bool should_float = false;
    };
  
@@ -22,7 +22,7 @@
    // Returns the expected visual data, relative to the host view, for a dragged
    // view. Returns std::nullopt if the view is not being dragged.
    std::optional<DraggedViewVisualData> GetVisualDataForDraggedView(
-@@ -189,7 +192,7 @@ class DraggedTabsContainer : public TabD
+@@ -195,7 +198,7 @@
  
    // Returns the bounds in `host_view_` coordinates to which dragged views
    // should be clamped.
@@ -33,7 +33,7 @@
    // the point `point_in_container` and clamped to the bounds of the
 --- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
 +++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
-@@ -441,9 +441,8 @@ void DraggedTabsContainer::AddViewToSqua
+@@ -483,9 +483,8 @@
    if (is_source_dragged_view) {
      dragging_views_bounds_.set_size(view_bounds.size());
  
@@ -41,12 +41,12 @@
      dragging_views_bounds_.set_width(view_bounds.width() +
 -                                     kDraggedViewHorizontalPadding);
 +                                     kSquashedDragHorizontalPadding);
+ 
+     extremal_view_bounds_ = {dragging_views_bounds_, dragging_views_bounds_};
    }
-   dragging_views_.insert(
-       {dragging_view,
 --- a/chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h
 +++ b/chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h
-@@ -58,7 +58,10 @@ class PinnedTabContainerView
+@@ -58,7 +58,10 @@
    friend class PinnedTabContainerViewVerticalLayout;
    friend class PinnedTabContainerViewHorizontalLayout;
  
@@ -58,7 +58,7 @@
  
    // DraggedTabsContainer:
    views::ScrollView* GetScrollViewForContainer() const override;
-@@ -67,6 +70,7 @@ class PinnedTabContainerView
+@@ -67,6 +70,7 @@
    const views::ProposedLayout& GetLayoutForDrag() const override;
    const TabCollectionNode* GetCollectionNodeFromView(
        const views::View& view) const override;
@@ -98,7 +98,7 @@
  std::unique_ptr<PinnedTabContainerView::LayoutManager>
  CreatePinnedTabContainerViewLayout(TabStripOrientation orientation) {
    if (orientation == TabStripOrientation::kVertical) {
-@@ -73,6 +81,16 @@ PinnedTabContainerView::PinnedTabContain
+@@ -73,6 +81,16 @@
                       base::Unretained(this)));
  
    if (orientation_ == TabStripOrientation::kVertical) {
@@ -115,7 +115,7 @@
      auto* state_controller =
          collection_node_->GetController()->GetStateController();
      CHECK(state_controller);
-@@ -163,6 +181,7 @@ PinnedTabContainerView::GetLinkDropIndex
+@@ -163,6 +181,7 @@
    const bool is_vertical = orientation_ == TabStripOrientation::kVertical;
    const int padding = is_vertical ? kTabPadding : 0;
    const int logical_x = GetMirroredXInView(loc_in_container.x());
@@ -123,7 +123,7 @@
  
    for (auto& child_node : collection_node_->children()) {
      auto* view = child_node->view();
-@@ -175,6 +194,12 @@ PinnedTabContainerView::GetLinkDropIndex
+@@ -175,6 +194,12 @@
        continue;
      }
  
@@ -136,7 +136,7 @@
      // If the point is to the right of the child, then let the next child
      // be the candidate.
      // For vertical multi-row grids, the full padding amount is used here,
-@@ -184,6 +209,7 @@ PinnedTabContainerView::GetLinkDropIndex
+@@ -184,6 +209,7 @@
      // be inserted before/after, so the cutoff point between tabs in a row
      // doesn't have to be exact.
      if (logical_x >= view->bounds().right() + padding) {
@@ -144,7 +144,7 @@
        continue;
      }
  
-@@ -284,6 +310,23 @@ views::ScrollView* PinnedTabContainerVie
+@@ -284,6 +310,23 @@
        const_cast<PinnedTabContainerView*>(this));
  }
  
@@ -165,9 +165,9 @@
 +  return clamping_bounds;
 +}
 +
- void PinnedTabContainerView::UpdateTargetLayoutForDrag(
+ void PinnedTabContainerView::SnapViewsToTargetLayout(
      const std::vector<const views::View*>& views_to_snap) {
-   layout_manager_->ResetViewsToTargetLayout(views_to_snap);
+   layout_manager_->SnapViewsToTargetLayout(views_to_snap);
 --- /dev/null
 +++ b/chrome/browser/ui/views/tabs/common/helium_pinned_tab_container_view_vertical_layout.cc
 @@ -0,0 +1,206 @@
@@ -390,7 +390,7 @@
  // The pinned container main axis size should not be larger than half the
  // available space unless the unpinned container will not fill that space.
  // When pinned tabs are present, the size must be at least as large as the min
-@@ -265,14 +269,22 @@ views::ProposedLayout TabStripViewLayout
+@@ -245,14 +249,22 @@
    const int region_horizontal_padding =
        GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
  
@@ -416,7 +416,7 @@
    const int pinned_preferred_height =
        pinned_tabs_scroll_view
            ->GetPreferredSize(pinned_tab_container_size_bounds)
-@@ -280,13 +292,20 @@ views::ProposedLayout TabStripViewLayout
+@@ -260,13 +272,20 @@
    const int unpinned_preferred_height =
        unpinned_tabs_scroll_view->GetPreferredSize(size_bounds).height();
  
@@ -439,7 +439,7 @@
      }
      // Clamp the remaining height to 0 if we have less space.
      remaining_height = std::max(remaining_height, 0);
-@@ -295,18 +314,15 @@ views::ProposedLayout TabStripViewLayout
+@@ -275,18 +294,15 @@
    // Place the pinned container.
    int pinned_container_height = pinned_preferred_height;
    if (size_bounds.height().is_bounded()) {
@@ -461,7 +461,7 @@
        pinned_tab_container_size_bounds.width().value(),
        pinned_container_height);
    layouts.child_layouts.emplace_back(pinned_tabs_scroll_view,
-@@ -314,11 +330,7 @@ views::ProposedLayout TabStripViewLayout
+@@ -294,11 +310,7 @@
                                       pinned_container_bounds);
  
    if (pinned_container_bounds.height()) {
@@ -476,7 +476,7 @@
    // Place the unpinned container using the entire available width, we do not
 --- a/chrome/browser/ui/views/tabs/common/tab_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
-@@ -1251,19 +1251,8 @@ void TabView::UpdateBorder() {
+@@ -1308,19 +1308,8 @@
      return;
    }
  
@@ -507,12 +507,12 @@
 -#include "chrome/browser/ui/color/chrome_color_id.h"
  #include "chrome/browser/ui/layout_constants.h"
  #include "chrome/browser/ui/tabs/tab_style.h"
- #include "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h"
-@@ -208,15 +207,8 @@ void SplitTabView::OnDataChanged() {
+ #include "chrome/browser/ui/views/tabs/common/child_view_targeter_delegate.h"
+@@ -256,15 +255,8 @@
  }
  
  void SplitTabView::UpdateBorder() {
--  if (pinned_) {
+-  if (orientation_ == TabStripOrientation::kVertical && pinned_) {
 -    const bool is_frame_active =
 -        GetWidget() ? GetWidget()->ShouldPaintAsActive() : true;
 -    SetBorder(views::CreateRoundedRectBorder(
@@ -528,9 +528,9 @@
  }
 --- a/chrome/browser/ui/views/tabs/common/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
-@@ -46,12 +46,12 @@ source_set("common") {
- source_set("impl") {
-   sources = [
+@@ -50,12 +50,12 @@
+     "child_view_targeter_delegate.cc",
+     "child_view_targeter_delegate.h",
      "dragged_tabs_container.cc",
 +    "helium_pinned_tab_container_view_vertical_layout.cc",
      "horizontal_tab_style_views.cc",

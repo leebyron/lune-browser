@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/BUILD.gn
 +++ b/chrome/browser/ui/views/BUILD.gn
-@@ -62,6 +62,7 @@ component("views") {
+@@ -62,6 +62,7 @@
      "//components/keep_alive_registry",
      "//components/lens",
      "//components/lens:buildflags",
@@ -10,7 +10,7 @@
      "//printing/buildflags",
 --- a/components/omnibox/browser/autocomplete_controller.cc
 +++ b/components/omnibox/browser/autocomplete_controller.cc
-@@ -2069,7 +2069,21 @@ void AutocompleteController::UpdateKeywo
+@@ -2064,7 +2064,21 @@
            // - For contextual search matches, the description indicates the
            //   alternative UX because they're opened in the side panel.
            i->description = template_url->AdjustedShortNameForLocaleDirection();
@@ -35,7 +35,7 @@
                i->description = l10n_util::GetStringUTF16(
 --- a/components/omnibox/browser/keyword_provider.cc
 +++ b/components/omnibox/browser/keyword_provider.cc
-@@ -420,8 +420,18 @@ void KeywordProvider::FillInUrlAndConten
+@@ -420,8 +420,18 @@
                     GetTemplateURLService()->search_terms_data()) &&
                 (turl->type() != TemplateURL::OMNIBOX_API_EXTENSION)) {
        // Substituting site search.
@@ -57,7 +57,7 @@
        // Keyword or extension that has no replacement text (aka a shorthand for
 --- a/chrome/browser/ui/views/location_bar/selected_keyword_view.cc
 +++ b/chrome/browser/ui/views/location_bar/selected_keyword_view.cc
-@@ -100,6 +100,14 @@ ui::ImageModel SelectedKeywordView::GetK
+@@ -98,6 +98,14 @@
      vector_icon =
          &(features::IsRoundedIconsEnabled() ? omnibox::kSearchSparkIcon
                                              : omnibox::kSearchSparkOldIcon);
@@ -69,9 +69,9 @@
 +      default:
 +        break;
 +    }
-   } else if (history_embeddings::IsHistoryEmbeddingsEnabledForProfile(
-                  profile) &&
-              history_embeddings::GetFeatureParameters().omnibox_scoped &&
+   } else if (template_url &&
+              template_url->policy_origin() ==
+                  TemplateURLData::PolicyOrigin::kSearchAggregator) {
 --- a/chrome/browser/ui/views/omnibox/omnibox_suggestion_button_row_view.cc
 +++ b/chrome/browser/ui/views/omnibox/omnibox_suggestion_button_row_view.cc
 @@ -24,6 +24,7 @@
@@ -82,7 +82,7 @@
  #include "components/strings/grit/components_strings.h"
  #include "components/vector_icons/vector_icons.h"
  #include "third_party/metrics_proto/omnibox_event.pb.h"
-@@ -524,6 +525,24 @@ void OmniboxSuggestionButtonRowView::Upd
+@@ -524,6 +525,24 @@
        const auto names = SelectedKeywordView::GetKeywordLabelNames(
            match().associated_keyword,
            popup_view_->controller()->client()->GetTemplateURLService());

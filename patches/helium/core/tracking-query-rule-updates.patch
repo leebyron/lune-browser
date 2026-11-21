@@ -22,7 +22,7 @@
  #include "base/metrics/field_trial.h"
  #include "base/metrics/field_trial_params.h"
  #include "base/notreached.h"
-@@ -39,6 +43,7 @@
+@@ -38,6 +42,7 @@
  #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
  #include "chrome/browser/domain_reliability/service_factory.h"
  #include "chrome/browser/net/disk_cache_dir_util.h"
@@ -30,7 +30,7 @@
  #include "chrome/browser/net/system_network_context_manager.h"
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/signin/signin_util.h"
-@@ -67,6 +72,8 @@
+@@ -66,6 +71,8 @@
  #include "components/embedder_support/switches.h"
  #include "components/enterprise/buildflags/buildflags.h"
  #include "components/enterprise/connectors/core/connectors_prefs.h"
@@ -39,7 +39,7 @@
  #include "components/language/core/browser/language_prefs.h"
  #include "components/language/core/browser/pref_names.h"
  #include "components/metrics/metrics_pref_names.h"
-@@ -94,13 +101,18 @@
+@@ -93,13 +100,18 @@
  #include "net/http/http_util.h"
  #include "net/net_buildflags.h"
  #include "net/ssl/client_cert_store.h"
@@ -58,7 +58,7 @@
  
  #if BUILDFLAG(IS_CHROMEOS)
  #include "ash/constants/ash_features.h"
-@@ -516,6 +528,24 @@ bool GetHttpCacheBackendResetParam(
+@@ -515,6 +527,24 @@
  
  }  // namespace
  
@@ -83,7 +83,7 @@
  ProfileNetworkContextService::ProfileNetworkContextService(Profile* profile)
      : profile_(profile),
        proxy_config_monitor_(std::make_unique<ProxyConfigMonitor>(profile)) {
-@@ -552,6 +582,33 @@ ProfileNetworkContextService::ProfileNet
+@@ -551,6 +581,33 @@
    HostContentSettingsMapFactory::GetForProfile(profile_)->AddObserver(this);
  
    pref_change_registrar_.Init(profile_prefs);
@@ -117,7 +117,7 @@
  
    // When any of the following CT preferences change, we schedule an update
    // to aggregate the actual update using a |ct_policy_update_timer_|.
-@@ -613,6 +670,243 @@ ProfileNetworkContextService::ProfileNet
+@@ -612,6 +669,243 @@
  
  ProfileNetworkContextService::~ProfileNetworkContextService() = default;
  
@@ -361,7 +361,7 @@
  void ProfileNetworkContextService::ConfigureNetworkContextParams(
      bool in_memory,
      const base::FilePath& relative_partition_path,
-@@ -645,6 +939,9 @@ void ProfileNetworkContextService::Confi
+@@ -644,6 +938,9 @@
  // static
  void ProfileNetworkContextService::RegisterProfilePrefs(
      user_prefs::PrefRegistrySyncable* registry) {
@@ -371,7 +371,7 @@
    registry->RegisterBooleanPref(embedder_support::kAlternateErrorPagesEnabled,
                                  false);
    registry->RegisterBooleanPref(prefs::kQuicAllowed, true);
-@@ -1353,6 +1650,7 @@ void ProfileNetworkContextService::Confi
+@@ -1350,6 +1647,7 @@
  
    network_context_params->accept_language = ComputeAcceptLanguage();
    network_context_params->enable_referrers = enable_referrers_.GetValue();
@@ -379,7 +379,7 @@
  
    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
    if (command_line->HasSwitch(embedder_support::kShortReportingDelay)) {
-@@ -1659,6 +1957,8 @@ void ProfileNetworkContextService::Shutd
+@@ -1656,6 +1954,8 @@
  
    cert_policy_update_timer_.Stop();
    ct_policy_update_timer_.Stop();
@@ -424,7 +424,7 @@
  namespace net {
  class ClientCertStore;
  
-@@ -78,6 +88,13 @@ class ProfileNetworkContextService
+@@ -78,6 +88,13 @@
  
    ~ProfileNetworkContextService() override;
  
@@ -438,7 +438,7 @@
    // Configures the NetworkContextParams and the CertVerifierCreationParams for
    // the BrowserContext, using the specified parameters. An empty
    // |relative_partition_path| corresponds to the main network context.
-@@ -174,6 +191,22 @@ class ProfileNetworkContextService
+@@ -174,6 +191,22 @@
    std::string ComputeAcceptLanguage() const;
  
    void UpdateReferrersEnabled();
@@ -461,7 +461,7 @@
  
    // Gets the current CTPolicy from preferences.
    network::mojom::CTPolicyPtr GetCTPolicy();
-@@ -253,6 +286,13 @@ class ProfileNetworkContextService
+@@ -253,6 +286,13 @@
  
    raw_ptr<Profile> profile_;
  
@@ -477,7 +477,7 @@
    BooleanPrefMember quic_allowed_;
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
-@@ -258,7 +258,7 @@
+@@ -260,7 +260,7 @@
  #include "media/base/media_switches.h"
  #include "mojo/public/cpp/bindings/associated_remote.h"
  #include "net/base/network_anonymization_key.h"
@@ -486,7 +486,7 @@
  #include "net/base/url_util.h"
  #include "net/traffic_annotation/network_traffic_annotation.h"
  #include "pdf/buildflags.h"
-@@ -1243,10 +1243,11 @@ void RenderViewContextMenu::WriteURLToCl
+@@ -1265,10 +1265,11 @@
        ui::ClipboardBuffer::kCopyPaste,
        CreateDataEndpoint(/*notify_if_restricted=*/true));
    scw.SetDataSourceURL(main_frame_url_, current_url_);
@@ -504,7 +504,7 @@
  
 --- a/chrome/browser/ui/browser_commands.cc
 +++ b/chrome/browser/ui/browser_commands.cc
-@@ -211,7 +211,7 @@
+@@ -214,7 +214,7 @@
  #include "content/public/common/url_constants.h"
  #include "content/public/common/url_utils.h"
  #include "extensions/buildflags/buildflags.h"
@@ -513,7 +513,7 @@
  #include "pdf/buildflags.h"
  #include "printing/buildflags/buildflags.h"
  #include "rlz/buildflags/buildflags.h"
-@@ -296,8 +296,8 @@ const char kChPlatformOverrideForTabletS
+@@ -300,8 +300,8 @@
  
  std::u16string FormatURLForCopy(content::WebContents* web_contents) {
    const GURL& url = web_contents->GetVisibleURL();
@@ -535,7 +535,7 @@
  #include "net/base/url_util.h"
  #include "third_party/metrics_proto/omnibox_event.pb.h"
  #include "third_party/perfetto/include/perfetto/tracing/track.h"
-@@ -2456,9 +2456,10 @@ void OmniboxViewViews::HandleCutOrCopyAd
+@@ -2465,9 +2465,10 @@
    controller()->edit_model()->AdjustTextForCopy(GetSelectedRange().GetMin(),
                                                  text, &url, &write_url);
    if (IsSelectAll()) {
@@ -551,7 +551,7 @@
      }
 --- a/components/helium_services/pref_names.h
 +++ b/components/helium_services/pref_names.h
-@@ -19,6 +19,13 @@ inline constexpr char kHeliumComponentUp
+@@ -13,6 +13,13 @@
  inline constexpr char kHeliumDisableSchemaAlerts[] =
      "helium.services.disable_schema_alerts";
  
@@ -567,7 +567,7 @@
  inline constexpr char kHeliumServicesEnabled[] =
 --- a/net/BUILD.gn
 +++ b/net/BUILD.gn
-@@ -190,6 +190,18 @@ rust_static_library("http_chunked_decode
+@@ -190,6 +190,18 @@
    allow_unsafe = true
  }
  
@@ -586,7 +586,7 @@
  component("net") {
    sources = [
      "base/address_family.cc",
-@@ -1273,11 +1285,13 @@ component("net") {
+@@ -1277,11 +1289,13 @@
  
    deps = [
      ":cronet_buildflags",
@@ -1170,7 +1170,7 @@
    const auto fields = base::SplitStringPiece(
        url.query(), "&", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
    std::vector<std::string_view> kept;
-@@ -71,17 +504,21 @@ std::optional<GURL> StripTrackingQuery(c
+@@ -71,17 +504,21 @@
    bool has_client_id = false;
    bool has_redirect_uri = false;
    for (std::string_view field : fields) {
@@ -1197,7 +1197,7 @@
        kept.push_back(field);
      }
    }
-@@ -90,11 +527,9 @@ std::optional<GURL> StripTrackingQuery(c
+@@ -90,11 +527,9 @@
        (has_client_id && has_redirect_uri)) {
      return std::nullopt;
    }
@@ -1226,7 +1226,7 @@
  #include "net/base/net_export.h"
  #include "url/gurl.h"
  
-@@ -14,10 +19,35 @@ namespace net {
+@@ -14,10 +19,35 @@
  
  enum class TrackingQueryAction { kNavigate, kCopy };
  
@@ -1265,7 +1265,7 @@
  
 --- a/net/base/tracking_query_unittest.cc
 +++ b/net/base/tracking_query_unittest.cc
-@@ -12,7 +12,7 @@ namespace {
+@@ -12,7 +12,7 @@
  
  TEST(TrackingQueryTest, PreservesOriginalFieldsAndFragment) {
    const GURL original(
@@ -1274,7 +1274,7 @@
        "&empty=&bare#details");
    EXPECT_EQ(StripTrackingQuery(original, TrackingQueryAction::kNavigate),
              GURL("https://example.test/a?item=%2f%2B+%20&item=two&empty=&bare"
-@@ -24,8 +24,10 @@ TEST(TrackingQueryTest, PreservesOrigina
+@@ -24,8 +24,10 @@
  
  TEST(TrackingQueryTest, RemovesCampaignTagsOnCopy) {
    const GURL url("https://example.test/?utm_source=mail&id=7&s=price");
@@ -1287,7 +1287,7 @@
              GURL("https://example.test/?id=7&s=price"));
  }
  
-@@ -38,9 +40,6 @@ TEST(TrackingQueryTest, RestrictsShareId
+@@ -38,9 +40,6 @@
      EXPECT_EQ(StripTrackingQuery(
                    GURL("https://open.spotify.com/track/track?si=test"), action),
                GURL("https://open.spotify.com/track/track"));
@@ -1297,7 +1297,7 @@
      EXPECT_FALSE(StripTrackingQuery(GURL("https://example.test/?si=keep"),
                                      action));
      EXPECT_FALSE(StripTrackingQuery(GURL("https://youtube.com.evil.test/"
-@@ -49,6 +48,108 @@ TEST(TrackingQueryTest, RestrictsShareId
+@@ -49,6 +48,108 @@
    }
  }
  
@@ -1408,7 +1408,7 @@
         {TrackingQueryAction::kNavigate, TrackingQueryAction::kCopy}) {
 --- a/services/network/network_context.cc
 +++ b/services/network/network_context.cc
-@@ -185,6 +185,7 @@
+@@ -195,6 +195,7 @@
  #include "services/network/url_request_context_builder_mojo.h"
  #include "services/network/web_transport.h"
  #include "url/gurl.h"
@@ -1416,7 +1416,7 @@
  #include "url/url_canon.h"
  #include "url/url_constants.h"
  
-@@ -741,6 +742,9 @@ NetworkContext::NetworkContext(
+@@ -809,6 +810,9 @@
                                          : nullptr),
        variations_headers_(std::move(params_->initial_variations_headers)) {
    TRACE_EVENT0("loading", "NetworkContext::NetworkContext");
@@ -1426,7 +1426,7 @@
  
    if (features::ShouldBindNetworkContextDirectReceiver()) {
      receiver_.emplace<DirectReceiver>(mojo::DirectReceiverKey{}, this);
-@@ -2011,6 +2015,27 @@ void NetworkContext::SetAcceptLanguage(c
+@@ -2405,6 +2409,27 @@
    user_agent_settings_->set_accept_language(new_accept_language);
  }
  
@@ -1456,16 +1456,16 @@
    // that calls MakeURLRequestContext().
 --- a/services/network/network_context.h
 +++ b/services/network/network_context.h
-@@ -100,6 +100,7 @@ class UnguessableToken;
+@@ -103,6 +103,7 @@
  }  // namespace base
  
  namespace net {
 +class TrackingQueryRules;
  class CertVerifier;
- class HostPortPair;
- class IsolationInfo;
-@@ -362,6 +363,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE)
-       std::vector<mojom::MatchedNetworkConditionsPtr> conditions) override;
+ class DelayedClientSocketFactory;
+ class HttpCache;
+@@ -382,6 +383,10 @@
+       const GURL& url);
    void SetAcceptLanguage(const std::string& new_accept_language) override;
    void SetEnableReferrers(bool enable_referrers) override;
 +  void SetTrackingQueryCleanup(bool enabled, const std::string& list) override;
@@ -1475,7 +1475,7 @@
  #if BUILDFLAG(IS_CT_SUPPORTED)
    void SetCTPolicy(mojom::CTPolicyPtr ct_policy) override;
    void MaybeEnqueueSCTReport(
-@@ -1018,6 +1023,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE)
+@@ -1103,6 +1108,9 @@
    raw_ptr<NetworkServiceNetworkDelegate> network_delegate_ = nullptr;
  
    mojom::NetworkContextParamsPtr params_;
@@ -1495,7 +1495,7 @@
  #include "net/cookies/cookie_setting_override.h"
  #include "net/cookies/cookie_util.h"
  #include "net/http/http_request_headers.h"
-@@ -86,8 +85,8 @@ void NetworkServiceNetworkDelegate::Mayb
+@@ -86,8 +85,8 @@
        request->referrer_policy(), enable_referrers_);
    // Same-document history updates can add trackers that would otherwise
    // appear in the Referer on the next same-site request.
@@ -1506,7 +1506,7 @@
    if (cleaned_referrer || sanitized_referrer.first != effective_url.spec() ||
        sanitized_referrer.second != request->referrer_policy()) {
      request->SetReferrer(cleaned_referrer ? cleaned_referrer->spec()
-@@ -119,8 +118,7 @@ int NetworkServiceNetworkDelegate::OnBef
+@@ -119,8 +118,7 @@
    if (loader && loader->IsDocumentNavigation() &&
        request->isolation_info().IsMainFrameRequest() &&
        request->method() == net::HttpRequestHeaders::kGetMethod) {
@@ -1518,7 +1518,7 @@
      }
 --- a/services/network/public/mojom/network_context.mojom
 +++ b/services/network/public/mojom/network_context.mojom
-@@ -353,6 +353,11 @@ struct SocketBrokerRemotes {
+@@ -358,6 +358,11 @@
  
  // Parameters for constructing a network context.
  struct NetworkContextParams {
@@ -1530,7 +1530,7 @@
    // The user agent string.
    string user_agent;
  
-@@ -1457,6 +1462,10 @@ interface NetworkContext {
+@@ -1486,6 +1491,10 @@
    // If false, the referrer of requests is never populated.
    SetEnableReferrers(bool enable_referrers);
  
@@ -1552,7 +1552,7 @@
  #if BUILDFLAG(IS_ANDROID)
  #include "chrome/browser/flags/android/chrome_feature_list.h"
  #endif  // BUILDFLAG(IS_ANDROID)
-@@ -34,6 +36,12 @@ ChromePrefetchServiceDelegate::ChromePre
+@@ -34,6 +36,12 @@
  
  ChromePrefetchServiceDelegate::~ChromePrefetchServiceDelegate() = default;
  
@@ -1567,7 +1567,7 @@
        profile_->GetPrefs()->GetString(language::prefs::kAcceptLanguages));
 --- a/chrome/browser/preloading/prefetch/prefetch_service/chrome_prefetch_service_delegate.h
 +++ b/chrome/browser/preloading/prefetch/prefetch_service/chrome_prefetch_service_delegate.h
-@@ -33,6 +33,8 @@ class ChromePrefetchServiceDelegate : pu
+@@ -33,6 +33,8 @@
  
    // content::PrefetchServiceDelegate
    std::string GetAcceptLanguageHeader() override;
@@ -1578,7 +1578,7 @@
    GURL GetDefaultDNSCanaryCheckURL() override;
 --- a/content/browser/preloading/prefetch/prefetch_service.cc
 +++ b/content/browser/preloading/prefetch/prefetch_service.cc
-@@ -1713,6 +1713,7 @@ PrefetchService::CreateIsolatedNetworkCo
+@@ -1713,6 +1713,7 @@
  
    if (delegate_) {
      context_params->accept_language = delegate_->GetAcceptLanguageHeader();
@@ -1596,7 +1596,7 @@
  #include "url/gurl.h"
  #include "url/origin.h"
  
-@@ -28,6 +29,9 @@ class CONTENT_EXPORT PrefetchServiceDele
+@@ -28,6 +29,9 @@
    // Gets the accept language header to be included in prefetch requests.
    virtual std::string GetAcceptLanguageHeader() = 0;
  
@@ -1608,7 +1608,7 @@
  
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
-@@ -419,7 +419,9 @@
+@@ -423,7 +423,9 @@
  #include "mojo/public/cpp/bindings/remote.h"
  #include "net/base/data_url.h"
  #include "net/base/features.h"
@@ -1618,7 +1618,7 @@
  #include "net/cookies/cookie_setting_override.h"
  #include "net/cookies/site_for_cookies.h"
  #include "net/ssl/client_cert_store.h"
-@@ -6237,6 +6239,25 @@ std::unique_ptr<blink::URLLoaderThrottle
+@@ -6255,6 +6257,25 @@
        std::move(dynamic_params));
  }
  
@@ -1644,9 +1644,9 @@
  std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
  ChromeContentBrowserClient::CreateURLLoaderThrottles(
      const network::ResourceRequest& request,
-@@ -6253,6 +6274,19 @@ ChromeContentBrowserClient::CreateURLLoa
-   Profile* profile = Profile::FromBrowserContext(browser_context);
-   DCHECK(profile);
+@@ -6277,6 +6298,19 @@
+     return result;
+   }
  
 +  if (navigation_id && request.is_outermost_main_frame &&
 +      request.method == net::HttpRequestHeaders::kGetMethod &&

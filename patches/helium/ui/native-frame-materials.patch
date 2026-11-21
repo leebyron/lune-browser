@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/ui_features.h
 +++ b/chrome/browser/ui/ui_features.h
-@@ -24,6 +24,9 @@ BASE_DECLARE_FEATURE(kBookmarkOpenAllCon
+@@ -24,6 +24,9 @@
  BASE_DECLARE_FEATURE(kUseActionsForBrowserCommands);
  bool ShouldUseActionsForBrowserCommands();
  
@@ -9,10 +9,10 @@
 +
  BASE_DECLARE_FEATURE(kAllowEyeDropperWGCScreenCapture);
  
- BASE_DECLARE_FEATURE(kCtrlTabMru);
+ BASE_DECLARE_FEATURE(kBrowserWindowListenerObservation);
 --- a/chrome/browser/ui/ui_features.cc
 +++ b/chrome/browser/ui/ui_features.cc
-@@ -26,6 +26,16 @@ BASE_FEATURE(kBookmarkOpenAllConfirmatio
+@@ -26,6 +26,16 @@
  // TODO: Re-enable once Helium's browser commands are migrated to actions.
  BASE_FEATURE(kUseActionsForBrowserCommands, base::FEATURE_DISABLED_BY_DEFAULT);
  
@@ -31,7 +31,7 @@
  #if BUILDFLAG(IS_WIN)
 --- a/chrome/browser/helium_flag_choices.h
 +++ b/chrome/browser/helium_flag_choices.h
-@@ -42,6 +42,8 @@ constexpr const char kDisableEchCommandL
+@@ -42,6 +42,8 @@
  constexpr const char kHeliumSplitClientHelloCommandLine[] =
      "helium-split-clienthello";
  
@@ -54,7 +54,7 @@
  #endif  // CHROME_BROWSER_HELIUM_FLAG_ENTRIES_H_
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -617,6 +617,11 @@ inline constexpr char kShiftRightClickCo
+@@ -510,6 +510,11 @@
  // frame.
  inline constexpr char kHeliumRoundedFrame[] = "helium.browser.rounded_frame";
  
@@ -68,7 +68,7 @@
  
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -138,6 +138,8 @@ void RegisterBrowserUserPrefs(user_prefs
+@@ -138,6 +138,8 @@
  
    registry->RegisterBooleanPref(prefs::kHeliumRoundedFrame, true);
  
@@ -79,7 +79,7 @@
    registry->RegisterBooleanPref(prefs::kHeliumMinimalLocationBar, false);
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -235,6 +235,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+@@ -235,6 +235,8 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kHeliumZenModeTopChromePinned] =
        settings_api::PrefType::kBoolean;
@@ -105,7 +105,7 @@
      </message>
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -635,6 +635,9 @@ void AddAppearanceStrings(content::WebUI
+@@ -596,6 +596,9 @@
        {"openNewTabNextToActive", IDS_SETTINGS_NEW_TAB_NEXT_TO_ACTIVE_BUTTON},
        {"cycleTabsInMRUOrder", IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER},
        {"roundedFrame", IDS_SETTINGS_ROUNDED_FRAME},
@@ -115,7 +115,7 @@
        {"layoutPageTitle", IDS_SETTINGS_LAYOUT},
        {"browserLayout", IDS_SETTINGS_BROWSER_LAYOUT},
        {"browserLayoutClassic", IDS_SETTINGS_BROWSER_LAYOUT_CLASSIC},
-@@ -739,6 +742,8 @@ void AddAppearanceStrings(content::WebUI
+@@ -698,6 +701,8 @@
        "showEverythingMenuEnabled",
        tab_groups::SavedTabGroupUtils::IsEnabledForProfile(profile));
  
@@ -126,26 +126,26 @@
    html_source->AddBoolean(
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
-@@ -170,6 +170,7 @@ export class SettingsAppearancePageEleme
+@@ -168,6 +168,7 @@
+ 
+       showHoverCardImagesOption_: {type: Boolean},
        showManagedThemeDialog_: {type: Boolean},
-       glassEffectOptions_: {type: Array},
-       tabStripOptions_: {type: Array},
 +      showNativeFrameMaterialsOption_: {type: Boolean},
+       // <if expr="is_macosx">
+       glassEffectOptions_: {type: Array},
        showGlassEffectEnabled_: {type: Boolean},
-       ntpSimplificationBookmarksBarEnabled_: {type: Boolean},
-       bookmarksBarOptions_: {type: Array},
-@@ -295,6 +296,8 @@ export class SettingsAppearancePageEleme
+@@ -303,6 +304,8 @@
    protected accessor showHoverCardImagesOption_: boolean =
        loadTimeData.getBoolean('showHoverCardImagesOption');
    protected accessor showManagedThemeDialog_: boolean = false;
 +  protected accessor showNativeFrameMaterialsOption_: boolean =
 +      loadTimeData.getBoolean('showNativeFrameMaterialsOption');
+   // <if expr="is_macosx">
    protected accessor showGlassEffectEnabled_: boolean =
        loadTimeData.getBoolean('showGlassEffectEnabled');
-   protected accessor ntpSimplificationBookmarksBarEnabled_: boolean =
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
-@@ -70,6 +70,12 @@ export function getHtml(this: SettingsAp
+@@ -69,6 +69,12 @@
          pref-key="helium.browser.rounded_frame"
          label="$i18n{roundedFrame}">
      </settings-toggle-button>
@@ -252,7 +252,7 @@
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
  #include "chrome/grit/theme_resources.h"
  #include "ui/base/theme_provider.h"
-@@ -52,6 +53,10 @@ ThemedBackground::ThemedBackground(Brows
+@@ -52,6 +53,10 @@
      : browser_view_(browser_view), theme_choice_(theme_choice) {}
  
  void ThemedBackground::Paint(gfx::Canvas* canvas, views::View* view) const {
@@ -263,7 +263,7 @@
    PaintBackground(canvas, view, browser_view_, theme_choice_);
  }
  
-@@ -121,6 +126,10 @@ std::optional<SkColor> ThemedBackground:
+@@ -121,6 +126,10 @@
      ThemeChoice theme_choice) {
    std::pair<int, ui::ColorId> theme_choice_info =
        GetThemeChoiceInfo(theme_choice, view);
@@ -299,7 +299,7 @@
  }
  
  MultiContentsBackgroundView::~MultiContentsBackgroundView() = default;
-@@ -30,26 +37,31 @@ const gfx::RoundedCornersF& MultiContent
+@@ -30,26 +37,31 @@
  
  void MultiContentsBackgroundView::OnThemeChanged() {
    views::View::OnThemeChanged();
@@ -337,7 +337,7 @@
  void MultiContentsBackgroundView::UpdateSolidLayerColor() {
 --- a/chrome/browser/ui/views/frame/custom_corners_background.h
 +++ b/chrome/browser/ui/views/frame/custom_corners_background.h
-@@ -87,6 +87,10 @@ class CustomCornersBackground : public v
+@@ -87,6 +87,10 @@
    void SetVisible(bool visible);
    bool is_visible() const { return visible_; }
  
@@ -348,7 +348,7 @@
    // Sets the color to paint the primary area of the view.
    void SetPrimaryColor(ColorChoiceWithAlpha primary_color);
    void SetPrimaryColor(ColorChoice primary_color) {
-@@ -173,6 +177,7 @@ class CustomCornersBackground : public v
+@@ -173,6 +177,7 @@
    Outline GetMirroredOutline() const;
  
    bool visible_ = true;
@@ -366,7 +366,7 @@
  #include "third_party/skia/include/core/SkPath.h"
  #include "third_party/skia/include/core/SkPathBuilder.h"
  #include "ui/base/ui_base_features.h"
-@@ -95,6 +96,15 @@ void CustomCornersBackground::SetVisible
+@@ -95,6 +96,15 @@
    view_->SchedulePaint();
  }
  
@@ -382,7 +382,7 @@
  void CustomCornersBackground::SetPrimaryColor(
      ColorChoiceWithAlpha primary_color) {
    if (primary_color_ == primary_color) {
-@@ -326,6 +336,10 @@ void CustomCornersBackground::Paint(gfx:
+@@ -326,6 +336,10 @@
    if (!visible_) {
      return;
    }
@@ -395,7 +395,7 @@
      CHECK(!view->layer()->fills_bounds_opaquely());
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-@@ -407,6 +407,7 @@ void VerticalTabStripRegionView::SetFloa
+@@ -405,6 +405,7 @@
  
    background->SetCorners(corners);
    background->SetOutline(outline);
@@ -405,7 +405,7 @@
  void VerticalTabStripRegionView::AddedToWidget() {
 --- a/chrome/browser/ui/views/infobars/infobar_container_view.h
 +++ b/chrome/browser/ui/views/infobars/infobar_container_view.h
-@@ -37,6 +37,7 @@ class InfoBarContainerView : public view
+@@ -37,6 +37,7 @@
    void Layout(PassKey) override;
    gfx::Size CalculatePreferredSize(
        const views::SizeBounds& available_size) const override;
@@ -413,7 +413,7 @@
  
    // InfobarContainer:
    void PlatformSpecificAddInfoBar(infobars::InfoBar* infobar,
-@@ -85,6 +86,8 @@ class InfoBarContainerView : public view
+@@ -85,6 +86,8 @@
    bool rounded_frame_enabled_ = false;
    bool leading_side_chrome_attached_ = false;
    bool trailing_side_chrome_attached_ = false;
@@ -432,7 +432,7 @@
  #include "chrome/browser/ui/views/infobars/infobar_view.h"
  #include "chrome/grit/generated_resources.h"
  #include "components/infobars/core/infobar_delegate.h"
-@@ -125,8 +126,7 @@ InfoBarContainerView::InfoBarContainerVi
+@@ -125,8 +126,7 @@
    chrome_border_ = AddChildView(std::make_unique<ChromeBorder>());
    views::SetCascadingColorProviderColor(this, views::kCascadingBackgroundColor,
                                          kColorToolbar);
@@ -442,7 +442,7 @@
  
    GetViewAccessibility().SetRole(ax::mojom::Role::kGroup);
    GetViewAccessibility().SetName(
-@@ -157,9 +157,7 @@ void InfoBarContainerView::SetRoundedFra
+@@ -157,9 +157,7 @@
    static_cast<ChromeBorder*>(chrome_border_.get())
        ->SetState(rounded_frame_enabled, leading_side_chrome_attached,
                   trailing_side_chrome_attached);
@@ -453,7 +453,7 @@
  }
  
  void InfoBarContainerView::Layout(PassKey) {
-@@ -199,6 +197,11 @@ gfx::Size InfoBarContainerView::Calculat
+@@ -199,6 +197,11 @@
    return preferred_size;
  }
  
@@ -465,7 +465,7 @@
  void InfoBarContainerView::PlatformSpecificAddInfoBar(
      infobars::InfoBar* infobar,
      size_t position) {
-@@ -365,5 +368,15 @@ void InfoBarContainerView::UpdateQueuedC
+@@ -365,5 +368,15 @@
    }
  }
  
@@ -492,7 +492,7 @@
  #include "chrome/grit/generated_resources.h"
  #include "components/infobars/core/infobar_delegate.h"
  #include "components/strings/grit/components_strings.h"
-@@ -285,6 +285,17 @@ gfx::Size InfoBarView::CalculatePreferre
+@@ -285,6 +285,17 @@
  void InfoBarView::OnThemeChanged() {
    views::View::OnThemeChanged();
  
@@ -510,7 +510,7 @@
    // Set dark mode status so that it can be used to set a different icon image
    // that is more suitable for a dark background.
    delegate()->set_dark_mode(color_utils::IsDark(
-@@ -309,7 +320,7 @@ std::unique_ptr<views::Label> InfoBarVie
+@@ -309,7 +320,7 @@
      const std::u16string& text) const {
    auto label = std::make_unique<views::Label>(
        text, views::style::CONTEXT_DIALOG_BODY_TEXT);
@@ -519,7 +519,7 @@
    label->SetEnabledColor(kColorInfoBarForeground);
    label->SetAutoColorReadabilityEnabled(false);
    AssignLabelDetails(label.get());
-@@ -321,7 +332,7 @@ std::unique_ptr<views::StyledLabel> Info
+@@ -321,7 +332,7 @@
    auto label = std::make_unique<views::StyledLabel>();
    label->SetText(text);
    label->SetTextContext(views::style::CONTEXT_DIALOG_BODY_TEXT);
@@ -528,7 +528,7 @@
    AssignLabelDetails(label.get());
    return label;
  }
-@@ -331,7 +342,7 @@ std::unique_ptr<views::Link> InfoBarView
+@@ -331,7 +342,7 @@
      const std::optional<std::u16string>& accessible_text) {
    auto link = std::make_unique<views::Link>(
        text, views::style::CONTEXT_DIALOG_BODY_TEXT);
@@ -547,7 +547,7 @@
  #include "chrome/browser/ui/views/tabs/shared/new_tab_button_menu_model.h"
  #include "chrome/browser/ui/views/tabs/tab_strip.h"
  #include "ui/views/controls/menu/menu_runner.h"
-@@ -51,3 +52,11 @@ void NewTabButton::ShowContextMenuForVie
+@@ -51,3 +52,11 @@
          views::MenuAnchorPosition::kTopLeft, source_type);
    }
  }
@@ -570,7 +570,7 @@
  #include "chrome/browser/ui/ui_features.h"
  #include "chrome/browser/ui/views/frame/browser_frame_view.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
-@@ -417,7 +419,8 @@ bool HorizontalTabStyleViews::IsApparent
+@@ -416,7 +418,8 @@
    if (selection_state == TabStyle::TabSelectionState::kActive) {
      return true;
    }
@@ -580,7 +580,7 @@
      return GetHoverOpacity() > 0.5f;
    }
    return selection_state == TabStyle::TabSelectionState::kSelected;
-@@ -661,6 +664,12 @@ SkPath HorizontalTabStyleViews::GetOverl
+@@ -660,6 +663,12 @@
  bool HorizontalTabStyleViews::ShouldPaintTabBackgroundColor(
      TabStyle::TabSelectionState selection_state,
      bool has_custom_background) const {
@@ -593,7 +593,7 @@
    if (delegate_->IsPinned() && tabs::IsNewHorizontalPinnedTabStylingEnabled() &&
        !delegate_->IsGlassFrame()) {
      return true;
-@@ -703,6 +712,18 @@ SkColor HorizontalTabStyleViews::GetCurr
+@@ -702,6 +711,18 @@
        delegate_->GetView()->GetWidget()
            ? delegate_->GetView()->GetWidget()->ShouldPaintAsActive()
            : true;
@@ -612,7 +612,7 @@
    const bool frame_glass = delegate_->IsGlassFrame();
    return tab_style()->GetCurrentTabBackgroundColor(
        selection_state, hovered, GetHoverAnimationValue(), frame_active,
-@@ -768,7 +789,10 @@ void HorizontalTabStyleViews::PaintTabBa
+@@ -767,7 +788,10 @@
                       flags);
    }
  
@@ -634,7 +634,7 @@
  #include "chrome/browser/ui/views/tabs/common/split_tab_view.h"
  #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
  #include "chrome/browser/ui/views/tabs/common/tab_collection_z_order_manager.h"
-@@ -73,12 +74,12 @@
+@@ -72,12 +73,12 @@
  #include "ui/base/metadata/metadata_impl_macros.h"
  #include "ui/base/models/list_selection_model.h"
  #include "ui/base/theme_provider.h"
@@ -648,7 +648,7 @@
  #include "ui/gfx/geometry/insets.h"
  #include "ui/gfx/geometry/rect.h"
  #include "ui/gfx/geometry/rounded_corners_f.h"
-@@ -523,7 +524,16 @@ bool TabView::IsHoverAnimationActive() c
+@@ -562,7 +563,16 @@
  }
  
  std::optional<SkColor> TabView::GetBackgroundColor() {
@@ -666,7 +666,7 @@
        should_fill_background_tab_color_) {
      return tab_styling()->CalculateTargetColors().background_color;
    }
-@@ -1015,7 +1025,7 @@ bool TabView::IsApparentlyActive() const
+@@ -1068,7 +1078,7 @@
    if (active_) {
      return true;
    }
@@ -675,7 +675,7 @@
      return GetHoverOpacity() > 0.5f;
    }
    return selected_;
-@@ -1263,6 +1273,9 @@ void TabView::UpdateColors() {
+@@ -1320,6 +1330,9 @@
      should_fill_background_tab_color_ = theme_provider->GetDisplayProperty(
          ThemeProperties::SHOULD_FILL_BACKGROUND_TAB_COLOR);
    }
@@ -685,7 +685,7 @@
    TabStyle::TabColors colors = tab_styling()->CalculateTargetColors();
    title_->SetEnabledColor(colors.foreground_color);
    close_button_->SetColors(colors);
-@@ -1361,6 +1374,25 @@ TabStyle::TabSelectionState TabView::Get
+@@ -1417,6 +1430,25 @@
                                : TabStyle::TabSelectionState::kInactive);
  }
  
@@ -721,7 +721,7 @@
  #include "chrome/browser/themes/theme_properties.h"
  #include "chrome/browser/ui/layout_constants.h"
  #include "chrome/browser/ui/views/frame/browser_frame_view.h"
-@@ -20,6 +21,7 @@
+@@ -18,6 +19,7 @@
  #include "third_party/skia/include/core/SkRRect.h"
  #include "ui/base/theme_provider.h"
  #include "ui/gfx/canvas.h"
@@ -729,7 +729,7 @@
  #include "ui/gfx/geometry/skia_conversions.h"
  #include "ui/gfx/scoped_canvas.h"
  #include "ui/views/view_utils.h"
-@@ -76,6 +78,13 @@ std::optional<SkPath> VerticalTabStyleVi
+@@ -74,6 +76,13 @@
  }
  
  void VerticalTabStyleViews::PaintTab(gfx::Canvas* canvas) const {
@@ -743,7 +743,7 @@
    std::optional<int> active_tab_fill_id;
    const ui::ThemeProvider* const theme_provider =
        delegate_->GetView()->GetThemeProvider();
-@@ -160,7 +169,10 @@ void VerticalTabStyleViews::PaintTabBack
+@@ -158,7 +167,10 @@
                       flags);
    }
  
@@ -755,7 +755,7 @@
      const ui::ThemeProvider* const theme_provider =
          delegate_->GetView()->GetThemeProvider();
      if (theme_provider) {
-@@ -178,6 +190,12 @@ bool VerticalTabStyleViews::ShouldPaintT
+@@ -176,6 +188,12 @@
      TabStyle::TabSelectionState selection_state,
      bool has_custom_background,
      bool hovered) const {
@@ -768,7 +768,7 @@
    if (selection_state == TabStyle::TabSelectionState::kActive ||
        selection_state == TabStyle::TabSelectionState::kSelected) {
      return true;
-@@ -196,6 +214,18 @@ bool VerticalTabStyleViews::ShouldPaintT
+@@ -194,6 +212,18 @@
  
  SkColor VerticalTabStyleViews::GetCurrentTabBackgroundColor(
      TabStyle::TabSelectionState selection_state) const {
@@ -789,7 +789,7 @@
        selection_state, delegate_->IsHoverAnimationActive(),
 --- a/chrome/browser/ui/views/tabs/common/tab_view.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_view.h
-@@ -198,6 +198,9 @@ class TabView : public views::View,
+@@ -201,6 +201,9 @@
  
    bool IsFrameActive() const;
    TabStyle::TabSelectionState GetSelectionState() const;
@@ -801,7 +801,7 @@
  
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -1210,6 +1210,7 @@ source_set("custom_corners_background_im
+@@ -1210,6 +1210,7 @@
      "//base",
      "//base:i18n",
      "//build:buildflag_header_h",
@@ -809,7 +809,7 @@
      "//chrome/browser/ui:layout_constants",
      "//chrome/browser/ui/color:color_headers",
      "//chrome/browser/ui/color:mixers",
-@@ -1245,6 +1246,7 @@ source_set("themed_background_impl") {
+@@ -1245,6 +1246,7 @@
      "//chrome/browser/themes",
      "//chrome/browser/ui/color:color_headers",
      "//chrome/browser/ui/views/frame:browser_view_header",
@@ -817,7 +817,7 @@
      "//chrome/browser/ui/views/tabs:tab_strip",
      "//ui/base",
      "//ui/color",
-@@ -1646,6 +1648,7 @@ source_set("multi_contents_background_vi
+@@ -1646,6 +1648,7 @@
    public_deps = [ ":multi_contents_background_view" ]
    deps = [
      ":themed_background",
@@ -827,7 +827,7 @@
      "//ui/gfx/geometry",
 --- a/chrome/browser/ui/views/helium/BUILD.gn
 +++ b/chrome/browser/ui/views/helium/BUILD.gn
-@@ -19,3 +19,20 @@ source_set("frame_corner_radius") {
+@@ -19,3 +19,20 @@
      sources += [ "frame_corner_radius_mac.mm" ]
    }
  }
@@ -850,17 +850,17 @@
 +}
 --- a/chrome/browser/ui/views/infobars/BUILD.gn
 +++ b/chrome/browser/ui/views/infobars/BUILD.gn
-@@ -42,6 +42,7 @@ source_set("impl") {
-   deps = [
+@@ -43,6 +43,7 @@
      ":infobars",
      "//chrome/app:generated_resources_grit",
+     "//chrome/browser/infobars",
 +    "//chrome/browser/ui/views/helium:native_frame_materials",
      "//chrome/browser/ui:browser_element_identifiers",
      "//chrome/browser/ui:ui_features",
      "//chrome/browser/ui:view_ids",
 --- a/chrome/browser/ui/views/tabs/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/BUILD.gn
-@@ -511,6 +511,7 @@ source_set("new_tab_button") {
+@@ -514,6 +514,7 @@
      ":tab_strip",
      ":tab_strip_button",
      "//base",
@@ -870,7 +870,7 @@
      "//chrome/browser/ui/browser_window",
 --- a/chrome/browser/ui/views/tabs/new_tab_button.h
 +++ b/chrome/browser/ui/views/tabs/new_tab_button.h
-@@ -41,6 +41,10 @@ class NewTabButton : public TabStripCont
+@@ -41,6 +41,10 @@
        const gfx::Point& point,
        ui::mojom::MenuSourceType source_type) override;
  
@@ -883,7 +883,7 @@
    std::unique_ptr<views::MenuRunner> context_menu_runner_;
 --- a/chrome/browser/ui/views/tabs/common/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
-@@ -101,6 +101,7 @@ source_set("impl") {
+@@ -105,6 +105,7 @@
      "//cc/paint",
      "//chrome/app/theme:theme_resources",
      "//chrome/browser/ui/helium:helium_layout_state_controller",

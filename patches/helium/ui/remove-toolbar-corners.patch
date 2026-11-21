@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
-@@ -333,7 +333,6 @@ void BrowserViewLayoutImpl::ConfigureTop
+@@ -333,7 +333,6 @@
      // correctly.
      background->SetVisible(true);
      background->SetPrimaryColor(ui::kColorFrameActive);
@@ -10,7 +10,7 @@
      background->SetVisible(false);
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -73,19 +73,6 @@ constexpr int kVerticalTabsGrabHandleSiz
+@@ -74,19 +74,6 @@
  // can take up. This is not the only limit on side panel size.
  constexpr float kMaxContentsHeightSidePanelFraction = 2.f / 3.f;
  
@@ -30,7 +30,7 @@
  // Increases the leading or trailing exclusion padding to `minimum`.
  void IncreasePaddingToMinimum(BrowserLayoutParams& params, int minimum) {
    // Default to increasing the trailing exclusion padding. On ChromeOS, the
-@@ -1522,36 +1509,6 @@ void BrowserViewTabbedLayoutImpl::Config
+@@ -1522,36 +1509,6 @@
      background->SetPrimaryColor(CustomCornersBackground::ToolbarTheme());
    }
  
@@ -67,7 +67,7 @@
  }
  
  void BrowserViewTabbedLayoutImpl::OnLayoutParamsChanged(
-@@ -1605,316 +1562,21 @@ void BrowserViewTabbedLayoutImpl::DoPost
+@@ -1605,324 +1562,21 @@
      views().multi_contents_view->SetBackgroundRadii(content_corners);
    }
  
@@ -248,15 +248,24 @@
 -            views()
 -                .organizer_tray->background()
 -                ->AsA<CustomCornersBackground>()) {
--      const bool blur = features::IsGlassFrameEnabled();
 -
 -      const CustomCorners::ColorChoice base_color =
 -          anim.blend_with_vertical_tabs
 -              ? CustomCorners::ColorChoice(CustomCorners::FrameTheme())
 -              : organizer_panel::kOrganizerPanelBackgroundColor;
--      background->SetPrimaryColor(CustomCorners::ColorChoiceWithAlpha(
--          base_color,
--          anim.panel_opacity * (blur ? flyover_panel_opacity : 1.0)));
+-
+-      // Background blur is used in glass mode with normal tray, but when
+-      // blending with the vertical tab strip it should mimic expand-on-hover
+-      // behavior.
+-      const bool use_background_blur =
+-          in_glass_mode() && (!anim.blend_with_vertical_tabs ||
+-                              features::kGlassExpandOnHoverEnabled.Get());
+-      const double background_opacity =
+-          anim.panel_opacity *
+-          (use_background_blur ? flyover_panel_opacity : 1.0);
+-      background->SetUseBackgroundBlur(use_background_blur);
+-      background->SetPrimaryColor(
+-          CustomCorners::ColorChoiceWithAlpha(base_color, background_opacity));
 -
 -      CustomCornersBackground::Corners corners;
 -      corners[CornerOrientation::kTopLeading] =
@@ -303,7 +312,6 @@
 -        }
 -      }
 -      background->SetCorners(corners);
--      background->SetUseBackgroundBlur(blur);
 -    }
 -
      views().organizer_tray->layer()->SetOpacity(anim.panel_opacity);
@@ -384,7 +392,7 @@
    views().side_panel_content_transition_scrim->layer()->SetOpacity(
        layout_data_->side_panel_content_animation.scrim_opacity);
  
-@@ -1972,54 +1634,6 @@ void BrowserViewTabbedLayoutImpl::DoPost
+@@ -1980,54 +1634,6 @@
        views().side_panel->SetClipToVisibleArea(std::nullopt);
      }
    }

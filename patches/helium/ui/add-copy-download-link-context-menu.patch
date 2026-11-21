@@ -1,6 +1,6 @@
 --- a/chrome/browser/download/download_commands.h
 +++ b/chrome/browser/download/download_commands.h
-@@ -50,8 +50,9 @@ class DownloadCommands {
+@@ -50,8 +50,9 @@
                                 // an editing hint.
      OPEN_WITH = 23,  // Open the system "Open with" dialog. Windows only.
      OPEN_HELIUM_SERVICES = 24,  // Open the Services page in settings.
@@ -18,8 +18,8 @@
  #include "chrome/browser/download/status_text_builder_utils.h"
  #include "chrome/browser/enterprise/connectors/common.h"
 +#include "chrome/browser/profiles/profile.h"
- #include "chrome/browser/safe_browsing/advanced_protection_status_manager.h"
- #include "chrome/browser/safe_browsing/advanced_protection_status_manager_factory.h"
+ #include "chrome/browser/safe_browsing/advanced_protection/advanced_protection_status_manager.h"
+ #include "chrome/browser/safe_browsing/advanced_protection/advanced_protection_status_manager_factory.h"
  #include "chrome/browser/ui/chrome_pages.h"
 @@ -38,6 +39,7 @@
  #include "components/url_formatter/elide_url.h"
@@ -28,8 +28,8 @@
 +#include "ui/base/clipboard/scoped_clipboard_writer.h"
  #include "ui/base/l10n/l10n_util.h"
  #include "ui/base/l10n/time_format.h"
- #include "ui/base/page_transition_types.h"
-@@ -673,6 +675,8 @@ bool DownloadUIModel::IsCommandEnabled(
+ #include "ui/base/mojom/window_open_disposition.mojom.h"
+@@ -673,6 +675,8 @@
      case DownloadCommands::CANCEL_DEEP_SCAN:
      case DownloadCommands::OPEN_HELIUM_SERVICES:
        return true;
@@ -38,7 +38,7 @@
      case DownloadCommands::REVIEW:
  #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
        return true;
-@@ -716,6 +720,7 @@ bool DownloadUIModel::IsCommandChecked(
+@@ -716,6 +720,7 @@
      case DownloadCommands::OPEN_WITH_MEDIA_APP:
      case DownloadCommands::EDIT_WITH_MEDIA_APP:
      case DownloadCommands::OPEN_HELIUM_SERVICES:
@@ -46,7 +46,7 @@
        return false;
    }
    return false;
-@@ -775,6 +780,14 @@ void DownloadUIModel::ExecuteCommand(Dow
+@@ -775,6 +780,14 @@
                                   ui::PAGE_TRANSITION_LINK, false),
            /*navigation_handle_callback=*/{});
        break;
@@ -63,7 +63,7 @@
            download_commands->GetBrowser(),
 --- a/chrome/browser/download/download_item_model.cc
 +++ b/chrome/browser/download/download_item_model.cc
-@@ -696,6 +696,9 @@ bool DownloadItemModel::IsCommandEnabled
+@@ -700,6 +700,9 @@
      case DownloadCommands::PAUSE:
        return !download_->IsSavePackageDownload() &&
               DownloadUIModel::IsCommandEnabled(download_commands, command);
@@ -73,7 +73,7 @@
      case DownloadCommands::OPEN_WITH_MEDIA_APP:
      case DownloadCommands::EDIT_WITH_MEDIA_APP: {
  #if BUILDFLAG(IS_CHROMEOS)
-@@ -769,6 +772,7 @@ bool DownloadItemModel::IsCommandChecked
+@@ -773,6 +776,7 @@
      case DownloadCommands::OPEN_WITH_MEDIA_APP:
      case DownloadCommands::EDIT_WITH_MEDIA_APP:
      case DownloadCommands::OPEN_HELIUM_SERVICES:
@@ -81,7 +81,7 @@
        return false;
    }
    return false;
-@@ -891,6 +895,7 @@ void DownloadItemModel::ExecuteCommand(D
+@@ -895,6 +899,7 @@
      case DownloadCommands::OPEN_WITH_MEDIA_APP:
      case DownloadCommands::EDIT_WITH_MEDIA_APP:
      case DownloadCommands::OPEN_HELIUM_SERVICES:
@@ -91,7 +91,7 @@
      case DownloadCommands::DEEP_SCAN: {
 --- a/chrome/browser/download/offline_item_model.cc
 +++ b/chrome/browser/download/offline_item_model.cc
-@@ -356,6 +356,7 @@ bool OfflineItemModel::IsCommandEnabled(
+@@ -356,6 +356,7 @@
      case DownloadCommands::RETRY:
      case DownloadCommands::CANCEL_DEEP_SCAN:
      case DownloadCommands::OPEN_HELIUM_SERVICES:
@@ -99,7 +99,7 @@
        return DownloadUIModel::IsCommandEnabled(download_commands, command);
    }
    NOTREACHED();
-@@ -393,6 +394,7 @@ bool OfflineItemModel::IsCommandChecked(
+@@ -393,6 +394,7 @@
      case DownloadCommands::OPEN_WITH_MEDIA_APP:
      case DownloadCommands::EDIT_WITH_MEDIA_APP:
      case DownloadCommands::OPEN_HELIUM_SERVICES:
@@ -107,7 +107,7 @@
        return false;
    }
    return false;
-@@ -428,6 +430,7 @@ void OfflineItemModel::ExecuteCommand(Do
+@@ -428,6 +430,7 @@
      case DownloadCommands::OPEN_WITH_MEDIA_APP:
      case DownloadCommands::EDIT_WITH_MEDIA_APP:
      case DownloadCommands::OPEN_HELIUM_SERVICES:
@@ -117,7 +117,7 @@
    }
 --- a/chrome/browser/download/download_stats.h
 +++ b/chrome/browser/download/download_stats.h
-@@ -200,7 +200,9 @@ enum class DownloadUiContextMenuAction {
+@@ -200,7 +200,9 @@
    kNotReached = 36,  // Should not be possible to hit
    kOpenWithEnabled = 37,
    kOpenWithClicked = 38,
@@ -130,7 +130,7 @@
  DownloadUiContextMenuAction DownloadCommandToContextMenuAction(
 --- a/chrome/browser/download/download_stats.cc
 +++ b/chrome/browser/download/download_stats.cc
-@@ -159,6 +159,9 @@ DownloadUiContextMenuAction DownloadComm
+@@ -159,6 +159,9 @@
      case DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN:
        return clicked ? DownloadUiContextMenuAction::kBypassDeepScanningClicked
                       : DownloadUiContextMenuAction::kBypassDeepScanningEnabled;
@@ -142,7 +142,7 @@
      // never be logged.
 --- a/chrome/browser/download/download_ui_context_menu.cc
 +++ b/chrome/browser/download/download_ui_context_menu.cc
-@@ -196,6 +196,9 @@ std::u16string DownloadUiContextMenu::Ge
+@@ -198,6 +198,9 @@
      case DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN:
        id = IDS_OPEN_DOWNLOAD_NOW;
        break;
@@ -152,7 +152,7 @@
      // These commands are not supported on the context menu.
      case DownloadCommands::REVIEW:
      case DownloadCommands::RETRY:
-@@ -249,6 +252,9 @@ ui::SimpleMenuModel* DownloadUiContextMe
+@@ -251,6 +254,9 @@
      in_progress_download_menu_model_->AddItem(
          DownloadCommands::SHOW_IN_FOLDER,
          GetLabelForCommandId(DownloadCommands::SHOW_IN_FOLDER));
@@ -162,7 +162,7 @@
    }
  
    in_progress_download_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
-@@ -282,6 +288,9 @@ ui::SimpleMenuModel* DownloadUiContextMe
+@@ -284,6 +290,9 @@
      in_progress_download_paused_menu_model_->AddItem(
          DownloadCommands::SHOW_IN_FOLDER,
          GetLabelForCommandId(DownloadCommands::SHOW_IN_FOLDER));
@@ -172,7 +172,7 @@
    }
  
    in_progress_download_paused_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
-@@ -323,6 +332,9 @@ ui::SimpleMenuModel* DownloadUiContextMe
+@@ -328,6 +337,9 @@
      finished_download_menu_model_->AddItem(
          DownloadCommands::SHOW_IN_FOLDER,
          GetLabelForCommandId(DownloadCommands::SHOW_IN_FOLDER));
@@ -182,7 +182,7 @@
      finished_download_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
    }
  
-@@ -343,6 +355,9 @@ ui::SimpleMenuModel* DownloadUiContextMe
+@@ -348,6 +360,9 @@
  
    interrupted_download_menu_model_->AddItem(
        DownloadCommands::RESUME, GetLabelForCommandId(DownloadCommands::RESUME));

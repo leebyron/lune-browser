@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/tabs/tab_style.cc
 +++ b/chrome/browser/ui/tabs/tab_style.cc
-@@ -19,13 +19,33 @@ namespace {
+@@ -19,13 +19,33 @@
  
  // Thickness in DIPs of the separator painted on the left and right edges of
  // the tab.
@@ -38,7 +38,7 @@
  
  }  // namespace
  
-@@ -39,10 +59,11 @@ int TabStyle::GetStandardWidth(const boo
+@@ -39,10 +59,11 @@
    if (is_split) {
      // Split tabs appear as half width with one bottom extension. They also must
      // include half the tab overlap as the tabs fill the space between them.
@@ -52,7 +52,7 @@
    }
  }
  
-@@ -76,7 +97,7 @@ int TabStyle::GetMinimumActiveWidth(cons
+@@ -76,7 +97,7 @@
    if (is_split) {
      // Only have one set of horizontal padding between tabs in an active split.
      return min_active_width -
@@ -61,7 +61,7 @@
    }
  
    return min_active_width;
-@@ -95,11 +116,11 @@ int TabStyle::GetMinimumInactiveWidth()
+@@ -95,11 +116,11 @@
  }
  
  int TabStyle::GetTopCornerRadius() const {
@@ -75,7 +75,7 @@
  }
  
  int TabStyle::GetBottomExtensionWidth() const {
-@@ -140,9 +161,14 @@ std::tuple<float, float, float, SkColor>
+@@ -140,9 +161,14 @@
    const SkColor inactive_bg =
        GetTabBackgroundColor(TabStyle::TabSelectionState::kInactive,
                              /*hovered=*/false, frame_active, color_provider);
@@ -93,7 +93,7 @@
    };
  
    const SkColor active_bg =
-@@ -329,15 +355,18 @@ SkColor TabStyle::GetCurrentTabBackgroun
+@@ -329,15 +355,18 @@
  }
  
  gfx::Insets TabStyle::GetContentsInsets() const {
@@ -123,7 +123,7 @@
  float TabStyle::GetSelectedTabOpacity() const {
 --- a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
 +++ b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
-@@ -82,15 +82,14 @@ SkPath HorizontalTabStyleViews::GetPath(
+@@ -81,15 +81,14 @@
    // tab width (in DIP), not our new, scaled-and-aligned bounds.
    float content_corner_radius =
        GetTopCornerRadiusForWidth(delegate_->GetView()->width()) * scale;
@@ -141,7 +141,7 @@
      float top_left_corner_radius = content_corner_radius;
      float top_right_corner_radius = content_corner_radius;
      float bottom_left_corner_radius = content_corner_radius;
-@@ -131,39 +130,6 @@ SkPath HorizontalTabStyleViews::GetPath(
+@@ -130,39 +129,6 @@
        top_right_corner_radius = 0;
      }
  
@@ -181,7 +181,7 @@
      // Radii are clockwise from top left.
      const SkVector radii[4] = {
          SkVector(top_left_corner_radius, top_left_corner_radius),
-@@ -409,19 +375,6 @@ gfx::Insets HorizontalTabStyleViews::Get
+@@ -408,19 +374,6 @@
    gfx::Insets base_style_insets = tab_style()->GetContentsInsets();
    gfx::Insets split_insets = gfx::Insets(0);
  
@@ -201,13 +201,13 @@
    gfx::Insets insets =
        gfx::Insets::TLBR(
            0, 0, GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap), 0) +
-@@ -664,19 +617,6 @@ float HorizontalTabStyleViews::GetHoverO
+@@ -663,19 +616,6 @@
  }
  
  int HorizontalTabStyleViews::GetStrokeThickness() const {
 -  if (delegate_->GetGroup().has_value() && !delegate_->IsInFocusedGroup() &&
 -      delegate_->IsActive()) {
--    return TabGroupUnderline::kStrokeThickness;
+-    return TabGroupStyle::GetUnderlineStrokeThickness();
 -  }
 -
 -  if (delegate_->IsActive()) {
@@ -221,7 +221,7 @@
    return 0;
  }
  
-@@ -789,7 +729,7 @@ void HorizontalTabStyleViews::PaintTabBa
+@@ -788,7 +728,7 @@
      cc::PaintFlags flags;
      flags.setAntiAlias(true);
  
@@ -230,7 +230,7 @@
      canvas->DrawRect(gfx::ScaleToEnclosingRect(
                           delegate_->GetView()->GetLocalBounds(), scale),
                       flags);
-@@ -811,9 +751,6 @@ void HorizontalTabStyleViews::PaintTabBa
+@@ -810,9 +750,6 @@
                                               browser_view, image);
    }
  
@@ -242,7 +242,7 @@
  void HorizontalTabStyleViews::PaintBackgroundHover(gfx::Canvas* canvas,
 --- a/chrome/browser/ui/views/tabs/tab.cc
 +++ b/chrome/browser/ui/views/tabs/tab.cc
-@@ -115,10 +115,7 @@ namespace {
+@@ -115,10 +115,7 @@
  // transitioning a tab from normal to pinned tab.
  constexpr int kPinnedTabExtraWidthToRenderAsNormal = 30;
  
@@ -254,7 +254,7 @@
  
  bool g_show_hover_card_on_mouse_hover = true;
  
-@@ -520,7 +517,10 @@ void Tab::Layout(PassKey) {
+@@ -517,7 +514,10 @@
  
    // The bounds for the favicon will include extra width for the attention
    // indicator, but visually it will be smaller at kFaviconSize wide.
@@ -266,7 +266,7 @@
    if (showing_icon_) {
      if (center_icon_) {
        // When centering the favicon, the favicon is allowed to escape the normal
-@@ -577,19 +577,15 @@ void Tab::Layout(PassKey) {
+@@ -574,19 +574,15 @@
    }
    close_button_->SetVisible(showing_close_button_);
  
@@ -291,7 +291,7 @@
          contents_rect.y() + Center(contents_rect.height(), image_size.height()),
          image_size.width(), image_size.height());
      if (center_icon_) {
-@@ -600,6 +596,7 @@ void Tab::Layout(PassKey) {
+@@ -597,6 +593,7 @@
        MaybeAdjustLeftForPinnedTab(&bounds, bounds.width());
      }
      alert_indicator_button_->SetBoundsRect(bounds);
@@ -299,7 +299,7 @@
    }
    alert_indicator_button_->UpdateAlertIndicatorAnimation();
    alert_indicator_button_->SetVisible(showing_alert_indicator_);
-@@ -613,7 +610,9 @@ void Tab::Layout(PassKey) {
+@@ -610,7 +607,9 @@
  
    if (show_title) {
      int title_left = start;
@@ -310,7 +310,7 @@
        // When computing the spacing from the favicon, don't count the actual
        // icon view width (which will include extra room for the alert
        // indicator), but rather the normal favicon width which is what it will
-@@ -624,9 +623,7 @@ void Tab::Layout(PassKey) {
+@@ -621,9 +620,7 @@
        title_left = std::max(title_left, after_favicon);
      }
      int title_right = contents_rect.right();
@@ -321,7 +321,7 @@
        // Allow the title to overlay the close button's empty border padding.
        title_right = close_x - after_title_padding;
      }
-@@ -1372,7 +1369,7 @@ void Tab::UpdateIconVisibility() {
+@@ -1364,7 +1361,7 @@
    const int close_button_width =
        GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
        GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding);
@@ -330,7 +330,7 @@
        available_width >= (touch_ui ? kTouchMinimumContentsWidthForCloseButtons
                                     : kMinimumContentsWidthForCloseButtons);
  
-@@ -1434,7 +1431,7 @@ void Tab::UpdateIconVisibility() {
+@@ -1426,7 +1423,7 @@
      }
  
      showing_close_button_ =
@@ -339,7 +339,7 @@
          !(declutter_eligible &&
            features::kTabStripDeclutterInactiveTabCloseHideEnabled.Get() &&
            available_width <=
-@@ -1469,10 +1466,6 @@ void Tab::UpdateIconVisibility() {
+@@ -1461,10 +1458,6 @@
        center_icon_ = true;
      }
    }
@@ -350,7 +350,7 @@
  }
  
  bool Tab::ShouldRenderAsNormalTab() const {
-@@ -1492,15 +1485,29 @@ void Tab::UpdateTabIconAttention() {
+@@ -1484,15 +1477,29 @@
  }
  
  int Tab::GetWidthOfLargestSelectableRegion() const {
@@ -391,7 +391,7 @@
  void Tab::UpdateForegroundColors() {
 --- a/chrome/browser/ui/views/tabs/tab.h
 +++ b/chrome/browser/ui/views/tabs/tab.h
-@@ -76,7 +76,7 @@ class Tab : public gfx::AnimationDelegat
+@@ -76,7 +76,7 @@
    // When the content's width of the tab shrinks to below this size we should
    // hide the close button on inactive tabs. Any smaller and they're too easy
    // to hit on accident.
@@ -402,7 +402,7 @@
    // Sets whether hover cards should appear on mouse hover. Used in browser
 --- a/chrome/browser/ui/views/tabs/tab_group_highlight.cc
 +++ b/chrome/browser/ui/views/tabs/tab_group_highlight.cc
-@@ -50,35 +50,7 @@ void TabGroupHighlight::OnPaint(gfx::Can
+@@ -50,35 +50,7 @@
  }
  
  SkPath TabGroupHighlight::GetPath() const {
@@ -441,7 +441,7 @@
  BEGIN_METADATA(TabGroupHighlight)
 --- a/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
 +++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
-@@ -42,6 +42,15 @@ gfx::Size GetButtonSize() {
+@@ -42,6 +42,15 @@
    return gfx::Size(button_size, button_size);
  }
  
@@ -457,7 +457,7 @@
  }  // namespace
  
  TabCloseButton::TabCloseButton(PressedCallback pressed_callback,
-@@ -76,9 +85,10 @@ TabCloseButton::TabCloseButton(PressedCa
+@@ -76,9 +85,10 @@
    // but needs to be explicitly mirrored for RTL.
    // TODO(http://crbug.com/40120351): Make ink drops in RTL work the same way as
    // focus rings.
@@ -470,7 +470,7 @@
    ink_drop_highlight_path->set_use_mirrored_rect(true);
    views::HighlightPathGenerator::Install(this,
                                           std::move(ink_drop_highlight_path));
-@@ -87,8 +97,8 @@ TabCloseButton::TabCloseButton(PressedCa
+@@ -87,8 +97,8 @@
    // TODO(http://crbug.com/40120351): Once this bug is solved and explicit
    // mirroring for ink drops is not needed, we can combine these two.
    auto ring_highlight_path =
@@ -481,7 +481,7 @@
    views::FocusRing::Get(this)->SetPathGenerator(std::move(ring_highlight_path));
  
    UpdateIcon();
-@@ -179,8 +189,10 @@ views::View* TabCloseButton::TargetForRe
+@@ -179,8 +189,10 @@
      return ViewTargeterDelegate::TargetForRect(root, rect);
    }
  
@@ -494,7 +494,7 @@
  
  #if defined(USE_AURA)
    // Include the padding in hit-test for touch events.
-@@ -201,8 +213,12 @@ views::View* TabCloseButton::TargetForRe
+@@ -201,8 +213,12 @@
  }
  
  bool TabCloseButton::GetHitTestMask(SkPath* mask) const {
@@ -511,7 +511,7 @@
  void TabCloseButton::UpdateIcon() {
 --- a/chrome/browser/ui/views/tabs/common/tab_group_style.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_group_style.cc
-@@ -64,7 +64,7 @@ gfx::Point TabGroupStyle::GetTitleChipOf
+@@ -112,7 +112,7 @@
        GetLayoutConstant(LayoutConstant::kTabStripHeight) -
        chip_height.value_or(GetEmptyChipSize()) -
        GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap);
@@ -520,23 +520,19 @@
  }
  
  // static
---- a/chrome/browser/ui/views/tabs/tab_group_underline.cc
-+++ b/chrome/browser/ui/views/tabs/tab_group_underline.cc
-@@ -24,8 +24,11 @@ constexpr int TabGroupUnderline::kStroke
+@@ -155,6 +155,8 @@
  
  // static
- int TabGroupUnderline::GetStrokeInset() {
--  return TabStyle::Get()->GetTabOverlap() -
--         TabGroupStyle::GetTabGroupOverlapAdjustment() + kStrokeThickness;
-+  // The underline perfectly aligns when it starts 1px outside of the
-+  // tab overlap area (6px).
-+  const int visual_alignment = 7;
-+  return TabStyle::Get()->GetTabOverlap() - visual_alignment +
-+         kStrokeThickness;
+ int TabGroupStyle::GetUnderlineStrokeInset() {
+-  return TabStyle::Get()->GetTabOverlap() - GetTabGroupOverlapAdjustment() +
++  // The underline starts one pixel beyond the six-pixel overlap.
++  constexpr int kVisualAlignment = 7;
++  return TabStyle::Get()->GetTabOverlap() - kVisualAlignment +
+          GetUnderlineStrokeThickness();
  }
- 
- TabGroupUnderline::TabGroupUnderline(TabGroupViews* tab_group_views,
-@@ -75,22 +78,20 @@ gfx::Insets TabGroupUnderline::GetInsets
+--- a/chrome/browser/ui/views/tabs/tab_group_underline.cc
++++ b/chrome/browser/ui/views/tabs/tab_group_underline.cc
+@@ -73,22 +73,20 @@
    // the group, and may be the right boundary if the group is collapsed.
    const TabGroupHeader* const header =
        views::AsViewClass<TabGroupHeader>(sibling_view);
@@ -568,7 +564,7 @@
  }
 --- a/chrome/browser/ui/views/tabs/tab_group_underline.h
 +++ b/chrome/browser/ui/views/tabs/tab_group_underline.h
-@@ -25,8 +25,7 @@ class TabGroupUnderline : public views::
+@@ -25,8 +25,7 @@
    METADATA_HEADER(TabGroupUnderline, views::View)
  
   public:
@@ -588,7 +584,7 @@
  #include "chrome/browser/ui/tabs/tab_style.h"
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
  #include "chrome/browser/ui/ui_features.h"
-@@ -640,13 +641,18 @@ std::u16string_view TabGroupHeader::GetT
+@@ -651,13 +652,18 @@
  
  int TabGroupHeader::GetDesiredWidth() const {
    const int overlap_margin = group_style_->GetTabGroupViewOverlap() * 2;
@@ -608,7 +604,7 @@
    return is_focused ? TabGroupStyle::GetFocusedChipHeight()
                      : TabGroupStyle::GetEmptyChipSize();
  }
-@@ -751,15 +757,19 @@ void TabGroupHeader::UpdateIsCollapsed()
+@@ -762,15 +768,19 @@
  }
  
  void TabGroupHeader::CreateHeaderWithoutTitle() {
@@ -636,7 +632,7 @@
    const gfx::RoundedCornersF radii =
 --- a/media/base/media_switches.cc
 +++ b/media/base/media_switches.cc
-@@ -564,7 +564,7 @@ BASE_FEATURE(kDocumentPictureInPictureRe
+@@ -557,7 +557,7 @@
  BASE_FEATURE(kEnableRtcpReporting, base::FEATURE_ENABLED_BY_DEFAULT);
  
  // Enables user control over muting tab audio from the tab strip.
@@ -647,7 +643,7 @@
  // The HW secure check is OS agnostic, but this switch is currently only
 --- a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
 +++ b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
-@@ -235,27 +235,8 @@ void AlertIndicatorButton::TransitionToA
+@@ -236,27 +236,8 @@
      UpdateIconForAlertState(next_state.value());
    }
  
@@ -677,7 +673,7 @@
    alert_state_ = next_state;
  
    if (previous_alert_showing_state != showing_alert_state_) {
-@@ -425,20 +406,7 @@ bool AlertIndicatorButton::IsTriggerable
+@@ -427,20 +408,7 @@
  }
  
  void AlertIndicatorButton::PaintButtonContents(gfx::Canvas* canvas) {
@@ -700,7 +696,7 @@
  gfx::ImageSkia AlertIndicatorButton::GetImageToPaint() {
 --- a/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc
 +++ b/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc
-@@ -70,8 +70,8 @@ TabStripFlatEdgeButton::TabStripFlatEdge
+@@ -75,8 +75,8 @@
        this, std::make_unique<views::RoundRectHighlightPathGenerator>(
                  gfx::Insets(), GetButtonCornerRadii()));
    ConfigureToolbarInkdropForRefresh2023(
@@ -711,7 +707,7 @@
    SetIconSize(
        GetLayoutConstant(LayoutConstant::kVerticalTabStripComboButtonIconSize));
    SetImageLabelSpacing(kButtonWithLabelPadding);
-@@ -286,14 +286,14 @@ void TabStripFlatEdgeButton::RemovedFrom
+@@ -291,14 +291,14 @@
  
  ui::ColorId TabStripFlatEdgeButton::GetForegroundColor() const {
    return GetWidget() && GetWidget()->ShouldPaintAsActive()
@@ -732,7 +728,7 @@
  gfx::RoundedCornersF TabStripFlatEdgeButton::GetButtonCornerRadii() const {
 --- a/chrome/browser/ui/views/tabs/tab_strip_control_button.cc
 +++ b/chrome/browser/ui/views/tabs/tab_strip_control_button.cc
-@@ -104,15 +104,15 @@ TabStripControlButton::TabStripControlBu
+@@ -104,20 +104,20 @@
    SetImageCentered(true);
    SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
  
@@ -746,10 +742,18 @@
 -      kColorNewTabButtonBackgroundFrameInactive;
 +      kColorTabBackgroundInactiveFrameInactive;
  
--  inkdrop_hover_color_id_ = kColorTabStripControlButtonInkDrop;
--  inkdrop_ripple_color_id_ = kColorTabStripControlButtonInkDropRipple;
-+  inkdrop_hover_color_id_ = kColorTabBackgroundInactiveHoverFrameActive;
-+  inkdrop_ripple_color_id_ = kColorTabBackgroundActiveFrameActive;
+-  inkdrop_hover_frame_active_color_id_ = kColorTabStripControlButtonInkDrop;
++  inkdrop_hover_frame_active_color_id_ =
++      kColorTabBackgroundInactiveHoverFrameActive;
+   inkdrop_hover_frame_inactive_color_id_ =
+-      kColorTabStripControlButtonInkDropFrameInactive;
+-  inkdrop_ripple_frame_active_color_id_ =
+-      kColorTabStripControlButtonInkDropRipple;
++      kColorTabBackgroundInactiveHoverFrameInactive;
++  inkdrop_ripple_frame_active_color_id_ = kColorTabBackgroundActiveFrameActive;
+   inkdrop_ripple_frame_inactive_color_id_ =
+-      kColorTabStripControlButtonInkDropRippleFrameInactive;
++      kColorTabBackgroundActiveFrameInactive;
  
    UpdateIcon();
    SetHorizontalAlignment(gfx::ALIGN_CENTER);

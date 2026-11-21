@@ -1,6 +1,6 @@
 --- a/chrome/app/vector_icons/BUILD.gn
 +++ b/chrome/app/vector_icons/BUILD.gn
-@@ -68,6 +68,7 @@ aggregate_vector_icons("chrome_vector_ic
+@@ -67,6 +67,7 @@
      "browser_tools_update_chrome_refresh_old.icon",
      "browser_tools_update_old.icon",
      "brush_filled.icon",
@@ -123,7 +123,7 @@
 +CLOSE
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -4902,6 +4902,20 @@ are declared in tools/grit/grit_args.gni
+@@ -4710,6 +4710,20 @@
        <message name="IDS_DEV_TOOLS_INFOBAR_LABEL" desc="Label displayed in an infobar when external debugger is attached to the browser.  The label does not disappear until the user dismisses it, even if the debugger is detached, and so should not imply that the debugger must still be debugging the browser, only that it was, and could still be.">
          "<ph name="CLIENT_NAME">$1<ex>Extension Foo</ex></ph>" started debugging this browser
        </message>
@@ -146,9 +146,9 @@
        <message name="IDS_DEV_TOOLS_CONFIRM_ADD_FILE_SYSTEM_MESSAGE" desc="Message displayed in DevTools infobar when user attempts to add file system to DevTools.">
 --- a/chrome/browser/extensions/api/debugger/BUILD.gn
 +++ b/chrome/browser/extensions/api/debugger/BUILD.gn
-@@ -48,6 +48,13 @@ source_set("debugger") {
-     "//url",
-   ]
+@@ -54,6 +54,13 @@
+     deps += [ "//chrome/browser/enterprise/connectors/reporting" ]
+   }
  
 +  if (!is_android) {
 +    deps += [
@@ -160,7 +160,7 @@
    if (is_android) {
      sources += [
        "extension_dev_tools_message_delegate.cc",
-@@ -64,3 +71,19 @@ source_set("debugger") {
+@@ -70,3 +77,19 @@
      ]
    }
  }
@@ -393,7 +393,7 @@
 +#endif  // CHROME_BROWSER_EXTENSIONS_API_DEBUGGER_EXTENSION_DEBUGGER_WARNING_STATUS_H_
 --- a/chrome/browser/extensions/api/debugger/debugger_api.cc
 +++ b/chrome/browser/extensions/api/debugger/debugger_api.cc
-@@ -72,10 +72,13 @@
+@@ -73,10 +73,13 @@
  #include "chrome/browser/extensions/api/debugger/extension_dev_tools_message_delegate.h"
  #else
  #include "chrome/browser/browser_process.h"
@@ -407,7 +407,7 @@
  #include "chrome/grit/generated_resources.h"
  #include "ui/base/l10n/l10n_util.h"
  #include "ui/strings/grit/ui_strings.h"
-@@ -724,7 +727,25 @@ bool ExtensionDevToolsClientHost::Attach
+@@ -729,7 +732,25 @@
  #if BUILDFLAG(IS_ANDROID)
      CreateWarningMessage();
  #else
@@ -436,7 +436,7 @@
  
 --- a/chrome/browser/ui/views/location_bar/BUILD.gn
 +++ b/chrome/browser/ui/views/location_bar/BUILD.gn
-@@ -87,6 +87,8 @@ source_set("impl") {
+@@ -87,6 +87,8 @@
      sources += [
        "content_setting_image_view.cc",
        "custom_tab_bar_view.cc",
@@ -445,14 +445,14 @@
        "lens_overlay_homework_page_action_controller.cc",
        "location_bar_bubble_delegate_view.cc",
        "location_bar_layout.cc",
-@@ -114,6 +116,7 @@ source_set("impl") {
+@@ -114,6 +116,7 @@
        "//chrome/browser/contextual_search",
        "//chrome/browser/contextual_tasks:ui",
        "//chrome/browser/extensions",
 +      "//chrome/browser/extensions/api/debugger:warning_status",
        "//chrome/browser/extensions/api/omnibox",
        "//chrome/browser/glic",
-       "//chrome/browser/history_embeddings",
+       "//chrome/browser/page_info",
 --- /dev/null
 +++ b/chrome/browser/ui/views/location_bar/extension_debugger_warning_view.cc
 @@ -0,0 +1,255 @@
@@ -776,7 +776,7 @@
 +#endif  // CHROME_BROWSER_UI_VIEWS_LOCATION_BAR_EXTENSION_DEBUGGER_WARNING_VIEW_H_
 --- a/chrome/browser/ui/views/location_bar/location_bar_view.h
 +++ b/chrome/browser/ui/views/location_bar/location_bar_view.h
-@@ -68,6 +68,10 @@ class Profile;
+@@ -69,6 +69,10 @@
  class SelectedKeywordView;
  class PrefChangeRegistrar;
  
@@ -787,7 +787,7 @@
  namespace page_actions {
  class PageActionContainerView;
  class PageActionController;
-@@ -575,6 +579,8 @@ class LocationBarView
+@@ -592,6 +596,8 @@
    // An icon to the left of the edit field: the HTTPS lock, blank page icon,
    // search icon, EV HTTPS bubble, etc.
    raw_ptr<LocationIconView> location_icon_view_ = nullptr;
@@ -798,15 +798,15 @@
    // we shouldn't change the text or selection inside the OmniboxView itself,
 --- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
-@@ -63,6 +63,7 @@
+@@ -62,6 +62,7 @@
  #include "chrome/browser/ui/views/chrome_typography.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 +#include "chrome/browser/ui/views/location_bar/extension_debugger_warning_view.h"
  #include "chrome/browser/ui/views/location_bar/location_bar_layout.h"
- #include "chrome/browser/ui/views/location_bar/location_bar_util.h"
  #include "chrome/browser/ui/views/location_bar/location_icon_state_helper.h"
-@@ -542,6 +543,12 @@ void LocationBarView::Init() {
+ #include "chrome/browser/ui/views/location_bar/location_icon_view.h"
+@@ -576,6 +577,12 @@
    ai_mode_hint_label->SetVisible(false);
    ai_mode_hint_label_ = AddChildView(std::move(ai_mode_hint_label));
  
@@ -819,7 +819,7 @@
    // Initialize the location entry. We do this to avoid a black flash which is
    // visible when the location entry has just been initialized.
    Update(nullptr);
-@@ -879,12 +886,23 @@ void LocationBarView::Layout(PassKey) {
+@@ -908,12 +915,23 @@
    // The largest fraction of the omnibox that can be taken by the EV or search
    // label/chip.
    const double kLeadingDecorationMaxFraction = 0.5;
@@ -844,7 +844,7 @@
                                        permission_dashboard_view_);
    }
  
-@@ -892,18 +910,18 @@ void LocationBarView::Layout(PassKey) {
+@@ -921,18 +939,18 @@
      location_icon_view_->SetVisible(false);
      leading_decorations.AddDecoration(
          vertical_padding, location_height, false, kLeadingDecorationMaxFraction,
@@ -866,7 +866,7 @@
                                        location_icon_view_);
    } else {
      location_icon_view_->SetVisible(false);
-@@ -1393,17 +1411,23 @@ int LocationBarView::GetAvailableDecorat
+@@ -1454,17 +1472,23 @@
  }
  
  int LocationBarView::GetMinimumLeadingWidth() const {

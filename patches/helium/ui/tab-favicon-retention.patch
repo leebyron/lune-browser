@@ -1,6 +1,6 @@
 --- a/components/favicon/core/favicon_handler.cc
 +++ b/components/favicon/core/favicon_handler.cc
-@@ -280,12 +280,14 @@ void FaviconHandler::SetFavicon(const GU
+@@ -289,12 +289,14 @@
    NotifyFaviconUpdated(icon_url, icon_type, image);
  }
  
@@ -18,7 +18,7 @@
    if (!error_other_than_404_found_ &&
        notification_icon_type_ != favicon_base::IconType::kInvalid) {
      if (service_ && !delegate_->IsOffTheRecord()) {
-@@ -296,6 +298,14 @@ void FaviconHandler::MaybeDeleteFaviconM
+@@ -305,6 +307,14 @@
  
      notification_icon_url_ = GURL();
      notification_icon_type_ = favicon_base::IconType::kInvalid;
@@ -33,7 +33,7 @@
    }
  }
  
-@@ -337,6 +347,13 @@ void FaviconHandler::OnUpdateCandidates(
+@@ -346,6 +356,13 @@
      return;
    }
  
@@ -47,7 +47,7 @@
    // `candidates or `manifest_url` could have been modified via Javascript. If
    // neither changed, ignore the call.
    if (candidates_received_ && manifest_url_ == manifest_url &&
-@@ -490,7 +507,7 @@ void FaviconHandler::OnGotInitialHistory
+@@ -499,7 +516,7 @@
    if (final_candidates_->empty()) {
      // The page lists no candidates that match our target `icon_types_`, so
      // check if any existing mappings should be deleted.
@@ -56,7 +56,7 @@
      return;
    }
  
-@@ -529,7 +546,9 @@ void FaviconHandler::OnDidDownloadFavico
+@@ -538,7 +555,9 @@
        if (service_) {
          service_->UnableToDownloadFavicon(image_url);
        }
@@ -67,7 +67,7 @@
        // `http_status_code` might be HTTP_OK here, but this is still
        // considered an error since `bitmaps` is empty.
        error_other_than_404_found_ = true;
-@@ -566,7 +585,8 @@ void FaviconHandler::OnDidDownloadFavico
+@@ -575,7 +594,8 @@
    } else {
      if (best_favicon_.candidate.icon_type == favicon_base::IconType::kInvalid) {
        // No valid icon found, so check if mappings should be deleted.
@@ -77,7 +77,7 @@
      } else {
        // We have either found the ideal candidate or run out of candidates.
        // No more icons to request, set the favicon from the candidate. The
-@@ -641,6 +661,11 @@ void FaviconHandler::OnFaviconDataForIni
+@@ -650,6 +670,11 @@
  
    if (final_candidates_) {
      OnGotInitialHistoryDataAndIconURLCandidates();
@@ -91,7 +91,7 @@
  
 --- a/components/favicon/core/favicon_handler.h
 +++ b/components/favicon/core/favicon_handler.h
-@@ -123,6 +123,14 @@ class FaviconHandler {
+@@ -123,6 +123,14 @@
      virtual void OnFaviconDeleted(
          const GURL& page_url,
          FaviconDriverObserver::NotificationIconType notification_icon_type) = 0;
@@ -106,7 +106,7 @@
    };
  
    // `service` may be null (which means favicons are not saved). If `service`
-@@ -159,6 +167,19 @@ class FaviconHandler {
+@@ -164,6 +172,19 @@
    // data from the CoreFaviconService. Reserved for testing.
    bool HasPendingTasksForTest();
  
@@ -126,7 +126,7 @@
    // Get the maximal icon size in pixels for a handler of type `handler_type`.
    // `candidates_from_web_manifest` represents whether the icons are coming
    // from a Web Manifest.
-@@ -261,12 +282,10 @@ class FaviconHandler {
+@@ -270,12 +291,10 @@
                    const gfx::Image& image,
                    favicon_base::IconType icon_type);
  
@@ -145,7 +145,7 @@
    // `handler_type_` criteria. NotifyFaviconUpdated() can be called multiple
 --- a/components/favicon/core/favicon_driver_impl.cc
 +++ b/components/favicon/core/favicon_driver_impl.cc
-@@ -61,6 +61,17 @@ bool FaviconDriverImpl::HasPendingTasksF
+@@ -67,6 +67,17 @@
    return false;
  }
  
@@ -165,7 +165,7 @@
    if (favicon_service_) {
 --- a/components/favicon/core/favicon_driver_impl.h
 +++ b/components/favicon/core/favicon_driver_impl.h
-@@ -44,6 +44,12 @@ class FaviconDriverImpl : public Favicon
+@@ -44,6 +44,12 @@
    explicit FaviconDriverImpl(CoreFaviconService* favicon_service);
    ~FaviconDriverImpl() override;
  
@@ -180,7 +180,7 @@
    // failures.
 --- a/third_party/blink/renderer/core/frame/local_frame.cc
 +++ b/third_party/blink/renderer/core/frame/local_frame.cc
-@@ -3590,10 +3590,9 @@ void LocalFrame::UpdateFaviconURL(mojom:
+@@ -3586,10 +3586,9 @@
        1 << static_cast<int>(
            mojom::blink::FaviconIconType::kTouchPrecomposedIcon);
    Vector<IconURL> icon_urls = GetDocument()->IconURLs(icon_types_mask);
@@ -200,10 +200,10 @@
  #include "content/public/browser/navigation_handle.h"
  #include "content/public/browser/page.h"
 +#include "content/public/browser/render_frame_host.h"
- #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
+ #include "third_party/blink/public/common/manifest/manifest.h"
  #include "ui/gfx/image/image.h"
  
-@@ -48,6 +49,21 @@ GURL ContentFaviconDriver::GetActiveURL(
+@@ -48,6 +49,21 @@
    return entry ? entry->GetURL() : GURL();
  }
  
@@ -225,7 +225,7 @@
  GURL ContentFaviconDriver::GetManifestURL(content::RenderFrameHost* rfh) {
    DocumentManifestData* document_data =
        DocumentManifestData::GetOrCreateForCurrentDocument(rfh);
-@@ -169,6 +185,23 @@ void ContentFaviconDriver::OnFaviconDele
+@@ -169,6 +185,23 @@
                                  content::FaviconStatus().image);
  }
  
@@ -249,7 +249,7 @@
  void ContentFaviconDriver::DidUpdateFaviconURL(
      content::RenderFrameHost* rfh,
      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
-@@ -256,7 +289,10 @@ void ContentFaviconDriver::DidFinishNavi
+@@ -263,7 +296,10 @@
    DocumentManifestData* document_data =
        DocumentManifestData::GetOrCreateForCurrentDocument(
            navigation_handle->GetRenderFrameHost());
@@ -261,7 +261,7 @@
  
    // Wait till the user navigates to a new URL to start checking the cache
    // again. The cache may be ignored for non-reload navigations (e.g.
-@@ -271,6 +307,15 @@ void ContentFaviconDriver::DidFinishNavi
+@@ -278,6 +314,15 @@
  
    // Get the favicon, either from history or request it from the net.
    FetchFavicon(url, navigation_handle->IsSameDocument());
@@ -279,7 +279,7 @@
  NAVIGATION_HANDLE_USER_DATA_KEY_IMPL(
 --- a/components/favicon/content/content_favicon_driver.h
 +++ b/components/favicon/content/content_favicon_driver.h
-@@ -39,6 +39,9 @@ class ContentFaviconDriver
+@@ -44,6 +44,9 @@
    bool FaviconIsValid() const override;
    GURL GetActiveURL() override;
  
@@ -289,7 +289,7 @@
    GURL GetManifestURL(content::RenderFrameHost* rfh);
  
   protected:
-@@ -88,6 +91,10 @@ class ContentFaviconDriver
+@@ -93,6 +96,10 @@
    void OnFaviconDeleted(const GURL& page_url,
                          FaviconDriverObserver::NotificationIconType
                              notification_icon_type) override;
@@ -302,14 +302,15 @@
    void DidUpdateFaviconURL(
 --- a/chrome/browser/ui/tab_ui_helper.cc
 +++ b/chrome/browser/ui/tab_ui_helper.cc
-@@ -29,12 +29,14 @@
+@@ -33,6 +33,7 @@
  #include "chrome/browser/ui/web_applications/web_app_browser_controller.h"
  #include "chrome/common/webui_url_constants.h"
  #include "chrome/grit/generated_resources.h"
 +#include "components/favicon/content/content_favicon_driver.h"
  #include "components/favicon/content/content_favicon_util.h"
- #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
- #include "components/tabs/public/tab_interface.h"
+ #include "components/favicon/core/favicon_service.h"
+ #include "components/favicon_base/favicon_types.h"
+@@ -41,6 +42,7 @@
  #include "components/tabs/public/tab_network_state.h"
  #include "content/public/browser/navigation_controller.h"
  #include "content/public/browser/navigation_entry.h"
@@ -317,15 +318,15 @@
  #include "content/public/browser/web_contents.h"
  #include "content/public/common/url_constants.h"
  #include "ui/base/l10n/l10n_util.h"
-@@ -202,6 +204,7 @@ ui::ImageModel TabUIHelper::GetFavicon()
-   if (wc_listener) {
-     if (const std::optional<tab_groups::DeferredTabState>& deferred_tab_state =
-             wc_listener->deferred_tab_state()) {
-+      retained_favicon_ = gfx::Image();
-       return deferred_tab_state.value().favicon();
-     }
+@@ -213,6 +215,7 @@
+ 
+ ui::ImageModel TabUIHelper::GetFavicon() {
+   if (pending_navigation_state_.has_value()) {
++    retained_favicon_ = gfx::Image();
+     return pending_navigation_state_->favicon;
    }
-@@ -212,11 +215,13 @@ ui::ImageModel TabUIHelper::GetFavicon()
+ 
+@@ -222,11 +225,13 @@
      const gfx::ImageSkia home_tab_icon =
          web_app_browser_controller->GetHomeTabIcon();
      if (!home_tab_icon.isNull()) {
@@ -339,7 +340,7 @@
          return ui::ImageModel::FromImageSkia(fallback_home_icon);
        }
      }
-@@ -228,9 +233,11 @@ ui::ImageModel TabUIHelper::GetFavicon()
+@@ -238,9 +243,11 @@
    // the window's active state -- rather than the global color scheme, which can
    // disagree and render the globe low-contrast ("dim") on some Linux themes
    // (e.g. the built-in PDF viewer). crbug.com/544891511
@@ -354,7 +355,7 @@
      // Cache the model so repeated calls return an equal ImageModel; TabData
      // compares favicons by value, and a fresh BindRepeating each call would
      // never compare equal. The bound resolver still re-runs at raster time, so
-@@ -240,11 +247,46 @@ ui::ImageModel TabUIHelper::GetFavicon()
+@@ -250,11 +257,46 @@
            favicon::GetDefaultFaviconModel(base::BindRepeating(
                &GetDefaultFaviconBackgroundColorId, tab().GetWeakPtr()));
      }
@@ -406,7 +407,7 @@
  bool TabUIHelper::ShouldHideThrobber() const {
 --- a/chrome/browser/ui/tab_ui_helper.h
 +++ b/chrome/browser/ui/tab_ui_helper.h
-@@ -18,6 +18,8 @@
+@@ -19,6 +19,8 @@
  #include "content/public/browser/web_contents_observer.h"
  #include "ui/base/models/image_model.h"
  #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
@@ -415,7 +416,7 @@
  
  class BrowserUiController;
  
-@@ -60,6 +62,7 @@ class TabUIHelper : public tabs::Content
+@@ -69,6 +71,7 @@
  
    // Get the favicon of the tab. It will return a favicon from history service
    // if it needs to, otherwise, it will return the favicon of the WebContents.
@@ -423,7 +424,7 @@
    ui::ImageModel GetFavicon();
  
    // Return true if the throbber should be hidden during a page load.
-@@ -127,6 +130,10 @@ class TabUIHelper : public tabs::Content
+@@ -161,6 +164,10 @@
    // at raster time. crbug.com/544891511
    ui::ImageModel default_favicon_model_;
  

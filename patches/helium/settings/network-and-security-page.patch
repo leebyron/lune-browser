@@ -1,6 +1,6 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -1914,6 +1914,33 @@
+@@ -1917,6 +1917,33 @@
      <message name="IDS_SETTINGS_UNIVERSAL_OPT_OUT_SUB_LABEL" desc="Subtitle of a setting. It appears below the title: ‘Send an opt-out request to sites regarding use of your data’. Users choose whether they want to send a request to sites about how to treat their user data. This string explains that sites may not respond to the user’s request even when this toggle is on; and, even when they do respond, sites may handle opt-out requests differently based on regional laws. On desktop computers, this string appears in the ‘Site requests’ section of the ‘Third-party cookies and site data’ page. On mobile devices, this string appears on its own subpage. The tone should be informative.">
        The sites you visit, including Google, are responsible for determining how they respond to this request. Depending on the laws in your region, sites may respond by limiting the sale and sharing of your data or its use for personalized ads.
      </message>
@@ -34,7 +34,7 @@
      <message name="IDS_SETTINGS_PERMISSIONS_DESCRIPTION" desc="Description of the controls available on the permissions and site content settings page">
        Controls what information sites can use and show (location, camera, pop-ups, and more)
      </message>
-@@ -1973,13 +2000,13 @@
+@@ -1976,13 +2003,13 @@
        Don't see any warnings before going to insecure sites
      </message>
      <message name="IDS_SETTINGS_HTTPS_FIRST_MODE_ENABLED_STRICT_LABEL" desc="Label for radio button to enable the stricter form of HTTPS-First Mode">
@@ -52,7 +52,7 @@
        Doesn’t warn you for private sites, such as your company’s intranet
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -2621,14 +2621,20 @@ void AddPrivacyStrings(content::WebUIDat
+@@ -2649,14 +2649,20 @@
        {"newBadgeLabel", IDS_NEW_BADGE},
        {"privacyPageTitle", IDS_SETTINGS_PRIVACY},
        {"privacyPageMore", IDS_SETTINGS_PRIVACY_MORE},
@@ -80,50 +80,50 @@
        {"noiseTitle", IDS_SETTINGS_NOISE},
        {"noiseLinkDescription", IDS_SETTINGS_NOISE_LINK_DESCRIPTION},
        {"noiseToggleDescription", IDS_SETTINGS_NOISE_TOGGLE_DESCRIPTION},
---- a/chrome/browser/resources/settings/privacy_page/cookies_page.html
-+++ b/chrome/browser/resources/settings/privacy_page/cookies_page.html
-@@ -10,9 +10,6 @@ import {ThirdPartyCookieBlockingSetting}
-       search-term="${this.searchTerm}"
-       @search-term-changed="${this.onSearchTermChanged_}"
-       route-path="${this.routePath}">
--    ${this.showUniversalOptOutSettings_ ? html`
--      <h2 id="cookiesHeader">$i18n{thirdPartyCookiesSubHeader}</h2>
--    ` : ''}
-     <div id="explanationText" class="secondary">
-       $i18n{thirdPartyCookiesPageDescription}
-     </div>
-@@ -138,28 +135,6 @@ import {ThirdPartyCookieBlockingSetting}
-         </settings-radio-group>
-       ` : ''}
-     </div>
--    ${this.showUniversalOptOutSettings_ ? html`
--      <h2 id="siteRequestsHeader">
--        $i18n{siteRequestsSubHeader}
--      </h2>
--    ` : ''}
--    ${!this.showUniversalOptOutSettings_ ? html`
--      <h2 id="additionalProtections">
--        $i18n{trackingProtectionAdvancedLabel}
--      </h2>
--    ` : ''}
--    <settings-do-not-track-toggle id="doNotTrack">
--    </settings-do-not-track-toggle>
--    ${this.showUniversalOptOutSettings_ ? html`
--      <settings-toggle-button id="universalOptOutToggle" class="toggle"
--          label="$i18n{universalOptOutLabel}"
--          pref-key="universal_optout.enabled"
--          @settings-boolean-control-change="${this.onUniversalOptOutToggleSettingsBooleanControlChange_}"
--          icon="settings20:front-hand"
--          sub-label="$i18n{universalOptOutSubLabel}"
--          learn-more-url="$i18n{universalOptOutLearnMoreURL}">
--      </settings-toggle-button>
--    ` : ''}
-     <cr-link-row id="siteDataTrigger" class="hr"
-         @click="${this.onSiteDataClick_}" label="$i18n{cookiePageAllSitesLink}"
-         role-description="$i18n{subpageArrowRoleDescription}">
+--- a/chrome/browser/resources/settings/privacy_page/cookies_page.html.ts
++++ b/chrome/browser/resources/settings/privacy_page/cookies_page.html.ts
+@@ -17,9 +17,6 @@
+     search-icon="settings20:filter-list" search-term="${this.searchTerm}"
+     @search-term-changed="${this.onSearchTermChanged_}"
+     route-path="${this.routePath}">
+-  ${this.showUniversalOptOutSettings_ ? html`
+-    <h2 id="cookiesHeader">$i18n{thirdPartyCookiesSubHeader}</h2>
+-  ` : ''}
+   <div id="explanationText" class="secondary">
+     $i18n{thirdPartyCookiesPageDescription}
+   </div>
+@@ -142,27 +139,7 @@
+       </settings-radio-group>
+     ` : ''}
+   </div>
+-  ${this.showUniversalOptOutSettings_ ? html`
+-    <h2 id="siteRequestsHeader">
+-      $i18n{siteRequestsSubHeader}
+-    </h2>
+-  ` : ''}
+-  ${!this.showUniversalOptOutSettings_ ? html`
+-    <h2 id="additionalProtections">
+-      $i18n{trackingProtectionAdvancedLabel}
+-    </h2>
+-  ` : ''}
+-  <settings-do-not-track-toggle id="doNotTrack"></settings-do-not-track-toggle>
+-  ${this.showUniversalOptOutSettings_ ? html`
+-    <settings-toggle-button id="universalOptOutToggle" class="toggle"
+-        label="$i18n{universalOptOutLabel}" pref-key="universal_optout.enabled"
+-        @settings-boolean-control-change="${
+-            this.onUniversalOptOutToggleSettingsBooleanControlChange_}"
+-        icon="settings20:front-hand" sub-label="$i18n{universalOptOutSubLabel}"
+-        learn-more-url="$i18n{universalOptOutLearnMoreURL}">
+-    </settings-toggle-button>
+-  ` : ''}
+-  <cr-link-row id="siteDataTrigger" class="hr" @click="${this.onSiteDataClick_}"
++<cr-link-row id="siteDataTrigger" class="hr" @click="${this.onSiteDataClick_}"
+       label="$i18n{cookiePageAllSitesLink}"
+       role-description="$i18n{subpageArrowRoleDescription}">
+   </cr-link-row>
 --- a/chrome/browser/resources/settings/privacy_page/cookies_page.ts
 +++ b/chrome/browser/resources/settings/privacy_page/cookies_page.ts
-@@ -20,7 +20,6 @@ import '../icons.html.js';
+@@ -20,7 +20,6 @@
  import '../privacy_icons.html.js';
  import '../settings_page/settings_subpage.js';
  import '../site_settings/site_list.js';
@@ -144,27 +144,25 @@
 -}
 --- a/chrome/browser/resources/settings/privacy_page/do_not_track_toggle.html.ts
 +++ b/chrome/browser/resources/settings/privacy_page/do_not_track_toggle.html.ts
-@@ -8,34 +8,11 @@ import type {SettingsDoNotTrackToggleEle
+@@ -8,33 +8,10 @@
  
  export function getHtml(this: SettingsDoNotTrackToggleElement) {
    return html`<!--_html_template_start_-->
--<settings-toggle-button id="toggle" class="toggle"
-+<settings-toggle-button id="toggle" class="hr"
-     label="$i18n{doNotTrack}"
+-<settings-toggle-button id="toggle" class="toggle" label="$i18n{doNotTrack}"
++<settings-toggle-button id="toggle" class="hr" label="$i18n{doNotTrack}"
      pref-key="enable_do_not_track"
 -    @settings-boolean-control-change="${this.onSettingsBooleanControlChange_}"
--    sub-label="${this.doNotTrackSublabel_}"
--    icon="settings:forward"
--    no-set-pref>
+-    sub-label="${this.doNotTrackSublabel_}" icon="settings:forward" no-set-pref>
 +    @change="${this.onToggleChange_}"
 +    sub-label="$i18n{doNotTrackDescription}">
  </settings-toggle-button>
 -${this.showDialog_ ? html`
--  <cr-dialog id="confirmDialog"
--      close-text="$i18n{close}" @cancel="${this.onDialogCancel_}"
--      @close="${this.onDialogClose_}" show-on-attach>
+-  <cr-dialog id="confirmDialog" close-text="$i18n{close}"
+-      @cancel="${this.onDialogCancel_}" @close="${this.onDialogClose_}"
+-      show-on-attach>
 -    <div slot="title">$i18n{doNotTrackDialogTitle}</div>
--    <div slot="body">$i18n{doNotTrackDialogMessage}
+-    <div slot="body">
+-      $i18n{doNotTrackDialogMessage}
 -      <a href="$i18nRaw{doNotTrackLearnMoreURL}" target="_blank"
 -          aria-description="$i18n{opensInNewTab}"
 -          aria-label="$i18n{doNotTrackDialogLearnMoreA11yLabel}">
@@ -179,7 +177,8 @@
 -        $i18n{confirm}
 -      </cr-button>
 -    </div>
--  </cr-dialog>` : ''}
+-  </cr-dialog>
+-` : ''}
  <!--_html_template_end_-->`;
  }
 --- a/chrome/browser/resources/settings/privacy_page/do_not_track_toggle.ts
@@ -219,7 +218,7 @@
    static get is() {
      return 'settings-do-not-track-toggle';
    }
-@@ -41,83 +24,9 @@ export class SettingsDoNotTrackToggleEle
+@@ -41,83 +24,9 @@
      return getHtml.bind(this)();
    }
  
@@ -232,7 +231,7 @@
 -  }
 -
 -  protected accessor showDialog_: boolean = false;
--  protected accessor showUniversalOptOutSettings_: boolean =
+-  private accessor showUniversalOptOutSettings_: boolean =
 -      loadTimeData.getBoolean('showUniversalOptOutSettings');
 -  protected accessor doNotTrackSublabel_: string = '';
 -
@@ -304,19 +303,20 @@
    }
  }
  
---- a/chrome/browser/resources/settings/privacy_page/security/secure_dns.html
-+++ b/chrome/browser/resources/settings/privacy_page/security/secure_dns.html
-@@ -4,7 +4,6 @@ import {SecureDnsResolverType} from './s
+--- a/chrome/browser/resources/settings/privacy_page/security/secure_dns.html.ts
++++ b/chrome/browser/resources/settings/privacy_page/security/secure_dns.html.ts
+@@ -9,7 +9,7 @@
  
-     <settings-toggle-button
-         id="secureDnsToggle"
--        class="hr"
-         pref-key="synthetic.settings.dns_over_https.secure_dns_toggle"
-         label="$i18n{secureDns}"
-         sub-label="${this.secureDnsDescription_}"
+ export function getHtml(this: SettingsSecureDnsElement) {
+   return html`<!--_html_template_start_-->
+-<settings-toggle-button id="secureDnsToggle" class="hr"
++<settings-toggle-button id="secureDnsToggle"
+     pref-key="synthetic.settings.dns_over_https.secure_dns_toggle"
+     label="$i18n{secureDns}" sub-label="${this.secureDnsDescription_}"
+     @change="${this.onToggleChange_}">
 --- a/chrome/browser/resources/settings/privacy_page/security/security_page.ts
 +++ b/chrome/browser/resources/settings/privacy_page/security/security_page.ts
-@@ -13,6 +13,7 @@ import '../../controls/settings_toggle_b
+@@ -13,6 +13,7 @@
  import '../../icons.html.js';
  import '../../settings_page/settings_subpage.js';
  import '../../simple_confirmation_dialog.js';
@@ -324,83 +324,83 @@
  import './secure_dns.js';
  
  import {PrefService} from '/shared/settings/prefs2/pref_service.js';
---- a/chrome/browser/resources/settings/privacy_page/security/security_page.html
-+++ b/chrome/browser/resources/settings/privacy_page/security/security_page.html
-@@ -6,10 +6,12 @@ import {HttpsFirstModeSetting} from './s
-   <settings-subpage page-title="$i18n{securityPageTitle}"
-       learn-more-url="$i18n{safeBrowsingHelpCenterURL}"
-       route-path="${this.routePath}">
-+    <div class="cr-row first">
-+      <h2 class="cr-title-text">$i18n{networkSectionTitle}</h2>
-+    </div>
-     ${this.enableHttpsFirstModeNewSettings_ ? html`
-       <div id="secureConnectionsSection">
--        <h2 class="cr-title-text">$i18n{secureConnectionsSectionTitle}</h2>
--        <settings-toggle-button id="httpsFirstModeToggle" class="cr-row first"
-+        <settings-toggle-button id="httpsFirstModeToggle" class="hr"
-             pref-key="generated.https_first_mode_enabled"
-             label="$i18n{httpsOnlyModeTitle}"
-             sub-label="${this.getHttpsFirstModeSubLabel_()}"
-@@ -32,27 +34,21 @@ import {HttpsFirstModeSetting} from './s
-                   pref-key="generated.https_first_mode_enabled"
-                   label="$i18n{httpsFirstModeEnabledStrictLabel}"
-                   class="list-item">
--                <div class="cr-secondary-text">
--                  $i18n{httpsFirstModeEnabledStrictSubLabel}
--                </div>
-               </controlled-radio-button>
-             </settings-radio-group>
-           </div>
-         </cr-collapse>
-       </div>
-     ` : ''}
--    <div class="cr-row first">
--      <h2 class="cr-title-text">$i18n{advancedPageTitle}</h2>
--    </div>
-     ${!this.enableHttpsFirstModeNewSettings_ ? html`
--      <settings-toggle-button id="httpsOnlyModeToggle"
-+      <settings-toggle-button id="httpsOnlyModeToggle" class="hr"
+--- a/chrome/browser/resources/settings/privacy_page/security/security_page.html.ts
++++ b/chrome/browser/resources/settings/privacy_page/security/security_page.html.ts
+@@ -12,10 +12,12 @@
+ <settings-subpage page-title="$i18n{securityPageTitle}"
+     learn-more-url="$i18n{safeBrowsingHelpCenterURL}"
+     route-path="${this.routePath}">
++  <div class="cr-row first">
++    <h2 class="cr-title-text">$i18n{networkSectionTitle}</h2>
++  </div>
+   ${this.enableHttpsFirstModeNewSettings_ ? html`
+     <div id="secureConnectionsSection">
+-      <h2 class="cr-title-text">$i18n{secureConnectionsSectionTitle}</h2>
+-      <settings-toggle-button id="httpsFirstModeToggle" class="cr-row first"
++      <settings-toggle-button id="httpsFirstModeToggle" class="hr"
            pref-key="generated.https_first_mode_enabled"
            label="$i18n{httpsOnlyModeTitle}"
            sub-label="${this.getHttpsFirstModeSubLabel_()}"
-           .numericCheckedValue="${HttpsFirstModeSetting.ENABLED_FULL}">
-       </settings-toggle-button>
-       ${this.showSecureDnsSetting_ ? html`
--        <settings-secure-dns id="secureDnsSettingOld">
-+        <settings-secure-dns id="secureDnsSettingOld" class="hr">
-         </settings-secure-dns>
-       ` : ''}
+@@ -38,27 +40,21 @@
+                 pref-key="generated.https_first_mode_enabled"
+                 label="$i18n{httpsFirstModeEnabledStrictLabel}"
+                 class="list-item">
+-              <div class="cr-secondary-text">
+-                $i18n{httpsFirstModeEnabledStrictSubLabel}
+-              </div>
+             </controlled-radio-button>
+           </settings-radio-group>
+         </div>
+       </cr-collapse>
+     </div>
+   ` : ''}
+-  <div class="cr-row first">
+-    <h2 class="cr-title-text">$i18n{advancedPageTitle}</h2>
+-  </div>
+   ${!this.enableHttpsFirstModeNewSettings_ ? html`
+-    <settings-toggle-button id="httpsOnlyModeToggle"
++    <settings-toggle-button id="httpsOnlyModeToggle" class="hr"
+         pref-key="generated.https_first_mode_enabled"
+         label="$i18n{httpsOnlyModeTitle}"
+         sub-label="${this.getHttpsFirstModeSubLabel_()}"
+         .numericCheckedValue="${HttpsFirstModeSetting.ENABLED_FULL}">
+     </settings-toggle-button>
+     ${this.showSecureDnsSetting_ ? html`
+-      <settings-secure-dns id="secureDnsSettingOld"></settings-secure-dns>
++      <settings-secure-dns id="secureDnsSettingOld" class="hr"></settings-secure-dns>
      ` : ''}
-@@ -62,12 +58,28 @@ import {HttpsFirstModeSetting} from './s
-     ` : ''}
+   ` : ''}
+   ${this.enableHttpsFirstModeNewSettings_ && this.showSecureDnsSetting_ ?
+@@ -68,12 +64,28 @@
+   ` : ''}
  <if expr="is_chromeos">
-     ${this.showSecureDnsSettingLink_ ? html`
--      <cr-link-row id="openChromeOSSecureDnsSettings"
-+      <cr-link-row id="openChromeOSSecureDnsSettings" class="hr"
-           @click="${this.onOpenChromeOsSecureDnsSettingsClick_}"
-           label="$i18n{openChromeOSSecureDnsSettingsLabel}" external>
-       </cr-link-row>
-     ` : ''}
+   ${this.showSecureDnsSettingLink_ ? html`
+-    <cr-link-row id="openChromeOSSecureDnsSettings"
++    <cr-link-row id="openChromeOSSecureDnsSettings" class="hr"
+         @click="${this.onOpenChromeOsSecureDnsSettingsClick_}"
+         label="$i18n{openChromeOSSecureDnsSettingsLabel}" external>
+     </cr-link-row>
+   ` : ''}
  </if>
-+    <div id="privacySignalsHeader" class="cr-row">
-+      <div>
-+        <h2 class="cr-title-text">$i18n{privacySignalsSectionTitle}</h2>
-+        <div class="cr-secondary-text">$i18n{privacySignalsDescription}</div>
-+      </div>
++  <div id="privacySignalsHeader" class="cr-row">
++    <div>
++      <h2 class="cr-title-text">$i18n{privacySignalsSectionTitle}</h2>
++      <div class="cr-secondary-text">$i18n{privacySignalsDescription}</div>
 +    </div>
-+    <settings-toggle-button id="globalPrivacyControlToggle" class="hr"
-+        pref-key="helium.global_privacy_control"
-+        label="$i18n{globalPrivacyControl}"
-+        sub-label="$i18n{globalPrivacyControlDescription}">
-+    </settings-toggle-button>
-+    <settings-do-not-track-toggle id="doNotTrack">
-+    </settings-do-not-track-toggle>
-+    <div class="cr-row">
-+      <h2 class="cr-title-text">$i18n{securitySectionTitle}</h2>
-+    </div>
-     <cr-link-row id="javascriptOptimizerSettingLink" class="hr"
-         @click="${this.onJavascriptOptimizerSettingsClick_}"
-         label="$i18n{securityJavascriptOptimizerLinkTitle}"
++  </div>
++  <settings-toggle-button id="globalPrivacyControlToggle" class="hr"
++      pref-key="helium.global_privacy_control"
++      label="$i18n{globalPrivacyControl}"
++      sub-label="$i18n{globalPrivacyControlDescription}">
++  </settings-toggle-button>
++  <settings-do-not-track-toggle id="doNotTrack">
++  </settings-do-not-track-toggle>
++  <div class="cr-row">
++    <h2 class="cr-title-text">$i18n{securitySectionTitle}</h2>
++  </div>
+   <cr-link-row id="javascriptOptimizerSettingLink" class="hr"
+       @click="${this.onJavascriptOptimizerSettingsClick_}"
+       label="$i18n{securityJavascriptOptimizerLinkTitle}"
 --- a/chrome/browser/resources/settings/privacy_page/cookies_page.css
 +++ b/chrome/browser/resources/settings/privacy_page/cookies_page.css
 @@ -17,12 +17,6 @@
@@ -434,7 +434,7 @@
  }
 --- a/chrome/browser/resources/settings/privacy_page/security/security_page.css
 +++ b/chrome/browser/resources/settings/privacy_page/security/security_page.css
-@@ -60,17 +60,27 @@ settings-toggle-button:not([disabled]) {
+@@ -60,17 +60,27 @@
        var(--cr-radio-button-checked-ripple-color);
  }
  

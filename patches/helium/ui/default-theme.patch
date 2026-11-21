@@ -1,6 +1,6 @@
 --- a/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.html.ts
 +++ b/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.html.ts
-@@ -12,17 +12,6 @@ export function getHtml(this: ThemeColor
+@@ -12,17 +12,6 @@
  <!-- TODO(crbug.com/40881996): Make grid adaptive. -->
  <cr-grid columns="${this.columns}" role="radiogroup"
      aria-label="${this.i18n('colorsContainerLabel')}">
@@ -20,9 +20,9 @@
        .baseColor="${this.greyDefaultColor_.base}"
 --- a/chrome/browser/themes/theme_service.cc
 +++ b/chrome/browser/themes/theme_service.cc
-@@ -346,6 +346,12 @@ ThemeService::~ThemeService() = default;
- void ThemeService::Init() {
-   theme_helper_->DCheckCalledOnValidSequence();
+@@ -400,6 +400,12 @@
+ #endif
+   }
  
 +  if (profile_->IsNewProfile() && !UsingPolicyTheme() &&
 +      !profile_->GetPrefs()->HasPrefPath(prefs::kCurrentThemeID) &&
@@ -33,7 +33,7 @@
    InitFromPrefs();
  
    // ThemeObserver should be constructed before calling
-@@ -473,6 +479,8 @@ void ThemeService::UseDefaultTheme() {
+@@ -531,6 +537,8 @@
    }
  
    ClearThemeData(/*reset_all_settings=*/true);

@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4731,6 +4731,12 @@ views::CloseRequestResult BrowserView::O
+@@ -4780,6 +4780,12 @@
  
  int BrowserView::NonClientHitTest(const gfx::Point& point) {
  #if BUILDFLAG(IS_MAC)
@@ -13,7 +13,7 @@
    // The top container while in immersive fullscreen on macOS lives in another
    // Widget (OverlayWidgetMac). This means that BrowserView does not need to
    // consult BrowserViewLayout::NonClientHitTest() to calculate the hit test.
-@@ -4801,6 +4807,18 @@ int BrowserView::NonClientHitTest(const
+@@ -4850,6 +4856,18 @@
      }
    }
  
@@ -34,7 +34,7 @@
    if (IsWindowControlsOverlayEnabled() && GetActiveWebContents()) {
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -225,38 +225,6 @@ constexpr int kLargeSpaceBetweenButtons
+@@ -223,45 +223,6 @@
  constexpr int kInsideBorderAroundGlicButtons = 2;
  constexpr int kGlicButtonMargin = 5;
  
@@ -53,6 +53,13 @@
 -      const gfx::Point point_in_child =
 -          views::View::ConvertPointToTarget(view, child, point);
 -      return IsPositionInWindowCaptionForView(child, point_in_child);
+-    }
+-    // The WebUI toolbar hosts its controls in a single WebView, so ask it
+-    // whether the point falls between its controls rather than on one.
+-    if (const auto* webui_toolbar =
+-            views::AsViewClass<WebUIToolbarWebView>(child)) {
+-      return webui_toolbar->IsPositionInWindowCaption(
+-          views::View::ConvertPointToTarget(view, child, point));
 -    }
 -    // Separators and dividers are non-interactive and should be treated
 -    // as caption area.
@@ -73,7 +80,7 @@
  void SetRefreshMargins(views::View* button, bool expanded) {
    button->SetProperty(
        views::kMarginsKey,
-@@ -1282,6 +1250,40 @@ bool ToolbarView::GetAppMenuFocused() co
+@@ -1321,6 +1282,47 @@
    return app_menu_control && app_menu_control->HasFocus();
  }
  
@@ -100,6 +107,13 @@
 +
 +    const gfx::Rect target_rect = get_target_rect(child);
 +    if (child->GetLocalBounds().Intersects(target_rect)) {
++      if (const auto* webui_toolbar =
++              views::AsViewClass<WebUIToolbarWebView>(child);
++          webui_toolbar && rect.size() == gfx::Size(1, 1) &&
++          webui_toolbar->IsPositionInWindowCaption(target_rect.origin())) {
++        continue;
++      }
++
 +      // Check if the rect is actually on the child.
 +      if (child->HitTestRect(target_rect)) {
 +        return false;
@@ -114,7 +128,7 @@
  void ToolbarView::ShowIntentPickerBubble(
      std::vector<apps::IntentPickerAppInfo> app_info,
      bool show_stay_in_chrome,
-@@ -1315,7 +1317,7 @@ void ToolbarView::ShowBookmarkBubble(con
+@@ -1354,7 +1356,7 @@
  
  bool ToolbarView::IsPositionInWindowCaption(
      const gfx::Point& test_point) const {
@@ -125,7 +139,7 @@
  void ToolbarView::RecordHitTestMetrics(bool is_caption_area) {
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.h
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
-@@ -150,6 +150,10 @@ class ToolbarView : public views::Access
+@@ -152,6 +152,10 @@
  
    OverflowButton* overflow_button() { return overflow_button_; }
  

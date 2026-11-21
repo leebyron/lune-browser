@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
-@@ -139,7 +139,7 @@ class FrameGrabHandle : public views::Vi
+@@ -140,7 +140,7 @@
  BEGIN_METADATA(FrameGrabHandle)
  END_METADATA
  
@@ -9,8 +9,8 @@
    // `browser` can be null in tests and `app_controller` will be null if
    // the browser is not for an app.
    bool hide_new_tab_button =
-@@ -152,6 +152,28 @@ bool ShouldShowNewTabButton(BrowserWindo
-   return !hide_new_tab_button;
+@@ -165,6 +165,28 @@
+          GetNewTabButtonTrailingOverlap();
  }
  
 +bool ShouldShowNewTabButton(BrowserWindowInterface* browser) {
@@ -38,7 +38,7 @@
  // Updates the border of `view` if the insets need to be updated.
  void UpdateBorderInsetsIfNeeded(views::View* view,
                                  const gfx::Insets& new_border_insets) {
-@@ -220,7 +242,7 @@ HorizontalTabStripRegionViewOld::Horizon
+@@ -233,7 +255,7 @@
                                 views::MaximumFlexSizeRule::kPreferred);
    tab_strip_->SetProperty(views::kFlexBehaviorKey, tab_strip_flex_spec);
  
@@ -47,7 +47,7 @@
      std::unique_ptr<TabStripControlButton> tab_strip_control_button =
          std::make_unique<NewTabButton>(
              base::BindRepeating(&TabStrip::NewTabButtonPressed,
-@@ -242,6 +264,7 @@ HorizontalTabStripRegionViewOld::Horizon
+@@ -255,6 +277,7 @@
      new_tab_button_->SetTriggerableEventFlags(
          new_tab_button_->GetTriggerableEventFlags() |
          ui::EF_MIDDLE_MOUSE_BUTTON);
@@ -55,7 +55,7 @@
    }
  
    reserved_grab_handle_space_ =
-@@ -347,6 +370,14 @@ void HorizontalTabStripRegionViewOld::La
+@@ -360,6 +383,14 @@
      return;
    }
  
@@ -70,7 +70,7 @@
    UpdateTabStripMargin();
    LayoutSuperclass<views::AccessiblePaneView>(this);
  
-@@ -354,7 +385,7 @@ void HorizontalTabStripRegionViewOld::La
+@@ -367,7 +398,7 @@
      AdjustViewBoundsRect(combo_button_, 0);
    }
  
@@ -79,7 +79,7 @@
  
    if (button_to_paint_to_layer) {
      // The button needs to be layered on top of the tabstrip to achieve
-@@ -584,7 +615,7 @@ void HorizontalTabStripRegionViewOld::Up
+@@ -597,7 +628,7 @@
    const int extra_vertical_space =
        GetLayoutConstant(LayoutConstant::kTabStripHeight) -
        GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap) -
@@ -88,7 +88,7 @@
    const int top_inset = extra_vertical_space / 2;
    const int bottom_inset =
        extra_vertical_space - top_inset +
-@@ -629,7 +660,7 @@ void HorizontalTabStripRegionViewOld::Up
+@@ -642,7 +673,7 @@
    // The new tab button overlaps the tabstrip. Render it to a layer and adjust
    // the tabstrip right margin to reserve space for it.
    std::optional<int> tab_strip_right_margin;
@@ -97,7 +97,7 @@
  
    if (button_to_paint_to_layer) {
      button_to_paint_to_layer->SetPaintToLayer();
-@@ -683,12 +714,10 @@ void HorizontalTabStripRegionViewOld::Up
+@@ -696,12 +727,10 @@
  
    UpdateButtonBorders();
  
@@ -114,7 +114,7 @@
  }
  
  void HorizontalTabStripRegionViewOld::AdjustViewBoundsRect(View* view,
-@@ -1016,7 +1045,7 @@ void HorizontalTabStripRegionViewNew::Up
+@@ -1049,7 +1078,7 @@
    const int extra_vertical_space =
        GetLayoutConstant(LayoutConstant::kTabStripHeight) -
        GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap) -
@@ -133,15 +133,15 @@
  #include "chrome/browser/ui/layout_constants.h"
  #include "chrome/browser/ui/tabs/features.h"
  #include "chrome/browser/ui/tabs/tab_style.h"
-@@ -25,6 +26,7 @@
- #include "chrome/browser/ui/views/tabs/tab.h"
+@@ -24,6 +25,7 @@
+ #include "chrome/browser/ui/views/frame/themed_background.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_style.h"
  #include "chrome/browser/ui/views/tabs/tab/glow_hover_controller.h"
- #include "chrome/browser/ui/views/tabs/tab_group_underline.h"
 +#include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/grit/theme_resources.h"
  #include "third_party/skia/include/core/SkPath.h"
  #include "third_party/skia/include/core/SkPathBuilder.h"
-@@ -39,6 +41,33 @@
+@@ -38,6 +40,33 @@
  #include "ui/views/controls/separator.h"
  #include "ui/views/widget/widget.h"
  
@@ -175,7 +175,7 @@
  HorizontalTabStyleViews::HorizontalTabStyleViews(
      std::unique_ptr<TabStyleViewDelegate> delegate)
      : delegate_(std::move(delegate)) {
-@@ -568,6 +597,10 @@ float HorizontalTabStyleViews::GetSepara
+@@ -567,6 +596,10 @@
      // is a combo button with a non-transparent background in place of the new
      // tab button, we should not show the trailing separator.
      if (!adjacent_tab) {
@@ -188,7 +188,7 @@
    }
 --- a/chrome/browser/ui/views/tabs/common/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
-@@ -100,6 +100,7 @@ source_set("impl") {
+@@ -104,6 +104,7 @@
      "//base:i18n",
      "//cc/paint",
      "//chrome/app/theme:theme_resources",

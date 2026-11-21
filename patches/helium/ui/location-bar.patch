@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc
 +++ b/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc
-@@ -79,9 +79,7 @@ void IconLabelBubbleView::SeparatorView:
+@@ -81,9 +81,7 @@
    const SkColor separator_color = SkColorSetA(
        owner_->delegate_->GetIconLabelBubbleSurroundingForegroundColor(),
        owner_->delegate_->GetIconLabelBubbleSeparatorAlpha());
@@ -11,7 +11,7 @@
    canvas->DrawLine(gfx::PointF(x, GetLocalBounds().y()),
                     gfx::PointF(x, GetLocalBounds().bottom()), separator_color);
  }
-@@ -593,7 +591,9 @@ gfx::RoundedCornersF IconLabelBubbleView
+@@ -602,7 +600,9 @@
    if (radii_.has_value()) {
      return radii_.value();
    }
@@ -22,7 +22,7 @@
  }
  
  void IconLabelBubbleView::SetCornerRadii(const gfx::RoundedCornersF& radii) {
-@@ -619,8 +619,14 @@ gfx::Size IconLabelBubbleView::GetSizeFo
+@@ -628,8 +628,14 @@
  
    const int min_width =
        shrinking ? image_size.width() : grow_animation_starting_width_;
@@ -38,7 +38,7 @@
  
    return gfx::Size(GetWidthBetween(min_width, max_width), image_size.height());
  }
-@@ -804,8 +810,10 @@ SkPath IconLabelBubbleView::GetHighlight
+@@ -813,8 +819,10 @@
    }
    highlight_bounds = GetMirroredRect(highlight_bounds);
  
@@ -61,7 +61,7 @@
  #include <memory>
  #include <ranges>
  #include <string_view>
-@@ -177,8 +178,23 @@ int IncrementalMinimumWidth(const views:
+@@ -180,8 +181,23 @@
    return (view && view->GetVisible()) ? view->GetMinimumSize().width() : 0;
  }
  
@@ -86,8 +86,8 @@
  
  // Capsule dimensions and padding for the elevated page action toolbar.
  constexpr int kPageActionCapsuleEdgePadding = 2;
-@@ -257,7 +273,10 @@ LocationBarView::LocationBarView(Browser
-                  !v->ShouldUsePopupOpenAppearance();
+@@ -271,7 +287,10 @@
+                  !full_popup_completed_first_paint;
          }));
      views::FocusRing::Get(this)->SetOutsetFocusRingDisabled(true);
 -    views::InstallPillHighlightPathGenerator(this);
@@ -98,7 +98,7 @@
  
  #if BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
      if (features::IsOsLevelGeolocationPermissionSupportEnabled()) {
-@@ -326,9 +345,9 @@ void LocationBarView::Init() {
+@@ -341,9 +360,9 @@
        CONTEXT_OMNIBOX_PRIMARY, views::style::STYLE_PRIMARY);
  
    const gfx::FontList& omnibox_chip_font_list = typography_provider.GetFont(
@@ -110,7 +110,7 @@
  
    auto location_icon_view =
        std::make_unique<LocationIconView>(omnibox_chip_font_list, this, this);
-@@ -477,7 +496,13 @@ void LocationBarView::Init() {
+@@ -511,7 +530,13 @@
      page_action_items = page_actions::GetActivePageActionItems(*browser_);
    }
  
@@ -125,7 +125,7 @@
    const page_actions::PageActionViewParams page_action_params{
        .icon_size =
            GetLayoutConstant(LayoutConstant::kLocationBarTrailingIconSize),
-@@ -534,7 +559,7 @@ int LocationBarView::GetBorderRadius() c
+@@ -568,7 +593,7 @@
  // static
  int LocationBarView::ComputeBorderRadius(gfx::Size size) {
    return ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
@@ -134,21 +134,7 @@
  }
  
  // static
-@@ -823,11 +848,11 @@ void LocationBarView::Layout(PassKey) {
-   } else if (ShouldShowKeywordBubble()) {
-     // Otherwise, if in keyword mode, adjust indentation to align the icon and
-     // the text with the suggestion icons & texts.
--    icon_left += 9; /*icon_indent_keyword_mode*/
-+    icon_left += 0; /*icon_indent_keyword_mode*/
-     icon_left += omnibox_feature_configs::AdjustOmniboxIndent()
-                      .Get()
-                      .input_icon_indent_offset;
--    text_left += -9; /*text_indent_keyword_mode*/
-+    text_left += 0; /*text_indent_keyword_mode*/
-   }
- 
-   LocationBarLayout leading_decorations(LocationBarLayout::Position::kLeftEdge,
-@@ -1389,7 +1414,7 @@ int LocationBarView::GetMinimumTrailingW
+@@ -1450,7 +1475,7 @@
  }
  
  gfx::Rect LocationBarView::GetLocalBoundsWithoutEndcaps() const {
@@ -157,7 +143,7 @@
    gfx::Rect bounds_without_endcaps(GetLocalBounds());
    bounds_without_endcaps.Inset(gfx::Insets::VH(0, border_radius));
    return bounds_without_endcaps;
-@@ -1447,9 +1472,8 @@ void LocationBarView::RefreshBackground(
+@@ -1508,9 +1533,8 @@
          /*antialias=*/true, /*should_border_scale=*/true));
    }
  
@@ -171,7 +157,7 @@
    // as the omnibox.
 --- a/chrome/browser/ui/views/location_bar/location_icon_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_icon_view.cc
-@@ -111,7 +111,7 @@ SkColor LocationIconView::GetForegroundC
+@@ -111,7 +111,7 @@
  }
  
  bool LocationIconView::ShouldShowSeparator() const {
@@ -180,7 +166,7 @@
  }
  
  bool LocationIconView::ShouldShowLabelAfterAnimation() const {
-@@ -464,7 +464,8 @@ gfx::Size LocationIconView::GetMinimumSi
+@@ -464,7 +464,8 @@
  }
  
  void LocationIconView::SetBackgroundColor(SkColor color) {
@@ -192,7 +178,7 @@
  BEGIN_METADATA(LocationIconView)
 --- a/chrome/browser/ui/views/location_bar/location_icon_state_helper.cc
 +++ b/chrome/browser/ui/views/location_bar/location_icon_state_helper.cc
-@@ -85,22 +85,13 @@ bool ShouldShowSecurityChipText(const Lo
+@@ -87,22 +87,13 @@
      return false;
    }
  
@@ -200,7 +186,7 @@
 -  if (url.SchemeIs(content::kChromeUIScheme) ||
 -      url.SchemeIs(extensions::kExtensionScheme) ||
 -      url.SchemeIs(url::kFileScheme) ||
--      url.SchemeIs(dom_distiller::kDomDistillerScheme) ||
+-      url.SchemeIs(web_distiller::kWebDistillerScheme) ||
 -      (model->IsContextualTasksPage() &&
 -       contextual_tasks::ShouldShowExpandedSecurityChip())) {
 -    return true;
@@ -219,7 +205,7 @@
    }
 --- a/chrome/browser/ui/layout_constants.cc
 +++ b/chrome/browser/ui/layout_constants.cc
-@@ -93,13 +93,15 @@ int GetLayoutConstant(LayoutConstant con
+@@ -93,17 +93,17 @@
      case LayoutConstant::kLocationBarPageInfoIconDangerousTrailingPadding:
        return 10;
      case LayoutConstant::kLocationBarLeadingDecorationEdgePadding:
@@ -235,11 +221,15 @@
 +      return 0;
      case LayoutConstant::kLocationBarInputTextIndent:
 -      return 6;
+     case LayoutConstant::kLocationBarKeywordInputIconIndent:
+-      return 9;
+     case LayoutConstant::kLocationBarKeywordInputTextIndent:
+-      return -9;
 +      return 0;
      case LayoutConstant::kLocationBarTrailingDecorationEdgePadding:
        return touch_ui ? 3 : 2;
      case LayoutConstant::kLocationBarTrailingDecorationAimEdgePadding:
-@@ -113,7 +115,7 @@ int GetLayoutConstant(LayoutConstant con
+@@ -117,7 +117,7 @@
        return touch_ui ? 20 : 16;
      // LINT.ThenChange(//chrome/browser/ui/omnibox/omnibox_edit_model.cc:SuperGIconSize)
      case LayoutConstant::kLocationBarIconLabelBubbleSpaceBesideSeparator:
@@ -250,7 +240,7 @@
      case LayoutConstant::kLocationBarLeadingIconSize:
 --- a/chrome/browser/ui/views/location_bar/standard_icon_label_bubble_layout_strategy.cc
 +++ b/chrome/browser/ui/views/location_bar/standard_icon_label_bubble_layout_strategy.cc
-@@ -104,9 +104,8 @@ StandardIconLabelBubbleAnimationLayoutSt
+@@ -104,9 +104,8 @@
    // value to be, since it won't be visible.
    const int label_x =
        image_bounds_with_label.right() + host->GetInternalSpacing();
@@ -262,7 +252,7 @@
    gfx::Rect label_bounds(label_x, image_y, available_label_width, height);
    layout.child_layouts.emplace_back(
        host->label(),
-@@ -130,10 +129,9 @@ StandardIconLabelBubbleAnimationLayoutSt
+@@ -130,10 +129,9 @@
    gfx::Rect separator_bounds(label_bounds);
    separator_bounds.Inset(
        gfx::Insets::VH((separator_bounds.height() - separator_height) / 2, 0));

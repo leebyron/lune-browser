@@ -8,7 +8,7 @@
  #include "ui/views/layout/flex_layout.h"
  #include "ui/views/view_class_properties.h"
  
-@@ -28,7 +29,7 @@ SidePanelResizeHandle::SidePanelResizeHa
+@@ -28,7 +29,7 @@
      : side_panel_(side_panel) {
    SetProperty(views::kElementIdentifierKey, kSidePanelResizeHandleElementId);
    SetVisible(false);
@@ -17,7 +17,7 @@
    SetPreferredSize(preferred_size);
    SetCanProcessEventsWithinSubtree(false);
    SetBackground(
-@@ -136,18 +137,27 @@ void SidePanelResizeArea::OnBlur() {
+@@ -136,18 +137,27 @@
  
  void SidePanelResizeArea::Layout(PassKey) {
    LayoutSuperclass<ResizeArea>(this);
@@ -139,7 +139,7 @@
  }
  
  SidePanel::HorizontalAlignment GetHorizontalAlignment(
-@@ -125,7 +162,7 @@ class ContentParentBackground : public v
+@@ -125,7 +162,7 @@
          view->GetLocalBounds(), get_rounded_corners_callback_.Run()));
      canvas->ClipPath(path, /*do_anti_alias=*/true);
  
@@ -148,7 +148,7 @@
    }
  
   private:
-@@ -139,8 +176,8 @@ class ContentParentView : public views::
+@@ -139,8 +176,8 @@
    METADATA_HEADER(ContentParentView, views::View)
  
   public:
@@ -159,7 +159,7 @@
      SetUseDefaultFillLayout(true);
      SetProperty(
          views::kFlexBehaviorKey,
-@@ -152,6 +189,14 @@ class ContentParentView : public views::
+@@ -152,6 +189,14 @@
  
    ~ContentParentView() override = default;
  
@@ -174,7 +174,7 @@
   private:
    void AddedToWidget() override {
      SetBackground(std::make_unique<ContentParentBackground>(
-@@ -169,23 +214,7 @@ class ContentParentView : public views::
+@@ -169,23 +214,7 @@
      // corners initially, set them in OnChildViewAdded, which is called after
      // View::ViewHierarchyChanged.
      // If the child is a WebView or paints to a layer, round its corners.
@@ -199,7 +199,7 @@
    }
  
    void OnWebContentsAttached(views::WebView* web_view) {
-@@ -218,12 +247,31 @@ class ContentParentView : public views::
+@@ -218,12 +247,31 @@
    }
  
    gfx::RoundedCornersF GetRoundedCorners() {
@@ -235,7 +235,7 @@
    const raw_ptr<BrowserView> browser_view_;
    base::ScopedObservation<views::View, views::ViewObserver> view_observation_{
        this};
-@@ -294,7 +342,7 @@ SidePanel::SidePanel(BrowserView* browse
+@@ -294,7 +342,7 @@
    // parent view. content_parent_view_ is added first so it exists behind
    // the resize_area_.
    content_parent_view_ =
@@ -244,7 +244,7 @@
    content_parent_view_->SetVisible(false);
  
    resize_area_ =
-@@ -324,6 +372,7 @@ SidePanel::SidePanel(BrowserView* browse
+@@ -324,6 +372,7 @@
    // Set the panel width from the preference or use the minimum size as the
    // default.
    SetPanelWidth(GetMinimumSize().width());
@@ -252,7 +252,7 @@
  
    SetProperty(views::kElementIdentifierKey, kSidePanelElementId);
  }
-@@ -342,6 +391,21 @@ void SidePanel::SetBackgroundRadii(const
+@@ -342,6 +391,21 @@
    background_radii_ = radii;
  }
  
@@ -274,7 +274,7 @@
  void SidePanel::UpdateWidthOnEntryChanged() {
    SidePanelUI* side_panel_ui = SidePanelUI::From(browser_view_->browser());
    if (!side_panel_ui) {
-@@ -370,7 +434,7 @@ void SidePanel::UpdateWidthOnEntryChange
+@@ -370,7 +434,7 @@
      SetPanelWidth(width_from_pref.value());
    } else {
      SetPanelWidth(side_panel_ui->GetCurrentEntryDefaultContentWidth() +
@@ -283,7 +283,7 @@
    }
  }
  
-@@ -381,7 +445,7 @@ bool SidePanel::IsRightAligned() const {
+@@ -393,7 +457,7 @@
  gfx::Size SidePanel::GetMinimumSize() const {
    const int min_height = 0;
    return gfx::Size(
@@ -292,7 +292,7 @@
        min_height);
  }
  
-@@ -416,17 +480,15 @@ void SidePanel::AddHeaderView(std::uniqu
+@@ -437,17 +501,15 @@
    header_view_->DeprecatedLayoutImmediately();
    // Update the border so that the insets include space for the header to be
    // placed on top of the border area.
@@ -312,7 +312,7 @@
  }
  
  gfx::Size SidePanel::GetContentSizeUpperBound() const {
-@@ -434,11 +496,14 @@ gfx::Size SidePanel::GetContentSizeUpper
+@@ -455,11 +517,14 @@
    const int side_panel_height =
        height() > 0 ? height() : browser_view_->height();
  
@@ -329,20 +329,20 @@
    if (previous_bounds.width() != width() && keyboard_resized_) {
      keyboard_resized_ = false;
      AnnounceResize();
-@@ -512,6 +577,12 @@ void SidePanel::OnResize(int resize_amou
+@@ -532,6 +597,12 @@
+   }
  
-   const int minimum_width = GetMinimumSize().width();
-   proposed_width = std::max(proposed_width, minimum_width);
+   proposed_width = ClampPanelWidth(proposed_width);
 +  const int default_width = SidePanelEntry::kSidePanelDefaultContentWidth +
 +                            GetBorderInsets(this).width();
 +  if (std::abs(proposed_width - default_width) <
 +      kSidePanelDefaultWidthSnapDistance) {
-+    proposed_width = default_width;
++    proposed_width = ClampPanelWidth(default_width);
 +  }
  
    if (width() != proposed_width) {
      if (SidePanelUI* side_panel_ui =
-@@ -540,7 +611,7 @@ void SidePanel::RecordMetricsIfResized()
+@@ -560,7 +631,7 @@
        return;
      }
  
@@ -351,7 +351,7 @@
      int browser_window_width = browser_view_->width();
      SidePanelMetrics::RecordSidePanelResizeMetrics(
          id.value(), side_panel_contents_width, browser_window_width);
-@@ -699,6 +770,8 @@ void SidePanel::UpdateHorizontalAlignmen
+@@ -719,6 +790,8 @@
    horizontal_alignment_ =
        GetHorizontalAlignment(browser_view_->GetProfile()->GetPrefs(), entry_id);
  
@@ -362,7 +362,7 @@
  
 --- a/chrome/browser/ui/views/side_panel/side_panel.h
 +++ b/chrome/browser/ui/views/side_panel/side_panel.h
-@@ -136,6 +136,8 @@ class SidePanel : public views::Accessib
+@@ -144,6 +144,8 @@
  
    bool ShouldShowAnimation() const;
    void AnnounceResize();
@@ -384,7 +384,7 @@
  SidePanelHeader::SidePanelHeader(
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -277,10 +277,9 @@ BrowserViewTabbedLayoutImpl::CalculateSe
+@@ -281,10 +281,9 @@
    switch (layout_data_->window_state) {
      case WindowState::kNormal:
      case WindowState::kMaximized: {
@@ -398,7 +398,7 @@
        info.multi_contents_separator = !suppress_separator && !has_infobar;
        info.top_container_separator = !suppress_separator && has_infobar;
        info.side_panel_top_padding = !is_force_to_top;
-@@ -289,8 +288,6 @@ BrowserViewTabbedLayoutImpl::CalculateSe
+@@ -293,8 +292,6 @@
        break;
      }
      case WindowState::kFullscreen:
@@ -407,7 +407,7 @@
        // Mac and ChromeOS display separators on their slide-in top containers.
        // However, if top container elements are not visible (for example,
        // because they are offscreen), the separator is not shown.
-@@ -299,11 +296,7 @@ BrowserViewTabbedLayoutImpl::CalculateSe
+@@ -303,11 +300,7 @@
        info.side_panel_top_padding = true;
        break;
      case WindowState::kFullscreenWithToolbar:
@@ -422,7 +422,7 @@
  
 --- a/chrome/browser/ui/views/side_panel/BUILD.gn
 +++ b/chrome/browser/ui/views/side_panel/BUILD.gn
-@@ -128,6 +128,7 @@ source_set("side_panel") {
+@@ -127,6 +127,7 @@
      "//chrome/browser/ui/views/animations",
      "//chrome/browser/ui/views/frame:browser_view_header",
      "//chrome/browser/ui/views/frame:themed_background",

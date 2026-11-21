@@ -49,9 +49,9 @@ PRUNING_INCLUDE_PATTERNS = [
 # pathlib.Path.match() paths to exclude from binary pruning
 PRUNING_EXCLUDE_PATTERNS = [
     'chrome/common/win/eventlog_messages.mc', # TODO: False positive textfile
-    # Exclusions for DOM distiller (contains model data only)
-    'components/dom_distiller/core/data/distillable_page_model_new.bin',
-    'components/dom_distiller/core/data/long_page_model.bin',
+    # Exclusions for Web Distiller (contains model data only)
+    'components/web_distiller/core/data/distillable_page_model_new.bin',
+    'components/web_distiller/core/data/long_page_model.bin',
     # Exclusions for GeoLanguage data
     # Details: https://docs.google.com/document/d/18WqVHz5F9vaUiE32E8Ge6QHmku2QSJKvlqB9JjnIM-g/edit
     # Introduced with: https://chromium.googlesource.com/chromium/src/+/6647da61

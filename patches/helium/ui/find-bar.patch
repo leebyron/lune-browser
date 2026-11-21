@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -2039,21 +2039,7 @@ const AppMenuControl* ToolbarView::GetAp
+@@ -2078,21 +2078,7 @@
  }
  
  gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
@@ -25,7 +25,7 @@
  void ToolbarView::FocusToolbar() {
 --- a/chrome/browser/ui/find_bar/find_bar_controller.cc
 +++ b/chrome/browser/ui/find_bar/find_bar_controller.cc
-@@ -422,42 +422,7 @@ std::u16string FindBarController::GetSel
+@@ -430,38 +430,7 @@
    return selected_text;
  }
  
@@ -46,13 +46,9 @@
 -    return;
 -  }
 -
--  tabs::TabFeatures* tab_features = tab->GetTabFeatures();
--  if (!tab_features) {
--    return;
--  }
 -  // Page actions don't exist for non-normal windows.
 -  page_actions::PageActionController* controller =
--      tab_features->page_action_controller();
+-      page_actions::PageActionController::From(tab);
 -  if (!controller) {
 -    return;
 -  }
@@ -71,7 +67,7 @@
    UpdatePageAction();
 --- a/chrome/browser/ui/views/find_bar_host.cc
 +++ b/chrome/browser/ui/views/find_bar_host.cc
-@@ -653,11 +653,11 @@ gfx::Rect FindBarHost::GetDialogPosition
+@@ -664,11 +664,11 @@
    // Place the view in the top right corner of the widget boundaries (top left
    // for RTL languages). Adjust for the view insets to ensure the border lines
    // up with the location bar.
@@ -87,9 +83,9 @@
    // When we get Find results back, we specify a selection rect, which we
 --- a/chrome/browser/ui/views/find_bar_view.cc
 +++ b/chrome/browser/ui/views/find_bar_view.cc
-@@ -70,6 +70,10 @@ void SetCommonButtonAttributes(views::Im
-   views::ConfigureVectorImageButton(button);
-   views::InstallCircleHighlightPathGenerator(button);
+@@ -78,6 +78,10 @@
+   button->SetImageModel(views::Button::STATE_HOVERED, hovered_image);
+   button->SetImageModel(views::Button::STATE_PRESSED, hovered_image);
  }
 +
 +constexpr int kBasePadding = 4;
@@ -98,7 +94,7 @@
  }  // namespace
  
  DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(FindBarView, kElementId);
-@@ -169,18 +173,14 @@ FindBarView::FindBarView(FindBarHost* ho
+@@ -182,18 +186,14 @@
  
    ChromeLayoutProvider* layout_provider = ChromeLayoutProvider::Get();
    const auto horizontal_margin =
@@ -120,7 +116,7 @@
    const auto image_button_margins =
        toast_control_vertical_margin + vector_button_horizontal_margin;
  
-@@ -202,8 +202,7 @@ FindBarView::FindBarView(FindBarHost* ho
+@@ -215,8 +215,7 @@
        views::Builder<views::BoxLayoutView>()
            .SetOrientation(views::BoxLayout::Orientation::kHorizontal)
            .SetInsideBorderInsets(
@@ -130,7 +126,7 @@
            .AddChildren(
                views::Builder<views::Textfield>()
                    .CopyAddressTo(&find_text_)
-@@ -344,8 +343,7 @@ FindBarView::FindBarView(FindBarHost* ho
+@@ -350,8 +349,7 @@
      auto border = std::make_unique<views::BubbleBorder>(
          views::BubbleBorder::NONE, views::BubbleBorder::STANDARD_SHADOW);
      border->set_background_color(kColorFindBarBackground);

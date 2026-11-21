@@ -207,6 +207,9 @@ BUILD_DEPENDENCY_PATHS = (
     'build/linux/',
     'buildtools/linux64/',
     'buildtools/linux64-format/',
+    'buildtools/mac/',
+    'buildtools/mac-format/',
+    'buildtools/mac_arm64-format/',
     'buildtools/reclient/',
     'buildtools/third_party/mold/cipd/',
     'third_party/cpython3/',
@@ -218,11 +221,15 @@ BUILD_DEPENDENCY_PATHS = (
     'third_party/llvm-libclang/',
     'third_party/ninja/',
     'third_party/node/linux/',
+    'third_party/node/mac/',
+    'third_party/node/mac_arm64/',
     'third_party/rust/chromium_crates_io/vendor/windows_aarch64_msvc-',
     'third_party/rust/chromium_crates_io/vendor/windows_x86_64_msvc-',
     'third_party/rust-toolchain/',
     'third_party/siso/',
+    'third_party/sparkle/',
     'third_party/typescript/',
+    'tools/clang/dsymutil/',
 )
 
 # Files that should be excluded when pruning contingent paths.
