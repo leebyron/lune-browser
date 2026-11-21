@@ -65,6 +65,8 @@ CONTINGENT_PATHS = (
     'third_party/js_code_coverage/',
     'third_party/llvm-libclang/',
     'third_party/openscreen/src/buildtools/linux64-format/',
+    'third_party/openscreen/src/buildtools/mac-format/',
+    'third_party/openscreen/src/buildtools/mac_arm64-format/',
     'third_party/openscreen/src/third_party/llvm-build/Release+Asserts/',
     'third_party/opus/tests/resources/',
     'third_party/subresource-filter-ruleset/data/',
