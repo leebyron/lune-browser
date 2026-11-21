@@ -1,0 +1,105 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -192,8 +192,9 @@
+     case LayoutConstant::kVerticalTabCornerRadius:
+       return 8;
+     case LayoutConstant::kVerticalTabHeight:
+-    case LayoutConstant::kVerticalTabPinnedHeight:
+       return spacious ? 36 : 30;
++    case LayoutConstant::kVerticalTabPinnedHeight:
++      return spacious ? 46 : 36;
+     case LayoutConstant::kVerticalTabMinWidth:
+       return spacious ? 32 : 30;
+     case LayoutConstant::kVerticalTabStripHorizontalPadding:
+--- a/chrome/browser/ui/views/tabs/common/pinned_tab_container_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/pinned_tab_container_view_vertical_layout.cc
+@@ -67,10 +67,14 @@
+       (collapse_state != tabs::VerticalTabStripCollapseState::kExpanded ? 1.5f
+                                                                         : 1.0f),
+       static_cast<float>(num_children));
+-  const int min_height =
+-      base::ClampCeil(GetLayoutConstant(LayoutConstant::kVerticalTabHeight) *
+-                      min_rows) +
+-      (num_children > 1 ? PinnedTabContainerView::kTabPadding : 0);
++  const int row_height = GetLayoutConstant(
++      collapse_state == tabs::VerticalTabStripCollapseState::kCollapsed
++          ? LayoutConstant::kVerticalTabHeight
++          : LayoutConstant::kVerticalTabPinnedHeight);
++  const int min_height = base::ClampCeil(row_height * min_rows) +
++                         (num_children > 1
++                              ? PinnedTabContainerView::kTabPadding
++                              : 0);
+   return gfx::Size(GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth),
+                    min_height);
+ }
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
+@@ -51,20 +51,34 @@
+ 
+ views::ProposedLayout TabViewVerticalLayout::CalculateProposedLayout(
+     const views::SizeBounds& size_bounds) const {
+-  const int width =
+-      size_bounds.width().value_or(tabs::kVerticalTabStripUncollapsedMaxWidth);
+-  // A collapsed tab is square. The comfortable density only makes the expanded
+-  // rows taller, so keep the collapsed row at the tab's collapsed width
+-  // (42 - 2 * 6 = 30) to match upstream Helium. Expand-on-hover already shows
+-  // the expanded layout, so use the normal height there.
++  return CalculateLayout(
++      size_bounds.width().value_or(tabs::kVerticalTabStripUncollapsedMaxWidth),
++      std::nullopt);
++}
++
++void TabViewVerticalLayout::LayoutImpl() {
++  if (TabView().IsPinDragAnimating() && TabView().IsDragging()) {
++    // Only the floating tab uses the animated height. The layout queries
++    // that place the destination slot still use the final height.
++    ApplyLayout(CalculateLayout(TabView().width(), TabView().height()));
++    return;
++  }
++  TabView::LayoutManager::LayoutImpl();
++}
++
++views::ProposedLayout TabViewVerticalLayout::CalculateLayout(
++    int width,
++    std::optional<int> animated_height) const {
++  // Fully collapsed tabs are square. Expand-on-hover uses the expanded size.
+   const bool use_collapsed_height =
+       TabView().collapsed_ && !TabView().IsInExpandOnHover(width);
+-  const int height =
++  const int preferred_height =
+       use_collapsed_height
+           ? TabView::CollapsedWidth()
+           : GetLayoutConstant(TabView().pinned_
+                                   ? LayoutConstant::kVerticalTabPinnedHeight
+                                   : LayoutConstant::kVerticalTabHeight);
++  const int height = animated_height.value_or(preferred_height);
+   views::ProposedLayout layouts;
+   layouts.host_size = gfx::Size(width, height);
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.h
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.h
+@@ -5,6 +5,8 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_TABS_COMMON_TAB_VIEW_VERTICAL_LAYOUT_H_
+ #define CHROME_BROWSER_UI_VIEWS_TABS_COMMON_TAB_VIEW_VERTICAL_LAYOUT_H_
+ 
++#include <optional>
++
+ #include "chrome/browser/ui/views/tabs/common/tab_view.h"
+ 
+ enum class TabStripOrientation;
+@@ -23,10 +25,15 @@
+  protected:
+   // views::LayoutManagerBase:
+   void OnInstalled(views::View* host) override;
++  void LayoutImpl() override;
+   views::ProposedLayout CalculateProposedLayout(
+       const views::SizeBounds& size_bounds) const override;
+ 
+  private:
++  views::ProposedLayout CalculateLayout(
++      int width,
++      std::optional<int> animated_height) const;
++
+   struct TabChildConfig {
+     raw_ptr<views::View> view = nullptr;
+     int min_width = 0;

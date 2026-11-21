@@ -1,0 +1,160 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -2051,10 +2051,10 @@
+ 
+ - (CGFloat)preferredHeight {
+   // Keep 4 pt between the editor and the first result, and 8 pt below the list.
+-  return 36 + (_results.empty()
+-                   ? 0
+-                   : 4 + kHeliumNativeResultInset +
+-                         kHeliumNativeResultRowHeight * _results.size());
++  return helium::kNativeToolbarControlHeight +
++         (_results.empty() ? 0
++                           : 4 + kHeliumNativeResultInset +
++                                 kHeliumNativeResultRowHeight * _results.size());
+ }
+ 
+ - (void)beginEditing {
+@@ -2546,10 +2546,9 @@
+ // BrowserFrameViewMac, public:
+ 
+ namespace {
+-constexpr int kFloatingToolbarControlHeight = 36;
+-constexpr int kFloatingToolbarVerticalPadding = 8;
+ constexpr int kFloatingToolbarHeight =
+-    kFloatingToolbarControlHeight + 2 * kFloatingToolbarVerticalPadding;
++    helium::kNativeToolbarControlHeight +
++    2 * helium::kNativeToolbarVerticalPadding;
+ constexpr CGFloat kPageTopDragThreshold = 4;
+ constexpr auto kPageTopDragDecisionTimeout = base::Milliseconds(80);
+ constexpr NSEventModifierFlags kPageTopDragModifiers =
+@@ -3505,8 +3504,8 @@
+   const int trailing =
+       std::min(content.right() - glass_inset, browser_view->width() - 8);
+   const gfx::Rect bar_region(
+-      leading, kFloatingToolbarVerticalPadding + TopUIFullscreenYOffset(),
+-      std::max(0, trailing - leading), kFloatingToolbarControlHeight);
++      leading, helium::kNativeToolbarVerticalPadding + TopUIFullscreenYOffset(),
++      std::max(0, trailing - leading), helium::kNativeToolbarControlHeight);
+   const int navigation_width = FloatingNavigationWidth(browser_view);
+   const int address_left =
+       leading + (navigation_width > 0 ? navigation_width + 12 : 0);
+@@ -3532,8 +3531,9 @@
+   const gfx::Rect bounds(
+       address_left + (address_right - address_left - capsule_width) / 2 -
+           address_outset,
+-      8 + TopUIFullscreenYOffset(), capsule_width + 2 * address_outset,
+-      floating_address_bar_ ? [floating_address_bar_ preferredHeight] : 36);
++      bar_region.y(), capsule_width + 2 * address_outset,
++      floating_address_bar_ ? [floating_address_bar_ preferredHeight]
++                            : helium::kNativeToolbarControlHeight);
+   NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
+   NSView* native_view =
+       browser_view->GetWidget()->GetNativeView().GetNativeNSView();
+@@ -3569,8 +3569,8 @@
+   // Side-docked DevTools neither reveal nor retain the header.
+   const bool within_retention = [floating_address_bar_ isPresented] &&
+                                 in_hover_area && in_window &&
+-                                cursor.y() <= bounds.bottom() +
+-                                    helium::kNativeTopChromeRetentionDistance;
++                                helium::IsWithinNativeTopChromeRetention(
++                                    cursor.y(), bounds.bottom());
+   if (host && host->GetVisible()) {
+     host->SetBoundsRect(bounds);
+     [floating_address_bar_ refresh];
+@@ -3829,7 +3829,8 @@
+     // them. Only the controls move; the input shield stays at the window top.
+     gfx::Rect drag_bounds(
+         0, 0, view->width(),
+-        region.y() - kFloatingToolbarVerticalPadding + kFloatingToolbarHeight);
++        region.y() - helium::kNativeToolbarVerticalPadding +
++            kFloatingToolbarHeight);
+     if (auto* panel = view->side_panel(); panel && panel->GetVisible()) {
+       const gfx::Rect panel_bounds = views::View::ConvertRectToTarget(
+           panel, view, panel->GetLocalBounds());
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -2350,11 +2350,12 @@
+       GetFrameView()->HasFloatingAddressBar() &&
+       helium::IsPointerAboveNativeFullscreenContent(
+           this, GetFrameView()->GetFloatingChromeTopOffset())) {
+-    // The fullscreen menu-bar strip belongs to the top reveal area, without
+-    // making it an entry point for the sidebar or queuing a collapse timer.
++    // In app fullscreen the sidebar's top rail includes the menu-bar strip
++    // near its side. The sidebar eligibility check excludes webpage fullscreen.
+     zen_last_cursor_ = cursor;
+     zen_cursor_exit_timer_.Stop();
+-    UpdateZenModeReveal(IsPointInZenTopTrigger(cursor), false);
++    UpdateZenModeReveal(IsPointInZenTopTrigger(cursor),
++                        IsPointInZenSideTrigger(cursor));
+     return;
+   }
+ #endif
+@@ -2402,6 +2403,18 @@
+     within_side_retention = IsVerticalTabStripRightAligned()
+         ? cursor.x() >= sidebar.x() - retention_distance
+         : cursor.x() <= sidebar.right() + retention_distance;
++#if BUILDFLAG(IS_MAC)
++    if (auto* frame = GetFrameView(); frame && frame->HasFloatingAddressBar()) {
++      const int toolbar_bottom = frame->GetFloatingChromeTopOffset() +
++                                 helium::kNativeToolbarVerticalPadding +
++                                 helium::kNativeToolbarControlHeight;
++      within_side_retention |= helium::IsInNativeSidebarTopHoverColumn(
++                                   cursor.x(), width(),
++                                   IsVerticalTabStripRightAligned()) &&
++                               helium::IsWithinNativeTopChromeRetention(
++                                   cursor.y(), toolbar_bottom);
++    }
++#endif
+   }
+   const bool reveal_side = within_side_retention || in_side_trigger ||
+                            (!reveal_top && in_side_chrome);
+@@ -2657,15 +2670,18 @@
+ }
+ 
+ bool BrowserView::IsPointInZenSideTrigger(const gfx::Point& point) const {
+-#if BUILDFLAG(IS_MAC)
+-  if (GetFrameView() && GetFrameView()->HasFloatingAddressBar()) {
+-    return ShouldDrawVerticalTabStrip() &&
+-           helium::IsPointerInNativeRevealRail(this, false, 0);
+-  }
+-#endif
+   if (!ShouldDrawVerticalTabStrip()) {
+     return false;
+   }
++#if BUILDFLAG(IS_MAC)
++  if (auto* frame = GetFrameView(); frame && frame->HasFloatingAddressBar()) {
++    return helium::IsPointerInNativeRevealRail(this, false, 0) ||
++           (helium::IsInNativeSidebarTopHoverColumn(
++                point.x(), width(), IsVerticalTabStripRightAligned()) &&
++            helium::IsPointerInNativeRevealRail(
++                this, true, frame->GetFloatingChromeTopOffset()));
++  }
++#endif
+   auto* controller = tabs::VerticalTabStripStateController::From(browser_);
+   const bool right_aligned = controller && controller->IsTabStripRightAligned();
+   if (right_aligned) {
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -75,6 +75,21 @@
+ inline constexpr int kNativeTopChromeRetentionDistance = 64;
+ inline constexpr int kNativeSideChromeRevealDistance = 16;
+ inline constexpr int kNativeSideChromeRetentionDistance = 128;
++inline constexpr int kNativeToolbarControlHeight = 36;
++inline constexpr int kNativeToolbarVerticalPadding = 8;
++
++inline constexpr bool IsWithinNativeTopChromeRetention(int y,
++                                                      int chrome_bottom) {
++  return y <= chrome_bottom + kNativeTopChromeRetentionDistance;
++}
++
++inline constexpr bool IsInNativeSidebarTopHoverColumn(int x,
++                                                     int width,
++                                                     bool right_aligned) {
++  constexpr int kSidebarTopRevealWidth = 112;
++  return right_aligned ? x >= width - kSidebarTopRevealWidth
++                       : x < kSidebarTopRevealWidth;
++}
+ 
+ // Move only by menu-bar space that is not already outside the content window.
+ int NativeFullscreenTopControlsOffset(const BrowserView* view,
