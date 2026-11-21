@@ -122,6 +122,41 @@ The full per-commit results, conflict paths and zero-fuzz logs are in the
 ignored `.work/input-audit/helium-delta/` directory. Browser pins remain at
 the investigation baseline.
 
+## Helium 0.22.2 implementation checkpoint
+
+The owner chose to keep persistent pins disabled during this adoption.
+Local core topic `4222d2e0` gates Helium's shared pin service, migration, tab
+controllers and hibernation paths. It uses Chromium's existing
+`PinnedTabService` for ordinary pinning and startup restore. The upstream
+patches stay in their original series. The opt-out passed a zero-fuzz
+quilt pop and push on the isolated M158 source.
+
+Local merge `a9117f8817b560bc935971e53add71ab90457ae4` has both Helium
+0.22.2 and the locked Lune core as parents. All 376 core patches pass
+zero-fuzz replay on verified Chromium `158.0.8127.37` archives and pinned
+dependency bytes, including uBlock Origin `1.76.4`. The candidate keeps
+the local tracking-cleanup and content-shadow patches.
+
+The macOS merge is staged locally in
+`.work/helium-0222-components/macos/` in this worktree. Its 288 patches
+preserve upstream order and Lune's platform patch sequence. The density
+port retains the existing preference values, the Appearance control, and
+the Standard/Comfortable labels. Quilt refreshes preserve Lune's row heights,
+toolbar sizing, frame-thickness controls and sidebar width handling.
+The combined source replay applied the first 412 of 664 patches with zero
+fuzz. It stops at `helium/ui/sidebar-content-edge.patch`, hunk 4 in
+`browser_view_tabbed_layout_impl.cc`. Retained evidence includes the
+logs in `.work/input-audit/`, exact queue in
+`.work/input-audit/lune-merged-replay/` and quilt state in the isolated
+external source. Full preparation, compilation and runtime tests remain
+outstanding.
+
+Helium 0.22.2 already defaults its Autopush feature to off. Its translation
+API has no provider registered in the stock source. There is no need to
+change either service default during this port. Preserve Lune's distinct
+browser-update and component-update consent and keep its pin grid and drag
+behavior for subsequent runtime review.
+
 ## Porting the engine
 
 The first ordered patch in Helium 0.22.2,
