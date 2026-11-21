@@ -267,6 +267,34 @@ Sparkle appcast. The executable, framework and outcome records are under
 `.work/input-audit/`. Native feature acceptance and the x86_64 browser build
 remain pending.
 
+### Pinned sidebar outline correction
+
+Helium's pin redesign added a rounded border to the vertical pin container.
+The Lune sidebar style patch removes the container border, its padding and
+the corresponding drag-clamping inset. The corrected staged platform tree is
+`2297a7943ae10b6537a1c23d773c6bf3ffde4df0`. All 663 patches passed another
+fresh zero-fuzz preparation, the affected file matched the quilt source,
+and platform patch lint passed.
+
+Native captures with one selected pinned tab reproduced the outline in the
+first preview. The corrected arm64 build and the prior accepted Lune build
+both have zero outline pixels in the sampled row and match in selected-fill
+color and area. The pinned-grid geometry and placeholder fixtures passed on
+arm64 and x86_64 under Rosetta. Packaged browser and Settings smoke passed.
+The corrected preview reopened the same review profile, and the owner
+confirmed the outline was gone.
+
+### Download request tracking check
+
+A loopback fixture on the corrected arm64 build saved both test attachments
+with extensions disabled. A top-level navigation to the first attachment
+removed `fbclid` before the server saw the request and retained `utm_source`
+under Lune's existing navigation policy. Clicking an HTML `download` link
+for the second attachment retained both parameters. Both routes preserved
+the unrelated `keep` parameter. This confirms that the direct-download path
+bypasses Lune's navigation cleanup. The server-observed requests are in
+`.work/input-audit/download-first-request.json`.
+
 ## Porting the engine
 
 The first ordered patch in Helium 0.22.2,
