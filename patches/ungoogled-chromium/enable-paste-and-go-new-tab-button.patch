@@ -1,27 +1,94 @@
 --- a/chrome/browser/ui/browser_commands.cc
 +++ b/chrome/browser/ui/browser_commands.cc
-@@ -1418,9 +1418,6 @@ void NewTabToRight(BrowserWindowInterfac
- }
+@@ -1416,45 +1416,48 @@
  
  void NewTabFromClipboardURL(BrowserWindowInterface* browser) {
--#if BUILDFLAG(IS_LINUX)
--  if (ui::Clipboard::IsSupportedClipboardBuffer(
+ #if BUILDFLAG(IS_LINUX)
+-  if (ui::Clipboard::IsMiddleClickPasteEnabled() &&
+-      ui::Clipboard::IsSupportedClipboardBuffer(
 -          ui::ClipboardBuffer::kSelection)) {
-     ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
-     CHECK(clipboard)
-         << "Clipboard instance is not available, cannot proceed with "
-@@ -1450,8 +1447,6 @@ void NewTabFromClipboardURL(BrowserWindo
-               }
-             },
-             browser->GetWeakPtr()));
--  }
--#endif
+-    ui::Clipboard* const clipboard = ui::Clipboard::GetForCurrentThread();
+-    CHECK(clipboard)
+-        << "Clipboard instance is not available, cannot proceed with "
+-           "middle mouse button action.";
+-    clipboard->ReadText(
+-        ui::ClipboardBuffer::kSelection, /*data_dst=*/std::nullopt,
+-        base::BindOnce(
+-            [](base::WeakPtr<BrowserWindowInterface> browser_weak,
+-               std::u16string text) {
+-              const std::u16string sanitized_text =
+-                  omnibox::SanitizeTextForPaste(text);
+-              if (!browser_weak || sanitized_text.empty()) {
+-                return;
+-              }
+-              AutocompleteClassifier* const autocomplete_classifier =
+-                  AutocompleteClassifierFactory::GetForProfile(
+-                      browser_weak->GetProfile());
+-              if (!autocomplete_classifier) {
+-                return;
+-              }
+-              base::RecordAction(
+-                  base::UserMetricsAction("NewTabButton_PasteAndNavigate"));
+-              AutocompleteMatch match;
+-              autocomplete_classifier->Classify(
+-                  sanitized_text, /*in_keyword_mode=*/false,
+-                  /*allow_exact_keyword_match=*/false,
+-                  metrics::OmniboxEventProto::BLANK, &match, nullptr);
+-              if (match.destination_url.is_valid() &&
+-                  match.destination_url.SchemeIsHTTPOrHTTPS()) {
+-                browser_weak->GetTabStripModel()->delegate()->AddTabAt(
+-                    match.destination_url, -1, true);
+-              }
+-            },
+-            browser->GetWeakPtr()));
++  constexpr auto buffer = ui::ClipboardBuffer::kSelection;
++  if (!ui::Clipboard::IsMiddleClickPasteEnabled() ||
++      !ui::Clipboard::IsSupportedClipboardBuffer(buffer)) {
++    return;
+   }
++#else
++  constexpr auto buffer = ui::ClipboardBuffer::kCopyPaste;
+ #endif
++  ui::Clipboard* const clipboard = ui::Clipboard::GetForCurrentThread();
++  CHECK(clipboard)
++      << "Clipboard instance is not available, cannot proceed with "
++         "middle mouse button action.";
++  clipboard->ReadText(
++      buffer, /*data_dst=*/std::nullopt,
++      base::BindOnce(
++          [](base::WeakPtr<BrowserWindowInterface> browser_weak,
++             std::u16string text) {
++            const std::u16string sanitized_text =
++                omnibox::SanitizeTextForPaste(text);
++            if (!browser_weak || sanitized_text.empty()) {
++              return;
++            }
++            AutocompleteClassifier* const autocomplete_classifier =
++                AutocompleteClassifierFactory::GetForProfile(
++                    browser_weak->GetProfile());
++            if (!autocomplete_classifier) {
++              return;
++            }
++            base::RecordAction(
++                base::UserMetricsAction("NewTabButton_PasteAndNavigate"));
++            AutocompleteMatch match;
++            autocomplete_classifier->Classify(
++                sanitized_text, /*in_keyword_mode=*/false,
++                /*allow_exact_keyword_match=*/false,
++                metrics::OmniboxEventProto::BLANK, &match, nullptr);
++            if (match.destination_url.is_valid() &&
++                match.destination_url.SchemeIsHTTPOrHTTPS()) {
++              browser_weak->GetTabStripModel()->delegate()->AddTabAt(
++                  match.destination_url, -1, true);
++            }
++          },
++          browser->GetWeakPtr()));
  }
  
  void CloseTab(BrowserWindowInterface* browser) {
 --- a/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
-@@ -225,13 +225,11 @@ HorizontalTabStripRegionViewOld::Horizon
+@@ -238,13 +238,11 @@
      new_tab_button_->GetViewAccessibility().SetName(
          l10n_util::GetStringUTF16(IDS_ACCNAME_NEWTAB));
  

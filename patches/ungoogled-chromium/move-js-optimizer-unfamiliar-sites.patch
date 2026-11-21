@@ -13,15 +13,15 @@
  using extensions::api::settings_private::PrefObject;
 --- a/chrome/browser/resources/settings/site_settings/v8_page.ts
 +++ b/chrome/browser/resources/settings/site_settings/v8_page.ts
-@@ -13,7 +13,6 @@ import {PrefServiceObserverMixin} from '
- import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
+@@ -14,7 +14,6 @@
  import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
  
+ import {loadTimeData} from '../i18n_setup.js';
 -import {SafeBrowsingSetting} from '../privacy_page/security/safe_browsing_types.js';
  import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
  
  import {ContentSettingsTypes, JavascriptOptimizerSetting} from './constants.js';
-@@ -59,13 +58,8 @@ export class V8PageElement extends V8Pag
+@@ -69,13 +68,8 @@
  
    override connectedCallback() {
      super.connectedCallback();
@@ -37,17 +37,17 @@
    // SettingsViewMixin implementation.
 --- a/chrome/browser/site_protection/site_familiarity_utils.cc
 +++ b/chrome/browser/site_protection/site_familiarity_utils.cc
-@@ -10,6 +10,7 @@
- #include "chrome/browser/search_engines/template_url_service_factory.h"
+@@ -11,6 +11,7 @@
  #include "components/content_settings/browser/ui/javascript_optimizer_setting.h"
  #include "components/content_settings/core/browser/host_content_settings_map.h"
+ #include "components/content_settings/core/common/features.h"
 +#include "components/content_settings/core/common/pref_names.h"
  #include "components/prefs/pref_service.h"
  #include "components/safe_browsing/core/common/features.h"
  #include "components/search_engines/template_url_service.h"
 --- a/components/content_settings/core/browser/content_settings_pref_provider.cc
 +++ b/components/content_settings/core/browser/content_settings_pref_provider.cc
-@@ -102,6 +102,7 @@ void PrefProvider::RegisterProfilePrefs(
+@@ -105,6 +105,7 @@
        ContentSettingsPattern::kContentSettingsPatternVersion);
    registry->RegisterBooleanPref(prefs::kInContextCookieControlsOpened, false);
    registry->RegisterBooleanPref(kGeolocationMigrateExceptionsPref, false);
@@ -57,7 +57,7 @@
        WebsiteSettingsRegistry::GetInstance();
 --- a/components/content_settings/core/common/pref_names.h
 +++ b/components/content_settings/core/common/pref_names.h
-@@ -284,6 +284,8 @@ inline constexpr char kDesktopSiteWindow
+@@ -284,6 +284,8 @@
      "desktop_site.window_setting";
  #endif
  

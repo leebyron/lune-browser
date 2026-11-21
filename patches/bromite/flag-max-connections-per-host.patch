@@ -17,7 +17,7 @@ with limited CPU/memory resources and it is disabled by default.
 
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -2717,6 +2717,7 @@ source_set("browser") {
+@@ -2716,6 +2716,7 @@
      "//components/multistep_filter/core:features",
      "//components/navigation_interception",
      "//components/omnibox/browser:vector_icons",
@@ -49,9 +49,9 @@ with limited CPU/memory resources and it is disabled by default.
  #endif  // CHROME_BROWSER_BROMITE_FLAG_ENTRIES_H_
 --- a/chrome/browser/browser_process_impl.cc
 +++ b/chrome/browser/browser_process_impl.cc
-@@ -23,12 +23,14 @@
- #include "base/functional/callback.h"
- #include "base/functional/callback_helpers.h"
+@@ -25,12 +25,14 @@
+ #include "base/i18n/language_tag.h"
+ #include "base/i18n/tag_converters.h"
  #include "base/location.h"
 +#include "base/logging.h"
  #include "base/memory/ptr_util.h"
@@ -64,7 +64,7 @@ with limited CPU/memory resources and it is disabled by default.
  #include "base/synchronization/waitable_event.h"
  #include "base/task/sequenced_task_runner.h"
  #include "base/task/single_thread_task_runner.h"
-@@ -118,6 +120,7 @@
+@@ -122,6 +124,7 @@
  #include "components/metrics/metrics_service.h"
  #include "components/metrics_services_manager/metrics_services_manager.h"
  #include "components/metrics_services_manager/metrics_services_manager_client.h"
@@ -72,7 +72,7 @@ with limited CPU/memory resources and it is disabled by default.
  #include "components/network_time/network_time_tracker.h"
  #include "components/os_crypt/async/browser/os_crypt_async.h"
  #include "components/permissions/permissions_client.h"
-@@ -154,6 +157,7 @@
+@@ -158,6 +161,7 @@
  #include "extensions/common/constants.h"
  #include "media/media_buildflags.h"
  #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -80,8 +80,8 @@ with limited CPU/memory resources and it is disabled by default.
  #include "printing/buildflags/buildflags.h"
  #include "services/network/public/cpp/features.h"
  #include "services/network/public/cpp/shared_url_loader_factory.h"
-@@ -570,6 +574,18 @@ void BrowserProcessImpl::Init() {
-                           base::Unretained(this)));
+@@ -561,6 +565,18 @@
+   }
  #endif  // BUILDFLAG(IS_WIN)
  
 +  int max_connections_per_host = 0;
@@ -101,7 +101,7 @@ with limited CPU/memory resources and it is disabled by default.
  
 --- a/chrome/browser/flag_descriptions.h
 +++ b/chrome/browser/flag_descriptions.h
-@@ -3426,6 +3426,10 @@ inline constexpr char kMediaCaptureEleme
+@@ -3468,6 +3468,10 @@
      "Enables camera and microphone preview for <camera>, <microphone>, and "
      "<usermedia> elements.";
  
@@ -114,7 +114,7 @@ with limited CPU/memory resources and it is disabled by default.
  inline constexpr char kMediaRouterCastAllowAllIPsDescription[] =
 --- a/components/network_session_configurator/common/network_switch_list.h
 +++ b/components/network_session_configurator/common/network_switch_list.h
-@@ -19,6 +19,10 @@ NETWORK_SWITCH(kEnableUserAlternateProto
+@@ -19,6 +19,10 @@
  // Enables the QUIC protocol.  This is a temporary testing flag.
  NETWORK_SWITCH(kEnableQuic, "enable-quic")
  

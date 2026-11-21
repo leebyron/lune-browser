@@ -1,6 +1,6 @@
 --- a/chrome/browser/extensions/api/messaging/launch_context_posix.cc
 +++ b/chrome/browser/extensions/api/messaging/launch_context_posix.cc
-@@ -45,11 +45,22 @@ base::FilePath LaunchContext::FindManife
+@@ -45,11 +45,22 @@
    if (allow_user_level_hosts) {
      result = FindManifestInDir(chrome::DIR_USER_NATIVE_MESSAGING, host_name);
    }
@@ -25,7 +25,7 @@
  
 --- a/chrome/common/chrome_paths.cc
 +++ b/chrome/common/chrome_paths.cc
-@@ -152,6 +152,11 @@ bool PathProvider(int key, base::FilePat
+@@ -155,6 +155,11 @@
        }
        create_dir = true;
        break;
@@ -37,7 +37,7 @@
      case chrome::DIR_USER_DOCUMENTS:
        if (!GetUserDocumentsDirectory(&cur)) {
          return false;
-@@ -482,11 +487,28 @@ bool PathProvider(int key, base::FilePat
+@@ -485,11 +490,28 @@
  #endif  // !BUILDFLAG(IS_MAC)
        break;
  
@@ -68,7 +68,7 @@
          // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID))
 --- a/chrome/common/chrome_paths.h
 +++ b/chrome/common/chrome_paths.h
-@@ -25,6 +25,7 @@ enum {
+@@ -25,6 +25,7 @@
  
    DIR_LOGS = PATH_START,  // Directory where logs should be written.
    DIR_USER_DATA,          // Directory where user data can be written.
@@ -76,7 +76,7 @@
    DIR_CRASH_METRICS,      // Directory where crash metrics are written.
    DIR_CRASH_DUMPS,        // Directory where crash dumps are written.
    DIR_LOCAL_TRACES,       // Directory where local traces are written.
-@@ -112,6 +113,9 @@ enum {
+@@ -112,6 +113,9 @@
                                // manifest files are stored.
    DIR_USER_NATIVE_MESSAGING,  // Directory with Native Messaging Hosts
                                // installed per-user.
@@ -88,7 +88,7 @@
    DIR_GLOBAL_GCM_STORE,  // Directory where the global GCM instance
 --- a/chrome/common/chrome_paths_android.cc
 +++ b/chrome/common/chrome_paths_android.cc
-@@ -93,6 +93,11 @@ bool GetDefaultUserDataDirectory(base::F
+@@ -93,6 +93,11 @@
    return base::PathService::Get(base::DIR_ANDROID_APP_DATA, result);
  }
  
@@ -102,8 +102,8 @@
      return false;
 --- a/chrome/common/chrome_paths_internal.h
 +++ b/chrome/common/chrome_paths_internal.h
-@@ -35,6 +35,9 @@ std::optional<bool> IsUsingDefaultDataDi
- // value for testing. Set to `std::nullopt` to restore the default behavior.
+@@ -47,6 +47,9 @@
+ // testing. Set to `std::nullopt` to restore the default behavior.
  void SetUsingDefaultUserDataDirectoryForTesting(std::optional<bool> is_default);
  
 +// Get the path to where Chrome would make a user data directory.
@@ -114,7 +114,7 @@
  // DIR_ROAMING_USER_DATA has been overridden by a command-line option.
 --- a/chrome/common/chrome_paths_linux.cc
 +++ b/chrome/common/chrome_paths_linux.cc
-@@ -101,6 +101,24 @@ bool GetDefaultUserDataDirectory(base::F
+@@ -103,6 +103,24 @@
    return true;
  }
  
@@ -141,7 +141,7 @@
    // See http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
 --- a/chrome/common/chrome_paths_win.cc
 +++ b/chrome/common/chrome_paths_win.cc
-@@ -47,6 +47,14 @@ bool GetDefaultUserDataDirectory(base::F
+@@ -47,6 +47,14 @@
    return true;
  }
  
@@ -158,7 +158,7 @@
      return false;
 --- a/chrome/common/chrome_paths_mac.mm
 +++ b/chrome/common/chrome_paths_mac.mm
-@@ -87,6 +87,10 @@ bool GetDefaultUserDataDirectory(base::F
+@@ -87,6 +87,10 @@
    return GetDefaultUserDataDirectoryForProduct(ProductDirName(), result);
  }
  

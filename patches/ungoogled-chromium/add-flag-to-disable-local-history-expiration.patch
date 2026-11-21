@@ -21,8 +21,8 @@
  #include "base/compiler_specific.h"
  #include "base/containers/flat_map.h"
  #include "base/containers/flat_set.h"
-@@ -1395,7 +1396,8 @@ void HistoryBackend::InitImpl(
-   db_->GetStartDate(&first_recorded_time_);
+@@ -1371,7 +1372,8 @@
+   BeginSingletonTransaction();
  
    // Start expiring old stuff.
 -  expirer_.StartExpiringOldStuff(base::Days(kExpireDaysThreshold));
@@ -31,7 +31,7 @@
  }
  
  void HistoryBackend::CloseAllDatabases() {
-@@ -1623,6 +1625,8 @@ void HistoryBackend::AddPagesWithDetails
+@@ -1589,6 +1591,8 @@
  }
  
  bool HistoryBackend::IsExpiredVisitTime(const base::Time& time) const {

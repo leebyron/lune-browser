@@ -1,19 +1,44 @@
-# Disables references to fonts.googleapis.com
+# Disable remote Google fonts in Reader Mode and bundled documentation
 
---- a/components/dom_distiller/content/browser/dom_distiller_viewer_source.cc
-+++ b/components/dom_distiller/content/browser/dom_distiller_viewer_source.cc
-@@ -310,7 +310,7 @@ bool DomDistillerViewerSource::ShouldSer
- std::string DomDistillerViewerSource::GetContentSecurityPolicy(
-     network::mojom::CSPDirectiveName directive) {
-   if (directive == network::mojom::CSPDirectiveName::StyleSrc) {
--    return "style-src 'self' https://fonts.googleapis.com;";
-+    return "style-src 'self';";
-   } else if (directive == network::mojom::CSPDirectiveName::ChildSrc) {
-     return "child-src *;";
-   } else if (directive ==
---- a/components/dom_distiller/core/html/preview.html
-+++ b/components/dom_distiller/core/html/preview.html
-@@ -11,7 +11,7 @@ found in the LICENSE file.
+--- a/components/web_distiller/content/browser/web_distiller_viewer_source.cc
++++ b/components/web_distiller/content/browser/web_distiller_viewer_source.cc
+@@ -323,13 +323,13 @@
+     case network::mojom::CSPDirectiveName::MediaSrc:
+       return "media-src http: https:;";
+     case network::mojom::CSPDirectiveName::FontSrc:
+-      return "font-src https://fonts.gstatic.com;";
++      return "font-src 'self';";
+     case network::mojom::CSPDirectiveName::FormAction:
+       return "form-action 'none';";
+     case network::mojom::CSPDirectiveName::BaseURI:
+       return "base-uri 'none';";
+     case network::mojom::CSPDirectiveName::StyleSrc:
+-      return "style-src 'self' https://fonts.googleapis.com;";
++      return "style-src 'self';";
+     case network::mojom::CSPDirectiveName::ChildSrc:
+       return "child-src *;";
+     case network::mojom::CSPDirectiveName::RequireTrustedTypesFor:
+--- a/components/web_distiller/content/browser/web_distiller_viewer_source_unittest.cc
++++ b/components/web_distiller/content/browser/web_distiller_viewer_source_unittest.cc
+@@ -53,13 +53,13 @@
+             source.GetContentSecurityPolicy(CSPDirectiveName::ImgSrc));
+   EXPECT_EQ("media-src http: https:;",
+             source.GetContentSecurityPolicy(CSPDirectiveName::MediaSrc));
+-  EXPECT_EQ("font-src https://fonts.gstatic.com;",
++  EXPECT_EQ("font-src 'self';",
+             source.GetContentSecurityPolicy(CSPDirectiveName::FontSrc));
+   EXPECT_EQ("form-action 'none';",
+             source.GetContentSecurityPolicy(CSPDirectiveName::FormAction));
+   EXPECT_EQ("base-uri 'none';",
+             source.GetContentSecurityPolicy(CSPDirectiveName::BaseURI));
+-  EXPECT_EQ("style-src 'self' https://fonts.googleapis.com;",
++  EXPECT_EQ("style-src 'self';",
+             source.GetContentSecurityPolicy(CSPDirectiveName::StyleSrc));
+   EXPECT_EQ("child-src *;",
+             source.GetContentSecurityPolicy(CSPDirectiveName::ChildSrc));
+--- a/components/web_distiller/core/html/preview.html
++++ b/components/web_distiller/core/html/preview.html
+@@ -11,7 +11,7 @@
    <meta name="theme-color" id="theme-color">
    <title>Title goes here and it could be kind of lengthy - Publisher name</title>
    <link href="../css/distilledpage.css" rel="stylesheet" type="text/css">
@@ -50,7 +75,7 @@
  *,
  *::after,
  *::before {
-@@ -72,7 +71,7 @@ ul, ol {
+@@ -72,7 +71,7 @@
    user-select: none;
  }
  .u-monospace {
@@ -59,7 +84,7 @@
  }
  
  /* Common.soy */
-@@ -82,7 +81,7 @@ ul, ol {
+@@ -82,7 +81,7 @@
    color: #000;
    display: -ms-flexbox;
    display: flex;
