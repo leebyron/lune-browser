@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "622464d3bfb4ecb0f1da565d6556b12d1d3f38f6",
+    "commit": "27d3bb1ca55104221386ef4a592d0b3d6a7ad728",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1073,6 +1073,10 @@
       {
         "path": "patches/helium/ui/manual-pip-auto-permission-offer.patch",
         "sha256": "c48d5b74ca7f710fed2a04d5531c383212f1a4b26836db9cfb8362b8e7425139"
+      },
+      {
+        "path": "patches/helium/ui/page-top-window-drag-eligibility.patch",
+        "sha256": "44f94bebfb0b57bd89b6db1f351e40292b7b64065da089e7c15e3fd71d9a28ad"
       }
     ]
   },
@@ -3382,6 +3386,22 @@
       "adaptation": "Reuse the permission overlay with the domain in the question. Allow saves a site exception and Not Now leaves Ask. Remember the offer per origin in regular macOS profiles.",
       "commits": [
         "622464d3bfb4ecb0f1da565d6556b12d1d3f38f6"
+      ]
+    },
+    {
+      "id": "page-top-window-drag-eligibility",
+      "depends_on": [
+        "page-top-window-drag",
+        "page-top-window-drag-default"
+      ],
+      "patches": [
+        "patches/helium/ui/page-top-window-drag-eligibility.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Expand the blank page space available for window dragging across URL schemes.",
+      "adaptation": "Use renderer hit testing and gesture ownership after input dispatch. Honor cancellation, capture and interactive targets while allowing passive and delegated listeners.",
+      "commits": [
+        "27d3bb1ca55104221386ef4a592d0b3d6a7ad728"
       ]
     }
   ],

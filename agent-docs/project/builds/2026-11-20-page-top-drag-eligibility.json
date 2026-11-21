@@ -1,0 +1,85 @@
+{
+  "date": "2026-11-20",
+  "issue": 47,
+  "base_main": "d1246fd7ddfc4bb9b64132bb5c7fafecc35f1952",
+  "chromium_version": "158.0.8127.37",
+  "platform_input": {
+    "commit": "27d3bb1ca55104221386ef4a592d0b3d6a7ad728",
+    "ref": "refs/tags/inputs/page-top-window-drag-eligibility-1/macos",
+    "base": "622464d3bfb4ecb0f1da565d6556b12d1d3f38f6"
+  },
+  "source_preparation": {
+    "macos": "27d3bb1ca55104221386ef4a592d0b3d6a7ad728",
+    "helium": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+    "chromium": "158.0.8127.37",
+    "strict_replay_passed": true,
+    "patch_hunk_offsets": [],
+    "full_source_parity": true,
+    "inventory_files": 596108,
+    "inventory_symlinks": 141,
+    "source_sha256": {
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.h": "04b461cdc1720b5f046b9b481761a8d6a41d3f04a5e4e69287b648172d5d4403",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "a69a6101a866ac4739bf6c457bd0814dd794ee52116fd132c8c25328fea2fff2",
+      "third_party/blink/renderer/core/input/event_handler.h": "96cc5a572fbdab494fec696df2f2528a25d28eb58a4a0b1dc87a3d3dc410b664",
+      "third_party/blink/renderer/core/input/event_handler.cc": "eeefc94ebf93a308275abc4978bec8bb5521e8b7db8b918f0b5633f903ef0b4d",
+      "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc": "74bff02d0986870dbc6b4ee1aa159fdb0725d40839def407648ad3c86ef6ab61"
+    },
+    "patch_sha256": "44f94bebfb0b57bd89b6db1f351e40292b7b64065da089e7c15e3fd71d9a28ad"
+  },
+  "builds": {
+    "arm64": {
+      "execution": "Native Apple silicon",
+      "framework_sha256": "7b393f4dbb4d7e796593443b62c92aa9c0532931a0f53bd72487fac04ff3a0bd",
+      "browser_smoke_passed": true,
+      "native_gestures_passed": 22,
+      "enabled_in_fresh_profile": true,
+      "off_persisted_after_restart": true
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "ca5a7889c6b34ce7fb34dfe2f88f9a32f89ab2b09a16a9463f0a2a9e7bff4376",
+      "browser_smoke_passed": true,
+      "native_gestures_passed": 22,
+      "enabled_in_fresh_profile": true,
+      "off_persisted_after_restart": true
+    }
+  },
+  "native_gestures": [
+    "subthreshold click",
+    "blank span with passive and delegated listeners",
+    "rapid drag and reverse direction",
+    "last point in band",
+    "first point outside band",
+    "Command bypass",
+    "text selection",
+    "scripted drag with pointer capture",
+    "embedded webpage input",
+    "drag after page input",
+    "delegated mousedown cancellation",
+    "delegated pointermove cancellation",
+    "delegated pointer capture on first motion",
+    "late renderer response",
+    "ARIA button with default cursor",
+    "page grab cursor",
+    "same fixture over file",
+    "same fixture over data",
+    "Media Engagement above the heading",
+    "Media Engagement beside the heading text",
+    "disabled in the same window",
+    "link click"
+  ],
+  "arm64_header_regressions": [
+    "check-header-drag-retention",
+    "check-header-devtools-hover",
+    "check-fullscreen-header-hover",
+    "check-toolbar-visibility"
+  ],
+  "baseline_blank_drag_displacement_points": 0,
+  "arm64_preview_accepted_by_owner": true,
+  "arm64_preview_framework_sha256": "a2f2254b4974daede0ad7c584a5a9d2542b9a59ed3ab132739e11c66f9e8e143",
+  "repository_tests": {
+    "run": 107,
+    "skipped": 1
+  },
+  "patch_and_translation_lint_passed": true
+}

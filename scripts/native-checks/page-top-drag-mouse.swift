@@ -74,10 +74,14 @@ Thread.sleep(forTimeInterval: 0.12)
 
 var end = start
 if args.contains("drag") {
-    for step in 1...10 {
-        end.x = start.x + Double(step * (args.contains("left") ? -4 : 4))
+    let rapid = args.contains("rapid")
+    let stepCount = rapid ? 20 : 10
+    let stepSize = 40 / stepCount
+    let direction = args.contains("left") ? -1 : 1
+    for step in 1...stepCount {
+        end.x = start.x + Double(step * stepSize * direction)
         send(.leftMouseDragged, end)
-        Thread.sleep(forTimeInterval: 0.04)
+        Thread.sleep(forTimeInterval: rapid ? 0.008 : 0.04)
     }
 } else if args.contains("slip") {
     end.x += 1

@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from browser_test_profiles import temporary_profile
@@ -31,8 +32,8 @@ header { height: 52px; position: relative; }
 #link { left: 535px; }
 #custom { left: 740px; width: 80px; height: 25px; cursor: default; background: #eef; }
 </style>
-<header>
-  <div id=blank></div>
+<header role=banner>
+  <span id=blank></span>
   <span id=text>Select this text</span>
   <iframe id=frame srcdoc="<body style='margin:0'>Frame<script>
     addEventListener('pointerdown', () => ++parent.count.frame)
@@ -41,8 +42,38 @@ header { height: 52px; position: relative; }
   <div id=custom></div>
 </header>
 <script>
-window.count = {blank: 0, link: 0, moves: 0, releases: 0, frame: 0};
-document.querySelector('#blank').addEventListener('click', () => ++count.blank);
+window.count = {blank: 0, link: 0, moves: 0, releases: 0, frame: 0,
+                presses: 0, passiveMotion: 0, claimed: 0, blankReleases: 0};
+const blank = document.querySelector('#blank');
+blank.addEventListener('click', () => ++count.blank);
+blank.addEventListener('pointerup', () => ++count.blankReleases);
+document.addEventListener('mousedown', () => ++count.presses, {passive: true});
+window.addEventListener('pointermove', event => {
+  if (event.buttons === 1 && event.target === blank) ++count.passiveMotion;
+}, {passive: true});
+// Frameworks can attach handlers to a common ancestor and act on individual
+// widgets only. The same point can belong to the page when the handler claims it.
+document.querySelector('header').addEventListener('mousedown', event => {
+  if (event.target === blank && window.claim === 'press') {
+    event.preventDefault();
+    ++count.claimed;
+  }
+});
+document.querySelector('header').addEventListener('pointermove', event => {
+  if (event.target !== blank || event.buttons !== 1) return;
+  if (window.claim === 'motion') {
+    event.preventDefault();
+    ++count.claimed;
+  } else if (window.claim === 'capture') {
+    blank.setPointerCapture(event.pointerId);
+    ++count.claimed;
+  } else if (window.claim === 'delay') {
+    window.claim = null;
+    const until = performance.now() + 220;
+    while (performance.now() < until) {}
+    ++count.claimed;
+  }
+});
 document.querySelector('#link').addEventListener('click', event => {
   event.preventDefault();
   ++count.link;
@@ -170,7 +201,7 @@ def set_drag_enabled(driver, settings, page, enabled):
     driver.switch(page)
 
 
-def run_gestures(driver, mouse, pid, report, settings, page):
+def run_gestures(driver, mouse, pid, report, settings, page, loopback, local_file):
     def gesture(name, point, *options, delta=0):
         observed = json.loads(subprocess.check_output(
             [str(mouse), str(pid), *(str(v) for v in point), *options], text=True))
@@ -187,9 +218,12 @@ def run_gestures(driver, mouse, pid, report, settings, page):
     driver.switch(page)
     blank = (220, 28)
     assert gesture('subthreshold click', blank, 'slip')['counters']['blank'] == 1
-    assert gesture('blank space with the default preference', blank, 'drag',
-                   delta=40)['counters']['blank'] == 1
-    gesture('second drag and reverse direction', (220, 27), 'drag', 'left', delta=-40)
+    background = gesture('blank span with passive and delegated listeners',
+                         blank, 'drag', delta=40)['counters']
+    assert background['blank'] == 1
+    assert background['presses'] == 2 and background['passiveMotion'] > 0
+    gesture('rapid drag and reverse direction', (220, 27), 'drag', 'rapid', 'left',
+            delta=-40)
     gesture('last point in band', (220, 51), 'drag', delta=40)
     gesture('first point outside band', (220, 52), 'drag')
     gesture('Command bypass', blank, 'drag', 'command')
@@ -199,6 +233,41 @@ def run_gestures(driver, mouse, pid, report, settings, page):
     assert gesture('embedded webpage input', (476, 30), 'drag')['counters']['frame'] == 1
     gesture('drag after page input', blank, 'drag', 'left', delta=-40)
 
+    for mode, name in (
+        ('press', 'delegated mousedown cancellation'),
+        ('motion', 'delegated pointermove cancellation'),
+        ('capture', 'delegated pointer capture on first motion'),
+        ('delay', 'late renderer response'),
+    ):
+        releases = driver.script('window.claim = arguments[0]; count.claimed = 0;'
+                                 'return count.blankReleases;', mode)
+        counters = gesture(name, blank, 'drag')['counters']
+        assert counters['claimed'] > 0 and counters['blankReleases'] == releases + 1
+    driver.script('window.claim = null;')
+    driver.script('document.querySelector("#blank").setAttribute("role", "button");')
+    gesture('ARIA button with default cursor', blank, 'drag')
+    driver.script('document.querySelector("#blank").removeAttribute("role");')
+    driver.script('document.querySelector("#blank").style.cursor = "grab";')
+    gesture('page grab cursor', blank, 'drag')
+    driver.script('document.querySelector("#blank").style.removeProperty("cursor");')
+
+    for url, name in (
+        (local_file.as_uri(), 'same fixture over file'),
+        ('data:text/html;charset=utf-8,' + quote(PAGE), 'same fixture over data'),
+    ):
+        driver.request('POST', '/url', {'url': url})
+        assert driver.script('return !!window.count;')
+        gesture(name, blank, 'drag', delta=40)
+
+    driver.request('POST', '/url', {'url': 'chrome://media-engagement/'})
+    wait_for(lambda: driver.script('return !!document.querySelector("h1");'),
+             'Media Engagement heading')
+    gesture('Media Engagement above the heading', (520, 12), 'drag', 'left', delta=-40)
+    assert driver.script('return document.elementFromPoint(520, 28)?.localName;') == 'h1'
+    gesture('Media Engagement beside the heading text', (520, 28), 'drag', delta=40)
+
+    driver.request('POST', '/url', {'url': loopback})
+    wait_for(lambda: driver.script('return !!window.count;'), 'the loopback page to reload')
     set_drag_enabled(driver, settings, page, False)
     gesture('disabled in the same window', blank, 'drag')
     set_drag_enabled(driver, settings, page, True)
@@ -241,6 +310,8 @@ def check(output, report_path, report):
         threading.Thread(target=server.serve_forever, daemon=True).start()
         url = f'http://127.0.0.1:{server.server_port}/'
         profile = Path(directory)
+        local_file = profile / 'drag-fixture.html'
+        local_file.write_text(PAGE)
         (profile / 'Default').mkdir()
         preferences = profile / 'Default/Preferences'
         preferences.write_text(json.dumps({'helium': {
@@ -271,7 +342,7 @@ def check(output, report_path, report):
                 driver.switch(settings)
                 driver.request('POST', '/url', {'url': 'chrome://settings/appearance'})
                 driver.switch(page)
-                run_gestures(driver, mouse, child.pid, report, settings, page)
+                run_gestures(driver, mouse, child.pid, report, settings, page, url, local_file)
                 wait_for(lambda: json.loads(preferences.read_text()).get('helium', {}).get(
                     'browser', {}).get('page_top_window_drag') is False, 'the off preference on disk')
             restart_report = report_path.with_name(report_path.stem + '-restart.json')
