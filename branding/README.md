@@ -44,6 +44,13 @@ selects the light/dark brand colors without JavaScript or separate URLs.
 The PNG and multi-resolution ICO fallbacks use the same transparent framing
 with the fixed dark palette. Apple touch artwork retains its opaque background.
 
+### App icon gradient and rounded tips (2026-11-21)
+
+The Light tile fades vertically from `#F7F9F3` to `#D0DDC9`, and Dark from
+`#21516A` to `#082238` (B · Deeper). Each glass lune has tangent circular
+fillets with a 2 px radius on the 1024 px app-icon canvas. The renderer scales
+the radius with each representation. The flat marks use their original arcs.
+
 ### Native floating-glass icons (2026-11-12, accepted)
 
 The current app mark retains the selected adjusted arcs at scale 3.3, with a

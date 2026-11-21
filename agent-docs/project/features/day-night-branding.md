@@ -124,6 +124,21 @@ website deployment is separate. Temporary review apps, profiles, board, tabs and
 servers are cleaned up, retaining evidence and reusable build/source caches.
 Native Intel and older-macOS visual review were not repeated.
 
+## App icon gradient and rounded glass tips — November 21, 2026
+
+The owner selected the B · Deeper vertical gradient and a 2 px radius on
+each lune tip at the 1024 px source size. The colors and tip radius are
+defined in [the branding palette](../../../branding/palettes.json). Icon
+Composer applies the existing glass material over each appearance’s gradient.
+The rounded tips apply to the layered app icon artwork.
+
+The local packages decode in all ten sizes per appearance. The website Dock
+images match the 256 px packaged renditions pixel for pixel, and the Finder
+and helper fallback is byte-identical to the Dark package. The flat asset
+generator check, website build and all seven website tests passed.
+Both browser builds and smoke checks passed, including Rosetta execution
+for x86_64. See [the validation record](../builds/2026-11-21-app-icon-gradient.json).
+
 ## Running Dock icon appearance
 
 The running app uses the light icon when Lune resolves to Light and the dark

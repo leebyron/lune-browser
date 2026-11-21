@@ -1,0 +1,81 @@
+{
+  "design": {
+    "gradient": "B · Deeper",
+    "tip_radius_px_at_1024": 2
+  },
+  "chromium_version": "159.0.8154.13",
+  "source": {
+    "core": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+    "base_platform": "5eea4cf7fdbc35e1a036e966f7efcac725dbbc95",
+    "platform": "951cd4ceb122884964831e76c95b9c55869cdeb4",
+    "platform_ref": "refs/tags/inputs/app-icon-gradient-1/macos"
+  },
+  "verification": {
+    "source": "Complete zero-fuzz preparation. The final source matches the verified Chromium and Settings composition apart from three expected ICNS resources and host-tool cache files.",
+    "packaging": "Both appearances decoded in ten sizes. Each website Dock image matches the packaged 256 px rendition pixel for pixel. The Finder and helper fallback matches Dark byte for byte.",
+    "website": "Build, seven tests and deploy dry run passed.",
+    "flat_artwork": "Generator consistency check passed.",
+    "repository": "108 tests ran with one skip. Component patch and translation lint passed.",
+    "settings": "The two approved Settings resources match byte for byte. Vite and Svelte regenerated four onboarding resources in the isolated build paths. Both onboarding smoke tests passed.",
+    "architectures": [
+      {
+        "architecture": "arm64",
+        "execution": "Apple silicon",
+        "chromium": "159.0.8154.13",
+        "macos": "951cd4ceb122884964831e76c95b9c55869cdeb4",
+        "checks_passed": true,
+        "icon_sha256": {
+          "app.icns": "9d9a3fa22347c456b4b62888996c13d9d9addec8405471297dcb774c8c0fc0a8",
+          "app-light.icns": "b7b7847d62ac7f9f4a03a69d808c0c4b929b6109a483a909a80d2dc1b95a8ef1",
+          "app-dark.icns": "9d9a3fa22347c456b4b62888996c13d9d9addec8405471297dcb774c8c0fc0a8"
+        },
+        "framework_sha256": "7df89324658ebd4cdd103d6ac9d7c25a89051ac5a6879244915c82146c17ad62",
+        "executable_sha256": "af6cd43d10812ad499d0585b775a4f1e2368d3a43966ab5bb19cf2777ec64b9a",
+        "packaged_resources_sha256": "2e8aa943fe2df916ee9aaad64aa18624ff00ffabc9374fd1cd7ed2c8658d324c",
+        "settings_resource_member_sha256": {
+          "20515": "a3cad5e9044e155884b136f6f7e231a226432c52e9cc28ce6b1b3c2bee2f42ea",
+          "20516": "5198a9b4c2ddcc72a53fe0a8f9c40d939a43771c0094051c2d5542d7467c7df8"
+        },
+        "regenerated_onboarding_members": [
+          39772,
+          39773,
+          39789,
+          39804
+        ],
+        "source_parity_sha256": "6f0a03aeb15c5868972d8ce367ed605dbf4191af5b930d39692b462783fe8258",
+        "smoke_sha256": "04b388e18e71fc883e770c5a609b69a5fa23d8e6248d19f961ac5ae6d6e7f485",
+        "dock_icon_checks_passed": 13,
+        "dock_icon_report_sha256": "3e7a0a6bdad1140ea0d36198c196928c20b8486c745cbbba7d543281f14ec209"
+      },
+      {
+        "architecture": "x86_64",
+        "execution": "Rosetta on Apple silicon",
+        "chromium": "159.0.8154.13",
+        "macos": "951cd4ceb122884964831e76c95b9c55869cdeb4",
+        "checks_passed": true,
+        "icon_sha256": {
+          "app.icns": "9d9a3fa22347c456b4b62888996c13d9d9addec8405471297dcb774c8c0fc0a8",
+          "app-light.icns": "b7b7847d62ac7f9f4a03a69d808c0c4b929b6109a483a909a80d2dc1b95a8ef1",
+          "app-dark.icns": "9d9a3fa22347c456b4b62888996c13d9d9addec8405471297dcb774c8c0fc0a8"
+        },
+        "framework_sha256": "543e5adcc04fbef83f72438b72767853c64d8c840aba660ea3031cfb219da4fd",
+        "executable_sha256": "d504d4cc887e6b4b6cdb6e949c71a355c4d38bfd5992d684a239ac95c37deaba",
+        "packaged_resources_sha256": "20d2f7fd698632dc8f0261122c5cc543c09f39199433c2fe4c8ed841e849b39a",
+        "settings_resource_member_sha256": {
+          "20515": "a3cad5e9044e155884b136f6f7e231a226432c52e9cc28ce6b1b3c2bee2f42ea",
+          "20516": "5198a9b4c2ddcc72a53fe0a8f9c40d939a43771c0094051c2d5542d7467c7df8"
+        },
+        "regenerated_onboarding_members": [
+          39772,
+          39773,
+          39789,
+          39804
+        ],
+        "source_parity_sha256": "1e9c1c00a3b3a78e5db02ae38481bddb6e8da65d468c00e4d9e579faec860929",
+        "smoke_sha256": "0829a11ba87f50d003ed288a47cb08f5223deb54b2a4bffc8dc3383bacc219f3",
+        "dock_icon_checks_passed": 13,
+        "dock_icon_report_sha256": "1a74f44b295daed04a41f3a57a0cd266f9b17e6b89358f65e7ff5d85a712a95b"
+      }
+    ]
+  }
+}

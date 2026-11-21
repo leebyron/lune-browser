@@ -2,11 +2,40 @@
 """Compile Lune's macOS icons with Apple's mask, padding and size variants."""
 import importlib.util
 import json
+import math
 from pathlib import Path
 import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def glass_paths(geometry, offset, tip):
+    outer, height, inner = geometry
+    outer_x = 150 - offset
+    inner_x = 150 + math.sqrt(inner**2 - height**2)
+    distance = inner_x - outer_x
+    # A tangent tip arc touches both lune arcs. Its center is at the
+    # intersection of the outer circle inset by tip and the inner circle outset by tip.
+    dx = ((outer - tip)**2 - (inner + tip)**2 + distance**2) / (2 * distance)
+    dy = math.sqrt((outer - tip)**2 - dx**2)
+    for sweep in (0, 1):
+        def tangent(center, ratio, vertical):
+            x = center + (outer_x + dx - center) * ratio
+            return f'{300-x if sweep else x:.8f} {150+vertical*dy*ratio:.8f}'
+
+        o = outer / (outer - tip)
+        i = inner / (inner + tip)
+        top = tangent(outer_x, o, -1)
+        yield (f'M{top} A{outer} {outer} 0 1 {sweep} {tangent(outer_x, o, 1)} '
+               f'A{tip} {tip} 0 0 {sweep} {tangent(inner_x, i, 1)} '
+               f'A{inner} {inner} 0 0 {1-sweep} {tangent(inner_x, i, -1)} '
+               f'A{tip} {tip} 0 0 {sweep} {top} Z')
+
+
+def native_color(hex_color):
+    channels = [int(hex_color[i:i+2], 16) / 255 for i in (1, 3, 5)]
+    return 'extended-srgb:' + ','.join(f'{channel:.8f}' for channel in channels) + ',1'
 
 
 def main():
@@ -26,14 +55,16 @@ def main():
         layers = []
         # Separate vector layers let Apple shade each floating glass piece.
         # Do not bake bevels, glows, or shadows into the artwork.
-        for key, path in zip(('left', 'right'), vectors.paths(data['geometry'])):
+        paths = glass_paths(vectors.geometry(data['geometry']), data['geometry']['center_offset'],
+                            data['app_icon']['tip_radius'] / scale)
+        for key, path in zip(('left', 'right'), paths):
             asset = f'lune-{key}.svg'
             artwork = ('<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" '
                        f'viewBox="0 0 1024 1024"><g transform="translate({inset:g} {inset:g}) scale({scale:g})">'
                        f'<path fill="{data[mode][key]}" d="{path}"/></g></svg>\n')
             (assets / asset).write_text(artwork)
             layers.append({'glass': True, 'image-name': asset, 'name': f'{key.title()} lune'})
-        rgb = [int(data[mode]['ground'][i:i+2], 16) / 255 for i in (1, 3, 5)]
+        stops = data['app_icon']['background_gradient'][mode]
         material = data['app_icon']['material']
         def group(layers, name):
             return {
@@ -50,7 +81,7 @@ def main():
                   if material['separate_groups'] else [group(layers, 'Lunes')])
         document = {
             'features': ['refractivity', 'specular-location'],
-            'fill': {'solid': 'extended-srgb:' + ','.join(f'{c:.8f}' for c in rgb) + ',1.00000000'},
+            'fill': {'linear-gradient': [native_color(stop) for stop in stops]},
             'groups': groups,
             'supported-platforms': {'squares': ['macOS']},
         }
