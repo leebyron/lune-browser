@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "0fbdf54598f378b53bb37dd37d9caa2229004f04",
+    "commit": "5eea4cf7fdbc35e1a036e966f7efcac725dbbc95",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1099,6 +1099,10 @@
       {
         "path": "patches/helium/ui/tab-status-symbols.patch",
         "sha256": "1fb0a4d7a91a5e1d499491fc00249b3bbee4b8868e35cdc8cba557943f741606"
+      },
+      {
+        "path": "patches/lune/settings-row-layout.patch",
+        "sha256": "5919b087ffb9e56d62fe0634d0bbf6d0b2a6085b34bbcf662355e8907cb75595"
       }
     ]
   },
@@ -3484,6 +3488,19 @@
       "adaptation": "Apply platform identity separately and accept XML declarations in the Setup generator.",
       "commits": [
         "57013fe9c39d87cf83fc4dca557c8903b93fc146"
+      ]
+    },
+    {
+      "id": "settings-row-layout",
+      "depends_on": [],
+      "patches": [
+        "patches/lune/settings-row-layout.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep nested settings full width and align their spacing with Chromium's Settings refresh.",
+      "adaptation": "Indent nested labels with logical row padding and reuse the stock 2 px gap inside routed sections and nested controls.",
+      "commits": [
+        "5eea4cf7fdbc35e1a036e966f7efcac725dbbc95"
       ]
     }
   ],

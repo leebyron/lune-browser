@@ -38,6 +38,7 @@ Start with the relevant UI surface. Feature records cover behavior, design const
 - [Native window close controls](native-window-close.md)
 - [Content pane shadow](content-pane-shadow.md)
 - [Native chrome appearance](chrome-appearance.md)
+- [Settings row layout](settings-row-layout.md)
 - [Older macOS window corners and fallback surface edges](older-macos-appearance.md)
 
 ## Sidebar and tab groups
