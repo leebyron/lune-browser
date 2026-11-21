@@ -182,6 +182,48 @@ bar and appearance defaults. The next stop is
 card. Replay evidence remains in `.work/input-audit/`. Full preparation,
 compilation and native layout checks are pending.
 
+## Completed M158 patch replay
+
+The isolated Helium 0.22.2 candidate applied all **663 patches** on
+Chromium `158.0.8127.37` with zero fuzz. Since the previous checkpoint,
+206 patches applied without changes and 28 needed refreshed context or a
+source port. Two local M158 compatibility patches were retired. The upstream
+stack removes the Screen AI test dependencies and implements the Settings
+preference API migration those patches supplied. All 370 upstream core
+patches and 24 upstream macOS patches remain in their original order.
+
+The port carries forward Lune's 216-point sidebar default and resize snap,
+native glass controls, popover resize geometry, pinned-tab and group layout,
+Older Tabs session data, and independent browser and component update
+controls. Helium's shared persistent-pin service stays disabled. Its Web
+Push and translation feature flags remain off by default. The final patch
+is the sidebar scrollbar input fix from Lune main.
+
+Helium's merge utility rebuilt the entire queue from the staged component
+files. The patch order and all 663 patch digests match the quilt replay.
+Vendor patch lint passed for both components and core localization lint
+passed. The orchestration suite ran 108 tests with one skip. The queue
+inventory and per-patch logs are retained in `.work/input-audit/`.
+
+Fresh preparation from the staged platform tree
+`58fdf520614d0d60af651c026fc09ea5ee7b4404` and core
+`a9117f8817b560bc935971e53add71ab90457ae4` independently applied
+all 376 core and 287 platform patches with zero fuzz. It used the
+checksum-verified Chromium arm64 host archive and uBlock Origin 1.76.4,
+then completed naming, localization and resource generation. All 2,101
+patch-touched paths matched the quilt result after reproducing the standard
+domain and name substitutions on the 211 files changed by those passes.
+The preparation trace is `.work/input-audit/fresh-preparation-arm64.log`.
+
+Arm64 GN generation passed. Focused GN include checks passed for native
+frame materials, vertical tab views and Customize Toolbar. Broader checks
+flagged the common tab views' include of `browser_tabstrip.h` and the
+conditional Safe Browsing include of `async_check_tracker.h` in
+`tab_features.cc`. Both includes and their dependency omissions also appear
+in the previous Lune source reference. The trace is
+`.work/input-audit/arm64-focused-gn-check.log`. Browser compilation and
+native smoke tests remain pending.
+
 ## Porting the engine
 
 The first ordered patch in Helium 0.22.2,
@@ -231,5 +273,5 @@ macOS 13 deployment target.
 Investigation evidence is under the ignored `.work/input-audit/` directory
 inside this worktree. It includes both Git simulations, the source inventory
 analysis, the checksum-verified metadata and the forward and reverse patch
-logs. Full archives were not downloaded. Complete preparation, compilation
+logs. Full M159 archives were not downloaded. M159 preparation, compilation
 and runtime behavior remain unverified.
