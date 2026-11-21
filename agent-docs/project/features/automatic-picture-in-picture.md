@@ -56,10 +56,8 @@ from the bottom and trailing edge. Clicking it toggles mute and shows
 `speaker.slash` while muted. Both the scrubber and speaker use the standard
 arrow cursor. Live video shows its live status and speaker.
 
-On ordinary macOS tabs, PiP and audible audio use `pip` and `speaker.wave.2`
-in the tab label's color. They occupy the close-button position and yield to
-the close button on hover or focus. Pinned and icon-only tabs keep their
-existing compact layout.
+See [native tab status indicators](tab-status-indicators.md) for the PiP,
+playing audio and muted audio badges and their hover cards.
 
 Use **Settings → Privacy and security → Site settings → Automatic
 picture-in-picture** to manage the default and site exceptions.

@@ -43,6 +43,7 @@ Start with the relevant UI surface. Feature records cover behavior, design const
 ## Sidebar and tab groups
 
 - [Independent tab shortcut order](independent-tab-cycling.md)
+- [Native tab status indicators](tab-status-indicators.md)
 - [Sidebar pin activation](sidebar-pin-activation.md)
 - [Sidebar new-tab placement](sidebar-new-tab.md)
 - [Sidebar tab drag haptics](sidebar-tab-drag-haptics.md)
