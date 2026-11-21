@@ -248,6 +248,25 @@ It needs the existing tracking-cleanup preference, domain exclusions and
 signed-URL exceptions covered before adoption. Check the action in the
 Downloads bubble and preserve clipboard handling for private windows.
 
+### Arm64 reviewer preview
+
+The first browser compile caught a reference to the expand-on-hover lock
+removed by upstream Helium. The fullscreen patch now clears the transient
+sidebar animation through the existing reset and omits the obsolete member
+access. All 663 patches passed the zero-fuzz replay after this correction.
+The corrected file matched the build source byte for byte and platform lint
+passed. The staged platform tree for the preview is
+`84c1652bc881e25311c1ac929dab916ea4a8e863`.
+
+Arm64 Lune and ChromeDriver built successfully from a fresh preparation with
+the verified cache transfer and this quilt correction. Packaged browser and
+Settings smoke passed. An independent ChromeDriver session loaded an external
+HTTPS page with the review profile's network settings. The reviewer instance
+opened an on-screen window with an isolated, reusable profile and a loopback
+Sparkle appcast. The executable, framework and outcome records are under
+`.work/input-audit/`. Native feature acceptance and the x86_64 browser build
+remain pending.
+
 ## Porting the engine
 
 The first ordered patch in Helium 0.22.2,
