@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -358,24 +358,18 @@
+@@ -362,24 +362,18 @@
    const bool is_force_to_top =
        has_side_panel &&
        layout_data_->horizontal_layout.force_top_container_to_top;
@@ -29,7 +29,7 @@
        break;
      }
      case WindowState::kFullscreen:
-@@ -393,11 +387,11 @@
+@@ -397,11 +391,11 @@
  
  #if BUILDFLAG(IS_MAC)
    if (is_fullscreen(layout_data_->window_state)) {
@@ -43,7 +43,7 @@
      }
    }
  #endif
-@@ -723,7 +717,6 @@
+@@ -727,7 +721,6 @@
    const double side_panel_corner_value =
        gfx::Tween::DoubleValueBetween(open_amount, 0.0, -1.0);
    const bool is_split_view = layout_data_->horizontal_layout.is_split_view;
@@ -51,7 +51,7 @@
    const int vertical_tab_strip_top = GetCollapsedVerticalTabStripRelativeTop();
    std::optional<double> max_uncollapsed_top_corner;
  
-@@ -731,7 +724,7 @@
+@@ -735,7 +728,7 @@
  
    if (layout_data_->tab_strip_type == TabStripType::kVertical) {
      double top_corner_collapsed_state = 1.0;
@@ -60,7 +60,7 @@
      switch (layout_data_->window_state) {
        case WindowState::kFullscreen:
          top_corner_collapsed_state = 1.0;
-@@ -811,7 +804,7 @@
+@@ -815,7 +808,7 @@
                          infobar_container_size.width(),
                              kContentsContainerMinimumWidth});
    const int height = toolbar_size.height() + bookmark_bar_size.height() +
@@ -69,7 +69,7 @@
  
    return gfx::Size(width, height);
  }
-@@ -953,7 +946,6 @@
+@@ -957,7 +950,6 @@
        delegate(), layout_data_->tab_strip_type == TabStripType::kVertical);
    std::optional<int> dynamic_tab_strip_top;
    const HorizontalLayout& horizontal_layout = layout_data_->horizontal_layout;
@@ -77,7 +77,7 @@
    const bool should_use_rounded_frame =
        views().multi_contents_view->ShouldUseRoundedFrame();
    const bool attach_vertical_tab_strip_to_content =
-@@ -974,12 +966,11 @@
+@@ -978,12 +970,11 @@
    // taller.
    const bool top_should_show_separator =
        layout_data_->separator_info.multi_contents_separator &&
@@ -93,7 +93,7 @@
    const int top_chrome_content_frame_thickness =
        top_chrome_attached_for_band
            ? ContentsContainerOutline::GetThickness(false)
-@@ -1489,50 +1480,20 @@
+@@ -1490,50 +1481,20 @@
    views().multi_contents_view->SetTopChromeAttachment(
        top_chrome_content_frame_thickness > 0);
  
@@ -526,7 +526,7 @@
  
    // views::ExternalFocusTracker:
    void OnWillChangeFocus(View* focused_before, View* focused_now) override;
-@@ -167,6 +174,11 @@
+@@ -165,6 +172,11 @@
  
    void CloseButtonPressed();
  
@@ -665,15 +665,15 @@
                                 views().browser_view));
 --- a/chrome/browser/ui/views/infobars/BUILD.gn
 +++ b/chrome/browser/ui/views/infobars/BUILD.gn
-@@ -42,6 +42,7 @@
-   deps = [
+@@ -43,6 +43,7 @@
      ":infobars",
      "//chrome/app:generated_resources_grit",
+     "//chrome/browser/infobars",
 +    "//chrome/browser/ui/views/helium:frame_corner_radius",
      "//chrome/browser/ui/views/helium:native_frame_materials",
      "//chrome/browser/ui:browser_element_identifiers",
      "//chrome/browser/ui:ui_features",
-@@ -52,6 +53,7 @@
+@@ -53,6 +54,7 @@
      "//components/infobars/core",
      "//components/strings:components_strings_grit",
      "//ui/accessibility:ax_base",
@@ -683,7 +683,7 @@
    ]
 --- a/chrome/browser/ui/views/helium/BUILD.gn
 +++ b/chrome/browser/ui/views/helium/BUILD.gn
-@@ -59,6 +59,7 @@
+@@ -58,6 +58,7 @@
        "native_download_progress.h",
        "native_frame_materials_mac.h",
        "native_frame_materials_mac.mm",
@@ -815,7 +815,7 @@
  }  // namespace infobars
 --- a/components/infobars/core/infobar_container_with_priority_unittest.cc
 +++ b/components/infobars/core/infobar_container_with_priority_unittest.cc
-@@ -184,6 +184,56 @@
+@@ -185,6 +185,56 @@
    base::HistogramTester histogram_tester_;
  };
  

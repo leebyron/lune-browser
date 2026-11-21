@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
-@@ -143,6 +143,13 @@
+@@ -138,6 +138,13 @@
  
  namespace {
  
@@ -14,7 +14,7 @@
  TabGroupModelFactory* factory_instance = nullptr;
  
  // Works similarly to base::AutoReset but checks for access from the wrong
-@@ -1826,6 +1833,7 @@
+@@ -1923,6 +1930,7 @@
    // to inherit the parent's opener attribute, so that if this tab is then
    // closed we'll jump back to the parent tab.
    bool inherit_opener = (add_types & ADD_INHERIT_OPENER) == ADD_INHERIT_OPENER;
@@ -22,7 +22,7 @@
  
    if (ui::PageTransitionTypeIncludingQualifiersIs(transition,
                                                    ui::PAGE_TRANSITION_LINK) &&
-@@ -1851,7 +1859,11 @@
+@@ -1948,7 +1956,11 @@
            profile_->GetPrefs()->GetBoolean(prefs::kNewTabNextToActive);
        const auto opener_group = GetTabGroupForTab(active_index());
  
@@ -35,7 +35,7 @@
          if (group_model_ && opener_group && !(add_types & ADD_ACTIVE)) {
            index = static_cast<int>(
                group_model_->GetTabGroup(*opener_group)->ListTabs().end());
-@@ -1864,10 +1876,9 @@
+@@ -1961,10 +1973,9 @@
      }
    }
  
@@ -49,7 +49,7 @@
    if (group_model_) {
      if (group.has_value()) {
        gfx::Range grouped_tabs =
-@@ -1897,13 +1908,13 @@
+@@ -1994,13 +2005,13 @@
  
    if (ui::PageTransitionTypeIncludingQualifiersIs(transition,
                                                    ui::PAGE_TRANSITION_TYPED) &&
@@ -70,7 +70,7 @@
      inherit_opener = true;
    }
    tabs::TabModel* tab_ptr = tab.get();
-@@ -6154,9 +6165,9 @@
+@@ -6454,9 +6465,9 @@
  
    if (ui::PageTransitionCoreTypeIs(transition, ui::PAGE_TRANSITION_LINK) &&
        active_index() != -1) {
@@ -85,7 +85,7 @@
      content::WebContents* const opener = GetActiveWebContents();
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-@@ -1006,6 +1006,10 @@
+@@ -999,6 +999,10 @@
    std::optional<size_t> bottom_container_index =
        content_parent->GetIndexOf(bottom_button_container_);
    CHECK(bottom_container_index.has_value());
@@ -96,7 +96,7 @@
    content_parent->AddChildViewAt(std::move(view),
                                   bottom_container_index.value());
  
-@@ -1038,6 +1042,9 @@
+@@ -1031,6 +1035,9 @@
    omnibox_tab_helper_observation_.Reset();
    ResetExpandOnHoverTimers();
    is_expanded_on_hover_ = false;
@@ -106,7 +106,7 @@
    return BaseTabStripRegionView::RemoveTabStripView(view);
  }
  
-@@ -1128,13 +1135,11 @@
+@@ -1121,13 +1128,11 @@
  }
  
  gfx::Rect VerticalTabStripRegionView::GetTabStripDraggableBounds() const {
@@ -124,7 +124,7 @@
        tab_strip_draggable_bounds.y());
 --- a/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
-@@ -492,6 +492,21 @@
+@@ -696,6 +696,21 @@
    }
  }
  
@@ -146,7 +146,7 @@
  bool TabStripView::IsPositionInWindowCaption(const gfx::Point& point) {
    for (views::View* child : children()) {
      if (!child->GetVisible()) {
-@@ -504,6 +519,10 @@
+@@ -708,6 +723,10 @@
        continue;
      }
  
@@ -159,9 +159,9 @@
        return scroll_button_container->IsPositionInWindowCaption(point_in_child);
 --- a/chrome/browser/ui/views/tabs/common/tab_strip_view.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.h
-@@ -61,6 +61,14 @@
-     return unpinned_tabs_scroll_view_;
-   }
+@@ -71,6 +71,14 @@
+   gfx::Rect GetScrollViewUnmaskedBounds(
+       const views::ScrollView* scroll_view) const;
  
 +  // A fixed row between the pinned and unpinned scroll containers. The region
 +  // transfers ownership back before this tab strip is removed or replaced.
@@ -174,14 +174,14 @@
    void SetCollapsedState(bool is_collapsed);
    void SetIsAnimatingSize(bool is_animating);
  
-@@ -146,6 +154,7 @@
-   raw_ptr<views::ScrollView> pinned_tabs_scroll_view_ = nullptr;
-   raw_ptr<PinnedTabContainerView> pinned_tabs_container_view_ = nullptr;
+@@ -189,6 +197,7 @@
+   raw_ptr<HorizontalTabStripOverflowIndicatorView>
+       pinned_right_overflow_indicator_ = nullptr;
    raw_ptr<views::Separator> tabs_separator_ = nullptr;
 +  raw_ptr<views::View> new_tab_button_container_ = nullptr;
    raw_ptr<views::ScrollView> unpinned_tabs_scroll_view_ = nullptr;
    raw_ptr<UnpinnedTabContainerView> unpinned_tabs_container_view_ = nullptr;
-   raw_ptr<TabScrollButtonContainer> tab_scroll_button_container_ = nullptr;
+   raw_ptr<HorizontalTabStripOverflowIndicatorView>
 --- a/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_strip_view_layout.cc
 @@ -22,10 +22,6 @@
@@ -195,7 +195,7 @@
  // The pinned container main axis size should not be larger than half the
  // available space unless the unpinned container will not fill that space.
  // When pinned tabs are present, the size must be at least as large as the min
-@@ -292,21 +288,22 @@
+@@ -272,21 +268,22 @@
    const int unpinned_preferred_height =
        unpinned_tabs_scroll_view->GetPreferredSize(size_bounds).height();
  
@@ -229,7 +229,7 @@
      // Clamp the remaining height to 0 if we have less space.
      remaining_height = std::max(remaining_height, 0);
    }
-@@ -330,7 +327,18 @@
+@@ -310,7 +307,18 @@
                                       pinned_container_bounds);
  
    if (pinned_container_bounds.height()) {

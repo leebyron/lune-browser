@@ -1,17 +1,15 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -4885,4 +4885,9 @@
+@@ -4855,4 +4855,9 @@
    <message name="IDS_OLDER_TABS_KEEP_ALL" desc="Context menu action to return every Older tab to its former regular stack position.">Keep All Older Tabs</message>
    <message name="IDS_OLDER_TABS_MOVE_GROUPED_DESCRIPTION" desc="Description for opting grouped tabs into Older Tabs cleanup.">Allow moving inactive tabs from tab groups to Older Tabs</message>
    <message name="IDS_OLDER_TABS_MOVE_GROUPED" desc="Allow inactive grouped tabs to leave their groups and move to Older Tabs.">Move inactive tabs from groups</message>
--</grit-part>
-\ No newline at end of file
 +  <if expr="is_macosx">
 +    <message name="IDS_SETTINGS_SIDEBAR_TAB_DRAG_HAPTICS" desc="Label for a setting that plays trackpad haptics as dragged tabs move between sidebar drop targets.">
 +      Tab drag haptics
 +    </message>
 +  </if>
-+</grit-part>
+ </grit-part>
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
 @@ -38,6 +38,7 @@
@@ -51,7 +49,7 @@
        label="$i18n{allowSplitViewDragAndDrop}">
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -17,6 +17,7 @@
+@@ -18,6 +18,7 @@
  #include "chrome/common/buildflags.h"
  #include "chrome/common/helium_command_bar_pref_names.h"
  #include "chrome/common/pref_names.h"
@@ -59,7 +57,7 @@
  #include "components/helium_services/pref_names.h"
  #include "components/policy/core/common/policy_pref_names.h"
  #include "components/pref_registry/pref_registry_syncable.h"
-@@ -138,6 +139,10 @@
+@@ -140,6 +141,10 @@
  
    registry->RegisterBooleanPref(prefs::kShiftRightClickContextMenu, true);
  
@@ -72,7 +70,7 @@
    registry->RegisterBooleanPref(prefs::kHeliumRoundedFrame, true);
 --- a/chrome/browser/ui/views/tabs/common/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
-@@ -181,6 +181,11 @@
+@@ -184,6 +184,11 @@
      ]
    }
  
@@ -86,7 +84,7 @@
      "//chrome/browser/ui/tabs/alert:tab_alert",
 --- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
 +++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
-@@ -12,6 +12,7 @@
+@@ -13,6 +13,7 @@
  #include "base/notreached.h"
  #include "base/time/time.h"
  #include "base/types/to_address.h"
@@ -94,7 +92,7 @@
  #include "chrome/browser/ui/layout_constants.h"
  #include "chrome/browser/ui/tabs/tab_style.h"
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
-@@ -748,10 +749,16 @@
+@@ -810,10 +811,16 @@
    // model moves, using current content coordinates for autoscroll updates.
    const auto* container = views::AsViewClass<UnpinnedTabContainerView>(
        base::to_address(host_view_));
@@ -124,8 +122,8 @@
 +#include "build/build_config.h"
  #include "chrome/browser/ui/tabs/tab_group_model.h"
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
- #include "chrome/browser/ui/ui_features.h"
-@@ -726,6 +727,12 @@
+ #include "chrome/browser/ui/tabs/tab_style.h"
+@@ -812,6 +813,12 @@
  }
  
  void TabDragHandler::StartedDragging(const std::vector<views::View*>& views) {
@@ -164,7 +162,7 @@
  #include "ui/events/event.h"
  #include "ui/gfx/geometry/vector2d.h"
  #include "ui/views/controls/scroll_view.h"
-@@ -76,6 +79,12 @@
+@@ -78,6 +81,12 @@
    void HandleDraggedTabsIntoNode(const TabCollectionNode& node,
                                   bool pinned_groups = false);
  
@@ -177,9 +175,9 @@
    // Returns the drag context for this handler.
    TabDragContext* GetDragContext();
  
-@@ -215,6 +224,15 @@
-   std::vector<std::unique_ptr<views::ScrollView::ScopedScrollSynchronizer>>
-       scroll_synchronizers_;
+@@ -237,6 +246,15 @@
+   // detached window.
+   gfx::Range detached_drag_range_;
  
 +#if BUILDFLAG(IS_MAC)
 +  struct TabDropDestination {
@@ -241,7 +239,7 @@
 +}
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -699,6 +699,9 @@
+@@ -666,6 +666,9 @@
        {"showTabGroupsInBookmarksBar",
         IDS_SETTINGS_SHOW_TAB_GROUPS_IN_BOOKMARKS_BAR},
        {"autoPinNewTabGroups", IDS_SETTINGS_AUTO_PIN_NEW_TAB_GROUPS_HELIUM},
@@ -253,7 +251,7 @@
        {"olderTabsMoveGrouped", IDS_OLDER_TABS_MOVE_GROUPED},
 --- a/chrome/common/BUILD.gn
 +++ b/chrome/common/BUILD.gn
-@@ -563,6 +563,7 @@
+@@ -562,6 +562,7 @@
      "pref_font_script_names-inl.h",
      "pref_font_webkit_names.h",
      "pref_names.h",
@@ -308,7 +306,7 @@
  
 --- a/chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc
 +++ b/chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc
-@@ -100,6 +100,7 @@
+@@ -101,6 +101,7 @@
  #if BUILDFLAG(IS_MAC)
  #include "base/debug/dump_without_crashing.h"
  #include "base/strings/string_number_conversions.h"
@@ -316,7 +314,7 @@
  #include "components/crash/core/common/crash_key.h"
  #include "components/remote_cocoa/browser/window.h"
  #endif
-@@ -1878,6 +1879,14 @@
+@@ -1888,6 +1889,14 @@
          drag_data_.attached_views());
    }
  
@@ -331,7 +329,7 @@
    BrowserWindowInterface* browser =
        CreateBrowserForDrag(attached_context_, new_size);
  
-@@ -2003,6 +2012,11 @@
+@@ -2021,6 +2030,11 @@
    if (!ref) {
      return Liveness::kDeleted;
    }

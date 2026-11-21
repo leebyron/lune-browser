@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -1958,6 +1958,7 @@ if (is_mac) {
+@@ -1958,6 +1958,7 @@
        "//chrome/browser/profiles:profile",
        "//chrome/browser/themes",
        "//chrome/browser/ui/views/helium:fullscreen_window_controls_mac",
@@ -8,7 +8,7 @@
        "//chrome/browser/ui:fullscreen_util_mac",
        "//chrome/browser/ui:layout_constants",
        "//chrome/browser/ui:view_ids",
-@@ -2011,6 +2012,7 @@ if (is_mac) {
+@@ -2011,6 +2012,7 @@
        "//base:i18n",
        "//chrome/app:command_ids",
        "//chrome/app:generated_resources",
@@ -16,7 +16,7 @@
        "//chrome/browser:app_controller_mac",
        "//chrome/browser:global_keyboard_shortcuts_mac",
        "//chrome/browser/apps/app_shim",
-@@ -3325,6 +3327,7 @@ source_set("browser_widget_impl") {
+@@ -3338,6 +3340,7 @@
      "//chrome/browser/app_mode",
      "//chrome/browser/profiles:profile",
      "//chrome/browser/themes",
@@ -34,7 +34,7 @@
  #include "base/gtest_prod_util.h"
  #include "base/memory/raw_ptr.h"
  #include "chrome/browser/ui/views/frame/browser_frame_view.h"
-@@ -119,8 +118,6 @@ class BrowserFrameViewMac : public Brows
+@@ -119,8 +118,6 @@
    // Emits the duration of the current fullscreen session, if any.
    void EmitFullscreenSessionHistograms();
  
@@ -43,7 +43,7 @@
    // Used to keep track of the update of kShowFullscreenToolbar preference.
    BooleanPrefMember show_fullscreen_toolbar_;
    base::ScopedObservation<web_app::WebAppRegistrar,
-@@ -150,10 +147,6 @@ class BrowserFrameViewMac : public Brows
+@@ -150,10 +147,6 @@
    // Used to track the current toolbar style.
    std::optional<remote_cocoa::mojom::ToolbarVisibilityStyle>
        current_toolbar_style_;
@@ -86,7 +86,7 @@
  #include "ui/gfx/geometry/insets.h"
  #include "ui/gfx/geometry/outsets_f.h"
  #include "ui/gfx/geometry/rect.h"
-@@ -90,18 +87,9 @@ BrowserFrameViewMac::BrowserFrameViewMac
+@@ -90,18 +87,9 @@
                                           BrowserView* browser_view)
      : BrowserFrameView(frame, browser_view),
        fullscreen_session_timer_(std::make_unique<base::OneShotTimer>()) {
@@ -107,7 +107,7 @@
    }
  
    if (web_app::AppBrowserController::IsWebApp(browser_view->browser())) {
-@@ -344,12 +332,20 @@ void BrowserFrameViewMac::UpdateThrobber
+@@ -344,12 +332,20 @@
  
  void BrowserFrameViewMac::PaintAsActiveChanged() {
    UpdateCaptionButtonPlaceholderContainerBackground();
@@ -129,7 +129,7 @@
    UpdateCaptionButtonPlaceholderContainerBackground();
    BrowserFrameView::OnThemeChanged();
  }
-@@ -612,9 +608,7 @@ void BrowserFrameViewMac::OnPaint(gfx::C
+@@ -612,9 +608,7 @@
      return;
    }
  
@@ -140,7 +140,7 @@
      return;
    }
  
-@@ -701,7 +695,7 @@ void BrowserFrameViewMac::UpdateCaptionB
+@@ -701,7 +695,7 @@
    if (caption_button_placeholder_container_) {
      caption_button_placeholder_container_->SetBackground(
          views::CreateSolidBackground(
@@ -149,7 +149,7 @@
                  ? SK_ColorTRANSPARENT
                  : GetFrameColor(BrowserFrameActiveState::kUseCurrent)));
    }
-@@ -720,11 +714,4 @@ void BrowserFrameViewMac::EmitFullscreen
+@@ -720,11 +714,4 @@
                               base::Milliseconds(1), base::Days(1), 100);
  }
  
@@ -164,7 +164,7 @@
 +
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.h
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.h
-@@ -13,10 +13,10 @@
+@@ -13,11 +13,11 @@
  #include "chrome/browser/command_observer.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #include "chrome/browser/ui/views/frame/browser_native_widget.h"
@@ -172,12 +172,13 @@
 +#include "components/prefs/pref_change_registrar.h"
 +#include "ui/color/color_provider_key.h"
  #include "third_party/skia/include/core/SkColor.h"
+ #include "ui/base/mojom/window_open_disposition.mojom-forward.h"
  #include "ui/base/mojom/window_show_state.mojom-forward.h"
 -#include "ui/native_theme/native_theme.h"
  #include "ui/views/widget/native_widget_mac.h"
  
  class BrowserWidget;
-@@ -24,11 +24,6 @@ class BrowserView;
+@@ -25,11 +25,6 @@
  @class BrowserWindowTouchBarController;
  @class BrowserWindowTouchBarViewsDelegate;
  
@@ -189,7 +190,7 @@
  namespace viz {
  class FrameTimingDetails;
  }  // namespace viz
-@@ -56,8 +51,6 @@ class BrowserNativeWidgetMac : public vi
+@@ -57,8 +52,6 @@
    void OnFocusWindowToolbar() override;
    void OnWindowFullscreenTransitionStart() override;
    void OnWindowFullscreenTransitionComplete() override;
@@ -198,7 +199,7 @@
    void OnWidgetDestroyed(views::Widget* widget) override;
  
    // Overridden from BrowserNativeWidget:
-@@ -105,19 +98,10 @@ class BrowserNativeWidgetMac : public vi
+@@ -107,19 +100,10 @@
    void EnabledStateChangedForCommand(int id, bool enabled) override;
  
   private:
@@ -220,7 +221,7 @@
    // Called when the window's first frame is on screen. Posts
    // EndInputContextDeferral().
    void OnFirstFramePresented(
-@@ -127,20 +111,11 @@ class BrowserNativeWidgetMac : public vi
+@@ -129,20 +113,11 @@
  
    raw_ptr<BrowserView> browser_view_;  // Weak. Our ClientView.
    BrowserWindowTouchBarViewsDelegate* __strong touch_bar_delegate_;
@@ -273,19 +274,18 @@
  #include "chrome/common/pref_names.h"
  #include "chrome/grit/generated_resources.h"
  #include "components/bookmarks/common/bookmark_pref_names.h"
-@@ -71,11 +72,8 @@
- #import "ui/base/cocoa/window_size_constants.h"
+@@ -72,10 +73,7 @@
  #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/mojom/window_open_disposition.mojom-shared.h"
  #include "ui/base/mojom/window_show_state.mojom.h"
 -#include "ui/base/ui_base_features.h"
- #include "ui/base/window_open_disposition.h"
  #include "ui/compositor/compositor.h"
 -#include "ui/gfx/color_utils.h"
 -#include "ui/native_theme/native_theme.h"
  #import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
  #include "ui/views/interaction/element_tracker_views.h"
  
-@@ -111,22 +109,22 @@ bool ShouldHandleKeyboardEvent(const inp
+@@ -111,22 +109,22 @@
    return event.os_event && event.os_event.Get().type == NSEventTypeKeyDown;
  }
  
@@ -323,7 +323,7 @@
  }
  
  bool IsCommandTriggeredFromMacMenu(NSInteger parent_menu_tag, int command_id) {
-@@ -143,40 +141,8 @@ bool IsCommandTriggeredFromMacMenu(NSInt
+@@ -143,40 +141,8 @@
    return is_mouse_click || is_menu_item_focused;
  }
  
@@ -364,7 +364,7 @@
  // Bridge Obj-C class for WindowTouchBarDelegate and
  // BrowserWindowTouchBarController.
  @interface BrowserWindowTouchBarViewsDelegate
-@@ -222,33 +188,18 @@ BrowserNativeWidgetMac::BrowserNativeWid
+@@ -222,33 +188,18 @@
      : views::NativeWidgetMac(browser_widget), browser_view_(browser_view) {
    CHECK(browser_widget);
    CHECK(browser_view);
@@ -404,7 +404,7 @@
  }
  
  BrowserNativeWidgetMac::~BrowserNativeWidgetMac() = default;
-@@ -294,60 +245,6 @@ void BrowserNativeWidgetMac::GetWindowFr
+@@ -294,60 +245,6 @@
    }
  }
  
@@ -465,7 +465,7 @@
  void BrowserNativeWidgetMac::OnFocusWindowToolbar() {
    if (browser_view_) {
      chrome::ExecuteCommand(browser_view_->browser(), IDC_FOCUS_TOOLBAR);
-@@ -366,18 +263,6 @@ void BrowserNativeWidgetMac::OnWindowFul
+@@ -366,18 +263,6 @@
    }
  }
  
@@ -484,7 +484,7 @@
  void BrowserNativeWidgetMac::OnWidgetDestroyed(views::Widget* widget) {
    widget->RemoveObserver(this);
    CHECK(browser_view_);
-@@ -386,25 +271,14 @@ void BrowserNativeWidgetMac::OnWidgetDes
+@@ -386,25 +271,14 @@
      chrome::RemoveCommandObserver(browser_view_->browser(), IDC_FORWARD, this);
    }
    touch_bar_delegate_ = nullptr;
@@ -516,7 +516,7 @@
    NativeWidgetMac::OnWidgetDestroyed(widget);
  }
  
-@@ -760,6 +634,8 @@ NativeWidgetMacNSWindow* BrowserNativeWi
+@@ -770,6 +644,8 @@
      const remote_cocoa::mojom::CreateWindowParams* params) {
    CHECK(browser_view_);
    NativeWidgetMacNSWindow* ns_window = NativeWidgetMac::CreateNSWindow(params);
@@ -525,7 +525,7 @@
    touch_bar_delegate_ = [[BrowserWindowTouchBarViewsDelegate alloc]
        initWithBrowser:browser_view_->browser()
                 window:ns_window];
-@@ -797,22 +673,7 @@ void BrowserNativeWidgetMac::OnWidgetIni
+@@ -807,22 +683,7 @@
        GetWidget()->RegisterPaintAsActiveChangedCallback(
            base::BindRepeating(&BrowserNativeWidgetMac::UpdateBackgroundColor,
                                base::Unretained(this)));
@@ -549,7 +549,7 @@
  
    // The location bar takes focus inside Widget::Show(), and with an input
    // method such as Japanese, AppKit then activates that input method for the
-@@ -856,7 +717,7 @@ void BrowserNativeWidgetMac::EndInputCon
+@@ -866,7 +727,7 @@
  
  void BrowserNativeWidgetMac::OnWidgetThemeChanged(views::Widget* widget) {
    NativeWidgetMac::OnWidgetThemeChanged(widget);
@@ -558,7 +558,7 @@
  }
  
  void BrowserNativeWidgetMac::OnWindowDestroying(
-@@ -875,8 +736,7 @@ void BrowserNativeWidgetMac::OnWindowDes
+@@ -885,8 +746,7 @@
  
  void BrowserNativeWidgetMac::OnWidgetActivationChanged(views::Widget* widget,
                                                         bool active) {
@@ -568,7 +568,7 @@
  }
  
  void BrowserNativeWidgetMac::EnabledStateChangedForCommand(int id,
-@@ -977,29 +837,15 @@ void BrowserNativeWidgetMac::AnnounceTex
+@@ -987,29 +847,15 @@
    }
  }
  
@@ -604,7 +604,7 @@
    if (!GetNSWindowHost()) {
      return;
    }
-@@ -1009,234 +855,63 @@ void BrowserNativeWidgetMac::RemoveGlass
+@@ -1019,234 +865,63 @@
      return;
    }
  
@@ -873,7 +873,7 @@
  }
 --- a/chrome/browser/ui/views/frame/browser_widget.cc
 +++ b/chrome/browser/ui/views/frame/browser_widget.cc
-@@ -21,6 +21,7 @@
+@@ -22,6 +22,7 @@
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #include "chrome/browser/ui/browser_window_state.h"
@@ -881,7 +881,7 @@
  #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
  #include "chrome/browser/ui/sessions/session_service_browser_helper.h"
  #include "chrome/browser/ui/unload_controller.h"
-@@ -32,6 +33,7 @@
+@@ -33,6 +34,7 @@
  #include "chrome/browser/ui/views/frame/glass_frame_service.h"
  #include "chrome/browser/ui/views/frame/system_menu_model_builder.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -889,7 +889,7 @@
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/common/chrome_switches.h"
  #include "ui/base/hit_test.h"
-@@ -209,11 +211,8 @@ void BrowserWidget::InitBrowserWidget()
+@@ -210,11 +212,8 @@
      }
    }
  
@@ -902,10 +902,10 @@
 +    params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
    }
  
-   Init(std::move(params));
+ #if BUILDFLAG(IS_LINUX)
 --- a/chrome/browser/ui/views/helium/BUILD.gn
 +++ b/chrome/browser/ui/views/helium/BUILD.gn
-@@ -48,4 +48,16 @@ source_set("native_frame_materials") {
+@@ -48,4 +48,16 @@
      "//components/prefs",
      "//ui/views",
    ]
@@ -924,7 +924,7 @@
  }
 --- a/chrome/browser/ui/views/helium/native_frame_materials.cc
 +++ b/chrome/browser/ui/views/helium/native_frame_materials.cc
-@@ -45,8 +45,7 @@ bool ShouldUseNativeFrameMaterials(const
+@@ -45,8 +45,7 @@
  }
  
  bool PlatformSupportsNativeFrameMaterials(const BrowserView& browser_view) {

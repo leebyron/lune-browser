@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
-@@ -429,6 +429,21 @@
+@@ -519,6 +519,21 @@
    // Note: if the drag has not attached to this tab strip yet, it doesn't matter
    // which container is used because the first drag loop iteration just attaches
    // it.
@@ -24,7 +24,7 @@
    }
 --- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
 +++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
-@@ -20,6 +20,11 @@
+@@ -21,6 +21,11 @@
  #include "chrome/browser/ui/views/tabs/common/tab_drag_handler.h"
  #include "chrome/browser/ui/views/tabs/common/tab_group_header_view.h"
  #include "chrome/browser/ui/views/tabs/common/tab_group_view.h"
@@ -35,8 +35,8 @@
 +#include "third_party/skia/include/core/SkColor.h"
  #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
  #include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
- #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
-@@ -161,6 +166,33 @@
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
+@@ -175,6 +180,33 @@
    UpdateDraggingViewTransforms(point_in_container);
  
    HandleTabDragInContainer(dragged_bounds_in_container, point_in_container);
@@ -70,7 +70,7 @@
  }
  
  void DraggedTabsContainer::OnTabDragExited(const gfx::Point& point_in_screen) {
-@@ -223,6 +255,20 @@
+@@ -237,6 +269,20 @@
    }
    if (auto it = dragging_views_.find(observed_view);
        it != dragging_views_.end()) {
@@ -91,16 +91,16 @@
      UpdateDraggingViewTransform(
          observed_view, it->second,
          GetDraggingViewsBoundsAtPointClamped(point_in_container));
-@@ -489,6 +535,8 @@
-   // the actual position, without animating.
-   UpdateTargetLayoutForDrag(GetDraggingViews());
+@@ -538,6 +584,8 @@
+     }
+   }
    dragging_views_.clear();
 +  drop_placeholder_bounds_ = gfx::Rect();
 +  host_view_->SchedulePaint();
    OnDragStateChanged();
    dragged_view_observations_.RemoveAllObservations();
    animating_views_start_offsets_.clear();
-@@ -742,7 +790,18 @@
+@@ -805,7 +853,18 @@
  
    TabDragHandler& drag_handler = GetDragHandler();
    const views::ProposedLayout& drag_layout = GetLayoutForDrag();
@@ -120,7 +120,7 @@
  
    // A null target inserts at the end. Recalculate target positions after
    // model moves, using current content coordinates for autoscroll updates.
-@@ -770,6 +829,40 @@
+@@ -833,6 +892,40 @@
  const TabCollectionNode* DraggedTabsContainer::GetTargetForTabDrag(
      const views::ProposedLayout& layout,
      const gfx::Rect& dragged_tab_bounds) const {
@@ -183,7 +183,7 @@
    DragAxes drag_axes() const { return drag_axes_; }
    void set_drag_axes(DragAxes drag_axes) { drag_axes_ = drag_axes; }
  
-@@ -285,6 +291,7 @@
+@@ -295,6 +301,7 @@
  
    // True while resetting drag state in ResetDragState().
    bool is_resetting_drag_state_ = false;
@@ -193,7 +193,7 @@
  #endif  // CHROME_BROWSER_UI_VIEWS_TABS_COMMON_DRAGGED_TABS_CONTAINER_H_
 --- a/chrome/browser/ui/views/tabs/common/pinned_tab_container_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/pinned_tab_container_view.cc
-@@ -113,6 +113,12 @@
+@@ -95,6 +95,12 @@
    return static_cast<const class PinnedTabContainerView&>(*host_view());
  }
  
@@ -206,7 +206,7 @@
  bool PinnedTabContainerView::IsDragging() const {
    if (!collection_node_ || !collection_node_->GetController()) {
      return false;
-@@ -346,5 +352,10 @@
+@@ -325,5 +331,10 @@
    return nullptr;
  }
  
@@ -270,7 +270,7 @@
  
 --- a/chrome/browser/ui/views/tabs/common/tab_drag_handler.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_drag_handler.cc
-@@ -351,6 +351,10 @@
+@@ -356,6 +356,10 @@
                                                 bool pinned_groups) {
    CHECK(drag_controller_);
    const auto& drag_session_data = drag_controller_->GetSessionData();
@@ -281,7 +281,7 @@
    if (node.type() == TabCollectionNode::Type::UNPINNED) {
      if (auto group = GetDraggingGroupHeaderId()) {
        if (!drag_controller_->is_window_drag_only()) {
-@@ -446,11 +450,42 @@
+@@ -451,11 +455,42 @@
    return false;
  }
  
@@ -324,7 +324,7 @@
    return std::any_of(drag_data.cbegin(), drag_data.cend(),
                       [](const auto& tab_data) { return tab_data.pinned; });
  }
-@@ -768,6 +803,7 @@
+@@ -854,6 +889,7 @@
          tab_strip_region_view_->GetTabStripView());
      CHECK(tab_strip_view);
      tab_strip_view->GetUnpinnedTabsContainer()->InvalidateLayout();
@@ -332,7 +332,7 @@
      for (views::ScrollView* scroll_view :
           {tab_strip_view->pinned_tabs_scroll_view(),
            tab_strip_view->unpinned_tabs_scroll_view()}) {
-@@ -811,6 +847,7 @@
+@@ -909,6 +945,7 @@
        tab_strip_region_view_->GetTabStripView());
    if (tab_strip_view && tab_strip_view->GetUnpinnedTabsContainer()) {
      tab_strip_view->GetUnpinnedTabsContainer()->InvalidateLayout();
@@ -342,7 +342,7 @@
    scroll_synchronizers_.clear();
 --- a/chrome/browser/ui/views/tabs/common/tab_drag_handler.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_drag_handler.h
-@@ -98,6 +98,11 @@
+@@ -100,6 +100,11 @@
    // Returns true if there is an ongoing drag that includes a pinned tab.
    bool IsDraggingPinnedTabs() const;
  
@@ -364,7 +364,7 @@
  #include <optional>
  #include <string>
  
-@@ -546,8 +547,56 @@
+@@ -585,8 +586,56 @@
                                  {.render_units = TabStyle::RenderUnits::kDips});
  }
  
@@ -421,7 +421,7 @@
    alert_indicator_->UpdateAlertIndicatorAnimation();
    if (orientation_ == TabStripOrientation::kHorizontal) {
      icon_->ResizeDiscardIndicatorRadiusForWidth(
-@@ -1157,7 +1206,28 @@
+@@ -1210,7 +1259,28 @@
  
    active_ = tab_strip_model->IsTabInForeground(index);
    split_ = tab->IsSplit();
@@ -453,7 +453,7 @@
    UpdateTabData(tab_data_observer_->tab_data());
 --- a/chrome/browser/ui/views/tabs/common/tab_view.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_view.h
-@@ -25,6 +25,8 @@
+@@ -26,6 +26,8 @@
  #include "third_party/skia/include/core/SkScalar.h"
  #include "ui/base/metadata/metadata_header_macros.h"
  #include "ui/gfx/canvas.h"
@@ -462,7 +462,7 @@
  #include "ui/views/context_menu_controller.h"
  #include "ui/views/layout/layout_manager_base.h"
  #include "ui/views/masked_targeter_delegate.h"
-@@ -56,7 +58,8 @@
+@@ -57,7 +59,8 @@
                  public AlertIndicatorButton::Delegate,
                  public views::ContextMenuController,
                  public HoverCardAnchorTarget,
@@ -472,7 +472,7 @@
    METADATA_HEADER(TabView, views::View)
    friend class TabStyleViewDelegateImpl;
  
-@@ -108,6 +111,15 @@
+@@ -111,6 +114,15 @@
    bool IsClosing() const { return !collection_node_; }
    bool split() const { return split_; }
    bool pinned() const { return pinned_; }
@@ -488,7 +488,7 @@
    const tabs::TabInterface* GetTabInterface() const;
  
    GlowHoverController* GetHoverControllerForTesting() {
-@@ -203,6 +215,12 @@
+@@ -206,6 +218,12 @@
    bool ShouldUseNativeFrameMaterials() const;
  
    bool IsDragging() const;
@@ -553,7 +553,7 @@
  
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
-@@ -974,5 +974,10 @@
+@@ -1172,5 +1172,10 @@
    return nullptr;
  }
  
@@ -566,7 +566,7 @@
  END_METADATA
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
-@@ -107,6 +107,7 @@
+@@ -117,6 +117,7 @@
    int GetUnconstrainedPreferredWidth() const;
  
   private:
@@ -576,15 +576,15 @@
  
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
-@@ -67,6 +67,7 @@
- UnpinnedTabContainerViewVerticalLayout::CalculateProposedLayout(
-     const views::SizeBounds& size_bounds) const {
+@@ -68,6 +68,7 @@
+     const views::SizeBounds& size_bounds,
+     std::optional<tab_groups::TabGroupId> focused_group_id) const {
    views::ProposedLayout layouts;
 +  UnpinnedTabContainerView().SetDropPlaceholderBounds(gfx::Rect());
    if (!UnpinnedTabContainerView().collection_node_) {
      return layouts;
    }
-@@ -187,6 +188,10 @@
+@@ -186,6 +187,10 @@
      if (visible && is_group && !previous_visible_group) {
        height += 6;
      }
@@ -597,7 +597,7 @@
        bounds.set_height(0);
 --- a/chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc
 +++ b/chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc
-@@ -1580,7 +1580,7 @@
+@@ -1593,7 +1593,7 @@
        CHECK(it != drag_data_.tab_drag_data_.end());
        TabDragData& tab_data = *it;
        std::optional<tab_groups::TabGroupId> group_for_tab = std::nullopt;
@@ -606,7 +606,7 @@
          add_types |= AddTabTypes::ADD_PINNED;
        } else {
          group_for_tab = focused_group;
-@@ -1588,7 +1588,7 @@
+@@ -1601,7 +1601,7 @@
  
        // Preserve the pinned-group prefix during initial attachment too.
        // Individually pinned tabs still insert at the tile boundary.
@@ -615,7 +615,7 @@
          index =
              std::max(index, size_t(tab_strip_model->IndexOfFirstRegularTab()));
        }
-@@ -2488,7 +2488,7 @@
+@@ -2513,7 +2513,7 @@
            ? std::make_optional(tab_data.tab_group_data->group_id)
            : std::nullopt;
  
@@ -624,7 +624,7 @@
        attached_context_->GetTabStripModel()->GetIndexOfWebContents(
            tab_data.contents);
    CHECK_NE(from_index, TabStripModel::kNoTab);
-@@ -2535,8 +2535,11 @@
+@@ -2560,8 +2560,11 @@
        }
      }
  
@@ -638,7 +638,7 @@
    }
  }
  
-@@ -2559,7 +2562,7 @@
+@@ -2584,7 +2587,7 @@
            ? std::make_optional(tab_data.tab_group_data->group_id)
            : std::nullopt;
  
@@ -657,7 +657,7 @@
  #include "chrome/browser/ui/tabs/tab_group_model.h"
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "chrome/browser/ui/ui_features.h"
-@@ -150,7 +151,8 @@
+@@ -153,7 +154,8 @@
  
    auto animate_layout = GetController()->ScopedAnimateLayout();
  
@@ -669,7 +669,7 @@
      src_parent_node->RemoveChild(GetPassKey(), moved_node_handle,
 --- a/chrome/browser/ui/views/tabs/common/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
-@@ -53,6 +53,7 @@
+@@ -57,6 +57,7 @@
      "pinned_tab_container_view_horizontal_layout.cc",
      "pinned_tab_container_view_horizontal_layout.h",
      "pinned_tab_container_view_vertical_layout.h",
@@ -732,8 +732,8 @@
 +#include "chrome/browser/ui/views/tabs/common/tab_view.h"
  #include "base/containers/flat_map.h"
  #include "base/containers/flat_set.h"
- #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
-@@ -408,14 +409,28 @@
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+@@ -469,14 +470,28 @@
      RecalculateTarget();
    }
  

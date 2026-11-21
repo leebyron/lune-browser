@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -14113,6 +14113,9 @@
+@@ -13134,6 +13134,9 @@
        <message name="IDS_APP_MENU_BUTTON_UPDATE" desc="Short label next to app-menu button when an update is available.">
          Update
        </message>
@@ -12,7 +12,7 @@
        </message>
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -1818,7 +1818,7 @@
+@@ -1826,7 +1826,7 @@
        Updates to Helium services:
      </message>
      <message name="IDS_SETTINGS_HELIUM_SCHEMA_NOTICE_DESCRIPTION" desc="Description of the alert shown when Helium services have a change in behavior">
@@ -21,7 +21,7 @@
      </message>
      <message name="IDS_SETTINGS_HELIUM_SCHEMA_IGNORE" desc="Checkbox label to ignore any future services change alerts">
        Don't notify me again
-@@ -4853,6 +4853,12 @@
+@@ -4801,6 +4801,12 @@
      Allow Lune to connect to Helium-hosted services. These requests stay disabled until you consent. Browser updates are controlled separately.
    </message>
    <message name="IDS_LUNE_SERVICES_UPDATES" desc="Lune service provider and update disclosure.">
@@ -58,7 +58,7 @@
      "//chrome/browser:browser_process",
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -137,6 +137,7 @@
+@@ -139,6 +139,7 @@
  #include "components/enterprise/net/core/prefs.h"
  #include "components/enterprise/network_header_injection/core/network_header_injection_prefs.h"
  #include "components/feature_engagement/public/pref_names.h"
@@ -66,7 +66,7 @@
  #include "components/history_clusters/core/history_clusters_prefs.h"
  #include "components/image_fetcher/core/cache/image_cache.h"
  #include "components/language/content/browser/geo_language_provider.h"
-@@ -2772,6 +2773,15 @@
+@@ -2840,6 +2841,15 @@
    // of here, or by calling migration code in the appropriate place for iOS
    // specifically, e.g. ios/chrome/browser/shared/model/prefs/browser_prefs.mm.
  
@@ -393,7 +393,7 @@
    base::CallbackListSubscription update_subscription_;
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -2709,9 +2709,8 @@
+@@ -2737,9 +2737,8 @@
        {"noiseCustomDescription", IDS_SETTINGS_NOISE_CUSTOM_DESCRIPTION},
        {"noiseAllowOverridesTitle", IDS_SETTINGS_NOISE_ALLOW_OVERRIDES_TITLE},
        {"heliumServicesTitle", IDS_SETTINGS_HELIUM_SERVICES},
@@ -405,7 +405,7 @@
        {"heliumCrashReportingDescription",
         IDS_SETTINGS_HELIUM_CRASH_REPORTING_DESCRIPTION},
        {"heliumCrashReportingDisabled",
-@@ -2719,33 +2718,37 @@
+@@ -2747,33 +2746,37 @@
        {"heliumCrashReportingAsk", IDS_SETTINGS_HELIUM_CRASH_REPORTING_ASK},
        {"heliumCrashReportingAutomatic",
         IDS_SETTINGS_HELIUM_CRASH_REPORTING_AUTOMATIC},
@@ -458,7 +458,7 @@
        {"heliumWebPushToggle", IDS_SETTINGS_HELIUM_SERVICES_WEB_PUSH},
        {"heliumWebPushToggleDescription",
         IDS_SETTINGS_HELIUM_SERVICES_WEB_PUSH_DESCRIPTION},
-@@ -2759,13 +2762,13 @@
+@@ -2787,13 +2790,13 @@
         IDS_SETTINGS_HELIUM_SERVICES_PUSH_SERVER_INVALID},
        {"heliumOriginOverride", IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE},
        {"heliumOriginOverrideDescription",
@@ -543,7 +543,7 @@
  
 --- a/chrome/browser/resources/settings/icons.html.ts
 +++ b/chrome/browser/resources/settings/icons.html.ts
-@@ -494,3 +494,12 @@
+@@ -493,3 +493,12 @@
  for (const iconset of iconsets) {
    document.head.appendChild(iconset);
  }
@@ -556,27 +556,27 @@
 +  <svg><defs><g id="logo"><path d="M33.19 51.17 28 55 22.81 51.17 25.17 32.9 10.5 44.08 4.59 41.5 5.31 35.09 22.33 28 5.31 20.91 4.59 14.5 10.5 11.92 25.17 23.1 22.81 4.83 28 1 33.19 4.83 30.83 23.1 45.5 11.92 51.41 14.5 50.69 20.91 33.67 28 50.69 35.09 51.41 41.5 45.5 44.08 30.83 32.9Z"></path></g></defs></svg>
 +</cr-iconset>`;
 +document.head.appendChild(heliumServicesIcons);
---- a/chrome/browser/resources/settings/privacy_page/privacy_page.html
-+++ b/chrome/browser/resources/settings/privacy_page/privacy_page.html
-@@ -45,11 +45,17 @@
-         sub-label="$i18n{siteSettingsSublabel}"
-         @click="${this.onSiteSettingsLinkRowClick_}"
-         role-description="$i18n{subpageArrowRoleDescription}"></cr-link-row>
--    <cr-link-row id="heliumServicesLinkRow" start-icon="cr:chrome-product"
-+    <cr-link-row id="heliumServicesLinkRow" start-icon="helium-services:logo"
-         class="hr" label="$i18n{heliumServicesTitle}"
-         sub-label="$i18n{heliumServicesDescription}"
-         @click="${this.onHeliumServicesPageClick_}"
-         role-description="$i18n{subpageArrowRoleDescription}"></cr-link-row>
-+    <settings-toggle-button id="updatesToggleButton" class="hr"
-+        pref-key="helium.services.browser_updates"
-+        icon="cr:sync"
-+        label="$i18n{heliumUpdatesToggle}"
-+        sub-label="$i18n{heliumUpdatesToggleDescription}">
-+    </settings-toggle-button>
-     <cr-toast id="deleteBrowsingDataToast" duration="5000">
-       <div>${this.dbdDeletionConfirmationToastLabel_}</div>
-     </cr-toast>
+--- a/chrome/browser/resources/settings/privacy_page/privacy_page.html.ts
++++ b/chrome/browser/resources/settings/privacy_page/privacy_page.html.ts
+@@ -51,12 +51,17 @@
+       @click="${this.onSiteSettingsLinkRowClick_}"
+       role-description="$i18n{subpageArrowRoleDescription}">
+   </cr-link-row>
+-  <cr-link-row id="heliumServicesLinkRow" start-icon="cr:chrome-product"
++  <cr-link-row id="heliumServicesLinkRow" start-icon="helium-services:logo"
+       class="hr" label="$i18n{heliumServicesTitle}"
+       sub-label="$i18n{heliumServicesDescription}"
+       @click="${this.onHeliumServicesPageClick_}"
+       role-description="$i18n{subpageArrowRoleDescription}">
+   </cr-link-row>
++  <settings-toggle-button id="updatesToggleButton" class="hr"
++      pref-key="helium.services.browser_updates" icon="cr:sync"
++      label="$i18n{heliumUpdatesToggle}"
++      sub-label="$i18n{heliumUpdatesToggleDescription}">
++  </settings-toggle-button>
+   <cr-toast id="deleteBrowsingDataToast" duration="5000">
+     <div>${this.dbdDeletionConfirmationToastLabel_}</div>
+   </cr-toast>
 --- a/chrome/browser/resources/settings/privacy_page/privacy_page.ts
 +++ b/chrome/browser/resources/settings/privacy_page/privacy_page.ts
 @@ -11,6 +11,7 @@

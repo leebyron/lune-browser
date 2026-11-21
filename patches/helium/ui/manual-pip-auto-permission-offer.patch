@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -20885,6 +20885,15 @@
+@@ -19756,6 +19756,15 @@
        <message name="IDS_PAGE_TOP_WINDOW_DRAG" desc="Appearance setting to allow moving a browser window by dragging on the blank background at the top of a webpage.">
          Allow window dragging from the top of webpages
        </message>
@@ -13,10 +13,9 @@
 +      <message name="IDS_MANUAL_PIP_AUTO_OFFER_NOT_NOW" desc="Button dismissing the offer to turn on automatic picture-in-picture. The video stays in picture-in-picture.">
 +        Not Now
 +      </message>
-   </messages>
- </release>
- </grit>
-\ No newline at end of file
+ 
+     <!-- On-device AI model categories -->
+     <!-- TODO(crbug.com/573643364): Make these translatable when finalized. -->
 --- a/chrome/browser/picture_in_picture/BUILD.gn
 +++ b/chrome/browser/picture_in_picture/BUILD.gn
 @@ -122,6 +122,10 @@
@@ -32,7 +31,7 @@
    }
 --- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
 +++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-@@ -1048,13 +1048,20 @@
+@@ -1049,13 +1049,20 @@
  AutoPictureInPictureTabHelper::CreateOverlayPermissionViewIfNeeded(
      base::OnceClosure close_pip_cb,
      views::View* anchor_view,
@@ -57,11 +56,16 @@
  
 --- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
 +++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
-@@ -166,7 +166,8 @@
-   CreateOverlayPermissionViewIfNeeded(
-       base::OnceClosure close_pip_cb,
-       views::View* anchor_view,
--      views::BubbleBorder::Arrow arrow);
+@@ -163,9 +163,11 @@
+   // never.  The other parameters are described in AutoPipSettingHelper.
+ #if !BUILDFLAG(IS_ANDROID)
+   std::unique_ptr<AutoPipSettingOverlayView>
+-  CreateOverlayPermissionViewIfNeeded(base::OnceClosure close_pip_cb,
+-                                      views::View* anchor_view,
+-                                      views::BubbleBorder::Arrow arrow);
++  CreateOverlayPermissionViewIfNeeded(
++      base::OnceClosure close_pip_cb,
++      views::View* anchor_view,
 +      views::BubbleBorder::Arrow arrow,
 +      bool is_video_pip = false);
  #endif  //! BUILDFLAG(IS_ANDROID)
@@ -394,7 +398,7 @@
  #endif  // CHROME_BROWSER_PICTURE_IN_PICTURE_AUTO_PIP_SETTING_VIEW_H_
 --- a/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
 +++ b/chrome/browser/picture_in_picture/picture_in_picture_window_manager.cc
-@@ -788,7 +788,7 @@
+@@ -807,7 +807,7 @@
    // close cb, if the pip window should be blocked.
    auto overlay_view = auto_pip_tab_helper->CreateOverlayPermissionViewIfNeeded(
        base::BindOnce(&PictureInPictureWindowManager::ExitPictureInPictureSoon),
@@ -415,7 +419,7 @@
      "//chrome/browser/preloading/prefetch/prefetch_service",
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -518,6 +518,7 @@
+@@ -520,6 +520,7 @@
  
  #if BUILDFLAG(IS_MAC)
  #include "chrome/browser/media/webrtc/system_media_capture_permissions_stats_mac.h"
@@ -423,7 +427,7 @@
  #include "chrome/browser/ui/cocoa/apps/quit_with_apps_controller_mac.h"
  #include "chrome/browser/ui/cocoa/confirm_quit.h"
  #include "chrome/browser/ui/views/frame/glass_frame_service.h"
-@@ -2203,6 +2204,9 @@
+@@ -2265,6 +2266,9 @@
    visited_url_ranking::GroupSuggestionsServiceImpl::RegisterProfilePrefs(
        registry);
    wallet::prefs::RegisterProfilePrefs(registry);

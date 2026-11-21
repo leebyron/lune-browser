@@ -1,7 +1,7 @@
 --- a/chrome/app/chrome_command_ids.h
 +++ b/chrome/app/chrome_command_ids.h
-@@ -289,6 +289,7 @@
- #define IDC_SHOW_TTC_MENU 40306
+@@ -290,6 +290,7 @@
+ #define IDC_OPEN_OTHER_DEVICE_TAB 40307
  
  #define IDC_HELIUM_SERVICES_OPEN 40700
 +#define IDC_HELIUM_COMMAND_BAR 40703
@@ -31,7 +31,7 @@
      </message>
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -679,6 +679,16 @@
+@@ -572,6 +572,16 @@
  inline constexpr char kHeliumShowProgressBar[] =
      "helium.browser.show_progress_bar";
  
@@ -154,7 +154,7 @@
  class HistoryClustersSidePanelCoordinator;
  class HistorySidePanelCoordinator;
  class ImmersiveModeController;
-@@ -462,6 +464,12 @@
+@@ -466,6 +468,12 @@
    std::unique_ptr<TabGroupFocusIphController> tab_group_focus_iph_controller_;
    std::unique_ptr<VerticalTabIphController> vertical_tab_iph_controller_;
    std::unique_ptr<HeliumLayoutStateController> helium_layout_state_controller_;
@@ -178,7 +178,7 @@
  #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
  #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
  #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
-@@ -626,6 +628,14 @@
+@@ -636,6 +638,14 @@
          GetUserDataFactory().CreateInstance<HeliumLayoutStateController>(
              *browser, browser, profile->GetPrefs());
  
@@ -193,7 +193,7 @@
      vertical_tab_strip_state_controller_ =
          GetUserDataFactory()
              .CreateInstance<tabs::VerticalTabStripStateControllerImpl>(
-@@ -820,6 +830,9 @@
+@@ -830,6 +840,9 @@
          std::make_unique<ExtensionKeybindingRegistryViews>(
              browser, extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
              focus_manager);
@@ -205,7 +205,7 @@
    if (browser_view) {
 --- a/chrome/browser/ui/browser_window/internal/BUILD.gn
 +++ b/chrome/browser/ui/browser_window/internal/BUILD.gn
-@@ -113,6 +113,8 @@
+@@ -112,6 +112,8 @@
        "//chrome/browser/ui/focus",
        "//chrome/browser/ui/fullscreen",
        "//chrome/browser/ui/helium:helium_layout_state_controller",
@@ -216,7 +216,7 @@
        "//chrome/browser/ui/send_tab_to_self",
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
-@@ -74,6 +74,7 @@
+@@ -75,6 +75,7 @@
  #include "chrome/browser/ui/dialogs/browser_dialogs.h"
  #include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
  #include "chrome/browser/ui/helium/helium_layout_state_controller.h"
@@ -224,7 +224,7 @@
  #include "chrome/browser/ui/lens/lens_overlay_controller.h"
  #include "chrome/browser/ui/managed_ui.h"
  #include "chrome/browser/ui/navigator/browser_navigator.h"
-@@ -887,6 +888,16 @@
+@@ -889,6 +890,16 @@
            TabStripUserGestureDetails(
                TabStripUserGestureDetails::GestureType::kKeyboard, time_stamp));
        break;
@@ -241,7 +241,7 @@
      case IDC_DUPLICATE_TAB:
        DuplicateTab(browser_);
        break;
-@@ -2170,6 +2181,9 @@
+@@ -2169,6 +2180,9 @@
    // These are always enabled; the menu determines their menu item visibility.
    command_updater_->UpdateCommandEnabled(IDC_UPGRADE_DIALOG, true);
    command_updater_->UpdateCommandEnabled(IDC_HELIUM_SERVICES_OPEN, true);
@@ -293,7 +293,7 @@
  ui::Accelerator AcceleratorForCloseWindow() {
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -667,6 +667,10 @@
+@@ -628,6 +628,10 @@
        {"verticalCollapseShortcut", IDS_SETTINGS_VERTICAL_COLLAPSE_SHORTCUT},
        {"minimalLocationBar", IDS_SETTINGS_MINIMAL_LOCATION_BAR},
        {"showProgressBar", IDS_SETTINGS_SHOW_PROGRESS_BAR},

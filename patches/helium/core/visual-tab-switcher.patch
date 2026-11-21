@@ -13,7 +13,7 @@
    (*s_allowlist)[::prefs::kShowZoomIndicator] =
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -132,6 +132,8 @@
+@@ -134,6 +134,8 @@
    registry->RegisterBooleanPref(prefs::kNewTabNextToActive, false);
  
    registry->RegisterBooleanPref(prefs::kTabCyclingMRU, false);
@@ -24,7 +24,7 @@
  
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -607,6 +607,10 @@
+@@ -500,6 +500,10 @@
  // A boolean pref set to true if MRU (Most Recently Used) order should be used
  // when cycling through tabs with Ctrl+Tab.
  inline constexpr char kTabCyclingMRU[] = "helium.browser.mru_tab_cycling";
@@ -37,7 +37,7 @@
  // menu handlers and show the browser context menu.
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
-@@ -4630,6 +4630,14 @@
+@@ -4994,6 +4994,14 @@
    mru_cycle_list_.clear();
  }
  
@@ -52,9 +52,9 @@
  void TabStripModel::SelectRelativeTab(TabRelativeDirection direction,
                                        TabStripUserGestureDetails detail) {
    // This may happen during automated testing or if a user somehow buffers
-@@ -4648,27 +4656,14 @@
-   // confident it won't be triggered.
-   DCHECK(!start_group.has_value() || !IsGroupCollapsed(start_group.value()));
+@@ -5004,27 +5012,14 @@
+ 
+   const int start_index = active_index();
  
 -  std::optional<tab_groups::TabGroupId> focused_group = GetFocusedGroup();
    const int delta = direction == TabRelativeDirection::kNext ? 1 : -1;
@@ -84,7 +84,7 @@
  }
 --- a/chrome/browser/ui/tabs/tab_strip_model.h
 +++ b/chrome/browser/ui/tabs/tab_strip_model.h
-@@ -518,6 +518,7 @@
+@@ -526,6 +526,7 @@
    bool IsTabPinned(int index) const;
  
    bool IsTabCollapsed(int index) const;

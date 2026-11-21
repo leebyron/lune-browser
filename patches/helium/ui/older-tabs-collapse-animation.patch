@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc
-@@ -88,6 +88,11 @@
+@@ -130,6 +130,11 @@
    return false;
  }
  
@@ -12,7 +12,7 @@
  void TabCollectionAnimatingLayoutManager::Delegate::OnAnimationEnded() {}
  
  bool TabCollectionAnimatingLayoutManager::Delegate::ShouldAnimateLayout() {
-@@ -472,6 +477,18 @@
+@@ -557,6 +562,18 @@
  }
  
  void TabCollectionAnimatingLayoutManager::SetStartingLayoutToCurrent() {
@@ -31,7 +31,7 @@
    if (animation_axis_ == AnimationAxis::kHorizontal) {
      // `CalculateClosingViewsTargetX()` assumes the child layouts of
      // starting_layout_ are sorted. Typically starting_layout_ is set from
-@@ -819,7 +836,17 @@
+@@ -906,7 +923,17 @@
          // (e.g. drag-and-drop or split-tabs which explicitly requires no
          // animated transition).
        }
@@ -52,7 +52,7 @@
                       get_animation_axis_end(interpolated_child.bounds));
 --- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h
-@@ -98,6 +98,10 @@
+@@ -99,6 +99,10 @@
      virtual bool ShouldSnapToTarget(const views::View& child_view) const;
      virtual bool ShouldAnimateOpacityForAddAndRemove(
          const views::View& child_view) const;
@@ -65,15 +65,15 @@
  
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
-@@ -7,6 +7,7 @@
- #include <algorithm>
+@@ -9,6 +9,7 @@
  #include <set>
+ #include <vector>
  
 +#include "base/auto_reset.h"
+ #include "chrome/browser/ui/animation/browser_animation_controller.h"
+ #include "chrome/browser/ui/animation/browser_animation_types.h"
  #include "base/i18n/case_conversion.h"
- #include "chrome/browser/profiles/profile.h"
- #include "chrome/browser/ui/chrome_pages.h"
-@@ -433,6 +434,17 @@
+@@ -546,6 +547,17 @@
    return views::IsViewClass<TabView>(&child_view);
  }
  
@@ -91,7 +91,7 @@
  bool UnpinnedTabContainerView::ShouldSnapToTarget(
      const views::View& child_view) const {
    return views::IsViewClass<SplitTabView>(&child_view);
-@@ -575,6 +587,13 @@
+@@ -688,6 +700,13 @@
    }
    auto* model =
        collection_node_->GetController()->GetDragHandler().GetTabStripModel();
@@ -107,7 +107,7 @@
                        tabs::VerticalTabStripCollapseState::kExpanded;
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
-@@ -79,6 +79,8 @@
+@@ -89,6 +89,8 @@
    bool ShouldAnimateOpacityForAddAndRemove(
        const views::View& child_view) const override;
    bool ShouldAnimateLayout() override;
@@ -116,8 +116,8 @@
  
    // DraggedTabsContainer:
    DraggedTabsContainer& GetTabDragTarget(
-@@ -122,6 +124,7 @@
-   void OnCollapseStateChanged(tabs::VerticalTabStripCollapseState state);
+@@ -139,6 +141,7 @@
+   void ReleaseFocusTransitionFade();
  
    bool has_older_tabs_ = false;
 +  std::optional<bool> last_older_collapsed_;
@@ -126,7 +126,7 @@
    // Calendar buckets own stable presentation views, independently of tabs.
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
-@@ -83,7 +83,8 @@
+@@ -82,7 +82,8 @@
    const auto older = container.has_older_tabs_
                           ? container.OlderViewsInDateOrder()
                           : std::vector<views::View*>();
@@ -136,7 +136,7 @@
    const int row_height = GetLayoutConstant(LayoutConstant::kVerticalTabHeight);
    const int text_inset =
        GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
-@@ -116,21 +117,21 @@
+@@ -115,21 +116,21 @@
        if (auto* heading = container.OlderDateHeading(child)) {
          // Consume the preceding tab's 2px row gap, preserving the label's
          // clearance to its following tab and the first section heading.
@@ -161,7 +161,7 @@
            height += bounds.height() + kTabVerticalPadding;
            previous_older_tab = true;
          }
-@@ -147,11 +148,11 @@
+@@ -146,11 +147,11 @@
        height += 6;
      }
      bounds.set_y(drag_data ? drag_data->offset.y() : height);
@@ -175,7 +175,7 @@
        previous_visible_group = is_group;
        previous_older_tab = older_slot;
        height += bounds.height() + kTabVerticalPadding;
-@@ -183,11 +184,16 @@
+@@ -182,11 +183,16 @@
    }
    // Use frozen date order even while Chromium transiently moves dragged tabs
    // through the model. Headings are presentation rows, never dragged views.

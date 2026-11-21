@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/tab_ui_helper.h
 +++ b/chrome/browser/ui/tab_ui_helper.h
-@@ -65,6 +65,12 @@
+@@ -74,6 +74,12 @@
    // Retains the previous same-origin favicon while a replacement is pending.
    ui::ImageModel GetFavicon();
  
@@ -62,10 +62,10 @@
  #include "chrome/browser/ui/browser_element_identifiers.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-@@ -124,8 +125,13 @@
- void TabIcon::SetData(const tabs::TabData& data) {
+@@ -125,8 +126,13 @@
    const bool was_showing_load = GetShowingLoadingAnimation();
  
+   can_paint_to_layer_ = can_paint_to_layer;
 +  is_internal_page_ = data.visible_url.SchemeIs("chrome") ||
 +                      data.visible_url.SchemeIs("chrome-untrusted") ||
 +                      data.visible_url.SchemeIs("chrome-search") ||
@@ -76,7 +76,7 @@
    SetIcon(data.favicon, data.should_themify_favicon);
    SetNetworkState(data.network_state);
    SetCrashed(data.is_crashed);
-@@ -373,6 +379,16 @@
+@@ -374,6 +380,16 @@
      return crashed_icon_;
    }
  
@@ -95,7 +95,7 @@
  }
 --- a/chrome/browser/ui/views/tabs/tab/tab_icon.h
 +++ b/chrome/browser/ui/views/tabs/tab/tab_icon.h
-@@ -210,6 +210,8 @@
+@@ -214,6 +214,8 @@
  
    bool can_paint_to_layer_ = false;
  

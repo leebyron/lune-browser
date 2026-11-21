@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.cc
-@@ -419,6 +419,34 @@
+@@ -480,6 +480,34 @@
      RemoveNonAnimatingPendingDeleteViews();
      ClearViewAnimationMetadata();
    }
@@ -35,7 +35,7 @@
  }
  
  void TabCollectionAnimatingLayoutManager::OnInstalled(views::View* host) {
-@@ -838,9 +866,8 @@
+@@ -925,9 +953,8 @@
        }
        const bool clip_to_host =
            delegate_->ShouldClipChildToAnimatedHost(*child_view);
@@ -49,7 +49,7 @@
          interpolated_child.visible |=
 --- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h
-@@ -341,6 +341,9 @@
+@@ -348,6 +348,9 @@
    // to its target size. In such cases animating the host's preferred size
    // avoids clipping close / fade-out animations.
    const bool animate_host_size_ = false;
@@ -61,15 +61,15 @@
  extern const ui::ClassProperty<bool>* const kHasAnimatingLayoutManagerKey;
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
-@@ -15,7 +15,6 @@
+@@ -19,7 +19,6 @@
  #include "chrome/browser/ui/tabs/older_tabs_controller.h"
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 -#include "chrome/browser/ui/tabs/tab_style.h"
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+ #include "chrome/browser/ui/views/animations/focus_mode_animations.h"
  #include "chrome/browser/ui/views/frame/sidebar_footer_view.h"
- #include "chrome/browser/ui/views/helium/native_frame_materials.h"
-@@ -117,10 +116,8 @@
+@@ -167,10 +166,8 @@
                             this, helium::NativeGlassColorRole::kSidebarSection)
                             .value_or(GetColorProvider()->GetColor(
                                 ui::kColorLabelForegroundSecondary));
@@ -82,7 +82,7 @@
      if (collapsed_ == collapsed && color_ == color &&
          icon_color_ == icon_color) {
        return;
-@@ -275,7 +272,7 @@
+@@ -344,7 +341,7 @@
          GetLayoutConstant(LayoutConstant::kTabHorizontalPadding) + 2;
      older_header_->SetBorder(views::CreateEmptyBorder(
          gfx::Insets::TLBR(6, header_inset, 0, header_inset)));
@@ -91,7 +91,7 @@
      older_header_->SetVisible(false);
      auto* model =
          collection_node_->GetController()->GetDragHandler().GetTabStripModel();
-@@ -739,6 +736,10 @@
+@@ -851,6 +848,10 @@
    std::set<int> used_days;
    const auto now = base::Time::Now();
    for (auto* child : older) {
@@ -104,7 +104,7 @@
      const int days = CivilDaysBetween(now, frozen);
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
-@@ -147,6 +147,10 @@
+@@ -146,6 +146,10 @@
        bounds.set_width(
            std::max(0, size_bounds.width().value() - x - horizontal_padding));
      }
@@ -115,7 +115,7 @@
      if (older_slot) {
        if (auto* heading = container.OlderDateHeading(child)) {
          previous_expanded_group = nullptr;
-@@ -163,15 +167,6 @@
+@@ -162,15 +166,6 @@
            height += 16;
          }
        }
@@ -133,20 +133,16 @@
      const bool visible = IsChildVisibleInContainer(focused_group_id, child) &&
 --- a/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager_unittest.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager_unittest.cc
-@@ -14,6 +14,7 @@
- #include "base/time/time.h"
- #include "testing/gmock/include/gmock/gmock.h"
- #include "testing/gtest/include/gtest/gtest.h"
-+#include "ui/compositor/layer.h"
- #include "ui/gfx/animation/animation.h"
- #include "ui/gfx/animation/animation_test_api.h"
- #include "ui/gfx/geometry/rect.h"
-@@ -34,7 +35,12 @@
+@@ -36,11 +36,16 @@
    MockAnimatingLayoutManagerDelegate() {
      ON_CALL(*this, ShouldAnimateLayout).WillByDefault(testing::Return(true));
    }
 +  MOCK_METHOD(bool, IsDragging, (), (const, override));
    MOCK_METHOD(bool, IsViewDragging, (const views::View&), (const, override));
+   MOCK_METHOD(bool,
+               ShouldAnimateOpacityForAddAndRemove,
+               (const views::View&),
+               (const, override));
 +  MOCK_METHOD(bool,
 +              ShouldClipChildToAnimatedHost,
 +              (const views::View&),
@@ -154,7 +150,7 @@
    MOCK_METHOD(void, OnAnimationEnded, (), (override));
    MOCK_METHOD(bool, ShouldAnimateLayout, (), (override));
  };
-@@ -258,6 +264,55 @@
+@@ -264,6 +269,55 @@
  }
  
  TEST_P(TabCollectionAnimatingLayoutManagerTest,

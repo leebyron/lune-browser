@@ -512,7 +512,7 @@
  #include "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.h"
  #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
  #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
-@@ -108,6 +110,13 @@
+@@ -110,6 +112,13 @@
      return;
    }
  
@@ -526,7 +526,7 @@
    const int icon_size = GetIconSize();
    const ui::ColorProvider* const color_provider = GetColorProvider();
    CHECK(color_provider);
-@@ -317,11 +326,23 @@
+@@ -319,11 +328,23 @@
  }
  
  void AvatarToolbarButton::AnimationProgressed(const gfx::Animation* animation) {
@@ -552,7 +552,7 @@
    if (slide_animation_.GetCurrentValue() == 0.0) {
 --- a/chrome/browser/ui/views/profiles/BUILD.gn
 +++ b/chrome/browser/ui/views/profiles/BUILD.gn
-@@ -290,6 +290,7 @@
+@@ -289,6 +289,7 @@
        "//chrome/browser/ui/browser_window",
        "//chrome/browser/ui/profiles",
        "//chrome/browser/ui/user_education",
@@ -575,7 +575,7 @@
    symbol = [symbol imageWithSymbolConfiguration:
 --- a/chrome/browser/ui/views/tabs/vertical/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/vertical/BUILD.gn
-@@ -30,6 +30,7 @@
+@@ -29,6 +29,7 @@
      "//chrome/browser/ui/views/tabs/dragging:tab_drag_target",
      "//chrome/browser/ui/views/tabs/shared",
      "//components/tabs:impl",
@@ -583,7 +583,7 @@
      "//ui/base/metadata",
      "//ui/gfx/geometry",
      "//ui/views",
-@@ -85,6 +86,7 @@
+@@ -82,6 +83,7 @@
      "//components/performance_manager",
      "//components/tab_groups",
      "//components/tabs:impl",
@@ -846,7 +846,7 @@
              gfx::SizeF(host->size()), SkColorSetA(hover_color, SK_AlphaOPAQUE));
 --- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/BUILD.gn
 +++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/BUILD.gn
-@@ -26,6 +26,8 @@
+@@ -25,6 +25,8 @@
      "//chrome/browser/ui/tabs:features",
      "//chrome/browser/ui/toolbar/pinned_toolbar",
      "//chrome/browser/ui/views/frame:browser_view_header",
@@ -857,7 +857,7 @@
      "//components/contextual_tasks/public:feature_list",
 --- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
 +++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
-@@ -17,6 +17,7 @@
+@@ -20,6 +20,7 @@
  #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
  #include "chrome/browser/ui/ui_features.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -865,7 +865,7 @@
  #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar.mojom.h"
  #include "chrome/browser/ui/webui/util/image_util.h"
  #include "chrome/browser/ui/webui/webui_embedding_context.h"
-@@ -38,6 +39,7 @@
+@@ -41,6 +42,7 @@
  #include "ui/base/l10n/l10n_util.h"
  #include "ui/base/models/image_model.h"
  #include "ui/base/ui_base_features.h"
@@ -873,7 +873,7 @@
  #include "ui/display/screen.h"
  #include "ui/gfx/geometry/size.h"
  #include "ui/gfx/geometry/size_f.h"
-@@ -47,6 +49,18 @@
+@@ -50,6 +52,18 @@
  #include "ui/views/vector_icons.h"
  
  namespace {
@@ -890,9 +890,9 @@
 +  return model.Rasterize(&provider);
 +}
  
- // The Google G is visually denser than the Material toolbar icons, so the
- // toolbar draws it 2dp smaller than the other pinned buttons (see
-@@ -327,12 +341,11 @@
+ constexpr int kToolbarIconSize = 20;
+ 
+@@ -312,12 +326,11 @@
        prefs()->GetBoolean(prefs::kShowHomeButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kNavigation,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -907,7 +907,7 @@
            scale_factor)));
  
    auto forward_action = side_panel::customize_chrome::mojom::Action::New(
-@@ -341,12 +354,11 @@
+@@ -326,12 +339,11 @@
        prefs()->GetBoolean(prefs::kShowForwardButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kNavigation,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -922,7 +922,7 @@
            scale_factor)));
  
    auto back_action = side_panel::customize_chrome::mojom::Action::New(
-@@ -355,12 +367,11 @@
+@@ -340,12 +352,11 @@
        prefs()->GetBoolean(prefs::kShowBackButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kNavigation,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -937,7 +937,7 @@
            scale_factor)));
  
    auto reload_action = side_panel::customize_chrome::mojom::Action::New(
-@@ -369,12 +380,11 @@
+@@ -354,12 +365,11 @@
        prefs()->GetBoolean(prefs::kShowReloadButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kNavigation,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -952,7 +952,7 @@
            scale_factor)));
  
    auto vertical_tabs_collapse_action =
-@@ -385,9 +395,8 @@
+@@ -370,9 +380,8 @@
            prefs()->GetBoolean(prefs::kShowVerticalTabsCollapseButton), false,
            side_panel::customize_chrome::mojom::CategoryId::kNavigation,
            GURL(webui::EncodePNGAndMakeDataURI(
@@ -964,7 +964,7 @@
                scale_factor)));
  
    auto dynamic_new_tab_action =
-@@ -398,9 +407,8 @@
+@@ -383,9 +392,8 @@
            prefs()->GetBoolean(prefs::kShowDynamicNewTabButton), false,
            side_panel::customize_chrome::mojom::CategoryId::kNavigation,
            GURL(webui::EncodePNGAndMakeDataURI(
@@ -976,7 +976,7 @@
                scale_factor)));
  
    auto avatar_action = side_panel::customize_chrome::mojom::Action::New(
-@@ -409,12 +417,11 @@
+@@ -394,12 +402,11 @@
        prefs()->GetBoolean(prefs::kShowAvatarButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kYourChrome,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -991,7 +991,7 @@
            scale_factor)));
  
    auto extensions_action = side_panel::customize_chrome::mojom::Action::New(
-@@ -423,12 +430,11 @@
+@@ -408,12 +415,11 @@
        prefs()->GetBoolean(prefs::kShowExtensionsButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kYourChrome,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -1006,7 +1006,7 @@
            scale_factor)));
  
    auto menu_action = side_panel::customize_chrome::mojom::Action::New(
-@@ -437,11 +443,10 @@
+@@ -422,11 +428,10 @@
        prefs()->GetBoolean(prefs::kShowMenuButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kYourChrome,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -1020,7 +1020,7 @@
            scale_factor)));
  
    auto media_controls_action = side_panel::customize_chrome::mojom::Action::New(
-@@ -451,12 +456,11 @@
+@@ -436,12 +441,11 @@
        prefs()->GetBoolean(prefs::kShowMediaButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kYourChrome,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -1035,7 +1035,7 @@
            scale_factor)));
  
    actions.push_back(std::move(back_action));
-@@ -470,11 +474,10 @@
+@@ -455,11 +459,10 @@
        prefs()->GetBoolean(prefs::kPinSplitTabButton), false,
        side_panel::customize_chrome::mojom::CategoryId::kNavigation,
        GURL(webui::EncodePNGAndMakeDataURI(
@@ -1049,7 +1049,7 @@
            scale_factor)));
  
    actions.push_back(std::move(split_tab_action));
-@@ -544,7 +547,7 @@
+@@ -529,7 +532,7 @@
              base::UTF16ToUTF8(action_item->GetText()), model_->Contains(id),
              has_enterprise_controlled_pinned_state, category,
              GURL(webui::EncodePNGAndMakeDataURI(

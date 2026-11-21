@@ -1,6 +1,6 @@
 --- a/chrome/common/pref_names.h
 +++ b/chrome/common/pref_names.h
-@@ -639,6 +639,12 @@
+@@ -532,6 +532,12 @@
  inline constexpr char kHeliumVerticalRightAligned[] =
      "helium.browser.vertical_right_aligned";
  
@@ -100,7 +100,7 @@
          (children_on_row * child_width) +
 --- a/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
-@@ -213,13 +213,19 @@
+@@ -276,13 +276,19 @@
          tab_scroll_button_container_->AddVisibleChangedCallback(
              base::BindRepeating(&TabStripView::OnScrollButtonsVisibilityChanged,
                                  base::Unretained(this))));
@@ -139,7 +139,7 @@
      </message>
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -626,6 +626,9 @@
+@@ -587,6 +587,9 @@
        {"enterCustomWebAddress", IDS_SETTINGS_ENTER_CUSTOM_WEB_ADDRESS},
        {"homeButtonDisabled", IDS_SETTINGS_HOME_BUTTON_DISABLED},
        {"themes", IDS_SETTINGS_THEMES},
@@ -204,9 +204,9 @@
      super.connectedCallback();
 --- a/chrome/browser/ui/views/tabs/common/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
-@@ -46,7 +46,7 @@
- source_set("impl") {
-   sources = [
+@@ -50,7 +50,7 @@
+     "child_view_targeter_delegate.cc",
+     "child_view_targeter_delegate.h",
      "dragged_tabs_container.cc",
 -    "helium_pinned_tab_container_view_vertical_layout.cc",
 +    "pinned_tab_container_view_vertical_layout.cc",

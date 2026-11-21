@@ -109,7 +109,7 @@
    gemini_button_ =
        content_area_view_->AddChildView(std::make_unique<views::View>());
  
-@@ -1025,8 +1023,6 @@
+@@ -1018,8 +1016,6 @@
        views::kFlexBehaviorKey,
        views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
                                 views::MaximumFlexSizeRule::kUnbounded));
@@ -118,7 +118,7 @@
  
    views::View* const content_parent =
        content_area_view_ ? content_area_view_.get() : this;
-@@ -1080,8 +1076,6 @@
+@@ -1073,8 +1069,6 @@
  }
  
  void VerticalTabStripRegionView::UpdateInteriorMargin() {
@@ -127,7 +127,7 @@
    int top_padding = 0;
    BrowserView* const browser = browser_view();
    if (browser && browser->IsZenModeEnabledForLayout()) {
-@@ -1104,15 +1098,10 @@
+@@ -1097,15 +1091,10 @@
      }
    }
  
@@ -203,18 +203,18 @@
  
 --- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
-@@ -6,7 +6,9 @@
- 
+@@ -7,7 +7,9 @@
  #include <cmath>
  
+ #include "base/check_op.h"
 +#include "build/build_config.h"
  #include "chrome/browser/ui/layout_constants.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
- #include "ui/views/controls/image_view.h"
- #include "ui/views/controls/label.h"
- #include "ui/views/layout/proposed_layout.h"
-@@ -66,6 +68,16 @@
-   return scroll_view->IsHorizontalContentOverflowing() && dx >= dy;
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_animating_layout_manager.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
+ #include "ui/base/class_property.h"
+@@ -95,6 +97,16 @@
+   }
  }
  
 +int GetSidebarContentPadding(const BrowserView* browser) {
@@ -240,9 +240,9 @@
  class TabStripView;
  
  namespace ui {
-@@ -37,6 +38,9 @@
-                         TabStripOrientation orientation,
-                         const ui::GestureEvent& event);
+@@ -57,6 +58,9 @@
+ // the layer is destroyed. Must be balanced with a prior AcquireViewLayer().
+ void ReleaseViewLayer(views::View* view);
  
 +// Padding inside sidebar rows, never around their scroll viewports.
 +int GetSidebarContentPadding(const BrowserView* browser);
@@ -260,7 +260,7 @@
  #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
  #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.h"
  #include "chrome/browser/ui/views/tabs/horizontal/horizontal_tab_closing_helper.h"
-@@ -264,21 +265,18 @@
+@@ -244,21 +245,18 @@
    }
  
    const int region_horizontal_padding =
@@ -288,7 +288,7 @@
    const int pinned_preferred_height =
        pinned_tabs_scroll_view
            ->GetPreferredSize(pinned_tab_container_size_bounds)
-@@ -325,8 +323,7 @@
+@@ -305,8 +303,7 @@
      remaining_height -= pinned_container_height;
    }
    gfx::Rect pinned_container_bounds(
@@ -309,7 +309,7 @@
  #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
  #include "components/tab_groups/tab_group_id.h"
  #include "ui/gfx/geometry/rect.h"
-@@ -75,8 +77,12 @@
+@@ -74,8 +76,12 @@
    int dragged_view_bottom = 0;
    auto collapse_state = UnpinnedTabContainerView().GetTabStripCollapseState();
  
@@ -323,7 +323,7 @@
  
    const auto& container = UnpinnedTabContainerView();
    auto* header = container.older_header();
-@@ -94,7 +100,7 @@
+@@ -93,7 +99,7 @@
      int x =
          views::AsViewClass<TabGroupView>(child) &&
                  collapse_state != tabs::VerticalTabStripCollapseState::kExpanded
@@ -332,7 +332,7 @@
              : horizontal_padding;
      views::SizeBound child_height_bound = size_bounds.height();
      if (focused_group_id && !child_height_bound.is_bounded()) {
-@@ -193,7 +199,10 @@
+@@ -192,7 +198,10 @@
    }
    if (height > 0) {
      height -= kTabVerticalPadding;

@@ -1,6 +1,6 @@
 --- a/components/remote_cocoa/app_shim/browser_native_widget_window_mac.h
 +++ b/components/remote_cocoa/app_shim/browser_native_widget_window_mac.h
-@@ -12,6 +12,11 @@ REMOTE_COCOA_APP_SHIM_EXPORT
+@@ -12,6 +12,11 @@
  // When set to `YES`, the traffic lights will always be shown. When set to `NO`,
  // the traffic lights follow the default AppKit behavior.
  - (void)setAlwaysShowTrafficLights:(BOOL)alwaysShow;
@@ -14,7 +14,7 @@
  // This controller is used as a workaround for an AppKit bug
 --- a/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
 +++ b/components/remote_cocoa/app_shim/browser_native_widget_window_mac.mm
-@@ -159,7 +159,13 @@ WEAK_IMPORT_ATTRIBUTE
+@@ -159,7 +159,13 @@
  
  @end
  
@@ -29,7 +29,7 @@
  
  @synthesize thinTitlebarViewController = _thinTitlebarViewController;
  
-@@ -235,4 +241,48 @@ WEAK_IMPORT_ATTRIBUTE
+@@ -235,4 +241,48 @@
        setAlwaysShowTrafficLights:alwaysShow];
  }
  
@@ -254,7 +254,7 @@
 +@end
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -1957,6 +1957,7 @@ if (is_mac) {
+@@ -1957,6 +1957,7 @@
        "//chrome/browser/picture_in_picture",
        "//chrome/browser/profiles:profile",
        "//chrome/browser/themes",
@@ -264,7 +264,7 @@
        "//chrome/browser/ui:view_ids",
 --- a/chrome/browser/ui/views/helium/BUILD.gn
 +++ b/chrome/browser/ui/views/helium/BUILD.gn
-@@ -20,6 +20,19 @@ source_set("frame_corner_radius") {
+@@ -20,6 +20,19 @@
    }
  }
  
@@ -286,7 +286,7 @@
      "native_frame_materials.cc",
 --- a/chrome/browser/ui/views/frame/browser_frame_view.h
 +++ b/chrome/browser/ui/views/frame/browser_frame_view.h
-@@ -169,6 +169,9 @@ class BrowserFrameView : public views::F
+@@ -169,6 +169,9 @@
    // them in the layout for exclusion area calculations.
    virtual void SetCaptionButtonsOpacity(float opacity) {}
  
@@ -298,7 +298,7 @@
    // This is typically called when child views (e.g. tab strip, toolbar,
 --- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
 +++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
-@@ -27,6 +27,11 @@ enum class ToolbarVisibilityStyle;
+@@ -27,6 +27,11 @@
  }
  
  @class FullscreenToolbarController;
@@ -310,7 +310,7 @@
  
  class CaptionButtonPlaceholderContainer;
  
-@@ -68,6 +73,7 @@ class BrowserFrameViewMac : public Brows
+@@ -68,6 +73,7 @@
    void UpdateMinimumSize() override;
    void WindowControlsOverlayEnabledChanged() override;
    void SetCaptionButtonsOpacity(float opacity) override;
@@ -318,7 +318,7 @@
  
    // views::View:
    gfx::Size GetMinimumSize() const override;
-@@ -94,6 +100,10 @@ class BrowserFrameViewMac : public Brows
+@@ -94,6 +100,10 @@
    FRIEND_TEST_ALL_PREFIXES(BrowserFrameViewMacTest,
                             GetCaptionButtonPlaceholderBounds);
  
@@ -329,7 +329,7 @@
    // Calculate the y offset the top UI needs to shift down due to showing the
    // slide down menu bar at the very top in full screen.
    int TopUIFullscreenYOffset() const;
-@@ -124,6 +134,11 @@ class BrowserFrameViewMac : public Brows
+@@ -124,6 +134,11 @@
  
    FullscreenToolbarController* __strong fullscreen_toolbar_controller_;
  
@@ -367,7 +367,7 @@
  #include "ui/views/layout/layout_types.h"
  #include "ui/views/widget/widget.h"
  
-@@ -131,6 +134,10 @@ BrowserFrameViewMac::BrowserFrameViewMac
+@@ -131,6 +134,10 @@
  }
  
  BrowserFrameViewMac::~BrowserFrameViewMac() {
@@ -378,7 +378,7 @@
    if ([fullscreen_toolbar_controller_ isInFullscreen]) {
      [fullscreen_toolbar_controller_ exitFullscreenMode];
    }
-@@ -175,14 +182,11 @@ void BrowserFrameViewMac::OnFullscreenSt
+@@ -175,14 +182,11 @@
      return;
    }
  
@@ -395,7 +395,7 @@
      [fullscreen_toolbar_controller_ exitFullscreenMode];
    }
    GetBrowserView()->DeprecatedLayoutImmediately();
-@@ -227,7 +231,10 @@ bool BrowserFrameViewMac::CaptionButtons
+@@ -227,7 +231,10 @@
  
  BrowserLayoutParams BrowserFrameViewMac::GetBrowserLayoutParams() const {
    auto params = BrowserFrameView::GetBrowserLayoutParams();
@@ -407,7 +407,7 @@
      // No insets for caption buttons in fullscreen, since caption buttons are on
      // a separate pane that slides in. However, preserve the height of the
      // caption area to ensure that the toolbar renders correctly (this is kind
-@@ -373,6 +380,7 @@ int BrowserFrameViewMac::GetRestoredWind
+@@ -373,6 +380,7 @@
  }
  
  void BrowserFrameViewMac::SetCaptionButtonsOpacity(float opacity) {
@@ -415,7 +415,7 @@
    NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
    if (!window) {
      return;
-@@ -384,6 +392,78 @@ void BrowserFrameViewMac::SetCaptionButt
+@@ -384,6 +392,78 @@
    }
  }
  
@@ -494,7 +494,7 @@
  ///////////////////////////////////////////////////////////////////////////////
  // BrowserFrameViewMac, views::FrameView implementation:
  
-@@ -409,6 +489,13 @@ gfx::Rect BrowserFrameViewMac::GetWindow
+@@ -409,6 +489,13 @@
  }
  
  int BrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
@@ -508,7 +508,7 @@
    int super_component = BrowserFrameView::NonClientHitTest(point);
    if (super_component != HTNOWHERE) {
      return super_component;
-@@ -586,9 +673,14 @@ int BrowserFrameViewMac::TopUIFullscreen
+@@ -586,9 +673,14 @@
      menu_bar_height = 0;
    }
  
@@ -528,7 +528,7 @@
  }
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -1507,6 +1507,8 @@ class BrowserView : public BrowserWindow
+@@ -1516,6 +1516,8 @@
    base::OneShotTimer zen_cursor_exit_timer_;
    std::optional<gfx::Point> zen_last_cursor_;
    bool zen_mode_enabled_ = false;
@@ -539,7 +539,7 @@
  };
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -2011,7 +2011,7 @@ void BrowserView::UpdateZenModeEventMoni
+@@ -2027,7 +2027,7 @@
  }
  
  void BrowserView::StartZenCollapseTimer(base::TimeDelta delay) {
@@ -548,7 +548,7 @@
      return;
    }
    zen_cursor_exit_timer_.Start(
-@@ -2040,7 +2040,7 @@ bool BrowserView::IsLeavingZenSideGap(co
+@@ -2056,7 +2056,7 @@
  }
  
  void BrowserView::UpdateZenModeRevealFromCursor() {
@@ -557,7 +557,7 @@
      return;
    }
  
-@@ -2086,7 +2086,7 @@ void BrowserView::UpdateZenModeRevealFro
+@@ -2102,7 +2102,7 @@
  }
  
  void BrowserView::UpdateZenModeReveal(bool reveal_top, bool reveal_side) {
@@ -566,7 +566,7 @@
      return;
    }
  
-@@ -2955,6 +2955,13 @@ void BrowserView::FullscreenStateChangin
+@@ -2987,6 +2987,13 @@
      return;
    }
  
@@ -580,15 +580,15 @@
    if (base::FeatureList::IsEnabled(features::kAsyncFullscreenWindowState)) {
      PrepareFullscreen(IsFullscreen());
    } else {
-@@ -2999,7 +3006,6 @@ void BrowserView::FullscreenStateChanged
+@@ -3031,7 +3038,6 @@
  
    multi_contents_view_->SetProperty(views::kWidgetForAnchoringKey,
                                      widget_for_anchoring);
 -  GetFrameView()->OnFullscreenStateChanged();
  
-   // Reopen a popup that `OmniboxPopupView::OnFullscreenTransitionStarting()`
-   // closed for the transition. This runs after entering and after exiting, as
-@@ -3021,6 +3027,12 @@ void BrowserView::FullscreenStateChanged
+   // On Mac, a failed enter never goes through ProcessFullscreen(false), so
+   // PrepareFullscreen(false) never ran. We must tear down the host explicitly.
+@@ -3062,6 +3068,12 @@
        ->fullscreen_controller()
        ->WindowFullscreenStateChanged();
  
@@ -601,7 +601,7 @@
    multi_contents_view_->OnFullscreenStateChanged();
  
    if (base::FeatureList::IsEnabled(features::kAsyncFullscreenWindowState)) {
-@@ -3036,6 +3048,10 @@ void BrowserView::FullscreenStateChanged
+@@ -3077,6 +3089,10 @@
      }
    }
  
@@ -612,7 +612,7 @@
    UpdateZenModeState();
  }
  
-@@ -5614,14 +5630,22 @@ gfx::Size BrowserView::GetMinimumSize()
+@@ -5663,14 +5679,22 @@
  
  void BrowserView::Layout(PassKey) {
    TRACE_EVENT0("ui", "BrowserView::Layout");
@@ -639,7 +639,7 @@
    if (base::FeatureList::IsEnabled(
            features::kDeferLayoutDuringBrowserStartup) &&
        startup_layout_state_ == StartupLayoutState::kDeferring &&
-@@ -5668,6 +5692,7 @@ void BrowserView::Layout(PassKey) {
+@@ -5722,6 +5746,7 @@
  
    // TODO(jamescook): Why was this in the middle of layout code?
    toolbar_->location_bar()->UpdateFocusBehavior(IsToolbarVisible());
@@ -649,7 +649,7 @@
    if (omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -394,6 +394,17 @@ BrowserViewTabbedLayoutImpl::CalculateSe
+@@ -398,6 +398,17 @@
        break;
    }
  
@@ -669,7 +669,7 @@
  
 --- a/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.cc
-@@ -164,6 +164,11 @@ bool BrowserViewLayoutDelegateImpl::IsIn
+@@ -164,6 +164,11 @@
    if (!container || container->IsEmpty()) {
      return false;
    }
@@ -683,7 +683,7 @@
    }
 --- a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
 +++ b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
-@@ -1864,13 +1864,6 @@ bool NativeWidgetNSWindowBridge::ShouldW
+@@ -1878,13 +1878,6 @@
    if (content_dip_size_.IsEmpty()) {
      return false;
    }

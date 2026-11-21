@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -11032,6 +11032,9 @@
+@@ -10376,6 +10376,9 @@
            Pin tab search
          </message>
        </if>
@@ -277,7 +277,7 @@
    // AssignSkBitmap().
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-@@ -67,11 +67,13 @@
+@@ -68,11 +68,13 @@
  #include "components/web_modal/web_contents_modal_dialog_host.h"
  #include "ui/accessibility/platform/ax_platform_node.h"
  #include "ui/actions/actions.h"
@@ -285,13 +285,13 @@
  #include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener.h"
  #import "ui/base/cocoa/window_size_constants.h"
  #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/mojom/window_open_disposition.mojom-shared.h"
  #include "ui/base/mojom/window_show_state.mojom.h"
- #include "ui/base/window_open_disposition.h"
 +#include "ui/events/keycodes/keyboard_code_conversion_mac.h"
  #include "ui/compositor/compositor.h"
  #import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
  #include "ui/views/interaction/element_tracker_views.h"
-@@ -539,6 +541,15 @@
+@@ -550,6 +552,15 @@
  
    BrowserWindowInterface* browser = browser_view_->browser();
  
@@ -317,7 +317,7 @@
  #include "chrome/browser/ui/views/theme_copying_widget.h"
  #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
  #include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
-@@ -1235,6 +1236,7 @@
+@@ -1238,6 +1239,7 @@
  }
  
  BrowserView::~BrowserView() {
@@ -325,7 +325,7 @@
    if (toolbar_) {
      toolbar_->RestoreToolbarControls();
    }
-@@ -6303,6 +6305,26 @@
+@@ -6407,6 +6409,26 @@
  ///////////////////////////////////////////////////////////////////////////////
  // BrowserView, ui::AcceleratorTarget overrides:
  
@@ -352,7 +352,7 @@
  bool BrowserView::AcceleratorPressed(const ui::Accelerator& accelerator) {
  #if BUILDFLAG(IS_MAC)
    // Forward accelerators to ExclusiveAccessManager to handle Esc press-and-hold
-@@ -6321,6 +6343,10 @@
+@@ -6425,6 +6447,10 @@
      return false;
    }
  
@@ -373,7 +373,7 @@
  class WebAppFrameToolbarView;
  
  namespace gfx {
-@@ -626,6 +627,8 @@
+@@ -633,6 +634,8 @@
    void ShowChromeLabs() override;
    BrowserView* AsBrowserView() override;
    void ShowUpdateChromeDialog() override;
@@ -382,7 +382,7 @@
    void StartTabCycling();
    void StopTabCycling();
    void ShowIntentPickerBubble(
-@@ -1514,6 +1517,7 @@
+@@ -1522,6 +1525,7 @@
        tab_strip_web_apps_reparented_state_;
  
    std::unique_ptr<TabCyclingEventHandler> tab_cycling_event_handler_;

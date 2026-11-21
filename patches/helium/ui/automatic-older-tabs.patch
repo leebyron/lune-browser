@@ -1,6 +1,6 @@
 --- a/chrome/app/settings_strings.grdp
 +++ b/chrome/app/settings_strings.grdp
-@@ -4861,4 +4861,20 @@
+@@ -4809,4 +4809,20 @@
    <message name="IDS_SETTINGS_HELIUM_SERVICES_COMPONENT_UPDATES_DESCRIPTION" desc="Description of automatic Helium component updates.">
      Lune will automatically check for component updates and install them. We recommend keeping this setting enabled.
    </message>
@@ -143,7 +143,7 @@
  #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
  #include "chrome/browser/ui/tabs/tab_group_model.h"
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
-@@ -620,6 +621,12 @@
+@@ -621,6 +622,12 @@
    command_storage_manager()->AppendRebuildCommand(
        sessions::CreateSetTabWindowCommand(window_id, session_id));
  
@@ -166,7 +166,7 @@
  #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
  #include "chrome/browser/ui/tabs/tab_group_model.h"
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
-@@ -208,6 +209,10 @@
+@@ -207,6 +208,10 @@
    std::map<std::string, std::string> extra_data;
    tabs::TabInterface* const tab = tab_strip_model_->GetTabAtIndex(index);
  
@@ -201,7 +201,7 @@
        web_contents.get(), extra_data);
 --- a/chrome/browser/ui/tabs/BUILD.gn
 +++ b/chrome/browser/ui/tabs/BUILD.gn
-@@ -355,6 +355,7 @@
+@@ -351,6 +351,7 @@
      sources = [
        "tab_close_types_data.h",
        "tab_strip_model.h",
@@ -209,7 +209,7 @@
        "tab_strip_model_delegate.h",
        "tab_strip_model_selection_state.h",
        "tab_strip_model_stats_recorder.h",
-@@ -380,6 +381,7 @@
+@@ -376,6 +377,7 @@
      sources = [
        "tab_close_types_data.cc",
        "tab_strip_model.cc",
@@ -217,15 +217,15 @@
        "tab_strip_model_delegate.cc",
        "tab_strip_model_selection_state.cc",
        "tab_strip_model_stats_recorder.cc",
-@@ -405,6 +407,7 @@
-       "//chrome/browser/profiles:profile",
+@@ -402,6 +404,7 @@
        "//chrome/browser/reading_list",
        "//chrome/browser/resource_coordinator",
+       "//chrome/browser/search",
 +      "//chrome/browser/tab_group_sync:factories",
        "//chrome/browser/ui:browser_command_controller",
        "//chrome/browser/ui:browser_commands",
        "//chrome/browser/ui:browser_tab_strip",
-@@ -424,6 +427,7 @@
+@@ -421,6 +424,7 @@
        "//chrome/browser/ui/user_education",
        "//chrome/browser/ui/views/frame:browser_view_header",
        "//chrome/browser/ui/views/tabs/common",
@@ -233,14 +233,14 @@
        "//chrome/browser/ui/views/tabs/vertical",
        "//chrome/browser/ui/web_applications",
        "//chrome/browser/ui/web_applications:launch_utils",
-@@ -434,6 +438,7 @@
+@@ -430,6 +434,7 @@
        "//components/omnibox/common:features",
        "//components/pref_registry",
        "//components/reading_list/core",
 +      "//components/saved_tab_groups/public",
        "//components/tab_groups",
        "//components/web_modal",
-       "//components/webapps/common",
+     ]
 --- /dev/null
 +++ b/chrome/browser/ui/tabs/older_tabs_controller.cc
 @@ -0,0 +1,757 @@
@@ -1119,10 +1119,10 @@
  #include "chrome/browser/ui/tabs/split_tab_swap_menu_model.h"
 @@ -105,6 +106,42 @@
    } else {
-     Build(index);
+     Build(context_tab);
    }
 +  if (tab_strip_->older_tabs_controller()->IsEnabled() &&
-+      tabs::OlderTabsController::IsOlder(tab_strip_->GetWebContentsAt(index))) {
++      tabs::OlderTabsController::IsOlder(context_tab.Get()->GetContents())) {
 +    // Older tabs use Keep to return to the regular stack. Omit structural
 +    // creation/move/pin actions and closes that reach outside this section.
 +    const base::flat_set<int> excluded = {
@@ -1159,31 +1159,39 @@
 +  }
  }
  
- TabMenuModel::~TabMenuModel() = default;
-@@ -309,6 +346,12 @@
- // variants) to follow Apple Human Interface Guidelines (HIG), while other
+ TabMenuModel::TabMenuModel(ui::SimpleMenuModel::Delegate* delegate,
+@@ -325,6 +362,12 @@
  // platforms use sentence case.
- void TabMenuModel::Build(int index) {
+ void TabMenuModel::Build(tabs::TabHandle context_tab) {
+   tabs::TabInterface* context_tab_ptr = context_tab.Get();
 +  if (tab_strip_->older_tabs_controller()->IsEnabled() &&
-+      tabs::OlderTabsController::IsOlder(tab_strip_->GetWebContentsAt(index))) {
++      tabs::OlderTabsController::IsOlder(context_tab_ptr->GetContents())) {
 +    AddItem(TabStripModel::CommandKeepTab,
 +            l10n_util::GetStringUTF16(IDS_OLDER_TABS_KEEP));
 +    AddSeparator(ui::NORMAL_SEPARATOR);
 +  }
-   std::vector<int> indices;
-   if (tab_strip_->IsTabSelected(index)) {
-     const ui::ListSelectionModel::SelectedIndices sel =
+   const std::vector<tabs::TabHandle> tabs =
+       tab_strip_->GetTabsForCommand(context_tab);
+   const int num_tabs = tabs.size();
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
 @@ -65,6 +65,7 @@
+ #include "chrome/browser/ui/tab_ui_helper.h"
  #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
- #include "chrome/browser/ui/tabs/features.h"
  #include "chrome/browser/ui/tabs/helium_pins_util.h"
 +#include "chrome/browser/ui/tabs/older_tabs_controller.h"
  #include "chrome/browser/ui/tabs/split_tab_metrics.h"
  #include "chrome/browser/ui/tabs/tab_change_type.h"
  #include "chrome/browser/ui/tabs/tab_close_types_data.h"
-@@ -354,9 +355,11 @@
+@@ -229,6 +230,7 @@
+     case TabStripModel::CommandToggleGrouped:
+     case TabStripModel::CommandToggleSiteMuted:
+     case TabStripModel::CommandToggleTabMuted:
++    case TabStripModel::CommandKeepTab:
+     case TabStripModel::CommandSendTabToSelf:
+     case TabStripModel::CommandAddToReadLater:
+     case TabStripModel::CommandAddToNewGroup:
+@@ -443,9 +445,11 @@
      group_model_ = group_model_factory->Create();
    }
    scrubbing_metrics_.Init();
@@ -1195,22 +1203,21 @@
    for (auto& observer : observers_) {
      observer.ModelDestroyed(TabStripModelObserver::ModelPasskey(), this);
    }
-@@ -2814,6 +2817,9 @@
-   tabs::TabHandle context_tab = GetTabAtIndex(context_index)->GetHandle();
+@@ -3007,6 +3011,8 @@
+   }
  
    switch (command_id) {
 +    case CommandKeepTab:
-+      return tabs::OlderTabsController::IsOlder(
-+          GetWebContentsAt(context_index));
++      return tabs::OlderTabsController::IsOlder(context_tab_ptr->GetContents());
      case CommandNewTabToRight:
      case CommandCloseTab:
        return true;
-@@ -3003,6 +3009,10 @@
+@@ -3213,6 +3219,10 @@
+     MaybeActivateBrowserWindow(delegate());
    }
-   tabs::TabHandle context_tab = GetTabAtIndex(context_index)->GetHandle();
    switch (command_id) {
 +    case CommandKeepTab:
-+      older_tabs_controller_->Keep(GetWebContentsAt(context_index));
++      older_tabs_controller_->Keep(context_tab_ptr->GetContents());
 +      break;
 +
      case CommandNewTabToRight: {
@@ -1218,7 +1225,7 @@
            "Tab.ContextMenu.NewTabToRight.SelectedTabsCount",
 --- a/chrome/browser/ui/tabs/tab_strip_model.h
 +++ b/chrome/browser/ui/tabs/tab_strip_model.h
-@@ -50,6 +50,10 @@
+@@ -51,6 +51,10 @@
  #error This file should only be included on desktop.
  #endif
  
@@ -1229,7 +1236,7 @@
  class DraggingTabsSession;
  class Profile;
  class TabGroupModel;
-@@ -255,6 +259,10 @@
+@@ -256,6 +260,10 @@
    // call to CloseAllTabs). As tabs close, the selection in the tabstrip
    // changes which notifies observers, which can use this as an optimization to
    // avoid doing meaningless or unhelpful work.
@@ -1240,7 +1247,7 @@
    bool closing_all() const { return closing_all_; }
  
    // Basic API /////////////////////////////////////////////////////////////////
-@@ -1518,6 +1526,7 @@
+@@ -1587,6 +1595,7 @@
  
    // True if all tabs are currently being closed via CloseAllTabs.
    bool closing_all_ = false;
@@ -1269,9 +1276,9 @@
  #include "chrome/browser/ui/tabs/split_tab_metrics.h"
  #include "chrome/browser/ui/tabs/tab_change_type.h"
  #include "chrome/browser/ui/tabs/tab_close_types_data.h"
-@@ -8713,3 +8718,173 @@
-   EXPECT_EQ(TabStripModel::kNoTab,
-             tabstrip()->GetIndexOfWebContents(contents_to_close));
+@@ -9400,3 +9405,173 @@
+   delegate()->SetBrowserWindowInterface(nullptr);
+   tabstrip()->CloseAllTabs();
  }
 +
 +namespace {
@@ -1468,13 +1475,17 @@
    registry->RegisterBooleanPref(prefs::kEverythingMenuPinnedToTabstrip, true);
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
-@@ -4,6 +4,33 @@
+@@ -4,11 +4,37 @@
  
  #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
  
 +#include <algorithm>
+ #include <optional>
 +#include <set>
-+
+ #include <vector>
+ 
+ #include "chrome/browser/ui/animation/browser_animation_controller.h"
+ #include "chrome/browser/ui/animation/browser_animation_types.h"
 +#include "base/i18n/case_conversion.h"
 +#include "chrome/browser/profiles/profile.h"
 +#include "chrome/browser/ui/chrome_pages.h"
@@ -1502,13 +1513,17 @@
  #include "chrome/browser/ui/layout_constants.h"
  #include "chrome/browser/ui/tabs/tab_style.h"
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
-@@ -29,9 +56,117 @@
+@@ -41,6 +67,7 @@
  #include "ui/views/view_targeter.h"
  #include "ui/views/view_targeter_delegate.h"
  #include "ui/views/view_utils.h"
 +#include "ui/views/widget/widget.h"
  
  namespace {
+ 
+@@ -84,6 +111,113 @@
+   ReleaseViewLayer(view);
+ }
  
 +enum OlderTabsMenuCommand { kCloseAllOlder = 1, kKeepAllOlder, kOlderSettings };
 +
@@ -1620,7 +1635,7 @@
  // The following are percentages used to determine the amount that dragged
  // tabs must be peeking into/out of a tab group view in order for the handling
  // drag container to change.
-@@ -124,6 +259,27 @@
+@@ -195,6 +329,27 @@
      auto* state_controller =
          collection_node_->GetController()->GetStateController();
      CHECK(state_controller);
@@ -1648,7 +1663,7 @@
      collapsed_state_changed_subscription_ =
          state_controller->RegisterOnCollapseChanged(base::BindRepeating(
              &UnpinnedTabContainerView::OnCollapseStateChanged,
-@@ -303,13 +459,225 @@
+@@ -417,15 +572,227 @@
        ->GetUnconstrainedPreferredWidth();
  }
  
@@ -1863,6 +1878,8 @@
 +}
 +
  void UnpinnedTabContainerView::ResetCollectionNode() {
+   ReleaseFocusTransitionFade();
+   focus_animation_subscription_ = {};
    collapsed_state_changed_subscription_ = {};
 +  older_changed_subscription_ = {};
    collection_node_ = nullptr;
@@ -1874,7 +1891,7 @@
    InvalidateLayout();
  }
  
-@@ -332,6 +700,27 @@
+@@ -523,6 +890,27 @@
  
  DraggedTabsContainer& UnpinnedTabContainerView::GetTabDragTarget(
      const gfx::Point& point_in_screen) {
@@ -1914,8 +1931,8 @@
  
  #include "base/callback_list.h"
  #include "base/memory/raw_ptr.h"
-@@ -21,6 +23,10 @@
- 
+@@ -23,6 +25,10 @@
+ class BrowserAnimationController;
  class TabCollectionNode;
  class TabGroupView;
 +namespace views {
@@ -1925,7 +1942,7 @@
  
  // The view class that represents the unpinned tab region for the
  // tab strip. It hosts all the unpinned tabs and serves as the drag target
-@@ -58,6 +64,14 @@
+@@ -68,6 +74,14 @@
          const views::View* child) const;
    };
  
@@ -1940,7 +1957,7 @@
    // TabCollectionAnimatingLayoutManager::Delegate:
    bool IsDragging() const override;
    bool IsViewDragging(const views::View& child_view) const override;
-@@ -93,15 +107,27 @@
+@@ -103,12 +117,17 @@
    const TabCollectionNode* GetCollectionNodeFromView(
        const views::View& view) const override;
  
@@ -1958,6 +1975,10 @@
    void ResetCollectionNode();
    void OnCollapseStateChanged(tabs::VerticalTabStripCollapseState state);
  
+@@ -119,6 +138,13 @@
+   void UpdateFocusTransitionFade(const BrowserAnimationController& controller);
+   void ReleaseFocusTransitionFade();
+ 
 +  bool has_older_tabs_ = false;
 +  raw_ptr<views::LabelButton> older_header_ = nullptr;
 +  std::map<const views::View*, raw_ptr<views::Label>> older_date_headings_;
@@ -1970,7 +1991,7 @@
  
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
-@@ -78,53 +78,106 @@
+@@ -77,54 +77,106 @@
    const int horizontal_padding =
        GetLayoutConstant(LayoutConstant::kVerticalTabStripHorizontalPadding);
  
@@ -2016,6 +2037,14 @@
 +        child_height_bound);
 +    gfx::Rect bounds(child->GetPreferredSize(child_size_bounds));
      bounds.set_x(x);
+-    // Hidden children keep the full width too, so a focus transition only
+-    // tweens their height when blending the focused and unfocused layouts.
+     if (size_bounds.width().is_bounded()) {
+-      bounds.set_width(size_bounds.width().value() - bounds.x() -
+-                       horizontal_padding);
++      bounds.set_width(
++          std::max(0, size_bounds.width().value() - x - horizontal_padding));
+     }
 -
 -    auto drag_data =
 -        UnpinnedTabContainerView().GetVisualDataForDraggedView(*child);
@@ -2027,11 +2056,6 @@
 -          gfx::Rect(x, drag_data ? drag_data->offset.y() : height,
 -                    bounds.width(), 0));
 -      continue;
-+    if (size_bounds.width().is_bounded()) {
-+      bounds.set_width(
-+          std::max(0, size_bounds.width().value() - x - horizontal_padding));
-     }
--
 +    if (older_slot) {
 +      if (auto* heading = container.OlderDateHeading(child)) {
 +        // Consume the preceding tab's 2px row gap, preserving the label's
@@ -2056,15 +2080,15 @@
 +        }
 +        return;
 +      }
-+    }
+     }
+-
 +    const auto drag_data = container.GetVisualDataForDraggedView(*child);
 +    const bool visible = IsChildVisibleInContainer(focused_group_id, child) &&
 +                         (!older_slot || show_older);
      bounds.set_y(drag_data ? drag_data->offset.y() : height);
--
--    if (size_bounds.width().is_bounded()) {
--      bounds.set_width(size_bounds.width().value() - bounds.x() -
--                       horizontal_padding);
+-    layouts.child_layouts.emplace_back(child, true, bounds);
+-    height += bounds.height() + kTabVerticalPadding;
+-    width = std::max(width, bounds.width() + bounds.x());
 +    if (!visible) {
 +      bounds.set_height(0);
 +    }
@@ -2078,12 +2102,8 @@
 +  for (auto* child : children) {
 +    if (!container.IsOlderTabView(child) || !container.IsOlderView(child)) {
 +      layout_tab(child, false);
-     }
--    layouts.child_layouts.emplace_back(child, true, bounds);
--    height += bounds.height() + kTabVerticalPadding;
--    width = std::max(width, bounds.width() + bounds.x());
-   }
--
++    }
++  }
 +  if (header && !older.empty() && !focused_group_id) {
 +    // Keep two thirds of the previous blank tab-row separation.
 +    height += (row_height + kTabVerticalPadding) * 2 / 3;
@@ -2106,7 +2126,8 @@
 +  // through the model. Headings are presentation rows, never dragged views.
 +  for (auto* child : older) {
 +    layout_tab(child, true);
-+  }
+   }
+-
    if (height > 0) {
      height -= kTabVerticalPadding;
    }
@@ -2120,7 +2141,7 @@
  #include "chrome/browser/ui/tabs/split_tab_util.h"
  #include "chrome/browser/ui/tabs/tab_enums.h"
  #include "chrome/browser/ui/tabs/tab_group_model.h"
-@@ -2174,6 +2175,17 @@
+@@ -2192,6 +2193,17 @@
      return;
    }
  
@@ -2140,7 +2161,7 @@
    if (current_drag_target_) {
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -635,8 +635,7 @@
+@@ -596,8 +596,7 @@
        {"homeButtonDisabled", IDS_SETTINGS_HOME_BUTTON_DISABLED},
        {"themes", IDS_SETTINGS_THEMES},
        {"pinnedTabsPerRow", IDS_SETTINGS_PINNED_TABS_PER_ROW},
@@ -2150,7 +2171,7 @@
        {"customizeToolbar", IDS_SETTINGS_CUSTOMIZE_TOOLBAR},
        {"chromeColors", IDS_SETTINGS_CHROME_COLORS},
        {"colorSchemeMode", IDS_SETTINGS_COLOR_SCHEME_MODE},
-@@ -702,6 +701,21 @@
+@@ -661,6 +660,21 @@
        {"showTabGroupsInBookmarksBar",
         IDS_SETTINGS_SHOW_TAB_GROUPS_IN_BOOKMARKS_BAR},
        {"autoPinNewTabGroups", IDS_SETTINGS_AUTO_PIN_NEW_TAB_GROUPS_HELIUM},
@@ -2184,7 +2205,7 @@
  
 --- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
 +++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
-@@ -689,9 +689,16 @@
+@@ -752,9 +752,16 @@
    return views;
  }
  
@@ -2203,7 +2224,7 @@
    if (drag_axes_ == DragAxes::kHorizontalOnly &&
 --- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.h
 +++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.h
-@@ -106,6 +106,8 @@
+@@ -113,6 +113,8 @@
    // How much wider than the dragged view the squashed drag layout is.
    static constexpr int kSquashedDragHorizontalPadding = 2;
  
@@ -2266,7 +2287,7 @@
  // A leading // remains ordinary input because it may be a URL prefix.
 --- a/chrome/browser/ui/views/tabs/common/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
-@@ -112,6 +112,7 @@
+@@ -116,6 +116,7 @@
      "//chrome/browser/ui:browser_command_controller",
      "//chrome/browser/ui:browser_commands",
      "//chrome/browser/ui:browser_element_identifiers",
@@ -2274,7 +2295,7 @@
      "//chrome/browser/ui:layout_constants",
      "//chrome/browser/ui:ui_features",
      "//chrome/browser/ui/actions:actions_headers",
-@@ -156,6 +157,7 @@
+@@ -159,6 +160,7 @@
      "//ui/accessibility:ax_base",
      "//ui/actions",
      "//ui/base",

@@ -99,7 +99,7 @@
  
 --- a/chrome/browser/ui/views/tabs/common/tab_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
-@@ -1423,7 +1423,7 @@
+@@ -1479,7 +1479,7 @@
  
  // static
  int TabView::CollapsedWidth() {
@@ -121,10 +121,10 @@
      // Use the largest tab in the tab strip when determining the delay so that
 --- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
 +++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
-@@ -137,7 +137,8 @@
+@@ -142,7 +142,8 @@
    // orientation in order to have smooth transition during animation.
    if (!keep_horizontal_layout &&
-       (trailing_control_width >= available_width ||
+       (combo_button_width >= available_width ||
 -       available_width < VerticalTabStripRegionView::CollapseSnapWidth() ||
 +       available_width < GetHeliumVerticalTabStripCollapseSnapWidth(
 +           tabs::kVerticalTabStripUncollapsedMinWidth) ||
@@ -133,7 +133,7 @@
      int current_y = 0;
 --- a/chrome/browser/ui/layout_constants.cc
 +++ b/chrome/browser/ui/layout_constants.cc
-@@ -316,3 +316,7 @@
+@@ -318,3 +318,7 @@
  int GetVerticalTabStripDefaultUncollapsedWidth() {
    return IsSpaciousUiDensity() ? 220 : 200;
  }
@@ -143,7 +143,7 @@
 +}
 --- a/chrome/browser/ui/layout_constants.h
 +++ b/chrome/browser/ui/layout_constants.h
-@@ -400,6 +400,9 @@
+@@ -405,6 +405,9 @@
  // Returns the width of the collapsed vertical tab strip.
  int GetVerticalTabStripCollapsedWidth();
  

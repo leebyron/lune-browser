@@ -41,7 +41,7 @@
        last_tab_drop_destination_->group == group &&
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
-@@ -347,30 +347,96 @@
+@@ -424,30 +424,96 @@
               .IsTabGroupPinnedForLayout(group->GetTabGroup().id());
  }
  
@@ -150,7 +150,7 @@
  }
  
  void UnpinnedTabContainerView::Layout(PassKey) {
-@@ -826,8 +892,6 @@
+@@ -1015,8 +1081,6 @@
        drag && drag->is_window_drag_only()) {
      return *this;
    }
@@ -159,15 +159,15 @@
    if (has_older_tabs_ && older_header_) {
      const auto local =
          views::View::ConvertPointFromScreen(this, point_in_screen);
-@@ -863,6 +927,7 @@
-                        : std::nullopt;
+@@ -1053,6 +1117,7 @@
+           : std::nullopt;
    const views::ProposedLayout& target_layout = layout_manager_->target_layout();
    const bool is_horizontal = orientation_ == TabStripOrientation::kHorizontal;
 +  const bool can_change_pin = !is_horizontal && CanPreviewIndividualTabDrop();
    for (const views::ChildLayout& layout : target_layout.child_layouts) {
      if (!layout.visible || IsViewDragging(*layout.child_view)) {
        continue;
-@@ -871,6 +936,20 @@
+@@ -1061,6 +1126,20 @@
      if (!group_view) {
        continue;
      }
@@ -188,7 +188,7 @@
      if (group_view->IsCollapsed()) {
        // A collapsed vertical group exposes one incoming-tab slot below its
        // header without revealing its existing members. The slot remains part
-@@ -881,10 +960,6 @@
+@@ -1071,10 +1150,6 @@
        continue;
      }
  
@@ -196,35 +196,37 @@
 -      return *group_view;
 -    }
 -
+     const gfx::Rect group_bounds = GetMirroredRect(layout.bounds);
      if (group_view->IsHandlingDrag()) {
-       if (ShouldDragRemainInGroup(*group_view, layout.bounds,
-                                   point_in_screen)) {
+       if (ShouldDragRemainInGroup(*group_view, group_bounds, point_in_screen)) {
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc
-@@ -66,8 +66,21 @@
- views::ProposedLayout
+@@ -67,8 +67,23 @@
  UnpinnedTabContainerViewVerticalLayout::CalculateProposedLayout(
-     const views::SizeBounds& size_bounds) const {
+     const views::SizeBounds& size_bounds,
+     std::optional<tab_groups::TabGroupId> focused_group_id) const {
 -  views::ProposedLayout layouts;
    UnpinnedTabContainerView().SetDropPlaceholderBounds(gfx::Rect());
-+  return CalculateLayout(size_bounds, nullptr);
++  return CalculateLayout(size_bounds, nullptr, focused_group_id);
 +}
 +
 +views::ProposedLayout
 +UnpinnedTabContainerViewVerticalLayout::CalculateGroupDropLayout(
 +    int width,
 +    const views::View& dragged_group) const {
-+  return CalculateLayout(views::SizeBounds(width, {}), &dragged_group);
++  return CalculateLayout(views::SizeBounds(width, {}), &dragged_group,
++                         GetFocusedGroupId());
 +}
 +
 +views::ProposedLayout UnpinnedTabContainerViewVerticalLayout::CalculateLayout(
 +    const views::SizeBounds& size_bounds,
-+    const views::View* excluded_group) const {
++    const views::View* excluded_group,
++    std::optional<tab_groups::TabGroupId> focused_group_id) const {
 +  views::ProposedLayout layouts;
    if (!UnpinnedTabContainerView().collection_node_) {
      return layouts;
    }
-@@ -126,6 +139,11 @@
+@@ -125,6 +140,11 @@
    bool previous_older_tab = false;
    bool previous_visible_group = false;
    auto layout_tab = [&](views::View* child, bool older_slot) {
@@ -236,7 +238,7 @@
      int x =
          views::AsViewClass<TabGroupView>(child) &&
                  collapse_state != tabs::VerticalTabStripCollapseState::kExpanded
-@@ -188,7 +206,8 @@
+@@ -187,7 +207,8 @@
      if (visible && is_group && !previous_visible_group) {
        height += 6;
      }
@@ -246,7 +248,7 @@
        container.SetDropPlaceholderBounds(gfx::Rect(
            x, height, bounds.width(), bounds.height()));
      }
-@@ -226,17 +245,11 @@
+@@ -225,17 +246,11 @@
    const bool show_new_tab = new_tab && new_tab->GetVisible();
    auto* separator = container.pinned_groups_separator_.get();
    if (separator) {
@@ -287,21 +289,22 @@
    // views::LayoutManagerBase:
    gfx::Size GetMinimumSize(const views::View* host) const override;
  
-@@ -31,6 +36,11 @@
-   // views::LayoutManagerBase:
+@@ -33,6 +38,12 @@
    views::ProposedLayout CalculateProposedLayout(
-       const views::SizeBounds& size_bounds) const override;
+       const views::SizeBounds& size_bounds,
+       std::optional<tab_groups::TabGroupId> focused_group_id) const override;
 +
 + private:
 +  views::ProposedLayout CalculateLayout(
 +      const views::SizeBounds& size_bounds,
-+      const views::View* excluded_group) const;
++      const views::View* excluded_group,
++      std::optional<tab_groups::TabGroupId> focused_group_id) const;
  };
  
  #endif  // CHROME_BROWSER_UI_VIEWS_TABS_COMMON_UNPINNED_TAB_CONTAINER_VIEW_VERTICAL_LAYOUT_H_
 --- a/chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc
 +++ b/chrome/browser/ui/views/tabs/dragging/tab_drag_controller.cc
-@@ -1883,8 +1883,8 @@
+@@ -1893,8 +1893,8 @@
    const BrowserView* source_browser = GetBrowserViewForContext(attached_context_);
    const bool play_tear_off_haptic =
        event_source_ == ui::mojom::DragEventSource::kMouse &&
@@ -314,7 +317,7 @@
    BrowserWindowInterface* browser =
 --- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
 +++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
-@@ -19,7 +19,6 @@
+@@ -20,7 +20,6 @@
  #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
  #include "chrome/browser/ui/views/tabs/common/tab_drag_handler.h"
  #include "chrome/browser/ui/views/tabs/common/tab_group_header_view.h"
@@ -322,15 +325,15 @@
  #include "chrome/browser/ui/views/tabs/common/pinned_tab_drop_target.h"
  #include "ui/color/color_id.h"
  #include "ui/color/color_provider.h"
-@@ -28,7 +27,6 @@
- #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
+@@ -30,7 +29,6 @@
  #include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
  #include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
 -#include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.h"
  #include "chrome/browser/ui/views/tabs/dragging/drag_session_data.h"
  #include "chrome/browser/ui/views/tabs/dragging/tab_drag_target.h"
  #include "content/public/browser/navigation_controller.h"
-@@ -221,12 +219,17 @@
+@@ -235,12 +233,17 @@
  void DraggedTabsContainer::HandleTabDragEnteredContainer() {
    last_move_drag_x_ = std::nullopt;
    CHECK(collection_node_);
@@ -354,8 +357,8 @@
  
    // We don't need to snap any views here, since the layout manager already
    // skips animating dragged views.
-@@ -235,6 +238,12 @@
-   UpdateTargetLayoutForDrag({});
+@@ -249,6 +252,12 @@
+   host_view_->InvalidateLayout();
  }
  
 +bool DraggedTabsContainer::IsNearPinnedTabGroupEntry(
@@ -367,15 +370,15 @@
  base::CallbackListSubscription
  DraggedTabsContainer::RegisterWillDestroyCallback(base::OnceClosure callback) {
    return on_will_destroy_callback_list_.Add(std::move(callback));
-@@ -536,6 +545,7 @@
-   // the actual position, without animating.
-   UpdateTargetLayoutForDrag(GetDraggingViews());
+@@ -584,6 +593,7 @@
+     }
+   }
    dragging_views_.clear();
 +  pinned_tab_group_entry_slop_ = gfx::Rect();
    drop_placeholder_bounds_ = gfx::Rect();
    host_view_->SchedulePaint();
    OnDragStateChanged();
-@@ -768,7 +778,7 @@
+@@ -830,7 +840,7 @@
  void DraggedTabsContainer::HandleTabDragInContainer(
      const gfx::Rect& dragged_tab_bounds,
      const gfx::Point& point_in_container) {
@@ -384,7 +387,7 @@
      return;
    }
    // Only reorder tabs if the drag has moved beyond a minimum threshold since
-@@ -802,16 +812,23 @@
+@@ -864,16 +874,23 @@
              session.mouse_offset_to_size_ratios.y() * size.height()),
          size.width(), size.height());
    }
@@ -416,7 +419,7 @@
  #if BUILDFLAG(IS_MAC)
    // Container entry may already have changed group membership before the
    // reorder, so check the resulting destination even when `changed` is false.
-@@ -864,52 +881,6 @@
+@@ -926,52 +943,6 @@
        return target < nodes.size() ? nodes[target] : nullptr;
      }
    }
@@ -481,7 +484,7 @@
    bool CanPreviewIndividualTabDrop() const;
    void SetDropPlaceholderBounds(const gfx::Rect& bounds) const;
    void PaintDropPlaceholder(gfx::Canvas* canvas) const;
-@@ -252,6 +255,7 @@
+@@ -261,6 +264,7 @@
    base::CallbackListSubscription node_destroyed_subscription_;
  
    gfx::Point last_drag_point_in_screen_;
@@ -489,7 +492,7 @@
  
    // The bounding box of all the dragged views, relative to the drag point.
    gfx::Rect dragging_views_bounds_;
-@@ -288,6 +292,7 @@
+@@ -301,6 +305,7 @@
  
    // True while resetting drag state in ResetDragState().
    bool is_resetting_drag_state_ = false;
@@ -499,7 +502,7 @@
  
 --- a/chrome/browser/ui/views/tabs/common/tab_drag_handler.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_drag_handler.cc
-@@ -347,26 +347,17 @@
+@@ -352,26 +352,17 @@
    }
  }
  
@@ -531,7 +534,7 @@
    const TabDragData* source_drag_data =
        drag_session_data.source_view_drag_data();
    const content::WebContents* source_contents = source_drag_data->contents;
-@@ -383,8 +374,18 @@
+@@ -388,8 +379,18 @@
      // in the group.
      const auto& group = TabGroupDataFromNode(node);
      target_group_id = group.id();
@@ -551,7 +554,7 @@
      auto group_indexes = group.ListTabs();
      if (node.orientation() == TabStripOrientation::kVertical &&
          group.visual_data()->is_collapsed()) {
-@@ -1031,6 +1032,12 @@
+@@ -1154,6 +1155,12 @@
      if (tab_strip_model_->GetFocusedGroup() == dragged_group) {
        return false;
      }
@@ -566,7 +569,7 @@
      tab_strip_model_->MoveSelectedTabsTo(adjusted_target_index,
 --- a/chrome/browser/ui/views/tabs/common/tab_drag_handler.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_drag_handler.h
-@@ -76,8 +76,7 @@
+@@ -78,8 +78,7 @@
  
    // Handles tab strip model updates to reflect dragged tabs entering a node.
    // This reparents them to become direct children of the node.
@@ -578,7 +581,7 @@
    // Checks the model after a valid sidebar drag update. The initial source
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h
-@@ -67,10 +67,14 @@
+@@ -77,10 +77,14 @@
    views::View* SetNewTabButtonContainer(std::unique_ptr<views::View> view);
    std::unique_ptr<views::View> RemoveNewTabButtonContainer();
    bool IsPinnedGroupView(const views::View* view) const;
@@ -596,7 +599,7 @@
    void Layout(PassKey) override;
  
    bool IsOlderView(const views::View* view) const;
-@@ -142,7 +146,6 @@
+@@ -159,7 +163,6 @@
    raw_ptr<views::View> new_tab_button_container_ = nullptr;
    raw_ptr<views::View> pinned_groups_separator_ = nullptr;
    std::map<const views::View*, raw_ptr<views::View>> expanded_group_separators_;
@@ -606,7 +609,7 @@
    raw_ptr<views::LabelButton> older_header_ = nullptr;
 --- a/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
-@@ -431,15 +431,11 @@
+@@ -521,15 +521,11 @@
    // it.
    if (orientation_ == TabStripOrientation::kVertical &&
        drag_handler_->CanChangeDraggedTabPinnedState()) {
@@ -629,16 +632,7 @@
      return &GetUnpinnedTabsContainer()->GetTabDragTarget(point_in_screen);
 --- a/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
-@@ -4,6 +4,8 @@
- 
- #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
- 
-+#include <algorithm>
-+
- #include "base/callback_list.h"
- #include "base/functional/bind.h"
- #include "base/memory/raw_ptr.h"
-@@ -454,6 +456,32 @@
+@@ -622,6 +622,32 @@
    return unpinned_tabs_container_view_;
  }
  
@@ -673,7 +667,7 @@
  }
 --- a/chrome/browser/ui/views/tabs/common/tab_strip_view.h
 +++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.h
-@@ -48,6 +48,8 @@
+@@ -50,6 +50,8 @@
  
    PinnedTabContainerView* GetPinnedTabsContainer() const;
    UnpinnedTabContainerView* GetUnpinnedTabsContainer() const;

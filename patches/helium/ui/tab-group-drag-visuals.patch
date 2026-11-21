@@ -1,9 +1,9 @@
 --- a/chrome/browser/ui/views/tabs/common/tab_group_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_group_view.cc
-@@ -426,6 +426,9 @@
- void TabGroupView::UpdateTargetLayoutForDrag(
+@@ -549,6 +549,9 @@
+ void TabGroupView::SnapViewsToTargetLayout(
      const std::vector<const views::View*>& views_to_snap) {
-   layout_manager_->ResetViewsToTargetLayout(views_to_snap);
+   layout_manager_->SnapViewsToTargetLayout(views_to_snap);
 +  if (orientation_ == TabStripOrientation::kVertical && parent()) {
 +    parent()->SchedulePaint();
 +  }
@@ -12,7 +12,7 @@
  const views::ProposedLayout& TabGroupView::GetLayoutForDrag() const {
 --- a/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
-@@ -36,6 +36,13 @@
+@@ -32,6 +32,13 @@
  
  views::ProposedLayout TabGroupViewVerticalLayout::CalculateProposedLayout(
      const views::SizeBounds& size_bounds) const {
@@ -24,9 +24,9 @@
 +    TabGroupView().SetDropPlaceholderBounds(gfx::Rect());
 +  }
    views::ProposedLayout layouts;
-   int width = 0;
-   int height = 0;
-@@ -118,6 +125,14 @@
+   const float focus_progress = TabGroupView().GetFocusProgress();
+   // Ephemeral groups collapse their header, and the spacing around it, to zero
+@@ -128,6 +135,14 @@
      const bool visible = is_group_collapsed && TabGroupView().is_collapsed()
                               ? drag_data.has_value()
                               : child->GetVisible();
@@ -43,7 +43,7 @@
        // The model appends at the end, but its temporary visible slot is the
 --- a/chrome/browser/ui/views/tabs/common/tab_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
-@@ -593,9 +593,15 @@
+@@ -632,9 +632,15 @@
  
  void TabView::Layout(PassKey) {
    LayoutSuperclass<views::View>(this);
@@ -62,7 +62,7 @@
    }
    alert_indicator_->UpdateAlertIndicatorAnimation();
    if (orientation_ == TabStripOrientation::kHorizontal) {
-@@ -1218,8 +1224,6 @@
+@@ -1271,8 +1277,6 @@
      pin_drag_start_icon_x_ = icon_->x();
      pin_drag_animation_.SetSlideDuration(
          gfx::Animation::RichAnimationDuration(base::Milliseconds(240)));
@@ -73,15 +73,15 @@
        pin_drag_animation_.Show();
 --- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
 +++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
-@@ -40,6 +40,7 @@
- #include "ui/color/color_id.h"
- #include "ui/color/color_provider.h"
+@@ -49,6 +49,7 @@
+ #include "ui/compositor/layer.h"
+ #include "ui/gfx/animation/tween.h"
  #include "ui/gfx/geometry/rect.h"
 +#include "ui/gfx/scoped_canvas.h"
  #include "ui/menus/simple_menu_model.h"
  #include "ui/views/accessibility/view_accessibility.h"
  #include "ui/views/border.h"
-@@ -928,6 +929,11 @@
+@@ -1118,6 +1119,11 @@
    const views::ProposedLayout& target_layout = layout_manager_->target_layout();
    const bool is_horizontal = orientation_ == TabStripOrientation::kHorizontal;
    const bool can_change_pin = !is_horizontal && CanPreviewIndividualTabDrop();
@@ -93,7 +93,7 @@
    for (const views::ChildLayout& layout : target_layout.child_layouts) {
      if (!layout.visible || IsViewDragging(*layout.child_view)) {
        continue;
-@@ -942,12 +948,37 @@
+@@ -1132,12 +1138,37 @@
      if (can_change_pin && IsPinnedGroupView(group_view)) {
        // A floating tab can overlap a pinned group while the pointer is still
        // crossing the grid boundary. Only the pointer can target the group.
@@ -135,7 +135,7 @@
        continue;
      }
      if (group_view->IsCollapsed()) {
-@@ -1052,6 +1083,21 @@
+@@ -1250,6 +1281,21 @@
  void UnpinnedTabContainerView::OnPaint(gfx::Canvas* canvas) {
    views::View::OnPaint(canvas);
    PaintDropPlaceholder(canvas);

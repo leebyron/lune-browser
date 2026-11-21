@@ -1,6 +1,6 @@
 --- a/chrome/browser/themes/theme_service.cc
 +++ b/chrome/browser/themes/theme_service.cc
-@@ -105,6 +105,10 @@
+@@ -107,6 +107,10 @@
  
  namespace {
  
@@ -11,7 +11,7 @@
  #if BUILDFLAG(ENABLE_EXTENSIONS)
  // Wait this many seconds after startup to garbage collect unused themes.
  // Removing unused themes is done after a delay because there is no
-@@ -327,6 +331,9 @@
+@@ -329,6 +333,9 @@
        prefs::kBrowserColorVariant,
        static_cast<int>(ui::mojom::BrowserColorVariant::kSystem));
    registry->RegisterBooleanPref(prefs::kGrayscaleThemeEnabled, false);
@@ -21,9 +21,9 @@
    registry->RegisterBooleanPref(prefs::kBrowserFollowsSystemThemeColors,
                                  BUILDFLAG(IS_CHROMEOS));
    registry->RegisterStringPref(prefs::kSavedLocalTheme, "");
-@@ -346,11 +353,25 @@
- void ThemeService::Init() {
-   theme_helper_->DCheckCalledOnValidSequence();
+@@ -400,11 +407,25 @@
+ #endif
+   }
  
 +#if !BUILDFLAG(IS_MAC)
    if (profile_->IsNewProfile() && !UsingPolicyTheme() &&
@@ -47,7 +47,7 @@
  
    InitFromPrefs();
  
-@@ -479,7 +500,8 @@
+@@ -537,7 +558,8 @@
    }
  
    ClearThemeData(/*reset_all_settings=*/true);
@@ -57,7 +57,7 @@
  
    NotifyThemeChanged();
  }
-@@ -489,8 +511,8 @@
+@@ -547,8 +569,8 @@
  }
  
  void ThemeService::UseDeviceTheme(bool follow) {
@@ -68,7 +68,7 @@
    // platforms to set the value if they have a visible toggle.
    profile_->GetPrefs()->SetBoolean(prefs::kBrowserFollowsSystemThemeColors,
                                     follow);
-@@ -508,15 +530,15 @@
+@@ -566,15 +588,15 @@
      return GetIsBaseline() && !UsingExtensionTheme();
    }
    return pref->GetValue()->GetBool();
@@ -87,7 +87,7 @@
    return false;
  #endif
  }
-@@ -740,6 +762,14 @@
+@@ -841,6 +863,14 @@
      }
    }
  
@@ -102,7 +102,7 @@
    // user_color.
    if (is_isolated) {
      key.user_color = std::nullopt;
-@@ -946,8 +976,8 @@
+@@ -1062,8 +1092,8 @@
    SwapThemeSupplier(nullptr);
    ClearThemePrefs();
    if (reset_all_settings) {
@@ -113,7 +113,7 @@
      // want platforms to set the value if they have a visible toggle.
      profile_->GetPrefs()->ClearPref(prefs::kBrowserFollowsSystemThemeColors);
  #endif
-@@ -980,7 +1010,11 @@
+@@ -1096,7 +1126,11 @@
      if (GetIsGrayscale()) {
        chrome_colors::RecordDynamicColorOnLoadHistogramForGrayscale();
      }
@@ -127,7 +127,7 @@
  
 --- a/chrome/browser/ui/color/BUILD.gn
 +++ b/chrome/browser/ui/color/BUILD.gn
-@@ -72,7 +72,8 @@
+@@ -78,7 +78,8 @@
    }
  
    if (is_mac) {
@@ -139,7 +139,7 @@
    if (is_win) {
 --- a/chrome/browser/ui/color/chrome_color_mixers.cc
 +++ b/chrome/browser/ui/color/chrome_color_mixers.cc
-@@ -36,7 +36,7 @@
+@@ -34,7 +34,7 @@
                            const ui::ColorProviderKey& key) {
    if (!ShouldApplyChromeMaterialOverrides(key) || key.app_controller ||
        key.forced_colors != ui::ColorProviderKey::ForcedColors::kNone ||

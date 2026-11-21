@@ -1,6 +1,6 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -10400,6 +10400,10 @@ Keep your key file in a safe place. You
+@@ -10087,6 +10087,10 @@
          Always cover (experimental)
        </message>
  
@@ -13,7 +13,7 @@
          <then>
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
-@@ -66,6 +66,26 @@ export function getHtml(this: SettingsAp
+@@ -65,6 +65,26 @@
            .menuOptions="${this.uiDensityOptions_}">
        </settings-dropdown-menu>
      </div>
@@ -42,7 +42,7 @@
            @click="${this.onCustomizeToolbarClick_}" external>
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
-@@ -135,6 +135,10 @@ export class SettingsAppearancePageEleme
+@@ -135,6 +135,10 @@
  
    static override get properties() {
      return {
@@ -53,7 +53,7 @@
        pageVisibility_: {type: Object},
        defaultZoom_: {type: Number},
  
-@@ -198,6 +202,30 @@ export class SettingsAppearancePageEleme
+@@ -199,6 +203,30 @@
        normalizePageVisibility(pageVisibility?.appearance);
    protected accessor defaultZoom_: number = 1.0;
  
@@ -82,9 +82,9 @@
 +  // </if>
 +
    // Mirrored prefs.
-   protected accessor defaultFontSizePref_: PrefObject<number>|undefined =
+   private accessor defaultFontSizePref_: PrefObject<number>|undefined =
        undefined;
-@@ -367,6 +395,10 @@ export class SettingsAppearancePageEleme
+@@ -375,6 +403,10 @@
      super.connectedCallback();
  
      this.mirrorPrefs({
@@ -97,7 +97,7 @@
        'browser.pin_split_tab_button': 'pinSplitTabButtonPref_',
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -606,6 +606,11 @@ void AddAppearanceStrings(content::WebUI
+@@ -578,6 +578,11 @@
                            Profile* profile) {
    static constexpr webui::LocalizedString kLocalizedStrings[] = {
        {"appearancePageTitle", IDS_SETTINGS_APPEARANCE},

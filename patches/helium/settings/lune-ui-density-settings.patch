@@ -28,38 +28,37 @@
  import type {SettingsA11yPageElement} from './a11y_page.js';
  import {ToastAlertLevel} from './a11y_page.js';
  
-@@ -41,15 +39,6 @@
+@@ -37,15 +35,6 @@
  </if>
  
  <if expr="not is_chromeos">
--        <div class="cr-row hr">
--          <div class="flex cr-padded-text" aria-hidden="true">
--            $i18n{uiDensity}
--          </div>
--          <settings-dropdown-menu id="uiDensity" label="$i18n{uiDensity}"
--              pref-key="helium.browser.ui_density"
--              .menuOptions="${this.uiDensityOptions_}">
--          </settings-dropdown-menu>
--        </div>
-         ${this.showPageColors_ ? html`
-           <div class="cr-row hr">
-             <div class="flex cr-padded-text" aria-hidden="true">
-@@ -140,16 +129,6 @@
+-    <div class="cr-row hr">
+-      <div class="flex cr-padded-text" aria-hidden="true">
+-        $i18n{uiDensity}
+-      </div>
+-      <settings-dropdown-menu id="uiDensity" label="$i18n{uiDensity}"
+-          pref-key="helium.browser.ui_density"
+-          .menuOptions="${this.uiDensityOptions_}">
+-      </settings-dropdown-menu>
+-    </div>
+     ${this.showPageColors_ ? html`
+       <div class="cr-row hr">
+         <div class="flex cr-padded-text" aria-hidden="true">
+@@ -123,15 +112,5 @@
  </if>
-       </div>
-     </settings-section>
+   </div>
+ </settings-section>
 -<if expr="not is_chromeos">
--    <cr-toast id="uiDensityToast">
--      <div>$i18n{restartToApplyChanges}</div>
--      <cr-button @click="${this.onRestartClick_}">$i18n{restart}</cr-button>
--    </cr-toast>
--    ${this.shouldShowRelaunchDialog ? html`
--      <relaunch-confirmation-dialog .restartType="${RestartType.RESTART}"
--          @close="${this.onRelaunchDialogClose}"></relaunch-confirmation-dialog>
--    ` : ''}
+-<cr-toast id="uiDensityToast">
+-  <div>$i18n{restartToApplyChanges}</div>
+-  <cr-button @click="${this.onRestartClick_}">$i18n{restart}</cr-button>
+-</cr-toast>
+-${this.shouldShowRelaunchDialog ? html`
+-  <relaunch-confirmation-dialog .restartType="${RestartType.RESTART}"
+-      @close="${this.onRelaunchDialogClose}"></relaunch-confirmation-dialog>
+-` : ''}
 -</if>
  <!--_html_template_end_-->`;
-   // clang-format on
  }
 --- a/chrome/browser/resources/settings/a11y_page/a11y_page.ts
 +++ b/chrome/browser/resources/settings/a11y_page/a11y_page.ts
@@ -91,7 +90,7 @@
  import {routes} from '../route.js';
  import {Router} from '../router.js';
  import {SettingsViewMixinLit} from '../settings_page/settings_view_mixin_lit.js';
-@@ -81,14 +76,13 @@
+@@ -83,14 +78,13 @@
  ];
  // </if>
  
@@ -108,7 +107,7 @@
    };
  }
  // </if>
-@@ -116,8 +110,6 @@
+@@ -120,8 +114,6 @@
        showPageColors_: {type: Boolean},
        requestedA11yPageColorsPref_: {type: Object},
        pageColorsOptions_: {type: Array},
@@ -117,7 +116,7 @@
        // </if>
  
        /**
-@@ -182,18 +174,6 @@
+@@ -188,18 +180,6 @@
        name: loadTimeData.getString('pageColorsOptionWhite'),
      },
    ];
@@ -136,7 +135,7 @@
    // </if>
  
    protected accessor hasScreenReader_: boolean = false;
-@@ -219,7 +199,6 @@
+@@ -225,7 +205,6 @@
            'settings.a11y.requested_page_colors',
            'requestedA11yPageColorsPref_');
      }
@@ -144,7 +143,7 @@
      // </if>
    }
  
-@@ -235,29 +214,6 @@
+@@ -241,29 +220,6 @@
    }
    // </if>
  
@@ -184,7 +183,7 @@
  import type {SettingsAppearancePageElement} from './appearance_page.js';
  
  export function getHtml(this: SettingsAppearancePageElement) {
-@@ -49,6 +50,22 @@
+@@ -48,6 +49,22 @@
        </div>
  </if>
      </div>
@@ -207,7 +206,7 @@
      <div id="toolbarRow" class="settings-row">
        <cr-link-row id="customizeToolbar" label="$i18n{customizeToolbar}"
            @click="${this.onCustomizeToolbarClick_}" external>
-@@ -243,6 +260,11 @@
+@@ -242,6 +259,11 @@
      </div>
    </div>
  </settings-section>
@@ -238,8 +237,8 @@
  import {routes} from '../route.js';
  import {Router} from '../router.js';
  import {SettingsViewMixinLit} from '../settings_page/settings_view_mixin_lit.js';
-@@ -174,6 +175,8 @@
-       showGlassEffectEnabled_: {type: Boolean},
+@@ -176,6 +177,8 @@
+       tabStripOptions_: {type: Array},
        ntpSimplificationBookmarksBarEnabled_: {type: Boolean},
        bookmarksBarOptions_: {type: Array},
 +      uiDensityPref_: {type: Object},
@@ -247,7 +246,7 @@
        showOrganizerPanelEnabled_: {type: Boolean},
        showEverythingMenuEnabled_: {type: Boolean},
        showResetPinnedActionsButton_: {type: Boolean},
-@@ -269,6 +272,18 @@
+@@ -277,6 +280,18 @@
      {value: 2, name: loadTimeData.getString('bookmarksBarAlwaysHide')},
    ];
  
@@ -266,7 +265,7 @@
    protected accessor sidePanelAlignmentOptions_: DropdownMenuOptionList = [
      {value: 'false', name: loadTimeData.getString('uiFeatureAlignLeft')},
      {value: 'true', name: loadTimeData.getString('uiFeatureAlignRight')},
-@@ -336,6 +351,7 @@
+@@ -344,6 +359,7 @@
        'browser.show_forward_button': 'showForwardButtonPref_',
        'browser.show_home_button': 'showHomeButtonPref_',
        'extensions.theme.id': 'themeIdPref_',
@@ -274,7 +273,7 @@
        // <if expr="is_linux">
        'extensions.theme.system_theme': 'themeSystemThemePref_',
        // </if>
-@@ -473,6 +489,16 @@
+@@ -481,6 +497,16 @@
      this.appearanceBrowserProxy_.openCustomizeChrome();
    }
  

@@ -1,16 +1,15 @@
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
-@@ -20873,6 +20873,9 @@
+@@ -19744,6 +19744,9 @@
      <message name="IDS_TAB_GROUP_MENU_MOVE_WINDOW" desc="Move this group into a new window.">Move Group to New Window</message>
      <message name="IDS_TAB_GROUP_MENU_FOCUS" desc="Focus the browser on this group.">Focus on Group</message>
      <message name="IDS_TAB_GROUP_MENU_UNFOCUS" desc="Exit group focus mode.">Unfocus Group</message>
 +      <message name="IDS_UPDATE_SEE_WHATS_NEW" desc="Accessible name for the button opening the downloaded browser update release notes.">
 +        See what's new
 +      </message>
-   </messages>
- </release>
- </grit>
-\ No newline at end of file
+ 
+     <!-- On-device AI model categories -->
+     <!-- TODO(crbug.com/573643364): Make these translatable when finalized. -->
 --- a/chrome/browser/mac/sparkle_glue.h
 +++ b/chrome/browser/mac/sparkle_glue.h
 @@ -91,6 +91,9 @@
@@ -225,7 +224,7 @@
    PrefChangeRegistrar services_registrar_;
 --- a/chrome/browser/resources/settings/about_page/about_page.html.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
-@@ -37,14 +37,13 @@
+@@ -33,14 +33,13 @@
      <div class="flex cr-padded-text">
  <if expr="not is_chromeos">
        <div id="updateStatusMessage" ?hidden="${!this.showUpdateStatus_}">

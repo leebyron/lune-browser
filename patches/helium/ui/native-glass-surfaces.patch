@@ -777,7 +777,7 @@
  #if BUILDFLAG(IS_MAC)
  #include "chrome/browser/ui/browser_shortcuts/browser_shortcut_platform_mac.h"
  #endif
-@@ -1737,6 +1738,19 @@
+@@ -1753,6 +1754,19 @@
    return IsZenModeEnabled();
  }
  
@@ -797,7 +797,7 @@
  gfx::Rect BrowserView::GetFloatingSidebarBounds() const {
    if (IsZenModeSideChromePinned() || !vertical_tab_strip_region_view_ ||
        !vertical_tab_strip_region_view_->GetVisible()) {
-@@ -1801,7 +1815,8 @@
+@@ -1817,7 +1831,8 @@
    }
  
    if (!browser_view->vertical_tab_strip_region_view_ ||
@@ -807,7 +807,7 @@
      return views::BubbleBorder::TOP_RIGHT;
    }
  
-@@ -1836,7 +1851,8 @@
+@@ -1852,7 +1867,8 @@
    }
  
    if (!browser_view->vertical_tab_strip_region_view_ ||
@@ -817,7 +817,7 @@
      return views::MenuAnchorPosition::kTopRight;
    }
  
-@@ -2235,7 +2251,7 @@
+@@ -2251,7 +2267,7 @@
          app_menu_control && app_menu_control->IsMenuShowing();
      const bool sidebar_focused =
          vertical_tab_strip_region_view_ && GetFocusManager() &&
@@ -826,7 +826,7 @@
              GetFocusManager()->GetFocusedView());
  
      if (HasOpenBubbleFromTopContainer() || HasOpenBubbleFromSidebar() ||
-@@ -2310,7 +2326,7 @@
+@@ -2326,7 +2342,7 @@
      const bool sidebar_omnibox_focused = loc_bar && loc_bar->HasFocus();
      const bool focus_in_sidebar =
          GetFocusManager() &&
@@ -835,7 +835,7 @@
              GetFocusManager()->GetFocusedView());
      if (sidebar_omnibox_focused || focus_in_sidebar) {
        reveal_side = true;
-@@ -2382,6 +2398,11 @@
+@@ -2398,6 +2414,11 @@
  }
  
  bool BrowserView::IsPointInZenTopTrigger(const gfx::Point& point) const {
@@ -847,7 +847,7 @@
    const int thickness = IsVerticalAddressBarInSidebar()
                              ? kZenModeSidebarAddressBarTriggerThickness
                              : kZenModeRevealTriggerThickness;
-@@ -2389,6 +2410,12 @@
+@@ -2405,6 +2426,12 @@
  }
  
  bool BrowserView::IsPointInZenSideTrigger(const gfx::Point& point) const {
@@ -860,7 +860,7 @@
    if (!ShouldDrawVerticalTabStrip()) {
      return false;
    }
-@@ -2542,6 +2569,9 @@
+@@ -2558,6 +2585,9 @@
  }
  
  bool BrowserView::IsPointInZenSideChromeBounds(const gfx::Point& point) const {
@@ -870,7 +870,7 @@
    if (!vertical_tab_strip_region_view_ ||
        !vertical_tab_strip_region_view_->parent()) {
      return false;
-@@ -5328,6 +5358,11 @@
+@@ -5378,6 +5408,11 @@
  
  void BrowserView::DeleteBrowserWindow() {
    CHECK(browser_widget_);
@@ -884,7 +884,7 @@
    if (auto* frame = GetFrameView()) {
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -444,6 +444,10 @@
+@@ -451,6 +451,10 @@
    // Returns reveal ratios used by BrowserViewLayout for zen mode transitions.
    bool IsZenModeEnabledForLayout() const;
    gfx::Rect GetFloatingSidebarBounds() const;
@@ -895,7 +895,7 @@
    float GetTopChromeRevealRatio() const;
    float GetSideChromeRevealRatio() const;
    bool IsZenModeSideChromePinned() const;
-@@ -980,7 +984,6 @@
+@@ -989,7 +993,6 @@
    void StartZenCollapseTimer(base::TimeDelta delay);
    bool IsLeavingZenSideGap(const gfx::Point& previous_point,
                             const gfx::Point& point) const;
@@ -905,7 +905,7 @@
    void RevealZenModeSideChromeImmediately();
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-@@ -358,7 +358,7 @@
+@@ -356,7 +356,7 @@
  
    // For any of the other children, absorb the click as non window caption.
    for (views::View* child : children()) {
@@ -914,7 +914,7 @@
        continue;
      }
      if (child == content_area_view_) {
-@@ -388,8 +388,18 @@
+@@ -386,8 +386,18 @@
  void VerticalTabStripRegionView::SetFloatingStyleForLayout(FloatingStyle style,
                                                             int corner_radius,
                                                             bool below_toolbar) {
@@ -934,7 +934,7 @@
      return;
    }
    floating_style_ = style;
-@@ -397,7 +407,7 @@
+@@ -395,7 +405,7 @@
    floating_below_toolbar_ = below_toolbar;
    const bool floating = style != FloatingStyle::kNone;
    UpdateResizeAreaVisibility();
@@ -943,7 +943,7 @@
      if (!floating_surface_shadow_) {
        floating_surface_shadow_ = std::make_unique<views::ViewDecoration>(this);
        floating_surface_shadow_->SetShadow(
-@@ -458,6 +468,13 @@
+@@ -456,6 +466,13 @@
    background->SetCorners(corners);
    background->SetOutline(outline);
    background->SetPaintWithNativeFrameMaterials(floating);
@@ -1014,7 +1014,7 @@
         .visible = organizer_panel_show_percent_ < 1.0,
         .bounds = available});
    if (organizer_panel_view_) {
-@@ -533,6 +591,7 @@
+@@ -535,6 +593,7 @@
  
  void VerticalTabStripRegionView::Layout(PassKey) {
    LayoutSuperclass<BaseTabStripRegionView>(this);
@@ -1022,7 +1022,7 @@
  
    // Manually position the resize area as it overlaps views handled by the flex
    // layout.
-@@ -657,7 +716,10 @@
+@@ -650,7 +709,10 @@
    CHECK(!organizer_panel_view_);
    panel_view->SetVisible(false);
    organizer_panel_view_ =
@@ -1034,7 +1034,7 @@
  }
  
  std::unique_ptr<views::View>
-@@ -920,8 +982,8 @@
+@@ -913,8 +975,8 @@
  void VerticalTabStripRegionView::RegionViewFocusListener::OnDidChangeFocus(
      views::View* focused_before,
      views::View* focused_now) {
@@ -1213,15 +1213,15 @@
 +}  // namespace helium
 --- a/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc
 +++ b/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc
-@@ -6,6 +6,7 @@
- 
+@@ -7,6 +7,7 @@
+ #include "chrome/browser/ui/actions/chrome_action_properties.h"
  #include "chrome/browser/ui/color/chrome_color_id.h"
  #include "chrome/browser/ui/layout_constants.h"
 +#include "chrome/browser/ui/views/helium/native_frame_materials.h"
  #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
  #include "third_party/skia/include/core/SkPath.h"
  #include "third_party/skia/include/core/SkRRect.h"
-@@ -102,9 +103,12 @@
+@@ -107,9 +108,12 @@
  void TabStripFlatEdgeButton::UpdateIcon(const ui::ImageModel& icon_image) {
    CHECK(icon_image.IsVectorIcon());
  
@@ -1237,7 +1237,7 @@
  
    SetImageModel(views::Button::STATE_NORMAL, image_model);
    SetImageModel(views::Button::STATE_HOVERED, image_model);
-@@ -371,7 +375,10 @@
+@@ -376,7 +380,10 @@
  }
  
  void TabStripFlatEdgeButton::UpdateLabelColor() {
@@ -1306,7 +1306,7 @@
    // a design element for those releases.
 --- a/chrome/browser/ui/views/tabs/shared/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/shared/BUILD.gn
-@@ -58,6 +58,7 @@
+@@ -59,6 +59,7 @@
      "//chrome/browser/ui/views/bookmarks/saved_tab_groups",
      "//chrome/browser/ui/views/frame",
      "//chrome/browser/ui/views/frame:browser_view_header",
@@ -1324,7 +1324,7 @@
  #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
  #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
  #include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
-@@ -1512,6 +1513,9 @@
+@@ -1504,6 +1505,9 @@
  
  void Tab::UpdateForegroundColors() {
    TabStyle::TabColors colors = tab_style_views()->CalculateTargetColors();
@@ -1336,7 +1336,7 @@
    alert_indicator_button_->OnParentTabButtonColorChanged();
 --- a/chrome/browser/ui/views/toolbar/BUILD.gn
 +++ b/chrome/browser/ui/views/toolbar/BUILD.gn
-@@ -321,6 +321,7 @@
+@@ -323,6 +323,7 @@
      "//chrome/browser/ui/views/frame:top_container_view",
      "//chrome/browser/ui/views/glic",
      "//chrome/browser/ui/views/global_media_controls",
@@ -1376,7 +1376,7 @@
    void UpdateInteriorMargin();
  
    // views::LayoutDelegate:
-@@ -237,6 +241,7 @@
+@@ -239,6 +243,7 @@
    double organizer_panel_show_percent_ = 0.0;
  
    raw_ptr<views::View> content_area_view_ = nullptr;
@@ -1454,14 +1454,14 @@
      ":app_menu_button",
      ":browser_frame_view",
      ":browser_native_widget",
-@@ -850,6 +848,7 @@
+@@ -849,6 +847,7 @@
      "//chrome/browser/ui:layout_constants",
      "//chrome/browser/ui:recently_audible_helper",
      "//chrome/browser/ui:sad_tab",
 +    "//chrome/browser/ui:tab_ui_helper",
-     "//chrome/browser/ui:ui_controller_factory",
      "//chrome/browser/ui:ui_features",
      "//chrome/browser/ui:unload_controller",
+     "//chrome/browser/ui:view_ids",
 @@ -1232,11 +1231,11 @@
      "//base",
      "//base:i18n",
@@ -1550,7 +1550,7 @@
        "//chrome/browser/ui/views/web_apps/frame_toolbar:web_app_frame_toolbar_utils",
        "//chrome/browser/ui/web_applications",
        "//chrome/common:constants",
-@@ -3359,7 +3362,6 @@
+@@ -3372,7 +3375,6 @@
      "//chrome/browser/app_mode",
      "//chrome/browser/profiles:profile",
      "//chrome/browser/themes",
@@ -1558,7 +1558,7 @@
      "//chrome/browser/ui:browser_init_state",
      "//chrome/browser/ui:browser_manager_service",
      "//chrome/browser/ui:browser_window_state",
-@@ -3367,6 +3369,7 @@
+@@ -3380,6 +3382,7 @@
      "//chrome/browser/ui/browser_window",
      "//chrome/browser/ui/immersive:immersive_mode_controller",
      "//chrome/browser/ui/sessions",
@@ -1568,7 +1568,7 @@
      "//content/public/browser",
 --- a/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
-@@ -422,6 +422,10 @@
+@@ -512,6 +512,10 @@
    return &GetUnpinnedTabsContainer()->GetTabDragTarget(point_in_screen);
  }
  
@@ -1579,16 +1579,16 @@
  views::View* BaseTabStripRegionView::SetTabStripView(
      std::unique_ptr<views::View> view) {
    tab_strip_view_ = views::AsViewClass<TabStripView>(view.get());
-@@ -430,7 +434,7 @@
+@@ -520,7 +524,7 @@
    // Add the tab strip. Note that it may not be added as a direct child of
    // `this`, but should appear in the hierarchy.
    AddTabStripView(std::move(view));
 -  CHECK(Contains(tab_strip_view_));
 +  CHECK(ContainsRegionView(tab_strip_view_));
  
-   on_active_tab_changed_subscription_ =
-       root_node_->RegisterOnActiveTabChangedCallback(base::BindRepeating(
-@@ -459,7 +463,7 @@
+   return tab_strip_view_;
+ }
+@@ -544,7 +548,7 @@
  
  std::unique_ptr<views::View> BaseTabStripRegionView::RemoveTabStripView(
      views::View* view) {
@@ -1599,7 +1599,7 @@
  
 --- a/chrome/browser/ui/views/frame/base_tab_strip_region_view.h
 +++ b/chrome/browser/ui/views/frame/base_tab_strip_region_view.h
-@@ -82,6 +82,8 @@
+@@ -80,6 +80,8 @@
    void OnDragExited() override;
    void SetTabStripObserver(TabStripObserver* observer) override;
    views::View* GetTabStripView() override;
@@ -1610,7 +1610,7 @@
    std::unique_ptr<ExpandOnHoverLock> GetExpandOnHoverLock(
 --- a/chrome/browser/ui/views/frame/browser_widget.cc
 +++ b/chrome/browser/ui/views/frame/browser_widget.cc
-@@ -424,7 +424,8 @@
+@@ -444,7 +444,8 @@
    views::View::ConvertPointFromScreen(non_client_view(), &point_in_view_coords);
    int hit_test = non_client_view()->NonClientHitTest(point_in_view_coords);
    if (source_type == ui::mojom::MenuSourceType::kKeyboard ||
