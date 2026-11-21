@@ -301,7 +301,7 @@
      sources = [
 --- /dev/null
 +++ b/chrome/browser/ui/helium/helium_command_bar_commands.cc
-@@ -0,0 +1,675 @@
+@@ -0,0 +1,677 @@
 +// Copyright 2026 The Helium Authors
 +// You can use, redistribute, and/or modify this source code under
 +// the terms of the GPL-3.0 license that can be found in the LICENSE file.
@@ -779,7 +779,7 @@
 +              active, TabStripModel::CommandToggleSiteMuted)) {
 +        return std::nullopt;
 +      }
-+      if (IsSiteMuted(*strip, active)) {
++      if (IsSiteMuted(strip->GetActiveTab()->GetHandle())) {
 +        label = IDS_COMMAND_BAR_UNMUTE_SITE;
 +        symbol = "speaker.wave.2";
 +      } else {
@@ -965,9 +965,11 @@
 +      // Explicitly target the active pane, even with a multi-tab selection.
 +      strip->SetTabPinned(active, !strip->IsTabPinned(active));
 +      return true;
-+    case IDC_WINDOW_MUTE_SITE:
-+      strip->SetSitesMuted({active}, !IsSiteMuted(*strip, active));
++    case IDC_WINDOW_MUTE_SITE: {
++      const auto tab = strip->GetActiveTab()->GetHandle();
++      strip->SetSitesMuted({tab}, !IsSiteMuted(tab));
 +      return true;
++    }
 +    case kPinSidebar:
 +      BrowserView::GetBrowserViewForBrowser(browser)->ToggleZenModeSideChrome();
 +      return true;
