@@ -1,0 +1,500 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -146,14 +146,15 @@
+   NSEvent* HandlePageTopDragEvent(NSEvent* event);
+   content::WebContents* PageTopDragTarget(NSEvent* event,
+                                         gfx::PointF& widget_point);
+-  void OnPageTopDragTarget(uint64_t press, bool eligible);
++  void ResetPageTopDragCandidate();
++
++  class PageTopDragInputObserver;
++  std::unique_ptr<PageTopDragInputObserver> page_top_drag_input_;
+ 
+   id __strong page_top_drag_monitor_ = nil;
+   NSEvent* __strong page_top_drag_press_ = nil;
+   content::WeakDocumentPtr page_top_drag_document_;
+   gfx::PointF page_top_drag_point_;
+-  uint64_t page_top_drag_press_id_ = 0;
+-  bool page_top_drag_eligible_ = false;
+   bool page_top_drag_active_ = false;
+ 
+   void UpdateCaptionButtonPlaceholderContainerBackground();
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -109,8 +109,11 @@
+ #include "content/public/browser/page_top_window_drag_mac.h"
+ #include "content/public/browser/render_frame_host.h"
+ #include "content/public/browser/render_widget_host.h"
++#include "content/public/browser/render_widget_host_observer.h"
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents.h"
++#include "third_party/blink/public/common/input/web_mouse_event.h"
++#include "third_party/blink/public/mojom/input/input_event_result.mojom-shared.h"
+ #include "ui/base/clipboard/scoped_clipboard_writer.h"
+ #include "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/hit_test.h"
+@@ -122,6 +125,7 @@
+ #include "ui/color/color_provider.h"
+ #include "ui/color/color_provider_manager.h"
+ #include "ui/compositor/layer.h"
++#include "ui/events/base_event_utils.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/gfx/color_utils.h"
+ #include "ui/gfx/geometry/insets.h"
+@@ -2547,11 +2551,98 @@
+ constexpr int kFloatingToolbarHeight =
+     kFloatingToolbarControlHeight + 2 * kFloatingToolbarVerticalPadding;
+ constexpr CGFloat kPageTopDragThreshold = 4;
++constexpr auto kPageTopDragDecisionTimeout = base::Milliseconds(80);
+ constexpr NSEventModifierFlags kPageTopDragModifiers =
+     NSEventModifierFlagCommand | NSEventModifierFlagShift |
+     NSEventModifierFlagOption | NSEventModifierFlagControl;
+ }  // namespace
+ 
++class BrowserFrameViewMac::PageTopDragInputObserver
++    : public content::RenderWidgetHostObserver,
++      public content::RenderWidgetHost::InputEventObserver {
++ public:
++  PageTopDragInputObserver(content::RenderWidgetHost& host,
++                           base::TimeTicks press,
++                           const gfx::PointF& press_position)
++      : press_(press), press_position_(press_position) {
++    host_observation_.Observe(&host);
++    input_observation_.Observe(&host);
++  }
++
++  void WillForwardMotion(base::TimeTicks motion) {
++    if (first_motion_.is_null()) {
++      first_motion_ = motion;
++    }
++    latest_motion_ = motion;
++  }
++
++  bool ShouldLeaveWithPage(base::TimeTicks now) const {
++    return denied_ || !host_observation_.IsObserving() ||
++           (!first_motion_.is_null() &&
++            now - first_motion_ > kPageTopDragDecisionTimeout);
++  }
++
++  bool IsReadyForWindowDrag() const {
++    return !approved_motion_.is_null() && approved_motion_ == latest_motion_;
++  }
++
++ private:
++  void OnInputEventAck(const content::RenderWidgetHost&,
++                       blink::mojom::InputEventResultSource source,
++                       blink::mojom::InputEventResultState,
++                       const blink::WebInputEvent& event) override {
++    if (source != blink::mojom::InputEventResultSource::kMainThread || denied_) {
++      return;
++    }
++    using Type = blink::WebInputEvent::Type;
++    if (event.GetType() == Type::kMouseDown && event.TimeStamp() == press_) {
++      press_acknowledged_ = true;
++    }
++    if (!press_acknowledged_ || event.GetType() != Type::kMouseMove ||
++        latest_motion_.is_null() || event.TimeStamp() != latest_motion_ ||
++        static_cast<const blink::WebMouseEvent&>(event).button !=
++            blink::WebMouseEvent::Button::kLeft) {
++      return;
++    }
++
++    // Blink has dispatched both the press and the motion to the page. The
++    // generic input acknowledgement cannot distinguish a DOM cancellation
++    // from ordinary mouse handling, so ask Blink about this gesture.
++    content::IsPageTopDragTarget(
++        *input_observation_.GetSource(), press_position_,
++        base::BindOnce(&PageTopDragInputObserver::OnEligibility,
++                       weak_factory_.GetWeakPtr(), event.TimeStamp()));
++  }
++
++  void RenderWidgetHostDestroyed(content::RenderWidgetHost*) override {
++    input_observation_.Reset();
++    host_observation_.Reset();
++  }
++
++  void OnEligibility(base::TimeTicks motion, bool eligible) {
++    if (eligible) {
++      approved_motion_ = motion;
++    } else {
++      denied_ = true;
++    }
++  }
++
++  const base::TimeTicks press_;
++  const gfx::PointF press_position_;
++  base::TimeTicks first_motion_;
++  base::TimeTicks latest_motion_;
++  base::TimeTicks approved_motion_;
++  bool press_acknowledged_ = false;
++  bool denied_ = false;
++  base::ScopedObservation<content::RenderWidgetHost,
++                          content::RenderWidgetHostObserver>
++      host_observation_{this};
++  base::ScopedObservation<content::RenderWidgetHost,
++                          content::RenderWidgetHost::InputEventObserver>
++      input_observation_{this};
++  base::WeakPtrFactory<PageTopDragInputObserver> weak_factory_{this};
++};
++
+ BrowserFrameViewMac::BrowserFrameViewMac(BrowserWidget* frame,
+                                          BrowserView* browser_view)
+     : BrowserFrameView(frame, browser_view),
+@@ -4008,8 +4099,7 @@
+       continue;
+     }
+     content::WebContents* contents = page->web_contents();
+-    if (!contents || !contents->GetLastCommittedURL().SchemeIsHTTPOrHTTPS() ||
+-        contents->IsFullscreen()) {
++    if (!contents || contents->IsFullscreen()) {
+       return nullptr;
+     }
+     auto* frame = contents->GetPrimaryMainFrame();
+@@ -4029,10 +4119,10 @@
+   return nullptr;
+ }
+ 
+-void BrowserFrameViewMac::OnPageTopDragTarget(uint64_t press, bool eligible) {
+-  if (press == page_top_drag_press_id_ && page_top_drag_press_) {
+-    page_top_drag_eligible_ = eligible;
+-  }
++void BrowserFrameViewMac::ResetPageTopDragCandidate() {
++  page_top_drag_press_ = nil;
++  page_top_drag_document_ = {};
++  page_top_drag_input_.reset();
+ }
+ 
+ NSEvent* BrowserFrameViewMac::HandlePageTopDragEvent(NSEvent* event) {
+@@ -4041,28 +4131,22 @@
+     return event;
+   }
+   if (event.type == NSEventTypeLeftMouseDown) {
+-    ++page_top_drag_press_id_;
+-    page_top_drag_press_ = nil;
+-    page_top_drag_document_ = {};
++    ResetPageTopDragCandidate();
+     page_top_drag_active_ = false;
+-    page_top_drag_eligible_ = false;
+     if (event.clickCount == 1 && !(event.modifierFlags & kPageTopDragModifiers)) {
+       if (auto* target = PageTopDragTarget(event, page_top_drag_point_)) {
+         auto* frame = target->GetPrimaryMainFrame();
+         page_top_drag_document_ = frame->GetWeakDocumentPtr();
+         page_top_drag_press_ = event;
+-        content::IsPageTopDragTarget(
+-            *frame->GetRenderWidgetHost(), page_top_drag_point_,
+-            base::BindOnce(&BrowserFrameViewMac::OnPageTopDragTarget,
+-                           page_top_drag_weak_factory_.GetWeakPtr(),
+-                           page_top_drag_press_id_));
++        page_top_drag_input_ = std::make_unique<PageTopDragInputObserver>(
++            *frame->GetRenderWidgetHost(),
++            ui::EventTimeStampFromSeconds(event.timestamp), page_top_drag_point_);
+       }
+     }
+     return event;
+   }
+   if (event.type == NSEventTypeLeftMouseUp) {
+-    page_top_drag_press_ = nil;
+-    page_top_drag_document_ = {};
++    ResetPageTopDragCandidate();
+     return std::exchange(page_top_drag_active_, false) ? nil : event;
+   }
+   if (page_top_drag_active_) {
+@@ -4072,26 +4156,35 @@
+   if (!press) {
+     return event;
+   }
++
++  const base::TimeTicks motion = ui::EventTimeStampFromSeconds(event.timestamp);
++  if ((event.modifierFlags & kPageTopDragModifiers) ||
++      page_top_drag_input_->ShouldLeaveWithPage(motion)) {
++    ResetPageTopDragCandidate();
++    return event;
++  }
+   const NSPoint start = press.locationInWindow;
+   const NSPoint current = event.locationInWindow;
+   if (std::hypot(current.x - start.x, current.y - start.y) <
+       kPageTopDragThreshold) {
+     return event;
+   }
+-  page_top_drag_press_ = nil;
++  if (!page_top_drag_input_->IsReadyForWindowDrag()) {
++    page_top_drag_input_->WillForwardMotion(motion);
++    return event;
++  }
++
+   auto* frame = page_top_drag_document_.AsRenderFrameHostIfValid();
+   gfx::PointF widget_point;
+-  auto* target = page_top_drag_eligible_ ? PageTopDragTarget(press, widget_point)
+-                                         : nullptr;
+-  if (!frame || !target || frame != target->GetPrimaryMainFrame() ||
+-      widget_point != page_top_drag_point_ ||
+-      (event.modifierFlags & kPageTopDragModifiers)) {
++  auto* target = frame ? PageTopDragTarget(press, widget_point) : nullptr;
++  ResetPageTopDragCandidate();
++  if (!target || frame != target->GetPrimaryMainFrame() ||
++      widget_point != page_top_drag_point_) {
+     return event;
+   }
+ 
+   page_top_drag_active_ = true;
+-  content::ReleasePageTopDragPress(*frame->GetRenderWidgetHost(),
+-                                   widget_point);
++  content::ReleasePageTopDragPress(*frame->GetRenderWidgetHost(), widget_point);
+   [event.window performWindowDragWithEvent:press];
+   return nil;
+ }
+--- a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
++++ b/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
+@@ -931,72 +931,23 @@
+ }
+ 
+ #if BUILDFLAG(IS_MAC)
+-namespace {
+-
+-bool HasPageDragListeners(const EventTarget& target) {
+-  return target.HasEventListeners(event_type_names::kMousedown) ||
+-         target.HasEventListeners(event_type_names::kMouseup) ||
+-         target.HasEventListeners(event_type_names::kMousemove) ||
+-         target.HasEventListeners(event_type_names::kPointerdown) ||
+-         target.HasEventListeners(event_type_names::kPointerup) ||
+-         target.HasEventListeners(event_type_names::kPointermove) ||
+-         target.HasEventListeners(event_type_names::kPointerrawupdate) ||
+-         target.HasEventListeners(event_type_names::kGotpointercapture) ||
+-         target.HasEventListeners(event_type_names::kDragstart) ||
+-         target.HasEventListeners(event_type_names::kSelectstart);
+-}
+-
+-bool IsPlainPageBackground(const HitTestResult& hit,
+-                           const Document& document) {
+-  Node* node = hit.InnerNode();
+-  if (!node || &node->GetDocument() != &document || hit.GetScrollbar() ||
+-      hit.IsOverEmbeddedContentView() || hit.URLElement() ||
+-      hit.InnerPossiblyPseudoNode() != node || IsEditable(*node)) {
+-    return false;
+-  }
+-
+-  // Permit ordinary structural HTML only. Custom controls, text, media,
+-  // frames, canvas and shadow trees retain their pointer input.
+-  for (Node* ancestor = node; ancestor && ancestor != &document;
+-       ancestor = ancestor->parentNode()) {
+-    const auto* element = DynamicTo<HTMLElement>(ancestor);
+-    if (!element || element->IsInShadowTree() || element->draggable() ||
+-        element->FastHasAttribute(html_names::kRoleAttr) ||
+-        element->FastHasAttribute(html_names::kTabindexAttr) ||
+-        HasPageDragListeners(*element)) {
+-      return false;
+-    }
+-    if (!element->HasTagName(html_names::kHTMLTag) &&
+-        !element->HasTagName(html_names::kBodyTag) &&
+-        !element->HasTagName(html_names::kDivTag) &&
+-        !element->HasTagName(html_names::kSectionTag) &&
+-        !element->HasTagName(html_names::kMainTag) &&
+-        !element->HasTagName(html_names::kHeaderTag) &&
+-        !element->HasTagName(html_names::kFooterTag) &&
+-        !element->HasTagName(html_names::kArticleTag) &&
+-        !element->HasTagName(html_names::kAsideTag) &&
+-        !element->HasTagName(html_names::kNavTag)) {
+-      return false;
+-    }
+-  }
+-  return !HasPageDragListeners(document) &&
+-         document.domWindow() && !HasPageDragListeners(*document.domWindow());
+-}
+-
+-}  // namespace
+-
+ void WebFrameWidgetImpl::IsPageTopDragTarget(
+     const gfx::PointF& point_in_widget,
+     IsPageTopDragTargetCallback callback) {
+   LocalFrame* frame = local_root_ ? local_root_->GetFrame() : nullptr;
+-  const bool eligible =
+-      frame && frame->IsOutermostMainFrame() && frame->View() &&
+-      frame->GetDocument() && GetPage() &&
+-      !GetPage()->GetPointerLockController().IsPointerLocked() &&
+-      IsPlainPageBackground(
+-          CoreHitTestResultAt(widget_base_->DIPsToBlinkSpace(point_in_widget)),
+-          *frame->GetDocument());
+-  std::move(callback).Run(eligible);
++  if (!frame || !frame->IsOutermostMainFrame() || !frame->View() ||
++      !frame->GetDocument() || !GetPage() || mouse_capture_element_ ||
++      GetPage()->GetPointerLockController().IsPointerLocked()) {
++    std::move(callback).Run(false);
++    return;
++  }
++
++  const auto point = widget_base_->DIPsToBlinkSpace(point_in_widget);
++  const HitTestResult hit = CoreHitTestResultAt(point);
++  const HitTestLocation location(frame->View()->ConvertFromRootFrame(
++      frame->View()->ViewportToFrame(point)));
++  std::move(callback).Run(
++      frame->GetEventHandler().IsPageTopDragTarget(hit, location));
+ }
+ 
+ void WebFrameWidgetImpl::ReleasePageTopDragPress(
+--- a/third_party/blink/renderer/core/input/event_handler.cc
++++ b/third_party/blink/renderer/core/input/event_handler.cc
+@@ -130,6 +130,13 @@
+ #include "ui/gfx/geometry/size_conversions.h"
+ #include "ui/gfx/geometry/size_f.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "third_party/blink/renderer/core/accessibility/ax_utilities_generated.h"
++#include "third_party/blink/renderer/core/html_names.h"
++#include "ui/accessibility/ax_enums.mojom-blink.h"
++#include "ui/accessibility/ax_role_properties.h"
++#endif
++
+ namespace blink {
+ 
+ using mojom::blink::FormControlType;
+@@ -860,6 +867,10 @@
+ WebInputEventResult EventHandler::HandleMousePressEvent(
+     const WebMouseEvent& mouse_event) {
+   TRACE_EVENT0("blink", "EventHandler::handleMousePressEvent");
++#if BUILDFLAG(IS_MAC)
++  page_top_drag_press_unclaimed_ = false;
++  page_top_drag_dispatched_motion_ = false;
++#endif
+ 
+   // For 4th/5th button in the mouse since Chrome does not yet send
+   // button value to Blink but in some cases it does send the event.
+@@ -1027,6 +1038,14 @@
+     frame_->GetChromeClient().DidDispatchMouseDown(*result.InnerNode());
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  page_top_drag_press_unclaimed_ =
++      frame_->IsOutermostMainFrame() && !mouse_event.FromTouch() &&
++      mouse_event.button == WebMouseEvent::Button::kLeft &&
++      mouse_event.click_count == 1 &&
++      event_result == WebInputEventResult::kNotHandled &&
++      !pointer_event_manager_->GetMouseCaptureTarget();
++#endif
+   return event_result;
+ }
+ 
+@@ -1082,6 +1101,15 @@
+          mouse_event.GetType() == WebInputEvent::Type::kMouseLeave);
+   mouse_event_manager_->SetLastKnownMousePosition(mouse_event);
+ 
++#if BUILDFLAG(IS_MAC)
++  page_top_drag_dispatched_motion_ = false;
++  if (mouse_event.GetType() != WebInputEvent::Type::kMouseMove ||
++      mouse_event.button != WebMouseEvent::Button::kLeft ||
++      pointer_event_manager_->GetMouseCaptureTarget()) {
++    page_top_drag_press_unclaimed_ = false;
++  }
++#endif
++
+   hover_timer_.Stop();
+   cursor_update_timer_.Stop();
+ 
+@@ -1249,6 +1277,13 @@
+   event_result = DispatchMousePointerEvent(
+       WebInputEvent::Type::kPointerMove, mev.InnerPossiblyPseudoElement(),
+       mev.Event(), coalesced_events, predicted_events);
++#if BUILDFLAG(IS_MAC)
++  page_top_drag_dispatched_motion_ = true;
++  if (event_result != WebInputEventResult::kNotHandled ||
++      pointer_event_manager_->GetMouseCaptureTarget()) {
++    page_top_drag_press_unclaimed_ = false;
++  }
++#endif
+   // Since there is no default action for the mousemove event, MouseEventManager
+   // handles drag for text selection even when js cancels the mouse move event.
+   // https://w3c.github.io/uievents/#event-type-mousemove
+@@ -1261,6 +1296,62 @@
+ }
+ 
+ #if BUILDFLAG(IS_MAC)
++namespace {
++
++bool HasInteractiveAriaRole(const Element& element) {
++  const AtomicString& role_attribute =
++      element.FastGetAttribute(html_names::kRoleAttr);
++  if (role_attribute.empty()) {
++    return false;
++  }
++  for (const auto& token :
++       role_attribute.GetString().SimplifyWhiteSpace().SplitSkippingEmpty(' ')) {
++    const auto role = AriaRoleToInternalRole(AtomicString(token.ToAsciiLower()));
++    if (role != ax::mojom::blink::Role::kUnknown) {
++      return ui::IsControl(role) || ui::IsLink(role) || ui::IsSelect(role);
++    }
++  }
++  return false;
++}
++
++}  // namespace
++
++bool EventHandler::IsPageTopDragTarget(const HitTestResult& hit,
++                                      const HitTestLocation& location) {
++  Node* node = hit.InnerNode();
++  if (!page_top_drag_press_unclaimed_ || !page_top_drag_dispatched_motion_ ||
++      !MousePressed() || pointer_event_manager_->GetMouseCaptureTarget() ||
++      scroll_manager_->InResizeMode() ||
++      mouse_event_manager_->GetDragState().drag_src_ ||
++      (GetSelectionController().HasExtendedSelection() &&
++       frame_->Selection().GetSelectionInDomTree().IsRange()) ||
++      !node || node != mouse_event_manager_->MousePressNode() ||
++      &node->GetDocument() != frame_->GetDocument() || hit.GetScrollbar() ||
++      hit.IsOverEmbeddedContentView() || hit.URLElement() ||
++      hit.InnerPossiblyPseudoNode() != node || hit.IsSelected(location) ||
++      node->IsInUserAgentShadowRoot() || IsEditable(*node) ||
++      (node->IsTextNode() && node->CanStartSelection())) {
++    return false;
++  }
++
++  for (auto* element = hit.InnerElement(); element;
++       element = FlatTreeTraversal::ParentElement(*element)) {
++    const auto* html = DynamicTo<HTMLElement>(element);
++    const auto* layout = element->GetLayoutObject();
++    if ((html && (html->draggable() || html->IsInteractiveContent())) ||
++        (layout && layout->IsLayoutReplaced()) ||
++        element->HasActivationBehavior() ||
++        element->FastHasAttribute(html_names::kTabindexAttr) ||
++        element->IsShadowHostWithDelegatesFocus() ||
++        HasInteractiveAriaRole(*element)) {
++      return false;
++    }
++  }
++
++  const auto cursor = SelectCursor(location, hit);
++  return cursor && cursor->type() == PointerCursor().type();
++}
++
+ void EventHandler::ReleaseMousePressForWindowDrag(
+     const WebMouseEvent& mouse_event) {
+   if (mouse_event_manager_->MousePressed()) {
+@@ -1292,6 +1383,10 @@
+     }
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  page_top_drag_press_unclaimed_ = false;
++  page_top_drag_dispatched_motion_ = false;
++#endif
+   mouse_event_manager_->ReleaseMousePress();
+   mouse_event_manager_->SetLastKnownMousePosition(mouse_event);
+   mouse_event_manager_->HandleSvgPanIfNeeded(true);
+--- a/third_party/blink/renderer/core/input/event_handler.h
++++ b/third_party/blink/renderer/core/input/event_handler.h
+@@ -169,6 +169,7 @@
+   WebInputEventResult HandleMousePressEvent(const WebMouseEvent&);
+   WebInputEventResult HandleMouseReleaseEvent(const WebMouseEvent&);
+ #if BUILDFLAG(IS_MAC)
++  bool IsPageTopDragTarget(const HitTestResult&, const HitTestLocation&);
+   void ReleaseMousePressForWindowDrag(const WebMouseEvent&);
+ #endif
+   WebInputEventResult HandleWheelEvent(const WebMouseWheelEvent&);
+@@ -451,6 +452,10 @@
+   Member<Scrollbar> last_scrollbar_under_mouse_;
+ 
+   Member<Node> drag_target_;
++#if BUILDFLAG(IS_MAC)
++  bool page_top_drag_press_unclaimed_ = false;
++  bool page_top_drag_dispatched_motion_ = false;
++#endif
+   bool should_only_fire_drag_over_event_;
+ 
+   Member<HTMLFrameSetElement> frame_set_being_resized_;
