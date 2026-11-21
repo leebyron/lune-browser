@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-20",
+  "issue": 45,
+  "owner_accepted": true,
+  "component_ref": "refs/tags/inputs/sidebar-scrollbar-input-1/macos",
+  "source_preparation": {
+    "macos": "5b2a0949b8f0444a58555274ac104dc1a98b45c1",
+    "helium": "96ee1fb8d4d27f60891b747b8efc89f3fe68f2f8",
+    "base_platform": "b5abc65dd1cd214b9b41fc83724d69013785ac9f",
+    "chromium": "158.0.8127.37",
+    "strict_replay_passed": true,
+    "full_source_parity": true,
+    "patch_hunk_offsets": [],
+    "patch_sha256": "f358f95658e131d6b80b9190daa2b8dbf1b0c85f1daae33edb44a2ca9aa12b15",
+    "inventory_files": 596108,
+    "inventory_symlinks": 141,
+    "changed_sha256": {
+      "chrome/browser/ui/views/tabs/shared/rounded_scroll_bar.cc": "bb1044201eca9db87b678275cd8968d705cc5c7b9e36c16b6e622d122dcd5fbc",
+      "chrome/browser/ui/views/tabs/shared/rounded_scroll_bar.h": "ee3e5514a100de953f3e807da6c111f454026267df5f45b0eabfd44c86edc2ba"
+    }
+  },
+  "builds": {
+    "arm64": {
+      "build_and_smoke_passed": true,
+      "execution": "native Apple silicon",
+      "framework_sha256": "f533dd8981afa432b55bdbdd27cdbd8370bbbd3503d8fb1843f4517cf5470720",
+      "smoke_report_sha256": "f613ca3ceafcffca03fbdba9a302e2fb0e4e9763c0c02934a2936ad8a5634e81"
+    },
+    "x86_64": {
+      "build_and_smoke_passed": true,
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "dbd848d7a32f34013c1c9e70079681be375047f146ead054a37c6fb43b75dc9a",
+      "smoke_report_sha256": "388d8d82325e7a39a3cc87ca3001de508d18f1cfe34743873bf06a3a7d202349"
+    }
+  },
+  "native_arm64": {
+    "measurement": "Native window input with Core Graphics events and Chromium Views layer-opacity and bounds readback.",
+    "comparisons": {
+      "expand_from_no_overflow": {
+        "baseline_peak_opacity": 1.0,
+        "candidate_peak_opacity": 0.0,
+        "baseline_thumb_length_before": 306,
+        "candidate_thumb_length_before": 311,
+        "thumb_length_after": 272,
+        "candidate_samples": 19
+      },
+      "collapse_with_overflow_and_clamp": {
+        "baseline_peak_opacity": 1.0,
+        "candidate_peak_opacity": 0.0,
+        "baseline_thumb_length_before": 177,
+        "candidate_thumb_length_before": 177,
+        "thumb_length_after": 291,
+        "candidate_samples": 14
+      },
+      "expand_with_overflow": {
+        "baseline_peak_opacity": 1.0,
+        "candidate_peak_opacity": 0.0,
+        "baseline_thumb_length_before": 291,
+        "candidate_thumb_length_before": 291,
+        "thumb_length_after": 177,
+        "candidate_samples": 14
+      },
+      "automatic_expiry": {
+        "baseline_peak_opacity": 1.0,
+        "candidate_peak_opacity": 0,
+        "baseline_thumb_length_before": 177,
+        "candidate_thumb_length_before": 177,
+        "thumb_length_after": 213,
+        "candidate_samples": 17
+      }
+    },
+    "revealed_for": [
+      "vertical trackpad input",
+      "mouse wheel",
+      "thumb drag"
+    ],
+    "stayed_hidden_for": [
+      "pointer hover",
+      "horizontal trackpad input",
+      "viewport resize",
+      "automatic scroll to active tab"
+    ],
+    "faded_at_idle": true,
+    "preserved_valid_offset_and_clamped_when_needed": true,
+    "fixture_report_sha256": {
+      "baseline": "5ed91a18506b30e90d6b431baeebe2d7907cbe8449f5ee9170f936a5258f2154",
+      "candidate": "dd1b53543aa0d1828b93615f8e8fb106b17bd293c4df51933240481fc047e4b1"
+    }
+  },
+  "repository_tests_run": 108,
+  "repository_tests_skipped": 1,
+  "component_patch_lint_passed": true
+}

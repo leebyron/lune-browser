@@ -115,3 +115,9 @@ Both final browser builds, strict eight-file quilt/export/replay, packaged date/
 ## Date label alignment — November 20, 2026
 
 Date heading text sits one logical pixel higher within the existing 16-pixel row. The label keeps its size and the surrounding tab positions stay fixed. Native paint comparisons at 1× and 2× confirm the shift without clipping. The [validation record](../builds/2026-11-20-older-date-label-offset.json) identifies the prepared source and both tested builds.
+
+## Manual sidebar scrollbar reveal — November 20, 2026
+
+The sidebar scrollbar starts hidden. Vertical scrolling and direct scrollbar controls reveal the thumb and restart its idle fade. Pointer hover alone leaves a faded thumb hidden. Layout keeps the thumb geometry current during Older Tabs disclosure, expiry and viewport resizing. Automatic scroll-to-active also keeps an idle thumb hidden. The scroll position is preserved within the available range and clamps when that range shrinks.
+
+The owner accepted the native preview for future builds. The validation record identifies the signed input and both tested builds, and records the baseline flash and the fixed behavior during real background expiry and disclosure. [Issue #45](https://github.com/leebyron/lune-browser/issues/45) · [Validation record](../builds/2026-11-20-sidebar-scrollbar-input.json)

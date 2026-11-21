@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "b5abc65dd1cd214b9b41fc83724d69013785ac9f",
+    "commit": "5b2a0949b8f0444a58555274ac104dc1a98b45c1",
     "patches": [
       {
         "path": "patches/helium/core/ui-density-prefs.patch",
@@ -1081,6 +1081,10 @@
       {
         "path": "patches/lune/dock-icon-appearance.patch",
         "sha256": "b508c93c3c1ec4f224879ca0613b3c228910519c84e54e59dd610ab9227d6538"
+      },
+      {
+        "path": "patches/lune/sidebar-scrollbar-input.patch",
+        "sha256": "f358f95658e131d6b80b9190daa2b8dbf1b0c85f1daae33edb44a2ca9aa12b15"
       }
     ]
   },
@@ -3421,6 +3425,19 @@
       "adaptation": "Observe the active profile ThemeService and the native theme. Preserve the download badge view across AppKit icon replacement and redraw it on the selected artwork.",
       "commits": [
         "b5abc65dd1cd214b9b41fc83724d69013785ac9f"
+      ]
+    },
+    {
+      "id": "sidebar-scrollbar-input",
+      "depends_on": [],
+      "patches": [
+        "patches/lune/sidebar-scrollbar-input.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Reveal the sidebar scrollbar for manual scrolling and fade it after input becomes idle.",
+      "adaptation": "Trigger visibility from compositor scroll events and scrollbar controls while keeping geometry updates independent of visibility.",
+      "commits": [
+        "5b2a0949b8f0444a58555274ac104dc1a98b45c1"
       ]
     }
   ],
