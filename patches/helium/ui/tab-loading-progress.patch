@@ -1,0 +1,511 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -17,6 +17,7 @@
+ #include "chrome/browser/glic/browser_ui/tab_underline_controller.h"
+ #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
+ #include "chrome/browser/glic/public/glic_enabling.h"
++#include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -36,6 +37,7 @@
+ #include "chrome/browser/ui/views/frame/browser_frame_view.h"
+ #include "chrome/browser/ui/views/frame/themed_background.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "chrome/browser/ui/views/location_bar/location_bar_progress_view.h"
+ #include "chrome/browser/ui/views/tabs/common/split_tab_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_z_order_manager.h"
+@@ -369,6 +371,15 @@ TabView::TabView(TabCollectionNode* coll
+     }
+   }
+ 
++  loading_progress_view_ = AddChildView(std::make_unique<LocationBarProgressView>(
++      tab->GetProfile()->GetPrefs(), LocationBarProgressView::Surface::kTab));
++  loading_progress_view_->SetProperty(views::kViewIgnoredByLayoutKey, true);
++  loading_progress_view_->SetWebContents(tab->GetContents());
++  progress_contents_subscription_ = tab->RegisterWillDiscardContents(
++      base::IgnoreArgs<tabs::TabInterface*, content::WebContents*>(
++          base::BindRepeating(&LocationBarProgressView::SetWebContents,
++                              base::Unretained(loading_progress_view_.get()))));
++
+   title_->SetProperty(views::kElementIdentifierKey, kVerticalTabTitleElementId);
+   SetProperty(views::kElementIdentifierKey, kTabElementId);
+   // Layout manager must be set after child views are created because the
+@@ -632,6 +643,7 @@ void TabView::AnimationEnded(const gfx::
+ 
+ void TabView::Layout(PassKey) {
+   LayoutSuperclass<views::View>(this);
++  loading_progress_view_->SetBoundsRect(GetLocalBounds());
+   if (IsPinDragAnimating() && IsDragging()) {
+     if (!title_->layer()) {
+       title_->SetPaintToLayer();
+@@ -1192,6 +1204,8 @@ void TabView::ResetCollectionNode() {
+ 
+   // Clear all observers and subscriptions immediately to prevent any callback
+   // execution during the rest of this cleanup.
++  progress_contents_subscription_ = {};
++  loading_progress_view_->SetWebContents(nullptr);
+   tab_data_changed_subscription_ = base::CallbackListSubscription();
+   tab_state_changed_subscription_ = base::CallbackListSubscription();
+   collapsed_state_changed_subscription_ = base::CallbackListSubscription();
+--- a/chrome/browser/ui/views/tabs/common/tab_view.h
++++ b/chrome/browser/ui/views/tabs/common/tab_view.h
+@@ -35,6 +35,7 @@
+ #include "ui/views/view_observer.h"
+ 
+ class GlowHoverController;
++class LocationBarProgressView;
+ class TabCloseButton;
+ class TabCollectionNode;
+ class TabIcon;
+@@ -284,6 +285,8 @@ class TabView : public views::View,
+   std::optional<performance_manager::freezing::FreezingVote>
+       focus_mode_freezing_vote_;
+ 
++  raw_ptr<LocationBarProgressView> loading_progress_view_ = nullptr;
++  base::CallbackListSubscription progress_contents_subscription_;
+   std::unique_ptr<tabs::TabDataObserver> tab_data_observer_;
+ 
+   base::ScopedObservation<views::View, views::ViewObserver>
+--- a/chrome/browser/ui/views/location_bar/BUILD.gn
++++ b/chrome/browser/ui/views/location_bar/BUILD.gn
+@@ -18,6 +18,7 @@ source_set("location_bar") {
+       "lens_overlay_homework_page_action_controller.h",
+       "location_bar_bubble_delegate_view.h",
+       "location_bar_layout.h",
++      "location_bar_progress_view.h",
+       "location_bar_view.h",
+       "location_icon_state_helper.h",
+       "location_icon_view.h",
+@@ -93,7 +94,6 @@ source_set("impl") {
+       "location_bar_bubble_delegate_view.cc",
+       "location_bar_layout.cc",
+       "location_bar_progress_view.cc",
+-      "location_bar_progress_view.h",
+       "location_bar_view.cc",
+       "location_icon_state_helper.cc",
+       "location_icon_view.cc",
+--- a/chrome/browser/ui/views/location_bar/location_bar_progress_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_progress_view.cc
+@@ -14,8 +14,12 @@
+ #include "cc/paint/paint_filter.h"
+ #include "cc/paint/paint_flags.h"
+ #include "cc/paint/paint_shader.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/frame/browser_widget.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/tab_loading_progress_pref_names.h"
+ #include "components/prefs/pref_service.h"
+ #include "content/public/browser/navigation_handle.h"
+ #include "content/public/browser/web_contents.h"
+@@ -25,6 +29,8 @@
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/color/color_id.h"
+ #include "ui/color/color_provider.h"
++#include "ui/color/color_provider_key.h"
++#include "ui/color/color_provider_manager.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/gfx/animation/animation.h"
+ #include "ui/gfx/animation/animation_container.h"
+@@ -76,6 +82,52 @@ constexpr base::TimeDelta kProgressAnima
+ constexpr base::TimeDelta kProgressPulseDuration = base::Milliseconds(700);
+ constexpr base::TimeDelta kProgressFadeDuration = base::Milliseconds(320);
+ 
++SkColor TabGlowColor(const views::View& view) {
++  auto* browser = BrowserView::GetBrowserViewForNativeWindow(
++      view.GetWidget()->GetNativeWindow());
++  if (!browser || !browser->GetColorProvider()) {
++    return view.GetColorProvider()->GetColor(ui::kColorSysPrimary);
++  }
++  auto key = browser->browser_widget()->GetColorProviderKey();
++  const auto* colors = browser->GetColorProvider();
++  const SkColor accent = colors->GetColor(ui::kColorSysPrimary);
++  if (key.contrast_mode == ui::ColorProviderKey::ContrastMode::kHigh ||
++      key.forced_colors != ui::ColorProviderKey::ForcedColors::kNone) {
++    return accent;
++  }
++  if (key.frame_style == ui::ColorProviderKey::FrameStyle::kSystem &&
++      !key.custom_theme && !key.app_controller) {
++    const SkColor blue = colors->GetColor(kColorTabThrobber);
++    return key.color_mode == ui::ColorProviderKey::ColorMode::kLight
++               ? color_utils::AlphaBlend(SK_ColorWHITE, blue, 0.42f)
++               : blue;
++  }
++  if (key.user_color_source == ui::ColorProviderKey::UserColorSource::kBaseline &&
++      !key.custom_theme && !key.app_controller) {
++    // Both Lune appearances use the dark palette's button highlight.
++    key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
++    return ui::ColorProviderManager::Get().GetColorProviderFor(key)->GetColor(
++        ui::kColorSysPrimary);
++  }
++
++  const SkColor background = colors->GetColor(kColorTabBackgroundActiveFrameActive);
++  color_utils::HSL tone;
++  color_utils::SkColorToHSL(background, &tone);
++  if (tone.s < 0.08 || tone.l < 0.04 || tone.l > 0.96) {
++    // Very light and neutral surfaces can lose the hue of their theme.
++    color_utils::SkColorToHSL(accent, &tone);
++  }
++  // Stay within an analogous hue, taking the shorter arc toward blue.
++  constexpr double kBlueHue = 215.0 / 360.0;
++  constexpr double kMaxHueShift = 30.0 / 360.0;
++  const double toward_blue = std::remainder(kBlueHue - tone.h, 1.0);
++  tone.h = tone.s < 0.08 ? kBlueHue : std::fmod(
++      tone.h + std::clamp(toward_blue, -kMaxHueShift, kMaxHueShift) + 1.0, 1.0);
++  tone.s = std::max(tone.s, 0.85);
++  tone.l = color_utils::IsDark(background) ? 0.67 : 0.40;
++  return color_utils::HSLToSkColor(tone, SK_AlphaOPAQUE);
++}
++
+ SkColor WithOpacity(SkColor color, double opacity) {
+   return SkColorSetA(
+       color,
+@@ -88,12 +140,22 @@ SkColor4f WithOpacity4f(SkColor color, d
+ 
+ }  // namespace
+ 
+-LocationBarProgressView::LocationBarProgressView(PrefService* pref_service)
+-    : progress_animation_(this), pulse_animation_(this), fade_animation_(this) {
++LocationBarProgressView::LocationBarProgressView(PrefService* pref_service,
++                                                 Surface surface)
++    : surface_(surface),
++      progress_animation_(this),
++      pulse_animation_(this),
++      fade_animation_(this) {
++  pref_change_registrar_.Init(pref_service);
++  pref_change_registrar_.Add(
++      VisibilityPref(), base::BindRepeating(&LocationBarProgressView::SyncFromWebContents,
++                                            base::Unretained(this)));
+   SetCanProcessEventsWithinSubtree(false);
+   SetFlipCanvasOnPaintForRTLUI(true);
+-  SetPaintToLayer();
+-  layer()->SetFillsBoundsOpaquely(false);
++  if (surface_ == Surface::kLocationBar) {
++    SetPaintToLayer();
++    layer()->SetFillsBoundsOpaquely(false);
++  }
+   SetVisible(false);
+   GetViewAccessibility().SetIsIgnored(true);
+   auto container = base::MakeRefCounted<gfx::AnimationContainer>();
+@@ -103,12 +165,6 @@ LocationBarProgressView::LocationBarProg
+   progress_animation_.SetTweenType(gfx::Tween::EASE_OUT);
+   pulse_animation_.SetTweenType(gfx::Tween::EASE_IN_OUT);
+   fade_animation_.SetTweenType(gfx::Tween::EASE_OUT);
+-
+-  pref_change_registrar_.Init(pref_service);
+-  pref_change_registrar_.Add(
+-      prefs::kHeliumShowProgressBar,
+-      base::BindRepeating(&LocationBarProgressView::SyncFromWebContents,
+-                          base::Unretained(this)));
+ }
+ 
+ LocationBarProgressView::~LocationBarProgressView() = default;
+@@ -200,9 +256,13 @@ void LocationBarProgressView::UpdateVisi
+              !location_bar_focused_);
+ }
+ 
++const char* LocationBarProgressView::VisibilityPref() const {
++  return surface_ == Surface::kTab ? prefs::kShowTabLoadingProgress
++                                   : prefs::kHeliumShowProgressBar;
++}
++
+ bool LocationBarProgressView::IsProgressBarEnabled() const {
+-  return pref_change_registrar_.prefs()->GetBoolean(
+-      prefs::kHeliumShowProgressBar);
++  return pref_change_registrar_.prefs()->GetBoolean(VisibilityPref());
+ }
+ 
+ void LocationBarProgressView::SyncFromWebContents() {
+@@ -258,22 +318,25 @@ void LocationBarProgressView::OnPaint(gf
+   if (progress_width <= 0.0f) {
+     return;
+   }
+-  const SkColor primary_color =
++  const bool in_tab = surface_ == Surface::kTab;
++  const float bar_height = in_tab ? 2.0f : kGeometry.bar_height;
++  const SkColor primary_color = in_tab ? tab_glow_color_ :
+       GetColorProvider()->GetColor(ui::kColorSysPrimary);
+   const SkColor shine_color = color_utils::AlphaBlend(
+       SK_ColorWHITE, primary_color, kAppearance.shine_white_mix);
+-
+   canvas->Save();
+-  const SkScalar corner_radius = LocationBarView::ComputeBorderRadius(size());
+-  const SkRRect clip = SkRRect::MakeRectXY(
+-      gfx::RectToSkRect(GetLocalBounds()), corner_radius, corner_radius);
+-  canvas->ClipPath(SkPath::RRect(clip), /*do_anti_alias=*/true);
++  if (surface_ == Surface::kLocationBar) {
++    const SkScalar corner_radius = LocationBarView::ComputeBorderRadius(size());
++    const SkRRect clip = SkRRect::MakeRectXY(
++        gfx::RectToSkRect(GetLocalBounds()), corner_radius, corner_radius);
++    canvas->ClipPath(SkPath::RRect(clip), /*do_anti_alias=*/true);
++  }
+ 
+   cc::PaintFlags flags;
+   flags.setAntiAlias(true);
+   flags.setStyle(cc::PaintFlags::kFill_Style);
+ 
+-  const float bottom = static_cast<float>(height());
++  const float bottom = height();
+   const float exit_progress = finishing_ ? static_cast<float>(1.0 - fade) : 0.0f;
+   const float glow_head =
+       progress_width +
+@@ -286,7 +349,7 @@ void LocationBarProgressView::OnPaint(gf
+   const float glow_width = std::max(0.0f, glow_end - glow_start);
+   const double pulsing_glow_opacity = gfx::Tween::DoubleValueBetween(
+       pulse, kAppearance.glow_min_opacity, kAppearance.glow_max_opacity);
+-  const double glow_opacity = fade * pulsing_glow_opacity;
++  const double glow_opacity = fade * pulsing_glow_opacity * (in_tab ? 0.30 : 1.0);
+   const SkColor4f glow_colors[] = {
+       WithOpacity4f(primary_color, 0.0),
+       WithOpacity4f(primary_color, glow_opacity * kAppearance.glow_tail_opacity),
+@@ -316,11 +379,13 @@ void LocationBarProgressView::OnPaint(gf
+       line_fade_points, line_fade_colors, nullptr, std::size(line_fade_colors),
+       SkTileMode::kClamp));
+   canvas->DrawRoundRect(
+-      gfx::RectF(0, bottom - kGeometry.bar_height, progress_width,
+-                 kGeometry.bar_height),
+-      kGeometry.bar_height / 2.0f, flags);
++      gfx::RectF(0, bottom - bar_height, progress_width,
++                 bar_height),
++      bar_height / 2.0f, flags);
+ 
+-  flags.setBlendMode(SkBlendMode::kScreen);
++  if (!in_tab) {
++    flags.setBlendMode(SkBlendMode::kScreen);
++  }
+   flags.setShader(cc::PaintShader::MakeLinearGradient(
+       glow_points, glow_colors, kAppearance.gradient_positions,
+       std::size(glow_colors), SkTileMode::kClamp));
+@@ -334,7 +399,7 @@ void LocationBarProgressView::OnPaint(gf
+   flags.setShader(nullptr);
+   flags.setColor(WithOpacity(shine_color, glow_opacity));
+   canvas->DrawCircle(
+-      gfx::PointF(glow_head, bottom - kGeometry.bar_height / 2.0f),
++      gfx::PointF(glow_head, bottom - bar_height / 2.0f),
+       kGeometry.edge_glow_radius, flags);
+ 
+   flags.setImageFilter(nullptr);
+@@ -352,11 +417,11 @@ void LocationBarProgressView::OnPaint(gf
+       glow_points, head_colors, kAppearance.gradient_positions,
+       std::size(head_colors), SkTileMode::kClamp));
+   canvas->DrawRoundRect(
+-      gfx::RectF(glow_start, bottom - kGeometry.bar_height, glow_width,
+-                 kGeometry.bar_height),
+-      kGeometry.bar_height / 2.0f, flags);
++      gfx::RectF(glow_start, bottom - bar_height, glow_width,
++                 bar_height),
++      bar_height / 2.0f, flags);
+   canvas->DrawRoundRect(
+-      gfx::RectF(glow_start, bottom - kGeometry.bar_height, glow_width,
++      gfx::RectF(glow_start, bottom - bar_height, glow_width,
+                  kGeometry.shine_height),
+       kGeometry.shine_height / 2.0f, flags);
+   canvas->Restore();
+@@ -365,11 +430,33 @@ void LocationBarProgressView::OnPaint(gf
+ void LocationBarProgressView::VisibilityChanged(views::View* starting_from,
+                                                 bool is_visible) {
+   views::View::VisibilityChanged(starting_from, is_visible);
+-  const bool visible = is_visible && IsDrawn() && GetWidget() &&
+-                       GetWidget()->IsVisible();
++  UpdatePulse(is_visible);
++}
++
++void LocationBarProgressView::OnThemeChanged() {
++  views::View::OnThemeChanged();
++  if (surface_ == Surface::kTab && GetWidget()) {
++    tab_glow_color_ = TabGlowColor(*this);
++    SchedulePaint();
++  }
++}
++
++void LocationBarProgressView::AddedToWidget() {
++  if (surface_ == Surface::kTab) {
++    tab_glow_color_ = TabGlowColor(*this);
++  }
++  UpdatePulse(GetVisible());
++}
++
++void LocationBarProgressView::RemovedFromWidget() {
++  UpdatePulse(false);
++}
++
++void LocationBarProgressView::UpdatePulse(bool visible) {
+   const base::TimeDelta duration =
+       gfx::Animation::RichAnimationDuration(kProgressPulseDuration);
+-  if (visible && has_active_progress_ && !finishing_ && !duration.is_zero()) {
++  if (visible && IsDrawn() && GetWidget() && GetWidget()->IsVisible() &&
++      has_active_progress_ && !finishing_ && !duration.is_zero()) {
+     if (!pulse_animation_.is_animating()) {
+       pulse_animation_.SetThrobDuration(duration);
+       pulse_animation_.StartThrobbing(-1);
+--- a/chrome/browser/ui/views/location_bar/location_bar_progress_view.h
++++ b/chrome/browser/ui/views/location_bar/location_bar_progress_view.h
+@@ -21,7 +21,9 @@ class LocationBarProgressView : public v
+   METADATA_HEADER(LocationBarProgressView, views::View)
+ 
+  public:
+-  explicit LocationBarProgressView(PrefService* pref_service);
++  enum class Surface { kLocationBar, kTab };
++  explicit LocationBarProgressView(PrefService* pref_service,
++                                   Surface surface = Surface::kLocationBar);
+   LocationBarProgressView(const LocationBarProgressView&) = delete;
+   LocationBarProgressView& operator=(const LocationBarProgressView&) = delete;
+   ~LocationBarProgressView() override;
+@@ -30,6 +32,8 @@ class LocationBarProgressView : public v
+   void SetLocationBarFocused(bool focused);
+ 
+  private:
++  const char* VisibilityPref() const;
++
+   double GetDisplayedProgress() const;
+   void BeginLoading(double progress);
+   void SetProgress(double progress);
+@@ -37,6 +41,7 @@ class LocationBarProgressView : public v
+   void StartFadeOut();
+   void ResetState();
+   void UpdateVisibility();
++  void UpdatePulse(bool visible);
+   bool IsProgressBarEnabled() const;
+   void SyncFromWebContents();
+ 
+@@ -49,6 +54,9 @@ class LocationBarProgressView : public v
+ 
+   // views::View:
+   void OnPaint(gfx::Canvas* canvas) override;
++  void OnThemeChanged() override;
++  void AddedToWidget() override;
++  void RemovedFromWidget() override;
+   void VisibilityChanged(views::View* starting_from, bool is_visible) override;
+ 
+   // gfx::AnimationDelegate:
+@@ -56,6 +64,8 @@ class LocationBarProgressView : public v
+   void AnimationEnded(const gfx::Animation* animation) override;
+   void AnimationCanceled(const gfx::Animation* animation) override;
+ 
++  const Surface surface_;
++  SkColor tab_glow_color_ = SK_ColorTRANSPARENT;
+   gfx::SlideAnimation progress_animation_;
+   gfx::ThrobAnimation pulse_animation_;
+   gfx::SlideAnimation fade_animation_;
+--- a/chrome/browser/ui/views/tabs/common/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
+@@ -143,6 +143,7 @@ source_set("impl") {
+     "//chrome/browser/ui/views/frame:sidebar_footer",
+     "//chrome/browser/ui/views/frame:glass_frame_service",
+     "//chrome/browser/ui/views/frame:themed_background",
++    "//chrome/browser/ui/views/location_bar",
+     "//chrome/browser/ui/views/tabs:tab_style_views",
+     "//chrome/browser/ui/views/tabs/dragging:tab_drag_target",
+     "//chrome/browser/ui/views/tabs/groups",
+--- a/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
++++ b/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
+@@ -40,6 +40,7 @@ void AddNativeChromeColorMixer(ui::Color
+     mixer[ui::kColorSysBaseContainer] = {SystemColor(NSColor.windowBackgroundColor)};
+     mixer[ui::kColorFrameActive] = {SystemColor(NSColor.windowBackgroundColor)};
+     mixer[ui::kColorFrameInactive] = {SystemColor(NSColor.windowBackgroundColor)};
++    mixer[kColorTabThrobber] = {SystemColor(NSColor.systemBlueColor)};
+     mixer[kColorToolbar] = {SystemColor(NSColor.windowBackgroundColor)};
+     mixer[kColorNewTabPageBackground] = {SystemColor(NSColor.windowBackgroundColor)};
+     mixer[ui::kColorSysSurface] = {SystemColor(NSColor.controlBackgroundColor)};
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -4861,4 +4861,7 @@
+       Tab drag haptics
+     </message>
+   </if>
++  <message name="IDS_SETTINGS_SHOW_TAB_LOADING_PROGRESS" desc="Label for showing page loading progress along the bottom edge of a tab.">
++    Show page loading progress in tab
++  </message>
+ </grit-part>
+\ No newline at end of file
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -40,6 +40,7 @@
+ #include "chrome/common/pref_names.h"
+ #include "chrome/browser/ui/helium/page_top_window_drag_pref.h"
+ #include "chrome/common/sidebar_tab_drag_pref_names.h"
++#include "chrome/common/tab_loading_progress_pref_names.h"
+ #include "components/autofill/core/common/autofill_prefs.h"
+ #include "components/bookmarks/common/bookmark_pref_names.h"
+ #include "components/browsing_data/core/pref_names.h"
+@@ -235,6 +236,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumMinimalLocationBar] =
+       settings_api::PrefType::kBoolean;
++  (*s_allowlist)[::prefs::kShowTabLoadingProgress] =
++      settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumShowProgressBar] =
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumVerticalPinnedTabsPerRow] =
+--- a/chrome/browser/resources/settings/appearance_page/appearance_layout_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_layout_page.html.ts
+@@ -69,6 +69,10 @@ export function getHtml(this: SettingsAp
+       pref-key="helium.browser.show_progress_bar"
+       label="$i18n{showProgressBar}">
+   </settings-toggle-button>
++  <settings-toggle-button class="hr" id="showTabLoadingProgress"
++      pref-key="helium.browser.show_tab_loading_progress"
++      label="$i18n{showTabLoadingProgress}">
++  </settings-toggle-button>
+   <settings-toggle-button class="hr"
+       pref-key="helium.command_bar.enabled"
+       label="$i18n{commandBarEnabled}"
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -19,6 +19,7 @@
+ #include "chrome/common/helium_command_bar_pref_names.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/common/sidebar_tab_drag_pref_names.h"
++#include "chrome/common/tab_loading_progress_pref_names.h"
+ #include "components/helium_services/pref_names.h"
+ #include "components/policy/core/common/policy_pref_names.h"
+ #include "components/pref_registry/pref_registry_syncable.h"
+@@ -156,6 +157,7 @@ void RegisterBrowserUserPrefs(user_prefs
+   registry->RegisterBooleanPref(prefs::kHeliumMinimalLocationBar, false);
+ 
+   registry->RegisterBooleanPref(prefs::kHeliumShowProgressBar, true);
++  registry->RegisterBooleanPref(prefs::kShowTabLoadingProgress, true);
+ 
+   // Native command bar (Settings > Appearance > Command bar), on by default.
+   // With it on, Cmd+T / Cmd+L open the bar instead of new-tab / focus-bar.
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -646,6 +646,7 @@ void AddAppearanceStrings(content::WebUI
+       {"verticalCollapseShortcut", IDS_SETTINGS_VERTICAL_COLLAPSE_SHORTCUT},
+       {"minimalLocationBar", IDS_SETTINGS_MINIMAL_LOCATION_BAR},
+       {"showProgressBar", IDS_SETTINGS_SHOW_PROGRESS_BAR},
++      {"showTabLoadingProgress", IDS_SETTINGS_SHOW_TAB_LOADING_PROGRESS},
+       {"commandBarEnabled", IDS_SETTINGS_COMMAND_BAR},
+       {"commandBarEnabledDescription", IDS_SETTINGS_COMMAND_BAR_DESCRIPTION},
+       {"linkPeekEnabled", IDS_SETTINGS_LINK_PEEK},
+--- a/chrome/common/BUILD.gn
++++ b/chrome/common/BUILD.gn
+@@ -563,6 +563,7 @@ static_library("constants") {
+     "pref_font_webkit_names.h",
+     "pref_names.h",
+     "sidebar_tab_drag_pref_names.h",
++    "tab_loading_progress_pref_names.h",
+   ]
+ 
+   public_deps = [
+--- /dev/null
++++ b/chrome/common/tab_loading_progress_pref_names.h
+@@ -0,0 +1,15 @@
++// Copyright 2026 The Lune Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_COMMON_TAB_LOADING_PROGRESS_PREF_NAMES_H_
++#define CHROME_COMMON_TAB_LOADING_PROGRESS_PREF_NAMES_H_
++
++namespace prefs {
++
++inline constexpr char kShowTabLoadingProgress[] =
++    "helium.browser.show_tab_loading_progress";
++
++}  // namespace prefs
++
++#endif  // CHROME_COMMON_TAB_LOADING_PROGRESS_PREF_NAMES_H_
