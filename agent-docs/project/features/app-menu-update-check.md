@@ -10,6 +10,22 @@ The shared Sparkle updater remains authoritative. Repeated checks retain an acti
 
 The separate Lune patch changes the Sparkle delegate's feed base to `https://raw.githubusercontent.com/leebyron/lune-browser/main/updates/stable/` and corrects the settings disclosure to identify GitHub as the browser-update host. Release tooling also embeds the canonical architecture-specific URL in `SUFeedURL`. Changing only the plist would not update the delegate's feed selection.
 
+## Staged-update regression
+
+The requested behavior is to check the feed on every About load and on the regular automatic schedule while a release is ready. If a higher eligible version appears, one quit or relaunch should install that version. The current ready-state shortcut in `VersionUpdaterSparkle::CheckForUpdate` and the postponed Sparkle installation retain the first offer.
+
+[The loopback integration test](../../../scripts/release/check_staged_update.py) copies an updater-enabled, pre-signing Lune.app to a temporary directory. It gives that copy a unique bundle identifier, a private profile and an ephemeral public key. A mutable local appcast serves two Ed25519-signed ZIPs with matching fixture bundles. After About reports the first update ready, the server switches to the second. The test requires a new feed request, a request for the second archive, a fresh ready notification and the second version installed on quit. It writes request timings and the installed version to `result.json` and exits nonzero on regression.
+
+```sh
+.work/venv/bin/python scripts/release/check_staged_update.py \
+  --app "$OUT/Lune.app" --driver "$OUT/chromedriver" --arch arm64 \
+  --trigger about --directory .work/staged-about --openssl /opt/homebrew/opt/openssl@3/bin/openssl
+```
+
+Use `--trigger automatic` and a fresh evidence directory for the scheduled case. The fixture uses Sparkle's one-hour release-build minimum. With a Lune test bundle containing a Debug build of the same patched Sparkle framework, add `--debug-interval` to use its supported one-minute minimum. That case starts with an empty feed and waits for the real scheduler to discover the first release before testing the next interval.
+
+On 2026-11-21, platform input `100deb1ff459c2c496650d4dd9e335c26ba4488b` with Sparkle 2.10.1 reproduced the regression. About reloads on native arm64 and x86_64 under Rosetta made zero feed requests in the following 30 seconds. On arm64, the Debug scheduler checked the initially empty feed again at 63.8 seconds, staged 99.1.2, then made zero feed requests in the following 90 seconds with 99.1.3 available. All three runs installed 99.1.2 on quit. An arm64 control with an empty initial feed fetched 99.1.3 on About reload, emitted a fresh ready event and installed 99.1.3 on quit.
+
 ## Validation
 
 - Strict zero-fuzz replay of both patches matches all twelve changed source files; both resource XML files parse and platform patch lint passes.
