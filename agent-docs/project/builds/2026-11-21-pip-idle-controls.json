@@ -1,0 +1,75 @@
+{
+  "issue": 55,
+  "accepted": "2026-11-21",
+  "chromium_version": "159.0.8154.13",
+  "source": {
+    "parent_main": "47cb91131e5af5c27f87153dfc3f983e0c272212",
+    "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+    "macos": "100deb1ff459c2c496650d4dd9e335c26ba4488b",
+    "platform_ref": "refs/tags/inputs/pip-idle-controls-1/macos",
+    "patch_sha256": "91ba0a868d092eddc495dfcd0313f2ef37cf8a98e2c1bcd6e09e37e6d9afccfe"
+  },
+  "builds": [
+    {
+      "architecture": "arm64",
+      "execution": "Native Apple silicon",
+      "framework_sha256": "e6d1e698bf5c81bec5fd00d4dcebddb0c3d87bdc5c1e9c1bbc97a5a05670f28c",
+      "executable_sha256": "af6cd43d10812ad499d0585b775a4f1e2368d3a43966ab5bb19cf2777ec64b9a",
+      "source_parity": {
+        "strict_replay_passed": true,
+        "patch_count": 670,
+        "patch_offsets": 0,
+        "files": 572664,
+        "symlinks": 130,
+        "changed_source_sha256": {
+          "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h": "d50b251481a5a059eab87a3d22f56903f036eaff75d578b58c4d3a3af67879fb",
+          "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm": "b99751e872a31c63c2963110c4513bfb1915078bb003d78d5f4c3897933c5e43",
+          "chrome/browser/ui/views/overlay/video_overlay_window_views.cc": "7168a3c7d0d5de8c57ca89eb01e0d5e8ba0234b45a7f4f8fb2506c152208f852",
+          "chrome/browser/ui/views/overlay/video_overlay_window_views.h": "89360dba4542234989e6c0c47cb208e87a6fe2d3dd33fa70e8d580fc795af9b9"
+        },
+        "host_cache_exclusions": [],
+        "preparation_log_sha256": "3960fc3c887ebab664aac94a5e5718cc6b1f45a55617a534096068fff3015d5f"
+      },
+      "smoke_sha256": "b8d88639a129ca0980410e7bcdad90ad9e481b3fd923e76afd9c3aa66d29e0f6"
+    },
+    {
+      "architecture": "x86_64",
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "bf7c6a4f9738a1b446f5306a9f548deaeeac0d8c827173805d4b738f1141ffd3",
+      "executable_sha256": "d504d4cc887e6b4b6cdb6e949c71a355c4d38bfd5992d684a239ac95c37deaba",
+      "source_parity": {
+        "strict_replay_passed": true,
+        "patch_count": 670,
+        "patch_offsets": 0,
+        "files": 572664,
+        "symlinks": 130,
+        "changed_source_sha256": {
+          "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h": "d50b251481a5a059eab87a3d22f56903f036eaff75d578b58c4d3a3af67879fb",
+          "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm": "b99751e872a31c63c2963110c4513bfb1915078bb003d78d5f4c3897933c5e43",
+          "chrome/browser/ui/views/overlay/video_overlay_window_views.cc": "7168a3c7d0d5de8c57ca89eb01e0d5e8ba0234b45a7f4f8fb2506c152208f852",
+          "chrome/browser/ui/views/overlay/video_overlay_window_views.h": "89360dba4542234989e6c0c47cb208e87a6fe2d3dd33fa70e8d580fc795af9b9"
+        },
+        "host_cache_exclusions": [],
+        "preparation_log_sha256": "7d99a70598622f2fe3269bf0702c362570104dd8492e3a9b61c4b2df93c993d3"
+      },
+      "smoke_sha256": "b509954878b7584731365b6ba7caa84d0e30546e31942a783dd306875f32eb23"
+    }
+  ],
+  "validation": {
+    "delay_seconds": 2.5,
+    "owner_accepted_arm64_preview_framework_sha256": "9e99df360117f610bc04849567868d5ea4402b85907ec984c5d2dda212fe9cc4",
+    "native_adoption_report_sha256": "74ddd26a077a90cf1662ea05bf9c1cc12fcfea67d27256c117bbe1e6786b9c9c",
+    "native_fixture": "Foreground activation and an observed cursor-coordinate change verified the first motion. Earlier synthetic attempts without explicit motion deltas intermittently missed a wake.",
+    "checks": [
+      "Visible controls and shadows idle and wake in header, footer, center, compact, and retained edge regions.",
+      "The cursor hides and restores over unobscured PiP with Lune active and restores on PiP close.",
+      "The cursor remains visible while another app is active and over the portion of PiP obscured by another window.",
+      "An active scrubber drag keeps the footer visible, and the footer times out after release."
+    ],
+    "repository_tests": {
+      "total": 108,
+      "skipped": 1
+    },
+    "component_inputs": "Signed input provenance, core and platform patch lint, and translation lint passed."
+  }
+}

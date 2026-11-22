@@ -47,6 +47,13 @@ shadows fade out. Layout keeps tracking the window, and hover is recomputed
 when the drag ends. An active scrubber drag retains its controls. The controls
 and their shadows fade together and honor Reduce Motion.
 
+After 2.5 seconds without pointer movement, the visible controls and shadows
+fade away. The pointer also hides over unobscured PiP video while Lune is the
+active app. The first movement restores the pointer and reveals the controls
+for its position. An active mouse gesture or keyboard navigation keeps the
+relevant controls available. The pointer stays visible outside the PiP
+window and while another app is active.
+
 The playback footer puts elapsed time, a neutral scrubber, minus-prefixed
 remaining time, and the speaker on one row. Hovering within the seek target
 animates the rail thickness and grows the thumb from zero to 12 points. The
@@ -92,3 +99,6 @@ for the source parity and browser checks.
 
 See the [manual permission offer validation](../builds/2026-11-20-manual-pip-auto-permission.json)
 for the signed input, paired builds, and YouTube checks.
+
+See the [idle controls validation](../builds/2026-11-21-pip-idle-controls.json)
+for source parity, paired builds, and native pointer checks for [issue #55](https://github.com/leebyron/lune-browser/issues/55).

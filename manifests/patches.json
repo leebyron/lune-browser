@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "a7a8b2f52137b9736b0bcc41e206474dac699a1f",
+    "commit": "100deb1ff459c2c496650d4dd9e335c26ba4488b",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1123,6 +1123,10 @@
       {
         "path": "patches/helium/ui/comfortable-sidebar-default-width.patch",
         "sha256": "b1334bfea3ab5e197dfb1c46e4a19fde7f1c0f5c12706d87e4a266c298ee19ec"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-idle-controls.patch",
+        "sha256": "91ba0a868d092eddc495dfcd0313f2ef37cf8a98e2c1bcd6e09e37e6d9afccfe"
       }
     ]
   },
@@ -3545,6 +3549,21 @@
         "255874e24be6bc115bf25b0e6d811c1fd2e87021",
         "ab8bff826e9c36d63ed8ddc326355128451a7d3c",
         "a7a8b2f52137b9736b0bcc41e206474dac699a1f"
+      ]
+    },
+    {
+      "id": "pip-idle-controls",
+      "depends_on": [
+        "automatic-picture-in-picture"
+      ],
+      "patches": [
+        "patches/helium/ui/macos-picture-in-picture-idle-controls.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Let macOS Picture-in-Picture video play without controls or an idle pointer obscuring it.",
+      "adaptation": "Time out the overlay after 2.5 seconds, preserve active gestures and keyboard access, and restore controls on pointer motion. Hide the cursor only over visible Picture-in-Picture video while Lune is active.",
+      "commits": [
+        "100deb1ff459c2c496650d4dd9e335c26ba4488b"
       ]
     }
   ],
