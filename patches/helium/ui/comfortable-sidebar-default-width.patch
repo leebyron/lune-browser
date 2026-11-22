@@ -1,0 +1,11 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -317,7 +317,7 @@
+ }
+ 
+ int GetVerticalTabStripDefaultUncollapsedWidth() {
+-  return 216;
++  return IsSpaciousUiDensity() ? 240 : 216;
+ }
+ 
+ int GetHeliumVerticalTabStripCollapseSnapWidth(int min_width) {
