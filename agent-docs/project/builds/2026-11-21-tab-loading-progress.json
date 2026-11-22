@@ -1,0 +1,68 @@
+{
+  "date": "2026-11-21",
+  "component_ref": "refs/tags/inputs/tab-loading-progress-1/macos",
+  "macos": "3f2a89c5992c6c50b63f7a435fb6c6b9f926b128",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "chromium": "159.0.8154.13",
+  "patch_sha256": "f577b5e47c10c50af31b4a1aec17bab3a8496a71de19fb91a2878918da978ee6",
+  "repository_tests": "108 run, one skipped",
+  "accepted_preview": "Owner reviewed the two-pixel line, reduced pulsing halo and theme colors. Both Lune appearances use the dark button highlight.",
+  "builds": {
+    "arm64": {
+      "execution": "native Apple silicon",
+      "strict_patches": 673,
+      "settings_strings_hunk_offset_lines": 4,
+      "source_matches_preview": true,
+      "framework_sha256": "72465eecabcc6d78cb80b59ef256215967a7b2d2327f26b155a565b30d2ff9e4",
+      "smoke_report_sha256": "f7a3e7a5430d29ef6bff36ce5f3e98144b16b87a811558839d5e9d5fd5310856",
+      "settings_and_ui_smoke_passed": true,
+      "settings_native_check": {
+        "default_on": 1,
+        "off": 0,
+        "on_again": 1,
+        "off_new_load": 0,
+        "address_bar_preference_unchanged": true,
+        "persisted_off_after_restart": true
+      }
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "strict_patches": 673,
+      "settings_strings_hunk_offset_lines": 4,
+      "source_matches_preview": true,
+      "framework_sha256": "06ec0f15c16fb7dd2d656f6c68b24fc1c7853a5799d9dc6ea9c08eac214a5d90",
+      "smoke_report_sha256": "9640da16219fae172bc13e8d8144a99fbfb7b563a3986949527a9d1e82ee4bb5",
+      "settings_and_ui_smoke_passed": true,
+      "settings_native_check": {
+        "default_on": 1,
+        "off": 0,
+        "on_again": 1,
+        "off_new_load": 0,
+        "address_bar_preference_unchanged": true,
+        "persisted_off_after_restart": true
+      }
+    }
+  },
+  "generated_resource_sha256": {
+    "chrome/browser/resources/settings/tsc/appearance_page/appearance_layout_page.html.js": "351d65aff82368d5a0509da761fa879cdd5d6d2d74820b370947bc258b803ef5",
+    "chrome/grit/generated_resources.h": "73813d148792ae2a9a8e6380cd11740777a2d73ad42f08c252e5277823050c8b",
+    "chrome/browser/resources/settings/bundled/settings.rollup.js": "67d76037aa3aebe0712b9d4eb5e6245290ef3250be482d9ad842f398b3c26e3e"
+  },
+  "prepared_changes": {
+    "chrome/app/settings_strings.grdp": "67a8f9cea95d060280e660a99c2ab8f4f72acc2196b3d3c29efb2b2987687ec6",
+    "chrome/browser/extensions/api/settings_private/prefs_util.cc": "968a5e1423126f4a7b7f09a85ec21db232102c28dc43148f9dc5d4a4d236093d",
+    "chrome/browser/resources/settings/appearance_page/appearance_layout_page.html.ts": "efdb398bd8085e824c84ac1fd90b2e5b155502b77f7cd97337bdfe3f8ac74160",
+    "chrome/browser/ui/browser_ui_prefs.cc": "f997f4ddcd03a328dd1292d1a696e479b2d595da30c818033c6805efff05522e",
+    "chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm": "88f70fd26c0a7cc8ec83787b7221a559230600e4108d4919a19b5bcdf5355455",
+    "chrome/browser/ui/views/location_bar/BUILD.gn": "eb8e7f2fe27a749ea0a61123f06741a892081660967b4fb23adf907c18fabb21",
+    "chrome/browser/ui/views/location_bar/location_bar_progress_view.cc": "01f833303bc321346d63538fa3c9f806efec270a3503dbf6917a97af9a9d632d",
+    "chrome/browser/ui/views/location_bar/location_bar_progress_view.h": "4b0db8fb9e6ad2387ed77c86d45666b1335237f8f4e5a3c725abb596c00fc55c",
+    "chrome/browser/ui/views/tabs/common/BUILD.gn": "cb6481c1e9f83330d4172590af08b284f441ed4a3ec3e15d1725608a56f3a8fb",
+    "chrome/browser/ui/views/tabs/common/tab_view.cc": "82ffb930d48856b7557e1d8b80ad36231e18163ea3e387b5361f94fa146a0566",
+    "chrome/browser/ui/views/tabs/common/tab_view.h": "d05e20a8d50f4d0537dddca5ec6f81fea671cf8c0b4812422ad783b7b28f42fe",
+    "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "90a440c5918977a2c322857a6e8af05ff1c622767d2a659935bfd95eaededf00",
+    "chrome/common/BUILD.gn": "1f53e9df962884e131d0b0df954116294046a0a8a1e4c412604de6bbb7f79c5e",
+    "chrome/common/tab_loading_progress_pref_names.h": "bd9984f3510adc6846c9c91573ce9a1b361d405b03e14dc2191d72b09ae69814"
+  },
+  "settings_native_check_method": "Clicked the labeled Appearance and behavior control during a held navigation. Inspected the Visible property on every native LocationBarProgressView under a TabView. Counts show how many tab indicators were visible. The Mac display was locked, so this check used the native view tree. Repeated on a fresh navigation and reopened the same profile to check persistence."
+}

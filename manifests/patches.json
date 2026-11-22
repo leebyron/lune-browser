@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "018b1e377654ebf997f8647a8bf9ea1321d9a627",
+    "commit": "3f2a89c5992c6c50b63f7a435fb6c6b9f926b128",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1135,6 +1135,10 @@
       {
         "path": "patches/helium/macos/updater/macos-staged-update-replacement.patch",
         "sha256": "7815619e65b3728100df7080f20fa87eb76962b8a5dfcb0a10f2b668afcaebda"
+      },
+      {
+        "path": "patches/helium/ui/tab-loading-progress.patch",
+        "sha256": "f577b5e47c10c50af31b4a1aec17bab3a8496a71de19fb91a2878918da978ee6"
       }
     ]
   },
@@ -3589,6 +3593,19 @@
       "adaptation": "Backport Sparkle e95f42b15686ad547a919ddaef18d75eac9bf5d9 to 2.10.1, preserving headless progress and pinned feed download behavior. End the automatic cycle after preparation and reconnect to the installer for an explicit relaunch.",
       "commits": [
         "018b1e377654ebf997f8647a8bf9ea1321d9a627"
+      ]
+    },
+    {
+      "id": "tab-loading-progress",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/tab-loading-progress.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Show loading progress at the bottom of each tab with an independent profile preference.",
+      "adaptation": "Share the address bar animation with tab views and expose a default-on Appearance and behavior toggle for the two-DIP line and reduced halo.",
+      "commits": [
+        "3f2a89c5992c6c50b63f7a435fb6c6b9f926b128"
       ]
     }
   ],

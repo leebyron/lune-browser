@@ -34,3 +34,22 @@ resolve a suitable symbol.
 
 See the [adoption validation](../builds/2026-11-21-tab-status-symbols.json)
 for the owner review, source replay and browser builds.
+
+## Page loading progress
+
+Each loading tab shows a two-pixel line along its bottom edge, including
+background and pinned tabs. It follows the same navigation progress, easing,
+pulse and completion fade as the address-bar indicator. The halo above the
+line uses 30% of its original opacity. Native uses the system tab-loading
+blue, lightened in light mode. Both Lune appearances use the dark theme’s
+teal button highlight. Other themes shift an analogous hue toward blue,
+and high-contrast and forced-color modes use the system primary color.
+
+**Show page loading progress in tab** is enabled by default under
+**Appearance and behavior**. Turning it off immediately hides the line and
+halo and stops their animations across the profile. Turning it back on
+during a load shows the current progress. The address-bar indicator has
+its own setting.
+
+See the [loading progress validation](../builds/2026-11-21-tab-loading-progress.json) for the
+paired browser builds and preference checks.
