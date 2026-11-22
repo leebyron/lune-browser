@@ -58,7 +58,9 @@ Isolate ordinary fixtures with `--custom-update-server-url=http://127.0.0.1:1/`.
    verifies clean frozen inputs, source hashes, tools and GN arguments before
    compilation, runs a native cache-preflight dry run that rejects missing
    dependencies in old workspaces, and verifies source hashes again afterward. Include chrome,
-   chromedriver and chrome/installer/mac. Run the packaged smoke checks on each
+   chromedriver and chrome/installer/mac. With separate source trees for each
+   architecture, pass `--output-name Default` to reuse an Intel cache already
+   built in `out/Default`. Run the packaged smoke checks on each
    architecture at both forced display scales. Keep both JSON reports for staging.
 
    ```sh

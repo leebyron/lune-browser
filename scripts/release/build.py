@@ -19,6 +19,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--version', required=True)
     p.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
+    p.add_argument('--output-name', choices=['Default', 'Intel'],
+                   help='Reuse a target-specific output when the architectures use separate source trees')
     p.add_argument('--source', type=Path, required=True)
     p.add_argument('--prepared-report', type=Path, required=True)
     p.add_argument('--report', type=Path, required=True)
@@ -47,7 +49,8 @@ def main():
     for name,digest in recipe['source_tools'].items():
         if sha(src/name)!=digest:
             raise ValueError(f'Toolchain input changed: {name}')
-    out = src / 'out' / ('Default' if a.arch == 'arm64' else 'Intel')
+    output_name = a.output_name or ('Default' if a.arch == 'arm64' else 'Intel')
+    out = src / 'out' / output_name
     args = dict(recipe['gn_args'], target_cpu=json.dumps('arm64' if a.arch == 'arm64' else 'x64'),
                 sparkle_feed_url=json.dumps(feed_url(a.arch)))
     out.mkdir(parents=True, exist_ok=True)
