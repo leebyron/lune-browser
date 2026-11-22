@@ -1,0 +1,511 @@
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
+@@ -33,12 +33,15 @@
+     base::RepeatingClosure skip_back;
+     base::RepeatingClosure skip_forward;
+     base::RepeatingClosure update_hover;
++    base::RepeatingCallback<void(bool moved)> pointer_activity;
+   };
+   enum class PlaybackSymbol { kPlay, kPause, kReplay };
+   static constexpr int kPlayButtonSize = 72;
+ 
+   void InstallWindowControls(Actions actions);
+   void SetWindowControlsVisible(bool visible, bool animate);
++  void SetIdleCursorHidden(bool hidden);
++  void ReleaseIdleCursorIfOutsideWindow();
+   void SetTransportControls(const gfx::Rect& play_pause,
+                             const gfx::Rect& skip_back,
+                             const gfx::Rect& skip_forward);
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+@@ -676,6 +676,16 @@
+ 
+ struct VideoOverlayWindowNativeWidgetMac::Titlebar {
+   ~Titlebar() {
++    if (owns_idle_cursor_hide) {
++      [NSCursor setHiddenUntilMouseMoves:NO];
++    }
++    [background_pointer_timer invalidate];
++    if (activation_observer) {
++      [NSNotificationCenter.defaultCenter removeObserver:activation_observer];
++    }
++    if (deactivation_observer) {
++      [NSNotificationCenter.defaultCenter removeObserver:deactivation_observer];
++    }
+     if (local_mouse_monitor) {
+       [NSEvent removeMonitor:local_mouse_monitor];
+     }
+@@ -687,6 +697,10 @@
+   VideoPictureInPictureControls* view;
+   id local_mouse_monitor;
+   id global_mouse_monitor;
++  NSTimer* background_pointer_timer;
++  id activation_observer;
++  id deactivation_observer;
++  bool owns_idle_cursor_hide = false;
+   std::unique_ptr<views::Widget::PaintAsActiveLock> paint_as_active;
+ };
+ 
+@@ -722,6 +736,7 @@
+   titlebar_ = std::make_unique<Titlebar>();
+   titlebar_->paint_as_active = GetWidget()->LockPaintAsActive();
+   auto update_hover = std::move(actions.update_hover);
++  auto pointer_activity = std::move(actions.pointer_activity);
+   titlebar_->view = [[VideoPictureInPictureControls alloc]
+       initWithWindow:window
+              actions:std::move(actions)];
+@@ -735,21 +750,95 @@
+   constexpr NSEventMask kPointerMotion =
+       NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged |
+       NSEventMaskRightMouseDragged | NSEventMaskOtherMouseDragged;
++  constexpr NSEventMask kPointerButtons =
++      NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp |
++      NSEventMaskRightMouseDown | NSEventMaskRightMouseUp |
++      NSEventMaskOtherMouseDown | NSEventMaskOtherMouseUp;
++  __block NSPoint last_pointer = NSEvent.mouseLocation;
++  void (^on_pointer_motion)(void) = ^{
++    const NSPoint point = NSEvent.mouseLocation;
++    if (!NSEqualPoints(point, last_pointer)) {
++      last_pointer = point;
++      pointer_activity.Run(true);
++    }
++  };
++  __weak NSWindow* pip_window = window;
+   titlebar_->local_mouse_monitor = [NSEvent
+-      addLocalMonitorForEventsMatchingMask:kPointerMotion |
+-                                         NSEventMaskLeftMouseDown |
+-                                         NSEventMaskLeftMouseUp |
++      addLocalMonitorForEventsMatchingMask:kPointerMotion | kPointerButtons |
+                                          NSEventMaskMouseEntered |
+                                          NSEventMaskMouseExited
+                                   handler:^NSEvent*(NSEvent* event) {
+-                                    update_hover.Run();
+-                                    return event;
+-                                  }];
+-  titlebar_->global_mouse_monitor =
+-      [NSEvent addGlobalMonitorForEventsMatchingMask:kPointerMotion
+-                                            handler:^(NSEvent*) {
+-                                              update_hover.Run();
+-                                            }];
++    const NSEventMask mask = NSEventMaskFromType(event.type);
++    if (mask & kPointerMotion) {
++      on_pointer_motion();
++    } else if ((mask & kPointerButtons) && event.window == pip_window) {
++      pointer_activity.Run(false);
++    } else {
++      update_hover.Run();
++    }
++    return event;
++  }];
++  titlebar_->global_mouse_monitor = [NSEvent
++      addGlobalMonitorForEventsMatchingMask:kPointerMotion
++                                    handler:^(NSEvent*) {
++    on_pointer_motion();
++  }];
++
++  // The inactive app can miss mouse events over a floating PiP window.
++  // Sample pointer position while inactive and stop sampling on activation.
++  NSTimer* timer = [NSTimer timerWithTimeInterval:1.0 / 60.0
++                                        repeats:YES
++                                          block:^(NSTimer*) {
++    NSWindow* window = pip_window;
++    if (window.isVisible && !window.isMiniaturized) {
++      on_pointer_motion();
++    }
++  }];
++  timer.fireDate = NSApp.isActive ? NSDate.distantFuture : NSDate.date;
++  [NSRunLoop.mainRunLoop addTimer:timer forMode:NSRunLoopCommonModes];
++  titlebar_->background_pointer_timer = timer;
++  NSNotificationCenter* notifications = NSNotificationCenter.defaultCenter;
++  titlebar_->activation_observer = [notifications
++      addObserverForName:NSApplicationDidBecomeActiveNotification
++                  object:NSApp
++                   queue:nil
++              usingBlock:^(NSNotification*) {
++    timer.fireDate = NSDate.distantFuture;
++  }];
++  titlebar_->deactivation_observer = [notifications
++      addObserverForName:NSApplicationDidResignActiveNotification
++                  object:NSApp
++                   queue:nil
++              usingBlock:^(NSNotification*) {
++    timer.fireDate = NSDate.date;
++  }];
++}
++
++void VideoOverlayWindowNativeWidgetMac::SetIdleCursorHidden(bool hidden) {
++  if (!titlebar_ || titlebar_->owns_idle_cursor_hide == hidden) {
++    return;
++  }
++  if (hidden) {
++    NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
++    if (!NSApp.isActive || !window.isVisible || window.isMiniaturized ||
++        [NSWindow windowNumberAtPoint:NSEvent.mouseLocation
++            belowWindowWithWindowNumber:0] != window.windowNumber) {
++      return;
++    }
++  }
++  [NSCursor setHiddenUntilMouseMoves:hidden];
++  titlebar_->owns_idle_cursor_hide = hidden;
++}
++
++void VideoOverlayWindowNativeWidgetMac::ReleaseIdleCursorIfOutsideWindow() {
++  if (!titlebar_ || !titlebar_->owns_idle_cursor_hide) {
++    return;
++  }
++  NSWindow* window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
++  if ([NSWindow windowNumberAtPoint:NSEvent.mouseLocation
++          belowWindowWithWindowNumber:0] != window.windowNumber) {
++    SetIdleCursorHidden(false);
++  }
+ }
+ 
+ void VideoOverlayWindowNativeWidgetMac::SetWindowControlsVisible(bool visible,
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -152,8 +152,6 @@
+ 
+ // Expand just the relevant edge strip. A pointer outside the middle of the
+ // window's side cannot reveal either group from there.
+-enum class MacControlReveal { kHidden, kHeader, kFooter, kAll };
+-
+ bool IsPointerNearControlBar(const gfx::Point& cursor,
+                              const gfx::Rect& bar,
+                              bool was_hovered) {
+@@ -479,6 +477,8 @@
+           &VideoOverlayWindowViews::Forward10Seconds, weak_window),
+       .update_hover = base::BindRepeating(
+           &VideoOverlayWindowViews::UpdateControlsForCursor, weak_window),
++      .pointer_activity = base::BindRepeating(
++          &VideoOverlayWindowViews::OnMacPointerActivity, weak_window),
+   });
+ #endif
+ 
+@@ -545,11 +545,16 @@
+       hide_controls_timer_(
+           FROM_HERE,
+           base::Milliseconds(2500),
++#if BUILDFLAG(IS_MAC)
++          base::BindRepeating(&VideoOverlayWindowViews::OnMacPointerIdleTimeout,
++                              base::Unretained(this))),
++#else
+           base::BindRepeating(
+               &VideoOverlayWindowViews::UpdateControlsVisibility,
+               base::Unretained(this),
+               false /* is_visible */,
+               true /* should_animate */)),
++#endif
+       enable_controls_after_move_timer_(
+           FROM_HERE,
+           VideoOverlayWindowViews::kControlHideDelayAfterMove,
+@@ -654,7 +659,17 @@
+   // is used for tabbing and touch interactions. For mouse interactions, the
+   // window cannot be blurred before the ui::EventType::kMouseExited event is
+   // handled.
++#if BUILDFLAG(IS_MAC)
++  keyboard_controls_visible_ = false;
++  if (auto* mac_widget =
++          static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget())) {
++    mac_widget->SetIdleCursorHidden(false);
++  }
++#endif
+   UpdateControlsVisibility(false);
++#if BUILDFLAG(IS_MAC)
++  UpdateMacPointerIdleTimer();
++#endif
+ 
+   views::Widget::OnNativeBlur();
+ }
+@@ -726,9 +741,16 @@
+ }
+ 
+ void VideoOverlayWindowViews::OnKeyEvent(ui::KeyEvent* event) {
+-  // Every time a user uses a keyboard to interact on the window, restart the
+-  // timer to automatically hide the controls.
++#if BUILDFLAG(IS_MAC)
++  if (event->type() == ui::EventType::kKeyPressed ||
++      event->key_code() == ui::VKEY_TAB) {
++    ResetMacPointerIdle();
++    keyboard_controls_visible_ = true;
++  }
++#else
++  // Restart the keyboard hide timer.
+   hide_controls_timer_.Reset();
++#endif
+ 
+   // Any keystroke will make the controls visible, if not already. The Tab key
+   // needs to be handled separately.
+@@ -818,9 +840,9 @@
+       break;
+   }
+ 
+-  // If the user interacts with the window using a mouse, stop the timer to
+-  // automatically hide the controls.
++#if !BUILDFLAG(IS_MAC)
+   hide_controls_timer_.Reset();
++#endif
+ 
+   MaybeUpdateMeetsUserInteraction(*event);
+ 
+@@ -940,38 +962,52 @@
+   const bool compact =
+       bounds.height() < 2 * kBottomControlsHeight +
+                             VideoOverlayWindowNativeWidgetMac::kPlayButtonSize;
+-  MacControlReveal reveal = MacControlReveal::kHidden;
+-  if (can_show_controls && dragging_progress) {
+-    // Keep the scrubber alive until Views delivers the end of the drag.
+-    reveal = compact ? MacControlReveal::kAll : MacControlReveal::kFooter;
+-  } else if (can_show_controls && force_controls_visible_.has_value()) {
+-    reveal = *force_controls_visible_ ? MacControlReveal::kAll
+-                                      : MacControlReveal::kHidden;
+-  } else if (compact && can_hover) {
+-    if (IsPointerNearControlBar(cursor, bounds, center_controls_visible_)) {
+-      reveal = MacControlReveal::kAll;
++  MacControlReveal hover = MacControlReveal::kHidden;
++  if (compact && can_hover) {
++    if (IsPointerNearControlBar(cursor, bounds,
++                                hover_reveal_ != MacControlReveal::kHidden)) {
++      hover = MacControlReveal::kAll;
+     }
+   } else if (inside) {
+-    reveal = header.Contains(cursor)   ? MacControlReveal::kHeader
+-             : footer.Contains(cursor) ? MacControlReveal::kFooter
+-                                       : MacControlReveal::kAll;
++    hover = header.Contains(cursor)   ? MacControlReveal::kHeader
++            : footer.Contains(cursor) ? MacControlReveal::kFooter
++                                      : MacControlReveal::kAll;
+   } else if (can_hover) {
+     // A fresh edge takes precedence over retention from the opposite edge.
+     const bool near_header = IsPointerNearControlBar(cursor, header, false);
+     const bool near_footer = IsPointerNearControlBar(cursor, footer, false);
+     const bool keep_header =
+-        header_hovered_ && IsPointerNearControlBar(cursor, header, true);
++        (hover_reveal_ == MacControlReveal::kHeader ||
++         hover_reveal_ == MacControlReveal::kAll) &&
++        IsPointerNearControlBar(cursor, header, true);
+     const bool keep_footer =
+-        footer_hovered_ && IsPointerNearControlBar(cursor, footer, true);
++        (hover_reveal_ == MacControlReveal::kFooter ||
++         hover_reveal_ == MacControlReveal::kAll) &&
++        IsPointerNearControlBar(cursor, footer, true);
+     if (near_header || near_footer) {
+-      reveal = near_header ? MacControlReveal::kHeader : MacControlReveal::kFooter;
++      hover = near_header ? MacControlReveal::kHeader : MacControlReveal::kFooter;
+     } else if (keep_header || keep_footer) {
+       const bool closer_to_header = cursor.y() < bounds.CenterPoint().y();
+-      reveal = keep_header && (!keep_footer || closer_to_header)
+-                   ? MacControlReveal::kHeader
+-                   : MacControlReveal::kFooter;
++      hover = keep_header && (!keep_footer || closer_to_header)
++                  ? MacControlReveal::kHeader
++                  : MacControlReveal::kFooter;
+     }
+   }
++  // Keep track of hover retention while the visible controls are idle.
++  hover_reveal_ = hover;
++
++  MacControlReveal reveal = MacControlReveal::kHidden;
++  if (can_show_controls && dragging_progress) {
++    // Keep the scrubber alive until Views delivers the end of the drag.
++    reveal = compact ? MacControlReveal::kAll : MacControlReveal::kFooter;
++  } else if (can_show_controls && force_controls_visible_.has_value()) {
++    reveal = *force_controls_visible_ ? MacControlReveal::kAll
++                                      : MacControlReveal::kHidden;
++  } else if (can_hover && keyboard_controls_visible_) {
++    reveal = MacControlReveal::kAll;
++  } else if (!pointer_idle_) {
++    reveal = hover;
++  }
+   center_controls_visible_ = reveal == MacControlReveal::kAll;
+   header_hovered_ = center_controls_visible_ || reveal == MacControlReveal::kHeader;
+   footer_hovered_ = center_controls_visible_ || reveal == MacControlReveal::kFooter;
+@@ -1093,6 +1129,69 @@
+ void VideoOverlayWindowViews::UpdateControlsForCursor() {
+   if (has_been_shown_ && !IsClosed()) {
+     UpdateControlsVisibility(false);
++    if (pointer_idle_) {
++      static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget())
++          ->ReleaseIdleCursorIfOutsideWindow();
++    }
++    if (!hide_controls_timer_.IsRunning()) {
++      UpdateMacPointerIdleTimer();
++    }
++  }
++}
++
++void VideoOverlayWindowViews::OnMacPointerActivity(bool moved) {
++  if (!has_been_shown_ || IsClosed() || !IsVisible() || IsMinimized()) {
++    return;
++  }
++  if (moved) {
++    ResetMacPointerIdle();
++  } else if (pointer_idle_) {
++    // A stationary click keeps its existing hit target.
++    return;
++  }
++  UpdateControlsForCursor();
++  UpdateMacPointerIdleTimer();
++}
++
++bool VideoOverlayWindowViews::CanTimeOutMacControls() const {
++  return has_been_shown_ && !IsClosed() && IsVisible() && !IsMinimized() &&
++         !pointer_idle_ && !keyboard_controls_visible_ && !is_live_resizing_ &&
++         !force_controls_visible_.has_value() && !IsOverlayViewShown() &&
++         (!live_caption_dialog_ || !live_caption_dialog_->GetVisible()) &&
++         progress_view_drag_state_ ==
++             global_media_controls::DragState::kDragEnded &&
++         (header_hovered_ || footer_hovered_);
++}
++
++void VideoOverlayWindowViews::UpdateMacPointerIdleTimer() {
++  if (CanTimeOutMacControls()) {
++    hide_controls_timer_.Reset();
++  } else {
++    hide_controls_timer_.Stop();
++  }
++}
++
++void VideoOverlayWindowViews::OnMacPointerIdleTimeout() {
++  if (!CanTimeOutMacControls()) {
++    return;
++  }
++  if (IsMouseButtonDown()) {
++    hide_controls_timer_.Reset();
++    return;
++  }
++  pointer_idle_ = true;
++  UpdateControlsVisibility(false);
++  static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget())
++      ->SetIdleCursorHidden(true);
++}
++
++void VideoOverlayWindowViews::ResetMacPointerIdle() {
++  pointer_idle_ = false;
++  keyboard_controls_visible_ = false;
++  hide_controls_timer_.Stop();
++  if (auto* mac_widget =
++          static_cast<VideoOverlayWindowNativeWidgetMac*>(native_widget())) {
++    mac_widget->SetIdleCursorHidden(false);
+   }
+ }
+ 
+@@ -1138,6 +1237,7 @@
+ 
+ void VideoOverlayWindowViews::OnNativeWidgetUserResizeStarted() {
+   views::Widget::OnNativeWidgetUserResizeStarted();
++  ResetMacPointerIdle();
+   is_live_resizing_ = true;
+   UpdateControlsForCursor();
+ }
+@@ -1146,15 +1246,22 @@
+   views::Widget::OnNativeWidgetUserResizeEnded();
+   is_live_resizing_ = false;
+   UpdateControlsForCursor();
++  UpdateMacPointerIdleTimer();
+ }
+ 
+ void VideoOverlayWindowViews::EnterVideoFullscreen() {
++  ResetMacPointerIdle();
+   controller_->RequestFullscreen();
+ }
+ 
+ void VideoOverlayWindowViews::OnNativeWidgetVisibilityChanged(bool visible) {
++  if (!visible || IsMinimized()) {
++    ResetMacPointerIdle();
++    hover_reveal_ = MacControlReveal::kHidden;
++  }
+   views::Widget::OnNativeWidgetVisibilityChanged(visible);
+   UpdateControlsForCursor();
++  UpdateMacPointerIdleTimer();
+ }
+ #endif
+ 
+@@ -2202,6 +2309,9 @@
+ }
+ 
+ void VideoOverlayWindowViews::Close() {
++#if BUILDFLAG(IS_MAC)
++  ResetMacPointerIdle();
++#endif
+   views::Widget::Close();
+   MaybeUnregisterFrameSinkHierarchy();
+   if (fade_animator_) {
+@@ -2271,6 +2381,9 @@
+ 
+   // If this is not the first time the window is shown, this will be a no-op.
+   has_been_shown_ = true;
++#if BUILDFLAG(IS_MAC)
++  UpdateMacPointerIdleTimer();
++#endif
+ 
+   // If we're still tucked from a previous session and it's no longer necessary,
+   // then untuck now.
+@@ -2283,6 +2396,9 @@
+ }
+ 
+ void VideoOverlayWindowViews::Hide() {
++#if BUILDFLAG(IS_MAC)
++  ResetMacPointerIdle();
++#endif
+   // If there is an existing overlay view, remove it now.
+   RemoveOverlayViewIfExists();
+   views::Widget::Hide();
+@@ -2510,6 +2626,9 @@
+ }
+ 
+ void VideoOverlayWindowViews::OnNativeWidgetDestroying() {
++#if BUILDFLAG(IS_MAC)
++  ResetMacPointerIdle();
++#endif
+   views::Widget::OnNativeWidgetDestroying();
+   MaybeUnregisterFrameSinkHierarchy();
+ }
+@@ -2539,9 +2658,11 @@
+ void VideoOverlayWindowViews::OnGestureEvent(ui::GestureEvent* event) {
+   MaybeUpdateMeetsUserInteraction(*event);
+ 
+-  // Every time a user taps on the window, restart the timer to automatically
+-  // hide the controls.
++#if BUILDFLAG(IS_MAC)
++  OnMacPointerActivity(true);
++#else
+   hide_controls_timer_.Reset();
++#endif
+ 
+   // Use the gesture to show the controls if necessary.
+   if (ShowControlsForGestureIfNecessary(event)) {
+@@ -2873,6 +2994,7 @@
+   OnUpdateControlsBounds();
+ #if BUILDFLAG(IS_MAC)
+   UpdateControlsForCursor();
++  UpdateMacPointerIdleTimer();
+ #endif
+ }
+ 
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.h
+@@ -321,7 +321,14 @@
+   gfx::Rect GetFooterControlBounds(const views::View* control);
+ 
+ #if BUILDFLAG(IS_MAC)
++  enum class MacControlReveal { kHidden, kHeader, kFooter, kAll };
++
+   void UpdateControlsForCursor();
++  void OnMacPointerActivity(bool moved);
++  bool CanTimeOutMacControls() const;
++  void UpdateMacPointerIdleTimer();
++  void OnMacPointerIdleTimeout();
++  void ResetMacPointerIdle();
+   void UpdateNativeTransportControls();
+   void UpdateMacVideoConferenceControls(bool animate);
+   void EnterVideoFullscreen();
+@@ -514,6 +521,9 @@
+   bool center_controls_visible_ = false;
+   bool footer_controls_visible_ = false;
+   bool is_live_resizing_ = false;
++  bool pointer_idle_ = false;
++  bool keyboard_controls_visible_ = false;
++  MacControlReveal hover_reveal_ = MacControlReveal::kHidden;
+ #endif
+   raw_ptr<views::ImageView> favicon_view_ = nullptr;
+   raw_ptr<views::Label> origin_ = nullptr;
