@@ -40,7 +40,7 @@ def verify(app):
 
 
 @contextmanager
-def session(app, driver, profile, log, extra_args=()):
+def session(app, driver, profile, log, extra_args=(), *, headed=False):
     profile = require_temporary_profile(profile)
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
@@ -68,7 +68,7 @@ def session(app, driver, profile, log, extra_args=()):
                 raise RuntimeError('ChromeDriver startup timeout')
             value = request('POST', '/session', {'capabilities': {'alwaysMatch': {
                 'goog:chromeOptions': {'binary': str(app / 'Contents/MacOS/Lune'), 'args': [
-                    '--headless=new', '--no-first-run', '--no-default-browser-check',
+                    *([] if headed else ['--headless=new']), '--no-first-run', '--no-default-browser-check',
                     '--disable-background-networking', '--password-store=basic', '--use-mock-keychain',
                     '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1',
                     f'--user-data-dir={profile}', *extra_args]}}}})

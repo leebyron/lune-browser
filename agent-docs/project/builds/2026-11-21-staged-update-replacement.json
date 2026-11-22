@@ -1,0 +1,267 @@
+{
+  "date": "2026-11-21",
+  "chromium": "159.0.8154.13",
+  "platform": {
+    "commit": "018b1e377654ebf997f8647a8bf9ea1321d9a627",
+    "upstream_commit": "0e6652ec877e64a32bb732d8f8d00d56bcb6d46e",
+    "tree": "c443c2730d2317f7de50e71dbb2b5f30d59fd8d0",
+    "ref": "refs/tags/inputs/refresh-staged-updates-1/macos"
+  },
+  "sparkle": "2.10.1",
+  "sparkle_upstream_change": "e95f42b15686ad547a919ddaef18d75eac9bf5d9",
+  "test_baseline": "0.23.2.1",
+  "first_offer": "99.1.2",
+  "second_offer": "99.1.3",
+  "automatic_debug_arm64": {
+    "trigger": "automatic",
+    "offer": "newer",
+    "finish": "quit",
+    "installed": "99.1.3",
+    "archive_requests": [
+      "Lune-99.1.2.zip",
+      "Lune-99.1.3.zip"
+    ],
+    "feed_requests": 4,
+    "report_sha256": "8742134d23bd2b8128a7d11ec4ba9c95d4a69c14457b90d81a59905006d1bd42",
+    "feed_request_seconds": [
+      3.079,
+      3.531,
+      63.63,
+      124.039
+    ]
+  },
+  "repository_tests": 108,
+  "architectures": {
+    "arm64": {
+      "execution": "native",
+      "strict_patches": 672,
+      "changed_source_paths": 33,
+      "source_parity_sha256": "e4f9856d7d4ba4cc9acc165e30b71e1038a2ae68ce6ea7de4df602790f322e5c",
+      "preparation_log_sha256": "ed3a08656d1d89d3dbf945e3a75fea6dd523487580a5b475c9ce446f498c823e",
+      "build_log_sha256": "d4e9f2e2f52808a00a46bd706bd79de7da5979e379ae5922f8933af5a21bcb34",
+      "smoke_report_sha256": "fe3fbc22252a1747417a5850ee86bcbbb658c2edbc4de278d11fbbf6cfb04a6d",
+      "browser_executable_sha256": "af6cd43d10812ad499d0585b775a4f1e2368d3a43966ab5bb19cf2777ec64b9a",
+      "browser_framework_sha256": "9f8e2dd87242ba53166d291572b7e3704e2d637f3599fb4739b053c0c5ff00de",
+      "sparkle_sha256": "125c0bfd018aaca556511183b9e76c257ae8374eb9a43abe540eeec38da35635",
+      "smoke_checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "native_fixtures": {
+        "check-native-update-menu": [
+          "PASS: localized app-menu order, separator, target, no shortcut, no PWA entry",
+          "PASS: asynchronous profile loading, no windows, profile failure and shutdown",
+          "PASS: shared updater startup, retry, repeat checks, progress replay, ready state and consent"
+        ],
+        "check-update-release-notes": [
+          "PASS: downloaded release URL capture, replacement, missing URL and no installation"
+        ]
+      },
+      "mock_endpoint_tests": [
+        {
+          "trigger": "about",
+          "offer": "newer",
+          "finish": "quit",
+          "installed": "99.1.3",
+          "archive_requests": [
+            "Lune-99.1.2.zip",
+            "Lune-99.1.3.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "49657062b8e6ff20dfc9fee296adc0162e7c850f415023027e3320ff5f90a071"
+        },
+        {
+          "trigger": "about",
+          "offer": "unchanged",
+          "finish": "quit",
+          "installed": "99.1.2",
+          "archive_requests": [
+            "Lune-99.1.2.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "32b9c25f61c499640f0d6c7bfe4505c77957fde1997c944187a91fbb0dc65770"
+        },
+        {
+          "trigger": "about",
+          "offer": "download-error",
+          "finish": "quit",
+          "installed": "99.1.2",
+          "archive_requests": [
+            "Lune-99.1.2.zip",
+            "Lune-99.1.3.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "eb4ebca79919727f8a6937095f573b57673583c74669a99358d3486d6db70e24"
+        },
+        {
+          "trigger": "about",
+          "offer": "bad-signature",
+          "finish": "quit",
+          "installed": "0.23.2.1",
+          "archive_requests": [
+            "Lune-99.1.2.zip",
+            "Lune-99.1.3.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "e4b19725925fb7b3394f1dbc775a13ef666fcf7b644713fef93e0658578088e9"
+        },
+        {
+          "trigger": "about",
+          "offer": "newer",
+          "finish": "relaunch",
+          "installed": "99.1.3",
+          "archive_requests": [
+            "Lune-99.1.2.zip",
+            "Lune-99.1.3.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "dd57e5091dd0eadf5eb76fb06032979d1ac69df087c82446cda1683cef868b30",
+          "relaunched": "99.1.3"
+        }
+      ]
+    },
+    "x86_64": {
+      "execution": "Rosetta 2",
+      "strict_patches": 672,
+      "changed_source_paths": 33,
+      "source_parity_sha256": "e4f9856d7d4ba4cc9acc165e30b71e1038a2ae68ce6ea7de4df602790f322e5c",
+      "preparation_log_sha256": "de16af129b5f68d6af3b1982e59a927c81bf968a18b7955993b761a8270eed2e",
+      "build_log_sha256": "7dc625f8d2cfb9cee458f825255ec7b189489fcf93a4a67a598c6c036ad809ed",
+      "smoke_report_sha256": "cfac804da3cb5ab5353cbcb270cd4fe7ee7e97224165c64b026cc5236dfe65f8",
+      "browser_executable_sha256": "d504d4cc887e6b4b6cdb6e949c71a355c4d38bfd5992d684a239ac95c37deaba",
+      "browser_framework_sha256": "510586273b912a845b547b67930bfd77859cb99faf6a6bfbf552c6687b52db18",
+      "sparkle_sha256": "738b099012d1eb0df52c0cc266467b1d041eabe9f971b152f66a250288d0025f",
+      "smoke_checks": [
+        {
+          "phase": "write",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        },
+        {
+          "phase": "read",
+          "title": "Lune build smoke",
+          "runtime": "ok",
+          "stored": "persisted"
+        }
+      ],
+      "native_fixtures": {
+        "check-native-update-menu": [
+          "PASS: localized app-menu order, separator, target, no shortcut, no PWA entry",
+          "PASS: asynchronous profile loading, no windows, profile failure and shutdown",
+          "PASS: shared updater startup, retry, repeat checks, progress replay, ready state and consent"
+        ],
+        "check-update-release-notes": [
+          "PASS: downloaded release URL capture, replacement, missing URL and no installation"
+        ]
+      },
+      "mock_endpoint_tests": [
+        {
+          "trigger": "about",
+          "offer": "newer",
+          "finish": "quit",
+          "installed": "99.1.3",
+          "archive_requests": [
+            "Lune-99.1.2.zip",
+            "Lune-99.1.3.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "a167e2ca1a84bf1e4f9c5d8df080323a532c58f73edc8847d0bbb3bbaf56ec94"
+        },
+        {
+          "trigger": "about",
+          "offer": "unchanged",
+          "finish": "quit",
+          "installed": "99.1.2",
+          "archive_requests": [
+            "Lune-99.1.2.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "30491202431b10c7e270692508ef90a9dc271c3c25ac8b22a2e5c6d9d2a0c889"
+        },
+        {
+          "trigger": "about",
+          "offer": "download-error",
+          "finish": "quit",
+          "installed": "99.1.2",
+          "archive_requests": [
+            "Lune-99.1.2.zip",
+            "Lune-99.1.3.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "41317c9bb0809f40e144ea631a94ac973a7db4fa00439d863b1ca1ae57ed48bb"
+        },
+        {
+          "trigger": "about",
+          "offer": "bad-signature",
+          "finish": "quit",
+          "installed": "0.23.2.1",
+          "archive_requests": [
+            "Lune-99.1.2.zip",
+            "Lune-99.1.3.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "e9ebf43082c3960e061adffbfe9e5cdcad2fb5a93e8b3ac81345b8b98859814a"
+        },
+        {
+          "trigger": "about",
+          "offer": "newer",
+          "finish": "relaunch",
+          "installed": "99.1.3",
+          "archive_requests": [
+            "Lune-99.1.2.zip",
+            "Lune-99.1.3.zip"
+          ],
+          "feed_requests": 3,
+          "report_sha256": "a869614097944c26be9a84ec8c59a9f84dc50b89ec05ed8cc9c5b155152c2af1",
+          "relaunched": "99.1.3"
+        }
+      ]
+    }
+  },
+  "affected_source_paths": {
+    "chrome/browser/mac/sparkle_glue.mm": "580e46194ca7e15b813fad1b5dcb8b3bf754ee4158d268f6df477ed7de4b49de",
+    "third_party/sparkle/BUILD.gn": "af77f01a6d71e9f0fa9284fe85ab61d7c22784f3a25a10c7e843f7bd18a0535e",
+    "third_party/sparkle/Sparkle.xcodeproj/project.pbxproj": "169629888029fcafc57f06a1f98daccebe005e9895220b69f6e37bde16a83db8",
+    "third_party/sparkle/Sparkle/SPUAutomaticUpdateDriver.h": null,
+    "third_party/sparkle/Sparkle/SPUAutomaticUpdateDriver.m": null,
+    "third_party/sparkle/Sparkle/SPUBasicUpdateDriver.h": null,
+    "third_party/sparkle/Sparkle/SPUBasicUpdateDriver.m": null,
+    "third_party/sparkle/Sparkle/SPUCoreBasedUpdateDriver.h": null,
+    "third_party/sparkle/Sparkle/SPUCoreBasedUpdateDriver.m": null,
+    "third_party/sparkle/Sparkle/SPUDownloadedUpdate.h": "5fe1dc6b83eb8cda7e3c8db74958f80dac54812a652009f63975a36555691fa1",
+    "third_party/sparkle/Sparkle/SPUDownloadedUpdate.m": "ba82a36ac9abf7f8b2c2488a2d393755a5512228a61dbfced3b191b2db9e3c52",
+    "third_party/sparkle/Sparkle/SPUInformationalUpdate.h": null,
+    "third_party/sparkle/Sparkle/SPUInformationalUpdate.m": null,
+    "third_party/sparkle/Sparkle/SPUInstallerDriver.m": "cc33fc0034831825047c211bdec3088034949a9e724be144da8b8d0fe6abd367",
+    "third_party/sparkle/Sparkle/SPUProbingUpdateDriver.h": null,
+    "third_party/sparkle/Sparkle/SPUProbingUpdateDriver.m": null,
+    "third_party/sparkle/Sparkle/SPUReleaseNotesDriver.h": "533cb242eff30071de0e519eb506d2a909dd4243179187748a191c0adcbe5d10",
+    "third_party/sparkle/Sparkle/SPUReleaseNotesDriver.m": "8bab835f444cbedba0326a428ca8dd8c38c1bbe6ccf6a7c820dfd2d56107ad9e",
+    "third_party/sparkle/Sparkle/SPUResumableUpdate.h": null,
+    "third_party/sparkle/Sparkle/SPUScheduledUpdateDriver.h": null,
+    "third_party/sparkle/Sparkle/SPUScheduledUpdateDriver.m": null,
+    "third_party/sparkle/Sparkle/SPUUIBasedUpdateDriver.h": null,
+    "third_party/sparkle/Sparkle/SPUUIBasedUpdateDriver.m": null,
+    "third_party/sparkle/Sparkle/SPUUpdateDriver.h": "b9fe60a315cba6e2041f9c600c5fc5385de6516d2903385db83451099d77f4fd",
+    "third_party/sparkle/Sparkle/SPUUpdateDriver.m": "57112c62853c9bfa79fe107f9accc5fe2107fbcf5751dc718de63e1a2b1cb67a",
+    "third_party/sparkle/Sparkle/SPUUpdater.m": "6810518522ae8b97ec86a95ec1db461a80bf03b44cc29a955abd24429c2dabdc",
+    "third_party/sparkle/Sparkle/SPUUpdaterTimer.m": "4a12357df18821d17f5696c7e9a0dc64fa1918219b081cdbffbfe63d9d4651fa",
+    "third_party/sparkle/Sparkle/SPUUserDriver.h": "92675163a7764839286dd1b5596e7f26f301ea92501e1a030539fd1a5dec2b0d",
+    "third_party/sparkle/Sparkle/SPUUserInitiatedUpdateDriver.h": null,
+    "third_party/sparkle/Sparkle/SPUUserInitiatedUpdateDriver.m": null,
+    "third_party/sparkle/Sparkle/SUAppcastDriver.h": "afa9c48b057d7383a40b67549fc17a480b11d08a4b8271b4dcf0b63ff9f3ae8f",
+    "third_party/sparkle/Sparkle/SUAppcastDriver.m": "b138a58f7aa81b7e4087b7f9896292e3946e6b7b0225e7ec8902ea0c58c7014a",
+    "third_party/sparkle/Sparkle/SUErrors.h": "b9e15095359d1a5b01264e83c2d6d6549d3f5cce6b747206082acd94228465e8"
+  }
+}

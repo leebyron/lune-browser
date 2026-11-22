@@ -112,7 +112,6 @@ struct StatusList {
 };
 @interface SparkleObserver : NSObject { @public StatusList status_callbacks_; }
 @property(nonatomic) BOOL permitted;
-@property(nonatomic,copy) void (^invocationBlock)(void);
 @property(nonatomic,strong) NSString* currentlyDownloadedVersion;
 @property(nonatomic) VersionUpdater::Status lastStatus;
 @property(nonatomic) int lastProgress;
@@ -127,6 +126,7 @@ struct StatusList {
 updater2=r'''
 @interface SPUUpdater : NSObject
 @property(nonatomic) BOOL canCheckForUpdates;
+@property(nonatomic) BOOL sessionInProgress;
 @property(nonatomic) BOOL automaticallyChecksForUpdates;
 @property(nonatomic) BOOL automaticallyDownloadsUpdates;
 @property(nonatomic) BOOL startResult;
@@ -196,17 +196,18 @@ int main() { @autoreleasepool {
  VersionUpdater::StatusCallback cb{[&](VersionUpdater::Status s,int p){result=s;progress=p;}};
  [observer updateProgress:67]; client.CheckForUpdate(cb,{});
  assert(result==VersionUpdater::UPDATING && progress==67 && updater.checks==1);
- observer.invocationBlock=^{}; client.CheckForUpdate(cb,{});
- assert(result==VersionUpdater::NEARLY_UPDATED && updater.checks==1);
- observer.invocationBlock=nil; observer.currentlyDownloadedVersion=@"next"; client.CheckForUpdate(cb,{});
- assert(result==VersionUpdater::NEARLY_UPDATED && updater.checks==1);
+ observer.currentlyDownloadedVersion=@"next"; updater.canCheckForUpdates=YES;
+ client.CheckForUpdate(cb,{});
+ assert(observer.lastStatus==VersionUpdater::NEARLY_UPDATED && updater.checks==2);
+ updater.sessionInProgress=YES; updater.canCheckForUpdates=YES; client.CheckForUpdate(cb,{});
+ assert(result==VersionUpdater::NEARLY_UPDATED && updater.checks==2);
  observer.currentlyDownloadedVersion=nil; observer.permitted=NO; client.CheckForUpdate(cb,{});
- assert(result==VersionUpdater::DISABLED && updater.checks==1 && !observer.permitted);
- observer.permitted=YES; updater.canCheckForUpdates=YES; client.CheckForUpdate(cb,{});
- assert(observer.lastStatus==VersionUpdater::CHECKING && updater.checks==2);
- client.CheckForUpdate(cb,{}); assert(result==VersionUpdater::CHECKING && updater.checks==2);
+ assert(result==VersionUpdater::DISABLED && updater.checks==2 && !observer.permitted);
+ observer.permitted=YES; updater.sessionInProgress=NO; client.CheckForUpdate(cb,{});
+ assert(observer.lastStatus==VersionUpdater::CHECKING && updater.checks==3);
+ client.CheckForUpdate(cb,{}); assert(result==VersionUpdater::CHECKING && updater.checks==3);
  [observer updateStatus:VersionUpdater::UPDATED error_string:nil]; updater.canCheckForUpdates=YES;
- client.CheckForUpdate(cb,{}); assert(updater.checks==3);
+ client.CheckForUpdate(cb,{}); assert(updater.checks==4);
  puts("PASS: shared updater startup, retry, repeat checks, progress replay, ready state and consent");
 }}
 '''

@@ -11,7 +11,7 @@ p.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
 a = p.parse_args()
 s = a.source.resolve()
 text = (s/'chrome/browser/mac/sparkle_glue.mm').read_text()
-capture = text[text.index('- (BOOL)updater:(SPUUpdater*)updater\n    shouldPostponeRelaunchForUpdate:'):text.index('// There is a downloaded and unarchived version')]
+capture = text[text.index('- (BOOL)updater:(SPUUpdater*)updater\n    willInstallUpdateOnQuit:'):text.index('- (void)updater:(SPUUpdater*)updater willExtractUpdate:')]
 getters = text[text.index('std::optional<std::string> CurrentlyDownloadedVersion()'):text.index('void SwitchUnderlyingUpdaterProfile(')]
 program = r'''
 #import <AppKit/AppKit.h>
@@ -41,7 +41,6 @@ Callbacks& UpdateReadyCallbacks() { static Callbacks c; return c; }
 @interface SparkleObserver : NSObject
 @property(nonatomic,copy) NSString* currentlyDownloadedVersion;
 @property(nonatomic,copy) NSString* currentlyDownloadedReleaseNotesURL;
-@property(nonatomic,copy) void (^invocationBlock)(void);
 - (void)updateStatus:(VersionUpdater::Status)status error_string:(NSString*)error;
 @end
 @implementation SparkleObserver
@@ -67,18 +66,18 @@ int main() { @autoreleasepool {
  item.versionString = @"26.1113.1";
  item.releaseNotesURL = [NSURL URLWithString:@"https://github.com/leebyron/lune-browser/releases/tag/v26.1113.1"];
  __block int installs = 0;
- assert([observer updater:nil shouldPostponeRelaunchForUpdate:item untilInvokingBlock:^{ ++installs; }]);
+ assert(![observer updater:nil willInstallUpdateOnQuit:item immediateInstallationBlock:^{ ++installs; }]);
  assert(helium::CurrentlyDownloadedVersion() == "26.1113.1");
  assert(helium::CurrentlyDownloadedReleaseNotesURL() == item.releaseNotesURL.absoluteString.UTF8String);
  assert(helium::ApplicationIsNearlyUpdated() && installs == 0);
  assert(UpdateReadyCallbacks().calls == 1);
  item.versionString = @"26.1114.1";
  item.releaseNotesURL = [NSURL URLWithString:@"https://github.com/leebyron/lune-browser/releases/tag/v26.1114.1"];
- [observer updater:nil shouldPostponeRelaunchForUpdate:item untilInvokingBlock:^{ ++installs; }];
+ [observer updater:nil willInstallUpdateOnQuit:item immediateInstallationBlock:^{ ++installs; }];
  assert(helium::CurrentlyDownloadedReleaseNotesURL() == item.releaseNotesURL.absoluteString.UTF8String);
  assert(UpdateReadyCallbacks().calls == 2 && installs == 0);
  item.releaseNotesURL = nil;
- [observer updater:nil shouldPostponeRelaunchForUpdate:item untilInvokingBlock:^{ ++installs; }];
+ [observer updater:nil willInstallUpdateOnQuit:item immediateInstallationBlock:^{ ++installs; }];
  assert(helium::CurrentlyDownloadedReleaseNotesURL() == "https://github.com/leebyron/lune-browser/releases/tag/v26.1114.1");
  assert(helium::ApplicationIsNearlyUpdated() && installs == 0);
  observer.currentlyDownloadedVersion = @"not/a/version";

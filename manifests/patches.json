@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "100deb1ff459c2c496650d4dd9e335c26ba4488b",
+    "commit": "018b1e377654ebf997f8647a8bf9ea1321d9a627",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1127,6 +1127,14 @@
       {
         "path": "patches/helium/ui/macos-picture-in-picture-idle-controls.patch",
         "sha256": "91ba0a868d092eddc495dfcd0313f2ef37cf8a98e2c1bcd6e09e37e6d9afccfe"
+      },
+      {
+        "path": "patches/sparkle/staged-update-replacement.patch",
+        "sha256": "740ecdf4b75d84fab7ce68782dbf867d37a05d4ea02e107c2531f3d4df7f900c"
+      },
+      {
+        "path": "patches/helium/macos/updater/macos-staged-update-replacement.patch",
+        "sha256": "7815619e65b3728100df7080f20fa87eb76962b8a5dfcb0a10f2b668afcaebda"
       }
     ]
   },
@@ -3564,6 +3572,23 @@
       "adaptation": "Time out the overlay after 2.5 seconds, preserve active gestures and keyboard access, and restore controls on pointer motion. Hide the cursor only over visible Picture-in-Picture video while Lune is active.",
       "commits": [
         "100deb1ff459c2c496650d4dd9e335c26ba4488b"
+      ]
+    },
+    {
+      "id": "staged-update-replacement",
+      "depends_on": [
+        "app-menu-update-check",
+        "downloaded-update-release-notes"
+      ],
+      "patches": [
+        "patches/sparkle/staged-update-replacement.patch",
+        "patches/helium/macos/updater/macos-staged-update-replacement.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Continue checking the appcast while an update is ready.",
+      "adaptation": "Backport Sparkle e95f42b15686ad547a919ddaef18d75eac9bf5d9 to 2.10.1, preserving headless progress and pinned feed download behavior. End the automatic cycle after preparation and reconnect to the installer for an explicit relaunch.",
+      "commits": [
+        "018b1e377654ebf997f8647a8bf9ea1321d9a627"
       ]
     }
   ],

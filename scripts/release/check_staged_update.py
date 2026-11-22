@@ -11,7 +11,6 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import plistlib
-import shutil
 import subprocess
 import threading
 import time
@@ -56,7 +55,11 @@ def prepare(root, app, bundle_id, arch, openssl, debug_interval):
         bundle = root / version / 'Lune.app'
         binary = bundle / 'Contents/MacOS/Lune'
         binary.parent.mkdir(parents=True)
-        shutil.copy('/usr/bin/true', binary)
+        # Launch Services starts this executable only after an explicit relaunch.
+        marker = json.dumps(str(root / ('launched-' + version)))
+        program = f'#include <stdio.h>\nint main(void) {{ FILE *file = fopen({marker}, "w"); return file ? fclose(file) : 1; }}'
+        subprocess.run(['xcrun', 'clang', '-arch', arch, '-x', 'c', '-', '-o', binary],
+                       input=program, text=True, check=True)
         (bundle / 'Contents/Info.plist').write_bytes(plistlib.dumps({
             'CFBundleIdentifier': bundle_id, 'CFBundleExecutable': 'Lune',
             'CFBundlePackageType': 'APPL', 'CFBundleVersion': version,
@@ -84,15 +87,23 @@ def main():
     p.add_argument('--openssl', default='openssl', help='OpenSSL 3 executable')
     p.add_argument('--debug-interval', action='store_true',
                    help='Use the one-minute test cadence of a Debug Sparkle build')
+    p.add_argument('--offer', choices=['newer', 'unchanged', 'download-error', 'bad-signature'], default='newer')
+    p.add_argument('--finish', choices=['quit', 'relaunch'], default='quit')
     args = p.parse_args()
+    if args.offer == 'bad-signature' and args.finish == 'relaunch':
+        p.error('The rejected update has no relaunch action')
     args.directory.mkdir(parents=True, exist_ok=False)
     root = new_profile('lune-staged-install-')
     profile = new_profile('lune-staged-profile-')
     bundle_id = 'computer.lune.fixture.staged-' + uuid.uuid4().hex
     host, served, feed, offers = prepare(root, args.app, bundle_id, args.arch,
                                          args.openssl, args.debug_interval)
+    if args.offer == 'bad-signature':
+        offers[1].find('./channel/item/enclosure').set(
+            f'{{{SPARKLE}}}edSignature', base64.b64encode(bytes(64)).decode())
     events = []
-    allow_replacement = threading.Event()
+    second_check = threading.Event()
+    allow_response = threading.Event()
     start = time.monotonic()
 
     class Handler(SimpleHTTPRequestHandler):
@@ -101,7 +112,10 @@ def main():
 
         def do_GET(self):
             events.append({'seconds': round(time.monotonic() - start, 3), 'path': self.path})
-            if self.path == '/Lune-99.1.3.zip' and not allow_replacement.wait(60):
+            if self.path == '/mac/' + feed.name and second_check.is_set() and not allow_response.wait(60):
+                self.send_error(503)
+                return
+            if self.path == '/Lune-99.1.3.zip' and args.offer == 'download-error':
                 self.send_error(503)
                 return
             super().do_GET()
@@ -124,12 +138,13 @@ def main():
     empty = ET.fromstring('<rss version="2.0"><channel><title>Lune fixture</title></channel></rss>')
     publish(empty if cadence_control else offers[0])
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    report = {'trigger': args.trigger, 'bundle_id': bundle_id, 'requests': events,
+    report = {'architecture': args.arch, 'trigger': args.trigger, 'bundle_id': bundle_id, 'requests': events,
+              'offer': args.offer, 'finish': args.finish,
               'interval_seconds': info(host)['SUScheduledCheckInterval'],
               'baseline_version': info(host)['CFBundleVersion'], 'passed': False}
     try:
         with session(host, args.driver.resolve(), profile, args.directory / 'driver.log',
-                     [f'--custom-update-server-url={base}']) as request:
+                     [f'--custom-update-server-url={base}'], headed=args.finish == 'relaunch') as request:
             def navigate(url):
                 request('POST', '/url', {'url': url})
 
@@ -160,7 +175,9 @@ def main():
             report['first_ready'] = True
             report['first_ready_seconds'] = time.monotonic() - start
             checkpoint = len(events)
-            publish(offers[1])
+            second_check.set()
+            if args.offer != 'unchanged':
+                publish(offers[1])
             if args.trigger == 'about':
                 request('POST', '/refresh', {})
             def received(path):
@@ -168,33 +185,47 @@ def main():
             timeout = 30 if args.trigger == 'about' else report['interval_seconds'] + 30
             wait_for(lambda: received('/mac/' + feed.name), timeout,
                      'fresh appcast request after first offer was ready')
-            wait_for(lambda: received('/Lune-99.1.3.zip'), 60, 'second archive request')
-            # A fresh page can replay the old ready state. Hold the second
-            # archive until we can observe its own preparation completing.
+            # A fresh page can replay the old ready state. Hold the feed
+            # response until the new page is listening for the result.
             registered = request('POST', '/execute/async', {'script': """
                 const done = arguments[0];
                 import('chrome://resources/js/cr.js').then(({addWebUiListener}) => {
                   window.replacementEvents = [];
-                  addWebUiListener('update-status-changed', e => replacementEvents.push(e.status));
+                  addWebUiListener('update-status-changed', e => replacementEvents.push({status: e.status, message: e.message}));
                   done(true);
                 }).catch(e => done(String(e)));
                 """, 'args': []})
             if registered is not True:
                 raise RuntimeError(f'Cannot observe About notifications: {registered}')
-            allow_replacement.set()
-            def replacement_ready():
-                statuses = request('POST', '/execute/sync', {
+            allow_response.set()
+            if args.offer != 'unchanged':
+                wait_for(lambda: received('/Lune-99.1.3.zip'), 60, 'second archive request')
+            def refresh_finished():
+                updates = request('POST', '/execute/sync', {
                     'script': 'return window.replacementEvents;', 'args': []})
-                report['replacement_statuses'] = statuses
-                return 'nearly_updated' in statuses
-            wait_for(replacement_ready, 120, 'fresh replacement-ready notification')
-        wait_for(lambda: info(host)['CFBundleVersion'] == '99.1.3', 90, 'second version to install on quit')
+                report['replacement_statuses'] = [event['status'] for event in updates]
+                if args.offer == 'bad-signature':
+                    return any(event['status'] == 'failed' and 'sign' in event.get('message', '').lower()
+                               for event in updates)
+                return 'nearly_updated' in report['replacement_statuses']
+            wait_for(refresh_finished, 120, 'terminal status for the second feed response')
+            if args.offer == 'unchanged' and any(e['path'].endswith('.zip') for e in events[checkpoint:]):
+                raise RuntimeError('The already staged update was downloaded again')
+            expected = '99.1.3' if args.offer == 'newer' else '99.1.2'
+            if args.offer == 'bad-signature':
+                expected = report['baseline_version']
+            if args.finish == 'relaunch':
+                request('POST', '/execute/sync', {'script': "chrome.send('relaunch');", 'args': []})
+                wait_for(lambda: (root / ('launched-' + expected)).is_file(), 90,
+                         'updated app to launch from the explicit relaunch action')
+                report['relaunched_version'] = expected
+        wait_for(lambda: info(host)['CFBundleVersion'] == expected, 90, 'expected version to install')
         report['passed'] = True
     except Exception as error:
         report['error'] = str(error)
         raise
     finally:
-        allow_replacement.set()
+        allow_response.set()
         server.shutdown()
         server.server_close()
         report['installed_version'] = info(host)['CFBundleVersion']
