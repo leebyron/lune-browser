@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "951cd4ceb122884964831e76c95b9c55869cdeb4",
+    "commit": "a7a8b2f52137b9736b0bcc41e206474dac699a1f",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1103,6 +1103,26 @@
       {
         "path": "patches/lune/settings-row-layout.patch",
         "sha256": "5919b087ffb9e56d62fe0634d0bbf6d0b2a6085b34bbcf662355e8907cb75595"
+      },
+      {
+        "path": "patches/helium/ui/taller-pinned-tabs.patch",
+        "sha256": "430c74122a6bffd08bb0559f56f1e36ac6f81e82cda1a483f0fe82cb717220d0"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-top-edge-reveal.patch",
+        "sha256": "6307912d197b498c583da17f5204e6830eeaf8e8885c262b12f0f9648dc8334d"
+      },
+      {
+        "path": "patches/helium/ui/comfortable-sidebar-controls.patch",
+        "sha256": "46a2a51779f5632f97da19d8f2a78bbbe2dd8082d4f073cfe2cfd08a9a8dcc90"
+      },
+      {
+        "path": "patches/helium/ui/comfortable-sidebar-typography.patch",
+        "sha256": "34b63c92ab1964b6b6232ac93a9f486bf29d2b4adccac18e44d6267f4f1ef131"
+      },
+      {
+        "path": "patches/helium/ui/comfortable-sidebar-default-width.patch",
+        "sha256": "b1334bfea3ab5e197dfb1c46e4a19fde7f1c0f5c12706d87e4a266c298ee19ec"
       }
     ]
   },
@@ -3501,6 +3521,30 @@
       "adaptation": "Indent nested labels with logical row padding and reuse the stock 2 px gap inside routed sections and nested controls.",
       "commits": [
         "5eea4cf7fdbc35e1a036e966f7efcac725dbbc95"
+      ]
+    },
+    {
+      "id": "sidebar-ui-polish",
+      "depends_on": [
+        "pinned-grid-tab-drag",
+        "native-chrome-hover-distances",
+        "older-date-label-offset"
+      ],
+      "patches": [
+        "patches/helium/ui/taller-pinned-tabs.patch",
+        "patches/helium/ui/sidebar-top-edge-reveal.patch",
+        "patches/helium/ui/comfortable-sidebar-controls.patch",
+        "patches/helium/ui/comfortable-sidebar-typography.patch",
+        "patches/helium/ui/comfortable-sidebar-default-width.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Refine sidebar tab sizing and top-edge reveal, and improve the Comfortable density layout.",
+      "adaptation": "Use the rendered tab height during the existing drag morph and share top-edge geometry with the toolbar. Apply Comfortable controls, typography and width through the density-aware sidebar layout.",
+      "commits": [
+        "e061880ffe5c79ca32e656d80dccc31d2a36484a",
+        "255874e24be6bc115bf25b0e6d811c1fd2e87021",
+        "ab8bff826e9c36d63ed8ddc326355128451a7d3c",
+        "a7a8b2f52137b9736b0bcc41e206474dac699a1f"
       ]
     }
   ],

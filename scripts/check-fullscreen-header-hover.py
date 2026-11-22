@@ -15,9 +15,13 @@ def check(source, arch):
     methods = native[start:native.index('\n}  // namespace helium', start)]
     header = (views / 'helium/native_frame_materials.h').read_text()
     constants = '\n'.join(re.findall(
-        r'inline constexpr int kNative(?:Top|Side)Chrome(?:Reveal|Retention)Distance = \d+;',
+        r'inline constexpr int kNative(?:(?:Top|Side)Chrome'
+        r'(?:Reveal|Retention)Distance|Toolbar(?:ControlHeight|VerticalPadding)) = \d+;',
         header))
-    assert len(constants.splitlines()) == 4
+    assert len(constants.splitlines()) == 6
+    geometry = '\n'.join(re.findall(
+        r'inline constexpr bool Is(?:WithinNativeTopChromeRetention|InNativeSidebarTopHoverColumn)'
+        r'\([^}]+}', header))
     frame = (views / 'frame/browser_frame_view_mac.mm').read_text()
     retention = re.search(r'  const bool within_retention = .*?;', frame, re.S)[0]
     assert 'helium::IsPointerAboveNativeFullscreenContent(' in frame
@@ -28,17 +32,25 @@ def check(source, arch):
     assert 'IsPointerAboveNativeFullscreenContent(' in gap
     assert 'GetFrameView()->GetFloatingChromeTopOffset()' in gap
     assert 'zen_cursor_exit_timer_.Stop()' in gap
-    assert 'UpdateZenModeReveal(IsPointInZenTopTrigger(cursor), false)' in gap
+    assert re.search(r'UpdateZenModeReveal\(IsPointInZenTopTrigger\(cursor\),\s+'
+                     r'IsPointInZenSideTrigger\(cursor\)\)', gap)
     assert 'helium::IsPointerInNativeWindowHoverArea(this, true)' in view
     assert 'poll_cursor &= GetWidget()->IsActive()' in view
     sidebar = frame[frame.index('void BrowserFrameViewMac::UpdateFloatingSidebar('):]
     assert '!fullscreen_utils::IsInContentFullscreen(view->browser())' in sidebar[:450]
     eligibility = view[view.index('bool BrowserView::ShouldDrawVerticalTabStrip()'):]
     eligibility = eligibility[:eligibility.index('\nbool BrowserView::')]
+    side_trigger = re.search(
+        r'bool BrowserView::IsPointInZenSideTrigger\([^\n]+\n.*?\n}', view, re.S)[0]
+    old_trigger_width = re.search(r'constexpr int kZenModeRevealTriggerThickness = \d+;',
+                                  view)[0]
     side_retention = re.search(
         r'    within_side_retention = IsVerticalTabStripRightAligned\(\).*?;',
         view, re.S)[0]
     assert 'retention_distance = helium::kNativeSideChromeRetentionDistance' in view
+    top_side_retention = re.search(
+        r'      const int toolbar_bottom = .*?within_side_retention \|=.*?;',
+        view, re.S)[0]
 
     fixture = r'''
 #import <Cocoa/Cocoa.h>
@@ -49,11 +61,15 @@ def check(source, arch):
 #include <initializer_list>
 #define BUILDFLAG(x) 1
 struct BrowserView;
+namespace gfx {
+struct Point { int px; int x() const { return px; } };
+}
 struct BrowserWindowInterface { enum class Type { TYPE_NORMAL, TYPE_POPUP }; };
 namespace tabs {
 struct VerticalTabStripStateController {
   bool vertical=true;
   bool ShouldDisplayVerticalTabs() const { return vertical; }
+  bool IsTabStripRightAligned() const { return false; }
   static VerticalTabStripStateController* From(const BrowserView*);
 };
 static VerticalTabStripStateController controller;
@@ -120,18 +136,27 @@ struct Widget {
   TestWindow* window;
   NativeWindow GetNativeWindow() const { return {window}; }
 };
+struct FrameView {
+  int offset = 0;
+  bool HasFloatingAddressBar() const { return true; }
+  int GetFloatingChromeTopOffset() const { return offset; }
+};
 struct BrowserView {
   Widget* widget;
   bool fullscreen=true, content_fullscreen=false, right=false, tabstrip=true;
   BrowserWindowInterface::Type type=BrowserWindowInterface::Type::TYPE_NORMAL;
+  FrameView frame;
   const BrowserView* browser_=this;
   Widget* GetWidget() const { return widget; }
   bool IsFullscreen() const { return fullscreen; }
   const BrowserView* browser() const { return this; }
   bool IsVerticalTabStripRightAligned() const { return right; }
   bool ShouldDrawTabStrip() const { return tabstrip; }
+  const FrameView* GetFrameView() const { return &frame; }
+  int width() const { return 1920; }
   BrowserWindowInterface::Type GetType() const { return type; }
   bool ShouldDrawVerticalTabStrip() const;
+  bool IsPointInZenSideTrigger(const gfx::Point& point) const;
 };
 namespace fullscreen_utils {
 bool IsInContentFullscreen(const BrowserView* view) { return view->content_fullscreen; }
@@ -139,12 +164,12 @@ bool IsInContentFullscreen(const BrowserView* view) { return view->content_fulls
 #define NSEvent TestEvent
 #define NSApplication TestApplication
 namespace helium {
-''' + constants + '\n' + methods + r'''
+''' + constants + '\n' + geometry + '\n' + methods + r'''
 }
 #undef NSApplication
 #undef NSEvent
 using namespace helium;
-''' + eligibility + r'''
+''' + eligibility + old_trigger_width + '\n' + side_trigger + r'''
 @interface TestBar : NSObject
 @property BOOL isPresented;
 @end
@@ -168,6 +193,17 @@ bool SideRetained(bool right, int x, int left, int end) {
   int retention_distance=helium::kNativeSideChromeRetentionDistance;
   bool within_side_retention=false;
 ''' + side_retention + r'''
+  return within_side_retention;
+}
+bool SidebarTopRetained(bool right, int x, int y, int offset) {
+  struct Point { int px, py; int x() const { return px; } int y() const { return py; } };
+  const Point cursor{x, y};
+  const FrameView browser_frame{offset};
+  const FrameView* frame = &browser_frame;
+  const auto IsVerticalTabStripRightAligned = [&] { return right; };
+  const auto width = [] { return 1920; };
+  bool within_side_retention = false;
+''' + top_side_retention + r'''
   return within_side_retention;
 }
 int main() { @autoreleasepool {
@@ -198,6 +234,7 @@ int main() { @autoreleasepool {
               else assert(available_top<=menu_bottom && menu_bottom<available_top+1);
               CGFloat gap=screen_top-available_top;
               CGFloat thickness=gap>0?1/scale:8;
+              view.frame.offset=offset;
               for (CGFloat distance : {-1.,0.,gap/2,gap,gap+thickness,
                                         gap+thickness+.25,gap+108,gap+109}) {
                 pointer=NSMakePoint(origin.x+800,screen_top-distance);
@@ -211,6 +248,15 @@ int main() { @autoreleasepool {
                        (distance>=0 && local_y<=108+offset));
                 assert(!Retained(true,false,in_window||above,local_y,44+offset));
                 assert(!Retained(false,true,in_window||above,local_y,44+offset));
+                for (bool right : {false,true}) {
+                  view.right=right;
+                  for (int x : {111,112,1807,1808}) {
+                    pointer.x=origin.x+x;
+                    assert(view.IsPointInZenSideTrigger({x}) ==
+                           (!page && (right ? x>=1808 : x<112) &&
+                            distance>=0 && distance<=gap+thickness));
+                  }
+                }
               }
               pointer=NSMakePoint(origin.x-1,screen_top-1);
               assert(!IsPointerInNativeRevealRail(&view,true,offset));
@@ -252,6 +298,14 @@ int main() { @autoreleasepool {
         pointer=NSMakePoint(origin.x+800,origin.y+1080-depth);
         assert(IsPointerInNativeRevealRail(&view,true,0)==
                (depth>=-16 && depth<8));
+        for (bool right : {false,true}) {
+          view.right=right;
+          for (int x : {111,112,1807,1808}) {
+            pointer.x=origin.x+x;
+            assert(view.IsPointInZenSideTrigger({x}) ==
+                   ((right ? x>=1808 : x<112) && depth>=-16 && depth<8));
+          }
+        }
       }
       assert(NativeFullscreenTopControlsOffset(&view,1)==0);
       assert(!IsPointerAboveNativeFullscreenContent(&view,0));
@@ -270,6 +324,14 @@ int main() { @autoreleasepool {
   assert(!SideRetained(false,345,0,216));
   assert(SideRetained(true,1576,1704,1920));
   assert(!SideRetained(true,1575,1704,1920));
+  for (int offset : {0,30}) {
+    assert(SidebarTopRetained(false,111,108+offset,offset));
+    assert(SidebarTopRetained(true,1808,108+offset,offset));
+    assert(!SidebarTopRetained(false,111,109+offset,offset));
+    assert(!SidebarTopRetained(true,1808,109+offset,offset));
+    assert(!SidebarTopRetained(false,112,108+offset,offset));
+    assert(!SidebarTopRetained(true,1807,108+offset,offset));
+  }
   for (bool fullscreen : {false,true}) for (bool page : {false,true}) {
     view.fullscreen=fullscreen; view.content_fullscreen=page;
     assert(view.ShouldDrawVerticalTabStrip()==!page);
@@ -280,7 +342,7 @@ int main() { @autoreleasepool {
   assert(!view.ShouldDrawVerticalTabStrip());
   tabs::controller.vertical=true; view.type=BrowserWindowInterface::Type::TYPE_POPUP;
   assert(!view.ShouldDrawVerticalTabStrip());
-  puts("PASS: top entry 8 inside and 16 outside, top retention 64, side 16/128, fullscreen menus, both sidebar sides, display origins and scales");
+  puts("PASS: top entry 8 inside and 16 outside, top retention 64, sidebar top entry 112 on either side, side 16/128, fullscreen menus, display origins and scales");
 } }
 '''
     with tempfile.TemporaryDirectory(prefix='lune-fullscreen-hover-') as temp:

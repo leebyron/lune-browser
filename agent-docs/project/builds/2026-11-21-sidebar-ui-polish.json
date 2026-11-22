@@ -1,0 +1,136 @@
+{
+  "issue": 54,
+  "accepted": "2026-11-21",
+  "chromium_version": "159.0.8154.13",
+  "source": {
+    "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+    "base_platform": "951cd4ceb122884964831e76c95b9c55869cdeb4",
+    "adopted_platform": "a7a8b2f52137b9736b0bcc41e206474dac699a1f",
+    "platform_ref": "refs/tags/inputs/sidebar-ui-polish-1/macos",
+    "accepted_preview_platform": "f29eebe2409b7ee53185306b71bb8b9247f37918"
+  },
+  "replay": {
+    "scope": "Both build trees replayed the locked base and macOS Apple silicon archives with zero fuzz. Apple silicon host tools built both targets. The only prepared-file differences from the accepted preview are the three icon resources already adopted on main.",
+    "patch_count": 669,
+    "inventory_files": 572664,
+    "inventory_symlinks": 130,
+    "sidebar_patch_offsets": 0,
+    "changed_source_sha256": {
+      "chrome/browser/ui/layout_constants.cc": "f2fcb94203a6056cddfeaa600c5d3778cdc3f7b6658e49ca6f0256bc5c417ebd",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "ccffd4da5af3b165b1792450bb95b16e4aa7a6d96609a99ff2e5b2294734673c",
+      "chrome/browser/ui/views/frame/browser_view.cc": "c750d795041aecdb4d18fa6adb7db1756b2685d8374d174c05f763aea0b7a8ef",
+      "chrome/browser/ui/views/frame/sidebar_footer_view.cc": "d9fd5ad0dae75972ab1b9f3c683363edffffce302537cc7eac7b7ebb6eb36cf6",
+      "chrome/browser/ui/views/helium/native_frame_materials.h": "1cd5b0d70e76c4a8452cc653141b4573df25a63e9a2d7ced9cdd3b2ae5bca084",
+      "chrome/browser/ui/views/tabs/common/pinned_tab_container_view_vertical_layout.cc": "8f1fec8f9d6e97f694b7f115f6a7e3b0ba55a276dafb05c23cafcf859c6c69cb",
+      "chrome/browser/ui/views/tabs/common/tab_group_header_view.cc": "6a2de4d831a84eff9db7cd36e7ec24cb457d8bb634f149a391739105ee6022f6",
+      "chrome/browser/ui/views/tabs/common/tab_group_style.cc": "b8bd0cb43bb760667c5d521bc8d92ccf2ed27e7c3787df3728a7b2f45c8b3d5d",
+      "chrome/browser/ui/views/tabs/common/tab_group_unfocus_button.cc": "290d37a9656ec06ca83a5271d75a7470a4413be79150c6633d5b86459a7b3ea0",
+      "chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc": "11ed589cb018626434c5c90121942d62d13a53e32230715d7a593c4a7e59b3de",
+      "chrome/browser/ui/views/tabs/common/tab_strip_utils.cc": "6ed3c3e9bbc438a05eadd1b96bc1b6f7feb05ec94465ce639d356b2a9b18f108",
+      "chrome/browser/ui/views/tabs/common/tab_strip_utils.h": "6671e597ee3dc203ed2e36b8b93d9c9a7e0fdd542b10138dc1564f7fe175de0c",
+      "chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc": "541d42837b9f19d4cf5984260932432680730df63207e6af87bd358c41cf688c",
+      "chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.h": "72b47f714b9a05d6770041323d96b38ffb90d065c438e3250262634ad42cf3b6",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "a2c0990fc502bfbf0c1f05d8ebcdea7ee8b8ebe881a51b0aa34944b90bb22421",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view_vertical_layout.cc": "55f247df1439e3030f3cf76e313ba4a9dd5bd2cd777570ef19c92bcbee52dc19",
+      "chrome/browser/ui/views/tabs/tab/tab_close_button.cc": "0a9c12d1c047df42aded47f1d17f07869bf835fc08db711bdb4b18fd5a746c2a",
+      "chrome/browser/ui/views/tabs/tab/tab_close_button.h": "71782b0aeb8b722d7fe1e99d7ebc1a7dbade228cb442145f0fdf975342222880",
+      "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc": "5e0ef8af9ab56fd3767379b1774637c0151cd0f87ef0a1569f7deacfbfab52e7"
+    },
+    "preserved_icon_sha256": {
+      "chrome/app/theme/chromium/mac/app-dark.icns": "9d9a3fa22347c456b4b62888996c13d9d9addec8405471297dcb774c8c0fc0a8",
+      "chrome/app/theme/chromium/mac/app-light.icns": "b7b7847d62ac7f9f4a03a69d808c0c4b929b6109a483a909a80d2dc1b95a8ef1",
+      "chrome/app/theme/chromium/mac/app.icns": "9d9a3fa22347c456b4b62888996c13d9d9addec8405471297dcb774c8c0fc0a8"
+    },
+    "host_cache_exclusions": []
+  },
+  "validation": {
+    "builds": [
+      {
+        "architecture": "arm64",
+        "execution": "Native Apple silicon",
+        "platform": "a7a8b2f52137b9736b0bcc41e206474dac699a1f",
+        "chromium": "159.0.8154.13",
+        "framework_sha256": "4afe200e790693daec23848650371a59195031c08207a72eb5ef1d96c20125f7",
+        "executable_sha256": "af6cd43d10812ad499d0585b775a4f1e2368d3a43966ab5bb19cf2777ec64b9a",
+        "source_parity_sha256": "f28b04902b2ec34cff06b5c54852cf583042a68bc01a612f797bb3456420fb67",
+        "smoke_sha256": "ee70f10ecd7f017ff5d985a8c5a44473b63009be3f1fd89fd5b05fdc4e3d11c6",
+        "widths": {
+          "standard": 216,
+          "comfortable": 240,
+          "comfortable-saved": 260
+        },
+        "pinned_drag_sha256": "bf21d99fcb034a0060a895d78ffd519dbec99977f1ca119524df35a03ddeb52c",
+        "hover_sha256": "99d95f62769384a17f5d3c2957031dd394bba163c474114b14d1044b3ef14a64"
+      },
+      {
+        "architecture": "x86_64",
+        "execution": "Rosetta on Apple silicon",
+        "platform": "a7a8b2f52137b9736b0bcc41e206474dac699a1f",
+        "chromium": "159.0.8154.13",
+        "framework_sha256": "4584a883c54afc97348f7f1fdc1e21e51a3c091c597a0584156808d49f06b980",
+        "executable_sha256": "d504d4cc887e6b4b6cdb6e949c71a355c4d38bfd5992d684a239ac95c37deaba",
+        "source_parity_sha256": "256008fe01a3187d93d8128f91def9a3346e4c49e73d2a715732d7092d0d5ab9",
+        "smoke_sha256": "bd14298703ec55969fb3e29a0b2035371d19b0522db76c7da182b3a062964e38",
+        "widths": {
+          "standard": 216,
+          "comfortable": 240,
+          "comfortable-saved": 260
+        },
+        "pinned_drag_sha256": "3cdff7f88f50912568a63dd3ba33193175f8322a28bd5af86ad9c612c573f200",
+        "hover_sha256": "99d95f62769384a17f5d3c2957031dd394bba163c474114b14d1044b3ef14a64"
+      }
+    ],
+    "component_inputs": "Signed provenance, core and platform patch lint, and translation lint passed.",
+    "repository_tests": {
+      "total": 108,
+      "skipped": 1
+    },
+    "browser_smoke": "Both architectures passed startup, browsing, profile persistence, Settings, and packaged artwork checks. The framework and executable identities are recorded per build.",
+    "pinned_drag": "7,740 final-cell destinations per architecture, plus single-placeholder and empty-grid checks. The production height and anchor calculations passed sampled off-center pinning, reversal and early-drop cases in both densities.",
+    "top_edge": "Production geometry fixtures cover both sidebar sides, 8 px inside and 16 px outside entry, 64 px retention, app-fullscreen menu-bar and camera regions, backing scale and webpage fullscreen exclusion.",
+    "live_checks": {
+      "execution": "Native Apple silicon on the adopted input",
+      "top_edge": "Real pointer entry, retention, exit and original side entry on either side with toolbar hover enabled and disabled.",
+      "drag": "Native pin and unpin gestures with off-center grabs reached the expected saved pin state and destination row heights in both densities.",
+      "top_edge_report_sha256": "3763d1d8987727c73d1d8a1d28d679cde604c0f9ea5de65a2f17d4bb260cd227",
+      "drag_report_sha256": "c0aa11a55a568fb4998a3e69297aab7eb26041a689e6bca11ce9d16a29010ea0"
+    },
+    "native_preview": {
+      "execution": "Apple silicon",
+      "sidebar_width_px": 240,
+      "group_header_px": 28,
+      "date_header_px": 20,
+      "older_tab_samples": 5,
+      "accessibility_sha256": "6cec0a2520c10ce1f186c22919b37b2ecc7bbe35722ff01f8990d70ac6e15397",
+      "close_control_geometry": [
+        {
+          "right_aligned": false,
+          "close_size_dip": [
+            26,
+            26
+          ],
+          "status_center_from_trailing_dip": 17.75,
+          "close_and_footer_center_from_trailing_dip": 18.0,
+          "chevron_centers_from_trailing_dip": {
+            "expanded": 18.25,
+            "collapsed": 17.25
+          }
+        },
+        {
+          "right_aligned": true,
+          "close_size_dip": [
+            26,
+            26
+          ],
+          "status_center_from_trailing_dip": 17.75,
+          "close_and_footer_center_from_trailing_dip": 18.0,
+          "chevron_centers_from_trailing_dip": {
+            "expanded": 18.25,
+            "collapsed": 17.25
+          }
+        }
+      ]
+    },
+    "scope": "The owner accepted the native Apple silicon preview. Live drag checks verify gesture delivery and final geometry. The production fixture samples intermediate animation geometry. Intel checks ran under Rosetta."
+  }
+}

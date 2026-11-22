@@ -5,12 +5,16 @@ import argparse
 from browser_test_profiles import temporary_profile
 parser=argparse.ArgumentParser(description='Verify actual sidebar layout width and preservation of a saved custom width.')
 parser.add_argument('build',type=Path)
+parser.add_argument('--density',choices=('standard','comfortable'),default='standard')
 parser.add_argument('--saved-width',type=int)
 parser.add_argument('--report',type=Path,required=True)
 args=parser.parse_args()
 tmp=temporary_profile(prefix='lune-sidebar-width-');out=Path(tmp.name);build=args.build.resolve()
-expected_width=args.saved_width if args.saved_width is not None else 216
+density = 1 if args.density == 'comfortable' else 0
+default_width = 240 if density else 216
+expected_width = args.saved_width if args.saved_width is not None else default_width
 profile=out/('profile-'+str(time.time_ns()));(profile/'Default').mkdir(parents=True)
+(profile/'Local State').write_text(json.dumps({'helium': {'browser': {'ui_density': density}}}))
 (profile/'Default/Preferences').write_text(json.dumps({'helium':{'completed_onboarding':True,'browser':{'zen_mode_sidebar_pinned':False},'services':{'enabled':False,'browser_updates':False}}}))
 if args.saved_width is not None:
  prefs=json.loads((profile/'Default/Preferences').read_text());prefs['vertical_tabs']={'uncollapsed_width':expected_width};(profile/'Default/Preferences').write_text(json.dumps(prefs))
@@ -24,7 +28,7 @@ for _ in range(100):
   if wd('GET','/status')['ready']:break
  except OSError:time.sleep(.1)
 cap={'goog:chromeOptions':{'binary':str(build/'Lune.app/Contents/MacOS/Lune'),'args':['--headless=new','--disable-background-networking','--use-mock-keychain','--password-store=basic','--custom-update-server-url=http://127.0.0.1:1/',f'--user-data-dir={profile}']}}
-s=wd('POST','/session',{'capabilities':{'alwaysMatch':cap}});sid='/session/'+s['sessionId'];report={}
+s=wd('POST','/session',{'capabilities':{'alwaysMatch':cap}});sid='/session/'+s['sessionId'];report={'density': args.density, 'savedWidth': args.saved_width}
 def js(script,async_=False):return wd('POST',sid+('/execute/async' if async_ else '/execute/sync'),{'script':script,'args':[]})
 def pref(key,value):
  result=js('chrome.settingsPrivate.setPref('+json.dumps(key)+','+json.dumps(value)+',arguments[arguments.length-1])',True);assert result is True,result;time.sleep(.3)

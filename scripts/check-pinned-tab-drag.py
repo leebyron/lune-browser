@@ -5,6 +5,7 @@ from hashlib import file_digest
 import json
 from pathlib import Path
 import platform
+import re
 import subprocess
 import tempfile
 
@@ -25,11 +26,40 @@ def sha(path):
         return file_digest(stream, 'sha256').hexdigest()
 
 
+def morph_fixture(source, common, template):
+    tab = (common / 'tab_view.cc').read_text()
+    layout = (common / 'tab_view_vertical_layout.cc').read_text()
+    dragged = (common / 'dragged_tabs_container.cc').read_text()
+    constants = (source / 'chrome/browser/ui/layout_constants.cc').read_text()
+    tween = (source / 'ui/gfx/animation/tween.cc').read_text()
+    sizes = '\n'.join(re.search(rf'case LayoutConstant::{name}:\s*return [^;]+;',
+                                constants)[0]
+                      for name in ('kVerticalTabHeight', 'kVerticalTabPinnedHeight'))
+    bounds = block(dragged, 'void DraggedTabsContainer::OnViewBoundsChanged(')
+    anchor = re.search(r'dragging_views_bounds_ = gfx::Rect\(([^;]+);', bounds)[0]
+    assert 'ApplyLayout(CalculateLayout(TabView().width(), TabView().height()))' in layout
+    assert 'animated_height.value_or(preferred_height)' in layout
+    assert '0.5 * (container.height() - preferred_height)' in layout
+    assert 'title_->layer()->SetOpacity(1.0 - GetPinDragProgress())' in tab
+    assert 'RichAnimationDuration(base::Milliseconds(240))' in tab
+    assert 'pin_drag_animation_.SetTweenType(gfx::Tween::EASE_IN_OUT)' in tab
+    methods = '\n'.join(block(tab, marker) for marker in (
+        'double TabView::GetPinDragTransitionProgress(',
+        'gfx::Size TabView::GetPinDragSize(',
+    ))
+    return (template.replace('// PRODUCTION_ROW_HEIGHTS', sizes)
+            .replace('// PRODUCTION_TWEEN', block(tween, 'int Tween::IntValueBetween('))
+            .replace('// PRODUCTION_TRANSITION', methods)
+            .replace('// PRODUCTION_FLOATING_BOUNDS', anchor))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--arch', choices=['arm64', 'x86_64'], required=True)
     parser.add_argument('--report', type=Path)
+    parser.add_argument('--morph', action='store_true',
+                        help='Check the taller tiles and proportional drag anchoring.')
     args = parser.parse_args()
     source = args.source.resolve(strict=True)
     root = Path(__file__).resolve().parent.parent
@@ -48,9 +78,15 @@ def main():
     with tempfile.TemporaryDirectory(prefix='lune-pinned-tab-drag-') as temporary:
         scratch = Path(temporary)
         (scratch / 'placeholder.cc').write_text(fixture)
-        for name, input_path in [
+        checks = [
                 ('grid', root / 'tests/native/pinned_tab_drop_target.cc'),
-                ('placeholder', scratch / 'placeholder.cc')]:
+                ('placeholder', scratch / 'placeholder.cc')]
+        if args.morph:
+            path = scratch / 'morph.cc'
+            path.write_text(morph_fixture(
+                source, common, (root / 'tests/native/pinned-tab-morph.cc').read_text()))
+            checks.append(('morph', path))
+        for name, input_path in checks:
             binary = scratch / name
             subprocess.run([
                 '/usr/bin/xcrun', 'clang++', '-std=c++20', '-arch', args.arch,
@@ -76,6 +112,13 @@ def main():
                   'compile production paint, entry-policy and empty-layout blocks with '
                   'lightweight Views/Canvas stubs; native pointer delivery is not simulated.'),
     }
+    if args.morph:
+        report['production_sha256'].update({
+            name: sha(common / name)
+            for name in ('tab_view.cc', 'tab_view_vertical_layout.cc')
+        })
+        report['scope'] += (' The morph fixture compiles the production height and'
+                            ' anchor calculations with sampled animation progress.')
     if args.report:
         args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

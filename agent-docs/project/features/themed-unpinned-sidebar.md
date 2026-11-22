@@ -1,4 +1,4 @@
-# Themed unpinned sidebar and 216 px default width
+# Themed unpinned sidebar and default width
 
 Accepted implementation for [issue #21](https://github.com/leebyron/lune-browser/issues/21).
 The owner accepted Test 6 background tones and Test 7 selection colors on
@@ -38,10 +38,10 @@ November 9, 2026, then authorized focused commits, pushing and main adoption.
 - Regular glass and Content aware backing policy remain intact. On older macOS,
   row theming applies but NSVisualEffectView does not receive the glass tint.
   Equivalent fallback material coloration is not claimed.
-- Expanded-sidebar default and resize snap target are 216 logical pixels
-  (AppKit points), up from 200. The 160–400 range and snap tolerance are unchanged.
-  The profile preference registration now uses the same constant, removing a
-  separate hard-coded 200 px default. Stored widths are preserved; this is not a profile migration.
+- The expanded-sidebar default and resize snap target are 216 logical pixels
+  (AppKit points) in Standard and 240 in Comfortable. Profile preference
+  registration uses the same density-specific default. Stored widths take
+  precedence, and both densities use the existing resize range and snap tolerance.
 
 ## Source inputs and validation
 
@@ -91,7 +91,8 @@ This source integration does not publish a browser release.
 python3 scripts/check-native-chrome-appearance.py SOURCE --arch arm64
 python3 scripts/check-native-sidebar-theme.py SOURCE --arch arm64
 python3 scripts/check-sidebar-default-width.py BUILD --report /tmp/sidebar-default.json
-python3 scripts/check-sidebar-default-width.py BUILD --saved-width 260 --report /tmp/sidebar-saved.json
+python3 scripts/check-sidebar-default-width.py BUILD --density comfortable --report /tmp/sidebar-comfortable.json
+python3 scripts/check-sidebar-default-width.py BUILD --density comfortable --saved-width 260 --report /tmp/sidebar-saved.json
 ```
 
 Repeat native fixtures with `--arch x86_64`. Run browser checks sequentially.
