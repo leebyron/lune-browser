@@ -1,0 +1,141 @@
+--- a/chrome/browser/mac/sparkle_glue.mm
++++ b/chrome/browser/mac/sparkle_glue.mm
+@@ -56,8 +56,8 @@
+   SEQUENCE_CHECKER(sequence_checker_);
+ }
+ 
+-// Callback for restart
+-@property (nonatomic, copy) void (^invocationBlock)(void);
++// An explicit relaunch may arrive while the shared updater is checking.
++@property(nonatomic) BOOL relaunchRequested;
+ 
+ // URL of the Sparkle appcast.xml file
+ @property(nonatomic, strong) NSString* currentlyDownloadedVersion;
+@@ -74,7 +74,6 @@
+   base::WeakPtr<Profile> profile_;
+ }
+ 
+-@synthesize invocationBlock = invocationBlock_;
+ @synthesize currentlyDownloadedVersion = currentlyDownloadedVersion_;
+ 
+ - (BOOL)hasProfile {
+@@ -106,9 +105,6 @@
+ - (void)dealloc {
+   profile_.reset();
+ 
+-  if (self.invocationBlock != nil) {
+-    self.invocationBlock = nil;
+-  }
+ }
+ 
+ // Received reply from server with a list of updates.
+@@ -124,22 +120,36 @@
+ }
+ 
+ - (BOOL)updater:(SPUUpdater*)updater
+-    shouldPostponeRelaunchForUpdate:(SUAppcastItem*)item
+-                 untilInvokingBlock:(void (^)(void))installHandler {
+-  currentlyDownloadedVersion_ = item.versionString;
++    willInstallUpdateOnQuit:(SUAppcastItem*)item
++    immediateInstallationBlock:(void (^)(void))installHandler {
++  self.currentlyDownloadedVersion = item.versionString;
+   self.currentlyDownloadedReleaseNotesURL = item.releaseNotesURL.absoluteString;
+-  self.invocationBlock = installHandler;
+   [self updateStatus:VersionUpdater::NEARLY_UPDATED error_string:nil];
+   UpdateReadyCallbacks().Notify();
+-  return YES;
++  return NO;
++}
++
++- (void)updater:(SPUUpdater*)updater willExtractUpdate:(SUAppcastItem*)item {
++  // Starting the replacement installer retires the previously staged item.
++  if (self.currentlyDownloadedVersion) {
++    self.currentlyDownloadedVersion = nil;
++    self.currentlyDownloadedReleaseNotesURL = nil;
++    UpdateReadyCallbacks().Notify();
++  }
+ }
+ 
+-// There is a downloaded and unarchived version, waiting for application quit.
+-- (BOOL)updater:(SPUUpdater *)updater
+-          willInstallUpdateOnQuit:(SUAppcastItem *)item
+-          immediateInstallationBlock:(void (^)(void))immediateInstallHandler {
+-  immediateInstallHandler();
+-  return YES;
++- (void)updater:(SPUUpdater*)updater
++    didFinishUpdateCycleForUpdateCheck:(SPUUpdateCheck)check
++                                 error:(NSError*)error {
++  if (self.currentlyDownloadedVersion) {
++    [self updateStatus:VersionUpdater::NEARLY_UPDATED error_string:nil];
++    if (self.relaunchRequested) {
++      self.relaunchRequested = NO;
++      [updater checkForUpdates];
++    }
++  } else {
++    self.relaunchRequested = NO;
++  }
+ }
+ 
+ - (BOOL)shouldAccessUpdateService {
+@@ -233,6 +243,17 @@
+   return self;
+ }
+ 
++- (void)showUpdateFoundWithAppcastItem:(SUAppcastItem*)item
++                                 state:(SPUUserUpdateState*)state
++                                 reply:(void (^)(SPUUserUpdateChoice))reply {
++  // Only an explicit relaunch uses a user-initiated cycle.
++  if (state.stage == SPUUserUpdateStageInstalling && state.userInitiated) {
++    reply(SPUUserUpdateChoiceInstall);
++  } else {
++    reply(SPUUserUpdateChoiceDismiss);
++  }
++}
++
+ - (void)showDownloadDidReceiveExpectedContentLength:(uint64_t)expectedContentLength {
+   downloaded_length_ = 0;
+   content_length_ = expectedContentLength;
+@@ -320,12 +341,9 @@
+   promote_callback_ = promote_callback;
+ 
+   if (observer && [observer shouldAccessUpdateService]) {
+-    if (observer.invocationBlock || observer.currentlyDownloadedVersion) {
+-      // When updater already has update, don't interrupt it by new check,
+-      // instead suggest user to "Relaunch" browser.
+-      UpdateStatus(NEARLY_UPDATED, 0, nil);
+-    } else if (updater.canCheckForUpdates) {
+-      [observer updateStatus:CHECKING error_string:nil];
++    if (updater.canCheckForUpdates && !updater.sessionInProgress) {
++      [observer updateStatus:observer.currentlyDownloadedVersion ? NEARLY_UPDATED : CHECKING
++                error_string:nil];
+       [updater checkForUpdatesInBackground];
+     } else {
+       // Sparkle already owns a check or download. Reuse it, including progress
+@@ -385,11 +403,13 @@
+ void RelaunchBrowserUsingSparkle() {
+   SparkleObserver* observer = VersionUpdaterSparkle::sparkle_observer_;
+ 
+-  // Tell Sparkle to restart if possible.
+-  if (observer && observer.invocationBlock) {
+-    VersionUpdaterSparkle::sparkle_observer_ = nullptr;
+-    UpdateReadyCallbacks().Notify();
+-    observer.invocationBlock();
++  if (observer.currentlyDownloadedVersion) {
++    SPUUpdater* updater = VersionUpdaterSparkle::sparkle_updater_;
++    if (updater.sessionInProgress) {
++      observer.relaunchRequested = YES;
++    } else {
++      [updater checkForUpdates];
++    }
+   }
+ }
+ 
+@@ -459,7 +479,7 @@
+     return false;
+   }
+ 
+-  return observer.invocationBlock;
++  return observer.currentlyDownloadedVersion != nil;
+ }
+ 
+ void SwitchUnderlyingUpdaterProfile(Profile* profile) {
