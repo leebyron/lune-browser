@@ -1,0 +1,77 @@
+{
+  "date": "2026-11-23",
+  "component_ref": "refs/tags/inputs/sidebar-toggle-glass-1/macos",
+  "macos": "8933068b412cb6e5db7f0ce74ffb4cd14e9f687b",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "chromium": "159.0.8154.13",
+  "patch_sha256": "bf4b339f2cbdc09f4b60d318c8ed313438445cf009d07574c31515e57984c09e",
+  "accepted_preview": {
+    "owner_accepted": true,
+    "framework_sha256": "6a502e1910d28fdec825ef53a901579aff832a143a8232e7b05cd86dc6228d25",
+    "native_geometry_report_sha256": "47d8713b386fb8e4ba00b72e4d0bcd2198e17b14183f1371dbe19930b0b69206"
+  },
+  "source_sha256": {
+    "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "195991ef9e0dc2104343a5adb24d3a6d541fe456f92da4bec61ade349c7bb6ad"
+  },
+  "prepared_source_parity": {
+    "files_match_between_architectures": 572651,
+    "symlinks_match_between_architectures": 130,
+    "base_macos": "8b8525d4e449feecc7758facf5f959392b2e2fcf",
+    "differences_from_base": [
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm"
+    ],
+    "differences_from_approved_preview": [
+      "chrome/browser/ui/views/overlay/constants.h",
+      "chrome/browser/ui/views/overlay/toggle_mute_button.cc",
+      "chrome/browser/ui/views/overlay/toggle_mute_button.h",
+      "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm",
+      "chrome/browser/ui/views/overlay/video_overlay_window_views.cc",
+      "chrome/browser/ui/views/overlay/video_overlay_window_views.h",
+      "chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc"
+    ]
+  },
+  "component_lint_passed": true,
+  "repository_tests": {
+    "run": 108,
+    "skipped": 1
+  },
+  "native_checks": {
+    "sidebar_alignments": [
+      "left",
+      "right"
+    ],
+    "sidebar_states": [
+      "pinned",
+      "revealed",
+      "closed"
+    ],
+    "divider_inset_pt": 8,
+    "top_inset_pt": 8,
+    "pin_unpin_pointer_clicks": true,
+    "hidden_when_closed_or_disabled": true
+  },
+  "builds": {
+    "arm64": {
+      "execution": "Native Apple silicon",
+      "strict_patches": 678,
+      "prepared_report_sha256": "04452327553fd81e43ee5c2358a43d212b5c035ab05c1305de2069f75120f884",
+      "framework_sha256": "f0d11ae404afbff74891fa123c3175ddfd9abe9dfe8f7c37252c5277df47a9b4",
+      "smoke_report_sha256": "15bbdfaa1737b67d7fe46e89e528f7c2c92266b0054c4f7c63be986aee0d42ad",
+      "smoke_passed": true,
+      "native_appearance_and_activation_passed": true,
+      "native_geometry_report_sha256": "61b716e0299d87cdd59b24999c25f0d63506052ec7d1bc42c36eac971f84975f",
+      "native_geometry_matches_approved_preview": true
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "strict_patches": 678,
+      "prepared_report_sha256": "f09bab38a518dce82fad7d6b156c23af41e28d515baa882cb933b163ac60ea25",
+      "framework_sha256": "86ed531018e177239254514a0169c70bc87a633b5327c07112ed517e46b9d0cf",
+      "smoke_report_sha256": "546fc778445ce7fa6d858c5af84a0a81050c288ed107976ea3a1609c7f2f85f3",
+      "smoke_passed": true,
+      "native_appearance_and_activation_passed": true,
+      "native_geometry_report_sha256": "f9c1ea388d949ce74a6d49378c43d0457dc97c07fca616b6bb902c693b183257",
+      "native_geometry_matches_approved_preview": true
+    }
+  }
+}

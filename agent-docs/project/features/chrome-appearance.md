@@ -16,7 +16,21 @@ Later changes give the [unpinned sidebar its own palette policy](themed-unpinned
 
 ## Header shadows and inactive windows
 
-Navigation, address, trailing controls and Customize close use an `NSShadow` with 5% black, 10 pt blur and 3 pt downward offset. Update the rounded shadow path with bounds, including suggestion height, and keep it attached to the material's fade. Direct layer-shadow values were reset by AppKit appearance changes. The sidebar has no added header shadow. The tint has no activation-dependent clearing. Earlier inspection never reached a genuinely inactive window, so the reported inactive tint change still needs native evidence.
+Navigation, address, trailing controls, the sidebar toggle and Customize close use an `NSShadow` with 5% black, 10 pt blur and 3 pt downward offset. Update the rounded shadow path with bounds, including suggestion height, and keep it attached to the material's fade. Direct layer-shadow values were reset by AppKit appearance changes. The sidebar background has no added header shadow. The tint has no activation-dependent clearing. Earlier inspection never reached a genuinely inactive window, so the reported inactive tint change still needs native evidence.
+
+## Sidebar toggle
+
+The sidebar toggle uses a 36 pt native glass container with the same tint,
+shadow and older macOS fallback as Back and Forward. Its 32 pt button stays
+inside the glass content and inherits its foreground appearance.
+
+The toggle sits 8 pt below the sidebar top and 8 pt inside the divider. The
+adjacent Back and Forward pill on the left or the tools pill on the right sits
+8 pt into the content from the same divider. Pinned and fully revealed sidebars
+share this geometry. The toggle fades with the sidebar and follows its existing
+visibility preference.
+
+[Sidebar toggle validation](../builds/2026-11-23-sidebar-toggle-glass.json)
 
 ## Source and validation
 

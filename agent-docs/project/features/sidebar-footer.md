@@ -32,8 +32,8 @@ actions retain their identifying tooltips; accessible names remain present.
 The navigation pill has 8 pt clearance after the traffic-light container (up
 from 4 pt) whenever they are adjacent: with a right sidebar or an unpinned,
 collapsed left sidebar. A revealed left sidebar continues to determine the
-navigation position. The right sidebar toggle is inset 9 pt rather than 4 pt,
-including the final additional 1 pt rightward adjustment.
+navigation position. The [glass sidebar toggle](chrome-appearance.md#sidebar-toggle)
+and adjacent content controls use an 8 pt inset from the divider.
 
 The default row keeps the same tab-height bounds when its close button appears;
 only the action width changes. Overflowing default-browser text fades at the

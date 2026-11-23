@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "8b8525d4e449feecc7758facf5f959392b2e2fcf",
+    "commit": "8933068b412cb6e5db7f0ce74ffb4cd14e9f687b",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1155,6 +1155,10 @@
       {
         "path": "patches/helium/ui/macos-picture-in-picture-glass-controls.patch",
         "sha256": "3a290c0573921520737b2ea3dfcabaec922f7db2b1dbc4cc6497ec6395ee179f"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-toggle-glass.patch",
+        "sha256": "bf4b339f2cbdc09f4b60d318c8ed313438445cf009d07574c31515e57984c09e"
       }
     ]
   },
@@ -3680,6 +3684,23 @@
       "adaptation": "AppKit renders the traffic lights directly. Open Tab and Mute share the play button's glass tint and press highlight. The seek track, thumb and clocks share a single glass pill. The owner accepted the arm64 preview.",
       "commits": [
         "8b8525d4e449feecc7758facf5f959392b2e2fcf"
+      ]
+    },
+    {
+      "id": "sidebar-toggle-glass",
+      "depends_on": [
+        "sidebar-footer",
+        "sidebar-pin-activation",
+        "native-chrome-appearance"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-toggle-glass.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match the sidebar toggle to the adjacent native toolbar controls.",
+      "adaptation": "Use the shared 36 pt glass surface and 8 pt insets from the sidebar divider and top edge on both alignments.",
+      "commits": [
+        "8933068b412cb6e5db7f0ce74ffb4cd14e9f687b"
       ]
     }
   ],
