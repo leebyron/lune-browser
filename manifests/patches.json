@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "79d3ea3db049b2678cfefdcf9a72b83c336b7853",
+    "commit": "10397f9ad326c01aa57012bee4dce232e6fd07c0",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1143,6 +1143,10 @@
       {
         "path": "patches/helium/macos/automatic-crash-session-restore.patch",
         "sha256": "f3687aa722817904ee1df7bf96194625d0f859ee79ed5f219475f8de7da63ad4"
+      },
+      {
+        "path": "patches/helium/ui/older-tab-keep-button.patch",
+        "sha256": "0103e53421c0735e0c8072ee2456c61c7cb351e289ec52ef3b950bc33a70dfc9"
       }
     ]
   },
@@ -3623,6 +3627,22 @@
       "adaptation": "Reuse synchronous session restoration on macOS and let the exit-type service resume session saving after recovery. Suppress the restore bubble once restoration has been initiated.",
       "commits": [
         "79d3ea3db049b2678cfefdcf9a72b83c336b7853"
+      ]
+    },
+    {
+      "id": "older-tabs-keep-button",
+      "depends_on": [
+        "automatic-older-tabs",
+        "sidebar-ui-polish"
+      ],
+      "patches": [
+        "patches/helium/ui/older-tab-keep-button.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Expose the existing Keep Tab action on Older Tabs rows.",
+      "adaptation": "Reveal Keep Tab immediately to the left of Close on hover. Use the native arrow.turn.left.up symbol and shared button styling, with adjacent click targets in both sidebar densities.",
+      "commits": [
+        "10397f9ad326c01aa57012bee4dce232e6fd07c0"
       ]
     }
   ],

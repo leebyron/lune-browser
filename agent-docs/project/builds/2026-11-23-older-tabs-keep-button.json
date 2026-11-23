@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-23",
+  "chromium": "159.0.8154.13",
+  "macos": "10397f9ad326c01aa57012bee4dce232e6fd07c0",
+  "component_ref": "refs/tags/inputs/older-tabs-keep-1/macos",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "patch": "patches/helium/ui/older-tab-keep-button.patch",
+  "patch_sha256": "0103e53421c0735e0c8072ee2456c61c7cb351e289ec52ef3b950bc33a70dfc9",
+  "repository_tests": {
+    "run": 108,
+    "skipped": 1,
+    "passed": true
+  },
+  "component_lint_and_lock_validation_passed": true,
+  "owner_accepted_preview": true,
+  "base_platform_with_crash_restore": "79d3ea3db049b2678cfefdcf9a72b83c336b7853",
+  "accepted_preview_framework_sha256": "3ed29f53a92f21919b5e4fbddd8a46c2ad5b385ffa9545c05476bc9a97c2684c",
+  "native_scenario": "Hover showed two adjacent actions only on the Older Tabs row. Pointer clicks one point either side of their shared edge invoked the intended actions. The kept tab moved to its regular-stack position without activation. Saved state confirmed the reset aging and retention fields and the other tab closed.",
+  "builds": {
+    "arm64": {
+      "execution": "native Apple silicon",
+      "strict_patches": 675,
+      "feature_patch_zero_offsets": true,
+      "affected_source_matches_preview": true,
+      "generated_resources_match_preview": true,
+      "browser_driver_and_installer_built": true,
+      "framework_sha256": "c1219bcf893dc22505a209fa13eea2f57daa033b875614b1658124c62d916a79",
+      "smoke_report_sha256": "7b8b4159f06af1f7d20a9d8340a85b78cc5b318603f42423e52625f003c20bb8",
+      "settings_ui_browsing_and_persistence_smoke_passed": true,
+      "native_edge_clicks_and_saved_state_passed": true,
+      "native_check_report_sha256": "25208063df2408dc41c0245245363867819c8ecbedbf7b5ff1b7618d96bc2d28"
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "strict_patches": 675,
+      "feature_patch_zero_offsets": true,
+      "affected_source_matches_preview": true,
+      "generated_resources_match_preview": true,
+      "browser_driver_and_installer_built": true,
+      "framework_sha256": "f634872161a9d102d4e953b2030d943cabcc8e157d58d218350319b0cdbc59d4",
+      "smoke_report_sha256": "d7a798647ab50e3ade124f6677f2f9e17088f144a98a167c8e0eea4040791c02",
+      "settings_ui_browsing_and_persistence_smoke_passed": true,
+      "native_edge_clicks_and_saved_state_passed": true,
+      "native_check_report_sha256": "7f4c0511f36a3c8dee883943ad13e76a2f5b3a89cdddb6e6114154e07b187f25"
+    }
+  },
+  "generated_resource_sha256": {
+    "gen/chrome/grit/generated_resources.h": "73813d148792ae2a9a8e6380cd11740777a2d73ad42f08c252e5277823050c8b",
+    "Lune.app/Contents/Frameworks/Lune Framework.framework/Resources/en.lproj/locale.pak": "965b8afc48105c69189dd907442c0c77c8a7c4af127f83e535f599f0c985bd8a"
+  },
+  "affected_source_sha256": {
+    "chrome/browser/ui/views/tabs/common/tab_view.cc": "986bc59dff7e0cc11c97d59bf75828901787d0a0661dee77d081b9d67c61debb",
+    "chrome/browser/ui/views/tabs/common/tab_view.h": "df23eca2b973ece7257c384e233fd6258d47abc8a5a7391ef54fb9bca08c8397",
+    "chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc": "58dab10c52ce17f0166f66241ac5336bee0ccf22af364c919a60dc6d6f429976",
+    "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc": "777b6c5f4f14861cd81f59e4835d4c629c0aaa99a0f5c1e8e0e16872f1c54fbb",
+    "chrome/browser/ui/views/tabs/tab/BUILD.gn": "f9a6a4931f1b95ea8079ee03009ed8350f2fc0b1d3e579d6f39a56204b372e25",
+    "chrome/browser/ui/views/tabs/tab/tab_close_button.cc": "962b5cc69f53fecc97705b108aadfef8b9129592641cb4704875b15c2879fbc2",
+    "chrome/browser/ui/views/tabs/tab/tab_close_button.h": "7a41ba76c6357379bc02adb9a57942db288c6bd84eb4f295036312dbef591cc6",
+    "chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm": "2a379d79ff7f7d9944f7e8f99ef0473463d4365faad730301a5400b9a2948ceb"
+  }
+}

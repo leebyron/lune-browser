@@ -121,3 +121,9 @@ Date heading text sits one logical pixel higher within the existing 16-pixel row
 The sidebar scrollbar starts hidden. Vertical scrolling and direct scrollbar controls reveal the thumb and restart its idle fade. Pointer hover alone leaves a faded thumb hidden. Layout keeps the thumb geometry current during Older Tabs disclosure, expiry and viewport resizing. Automatic scroll-to-active also keeps an idle thumb hidden. The scroll position is preserved within the available range and clamps when that range shrinks.
 
 The owner accepted the native preview for future builds. The validation record identifies the signed input and both tested builds, and records the baseline flash and the fixed behavior during real background expiry and disclosure. [Issue #45](https://github.com/leebyron/lune-browser/issues/45) · [Validation record](../builds/2026-11-20-sidebar-scrollbar-input.json)
+
+## Keep Tab on hover
+
+Hovering an Older Tabs row reveals Keep Tab immediately to the left of Close. Keep uses the `arrow.turn.left.up` SF Symbol and the localized Keep Tab label for its tooltip and accessibility name. The two click targets meet in both sidebar densities. Keeping a tab restores its logical position in the regular stack without activating it and restarts its regular aging clock.
+
+Signed input `inputs/older-tabs-keep-1/macos` selects the owner-approved change for future builds. The [adoption record](../builds/2026-11-23-older-tabs-keep-button.json) covers strict source preparation, exact parity with the accepted preview, both architecture builds and native pointer checks. Intel execution uses Rosetta on Apple silicon.
