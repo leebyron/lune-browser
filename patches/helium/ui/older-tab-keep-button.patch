@@ -1,0 +1,351 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -24,6 +24,7 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
+ #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
++#include "chrome/browser/ui/tabs/older_tabs_controller.h"
+ #include "chrome/browser/ui/tabs/tab_change_type.h"
+ #include "chrome/browser/ui/tabs/tab_data.h"
+ #include "chrome/browser/ui/tabs/tab_enums.h"
+@@ -436,6 +437,27 @@ TabView::TabView(TabCollectionNode* coll
+ 
+ TabView::~TabView() = default;
+ 
++void TabView::SetIsInOlderTabs(bool is_in_older_tabs) {
++  if (is_in_older_tabs_ == is_in_older_tabs) {
++    return;
++  }
++  is_in_older_tabs_ = is_in_older_tabs;
++  if (is_in_older_tabs_ && !keep_button_) {
++    auto button = std::make_unique<TabCloseButton>(
++        base::BindRepeating(&TabView::KeepButtonPressed,
++                            base::Unretained(this)),
++        base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>(),
++        /*sidebar_style=*/true, TabCloseButton::Action::kKeep);
++    button->SetVisible(false);
++    keep_button_ = AddChildView(std::move(button));
++    keep_button_observation_.Observe(keep_button_);
++  }
++  if (is_in_older_tabs_) {
++    keep_button_->SetColors(close_button_->GetColors());
++  }
++  InvalidateLayout();
++}
++
+ void TabView::LayoutManager::OnInstalled(views::View* host) {
+   CHECK(IsViewClass<class TabView>(host));
+ }
+@@ -1062,16 +1084,12 @@ void TabView::UpdateParentLayer() {
+   }
+ }
+ 
+-void TabView::OnViewFocused(views::View* observed_view) {
+-  if (observed_view == close_button_) {
+-    InvalidateLayout();
+-  }
++void TabView::OnViewFocused(views::View*) {
++  InvalidateLayout();
+ }
+ 
+-void TabView::OnViewBlurred(views::View* observed_view) {
+-  if (observed_view == close_button_) {
+-    InvalidateLayout();
+-  }
++void TabView::OnViewBlurred(views::View*) {
++  InvalidateLayout();
+ }
+ 
+ void TabView::UpdateClipPathAndRoundedCorners() {
+@@ -1120,10 +1138,12 @@ bool TabView::ShouldEnableMuteToggle(int
+   }
+ 
+   // The alert indicator is on the leading edge, after the favicon. Measure
+-  // the selectable title area between it and the trailing close button (or
+-  // the tab edge when the close button is hidden).
+-  const int selectable_region_end =
++  // the selectable title area between it and the first trailing action.
++  int selectable_region_end =
+       close_button_->GetVisible() ? close_button_->x() : width();
++  if (keep_button_ && keep_button_->GetVisible()) {
++    selectable_region_end = keep_button_->x();
++  }
+   return selectable_region_end - alert_indicator_->bounds().right() >=
+          required_width;
+ }
+@@ -1225,8 +1245,9 @@ void TabView::ResetCollectionNode() {
+   UpdateZOrder();
+ 
+   // Update the callbacks for the buttons so that we don't call anything that
+-  // needs the node.
++  // needs the node and hide the Older Tabs action.
+   close_button_->SetCallback(base::RepeatingClosure(base::DoNothing()));
++  SetIsInOlderTabs(false);
+ 
+   layout_manager()->OnTabClosing();
+ }
+@@ -1429,6 +1450,9 @@ void TabView::UpdateColors() {
+   title_->SetEnabledColor(colors.foreground_color);
+   icon_->SetNativeIconColor(colors.foreground_color);
+   close_button_->SetColors(colors);
++  if (keep_button_ && is_in_older_tabs_) {
++    keep_button_->SetColors(colors);
++  }
+   alert_indicator_->OnParentTabButtonColorChanged(colors.foreground_color);
+ 
+   UpdateBorder();
+@@ -1485,6 +1509,19 @@ void TabView::CloseButtonPressed(const u
+       from_mouse ? CloseTabSource::kFromMouse : CloseTabSource::kFromTouch);
+ }
+ 
++void TabView::KeepButtonPressed() {
++  if (!collection_node_ || !is_in_older_tabs_) {
++    return;
++  }
++  auto* older_tabs = collection_node_->GetController()
++                         ->GetDragHandler()
++                         .GetTabStripModel()
++                         ->older_tabs_controller();
++  if (older_tabs->IsEnabled()) {
++    older_tabs->Keep(GetTabInterface()->GetContents());
++  }
++}
++
+ void TabView::RecordMousePressedInTab() {
+   auto* tab_strip_view = GetTabStripView(this);
+   CHECK(tab_strip_view);
+--- a/chrome/browser/ui/views/tabs/common/tab_view.h
++++ b/chrome/browser/ui/views/tabs/common/tab_view.h
+@@ -122,6 +122,7 @@ class TabView : public views::View,
+     pin_drag_target_size_ = target;
+   }
+   int GetPinDragIconX(int regular_x, int icon_width) const;
++  void SetIsInOlderTabs(bool is_in_older_tabs);
+   void AnimationProgressed(const gfx::Animation* animation) override;
+   void AnimationEnded(const gfx::Animation* animation) override;
+   const tabs::TabInterface* GetTabInterface() const;
+@@ -204,6 +205,7 @@ class TabView : public views::View,
+   void UpdateContrastRatioValues();
+ 
+   void CloseButtonPressed(const ui::Event& event);
++  void KeepButtonPressed();
+   void RecordMousePressedInTab();
+ 
+   void UpdateHoverCard(HoverCardAnchorTarget* target,
+@@ -251,6 +253,7 @@ class TabView : public views::View,
+   const raw_ptr<TabIcon> icon_;
+   const raw_ptr<AlertIndicatorButton> alert_indicator_;
+   const raw_ptr<TabCloseButton> close_button_;
++  raw_ptr<TabCloseButton> keep_button_ = nullptr;
+   raw_ptr<glic::TabUnderlineView> glic_tab_underline_view_ = nullptr;
+ 
+   base::CallbackListSubscription node_destroyed_subscription_;
+@@ -267,6 +270,7 @@ class TabView : public views::View,
+   bool split_ = false;
+   bool collapsed_ = false;
+   bool pinned_ = false;
++  bool is_in_older_tabs_ = false;
+   bool shift_pressed_on_mouse_down_ = false;
+   bool should_fill_background_tab_color_ = false;
+ 
+@@ -291,6 +295,8 @@ class TabView : public views::View,
+ 
+   base::ScopedObservation<views::View, views::ViewObserver>
+       close_button_observation_{this};
++  base::ScopedObservation<views::View, views::ViewObserver>
++      keep_button_observation_{this};
+ 
+   base::WeakPtrFactory<TabView> weak_ptr_factory_{this};
+ };
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
+@@ -4,8 +4,9 @@
+ 
+ #include "chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.h"
+ 
++#include <algorithm>
++
+ #include "base/command_line.h"
+-#include "ui/gfx/animation/tween.h"
+ #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
+@@ -16,6 +17,7 @@
+ #include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
+ #include "chrome/browser/ui/views/tabs/tab/tab_title.h"
+ #include "chrome/browser/ui/views/tabs/tab_style_views.h"
++#include "ui/gfx/animation/tween.h"
+ #include "ui/views/style/typography.h"
+ #include "ui/views/view_utils.h"
+ 
+@@ -150,6 +152,34 @@ views::ProposedLayout TabViewVerticalLay
+           child.view.get(), is_child_visible,
+           gfx::Rect(bounds_remaining.x(), bounds_remaining.y(), 0, 0));
+     }
++
++    if (child.view == TabView().close_button_ && TabView().keep_button_) {
++      auto* keep_button = TabView().keep_button_.get();
++      gfx::Rect keep_bounds = TabCloseButton::GetSidebarTrailingControlBounds(
++          layouts.host_size, keep_button->GetPreferredSize());
++      if (is_child_visible || shared_slot) {
++        int distance_between_centers = keep_bounds.width();
++        if (!IsSpaciousUiDensity()) {
++          // Only the contents are clickable in Standard density. Overlap the
++          // decorative padding so the two hit targets meet.
++          distance_between_centers -=
++              keep_button->GetInsets().right() +
++              TabView().close_button_->GetInsets().left();
++        }
++        keep_bounds.Offset(-distance_between_centers, 0);
++      }
++      const bool show_keep =
++          TabView().is_in_older_tabs_ && !is_centered && !TabView().pinned_ &&
++          (TabView().hovered_ || keep_button->HasFocus()) &&
++          !TabView().split_ && !TabView().IsDragging() &&
++          keep_bounds.x() - bounds_remaining.x() >=
++              kIconDesignWidth + kHorizontalInset + kTitleMinWidth;
++      if (show_keep) {
++        bounds_remaining.Inset(gfx::Insets().set_right(std::max(
++            0, bounds_remaining.right() - keep_bounds.x() + kDefaultPadding)));
++      }
++      layouts.child_layouts.emplace_back(keep_button, show_keep, keep_bounds);
++    }
+   }
+ 
+   if (TabView().glic_tab_underline_view_) {
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -940,8 +940,12 @@ void UnpinnedTabContainerView::UpdateOld
+   // headings on every insertion made their animation start at another point.
+   size_t index = 0;
+   for (auto* child : collection_node_->GetDirectChildren()) {
+-    if (!enabled ||
+-        !tabs::OlderTabsController::IsOlder(ContentsForView(child))) {
++    const bool is_older =
++        enabled && tabs::OlderTabsController::IsOlder(ContentsForView(child));
++    if (auto* tab = views::AsViewClass<TabView>(child)) {
++      tab->SetIsInOlderTabs(is_older);
++    }
++    if (!is_older) {
+       ReorderChildView(child, index++);
+     }
+   }
+--- a/chrome/browser/ui/views/tabs/tab/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/tab/BUILD.gn
+@@ -50,6 +50,7 @@ source_set("impl") {
+ 
+   deps = [
+     ":tab",
++    "//chrome/app:generated_resources",
+     "//chrome/app/vector_icons",
+     "//chrome/browser:browser_process",
+     "//chrome/browser:primitives",
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
+@@ -10,6 +10,7 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/tabs/tab.h"
+ #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
++#include "chrome/grit/generated_resources.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+@@ -71,12 +72,19 @@ int GetHighlightCornerRadius(bool sideba
+ 
+ TabCloseButton::TabCloseButton(PressedCallback pressed_callback,
+                                MouseEventCallback mouse_event_callback,
+-                               bool sidebar_style)
++                               bool sidebar_style,
++                               Action action)
+     : views::LabelButton(std::move(pressed_callback)),
+       sidebar_style_(sidebar_style),
++      action_(action),
+       mouse_event_callback_(std::move(mouse_event_callback)) {
+   SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
+-  GetViewAccessibility().SetName(l10n_util::GetStringUTF16(IDS_ACCNAME_CLOSE));
++  const auto name = l10n_util::GetStringUTF16(
++      action_ == Action::kKeep ? IDS_OLDER_TABS_KEEP : IDS_ACCNAME_CLOSE);
++  GetViewAccessibility().SetName(name);
++  if (action_ == Action::kKeep) {
++    SetTooltipText(name);
++  }
+   SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
+ 
+   // Some sites cannot be closed immediately and instead show a confirmation
+@@ -257,17 +265,18 @@ bool TabCloseButton::GetHitTestMask(SkPa
+ }
+ void TabCloseButton::UpdateIcon() {
+ #if BUILDFLAG(IS_MAC)
+-  if (sidebar_style_) {
+-    const auto icon = GetSidebarIcon();
+-    SetImageModel(views::Button::STATE_NORMAL, icon);
+-    SetImageModel(views::Button::STATE_HOVERED, icon);
+-    SetImageModel(views::Button::STATE_PRESSED, icon);
++  const auto native_icon = sidebar_style_ ? GetSidebarIcon() : ui::ImageModel();
++  if (!native_icon.IsEmpty()) {
++    SetImageModel(views::Button::STATE_NORMAL, native_icon);
++    SetImageModel(views::Button::STATE_HOVERED, native_icon);
++    SetImageModel(views::Button::STATE_PRESSED, native_icon);
+     return;
+   }
+ #endif
+-  const auto& icon = features::IsRoundedIconsEnabled()
+-                         ? kCloseWeight500CustomIcon
+-                         : kCloseTabChromeRefreshOldIcon;
++  const auto& close_icon = features::IsRoundedIconsEnabled()
++                               ? kCloseWeight500CustomIcon
++                               : kCloseTabChromeRefreshOldIcon;
++  const auto& icon = action_ == Action::kKeep ? kArrowUpwardIcon : close_icon;
+ 
+   SetImageModel(views::Button::STATE_NORMAL,
+                 ui::ImageModel::FromVectorIcon(
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.h
+@@ -12,7 +12,7 @@
+ #include "ui/views/controls/button/label_button.h"
+ #include "ui/views/masked_targeter_delegate.h"
+ 
+-// This is a Button subclass that shows the tab closed icon.
++// A tab close button. The sidebar also uses this control for Keep Tab.
+ //
+ // In addition to setup for the icon, it forwards middle clicks to the parent
+ // View by explicitly not handling them in OnMousePressed.
+@@ -21,6 +21,8 @@ class TabCloseButton : public views::Lab
+   METADATA_HEADER(TabCloseButton, views::LabelButton)
+ 
+  public:
++  enum class Action { kClose, kKeep };
++
+   using MouseEventCallback =
+       base::RepeatingCallback<void(views::View*, const ui::MouseEvent&)>;
+ 
+@@ -30,7 +32,8 @@ class TabCloseButton : public views::Lab
+   // See note on SetTabColor.
+   TabCloseButton(PressedCallback pressed_callback,
+                  MouseEventCallback mouse_event_callback,
+-                 bool sidebar_style = false);
++                 bool sidebar_style = false,
++                 Action action = Action::kClose);
+   TabCloseButton(const TabCloseButton&) = delete;
+   TabCloseButton& operator=(const TabCloseButton&) = delete;
+   ~TabCloseButton() override;
+@@ -74,6 +77,7 @@ class TabCloseButton : public views::Lab
+ #endif
+ 
+   const bool sidebar_style_;
++  const Action action_;
+   MouseEventCallback mouse_event_callback_;
+ 
+   TabStyle::TabColors colors_;
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
+@@ -7,6 +7,7 @@
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ 
+ ui::ImageModel TabCloseButton::GetSidebarIcon() const {
+-  return ui::ImageModel::FromImageSkia(
+-      helium::NativeSidebarSymbolForName("xmark", colors_.foreground_color));
++  return ui::ImageModel::FromImageSkia(helium::NativeSidebarSymbolForName(
++      action_ == Action::kKeep ? "arrow.turn.left.up" : "xmark",
++      colors_.foreground_color));
+ }
