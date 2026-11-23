@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-23",
+  "component_ref": "refs/tags/inputs/contextual-tab-menu-1/macos",
+  "macos": "dc4f00c65d6b4d35adab7df7f67f57cc53ae9ad7",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "chromium": "159.0.8154.13",
+  "patch_sha256": "d61d59208dd81f8e3fe4636fd2e13479398dad2e455a9eb47a8417f57afe8822",
+  "accepted_preview": "Owner manually accepted the arm64 preview.",
+  "component_lint_passed": true,
+  "repository_tests": {
+    "run": 108,
+    "skipped": 1
+  },
+  "source_sha256": {
+    "chrome/browser/ui/tabs/tab_menu_model.cc": "67586d37f87c01af49e144760c4902df144ec63e31cb3a916302307ad9ba7cff",
+    "chrome/browser/ui/tabs/tab_menu_model_browsertest.cc": "28087d4cebe3296414e54dbf07cb670f460af29a4af4b8dbc034318b481228f0"
+  },
+  "builds": {
+    "arm64": {
+      "execution": "Native Apple silicon",
+      "strict_patches": 676,
+      "source_matches_approved_menu_and_final_tests": true,
+      "framework_sha256": "7b6da81d484ccaec8e7ef77c524fb8c4ed98a27999ea223aaea562fa4ab8609f",
+      "smoke_report_sha256": "ec7f9a588bad5d37bedf06738b9f1ee891f3e4d4bad416870a12ddf74bbd22a4",
+      "smoke_passed": true,
+      "native_menu_report_sha256": "a51dc67b3c40570604bbff3565e12d0a8513d1d640118740c88b4085c809ab0f",
+      "native_menu_scenarios": [
+        "quiet",
+        "playing",
+        "quiet-while-another-tab-plays",
+        "paused",
+        "ended",
+        "quiet-muted-site",
+        "quiet-muted-tab",
+        "hibernated"
+      ]
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "strict_patches": 676,
+      "source_matches_approved_menu_and_final_tests": true,
+      "framework_sha256": "83735d475b519b7dae5ba101a15f65a1e0433788dda359b867c11700b59b852b",
+      "smoke_report_sha256": "ab05b4bd6b3b87ea53193ec1cd9640b6795838e4ae804591fb7f623818dcb5ad",
+      "smoke_passed": true,
+      "native_menu_report_sha256": "8473124cdcc260eec8073d1afca90cc6e6bdab56c480ef87a5d72b50182a932b",
+      "native_menu_scenarios": [
+        "quiet",
+        "playing",
+        "quiet-while-another-tab-plays",
+        "paused",
+        "ended",
+        "quiet-muted-site",
+        "quiet-muted-tab",
+        "hibernated"
+      ]
+    }
+  },
+  "prepared_source_parity": {
+    "files_match_between_architectures": 572651,
+    "symlinks_match_between_architectures": 130,
+    "differences_from_approved_preview": [
+      "chrome/browser/ui/startup/infobar_utils.cc",
+      "chrome/browser/ui/startup/startup_browser_creator_impl.cc",
+      "chrome/browser/ui/tabs/tab_menu_model_browsertest.cc",
+      "chrome/browser/ui/views/tabs/common/tab_view.cc",
+      "chrome/browser/ui/views/tabs/common/tab_view.h",
+      "chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc",
+      "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc",
+      "chrome/browser/ui/views/tabs/tab/BUILD.gn",
+      "chrome/browser/ui/views/tabs/tab/tab_close_button.cc",
+      "chrome/browser/ui/views/tabs/tab/tab_close_button.h",
+      "chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm"
+    ],
+    "base_macos": "10397f9ad326c01aa57012bee4dce232e6fd07c0",
+    "differences_from_settled_base": [
+      "chrome/browser/ui/tabs/tab_menu_model.cc",
+      "chrome/browser/ui/tabs/tab_menu_model_browsertest.cc"
+    ]
+  }
+}

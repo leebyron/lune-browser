@@ -3,10 +3,9 @@
 On macOS, media, capture, sharing, device and VR alerts use SF Symbols in
 ordinary tabs and in their hover-card footers. In ordinary tabs the alert
 occupies the trailing close-button position. The close button takes that
-position on hover or when it has keyboard focus. The tab context menu offers
-**Mute Tab** and **Unmute Tab**. Recording, sharing, device and VR alerts report
-status. Pinned and icon-only tabs show the highest-priority alert in the
-compact icon area.
+position on hover or when it has keyboard focus. Recording, sharing, device
+and VR alerts report status. Pinned and icon-only tabs show the highest-priority
+alert in the compact icon area.
 
 | Status | SF Symbol | Fallback when unavailable |
 | --- | --- | --- |
@@ -34,6 +33,19 @@ resolve a suitable symbol.
 
 See the [adoption validation](../builds/2026-11-21-tab-status-symbols.json)
 for the owner review, source replay and browser builds.
+
+## Tab context menu
+
+**Mute Tab** and **Mute Site** appear when a tab targeted by the menu has a
+controllable media session or its current page has played audible audio. This
+covers paused media and audio that already ended. Muted tabs and sites can
+still be unmuted, including either site in Split View. **Hibernate** is omitted
+when the clicked tab is already hibernated.
+
+The owner accepted the arm64 preview. Fresh preparation, both architecture
+builds, smoke checks, and native sidebar menu checks passed. The Intel checks
+ran under Rosetta on Apple silicon. See the
+[adoption validation](../builds/2026-11-23-contextual-tab-menu.json).
 
 ## Page loading progress
 

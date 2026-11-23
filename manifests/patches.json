@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "10397f9ad326c01aa57012bee4dce232e6fd07c0",
+    "commit": "dc4f00c65d6b4d35adab7df7f67f57cc53ae9ad7",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1147,6 +1147,10 @@
       {
         "path": "patches/helium/ui/older-tab-keep-button.patch",
         "sha256": "0103e53421c0735e0c8072ee2456c61c7cb351e289ec52ef3b950bc33a70dfc9"
+      },
+      {
+        "path": "patches/helium/ui/contextual-tab-menu.patch",
+        "sha256": "d61d59208dd81f8e3fe4636fd2e13479398dad2e455a9eb47a8417f57afe8822"
       }
     ]
   },
@@ -3643,6 +3647,19 @@
       "adaptation": "Reveal Keep Tab immediately to the left of Close on hover. Use the native arrow.turn.left.up symbol and shared button styling, with adjacent click targets in both sidebar densities.",
       "commits": [
         "10397f9ad326c01aa57012bee4dce232e6fd07c0"
+      ]
+    },
+    {
+      "id": "contextual-tab-menu",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/ui/contextual-tab-menu.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Show tab context actions when they are relevant.",
+      "adaptation": "Use audio history and per-tab media session controllability for mute visibility and discard state for Hibernate visibility.",
+      "commits": [
+        "dc4f00c65d6b4d35adab7df7f67f57cc53ae9ad7"
       ]
     }
   ],
