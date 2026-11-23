@@ -1,0 +1,145 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -725,15 +725,12 @@
+ 
+ @interface HeliumGlassSidebarButton : HeliumGlassSurface
+ - (instancetype)initWithBrowserView:(BrowserView*)view;
+-- (void)refreshEmbedded:(BOOL)embedded;
++- (void)refresh;
+ @end
+ @implementation HeliumGlassSidebarButton {
+   base::WeakPtr<BrowserView> _browser;
+   NSButton* _button;
+ }
+-- (BOOL)usesHeaderShadow {
+-  return NO;
+-}
+ - (instancetype)initWithBrowserView:(BrowserView*)view {
+   self = [super initWithFrame:NSMakeRect(0, 0, 36, 36)];
+   if (!self) {
+@@ -769,7 +766,7 @@
+         ui::mojom::MenuSourceType::kMouse);
+   }
+ }
+-- (void)refreshEmbedded:(BOOL)embedded {
++- (void)refresh {
+   if (!_browser) {
+     return;
+   }
+@@ -785,14 +782,6 @@
+           [NSImageSymbolConfiguration
+               configurationWithPointSize:16
+                                   weight:NSFontWeightMedium]];
+-  // Move the one control into the sidebar surface without a second glass pill.
+-  NSView* parent = embedded ? self : _controls;
+-  if (_button.superview != parent) {
+-    [_button removeFromSuperview];
+-    [parent addSubview:_button];
+-    _button.frame = NSMakeRect(2, 2, 32, 32);
+-  }
+-  _material.hidden = embedded;
+ }
+ @end
+ 
+@@ -2549,6 +2538,7 @@
+ constexpr int kFloatingToolbarHeight =
+     helium::kNativeToolbarControlHeight +
+     2 * helium::kNativeToolbarVerticalPadding;
++constexpr int kGlassControlInset = helium::kNativeToolbarVerticalPadding;
+ constexpr CGFloat kPageTopDragThreshold = 4;
+ constexpr auto kPageTopDragDecisionTimeout = base::Milliseconds(80);
+ constexpr NSEventModifierFlags kPageTopDragModifiers =
+@@ -2949,6 +2939,7 @@
+   NSColor* tint = helium::NativeGlassThemeTintColor(GetBrowserView());
+   floating_address_bar_.themeTintColor = tint;
+   floating_navigation_.themeTintColor = tint;
++  floating_sidebar_button_.themeTintColor = tint;
+   floating_toolbar_material_.themeTintColor = tint;
+   floating_sidebar_material_.themeTintColor =
+       helium::NativeSidebarGlassTintColor(GetBrowserView());
+@@ -3474,7 +3465,6 @@
+           container.get(), browser_view, container->GetContentsViewBounds()));
+     }
+   }
+-  const int glass_inset = 8;
+   gfx::Rect side = browser_view->GetFloatingSidebarBounds();
+   if (browser_view->IsZenModeSideChromePinned()) {
+     if (auto* sidebar = browser_view->GetSidebarView();
+@@ -3483,15 +3473,15 @@
+                                               sidebar->GetLocalBounds());
+     }
+   }
+-  // Use the same adjacent gap for pinned and fully revealed sidebars, so
+-  // pinning changes page layout without moving the native navigation group.
++  // Treat the sidebar's inner edge as a content edge in both pinned and
++  // revealed states, including when the sidebar overlaps the page.
+   if (!side.IsEmpty()) {
+     if (browser_view->IsVerticalTabStripRightAligned()) {
+-      content.set_width(
+-          std::max(0, std::min(content.right(), side.x() - 12 + glass_inset) - content.x()));
++      content.set_width(std::max(
++          0, std::min(content.right(), side.x()) - content.x()));
+     } else {
+       const int right = content.right();
+-      content.set_x(std::max(content.x(), side.right() + 12 - glass_inset));
++      content.set_x(std::max(content.x(), side.right()));
+       content.set_width(std::max(0, right - content.x()));
+     }
+   }
+@@ -3500,11 +3490,13 @@
+   const int controls_right =
+       8 + base::ClampCeil(HeliumWindowControlsWidth(
+               GetWidget()->GetNativeWindow().GetNativeNSWindow()));
+-  const int leading = std::max(content.x() + glass_inset, controls_right + 8);
++  const int leading =
++      std::max(content.x() + kGlassControlInset, controls_right + 8);
+   const int trailing =
+-      std::min(content.right() - glass_inset, browser_view->width() - 8);
++      std::min(content.right() - kGlassControlInset,
++               browser_view->width() - kGlassControlInset);
+   const gfx::Rect bar_region(
+-      leading, helium::kNativeToolbarVerticalPadding + TopUIFullscreenYOffset(),
++      leading, kGlassControlInset + TopUIFullscreenYOffset(),
+       std::max(0, trailing - leading), helium::kNativeToolbarControlHeight);
+   const int navigation_width = FloatingNavigationWidth(browser_view);
+   const int address_left =
+@@ -4436,29 +4428,27 @@
+       sidebar, view, sidebar->GetLocalBounds());
+   // Keep the toggle on the sidebar only. No independent toolbar pill or
+   // movement between surfaces as the unpinned panel opens and closes.
+-  const int inset = right ? 9 : 4;
+-  const int x =
+-      right ? sidebar_bounds.x() + inset : sidebar_bounds.right() - 36 - inset;
+-  button_host->SetBounds(x, sidebar_bounds.y() + 8, 36, 36);
+-  floating_sidebar_button_.appearance =
+-      detached ? ([floating_sidebar_material_ foregroundAppearance] ?:
+-                  FloatingChromeAppearance(view)) : FloatingChromeAppearance(view);
++  const int x = right ? sidebar_bounds.x() + kGlassControlInset
++                      : sidebar_bounds.right() - 36 - kGlassControlInset;
++  button_host->SetBounds(x, sidebar_bounds.y() + kGlassControlInset, 36, 36);
++  floating_sidebar_button_.themeTintColor =
++      helium::NativeGlassThemeTintColor(view);
++  floating_sidebar_button_.contentAware =
++      view->GetProfile()->GetPrefs()->GetBoolean(
++          prefs::kHeliumContentAwareChrome);
++  floating_sidebar_button_.appearance = FloatingChromeAppearance(view);
+   if (detached && floating_sidebar_widget_) {
+     auto weak_widget = floating_sidebar_widget_->GetWeakPtr();
+-    __weak HeliumGlassSidebarButton* weak_button = floating_sidebar_button_;
+-    NSAppearance* profile_appearance = FloatingChromeAppearance(view);
+     floating_sidebar_material_.onAppearanceChanged = ^(NSAppearance* appearance) {
+-      weak_button.appearance = appearance ?: profile_appearance;
+       if (weak_widget) {
+         helium::SetNativeGlassControlAppearance(weak_widget.get(), appearance);
+       }
+     };
+   }
+-  [floating_sidebar_button_ refreshEmbedded:YES];
++  [floating_sidebar_button_ refresh];
+   const CGFloat visibility = sidebar_visible && show_toggle ? reveal : 0;
+   // Avoid competing presentation animations when pinning reparents the tabs.
+   [floating_sidebar_button_ setRevealFraction:visibility];
+-  floating_sidebar_button_.alphaValue = visibility;
+   button_host->SetVisible(visibility > 0);
+   NSView* parent = floating_sidebar_button_.superview;
+   if (visibility > 0 && parent.subviews.lastObject != floating_sidebar_button_) {
