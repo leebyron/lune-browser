@@ -1,0 +1,644 @@
+--- a/chrome/browser/ui/views/overlay/constants.h
++++ b/chrome/browser/ui/views/overlay/constants.h
+@@ -9,4 +9,8 @@
+ 
+ inline constexpr int kCenterButtonSize = 48;
+ 
++inline constexpr int kPipGlassTintAlpha = 26;
++inline constexpr int kPipGlassPressedTintAlpha = 46;
++inline constexpr int kPipGlassRimAlpha = 48;
++
+ #endif  // CHROME_BROWSER_UI_VIEWS_OVERLAY_CONSTANTS_H_
+--- a/chrome/browser/ui/views/overlay/toggle_mute_button.cc
++++ b/chrome/browser/ui/views/overlay/toggle_mute_button.cc
+@@ -15,8 +15,27 @@
+ #include "ui/base/models/image_model.h"
+ #include "ui/base/ui_base_features.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "ui/views/animation/ink_drop.h"
++#include "ui/views/animation/ink_drop_host.h"
++#include "ui/views/background.h"
++#include "ui/views/border.h"
++
++namespace {
++
++constexpr int kGlassRadius = 14;
++
++}  // namespace
++#endif
++
+ ToggleMuteButton::ToggleMuteButton(PressedCallback callback)
+     : OverlayWindowImageButton(std::move(callback)) {
++#if BUILDFLAG(IS_MAC)
++  views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
++  SetBorder(views::CreateRoundedRectBorder(
++      1, kGlassRadius, SkColorSetA(SK_ColorWHITE, kPipGlassRimAlpha)));
++  UpdateGlassTint();
++#endif
+   UpdateImageAndTooltipText();
+ }
+ 
+@@ -41,6 +60,23 @@
+ #endif
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++void ToggleMuteButton::StateChanged(ButtonState old_state) {
++  OverlayWindowImageButton::StateChanged(old_state);
++  if ((old_state == STATE_PRESSED) != (GetState() == STATE_PRESSED)) {
++    UpdateGlassTint();
++  }
++}
++
++void ToggleMuteButton::UpdateGlassTint() {
++  const int alpha = GetState() == STATE_PRESSED
++                        ? kPipGlassPressedTintAlpha
++                        : kPipGlassTintAlpha;
++  SetBackground(views::CreateRoundedRectBackground(
++      SkColorSetA(SK_ColorWHITE, alpha), kGlassRadius, 1));
++}
++#endif
++
+ void ToggleMuteButton::UpdateImageAndTooltipText() {
+   if (bounds().IsEmpty()) {
+     return;
+--- a/chrome/browser/ui/views/overlay/toggle_mute_button.h
++++ b/chrome/browser/ui/views/overlay/toggle_mute_button.h
+@@ -5,6 +5,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_OVERLAY_TOGGLE_MUTE_BUTTON_H_
+ #define CHROME_BROWSER_UI_VIEWS_OVERLAY_TOGGLE_MUTE_BUTTON_H_
+ 
++#include "build/build_config.h"
+ #include "chrome/browser/ui/views/overlay/overlay_window_image_button.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ 
+@@ -26,9 +27,15 @@
+   // views::View:
+   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
+   ui::Cursor GetCursor(const ui::MouseEvent& event) override;
++#if BUILDFLAG(IS_MAC)
++  void StateChanged(ButtonState old_state) override;
++#endif
+ 
+  private:
+   void UpdateImageAndTooltipText();
++#if BUILDFLAG(IS_MAC)
++  void UpdateGlassTint();
++#endif
+ 
+   bool is_muted_ = false;
+ };
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+@@ -18,6 +18,7 @@
+ #include "base/apple/foundation_util.h"
+ #import "chrome/browser/ui/views/helium/fullscreen_window_controls_mac.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "chrome/browser/ui/views/overlay/constants.h"
+ #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
+ #include "chrome/grit/generated_resources.h"
+ #import "components/remote_cocoa/app_shim/bridged_content_view.h"
+@@ -31,28 +32,28 @@
+ 
+ namespace {
+ 
+-constexpr CGFloat kTransportTint = 0.10;
+-constexpr CGFloat kPressedTransportTint = 0.18;
++NSColor* GlassColor(int alpha) {
++  return [NSColor colorWithWhite:1 alpha:alpha / 255.0];
++}
+ 
+ }  // namespace
+ 
+ @interface VideoPictureInPictureButtonCell : NSButtonCell
+-@property(nonatomic, weak) CALayer* transportTintLayer;
++@property(nonatomic, weak) CALayer* glassTintLayer;
+ @end
+ 
+ @implementation VideoPictureInPictureButtonCell
+-@synthesize transportTintLayer = _transportTintLayer;
++@synthesize glassTintLayer = _glassTintLayer;
+ 
+ - (void)highlight:(BOOL)highlighted
+         withFrame:(NSRect)frame
+            inView:(NSView*)view {
+-  if (CALayer* tint = self.transportTintLayer) {
++  if (CALayer* tint = self.glassTintLayer) {
+     [CATransaction begin];
+     [CATransaction setDisableActions:YES];
+     tint.backgroundColor =
+-        [NSColor colorWithWhite:1
+-                         alpha:highlighted ? kPressedTransportTint
+-                                           : kTransportTint].CGColor;
++        GlassColor(highlighted ? kPipGlassPressedTintAlpha : kPipGlassTintAlpha)
++            .CGColor;
+     [CATransaction commit];
+   }
+   [super highlight:highlighted withFrame:frame inView:view];
+@@ -81,7 +82,6 @@
+ constexpr CGFloat kOpenTabSize = 28;
+ constexpr CGFloat kOpenTabInset = 12;
+ constexpr CGFloat kTrafficLightGroupHeight = 36;
+-constexpr float kIdleTrafficLightBezelOpacity = 0.68f;
+ using TrafficLightOffsets = std::array<CGFloat, std::size(kWindowButtons)>;
+ constexpr CGFloat kPlayButtonSize =
+     VideoOverlayWindowNativeWidgetMac::kPlayButtonSize;
+@@ -112,115 +112,21 @@
+   }
+ }
+ 
+-NSBitmapImageRep* RenderTrafficLightGlyphs(NSWindow* window,
+-                                          const TrafficLightOffsets& offsets,
+-                                          NSSize size) {
+-  // Rasterize AppKit once, offscreen. A live color filter can corrupt the
+-  // video surface during the titlebar fade.
+-  NSWindow* drawingWindow = [[NSWindow alloc]
+-      initWithContentRect:NSMakeRect(0, 0, size.width, size.height)
+-                styleMask:window.styleMask & ~NSWindowStyleMaskFullSizeContentView
+-                  backing:NSBackingStoreBuffered
+-                    defer:NO];
+-  drawingWindow.opaque = NO;
+-  drawingWindow.backgroundColor = NSColor.clearColor;
+-  drawingWindow.collectionBehavior = window.collectionBehavior;
+-  HeliumFullscreenWindowControls* controls =
+-      [[HeliumFullscreenWindowControls alloc] initWithWindow:drawingWindow
+-                                                        size:size
+-                                  allowsWindowManagementMenu:NO];
+-  controls.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+-  LayoutTrafficLightGroup(controls, offsets);
+-  for (NSButton* button in controls.subviews) {
+-    button.enabled = YES;
+-  }
+-  [drawingWindow.contentView addSubview:controls];
+-  [controls setMouseInsideControls:YES];
+-  NSBitmapImageRep* artwork =
+-      [controls bitmapImageRepForCachingDisplayInRect:controls.bounds];
+-  if (!artwork) {
+-    return nil;
+-  }
+-  [controls cacheDisplayInRect:controls.bounds toBitmapImageRep:artwork];
+-
+-  NSBitmapImageRep* glyphs = [[NSBitmapImageRep alloc]
+-      initWithBitmapDataPlanes:nullptr
+-                    pixelsWide:artwork.pixelsWide
+-                    pixelsHigh:artwork.pixelsHigh
+-                 bitsPerSample:8
+-               samplesPerPixel:4
+-                      hasAlpha:YES
+-                      isPlanar:NO
+-                colorSpaceName:NSDeviceRGBColorSpace
+-                   bytesPerRow:0
+-                  bitsPerPixel:0];
+-  if (!glyphs) {
+-    return nil;
+-  }
+-
+-  // The white marks are brighter than the native faces. Write a
+-  // premultiplied white mask so the clear pixels carry no color or opacity.
+-  constexpr CGFloat kGlyphThreshold = 0.80;
+-  bool hasGlyphs = false;
+-  @autoreleasepool {
+-    for (NSInteger y = 0; y < artwork.pixelsHigh; ++y) {
+-      unsigned char* row = glyphs.bitmapData + y * glyphs.bytesPerRow;
+-      for (NSInteger x = 0; x < artwork.pixelsWide; ++x) {
+-        NSColor* color = [[artwork colorAtX:x y:y]
+-            colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
+-        unsigned char sample = 0;
+-        if (color) {
+-          const CGFloat brightness =
+-              std::min({color.redComponent, color.greenComponent,
+-                        color.blueComponent});
+-          const CGFloat coverage = std::clamp(
+-              (brightness - kGlyphThreshold) / (1 - kGlyphThreshold), 0.0, 1.0);
+-          sample = std::round(255 * coverage * color.alphaComponent);
+-        }
+-        std::fill_n(row + x * 4, 4, sample);
+-        hasGlyphs |= sample > 0;
+-      }
+-    }
+-  }
+-  glyphs.size = size;
+-  return hasGlyphs ? glyphs : nil;
+-}
+-
+-CAShapeLayer* MakeTrafficLightBezel(NSRect frame) {
+-  CAShapeLayer* bezel = [CAShapeLayer layer];
+-  bezel.frame = frame;
+-  bezel.lineWidth = 1.0;
+-  bezel.fillColor = [NSColor colorWithWhite:0 alpha:0.22].CGColor;
+-  bezel.strokeColor = [NSColor colorWithWhite:0 alpha:0.18].CGColor;
+-  bezel.opacity = kIdleTrafficLightBezelOpacity;
+-  // Stroke inside the native button's bounds. Use an ellipse so the rim and
+-  // fill share smooth circular coverage beneath the native artwork.
+-  const CGFloat inset = bezel.lineWidth / 2;
+-  CGPathRef path =
+-      CGPathCreateWithEllipseInRect(CGRectInset(bezel.bounds, inset, inset),
+-                                   nullptr);
+-  bezel.path = path;
+-  CGPathRelease(path);
+-  return bezel;
+-}
+-
+ void SetButtonLabel(NSButton* button, int message_id) {
+   NSString* label = l10n_util::GetNSString(message_id);
+   button.toolTip = label;
+   button.accessibilityLabel = label;
+ }
+ 
+-// Use the same modest tint and rim for every transport diameter. Lens
+-// refraction over video makes the larger control look like a different material.
+-NSView* MakeTransportSurface(NSButton* button) {
++NSView* MakeGlassButton(NSButton* button) {
+   NSView* surface = [[NSView alloc] initWithFrame:NSZeroRect];
+   surface.wantsLayer = YES;
+-  surface.layer.backgroundColor = [NSColor colorWithWhite:1 alpha:kTransportTint].CGColor;
+-  surface.layer.borderColor = [NSColor colorWithWhite:1 alpha:0.19].CGColor;
++  surface.layer.backgroundColor = GlassColor(kPipGlassTintAlpha).CGColor;
++  surface.layer.borderColor = GlassColor(kPipGlassRimAlpha).CGColor;
+   surface.layer.borderWidth = 1;
+   VideoPictureInPictureButtonCell* cell =
+       base::apple::ObjCCastStrict<VideoPictureInPictureButtonCell>(button.cell);
+-  cell.transportTintLayer = surface.layer;
++  cell.glassTintLayer = surface.layer;
+   button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+   [surface addSubview:button];
+   return surface;
+@@ -347,7 +253,7 @@
+   [arrow addAnimation:animation forKey:@"skipArrowRotation"];
+ }
+ 
+-void LayoutTransportSurface(NSView* surface, NSRect frame) {
++void LayoutGlassButton(NSView* surface, NSRect frame) {
+   if (NSIsEmptyRect(frame) || NSEqualRects(surface.frame, frame)) {
+     return;
+   }
+@@ -382,16 +288,11 @@
+ @implementation VideoPictureInPictureControls {
+   Actions _actions;
+   HeliumFullscreenWindowControls* _trafficLightGroup;
+-  NSView* _trafficLightContainer;
+-  CALayer* _trafficLightGlyphs;
+-  std::array<CAShapeLayer* __strong, std::size(kWindowButtons)>
+-      _trafficLightBezels;
+-  BOOL _trafficLightsHovered;
+   BOOL _headerVisible;
+   BOOL _playVisible;
+   BOOL _skipBackVisible;
+   BOOL _skipForwardVisible;
+-  NSButton* _openTabButton;
++  NSView* _openTabGlass;
+   NSView* _playGlass;
+   NSView* _skipBackGlass;
+   NSView* _skipForwardGlass;
+@@ -425,53 +326,32 @@
+   _trafficLightGroup = [[HeliumFullscreenWindowControls alloc]
+       initWithWindow:window size:groupSize allowsWindowManagementMenu:NO];
+   LayoutTrafficLightGroup(_trafficLightGroup, offsets);
+-  // Aqua supplies the native white traffic-light glyphs over video.
+-  _trafficLightGroup.appearance =
+-      [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+   _trafficLightGroup.wantsLayer = YES;
+-  _trafficLightContainer = [[NSView alloc] initWithFrame:_trafficLightGroup.frame];
+-  _trafficLightContainer.wantsLayer = YES;
+-  [_trafficLightContainer addSubview:_trafficLightGroup];
+   for (size_t i = 0; i < _trafficLightGroup.subviews.count; ++i) {
+     NSButton* button = (NSButton*)_trafficLightGroup.subviews[i];
+     button.target = self;
+     button.action = selectors[i];
+     button.enabled = YES;
+-    CAShapeLayer* bezel = MakeTrafficLightBezel(button.frame);
+-    _trafficLightBezels[i] = bezel;
+-    [_trafficLightContainer.layer addSublayer:bezel];
+     if (kWindowButtons[i] == NSWindowZoomButton) {
+       SetButtonLabel(button, IDS_ENTER_FULLSCREEN_MAC);
+     }
+   }
+-  NSBitmapImageRep* glyphs = RenderTrafficLightGlyphs(window, offsets, groupSize);
+-  if (CGImageRef image = glyphs.CGImage) {
+-    // Suppress only the native drawing. The same AppKit buttons handle
+-    // hit-testing, focus, accessibility, and actions.
+-    _trafficLightGroup.layer.opacity = 0;
+-    _trafficLightGlyphs = [CALayer layer];
+-    _trafficLightGlyphs.frame = _trafficLightGroup.frame;
+-    _trafficLightGlyphs.contents = (__bridge id)image;
+-    _trafficLightGlyphs.contentsScale = glyphs.pixelsWide / groupSize.width;
+-    _trafficLightGlyphs.hidden = YES;
+-    [_trafficLightContainer.layer addSublayer:_trafficLightGlyphs];
+-  }
+-  [self addSubview:_trafficLightContainer];
+-  FadeControl(_trafficLightContainer, NO, NO);
++  [self addSubview:_trafficLightGroup];
++  FadeControl(_trafficLightGroup, NO, NO);
+ 
+   NSImage* openTabImage = gfx::NSImageFromImageSkia(
+       helium::NativeToolbarSymbolForName("pip.exit", 20, SK_ColorWHITE, 15));
+-  _openTabButton = [self buttonWithSymbol:openTabImage
+-                                   label:IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT
+-                                  action:@selector(openSourceTab:)];
+-  _openTabButton.wantsLayer = YES;
+-  _openTabButton.layer.cornerRadius = kOpenTabSize / 2;
+-  [self addSubview:_openTabButton];
+-  FadeControl(_openTabButton, NO, NO);
++  NSButton* openTabButton =
++      [self buttonWithSymbol:openTabImage
++                       label:IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT
++                      action:@selector(openSourceTab:)];
++  _openTabGlass = MakeGlassButton(openTabButton);
++  [self addSubview:_openTabGlass];
++  FadeControl(_openTabGlass, NO, NO);
+   _playButton = [self buttonWithSymbol:nil
+                                 label:IDS_PICTURE_IN_PICTURE_PLAY_CONTROL_TEXT
+                                action:@selector(togglePlayback:)];
+-  _playGlass = MakeTransportSurface(_playButton);
++  _playGlass = MakeGlassButton(_playButton);
+   for (size_t i = 0; i < kPlaybackSymbolNames.size(); ++i) {
+     CALayer* layer =
+         MakeSymbolLayer(kPlaybackSymbolNames[i], kPlaySymbolCanvas, kPlaySymbolSize);
+@@ -484,13 +364,13 @@
+                                     label:IDS_PICTURE_IN_PICTURE_REPLAY_10_TEXT
+                                    action:@selector(skipBack:)];
+   _skipBackArrow = AddSkipSymbol(back, /*forward=*/false);
+-  _skipBackGlass = MakeTransportSurface(back);
++  _skipBackGlass = MakeGlassButton(back);
+   NSButton* forward =
+       [self buttonWithSymbol:nil
+                        label:IDS_PICTURE_IN_PICTURE_FORWARD_10_TEXT
+                       action:@selector(skipForward:)];
+   _skipForwardArrow = AddSkipSymbol(forward, /*forward=*/true);
+-  _skipForwardGlass = MakeTransportSurface(forward);
++  _skipForwardGlass = MakeGlassButton(forward);
+   for (NSView* glass in @[_playGlass, _skipBackGlass, _skipForwardGlass]) {
+     [self addSubview:glass];
+     FadeControl(glass, NO, NO);
+@@ -530,40 +410,25 @@
+   window.contentView.layer.cornerRadius = radius;
+   window.contentView.layer.masksToBounds = YES;
+ 
+-  [_trafficLightContainer setFrameOrigin:NSMakePoint(
++  [_trafficLightGroup setFrameOrigin:NSMakePoint(
+       center - kTrafficLightGroupHeight / 2,
+       center - kTrafficLightGroupHeight / 2)];
+ 
+-  _openTabButton.frame =
+-      NSMakeRect(NSWidth(self.bounds) - kOpenTabInset - kOpenTabSize,
+-                 kOpenTabInset, kOpenTabSize, kOpenTabSize);
++  LayoutGlassButton(_openTabGlass,
++                    NSMakeRect(NSWidth(self.bounds) - kOpenTabInset - kOpenTabSize,
++                               kOpenTabInset, kOpenTabSize, kOpenTabSize));
+ }
+ 
+ - (void)setHeaderVisible:(BOOL)visible animate:(BOOL)animate {
+   if (_headerVisible != visible) {
+     _headerVisible = visible;
+-    FadeControl(_openTabButton, visible, animate);
+-    FadeControl(_trafficLightContainer, visible, animate);
++    FadeControl(_openTabGlass, visible, animate);
++    FadeControl(_trafficLightGroup, visible, animate);
+   }
+   const NSPoint pointer = [self convertPoint:
+       [self.window convertPointFromScreen:NSEvent.mouseLocation] fromView:nil];
+-  // Use the same full 36-point row as the floating browser controls.
+-  const BOOL overLights =
+-      visible && NSPointInRect(pointer, _trafficLightContainer.frame);
+-  [_trafficLightGroup setMouseInsideControls:overLights];
+-  if (_trafficLightsHovered != overLights) {
+-    _trafficLightsHovered = overLights;
+-    [CATransaction begin];
+-    [CATransaction setDisableActions:YES];
+-    _trafficLightGlyphs.hidden = !overLights;
+-    for (CAShapeLayer* bezel : _trafficLightBezels) {
+-      bezel.opacity = overLights ? 1.0f : kIdleTrafficLightBezelOpacity;
+-    }
+-    [CATransaction commit];
+-  }
+-  const BOOL overOpenTab = visible && NSPointInRect(pointer, _openTabButton.frame);
+-  _openTabButton.layer.backgroundColor =
+-      overOpenTab ? [NSColor colorWithWhite:1 alpha:0.14].CGColor : nil;
++  [_trafficLightGroup setMouseInsideControls:
++      visible && NSPointInRect(pointer, _trafficLightGroup.frame)];
+ }
+ 
+ - (void)setPlayFrame:(NSRect)play
+@@ -573,10 +438,10 @@
+   const BOOL playVisible = !NSIsEmptyRect(play);
+   const BOOL backVisible = !NSIsEmptyRect(back);
+   const BOOL forwardVisible = !NSIsEmptyRect(forward);
+-  LayoutTransportSurface(_playGlass, ExpandedTransportButton(play, kPlayButtonSize, 0));
+-  LayoutTransportSurface(_skipBackGlass,
++  LayoutGlassButton(_playGlass, ExpandedTransportButton(play, kPlayButtonSize, 0));
++  LayoutGlassButton(_skipBackGlass,
+               ExpandedTransportButton(back, kSkipButtonSize, -kSkipButtonOffset));
+-  LayoutTransportSurface(_skipForwardGlass,
++  LayoutGlassButton(_skipForwardGlass,
+               ExpandedTransportButton(forward, kSkipButtonSize, kSkipButtonOffset));
+   if (_playVisible != playVisible) {
+     _playVisible = playVisible;
+@@ -620,9 +485,8 @@
+   NSView* hit = [super hitTest:point];
+   if (hit == self ||
+       (!_headerVisible &&
+-       ([hit isDescendantOf:_openTabButton] ||
+-        [hit isDescendantOf:_trafficLightContainer])) ||
+-      hit == _trafficLightContainer ||
++       ([hit isDescendantOf:_openTabGlass] ||
++        [hit isDescendantOf:_trafficLightGroup])) ||
+       (!_playVisible && [hit isDescendantOf:_playGlass]) ||
+       (!_skipBackVisible && [hit isDescendantOf:_skipBackGlass]) ||
+       (!_skipForwardVisible && [hit isDescendantOf:_skipForwardGlass])) {
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -1855,13 +1855,22 @@
+       center_controls->AddChildView(std::move(forward_10_seconds_button));
+   previous_track_controls_view_ =
+       footer_controls->AddChildView(std::move(previous_track_controls_view));
+-  progress_view_ = footer_controls->AddChildView(std::move(progress_view));
++  views::View* timeline = footer_controls;
++#if BUILDFLAG(IS_MAC)
++  playback_timeline_view_ = timeline =
++      footer_controls->AddChildView(std::make_unique<views::View>());
++  timeline->SetBackground(views::CreatePillBackground(
++      SkColorSetA(SK_ColorWHITE, kPipGlassTintAlpha), 1));
++  timeline->SetBorder(views::CreateRoundedRectBorder(
++      1, kActionButtonSize.height() / 2,
++      SkColorSetA(SK_ColorWHITE, kPipGlassRimAlpha)));
++#endif
++  progress_view_ = timeline->AddChildView(std::move(progress_view));
+   next_track_controls_view_ =
+       footer_controls->AddChildView(std::move(next_track_controls_view));
+-  timestamp_ = footer_controls->AddChildView(std::move(timestamp));
++  timestamp_ = timeline->AddChildView(std::move(timestamp));
+ #if BUILDFLAG(IS_MAC)
+-  remaining_timestamp_ =
+-      footer_controls->AddChildView(std::move(remaining_timestamp));
++  remaining_timestamp_ = timeline->AddChildView(std::move(remaining_timestamp));
+ #endif
+   live_status_ = footer_controls->AddChildView(std::move(live_status));
+   live_caption_button_ =
+@@ -2223,15 +2232,14 @@
+ #if BUILDFLAG(IS_MAC)
+ void VideoOverlayWindowViews::LayoutMacPlaybackFooter(const gfx::Rect& bounds) {
+   constexpr int kControlGap = 6;
++  constexpr int kPillHorizontalPadding = 10;
+   constexpr int kTimestampHeight = 16;
+   constexpr int kMinScrubberWidth = 44;
+   const int control_height = kActionButtonSize.height();
+   // Equal insets place the speaker's center on the bottom corner diagonal.
+   const int row_y =
+       bounds.bottom() - kBottomControlsHorizontalMargin - control_height;
+-  const int text_y = row_y + (control_height - kTimestampHeight) / 2;
+-  constexpr int kElapsedClockInset = 16;
+-  const int left = bounds.x() + kElapsedClockInset;
++  const int text_y = (control_height - kTimestampHeight) / 2;
+   int right = bounds.right() - kBottomControlsHorizontalMargin;
+ 
+   if (toggle_mute_button_) {
+@@ -2245,22 +2253,28 @@
+     right -= live_caption_button_->width() + kControlGap;
+   }
+ 
+-  timestamp_->SetVisible(!is_live_);
+-  remaining_timestamp_->SetVisible(!is_live_);
+-  progress_view_->SetVisible(!is_live_);
++  playback_timeline_view_->SetVisible(!is_live_);
+   live_status_->SetVisible(is_live_);
+   if (is_live_) {
+-    live_status_->SetPosition({left, text_y});
++    constexpr int kLiveStatusInset = 16;
++    const int left = bounds.x() + kLiveStatusInset;
++    live_status_->SetPosition({left, row_y + text_y});
+     live_status_->SetMaximumWidthSingleLine(std::max(0, right - left));
+     live_status_->SetSize(live_status_->GetPreferredSize(
+         {std::max(0, right - left), kTimestampHeight}));
+   } else {
++    const int pill_x = bounds.x() + kBottomControlsHorizontalMargin;
++    const int pill_width = std::max(0, right - pill_x);
++    playback_timeline_view_->SetBounds(pill_x, row_y, pill_width,
++                                       control_height);
++    const int content_width =
++        std::max(0, pill_width - 2 * kPillHorizontalPadding);
+     // Reserve for the full duration so the rail stays put as the clocks tick.
+     const std::u16string duration =
+         global_media_controls::GetFormattedDuration(position_.duration());
+-    constexpr int kClockPadding = 4;
++    constexpr int kClockPadding = 2;
+     const int max_clock_width =
+-        std::max(0, (right - left - kMinScrubberWidth) / 2);
++        std::max(0, (content_width - kMinScrubberWidth) / 2);
+     const int elapsed_width = std::min(
+         max_clock_width,
+         gfx::GetStringWidth(duration, timestamp_->font_list()) + kClockPadding);
+@@ -2268,12 +2282,13 @@
+         max_clock_width,
+         gfx::GetStringWidth(base::StrCat({u"−", duration}),
+                             remaining_timestamp_->font_list()) + kClockPadding);
+-    timestamp_->SetBounds(left, text_y, elapsed_width, kTimestampHeight);
+-    remaining_timestamp_->SetBounds(right - remaining_width, text_y,
+-                                    remaining_width, kTimestampHeight);
+-    const int scrubber_width =
+-        std::max(0, right - left - elapsed_width - remaining_width);
+-    progress_view_->SetBounds(left + elapsed_width, row_y, scrubber_width,
++    timestamp_->SetBounds(kPillHorizontalPadding, text_y, elapsed_width,
++                          kTimestampHeight);
++    remaining_timestamp_->SetBounds(
++        kPillHorizontalPadding + content_width - remaining_width, text_y,
++        remaining_width, kTimestampHeight);
++    progress_view_->SetBounds(kPillHorizontalPadding + elapsed_width, 0,
++                              content_width - elapsed_width - remaining_width,
+                               control_height);
+   }
+   UpdateScrubberThumbVisibility(display::Screen::Get()->GetCursorScreenPoint());
+@@ -2287,11 +2302,12 @@
+ 
+ gfx::Rect VideoOverlayWindowViews::GetFooterControlBounds(
+     const views::View* control) {
+-  gfx::Rect bounds = control->GetMirroredBounds();
+ #if BUILDFLAG(IS_MAC)
+-  bounds.Offset(0, footer_controls_container_view_->y());
++  return views::View::ConvertRectToTarget(
++      control, playback_controls_container_view_, control->GetLocalBounds());
++#else
++  return control->GetMirroredBounds();
+ #endif
+-  return bounds;
+ }
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -2735,6 +2751,11 @@
+ }
+ 
+ gfx::Rect VideoOverlayWindowViews::GetProgressViewBounds() {
++#if BUILDFLAG(IS_MAC)
++  if (is_live_) {
++    return gfx::Rect();
++  }
++#endif
+   return GetFooterControlBounds(progress_view_);
+ }
+ 
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.h
+@@ -516,6 +516,7 @@
+ #if BUILDFLAG(IS_MAC)
+   raw_ptr<views::View> center_controls_container_view_ = nullptr;
+   raw_ptr<views::View> footer_controls_container_view_ = nullptr;
++  raw_ptr<views::View> playback_timeline_view_ = nullptr;
+   bool header_hovered_ = false;
+   bool footer_hovered_ = false;
+   bool center_controls_visible_ = false;
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -931,18 +931,24 @@
+   auto* remaining = overlay_window().remaining_timestamp_for_testing();
+   auto* progress = overlay_window().progress_view_for_testing();
+   auto* mute = overlay_window().toggle_mute_button_for_testing();
++  auto* timeline = timestamp->parent();
+   ASSERT_TRUE(remaining->IsDrawn());
+   ASSERT_NE(nullptr, mute);
+   EXPECT_EQ(u"−0:58", remaining->GetText());
++  EXPECT_EQ(timeline, progress->parent());
++  EXPECT_EQ(timeline, remaining->parent());
++  EXPECT_TRUE(timeline->GetLocalBounds().Contains(timestamp->bounds()));
++  EXPECT_TRUE(timeline->GetLocalBounds().Contains(progress->bounds()));
++  EXPECT_TRUE(timeline->GetLocalBounds().Contains(remaining->bounds()));
+   EXPECT_EQ(timestamp->bounds().CenterPoint().y(),
+             progress->bounds().CenterPoint().y());
+   EXPECT_EQ(timestamp->bounds().CenterPoint().y(),
+             remaining->bounds().CenterPoint().y());
+-  EXPECT_EQ(timestamp->bounds().CenterPoint().y(),
++  EXPECT_EQ(timeline->bounds().CenterPoint().y(),
+             mute->bounds().CenterPoint().y());
+   EXPECT_LE(timestamp->bounds().right(), progress->x());
+   EXPECT_LE(progress->bounds().right(), remaining->x());
+-  EXPECT_LT(remaining->bounds().right(), mute->x());
++  EXPECT_LT(timeline->bounds().right(), mute->x());
+   EXPECT_EQ(12, mute->parent()->width() - mute->bounds().right());
+   EXPECT_EQ(12, mute->parent()->height() - mute->bounds().bottom());
+   EXPECT_LE(overlay_window().next_track_controls_view_for_testing()
+@@ -1226,7 +1232,7 @@
+   // The timestamp should start out visible while the live status should start
+   // out hidden.
+   EXPECT_FALSE(live_status->GetVisible());
+-  EXPECT_TRUE(timestamp->GetVisible());
++  EXPECT_TRUE(timestamp->IsDrawn());
+ 
+   // Setting the position to live should hide the timestamp and show the live
+   // status.
+@@ -1237,7 +1243,7 @@
+       /*end_of_media=*/false);
+   overlay_window().SetMediaPosition(live_media_position);
+   EXPECT_TRUE(live_status->GetVisible());
+-  EXPECT_FALSE(timestamp->GetVisible());
++  EXPECT_FALSE(timestamp->IsDrawn());
+ 
+   // Setting the position to a non-live video should hide the live status and
+   // show the timestamp.
+@@ -1247,7 +1253,7 @@
+                                               /*end_of_media=*/false);
+   overlay_window().SetMediaPosition(media_position);
+   EXPECT_FALSE(live_status->GetVisible());
+-  EXPECT_TRUE(timestamp->GetVisible());
++  EXPECT_TRUE(timestamp->IsDrawn());
+ }
+ 
+ TEST_F(VideoOverlayWindowViewsTest, NextAndPreviousShareVisibility) {
