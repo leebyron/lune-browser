@@ -9,25 +9,21 @@ window keeps its place. A site that registers a Media Session
 `enterpictureinpicture` handler controls how its automatic window opens,
 including Document Picture-in-Picture.
 
-On macOS, the video uses AppKit’s rounded frame and the same native button group
-as the browser’s floating chrome. The group fades in place. Its buttons are
-drawn over round translucent black bezels with a subtle darker outline. The
-bezels darken slightly and AppKit’s white glyphs appear when the pointer enters
-the shared 36-point-high hover box. PiP caches the native glyphs offscreen so
-the header fade composites over the video without live color filtering. The fullscreen button acts
-on the video and disables the Move & Resize menu. The group aligns
-with the icon-only **Open Tab** button, which uses `pip.exit` with the same
-edge insets and a similar visible size to the speaker. It shows a circular
-highlight on hover. Red dismisses PiP and pauses the video.
-Yellow dismisses PiP and keeps playing. Green opens the source video in media
-fullscreen. **Open Tab** returns to the source and keeps playing. The header
-omits the site address and favicon. Empty areas in all three regions let AppKit
-drag the window.
-The separate permission prompt still identifies the site.
+On macOS, AppKit draws the rounded video frame and the traffic lights in the
+top-left corner. The button group fades with the header and shows its native
+glyphs when the pointer enters the shared 36-point-high hover box. Close
+dismisses PiP and pauses the video. Minimize dismisses PiP and keeps playing.
+Fullscreen opens the source video in media fullscreen, with the Move & Resize
+menu disabled for this button. The icon-only **Open Tab** button uses
+`pip.exit` in a round glass surface at the top right. It returns to the source
+and keeps playing. The header shows only the traffic lights and Open Tab.
+Empty areas in all three regions let AppKit drag the window. The separate
+permission prompt identifies the site.
 
 Play/pause uses a white 33-point SF Symbol inside a 72-point translucent button.
-The skip buttons use white 18-point symbols on 40-point buttons with the same
-tint and rim. All three brighten slightly while pressed. The playback row stays
+The skip buttons use white 18-point symbols on 40-point buttons. Play/pause,
+both skip buttons, **Open Tab**, and mute share the same glass tint, rim, and
+brighter pressed state. The playback row stays
 vertically centered at all window sizes. Play/pause scales the two symbols
 through zero over 240 ms. Each skip arrow turns once around its circle in the
 direction it points, easing out over 570 ms while both digits stay still.
@@ -54,14 +50,15 @@ for its position. An active mouse gesture or keyboard navigation keeps the
 relevant controls available. The pointer stays visible outside the PiP
 window and while another app is active.
 
-The playback footer puts elapsed time, a neutral scrubber, minus-prefixed
-remaining time, and the speaker on one row. Hovering within the seek target
-animates the rail thickness and grows the thumb from zero to 12 points. The
-seek target extends past both ends of the rail. The elapsed clock is inset 16
-points from the leading edge. The speaker's control has equal 12-point insets
-from the bottom and trailing edge. Clicking it toggles mute and shows
-`speaker.slash` while muted. Both the scrubber and speaker use the standard
-arrow cursor. Live video shows its live status and speaker.
+The playback footer groups elapsed time, the seek rail and playhead, and
+minus-prefixed remaining time in one glass pill. The side padding and clock
+spacing leave room for both times and the seek target at the minimum window
+size. Hovering within the seek target animates the rail thickness and grows
+the thumb from zero to 12 points. The seek target extends past both ends of
+the rail. The separate speaker button has equal 12-point insets from the
+bottom and trailing edge. Clicking it toggles mute and shows `speaker.slash`
+while muted. Both the scrubber and speaker use the standard arrow cursor. Live
+video shows its live status and speaker.
 
 See [native tab status indicators](tab-status-indicators.md) for the PiP,
 playing audio and muted audio badges and their hover cards.
@@ -102,3 +99,7 @@ for the signed input, paired builds, and YouTube checks.
 
 See the [idle controls validation](../builds/2026-11-21-pip-idle-controls.json)
 for source parity, paired builds, and native pointer checks for [issue #55](https://github.com/leebyron/lune-browser/issues/55).
+
+See the [glass controls validation](../builds/2026-11-23-pip-glass-controls.json)
+for source parity, paired builds, native button and seek checks, and the
+minimum-size layout.

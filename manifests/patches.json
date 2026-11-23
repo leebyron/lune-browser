@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "dc4f00c65d6b4d35adab7df7f67f57cc53ae9ad7",
+    "commit": "8b8525d4e449feecc7758facf5f959392b2e2fcf",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1151,6 +1151,10 @@
       {
         "path": "patches/helium/ui/contextual-tab-menu.patch",
         "sha256": "d61d59208dd81f8e3fe4636fd2e13479398dad2e455a9eb47a8417f57afe8822"
+      },
+      {
+        "path": "patches/helium/ui/macos-picture-in-picture-glass-controls.patch",
+        "sha256": "3a290c0573921520737b2ea3dfcabaec922f7db2b1dbc4cc6497ec6395ee179f"
       }
     ]
   },
@@ -3660,6 +3664,22 @@
       "adaptation": "Use audio history and per-tab media session controllability for mute visibility and discard state for Hibernate visibility.",
       "commits": [
         "dc4f00c65d6b4d35adab7df7f67f57cc53ae9ad7"
+      ]
+    },
+    {
+      "id": "pip-glass-controls",
+      "depends_on": [
+        "automatic-picture-in-picture",
+        "pip-idle-controls"
+      ],
+      "patches": [
+        "patches/helium/ui/macos-picture-in-picture-glass-controls.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use native traffic lights and match the playback controls across video Picture-in-Picture.",
+      "adaptation": "AppKit renders the traffic lights directly. Open Tab and Mute share the play button's glass tint and press highlight. The seek track, thumb and clocks share a single glass pill. The owner accepted the arm64 preview.",
+      "commits": [
+        "8b8525d4e449feecc7758facf5f959392b2e2fcf"
       ]
     }
   ],
