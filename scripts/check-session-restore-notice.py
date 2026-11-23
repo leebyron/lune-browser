@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Check quiet session restoration with real session files and both setup states.
+"""Check quiet session restoration after clean and forced exits.
 
 Launch without ChromeDriver's enable-automation/no-first-run flags, which would
-bypass the startup notices and make absence checks misleading. Attach only after
-startup; simulate an unclean exit to check the separate crash-recovery bubble.
+bypass startup notices. Attach only after startup and force-quit only the
+disposable browser process.
 """
 import argparse
 import http.server
 import json
 from pathlib import Path
+import signal
 import socket
 import subprocess
 import threading
@@ -42,7 +43,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
 threading.Thread(target=server.serve_forever, daemon=True).start()
-saved_url = f'http://127.0.0.1:{server.server_port}/saved'
+origin = f'http://127.0.0.1:{server.server_port}'
+saved_urls = {origin+'/saved-a', origin+'/saved-b'}
+added_url = origin+'/after-recovery'
+startup_settings_url = 'chrome://settings/onStartup'
 with socket.socket() as sock:
     sock.bind(('127.0.0.1', 0))
     port = sock.getsockname()[1]
@@ -59,6 +63,25 @@ def wd(method, path, data=None):
     if isinstance(value, dict) and 'error' in value:
         raise RuntimeError(value)
     return value
+
+
+def page_targets(port):
+    targets = requests.get(f'http://127.0.0.1:{port}/json/list',
+                           timeout=10).json()
+    return [target for target in targets if target['type'] == 'page']
+
+
+def wait_for_session_write(profile, since):
+    preferences = profile/'Default/Preferences'
+    for _ in range(100):
+        if (json.loads(preferences.read_text()).get('profile', {}).get('exit_type')
+                == 'Crashed' and
+                any(file.stat().st_mtime_ns >= since
+                    for folder in ('Sessions', 'Sessions_Encrypted')
+                    for file in (profile/'Default'/folder).glob('Session_*'))):
+            return
+        time.sleep(.1)
+    raise RuntimeError('Session write did not reach disk before force quit')
 
 
 results = []
@@ -84,15 +107,11 @@ try:
                        'services': {'enabled': False, 'browser_updates': False}}
         }))
         row = {'completed_onboarding': completed, 'gpu_disabled': args.disable_gpu}
-        for phase in ('fresh', 'saved', 'crashed'):
-            if phase == 'crashed':
-                preferences = profile/'Default/Preferences'
-                prefs = json.loads(preferences.read_text())
-                prefs['profile']['exit_type'] = 'Crashed'
-                preferences.write_text(json.dumps(prefs))
+        for phase in ('fresh', 'saved', 'crashed', 'crashed-again', 'clean-again'):
             active = profile/'DevToolsActivePort'
             active.unlink(missing_ok=True)
             with (case/f'{phase}.log').open('w') as log:
+                session_changed_at = time.time_ns()
                 browser = subprocess.Popen([
                     str(build/'Lune.app/Contents/MacOS/Lune'),
                     '--remote-debugging-port=0',
@@ -116,39 +135,79 @@ try:
                     'goog:chromeOptions': {'debuggerAddress': f'127.0.0.1:{debug_port}'}
                 }}})
                 sid = '/session/'+session['sessionId']
-                time.sleep(1)
-                targets = requests.get(f'http://127.0.0.1:{debug_port}/json/list',
-                                       timeout=10).json()
-                urls = [target['url'] for target in targets if target['type'] == 'page']
-                row[phase+'_urls'] = [url.replace(saved_url, '<saved-tab>') for url in urls]
-                row[phase+'_has_saved_tab'] = saved_url in urls
-                if phase != 'crashed':
-                    assert row[phase+'_has_saved_tab'] == (phase == 'saved'), row
-                if phase == 'crashed':
-                    histogram = wd('POST', sid+'/goog/cdp/execute', {
-                        'cmd': 'Browser.getHistogram',
-                        'params': {'name': 'Startup.CrashBubbleShown'}
-                    })['histogram']
-                    row['crash_bubble_histogram'] = histogram
-                    assert histogram['sum'] >= 1, row
-                row[phase+'_has_setup_tab'] = any('://setup' in url for url in urls)
-                if not completed:
-                    assert row[phase+'_has_setup_tab'], row
+                def cdp(command, **params):
+                    return wd('POST', sid+'/goog/cdp/execute',
+                              {'cmd': command, 'params': params})
+
+                def open_page(url, new_window_type=None):
+                    if new_window_type:
+                        handle = wd('POST', sid+'/window/new',
+                                    {'type': new_window_type})['handle']
+                        wd('POST', sid+'/window', {'handle': handle})
+                    wd('POST', sid+'/url', {'url': url})
+
+                expected = set() if phase == 'fresh' else set(saved_urls)
+                if phase in ('crashed-again', 'clean-again'):
+                    expected.add(added_url)
+                if phase == 'clean-again' and completed:
+                    # This profile explicitly chose New Tab before the force quit.
+                    expected.clear()
+                restoring_settings = completed and phase in ('crashed', 'crashed-again')
+                expected_urls = expected | {startup_settings_url} if restoring_settings else expected
+                for _ in range(50):
+                    targets = page_targets(debug_port)
+                    urls = [target['url'] for target in targets]
+                    if expected_urls.issubset(urls):
+                        break
+                    time.sleep(.1)
+                row[phase+'_urls'] = [url.replace(origin, '<fixture>') for url in urls]
+                histogram = cdp('Browser.getHistogram',
+                                name='Startup.CrashBubbleShown')['histogram']
+                row[phase+'_crash_bubble'] = histogram['sum']
+                fixture_urls = [url for url in urls if url.startswith(origin+'/')]
+                assert sorted(fixture_urls) == sorted(expected), row
+                assert histogram['sum'] == 0, row
+                assert any('://setup' in url for url in urls) == (not completed), row
+                if restoring_settings:
+                    assert sorted(urls) == sorted(expected_urls), row
+                if saved_urls.issubset(expected):
+                    fixture_windows = {
+                        cdp('Browser.getWindowForTarget', targetId=target['id'])['windowId']
+                        for target in targets if target['url'] in saved_urls
+                    }
+                    assert len(fixture_windows) == 2, row
+
                 if phase == 'fresh':
-                    handle = wd('POST', sid+'/window/new', {'type': 'tab'})['handle']
-                    wd('POST', sid+'/window', {'handle': handle})
-                    wd('POST', sid+'/url', {'url': saved_url})
-                try:
-                    wd('POST', sid+'/goog/cdp/execute', {'cmd': 'Browser.close', 'params': {}})
-                except (RuntimeError, requests.RequestException):
-                    pass
+                    first, second = sorted(saved_urls)
+                    open_page(first, None if completed else 'tab')
+                    open_page(second, 'window')
+                if phase == 'saved' and completed:
+                    session_changed_at = time.time_ns()
+                    open_page(startup_settings_url, 'tab')
+                    result = wd('POST', sid+'/execute/async', {
+                        'script': 'chrome.settingsPrivate.setPref("session.restore_on_startup", '
+                                  '5, arguments[arguments.length - 1]);',
+                        'args': [],
+                    })
+                    assert result is True, row
+
+                force_quit = phase in ('saved', 'crashed')
+                if force_quit:
+                    if phase == 'crashed':
+                        session_changed_at = time.time_ns()
+                        open_page(added_url, 'tab')
+                    wait_for_session_write(profile, session_changed_at)
+                    browser.kill()
+                else:
+                    try:
+                        cdp('Browser.close')
+                    except (RuntimeError, requests.RequestException):
+                        pass
                 browser.wait(timeout=30)
-                assert browser.returncode == 0, browser.returncode
+                assert browser.returncode == (-signal.SIGKILL if force_quit else 0)
                 prefs = json.loads((profile/'Default/Preferences').read_text())
                 row[phase+'_exit_type'] = prefs['profile']['exit_type']
-                # An unacknowledged crash bubble preserves the pending crash.
-                if phase != 'crashed':
-                    assert row[phase+'_exit_type'] == 'Normal', row
+                assert row[phase+'_exit_type'] == ('Crashed' if force_quit else 'Normal'), row
                 shown = prefs.get('browser', {}).get('session_restore_infobar_times_shown', 0)
                 row[phase+'_notice_count'] = shown
                 assert shown == 0, row

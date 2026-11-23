@@ -1,5 +1,15 @@
 # Session-restore notice
 
+## Automatic recovery after an unclean exit
+
+When a regular macOS profile opens after an unclean exit, Lune restores the saved session as part of startup. The restored windows and tabs appear without the session-recovery bubble or an intermediate New Tab page. If the saved session is empty, Lune opens the normal fallback window. The startup preference applies on clean launches, and crash-report consent follows the existing crash-reporting preference.
+
+Recovery uses Chromium's existing local session files and exit-type tracking. Session saving stays protected while the saved session is opened and resumes after recovery. A hard force quit can still interrupt a write, so recovery uses the latest session state on disk.
+
+`scripts/check-session-restore-notice.py` force-quits isolated headed browser processes after saved session writes reach disk. It checks two-window recovery, repeated force quits, tabs added after recovery, the explicit New Tab preference on clean relaunch, and both setup states.
+
+The [adoption record](../builds/2026-11-23-automatic-crash-restore.json) retains the signed input, source parity with the approved preview, both builds' smoke and recovery results, and the previous build's popup reproduction. Intel runtime checks ran under Rosetta.
+
 ## Removal — November 12, 2026
 
 The owner requested removal of the informational “Continue where you left off” bar. Lune restores saved tabs quietly; the startup choice remains available in Settings. The startup call to `SessionRestoreInfobarController::MaybeShowInfoBar` and its two unused includes are removed from `chrome/browser/ui/startup/infobar_utils.cc`. The change does not alter session restoration, saved startup preferences, other notices, or the separate crash-recovery bubble and crash-report dialog.

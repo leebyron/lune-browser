@@ -1,0 +1,85 @@
+{
+  "scope": "Main input adoption",
+  "chromium": "159.0.8154.13",
+  "core": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "base_platform": "3f2a89c5992c6c50b63f7a435fb6c6b9f926b128",
+  "signed_platform": "79d3ea3db049b2678cfefdcf9a72b83c336b7853",
+  "signed_input": "refs/tags/inputs/automatic-crash-session-restore-1/macos",
+  "accepted_preview_platform": "b8ac3b285449d8bcc5a72bec35078cb3397e7d32",
+  "platform_tree": "bead35995fbbd2e51589de4f4a227068aea5df22",
+  "prepared_source": {
+    "strict_replay_passed": true,
+    "affected_sources": {
+      "chrome/browser/ui/startup/infobar_utils.cc": "50b19a2b1b47a2a36f864a504f64071a892e19883cc284a6bc85d323cc15dcd4",
+      "chrome/browser/ui/startup/startup_browser_creator_impl.cc": "456a9dd89d85d75af8460b0d6cd180dbf7a2b997c6a397ddfe24a61dad03964e"
+    },
+    "patches_applied": 674,
+    "zero_fuzz_and_zero_offsets_for_new_patch": true,
+    "complete_inventory_diff_against_release_contains_only_affected_sources": true,
+    "all_source_bytes_and_symlinks_match_arm64_preview": true
+  },
+  "candidates": {
+    "arm64": {
+      "execution": "native Apple silicon",
+      "framework_sha256": "c9e3840949a5b3c7aedcb3c9f8c10a8544f9aea9a5cce2961b98fbe403ffaa35",
+      "browser_executable_sha256": "af6cd43d10812ad499d0585b775a4f1e2368d3a43966ab5bb19cf2777ec64b9a",
+      "headed_recovery": {
+        "result": "passed",
+        "setup_states": [
+          "complete",
+          "incomplete"
+        ],
+        "force_quits_per_setup_state": 2,
+        "restore_bubbles_shown": 0,
+        "software_rendering": false,
+        "report_sha256": "2e27de9126f422a3596be1300bad0037f8bab685773411e24f6e7748f6bda474"
+      },
+      "browser_smoke": {
+        "result": "passed",
+        "scope": [
+          "UI",
+          "Settings",
+          "packaged artwork"
+        ],
+        "report_sha256": "09ebaf05bd4354083f194cc4c696bbf6eda365a80fcbf987d5f84d6779cf49cf"
+      }
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "0c6b624c1af4902cfbc5dc0e7e369cf8f63a20c37343ad696d5dcc97c6022888",
+      "browser_executable_sha256": "d504d4cc887e6b4b6cdb6e949c71a355c4d38bfd5992d684a239ac95c37deaba",
+      "headed_recovery": {
+        "result": "passed",
+        "setup_states": [
+          "complete",
+          "incomplete"
+        ],
+        "force_quits_per_setup_state": 2,
+        "restore_bubbles_shown": 0,
+        "software_rendering": true,
+        "report_sha256": "d68765aa27b1e44414048456d7ce0d7d36a841229f1d65320f09d18d743449b4"
+      },
+      "browser_smoke": {
+        "result": "passed",
+        "scope": [
+          "UI",
+          "Settings",
+          "packaged artwork"
+        ],
+        "report_sha256": "6614f514d586decd2ab1a4d919aa1f762827c0e734f28bfab536bd920b7f49f0"
+      }
+    }
+  },
+  "validation": {
+    "baseline_26_1121_2": "After forced exit, both saved windows were absent from startup and the browser reported a visible restore bubble.",
+    "headed_fixture": "Two distinct windows restored on each forced relaunch in both setup states. A tab opened after recovery survived the second force quit. The saved New Tab preference applied on clean relaunch.",
+    "repository_tests": "108 run, one skipped, zero failures",
+    "locked_patch_and_translation_lint": "passed",
+    "lock_and_git_provenance": "passed"
+  },
+  "limits": [
+    "Force-quit checks wait for a session write before killing the disposable browser process.",
+    "Incomplete setup can accumulate Setup tabs across relaunches. The baseline reproduces this during clean session restoration.",
+    "Intel runtime coverage used Rosetta. This record covers input adoption for future builds."
+  ]
+}

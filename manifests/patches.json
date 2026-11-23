@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "3f2a89c5992c6c50b63f7a435fb6c6b9f926b128",
+    "commit": "79d3ea3db049b2678cfefdcf9a72b83c336b7853",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1139,6 +1139,10 @@
       {
         "path": "patches/helium/ui/tab-loading-progress.patch",
         "sha256": "f577b5e47c10c50af31b4a1aec17bab3a8496a71de19fb91a2878918da978ee6"
+      },
+      {
+        "path": "patches/helium/macos/automatic-crash-session-restore.patch",
+        "sha256": "f3687aa722817904ee1df7bf96194625d0f859ee79ed5f219475f8de7da63ad4"
       }
     ]
   },
@@ -3606,6 +3610,19 @@
       "adaptation": "Share the address bar animation with tab views and expose a default-on Appearance and behavior toggle for the two-DIP line and reduced halo.",
       "commits": [
         "3f2a89c5992c6c50b63f7a435fb6c6b9f926b128"
+      ]
+    },
+    {
+      "id": "automatic-crash-session-restore",
+      "depends_on": [],
+      "patches": [
+        "patches/helium/macos/automatic-crash-session-restore.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Recover saved windows and tabs automatically after an unclean browser exit.",
+      "adaptation": "Reuse synchronous session restoration on macOS and let the exit-type service resume session saving after recovery. Suppress the restore bubble once restoration has been initiated.",
+      "commits": [
+        "79d3ea3db049b2678cfefdcf9a72b83c336b7853"
       ]
     }
   ],
