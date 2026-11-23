@@ -1,0 +1,71 @@
+--- a/chrome/browser/ui/startup/infobar_utils.cc
++++ b/chrome/browser/ui/startup/infobar_utils.cc
+@@ -212,7 +212,8 @@
+   // Web apps should not display the session restore bubble (crbug.com/40800614)
+   const bool should_display_bubble =
+       !startup_command_line.HasSwitch("hide-crashed-bubble") &&
+-      !is_web_app && HasPendingUncleanExit(browser->GetProfile());
++      !is_web_app && !profile->restored_last_session() &&
++      HasPendingUncleanExit(browser->GetProfile());
+   base::UmaHistogramBoolean("Startup.CrashBubbleShown", should_display_bubble);
+   if (should_display_bubble) {
+     ShowSessionCrashedBubbleIfNotOffTheRecordProfile(
+--- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+@@ -32,6 +32,7 @@
+ #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/profiles/profile_io_data.h"
++#include "chrome/browser/sessions/exit_type_service.h"
+ #include "chrome/browser/sessions/session_restore.h"
+ #include "chrome/browser/sessions/session_service.h"
+ #include "chrome/browser/sessions/session_service_factory.h"
+@@ -561,6 +562,11 @@
+       is_post_crash_launch, promotions_enabled, whats_new_enabled);
+   StartupTabs tabs = std::move(result.tabs);
+ 
++  const bool restore_after_crash =
++      BUILDFLAG(IS_MAC) && is_post_crash_launch && restore_tabbed_browser &&
++      profile_->IsRegularProfile() && !profile_->restored_last_session() &&
++      !IsKioskModeEnabled();
++
+   // Return immediately if we start an async restore, since the remainder of
+   // that process is self-contained.
+   if (MaybeAsyncRestore(tabs, process_startup, is_post_crash_launch)) {
+@@ -586,6 +592,13 @@
+   BrowserOpenBehavior behavior = DetermineBrowserOpenBehavior(
+       StartupBrowserCreator::GetSessionStartupPref(*command_line_, profile_),
+       behavior_options);
++  if (restore_after_crash) {
++    behavior = BrowserOpenBehavior::SYNCHRONOUS_RESTORE;
++    if (result.launch_result == LaunchResult::kNormally) {
++      // The crash startup tab is a placeholder. Keep explicit URLs and setup.
++      tabs.clear();
++    }
++  }
+ 
+   SessionRestore::BehaviorBitmask restore_options =
+       restore_tabbed_browser ? SessionRestore::RESTORE_BROWSER : 0;
+@@ -784,14 +797,17 @@
+     bool is_post_crash_launch) {
+   BrowserWindowInterface* browser = nullptr;
+   if (behavior == BrowserOpenBehavior::SYNCHRONOUS_RESTORE) {
+-    // It's worth noting that this codepath is not hit by crash restore
+-    // because we want to avoid a crash restore loop, so we don't
+-    // automatically restore after a crash.
+-    // Crash restores are triggered via session_crashed_bubble_view.cc
+-    if (ShouldRestoreApps(StartupBrowserCreator::WasRestarted(), profile_)) {
++    if (is_post_crash_launch ||
++        ShouldRestoreApps(StartupBrowserCreator::WasRestarted(), profile_)) {
+       restore_options |= SessionRestore::RESTORE_APPS;
+     }
+ 
++    // Keep the previous session protected until the restore has started.
++    std::unique_ptr<ExitTypeService::CrashedLock> crash_lock;
++    if (is_post_crash_launch) {
++      crash_lock =
++          ExitTypeService::GetInstanceForProfile(profile_)->CreateCrashedLock();
++    }
+     BrowserWindowInterface* browser_window = SessionRestore::RestoreSession(
+         profile_, nullptr, restore_options, tabs);
+     if (browser_window) {
