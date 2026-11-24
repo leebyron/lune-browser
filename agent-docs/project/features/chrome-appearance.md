@@ -52,3 +52,8 @@ The macOS platform selects `helium/ui/native-toast-contrast.patch` after the
 Helium toast patch. The arm64 and x86_64 browser builds and smoke checks passed,
 with x86_64 running under Rosetta. The color fixture exercised both architectures.
 The Mac was locked during on-screen verification.
+
+The **New tab opened** toast uses the `plus.square.on.square` SF Symbol at the
+existing toast icon size. It uses the toast foreground color and falls back
+to the registered vector icon if AppKit cannot supply the symbol.
+[Build and native toast checks](../builds/2026-11-23-sidebar-background-input.json)

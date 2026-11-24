@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "7b2bf8c0fd4336a734f467301180cd57e94667df",
+    "commit": "65bfed38fbd53e0ede27988f4e61ff46622762ea",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1183,6 +1183,14 @@
       {
         "path": "patches/helium/ui/sidebar-new-tab-opacity.patch",
         "sha256": "526ef2d141e803de07a2e3b67ae88eb4597a7e9f605ed10a5524212e189646d1"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-background-input.patch",
+        "sha256": "3a99eb4342954da344ee456629edfb5769f2ea0d99020f611b483b6c743f68fe"
+      },
+      {
+        "path": "patches/helium/ui/background-tab-toast-symbol.patch",
+        "sha256": "1afc028329e852eb3ab0b156382abefd1c4812bc8ed3fcb34a97563fd1d55bce"
       }
     ]
   },
@@ -3820,6 +3828,38 @@
       "adaptation": "Use 50% foreground opacity for both elements and both sidebar layouts.",
       "commits": [
         "7b2bf8c0fd4336a734f467301180cd57e94667df"
+      ]
+    },
+    {
+      "id": "sidebar-background-input",
+      "depends_on": [
+        "expanded-group-separator",
+        "older-tabs-dates",
+        "sidebar-drag-header-retention"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-background-input.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Let non-interactive sidebar areas open the sidebar menu and drag the browser window.",
+      "adaptation": "Use the vertical viewport and footer event targets for caption hit testing. Leave wheel events with the scroll view.",
+      "commits": [
+        "a5a7b45c115f4b93927db4c82f7f1d5bb1128e63"
+      ]
+    },
+    {
+      "id": "background-tab-toast-symbol",
+      "depends_on": [
+        "native-toast-contrast"
+      ],
+      "patches": [
+        "patches/helium/ui/background-tab-toast-symbol.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the plus.square.on.square SF Symbol in the New tab opened toast.",
+      "adaptation": "Rasterize the native symbol at the toast icon size with its surface foreground and retain the existing vector fallback.",
+      "commits": [
+        "65bfed38fbd53e0ede27988f4e61ff46622762ea"
       ]
     }
   ],

@@ -1,0 +1,107 @@
+{
+  "date": "2026-11-23",
+  "chromium": "159.0.8154.13",
+  "macos": "65bfed38fbd53e0ede27988f4e61ff46622762ea",
+  "component_ref": "refs/tags/inputs/sidebar-background-input-2/macos",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "patches": [
+    {
+      "path": "patches/helium/ui/sidebar-background-input.patch",
+      "sha256": "3a99eb4342954da344ee456629edfb5769f2ea0d99020f611b483b6c743f68fe"
+    },
+    {
+      "path": "patches/helium/ui/background-tab-toast-symbol.patch",
+      "sha256": "1afc028329e852eb3ab0b156382abefd1c4812bc8ed3fcb34a97563fd1d55bce"
+    }
+  ],
+  "accepted_preview": {
+    "framework_sha256": "703ea4eabf9639abe0939e956a108c2c5a8e5c458d773cb17267e598d885c86c",
+    "native_pinned_sidebar_checks": [
+      "left",
+      "right"
+    ],
+    "native_detached_checks": "Background menus and window drag",
+    "owner_accepted": true
+  },
+  "source_parity": {
+    "matching_files": 572652,
+    "matching_symlinks": 130,
+    "strict_patch_count": 686,
+    "affected_source_sha256": {
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "0b5b14482551f398d41e66b4a0b69dd03863e32b4006dacd048fad8b2b69b0c6",
+      "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc": "b331e0644e30d962e634ff873573dfba60711866e9134d79341624e88bba7558",
+      "chrome/browser/ui/views/tabs/common/tab_strip_view.cc": "b3d0076b6db45a42de93c0d54fb73a4c0ddd6fcd561380d0cbd9a2297ccd4292",
+      "chrome/browser/ui/toasts/BUILD.gn": "2354061e500b73f1b5e701ba598b2d3042c1c79333a5fd8893328add181cdff1",
+      "chrome/browser/ui/toasts/toast_controller.cc": "238f701b5d4292ba781b65f3dec9b574b9030cc4ea995f2ff88fdff70a074b1b"
+    },
+    "previously_published_sidebar_appearance_source_sha256": {
+      "chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm": "2392f454f45251f6f67b14f8e5e2ebb334e9eff7c993c65e1106fe6f08d467d3",
+      "chrome/browser/ui/views/helium/native_frame_materials.h": "4e3a54a636934fbbbbffc1aa3e8a66d930d1224b794233316a1ca48345b47c0a",
+      "chrome/browser/ui/views/helium/native_frame_materials_mac.mm": "67dd161626c1364e08b80e40bb49e16aa280f1fcbf1b609691582f7b53f51315",
+      "chrome/browser/ui/views/tabs/common/tab_view.cc": "4617dfafd61ba5974c0ecda628aa58c5002cc4bf6b8cb9c8cec6e2cf131c0c0b",
+      "chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc": "b00d97980df321cb2d20f8d06fcb12c9b89a69b69600eead38bfb201c6c3c2bc",
+      "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc": "041dc0473da9473190048114d94c0e8b7a3e51aa4310100a950ad8eb9ff7cd19",
+      "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h": "676d89a668107fb5e1f0e622dde9c97510389e6f067e8d3ca6175c916d8688f1",
+      "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc": "58c537646c61c1e974b5f9636942dd9dee120b58e7ea2756aa950483a6b1a24e",
+      "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h": "4e3d0e9a8ee4b0c1d8d7968c3c171f8a64e5eaf0cd9eb9407abf4061c59e13bc"
+    },
+    "preview_and_prepared_sources_match": true,
+    "feature_patches_zero_fuzz_and_offsets": true,
+    "full_archive_replay": "55e01134b2de74275af0ea133b2b7faed268a2ae3edf5db8ef09180bb38e3ac9"
+  },
+  "generated_resource_sha256": {
+    "gen/chrome/grit/generated_resources.h": "73813d148792ae2a9a8e6380cd11740777a2d73ad42f08c252e5277823050c8b",
+    "Lune.app/Contents/Frameworks/Lune Framework.framework/Resources/en.lproj/locale.pak": "965b8afc48105c69189dd907442c0c77c8a7c4af127f83e535f599f0c985bd8a"
+  },
+  "builds": {
+    "arm64": {
+      "execution": "Native Apple silicon",
+      "prepared_report_sha256": "15bc1de6583c010412a17b7c249bd13271a6a4f69e6c05be8b99783ce778789d",
+      "framework_sha256": "b1eb2b946419129834cea07c24c951020eae2f7f60cefdf44431e4a881ff58d5",
+      "browser_and_driver_built": true,
+      "packaged_smoke_passed": true,
+      "packaged_smoke_mode": "headless",
+      "smoke_report_sha256": "9803565a4221f49498b322c0eb4c2f27421905a4c32f073bf38114afe84a235a",
+      "focused_tab_drag_and_header_retention_passed": true,
+      "native_sidebar_report_sha256": "d90d03f2e1cbedcf9592de8d05ebf0b584c20f81800466b7d55c4c478a63a337",
+      "native_background_window_drag_dx": {
+        "regular_gap": 40,
+        "expanded_group_rule": 40,
+        "older_date_heading": 40
+      },
+      "native_wheel_scroll_dy": -80,
+      "native_toast_report_sha256": "d928cb70c3ef563a041b3bcaff9bea72ba7bda5c5d25f91a2512c835c1ebc543",
+      "native_toast_sf_symbol_similarity": 0.9595
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "prepared_report_sha256": "15bc1de6583c010412a17b7c249bd13271a6a4f69e6c05be8b99783ce778789d",
+      "framework_sha256": "9a05dca8c005ce08bf68f5a767df1a7fff8af86070064f5f86bbc0c7f48e3289",
+      "browser_and_driver_built": true,
+      "packaged_smoke_passed": true,
+      "packaged_smoke_mode": "headed",
+      "smoke_report_sha256": "a4658c9a1524a2c26d001626a088b12fe06ced897fc6138b9fab693331c4c36a",
+      "focused_tab_drag_and_header_retention_passed": true,
+      "native_sidebar_report_sha256": "d90d03f2e1cbedcf9592de8d05ebf0b584c20f81800466b7d55c4c478a63a337",
+      "native_background_window_drag_dx": {
+        "regular_gap": 40,
+        "expanded_group_rule": 40,
+        "older_date_heading": 40
+      },
+      "native_wheel_scroll_dy": -80,
+      "native_toast_report_sha256": "1e52abafe9ba2f185cafd1246181a2d3a969c00af6aaca80849ad2877afb191f",
+      "native_toast_sf_symbol_similarity": 0.9595
+    }
+  },
+  "repository_tests": {
+    "run": 108,
+    "skipped": 1,
+    "passed": true
+  },
+  "native_checks": {
+    "sidebar": "Right-click the regular and group gaps, divider, and Older Tabs section and date label. Verify the controls' own menus, drag the window from three background points, and scroll the tab list from a gap.",
+    "toast": "Open a link in a background tab with the sidebar hidden. Compare the rendered toast icon with the AppKit plus.square.on.square reference.",
+    "detached_control_menu_limit": "Synthetic detached control clicks returned the sidebar menu on both the baseline and preview.",
+    "intel_smoke_mode": "The settled Rosetta smoke was run headed after a headless restart timed out in the preceding composition."
+  }
+}
