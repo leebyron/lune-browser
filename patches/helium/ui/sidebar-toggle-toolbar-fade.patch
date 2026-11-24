@@ -1,0 +1,111 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -430,6 +430,7 @@
+ - (void)setPresented:(BOOL)presented;
+ - (BOOL)isPresented;
+ - (void)setRevealFraction:(CGFloat)fraction;
++- (void)didFadeOut;
+ @end
+ 
+ @implementation HeliumGlassSurface {
+@@ -646,9 +647,11 @@
+             !owner->_presented) {
+           owner.hidden = YES;
+           owner->_fullyHidden = YES;
++          [owner didFadeOut];
+         }
+       }];
+ }
++- (void)didFadeOut {}
+ @end
+ 
+ // A material-only view must leave the parent Views resize area and native
+@@ -738,19 +741,21 @@
+ @end
+ 
+ @interface HeliumGlassSidebarButton : HeliumGlassSurface
+-- (instancetype)initWithBrowserView:(BrowserView*)view;
++- (instancetype)initWithBrowserView:(BrowserView*)view host:(views::View*)host;
+ - (void)refresh;
+ @end
+ @implementation HeliumGlassSidebarButton {
+   base::WeakPtr<BrowserView> _browser;
++  views::ViewTracker _host;
+   NSButton* _button;
+ }
+-- (instancetype)initWithBrowserView:(BrowserView*)view {
++- (instancetype)initWithBrowserView:(BrowserView*)view host:(views::View*)host {
+   self = [super initWithFrame:NSMakeRect(0, 0, 36, 36)];
+   if (!self) {
+     return nil;
+   }
+   _browser = view->GetAsWeakPtr();
++  _host.SetView(host);
+   _button = [HeliumSidebarPinButton
+       buttonWithImage:[NSImage imageWithSystemSymbolName:
+                                    @(helium::command_symbols::kSidebarLeft)
+@@ -766,6 +771,12 @@
+   [_controls addSubview:_button];
+   return self;
+ }
++- (void)didFadeOut {
++  if (auto* host = _host.view()) {
++    // Keep subsequent native host layouts from exposing the button.
++    host->SetVisible(false);
++  }
++}
+ - (void)toggle:(id)sender {
+   if (_browser) {
+     _browser->ToggleFloatingSidebar();
+@@ -4730,6 +4741,7 @@
+       background->SetVisible(false);
+     }
+     if (button_host) {
++      [floating_sidebar_button_ setRevealFraction:0];
+       button_host->SetVisible(false);
+     }
+     return;
+@@ -4884,11 +4896,12 @@
+   if (!button_host) {
+     button_host = view->AddChildView(std::make_unique<views::NativeViewHost>());
+     floating_sidebar_button_host_.SetView(button_host);
++    button_host->SetVisible(false);
+     floating_sidebar_button_ =
+-        [[HeliumGlassSidebarButton alloc] initWithBrowserView:view];
++        [[HeliumGlassSidebarButton alloc] initWithBrowserView:view
++                                                       host:button_host];
+     button_host->Attach(gfx::NativeView(floating_sidebar_button_));
+   }
+-  const bool sidebar_visible = reveal > 0;
+   const gfx::Rect sidebar_bounds = views::View::ConvertRectToTarget(
+       sidebar, view, sidebar->GetLocalBounds());
+   // Keep the toggle on the sidebar only. No independent toolbar pill or
+@@ -4911,18 +4924,22 @@
+     };
+   }
+   [floating_sidebar_button_ refresh];
+-  const CGFloat visibility = sidebar_visible && show_toggle ? reveal : 0;
+-  // Avoid competing presentation animations when pinning reparents the tabs.
+-  [floating_sidebar_button_ setRevealFraction:visibility];
+-  button_host->SetVisible(visibility > 0);
++  const bool can_present = reveal > 0 && show_toggle;
++  if (can_present) {
++    [floating_sidebar_button_ setPresented:top_presented];
++  } else {
++    [floating_sidebar_button_ setRevealFraction:0];
++  }
++  const bool button_visible = can_present && !floating_sidebar_button_.hidden;
++  button_host->SetVisible(button_visible);
+   NSView* parent = floating_sidebar_button_.superview;
+-  if (visibility > 0 && parent.subviews.lastObject != floating_sidebar_button_) {
++  if (button_visible && parent.subviews.lastObject != floating_sidebar_button_) {
+     // NativeViewHosts attach in creation order. A later drag/material host
+     // must never cover the sidebar's actual NSButton.
+     [parent addSubview:floating_sidebar_button_
+             positioned:NSWindowAbove relativeTo:nil];
+   }
+-  floating_drag_region_.sidebarButtonBounds = visibility > 0
++  floating_drag_region_.sidebarButtonBounds = button_visible
+       ? [floating_drag_region_ convertRect:floating_sidebar_button_.bounds
+                                  fromView:floating_sidebar_button_]
+       : NSZeroRect;
