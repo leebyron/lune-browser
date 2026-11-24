@@ -1,0 +1,92 @@
+--- a/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
++++ b/chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm
+@@ -54,8 +54,18 @@
+     mixer[ui::kColorSysHeaderContainer] = {SystemColor(NSColor.controlBackgroundColor)};
+     mixer[ui::kColorSysHeaderContainerInactive] = {SystemColor(NSColor.controlBackgroundColor)};
+     mixer[ui::kColorSysOmniboxContainer] = {SystemColor(NSColor.controlBackgroundColor)};
+-    mixer[kColorTabBackgroundActiveFrameActive] = {SystemColor(NSColor.selectedContentBackgroundColor)};
+-    mixer[kColorTabBackgroundActiveFrameInactive] = {SystemColor(NSColor.unemphasizedSelectedContentBackgroundColor)};
++    // Use the neutral selection fill in Aqua and soften it in an inactive window.
++    NSColor* neutral_selection =
++        NSColor.unemphasizedSelectedContentBackgroundColor;
++    NSColor* inactive_selection =
++        dark ? neutral_selection
++             : [neutral_selection
++                   blendedColorWithFraction:0.30
++                                    ofColor:NSColor.controlBackgroundColor];
++    mixer[kColorTabBackgroundActiveFrameActive] = {
++        SystemColor(dark ? NSColor.selectedContentBackgroundColor
++                         : neutral_selection)};
++    mixer[kColorTabBackgroundActiveFrameInactive] = {SystemColor(inactive_selection)};
+     // Selected tabs use active-tab text, so keep the matching native surface.
+     mixer[kColorTabBackgroundSelectedFrameActive] = {kColorTabBackgroundActiveFrameActive};
+     mixer[kColorTabBackgroundSelectedFrameInactive] = {kColorTabBackgroundActiveFrameInactive};
+@@ -80,8 +90,12 @@
+     mixer[kColorToolbarButtonText] = {SystemColor(NSColor.labelColor)};
+     mixer[kColorToolbarButtonIcon] = {SystemColor(NSColor.labelColor)};
+     mixer[kColorToolbarButtonIconDefault] = {SystemColor(NSColor.labelColor)};
+-    mixer[kColorTabForegroundActiveFrameActive] = {SystemColor(NSColor.alternateSelectedControlTextColor)};
+-    mixer[kColorTabForegroundActiveFrameInactive] = {SystemColor(NSColor.unemphasizedSelectedTextColor)};
++    mixer[kColorTabForegroundActiveFrameActive] = {
++        SystemColor(dark ? NSColor.alternateSelectedControlTextColor
++                         : NSColor.labelColor)};
++    mixer[kColorTabForegroundActiveFrameInactive] = {
++        SystemColor(dark ? NSColor.unemphasizedSelectedTextColor
++                         : NSColor.labelColor)};
+     mixer[kColorNewTabPageText] = {SystemColor(NSColor.labelColor)};
+     mixer[ui::kColorSysOnSurfaceSecondary] = {SystemColor(NSColor.secondaryLabelColor)};
+     mixer[ui::kColorSysOnSurfaceSubtle] = {SystemColor(NSColor.secondaryLabelColor)};
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -318,15 +318,16 @@
+     appearance = [NSAppearance
+         appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+   }
+-  // Only detached sidebar rows adopt the browser palette. Header actions and
+-  // System theme keep their native semantic colors. Resolve the owning theme in
+-  // the actual glass scheme so adaptive foregrounds and themed fills agree.
+-  if (view->GetWidget()->GetName() == "Floating sidebar controls") {
++  // Resolve sidebar colors in the glass appearance using the owning window's
++  // activation. The floating controls window cannot itself become key.
++  const bool floating_sidebar =
++      view->GetWidget()->GetName() == "Floating sidebar controls";
++  const bool selection_role = role == NativeGlassColorRole::kSelection ||
++                              role == NativeGlassColorRole::kSelectedLabel;
++  if (floating_sidebar || selection_role) {
+     auto* browser = BrowserView::GetBrowserViewForNativeWindow(
+         view->GetWidget()->GetNativeWindow());
+-    if (browser && browser->GetColorProvider() &&
+-        !ThemeServiceFactory::GetForProfile(browser->GetProfile())
+-             ->UsingDeviceTheme()) {
++    if (browser && browser->GetColorProvider()) {
+       auto key = browser->browser_widget()->GetColorProviderKey();
+       NSAppearanceName match = [appearance bestMatchFromAppearancesWithNames:@[
+         NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
+@@ -335,12 +336,26 @@
+       const bool high_contrast =
+           [match isEqual:NSAppearanceNameAccessibilityHighContrastAqua] ||
+           [match isEqual:NSAppearanceNameAccessibilityHighContrastDarkAqua];
+-      if (!high_contrast &&
++      const bool light =
++          [match isEqual:NSAppearanceNameAqua] ||
++          [match isEqual:NSAppearanceNameAccessibilityHighContrastAqua];
++      const bool native_light_selection =
++          selection_role && light &&
++          key.frame_style == ui::ColorProviderKey::FrameStyle::kSystem &&
++          !key.custom_theme && !key.app_controller;
++      const bool themed_sidebar =
++          floating_sidebar && !high_contrast &&
+           key.contrast_mode != ui::ColorProviderKey::ContrastMode::kHigh &&
++          !ThemeServiceFactory::GetForProfile(browser->GetProfile())
++               ->UsingDeviceTheme();
++      if ((native_light_selection || themed_sidebar) &&
+           key.forced_colors == ui::ColorProviderKey::ForcedColors::kNone) {
+         key.color_mode = [match isEqual:NSAppearanceNameDarkAqua]
+                              ? ui::ColorProviderKey::ColorMode::kDark
+                              : ui::ColorProviderKey::ColorMode::kLight;
++        if (high_contrast) {
++          key.contrast_mode = ui::ColorProviderKey::ContrastMode::kHigh;
++        }
+         const auto* colors =
+             ui::ColorProviderManager::Get().GetColorProviderFor(key);
+         const bool active = browser->GetWidget()->ShouldPaintAsActive();
