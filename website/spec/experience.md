@@ -6,9 +6,11 @@ The homepage introduces “A respectful browser for the Mac” through a macOS-s
 
 The desktop fills the viewport. Center the browser above the Dock, with a maximum logical height of 720px, width capped at 10/6 of its height, and 16px outer corners. At widths of 700px or less, scale the complete browser and its contents to 50%; keep the surrounding desktop actions at their own size.
 
-Scrolling beyond 96px launches Lune. The normal Dock bounce lasts 660ms; reveal the window and running dot at 320ms. The chevron and Lune Dock button scroll to 180px, where reading begins and the intro has faded. Fast scrolling past that boundary finishes the reveal immediately. Returning to the top resets the launch.
+Scrolling beyond 96px launches Lune. The normal Dock bounce lasts 660ms, with the window and running dot appearing at 320ms. Crossing the reading boundary starts the reveal early on a fast scroll. Every launch fades and lifts the window into place. The chevron scrolls to the 180px reading boundary. The Lune Dock button scrolls to center the opening mark and both paragraphs together in the content pane. Returning to the top resets the launch.
 
 Close and minimize return to the desktop. Closing the selected Lune tab returns immediately and keeps its row. Fullscreen uses the browser’s Fullscreen API and is disabled when unavailable. Finder and Trash are decorative Dock items.
+
+The traffic lights use 14px translucent glass circles with a rim and highlight. Reveal all three glyphs on group hover or keyboard focus and darken the pressed control.
 
 ## Story and copy
 
@@ -22,7 +24,7 @@ The ten botanical points follow this order: Chromium, removed Google services, e
 
 Use Rock Salt 400 at 16px/32px for the note and story, Syne 800 for the wordmarks, and Inter for interface text, buttons, and credits. Story links use the ink-colored sketched underline, with a 600ms wipe on hover or keyboard focus. Ordinary links retain regular underlines.
 
-The opening mark starts at 70% of the content pane’s height and opens over 65% of a pane of scrolling. The note sits 128px below its center. The prelude is 1.28 panes tall, with 168px before the flower. Reveal the note when its first line’s resting center reaches 68% of the pane; stagger its second paragraph by 1200ms.
+The opening mark starts at 70% of the content pane’s height and opens over 65% of a pane of scrolling. The note sits 128px below its center. The prelude is 1.28 panes tall, with 168px before the flower. Reveal the note when its first line’s resting center reaches 68% of the pane or when the mark and note are centered, whichever comes first. Stagger the second paragraph by 1200ms.
 
 Reveal each point when its resting text center reaches 85% of the pane. Keep it visible past the top edge; hide it only when reversing below the lower threshold. Fade and lift by 6px over 600ms, with an 800ms feathered wipe; hide over 200ms. Scroll chooses visibility, while transitions finish when scrolling stops. Reversal cancels the note’s pending stagger.
 
@@ -36,9 +38,11 @@ End with the Lune mark, downloads and GitHub actions centered in the final pane.
 
 Use edge-to-edge content with no inner gutter. Pinned and floating sidebars share a 216px width, 52px header, and matching control positions. Pinning changes content width immediately on desktop; the narrow layout transitions that boundary over 260ms. Keep the physical-pixel separator/rim independent of layout.
 
+The sidebar toggle shares the toolbar’s lightly tinted glass in a 36px circle. Blur the backdrop and keep its color visible through the fill. The toggle and Back/Forward pill sit 8px below the top and 8px to either side of the sidebar divider. The tools pill sits 8px from the outer window edge.
+
 Tab rows are 30px tall with 8px corners, 2px gaps, and 9px side margins. New tab stays above the scrolling regular tabs; its icon uses 70% opacity and label 50%. Reveal separate close buttons on hover or keyboard focus. Closing another row removes it until reload; its close button never follows the row’s link.
 
-The two pinned tiles link to Fastmail’s public homepage. Regular rows show Lune, lune-browser, Helium, ungoogled-chromium, and Lee Byron in that order. The selected Lune row has no navigation action. Other destinations open in separate tabs with `noopener noreferrer`. No external pages or private mail are embedded or fetched.
+The two pinned tiles use the Standard 36px height and link to Fastmail’s public homepage. Regular rows show Lune, lune-browser, Helium, ungoogled-chromium, and Lee Byron in that order. The selected Lune row has no navigation action. Other destinations open in separate tabs with `noopener noreferrer`. No external pages or private mail are embedded or fetched.
 
 New tab opens the illustrated command menu when it is closed. Activating New tab while the menu is open dismisses it and opens Lune’s website in a separate tab. Escape and clicks elsewhere in the window dismiss the manual menu; scrolling clears the manual override and resumes the story state. The manual menu remains available with Reduced Motion.
 

@@ -4,6 +4,7 @@
   const hero=root.querySelector('.hero'),learn=root.querySelector('.learn'),pages=root.querySelector('.pages');
   const windowControls=root.querySelector('.window-controls');
   const sidebar=root.querySelector('.browser-sidebar'),sidebarToggle=root.querySelector('.sidebar-toggle');
+  const sidebarHeader=sidebar.querySelector('.browser-header');
   const currentTab=sidebar.querySelector('.browser-tab.selected');
   const demoCursor=root.querySelector('.demo-cursor'),demoClick=root.querySelector('.demo-click');
   const sidebarRegion=root.querySelector('.sidebar-region'),sidebarRail=root.querySelector('.sidebar-rail');
@@ -15,11 +16,11 @@
   let panelPointer=null,cursorPath=null,cursorPathLength=0,browserScale=1;
   const chromeHover={sideReveal:16,sideRetain:128,topRevealOutside:16,topRevealInside:8,topRetain:64};
   let demoStart=0,demoDistance=460,toolbarStop=25,cursorStop=65,sidebarOverride=null,sidebarHovered=false,demoToolbarActive=false;
-  const dock=root.querySelector('.dock'),items=[...dock.querySelectorAll('.dock-item')];
+  const dock=root.querySelector('.dock'),luneDock=dock.querySelector('.lune'),items=[...dock.querySelectorAll('.dock-item')];
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
   const nativeTimeline=CSS.supports('animation-timeline:scroll()');
   const clamp=x=>Math.max(0,Math.min(1,x));
-  let opening=0,readingStart=180,launchAt=96,pageHeight=0,reading=0,queued=false,base=48,launched=false,appVisible=false,showTimer=0;
+  let opening=0,readingStart=180,launchAt=96,preludeTarget=0,pageHeight=0,reading=0,queued=false,base=48,launched=false,appVisible=false,showTimer=0;
   function svg(tag,attrs={}) {
     const element=document.createElementNS('http://www.w3.org/2000/svg',tag);
     Object.entries(attrs).forEach(([key,value])=>element.setAttribute(key,value));
@@ -172,7 +173,11 @@
     root.style.setProperty('--intro-start',`${introStart}px`);
     root.style.setProperty('--intro-end',`${introEnd}px`);
     const note=pages.querySelector('.prelude-note');
-    const noteStart=Math.max(readingStart,readingStart+note.offsetTop+note.firstElementChild.offsetHeight/2-pageHeight*.68);
+    const markStyle=getComputedStyle(introLogo);
+    const markTop=parseFloat(markStyle.top)-parseFloat(markStyle.height)/2;
+    const preludeCenter=(markTop+note.offsetTop+note.offsetHeight)/2;
+    preludeTarget=readingStart+Math.round(Math.max(0,preludeCenter-pageHeight/2));
+    const noteStart=Math.min(preludeTarget,Math.max(readingStart,readingStart+note.offsetTop+note.firstElementChild.offsetHeight/2-pageHeight*.68));
     textRanges=[...note.querySelectorAll('p')].map(text=>({text,start:noteStart}));
     const coda=pages.querySelector('.coda'),codaContent=coda.querySelector('.coda-content'),thanks=coda.querySelector('.upstream-thanks'),byline=coda.querySelector('.byline');
     const actionsBottom=codaContent.offsetTop+codaContent.offsetHeight/2;
@@ -197,8 +202,13 @@
     // so it can cross the actual screen edges without the window clipping it.
     const originX = win.offsetLeft - win.offsetWidth * browserScale / 2;
     const originY = win.offsetTop;
-    const toggleX = (sidebarWidth - 22) * browserScale;
-    const toggleY = 26 * browserScale;
+    // Layout offsets keep the resting target stable even while the sidebar slides.
+    const toggleCenterX = sidebarHeader.offsetLeft + sidebarToggle.offsetLeft + sidebarToggle.offsetWidth / 2;
+    const toggleCenterY = sidebarHeader.offsetTop + sidebarToggle.offsetTop + sidebarToggle.offsetHeight / 2;
+    demoClick.style.left = `${toggleCenterX}px`;
+    demoClick.style.top = `${toggleCenterY}px`;
+    const toggleX = toggleCenterX * browserScale;
+    const toggleY = toggleCenterY * browserScale;
     const toolbarX=Math.max(sidebarWidth+24,win.clientWidth/3)*browserScale,toolbarY=4*browserScale;
     demoCursor.style.setProperty('--cursor-origin-x', `${originX}px`);
     demoCursor.style.setProperty('--cursor-origin-y', `${originY}px`);
@@ -487,7 +497,7 @@
     if(commandPlaceholder.hidden!==placeholderHidden)commandPlaceholder.hidden=placeholderHidden;
   }
   function update(){
-    queued=false;const y=scroll.scrollTop;if(y>launchAt&&pointer!==null){pointer=null;startMagnify();}if(y<=launchAt)close();else {launch();if(y>=readingStart&&y>opening)reveal(true);}const p=clamp(y/opening),r=reading ? clamp((y-readingStart)/reading) : 0;
+    queued=false;const y=scroll.scrollTop;if(y>launchAt&&pointer!==null){pointer=null;startMagnify();}if(y<=launchAt)close();else {launch();if(y>=readingStart&&y>opening)reveal();}const p=clamp(y/opening),r=reading ? clamp((y-readingStart)/reading) : 0;
     hero.inert=appVisible||y>=opening;learn.inert=appVisible||y>=opening;
     win.inert=!appVisible;win.setAttribute('aria-hidden',String(!appVisible));win.style.pointerEvents=appVisible?'auto':'none';
     root.dataset.phase=appVisible?'reading':launched?'launching':'closed';root.dataset.progress=p.toFixed(3);
@@ -691,19 +701,18 @@
   document.addEventListener('visibilitychange', () => { if (document.hidden) hideToolbar(); });
   function launch(){
     if(launched)return;launched=true;
-    if(!reduce.matches)root.querySelector('.lune').classList.add('launching');
+    if(!reduce.matches)luneDock.classList.add('launching');
     // The 660ms bounce reaches its apex at 297ms; reveal just into its return.
     showTimer=setTimeout(()=>{if(!launched)return;reveal();update();},reduce.matches?0:320);
   }
-  function reveal(immediate=false){
-    // At the reading boundary, finish even an in-flight fade so fast scrolling never hides the first screen.
+  function reveal(){
+    if(appVisible)return;
     clearTimeout(showTimer);appVisible=true;
-    if(immediate)root.classList.add('app-fast');
     root.classList.add('app-open');
   }
   function close(){
     if(!launched&&!appVisible)return;commandOverride=null;sidebarHovered=false;panelPointer=null;demoToolbarActive=false;hideToolbar();clearTimeout(showTimer);launched=false;appVisible=false;
-    root.classList.remove('app-open','app-fast');root.querySelector('.lune').classList.remove('launching');
+    root.classList.remove('app-open');luneDock.classList.remove('launching');
   }
   function returnToDesktop() {
     scroll.scrollTo({top:0,behavior:reduce.matches?'instant':'smooth'});
@@ -749,7 +758,9 @@
       }
     });
   });
-  root.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>{scroll.scrollTo({top:opening,behavior:reduce.matches?'instant':'smooth'});}));
+  root.querySelectorAll('[data-open]').forEach(button=>button.addEventListener('click',()=>{
+    scroll.scrollTo({top:button===luneDock?preludeTarget:opening,behavior:reduce.matches?'instant':'smooth'});
+  }));
   root.querySelectorAll('[data-close]').forEach(button => {
     button.addEventListener('click', returnToDesktop);
   });

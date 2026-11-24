@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-23",
+  "scope": "Centered Dock launch and illustrated browser window motion",
+  "source_sha256": {
+    "website/public/index.html": "a111d9c18b8a9d2cc3a44c5e2c7ba9bdd0580d541af919191a93ab10dbc9fb42",
+    "website/public/main.js": "39a53bc7aa6ccd430400e639d0e753e6af1e6a2d9ab8b9bc239fda8e43fed468",
+    "website/public/styles.css": "abe92e4f08da7297e9d2a904f6ee24ea64831179d29bfc4a7398ddca0e76be43"
+  },
+  "checks": {
+    "npm_run_check": true,
+    "legal_tests": 7,
+    "wrangler_dry_run": true,
+    "local_website_byte_parity": true,
+    "chromium_version": "156.0.8078.4",
+    "chromium_scenarios": [
+      "desktop",
+      "phone",
+      "short",
+      "fallback-phone",
+      "reduced"
+    ],
+    "fast_slow_and_reopen_animation": true,
+    "reduced_motion_without_translation": true,
+    "chevron_reading_boundary": true,
+    "faux_browser_controls_and_sidebar_regression": true,
+    "desk_and_phone_system_webkit_viewports": [
+      1440,
+      390
+    ],
+    "system_webkit_center_and_fast_scroll": true
+  },
+  "limits": [
+    "Phone widths use desktop engines.",
+    "WebKit ran in a temporary WKWebView.",
+    "Validation was local."
+  ]
+}
