@@ -1,0 +1,38 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -4014,15 +4014,6 @@
+   gfx::Point cursor(base::ClampFloor(mouse.x), base::ClampFloor(mouse.y));
+   views::View::ConvertPointFromWidget(browser_view, &cursor);
+   const bool in_hover_area = browser_view->IsPointInTopChromeHoverArea(cursor);
+-  const bool in_rail = in_hover_area &&
+-                       browser_view->IsTopChromeHoverEnabled() &&
+-                       helium::IsPointerInNativeRevealRail(
+-                           browser_view, true, TopUIFullscreenYOffset());
+-  const bool in_window =
+-      browser_view->GetLocalBounds().Contains(cursor) ||
+-      helium::IsPointerAboveNativeFullscreenContent(
+-          browser_view, TopUIFullscreenYOffset()) ||
+-      helium::IsPointerInNativeWindowHoverArea(browser_view, true);
+   gfx::Rect sidebar_header;
+   if (auto* sidebar = browser_view->GetSidebarView(); sidebar &&
+       sidebar->IsDrawn() && browser_view->GetSideChromeRevealRatio() > 0) {
+@@ -4031,6 +4022,19 @@
+     sidebar_header.set_height(std::min(52, sidebar_header.height()));
+   }
+   const bool in_sidebar_header = sidebar_header.Contains(cursor);
++  const bool above_sidebar_header = cursor.y() < sidebar_header.y() &&
++                                    cursor.x() >= sidebar_header.x() &&
++                                    cursor.x() < sidebar_header.right();
++  const bool in_rail = in_hover_area &&
++                       (browser_view->IsTopChromeHoverEnabled() ||
++                        above_sidebar_header) &&
++                       helium::IsPointerInNativeRevealRail(
++                           browser_view, true, TopUIFullscreenYOffset());
++  const bool in_window =
++      browser_view->GetLocalBounds().Contains(cursor) ||
++      helium::IsPointerAboveNativeFullscreenContent(
++          browser_view, TopUIFullscreenYOffset()) ||
++      helium::IsPointerInNativeWindowHoverArea(browser_view, true);
+   // Distance hysteresis: enter through the rail or a visible sidebar header.
+   // Once open, page/sidebar columns down to 64 points below the glass retain
+   // it, including the fullscreen menu-bar strip above the content window.
