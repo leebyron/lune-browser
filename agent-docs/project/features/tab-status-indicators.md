@@ -47,6 +47,23 @@ builds, smoke checks, and native sidebar menu checks passed. The Intel checks
 ran under Rosetta on Apple silicon. See the
 [adoption validation](../builds/2026-11-23-contextual-tab-menu.json).
 
+### Tab grouping menu
+
+An ungrouped tab's menu starts with **New Tab Below**, **Group Tab** or
+**Group Tabs**, **Add Tab to Group** or **Add Tabs to Group** when a destination
+exists, **Add Tab to New Split View** or **Add Tabs to New Split View**, and
+**Move Tab to New Window** or **Move Tabs to New Window**. Grouping creates a
+new group. The Add submenu contains existing destinations.
+
+A grouped tab's menu offers **Remove From Group** and, when another group
+exists, **Move Tab to Group** or **Move Tabs to Group**. The submenu excludes
+the clicked tab's group, including for selections that span groups. Tab
+commands apply to the selection when the clicked tab is selected, and otherwise
+to the clicked tab or split. Existing split arrangements retain their contextual
+controls.
+
+[Adoption validation](../builds/2026-11-23-tab-grouping-actions.json)
+
 ## Page loading progress
 
 Each loading tab shows a two-pixel line along its bottom edge, including

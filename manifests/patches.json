@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "65bfed38fbd53e0ede27988f4e61ff46622762ea",
+    "commit": "503fde20caa966a4c7bfe58fbaad0f754233c1f4",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1191,6 +1191,10 @@
       {
         "path": "patches/helium/ui/background-tab-toast-symbol.patch",
         "sha256": "1afc028329e852eb3ab0b156382abefd1c4812bc8ed3fcb34a97563fd1d55bce"
+      },
+      {
+        "path": "patches/helium/ui/tab-grouping-actions.patch",
+        "sha256": "80bdbf8818bf16312a0902f7ba5e404b48c241d3b8112048e8d4ab0d82022486"
       }
     ]
   },
@@ -3860,6 +3864,23 @@
       "adaptation": "Rasterize the native symbol at the toast icon size with its surface foreground and retain the existing vector fallback.",
       "commits": [
         "65bfed38fbd53e0ede27988f4e61ff46622762ea"
+      ]
+    },
+    {
+      "id": "tab-grouping-actions",
+      "depends_on": [
+        "contextual-tab-menu",
+        "command-bar-actions",
+        "native-tab-group-menu"
+      ],
+      "patches": [
+        "patches/helium/ui/tab-grouping-actions.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Make tab menu and keyboard grouping actions reflect the selection and current group.",
+      "adaptation": "Share new-group dispatch across the tab menu, command palette and Cmd-G, and show only eligible existing groups in add and move submenus.",
+      "commits": [
+        "503fde20caa966a4c7bfe58fbaad0f754233c1f4"
       ]
     }
   ],

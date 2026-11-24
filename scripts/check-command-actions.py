@@ -28,9 +28,16 @@ def function(text, signature):
         end += 1
     return text[start:end]
 
+resources = ET.parse(args.source / 'chrome/app/generated_resources.grd')
 labels = {m.attrib['name']: ''.join(m.itertext()).strip()
-          for m in ET.parse(args.source / 'chrome/app/generated_resources.grd').iter('message')
+          for m in resources.iter('message')
           if m.attrib.get('name', '').startswith('IDS_COMMAND_BAR_')}
+group_message = resources.find(".//message[@name='IDS_TAB_GROUP_ACTION']")
+if group_message is not None:
+    group_labels = re.search(r'=1 \{([^{}]+)\}\s+other \{([^{}]+)\}',
+                             ''.join(group_message.itertext()))
+    assert group_labels is not None
+    labels['IDS_TAB_GROUP_ACTION'] = group_labels[1]
 for message in ET.parse(args.source / 'chrome/app/chromium_strings.grd').iter('message'):
     if message.attrib.get('name') == 'IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE':
         labels[message.attrib['name']] = ''.join(message.itertext()).strip()
@@ -42,6 +49,9 @@ label_ids = sorted(labels)
 definitions = '\n'.join(f'constexpr int {name} = {n};'
                         for n, name in enumerate(commands + label_ids, 1))
 label_switch = '\n'.join(f'case {name}: return u"{labels[name]}";' for name in label_ids)
+plural_switch = (f'case IDS_TAB_GROUP_ACTION: return count == 1 ? '
+                 f'u"{group_labels[1]}" : u"{group_labels[2]}";'
+                 if group_message is not None else '')
 symbol_constants = (ui / 'helium_command_symbols.h').read_text()
 body = '\n'.join(line for line in registry.splitlines() if not line.startswith('#include'))
 controller = (ui / 'helium_command_bar_controller.cc').read_text()
@@ -148,6 +158,9 @@ std::vector<std::string> SplitString(std::string s, const char*, int, int) {
 namespace l10n_util {
 std::u16string GetStringUTF16(int id) {switch(id) {
 ''' + label_switch + r'''
+default: assert(false); return {};}}
+std::u16string GetPluralStringFUTF16(int id, int count) {switch(id) {
+''' + plural_switch + r'''
 default: assert(false); return {};}}
 }
 namespace prefs { constexpr char kHeliumVerticalRightAligned[]="right"; constexpr char kHeliumCommandBarCommandUsage[]="usage"; constexpr char kVerticalCollapseShortcut[]="collapse"; constexpr char kCopyPageUrlShortcut[]="copy"; }
@@ -256,15 +269,27 @@ struct OlderTabsController {
 struct TabStripModel {
   tabs::OlderTabsController cleanup;
   tabs::OlderTabsController* older_tabs_controller(){return &cleanup;}
-  enum {CommandTogglePinned,CommandToggleSiteMuted,CommandToggleGrouped,CommandRemoveFromGroup};
+  enum {CommandTogglePinned,CommandToggleSiteMuted,CommandToggleGrouped,CommandRemoveFromGroup,CommandAddToNewGroup};
   static constexpr int kNoTab=-1;
   bool groups_supported=true,group_enabled=true,confirm_removal=false;
   std::optional<int> group[2];int editor=0;std::vector<int> marked;
   base::OnceClosure pending;
   bool SupportsTabGroups(){return groups_supported;}
   std::optional<int> GetTabGroupForTab(int i){return group[i];}
-  int AddToNewGroup(std::vector<int> indices){assert(indices==std::vector<int>{0});group[0]=42;return 42;}
+  std::vector<int> selected{0};
+  int next_group=42;
+  int AddToNewGroup(const std::vector<int>& indices) {
+    const int id = next_group++;
+    for (int i : indices) {
+      group[i] = id;
+    }
+    return id;
+  }
   void OpenTabGroupEditor(int id){editor=id;}
+  void ExecuteContextMenuCommand(int index, int command) {
+    assert(index == 0 && command == CommandAddToNewGroup);
+    OpenTabGroupEditor(AddToNewGroup(selected));
+  }
   std::vector<int> GetGroupsDestroyedFromRemovingIndices(std::vector<int> indices){assert(indices==std::vector<int>{0});return confirm_removal?std::vector<int>{*group[0]}:std::vector<int>{};}
   void MarkTabGroupsForClosing(std::vector<int> ids){marked=ids;}
   int GetIndexOfWebContents(content::WebContents* target){return active_present && target==&page?0:kNoTab;}
@@ -285,7 +310,8 @@ struct TabStripModel {
     active_tab.muted = &muted[active_index()];
     return active_present ? &active_tab : nullptr;
   }
-  bool IsContextMenuCommandEnabled(int i,int command){assert(i==0);return command==CommandTogglePinned?pin_enabled:command==CommandToggleSiteMuted?mute_enabled:group_enabled;}
+  std::vector<int> GetTabsForCommand(TabHandle) const { return selected; }
+  bool IsContextMenuCommandEnabled(int i,int command){assert(i==0);return command==CommandTogglePinned?pin_enabled:command==CommandToggleSiteMuted?mute_enabled:groups_supported && group_enabled;}
   bool IsTabPinned(int i){return pinned[i];}
   void SetTabPinned(int i,bool pin){pinned[i]=pin;}
   void SetSitesMuted(std::vector<int> indices,bool mute){for(int i:indices)muted[i]=mute;}
@@ -356,12 +382,12 @@ struct HeliumCommandBarItem {
   std::u16string title,shortcut,description;std::string symbol_name,media_request_id;
 };
 namespace helium_command_bar_model {
-constexpr int kPinSidebar=-1,kMediaPlayPause=-2,kMediaPictureInPicture=-3,kMediaPreviousTrack=-4,kMediaNextTrack=-5,kMediaSeekBackward=-6,kMediaSeekForward=-7,kMediaStop=-8,kMediaSkipAd=-9,kKeepOlderTab=-10;
+constexpr int kPinSidebar=-1,kMediaPlayPause=-2,kMediaPictureInPicture=-3,kMediaPreviousTrack=-4,kMediaNextTrack=-5,kMediaSeekBackward=-6,kMediaSeekForward=-7,kMediaStop=-8,kMediaSkipAd=-9,kKeepOlderTab=-10,kGroupTabs=-11,kRemoveTabFromGroup=-12;
 constexpr int kScoreExact=140,kScorePrefix=70,kScoreWord=45,kScoreSubstring=20;
 ''' + function(model, 'bool IsWordBoundary(') + '\n' + function(model, 'int ScoreText(') + '\n}\n' + symbol_constants + body + mode_helpers + r'''
 int main() {
   using namespace helium_command_bar_model;
-  assert(std::size(kCommands)==54);
+  assert(std::size(kCommands)==''' + str(55 if group_message is not None else 54) + r''');
   assert(IsCommandSearchAccelerator({ui::VKEY_OEM_2,ui::EF_PLATFORM_ACCELERATOR}));
   assert(IsCommandSearchAccelerator({ui::VKEY_P,ui::EF_PLATFORM_ACCELERATOR|ui::EF_SHIFT_DOWN}));
   assert(!IsCommandSearchAccelerator({ui::VKEY_P,ui::EF_PLATFORM_ACCELERATOR}));
@@ -421,31 +447,54 @@ int main() {
   assert(get(IDC_HOME).symbol_name=="house");
   assert(get(IDC_CREATE_NEW_TAB_GROUP).symbol_name=="folder.badge.plus");
   assert(find(u"/ungroup tab").empty());
-  auto group=get(IDC_WINDOW_GROUP_TAB);
+  constexpr bool selection_aware = ''' + ('true' if group_message is not None else 'false') + r''';
+  constexpr int group_id = selection_aware ? kGroupTabs : IDC_WINDOW_GROUP_TAB;
+  constexpr int remove_id = selection_aware ? kRemoveTabFromGroup : IDC_WINDOW_GROUP_TAB;
+  auto group=get(group_id);
   assert(group.title==u"Group Tab" && group.symbol_name=="folder");
-  browser.strip.group[1]=99;  // Unrelated selection must remain untouched.
+  browser.strip.group[1]=99;
   assert(ExecutePaletteCommand(&browser,group));
   assert(browser.strip.group[0]==42 && browser.strip.group[1]==99 && browser.strip.editor==42);
-  assert(!ExecutePaletteCommand(&browser,group));  // Stale Group cannot remove.
-  auto remove=get(IDC_WINDOW_GROUP_TAB);
+
+  if (selection_aware) {
+    browser.strip.selected={0,1};
+    assert(!ExecutePaletteCommand(&browser,group));  // Stale singular label.
+    auto multi_group=get(group_id);
+    assert(multi_group.title==u"Group Tabs");
+    assert(find(u"/group tabs")[0].command==group_id);
+    assert(ExecutePaletteCommand(&browser,multi_group));
+    assert(browser.strip.group[0]==43 && browser.strip.group[1]==43 && browser.strip.editor==43);
+    assert(ExecutePaletteCommand(&browser,multi_group));
+    assert(browser.strip.group[0]==44 && browser.strip.group[1]==44 && browser.strip.editor==44);
+    assert(find(u"/new tab group")[0].command==IDC_CREATE_NEW_TAB_GROUP);
+    assert(ExecutePaletteCommand(&browser,get(IDC_CREATE_NEW_TAB_GROUP)));
+    assert(browser.executed==IDC_CREATE_NEW_TAB_GROUP);
+    browser.executed=0;
+  } else {
+    assert(!ExecutePaletteCommand(&browser,group));  // Stale Group cannot remove.
+  }
+
+  auto remove=get(remove_id);
   assert(remove.title==u"Remove Tab from Group" && remove.symbol_name=="folder");
-  assert(find(u"/ungroup tab")[0].command==IDC_WINDOW_GROUP_TAB);
+  assert(find(u"/ungroup tab")[0].command==remove_id);
   assert(ExecutePaletteCommand(&browser,remove));
-  assert(!browser.strip.group[0] && browser.strip.group[1]==99);
+  assert(!browser.strip.group[0] && browser.strip.group[1]==(selection_aware ? 44 : 99));
+  browser.strip.selected={0};
   browser.strip.group[0]=42;browser.strip.confirm_removal=true;
-  assert(ExecutePaletteCommand(&browser,get(IDC_WINDOW_GROUP_TAB)));
+  assert(ExecutePaletteCommand(&browser,get(remove_id)));
   assert(browser.strip.group[0]==42 && browser.strip.marked==std::vector<int>{42});
   browser.strip.pending.Run();assert(!browser.strip.group[0]);
   browser.strip.group[0]=42;
-  assert(ExecutePaletteCommand(&browser,get(IDC_WINDOW_GROUP_TAB)));
+  assert(ExecutePaletteCommand(&browser,get(remove_id)));
   browser.strip.group[0]=43;  // Async confirmation cannot redirect to another group.
   browser.strip.pending.Run();assert(browser.strip.group[0]==43);
   browser.strip.group[0].reset();browser.strip.group[1].reset();browser.strip.confirm_removal=false;
   browser.strip.groups_supported=false;
-  assert(!CommandForId(&browser,IDC_WINDOW_GROUP_TAB));
+  assert(!CommandForId(&browser,group_id));
+  assert(!CommandForId(&browser,remove_id));
   assert(!CommandForId(&browser,IDC_CREATE_NEW_TAB_GROUP));
   browser.strip.groups_supported=true;browser.strip.group_enabled=false;
-  assert(!CommandForId(&browser,IDC_WINDOW_GROUP_TAB));
+  assert(!CommandForId(&browser,group_id));
   browser.strip.group_enabled=true;
 
   browser.disabled.insert(IDC_RESTORE_TAB);assert(find(u"/undo close tab").empty());
@@ -649,7 +698,7 @@ int main() {
   browser.strip.active_present=false;assert(find(u"/").empty());
   browser.strip.active_present=true;browser.type=BrowserWindowInterface::Type::TYPE_APP;
   assert(find(u"/").empty());assert(!CommandForId(nullptr,IDC_NEW_TAB));
-  std::cout<<"PASS: production command catalogue, conditional Older Keep action and stale-state rejection, symbols, aliases, scope, policy/availability rechecks, single-pane pin/mute/grouping and deferred group confirmation, audibility gating and silent-site unmute, foreground-playing preference, toolbar-ordered background media and profile/target identity rechecks, playback/PiP/track/seek/stop/ad dispatch, stale toggle rejection, layout state, slash vs double-slash/greater-than prefixes, recency/frequency within match bands, stable usage keys, saturation and Incognito read-only history, active/custom/removed shortcuts and contextual wrapper routing, missing/unsupported windows\n";
+  std::cout<<"PASS: production command catalogue, conditional Older Keep action and stale-state rejection, symbols, aliases, scope, policy/availability rechecks, single-pane pin/mute, tab grouping and deferred group confirmation, audibility gating and silent-site unmute, foreground-playing preference, toolbar-ordered background media and profile/target identity rechecks, playback/PiP/track/seek/stop/ad dispatch, stale toggle rejection, layout state, slash vs double-slash/greater-than prefixes, recency/frequency within match bands, stable usage keys, saturation and Incognito read-only history, active/custom/removed shortcuts and contextual wrapper routing, missing/unsupported windows\n";
 }
 '''
 with tempfile.TemporaryDirectory(prefix='lune-command-actions-') as temporary:
