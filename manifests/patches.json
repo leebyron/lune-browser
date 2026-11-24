@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "8933068b412cb6e5db7f0ce74ffb4cd14e9f687b",
+    "commit": "74c6a5bb3db82ea7277148a9c7d7ff87cf0d07a3",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1159,6 +1159,10 @@
       {
         "path": "patches/helium/ui/sidebar-toggle-glass.patch",
         "sha256": "bf4b339f2cbdc09f4b60d318c8ed313438445cf009d07574c31515e57984c09e"
+      },
+      {
+        "path": "patches/helium/ui/site-info-popover.patch",
+        "sha256": "e69bc59df5322145360074411571b7749dcc1661e41477b22a627bc5e1acf3e0"
       }
     ]
   },
@@ -3701,6 +3705,22 @@
       "adaptation": "Use the shared 36 pt glass surface and 8 pt insets from the sidebar divider and top edge on both alignments.",
       "commits": [
         "8933068b412cb6e5db7f0ce74ffb4cd14e9f687b"
+      ]
+    },
+    {
+      "id": "site-info-popover",
+      "depends_on": [
+        "native-floating-address",
+        "toolbar-bubble-reveal"
+      ],
+      "patches": [
+        "patches/helium/ui/site-info-popover.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Present Site Information in the native pointed macOS popover from the address capsule.",
+      "adaptation": "Host Chromium site information views in AppKit with SF Symbols, shared content alignment and native transient dismissal.",
+      "commits": [
+        "74c6a5bb3db82ea7277148a9c7d7ff87cf0d07a3"
       ]
     }
   ],

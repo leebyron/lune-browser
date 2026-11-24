@@ -13,6 +13,20 @@
 - Right-click, Control-click and a 500 ms hold on Back, Forward and Reload use Chromium's existing menu provider, availability and original commands. Consume a recognized hold before mouse-up can also click. With no menu, allow the ordinary click. Reload's menu retains its DevTools and Reload-state gates.
 - A second click on Site Information must leave the bubble closed after release. Observe the bubble widget hiding or destruction during a press over its icon, then suppress that release's reopen action. Clear any unused latch after dispatch. A mouse-down monitor alone lost the race with Chromium focus-loss dismissal.
 
+## Site Information popover
+
+The address capsule opens Site Information in a transient AppKit popover.
+AppKit provides the glass, pointer, and edge placement. Center the pointer
+under the Site Information button and offset the positioning rectangle
+down 1 pt. The popover hosts the existing pages and actions.
+
+Use SF Symbols for popover icons and omit trailing external-link glyphs.
+Use a 344 pt minimum content width for website information so the English
+connection warning fits on one line. Use the same typography and icon
+column as the secure connection row, with a yellow warning symbol. Align
+subpage headings with body row text, and let the row highlight reach the
+edges of the popover content. [Build validation](../builds/2026-11-23-site-info-popover.json)
+
 ## Customize temporary icon removal
 
 Disable the side panel's ephemeral toolbar button. Explicitly pinned Customize keeps its visibility and active state. Keep the window-local header/sidebar reveal while the Customize entry is visibly open, including on focus loss. See `customize-chrome-reveal.patch` and `customize-no-transient-toolbar-icon.patch`.
