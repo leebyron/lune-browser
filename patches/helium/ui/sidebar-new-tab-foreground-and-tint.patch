@@ -1,0 +1,289 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -56,6 +56,7 @@
+ enum class NativeGlassColorRole {
+   kLabel,
+   kToolbarLabel,
++  kSidebarToolbarLabel,
+   kSidebarSection,
+   kToolbarHover,
+   kToolbarPressed,
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -206,10 +206,16 @@
+                     ui::ColorProviderKey::ColorMode::kDark;
+   color_utils::HSL tone;
+   color_utils::SkColorToHSL(colors->GetColor(kColorToolbar), &tone);
+-  tone.l = std::min(1.0, tone.l * (dark ? .65 : 1.05));
++  const bool colored_theme =
++      tone.s > 0 &&
++      !ThemeServiceFactory::GetForProfile(view->GetProfile())->UsingDeviceTheme();
++  if (!colored_theme) {
++    tone.l = std::min(1.0, tone.l * (dark ? .65 : 1.05));
++  }
+   NSColor* background = GetFrameMaterialThemeTintOverlayColor(
+       color_utils::HSLToSkColor(tone, 255), dark);
+-  return [background colorWithAlphaComponent:dark ? .4 : .3];
++  const CGFloat strength = (dark ? .4 : .3) + (colored_theme ? .2 : 0);
++  return [background colorWithAlphaComponent:strength];
+ }
+ 
+ }  // namespace helium
+@@ -326,7 +332,9 @@
+                               role == NativeGlassColorRole::kSelectedLabel;
+   const bool sidebar_hover_role =
+       floating_sidebar && role == NativeGlassColorRole::kHover;
+-  if (floating_sidebar || selection_role) {
++  const bool sidebar_toolbar_label =
++      role == NativeGlassColorRole::kSidebarToolbarLabel;
++  if (floating_sidebar || selection_role || sidebar_toolbar_label) {
+     auto* browser = BrowserView::GetBrowserViewForNativeWindow(
+         view->GetWidget()->GetNativeWindow());
+     if (browser && browser->GetColorProvider()) {
+@@ -350,11 +358,14 @@
+           key.contrast_mode != ui::ColorProviderKey::ContrastMode::kHigh &&
+           !ThemeServiceFactory::GetForProfile(browser->GetProfile())
+                ->UsingDeviceTheme();
+-      if ((native_light_sidebar_color || themed_sidebar) &&
++      if ((native_light_sidebar_color || themed_sidebar ||
++           sidebar_toolbar_label) &&
+           key.forced_colors == ui::ColorProviderKey::ForcedColors::kNone) {
+-        key.color_mode = [match isEqual:NSAppearanceNameDarkAqua]
+-                             ? ui::ColorProviderKey::ColorMode::kDark
+-                             : ui::ColorProviderKey::ColorMode::kLight;
++        const bool dark =
++            [match isEqual:NSAppearanceNameDarkAqua] ||
++            [match isEqual:NSAppearanceNameAccessibilityHighContrastDarkAqua];
++        key.color_mode = dark ? ui::ColorProviderKey::ColorMode::kDark
++                              : ui::ColorProviderKey::ColorMode::kLight;
+         if (high_contrast) {
+           key.contrast_mode = ui::ColorProviderKey::ContrastMode::kHigh;
+         }
+@@ -362,6 +373,8 @@
+             ui::ColorProviderManager::Get().GetColorProviderFor(key);
+         const bool active = browser->GetWidget()->ShouldPaintAsActive();
+         switch (role) {
++          case NativeGlassColorRole::kSidebarToolbarLabel:
++            return colors->GetColor(kColorToolbarText);
+           case NativeGlassColorRole::kSelection:
+             return colors->GetColor(active ? kColorTabBackgroundActiveFrameActive
+                                           : kColorTabBackgroundActiveFrameInactive);
+@@ -382,6 +395,7 @@
+     NSColor* semantic = NSColor.labelColor;
+     switch (role) {
+       case NativeGlassColorRole::kLabel:
++      case NativeGlassColorRole::kSidebarToolbarLabel:
+         break;
+       case NativeGlassColorRole::kToolbarLabel:
+       case NativeGlassColorRole::kSidebarSection:
+--- a/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc
++++ b/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc
+@@ -108,11 +108,8 @@
+ void TabStripFlatEdgeButton::UpdateIcon(const ui::ImageModel& icon_image) {
+   CHECK(icon_image.IsVectorIcon());
+ 
+-  const auto native_color = helium::NativeGlassControlColor(this);
+   const ui::ImageModel image_model = ui::ImageModel::FromVectorIcon(
+-      *icon_image.GetVectorIcon().vector_icon(),
+-      native_color ? ui::ColorVariant(*native_color)
+-                   : ui::ColorVariant(GetForegroundColor()),
++      *icon_image.GetVectorIcon().vector_icon(), GetForegroundColorVariant(),
+       icon_size_);
+ 
+   SetImageModel(views::Button::STATE_NORMAL, image_model);
+@@ -136,8 +133,7 @@
+   SetInsets(GetText().empty() ? insets_without_label_ : insets_with_label_);
+ }
+ 
+-void TabStripFlatEdgeButton::SetForegroundColorId(ui::ColorId color_id) {
+-  foreground_color_id_ = color_id;
++void TabStripFlatEdgeButton::RefreshForegroundColors() {
+   const std::optional<ui::ImageModel>& model =
+       GetImageModel(views::Button::STATE_NORMAL);
+   if (model && model->IsVectorIcon()) {
+@@ -223,14 +219,7 @@
+ 
+ void TabStripFlatEdgeButton::OnThemeChanged() {
+   views::LabelButton::OnThemeChanged();
+-  const std::optional<ui::ImageModel>& model =
+-      GetImageModel(views::Button::STATE_NORMAL);
+-  if (model && model->IsVectorIcon()) {
+-    UpdateIcon(*model);
+-  }
+-  if (should_show_label_) {
+-    UpdateLabelColor();
+-  }
++  RefreshForegroundColors();
+   const bool frame_active = GetWidget() && GetWidget()->ShouldPaintAsActive();
+   ConfigureToolbarInkdropForRefresh2023(
+       this,
+@@ -322,9 +311,9 @@
+   paint_as_active_subscription_ = {};
+ }
+ 
+-ui::ColorId TabStripFlatEdgeButton::GetForegroundColor() const {
+-  if (foreground_color_id_.has_value()) {
+-    return foreground_color_id_.value();
++ui::ColorVariant TabStripFlatEdgeButton::GetForegroundColorVariant() const {
++  if (const auto native_color = helium::NativeGlassControlColor(this)) {
++    return *native_color;
+   }
+   return GetWidget() && GetWidget()->ShouldPaintAsActive()
+              ? kColorNewTabButtonCRForegroundFrameActive
+@@ -388,14 +377,11 @@
+ }
+ 
+ void TabStripFlatEdgeButton::UpdateLabelColor() {
+-  const ui::ColorVariant color_id =
+-      helium::NativeGlassControlColor(this)
+-          ? ui::ColorVariant(*helium::NativeGlassControlColor(this))
+-          : ui::ColorVariant(GetForegroundColor());
+-  SetTextColor(views::Button::STATE_NORMAL, color_id);
+-  SetTextColor(views::Button::STATE_HOVERED, color_id);
+-  SetTextColor(views::Button::STATE_PRESSED, color_id);
+-  SetTextColor(views::Button::STATE_DISABLED, color_id);
++  const ui::ColorVariant color = GetForegroundColorVariant();
++  SetTextColor(views::Button::STATE_NORMAL, color);
++  SetTextColor(views::Button::STATE_HOVERED, color);
++  SetTextColor(views::Button::STATE_PRESSED, color);
++  SetTextColor(views::Button::STATE_DISABLED, color);
+ }
+ 
+ BEGIN_METADATA(TabStripFlatEdgeButton)
+--- a/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h
++++ b/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h
+@@ -47,7 +47,6 @@
+   void SetInsets(const gfx::Insets& insets);
+   void SetLabelInsets(const gfx::Insets& insets_with_label,
+                       const gfx::Insets& insets_without_label);
+-  void SetForegroundColorId(ui::ColorId color_id);
+   void SetIconOpacity(float opacity);
+   void SetPaintTransparent(bool paint_transparent);
+ 
+@@ -74,13 +73,16 @@
+   }
+   bool paint_transparent_for_testing() const { return paint_transparent_; }
+ 
++ protected:
++  virtual ui::ColorVariant GetForegroundColorVariant() const;
++  void RefreshForegroundColors();
++
+  private:
+   // views::View:
+   void AddedToWidget() override;
+   void RemovedFromWidget() override;
+   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
+ 
+-  ui::ColorId GetForegroundColor() const;
+   ui::ColorId GetBackgroundColor() const;
+   SkRRect GetButtonShape() const;
+   gfx::RoundedCornersF GetButtonCornerRadii() const;
+@@ -97,7 +99,6 @@
+   gfx::Insets insets_with_label_;
+   gfx::Insets insets_without_label_;
+   std::u16string label_text_;
+-  std::optional<ui::ColorId> foreground_color_id_;
+   int icon_size_ = 0;
+   float expansion_factor_ = 1.0f;
+   views::LayoutOrientation expansion_orientation_ =
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -21,6 +21,7 @@
+ constexpr int kIconSize = 16;
+ constexpr int kBasePadding = 4;
+ constexpr int kBigPadding = kBasePadding * 2 - 1;
++constexpr float kForegroundOpacity = 0.7f;
+ 
+ }  // namespace
+ 
+@@ -33,7 +34,6 @@
+     SetLabelStyle(views::style::STYLE_BODY_2);
+   }
+   SetCornerRadius(GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius));
+-  SetForegroundColorId(kColorTabForegroundInactiveFrameActive);
+   // Paint exactly one tab-style hover fill; no toolbar ink-drop overlay.
+   views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
+   SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
+@@ -45,9 +45,10 @@
+   SetLabelInsets(label_insets, label_insets);
+   SetImageLabelSpacing(kBigPadding);
+   SetShouldShowLabel(true);
+-  SetIconOpacity(0.7f);
+-  label()->layer()->SetOpacity(0.5f);
++  SetIconOpacity(kForegroundOpacity);
++  label()->layer()->SetOpacity(kForegroundOpacity);
+   SetLabelText(l10n_util::GetStringUTF16(IDS_ACCNAME_NEWTAB));
++  RefreshForegroundColors();
+   SetPreferredSize(
+       gfx::Size(-1, GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
+ }
+@@ -60,11 +61,10 @@
+ }
+ 
+ gfx::ImageSkia VerticalNewTabButton::GetImage(ButtonState state) const {
+-  if (helium::ShouldUseNativeFrameMaterials(this)) {
++  if (GetColorProvider() && helium::ShouldUseNativeFrameMaterials(this)) {
+     auto symbol = helium::NativeToolbarSymbolForIcon(
+-        "kAddIcon", 16,
+-        helium::NativeGlassControlColor(this, GetEnabled()).value_or(
+-            GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive)));
++        "kAddIcon", kIconSize,
++        GetForegroundColorVariant().ResolveToSkColor(GetColorProvider()));
+     if (!symbol.isNull()) {
+       return symbol;
+     }
+@@ -89,25 +89,21 @@
+       GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius), flags);
+ }
+ 
+-void VerticalNewTabButton::OnThemeChanged() {
+-  shared::NewTabButton::OnThemeChanged();
+-  UpdateTabForeground();
++ui::ColorVariant VerticalNewTabButton::GetForegroundColorVariant() const {
++  const auto role = GetEnabled()
++                        ? helium::NativeGlassColorRole::kSidebarToolbarLabel
++                        : helium::NativeGlassColorRole::kDisabledLabel;
++  if (const auto native_color = helium::NativeGlassColor(this, role)) {
++    return *native_color;
++  }
++  return GetEnabled() ? kColorToolbarText : kColorToolbarTextDisabled;
+ }
+ 
+ void VerticalNewTabButton::StateChanged(ButtonState old_state) {
+   shared::NewTabButton::StateChanged(old_state);
+-  UpdateTabForeground();
+-}
+-
+-void VerticalNewTabButton::UpdateTabForeground() {
+-  const bool active = !GetWidget() || GetWidget()->ShouldPaintAsActive();
+-  const bool hovered =
+-      GetState() == STATE_HOVERED || GetState() == STATE_PRESSED;
+-  SetForegroundColorId(
+-      hovered ? (active ? kColorTabForegroundInactiveHoverFrameActive
+-                        : kColorTabForegroundInactiveHoverFrameInactive)
+-              : (active ? kColorTabForegroundInactiveFrameActive
+-                        : kColorTabForegroundInactiveFrameInactive));
++  if (old_state == STATE_DISABLED || GetState() == STATE_DISABLED) {
++    RefreshForegroundColors();
++  }
+ }
+ 
+ BEGIN_METADATA(VerticalNewTabButton)
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
+@@ -20,14 +20,11 @@
+ 
+   gfx::ImageSkia GetImage(ButtonState state) const override;
+   void OnPaintBackground(gfx::Canvas* canvas) override;
+-  void OnThemeChanged() override;
+   View* GetTooltipHandlerForPoint(const gfx::Point& point) override;
+ 
+  protected:
++  ui::ColorVariant GetForegroundColorVariant() const override;
+   void StateChanged(ButtonState old_state) override;
+-
+- private:
+-  void UpdateTabForeground();
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_NEW_TAB_BUTTON_H_
