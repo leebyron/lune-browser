@@ -1,0 +1,49 @@
+--- a/chrome/browser/ui/views/tabs/common/tab_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view.cc
+@@ -11,6 +11,7 @@
+ #include "base/functional/callback_helpers.h"
+ #include "base/metrics/histogram_functions.h"
+ #include "base/metrics/user_metrics.h"
++#include "base/numerics/safe_conversions.h"
+ #include "base/metrics/user_metrics_action.h"
+ #include "base/time/time.h"
+ #include "chrome/browser/dictation/dictation_keyed_service.h"
+@@ -104,6 +105,7 @@
+ 
+ namespace {
+ constexpr int kFocusRingInset = 0.0f;
++constexpr float kHibernatedTabTitleOpacity = 0.6f;
+ 
+ class TabHighlightPathGenerator : public views::HighlightPathGenerator {
+  public:
+@@ -1370,7 +1372,13 @@
+   if (data.should_display_favicon != tab_data_.should_display_favicon) {
+     layout_manager()->OnShouldDisplayFaviconChanged();
+   }
++  const bool hibernation_changed =
++      orientation_ == TabStripOrientation::kVertical &&
++      data.should_dim_favicon != tab_data_.should_dim_favicon;
+   UpdateTabData(data);
++  if (hibernation_changed) {
++    UpdateColors();
++  }
+ }
+ 
+ void TabView::SetSelection(bool selected) {
+@@ -1447,7 +1455,15 @@
+     should_fill_background_tab_color_ = false;
+   }
+   TabStyle::TabColors colors = tab_styling()->CalculateTargetColors();
+-  title_->SetEnabledColor(colors.foreground_color);
++  const SkColor foreground = colors.foreground_color;
++  const SkColor title_color =
++      orientation_ == TabStripOrientation::kVertical &&
++              tab_data_.should_dim_favicon
++          ? SkColorSetA(foreground, base::ClampRound<U8CPU>(
++                                        SkColorGetA(foreground) *
++                                        kHibernatedTabTitleOpacity))
++          : foreground;
++  title_->SetEnabledColor(title_color);
+   icon_->SetNativeIconColor(colors.foreground_color);
+   close_button_->SetColors(colors);
+   if (keep_button_ && is_in_older_tabs_) {
