@@ -1,0 +1,81 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1043,7 +1043,9 @@
+       : browser_(browser->GetAsWeakPtr()) {}
+   bool DoesIntersectRect(const views::View* target,
+                          const gfx::Rect& rect) const override {
++    // Like the AppKit hit test, leave wheel events to the sidebar scroll view.
+     if (!browser_ || !browser_->IsZenModeSideChromePinned() ||
++        NSApp.currentEvent.type == NSEventTypeScrollWheel ||
+         !target->GetLocalBounds().Intersects(rect)) {
+       return false;
+     }
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -347,7 +347,9 @@
+ 
+   if (content_area_view_->GetVisible() && footer_->GetVisible() &&
+       IsHitInView(footer_, point)) {
+-    return false;
++    const gfx::Point point_in_footer =
++        views::View::ConvertPointToTarget(this, footer_, point);
++    return footer_->GetEventHandlerForPoint(point_in_footer) == footer_;
+   }
+ 
+   if (content_area_view_->GetVisible() && header_view_->GetVisible() &&
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_view.cc
+@@ -24,6 +24,7 @@
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/frame_separator.h"
+ #include "chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h"
++#include "chrome/browser/ui/views/tabs/common/split_tab_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
+@@ -745,7 +746,7 @@
+ 
+ bool TabStripView::IsPositionInWindowCaption(const gfx::Point& point) {
+   for (views::View* child : children()) {
+-    if (!child->GetVisible()) {
++    if (!child->GetVisible() || !child->GetCanProcessEventsWithinSubtree()) {
+       continue;
+     }
+ 
+@@ -756,7 +757,7 @@
+     }
+ 
+     if (child == new_tab_button_container_) {
+-      return false;
++      return child->GetEventHandlerForPoint(point_in_child) == child;
+     }
+ 
+     if (TabScrollButtonContainer* scroll_button_container =
+@@ -778,11 +779,23 @@
+       }
+     }
+ 
+-    if (scroll_view->contents()) {
++    views::View* contents = scroll_view->contents();
++    if (orientation_ == TabStripOrientation::kVertical) {
++      // Use the viewport's event target so clipped and paint-only children
++      // cannot block the sidebar background. Layout containers can also be
++      // the target when the pointer lands in a gap between their controls.
++      views::View* target =
++          scroll_view->GetEventHandlerForPoint(point_in_child);
++      return !contents || !contents->Contains(target) || target == contents ||
++             target == new_tab_button_container_ ||
++             views::IsViewClass<TabGroupView>(target) ||
++             views::IsViewClass<SplitTabView>(target);
++    }
++
++    if (contents) {
+       gfx::Point point_in_content = point_in_child;
+-      ConvertPointToTarget(scroll_view, scroll_view->contents(),
+-                           &point_in_content);
+-      if (scroll_view->contents()->HitTestPoint(point_in_content)) {
++      ConvertPointToTarget(scroll_view, contents, &point_in_content);
++      if (contents->HitTestPoint(point_in_content)) {
+         return false;
+       }
+     }
