@@ -97,10 +97,8 @@ No release or deployment was performed.
 
 ## New Tab button refinement — November 11, 2026
 
-The sidebar plus icon paints at 70% opacity and its label at 50%, relative to the
-existing theme foreground. Hover backgrounds and row geometry retain their
-existing behavior. The website demo applies the same independent opacities in
-pinned and floating sidebars.
+This refinement set the sidebar plus to 70% opacity and the label to 50%.
+The website demo uses those original values.
 
 Pressing a New Tab button opens the command menu through the existing Cmd-T
 controller. If the menu is already showing, the button closes it and creates one
@@ -133,3 +131,14 @@ JavaScript syntax and the deployment dry run pass. Phone emulation does not
 establish physical iPhone acceptance. No browser release is modified and no
 specific GitHub issue is associated with this refinement. Compact build and replay
 evidence is in [the adoption record](../builds/2026-11-11-new-tab-button.json).
+
+## Shared New Tab foreground
+
+The sidebar plus and label both use the browser theme's toolbar text foreground
+at 50% opacity. The pinned sidebar resolves it in the browser palette. The
+popover resolves the same role in the effective glass appearance so the icon
+and label adapt together. The disabled foreground applies to both parts.
+
+[New Tab foreground and popover tint validation](../builds/2026-11-23-sidebar-material-preview.json)
+
+[50% New Tab preview validation](../builds/2026-11-23-sidebar-new-tab-opacity-preview.json)

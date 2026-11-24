@@ -7,14 +7,12 @@ November 9, 2026, then authorized focused commits, pushing and main adoption.
 ## Behavior
 
 - Detached sidebar glass takes `kColorToolbar` from the mounted sidebar's
-  owning color provider as its theme source. Hue and saturation are retained;
-  HSL lightness is multiplied by 1.05 in Light (clamped to 1) and .65 in Dark.
-  The owner accepted the color saturation, then requested Light 5% lighter than
-  the base theme tone and Dark slightly darker again. These tone adjustments
-  apply only to unpinned glass.
-- Glass tint strength remains 30% Light / 40% Dark. Mounted-overlay strength
-  remains 80% / 55%. Header and Command-T tint policy is unchanged. The owner accepted Test 6 tone
-  and strength values on November 9.
+  owning color provider as its theme source. In the November 9 review, its HSL
+  lightness was multiplied by 1.05 in Light (clamped to 1) and .65 in Dark.
+  Native and grayscale material use that calibration.
+- At the November 9 review, glass tint strength was 30% Light / 40% Dark.
+  Mounted-overlay strength is 80% / 55%. The
+  [popovers in colored themes](#popover-tint-in-colored-themes) use stronger tint.
 - System sidebar tint uses its native window-background palette. High-contrast
   glass stays untinted. Header and Command-T tint policy is unchanged.
 - The mounted NSVisualEffectView includes its neutral backing and a normal color
@@ -111,3 +109,49 @@ Both incremental browser/ChromeDriver/installer builds and UI/settings/browsing/
 python3 scripts/check-native-tab-selection.py SOURCE --arch arm64
 python3 scripts/check-native-tab-selection.py SOURCE --arch x86_64
 ```
+
+## Native Light selection
+
+In Native Light, the focused tab selection uses the neutral gray AppKit supplies
+as `unemphasizedSelectedContentBackgroundColor`. When the browser window is
+inactive, the selection blends 30% toward the native control background. The
+title and monochrome tab icons use the normal dark label foreground in both
+states. The foreground also applies to multiselected tabs, and their fill
+follows the active tab's.
+
+The floating sidebar resolves the same selection colors in the effective glass
+appearance and uses the owning browser window's activation. The floating
+sidebar retracts when the app loses focus.
+
+## Sidebar hover and tab titles
+
+Native Light uses the pinned sidebar's hover color roles in the floating
+sidebar. The effective glass appearance and owning window supply the palette
+and activation state.
+
+Awake unselected tabs use the theme's full toolbar text color when pinned and
+the full AppKit label color in native glass. Hibernated tab titles use 60%
+of that foreground's opacity in both sidebar layouts. They follow the same
+tab state as the existing favicon treatment and recover the normal foreground
+when the tab wakes.
+
+[Sidebar hover and label preview validation](../builds/2026-11-23-sidebar-tab-colors-preview.json)
+
+## Popover tint in colored themes
+
+The floating sidebar uses 50% tint in Light and 60% in Dark when the browser
+theme supplies a chromatic toolbar background. It uses the toolbar color
+directly to carry the mounted sidebar's hue into the glass. Native and grayscale
+palettes use 30% in Light and 40% in Dark. High-contrast glass uses the system
+material without theme tint.
+
+[New Tab foreground and popover tint validation](../builds/2026-11-23-sidebar-material-preview.json)
+
+## Accepted sidebar appearance
+
+The owner accepted the 50% New Tab preview on November 23, 2026. The
+selected input includes neutral Native Light selection, consistent sidebar
+hover and tab foregrounds, subdued hibernated tabs, matching New Tab
+foregrounds, and stronger tint for colored popovers.
+
+[Main adoption validation](../builds/2026-11-23-sidebar-appearance.json)

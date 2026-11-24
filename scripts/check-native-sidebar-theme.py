@@ -20,12 +20,15 @@ constexpr SkColor SK_ColorBLACK=0xff000000;
 SkColor SkColorSetARGB(unsigned a,unsigned r,unsigned g,unsigned b){return (a<<24)|(r<<16)|(g<<8)|b;}
 constexpr int kColorTabBackgroundActiveFrameActive=1,kColorTabBackgroundActiveFrameInactive=2,
  kColorTabForegroundActiveFrameActive=3,kColorTabForegroundActiveFrameInactive=4,
- kColorTabBackgroundInactiveHoverFrameActive=5,kColorTabBackgroundInactiveHoverFrameInactive=6;
+ kColorTabBackgroundInactiveHoverFrameActive=5,kColorTabBackgroundInactiveHoverFrameInactive=6,
+ kColorToolbarText=7;
 namespace ui {
 struct ColorProviderKey {
  enum class ColorMode { kLight,kDark }; ColorMode color_mode=ColorMode::kLight;
  enum class ContrastMode { kNormal,kHigh }; ContrastMode contrast_mode=ContrastMode::kNormal;
  enum class ForcedColors { kNone,kActive }; ForcedColors forced_colors=ForcedColors::kNone;
+ enum class FrameStyle { kDefault,kSystem }; FrameStyle frame_style=FrameStyle::kDefault;
+ bool custom_theme=false,app_controller=false;
  int theme=0;
 };
 struct Provider { ColorProviderKey key; SkColor GetColor(int role)const {
@@ -83,6 +86,7 @@ int main(){@autoreleasepool {
   assert(color(NativeGlassColorRole::kSelection)==(base|(active?1:2)));
   assert(color(NativeGlassColorRole::kSelectedLabel)==(base|(active?3:4)));
   assert(color(NativeGlassColorRole::kHover)==(base|(active?5:6)));
+  assert(color(NativeGlassColorRole::kSidebarToolbarLabel)==(base|7));
  }
  appearance(light);browser.widget.key.theme=7;browser.widget.active=true;
  const auto themed=color(NativeGlassColorRole::kSelection);
@@ -93,12 +97,18 @@ int main(){@autoreleasepool {
  browser.widget.key.contrast_mode=ui::ColorProviderKey::ContrastMode::kNormal;
  browser.widget.key.forced_colors=ui::ColorProviderKey::ForcedColors::kActive;
  assert(color(NativeGlassColorRole::kSelection)==system);
+ assert(color(NativeGlassColorRole::kSidebarToolbarLabel)==color(NativeGlassColorRole::kLabel));
  browser.widget.key.forced_colors=ui::ColorProviderKey::ForcedColors::kNone;
  browser.attached=false;assert(color(NativeGlassColorRole::kSelection)==system);
  browser.attached=true;const auto label=color(NativeGlassColorRole::kLabel);
  browser.theme.device=true;assert(color(NativeGlassColorRole::kLabel)==label);
+ browser.widget.key.frame_style=ui::ColorProviderKey::FrameStyle::kSystem;
+ assert(color(NativeGlassColorRole::kHover)==(0xff070000|5));
+ assert(color(NativeGlassColorRole::kSidebarToolbarLabel)==(0xff070000|7));
+ appearance([NSAppearance appearanceNamed:NSAppearanceNameAccessibilityHighContrastDarkAqua]);
+ assert(color(NativeGlassColorRole::kSidebarToolbarLabel)==(0xff070100|7));
  assert(!NativeGlassColor(nullptr,NativeGlassColorRole::kLabel));
- puts("PASS: owning theme, actual glass scheme, active/inactive roles, System, header isolation, accessibility fallback, startup and native labels");
+ puts("PASS: owning theme, glass scheme, activation, Native hover, shared sidebar toolbar foreground, accessibility, startup and native labels");
 }}
 '''
 p=o/'sidebar-colors.mm';p.write_text(prefix+enum+fn+test);arch=args.arch

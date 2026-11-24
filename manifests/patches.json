@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "74c6a5bb3db82ea7277148a9c7d7ff87cf0d07a3",
+    "commit": "7b2bf8c0fd4336a734f467301180cd57e94667df",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1163,6 +1163,26 @@
       {
         "path": "patches/helium/ui/site-info-popover.patch",
         "sha256": "e69bc59df5322145360074411571b7749dcc1661e41477b22a627bc5e1acf3e0"
+      },
+      {
+        "path": "patches/helium/ui/native-light-tab-selection.patch",
+        "sha256": "ed02940e8eedd330d55e3185731439768a1dd2a8f4600188eba6b04378c2d7bf"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-tab-hover-label-colors.patch",
+        "sha256": "8d7a8abb4ecc915ff4d0b3f5dac07f3c5e2a7e01e2ec34edb69209a6c35b48a4"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-hibernated-tab-label.patch",
+        "sha256": "724b17790f4496b887ae4bef50b935a8d4bf203d1027755695e5cafa769ef59d"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-new-tab-foreground-and-tint.patch",
+        "sha256": "74712ae9a3930d40e277749c7fbdafe0bd5b060a73ba12d3ab910374e531d1ab"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-new-tab-opacity.patch",
+        "sha256": "526ef2d141e803de07a2e3b67ae88eb4597a7e9f605ed10a5524212e189646d1"
       }
     ]
   },
@@ -3721,6 +3741,85 @@
       "adaptation": "Host Chromium site information views in AppKit with SF Symbols, shared content alignment and native transient dismissal.",
       "commits": [
         "74c6a5bb3db82ea7277148a9c7d7ff87cf0d07a3"
+      ]
+    },
+    {
+      "id": "native-light-tab-selection",
+      "depends_on": [
+        "native-selected-tab-background",
+        "themed-unpinned-sidebar"
+      ],
+      "patches": [
+        "patches/helium/ui/native-light-tab-selection.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use a neutral gray Native Light selection with a dark title and icons.",
+      "adaptation": "Use the AppKit neutral selection fill with a lighter inactive variant and the ordinary label color. Resolve floating sidebar selection against the owning window and glass appearance.",
+      "commits": [
+        "33ae4f1436619a936cdbcdbb70c3ac299095c1b1"
+      ]
+    },
+    {
+      "id": "sidebar-tab-hover-label",
+      "depends_on": [
+        "native-light-tab-selection",
+        "themed-unpinned-sidebar"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-tab-hover-label-colors.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Align Native Light floating hover with the pinned sidebar and use full labels for awake tabs.",
+      "adaptation": "Resolve floating hover with the pinned role, and use each theme's full toolbar foreground on pinned unselected tabs.",
+      "commits": [
+        "3ac0a3d4fa50c750dc15a0e924012d38ceac63d5"
+      ]
+    },
+    {
+      "id": "sidebar-hibernated-tab-label",
+      "depends_on": [
+        "sidebar-tab-hover-label"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-hibernated-tab-label.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep hibernated sidebar tabs visually distinct.",
+      "adaptation": "Reduce the title foreground opacity when the existing favicon dimming state is active, and restore it when the tab wakes.",
+      "commits": [
+        "2a07e86aa0c29b6bcdba36a132dd6e75978a7d2b"
+      ]
+    },
+    {
+      "id": "sidebar-new-tab-foreground-and-tint",
+      "depends_on": [
+        "sidebar-new-tab",
+        "themed-unpinned-sidebar",
+        "sidebar-tab-hover-label"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-new-tab-foreground-and-tint.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Give both New Tab parts a shared foreground and bring the floating material closer to the pinned theme.",
+      "adaptation": "Share the toolbar text role and opacity for New Tab. Use a stronger tint derived directly from colored toolbar backgrounds.",
+      "commits": [
+        "d885d81d4f8879cf91e01e6e28168473b540e93e"
+      ]
+    },
+    {
+      "id": "sidebar-new-tab-opacity",
+      "depends_on": [
+        "sidebar-new-tab-foreground-and-tint"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-new-tab-opacity.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Soften the New Tab plus and label together.",
+      "adaptation": "Use 50% foreground opacity for both elements and both sidebar layouts.",
+      "commits": [
+        "7b2bf8c0fd4336a734f467301180cd57e94667df"
       ]
     }
   ],

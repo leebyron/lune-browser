@@ -1,0 +1,117 @@
+{
+  "date": "2026-11-23",
+  "chromium": "159.0.8154.13",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "macos": "7b2bf8c0fd4336a734f467301180cd57e94667df",
+  "component_ref": "refs/tags/inputs/sidebar-appearance-1/macos",
+  "platform_base": "74c6a5bb3db82ea7277148a9c7d7ff87cf0d07a3",
+  "patches": [
+    {
+      "path": "patches/helium/ui/native-light-tab-selection.patch",
+      "sha256": "ed02940e8eedd330d55e3185731439768a1dd2a8f4600188eba6b04378c2d7bf"
+    },
+    {
+      "path": "patches/helium/ui/sidebar-tab-hover-label-colors.patch",
+      "sha256": "8d7a8abb4ecc915ff4d0b3f5dac07f3c5e2a7e01e2ec34edb69209a6c35b48a4"
+    },
+    {
+      "path": "patches/helium/ui/sidebar-hibernated-tab-label.patch",
+      "sha256": "724b17790f4496b887ae4bef50b935a8d4bf203d1027755695e5cafa769ef59d"
+    },
+    {
+      "path": "patches/helium/ui/sidebar-new-tab-foreground-and-tint.patch",
+      "sha256": "74712ae9a3930d40e277749c7fbdafe0bd5b060a73ba12d3ab910374e531d1ab"
+    },
+    {
+      "path": "patches/helium/ui/sidebar-new-tab-opacity.patch",
+      "sha256": "526ef2d141e803de07a2e3b67ae88eb4597a7e9f605ed10a5524212e189646d1"
+    }
+  ],
+  "approved_preview": {
+    "owner_accepted": true,
+    "new_tab_foreground_opacity": 0.5,
+    "framework_sha256": "1c0cdef062b9a29fb9858e8d28c3c0b1af1e24dadd1afacfacd9db43f7dff360",
+    "validation_report_sha256": "a86d2fe27d4ad8643fc62c8cca7d2c0d680fbac4ab7027be933fed8b86f41661",
+    "platform_replay": {
+      "0d2644cbabf4d2ea68248da5b05080cbc6147416": "33ae4f1436619a936cdbcdbb70c3ac299095c1b1",
+      "f17bb1d088b3413d1fa48e97e341d239271939cb": "3ac0a3d4fa50c750dc15a0e924012d38ceac63d5",
+      "59fa08bdd99b94f2f01052eb16c827223e36026d": "2a07e86aa0c29b6bcdba36a132dd6e75978a7d2b",
+      "d27cf315b4fe1a431c398acd0fae569580c502ae": "d885d81d4f8879cf91e01e6e28168473b540e93e",
+      "3dbed66e7e8ee90f5828cac981b1c225dc5aa85c": "7b2bf8c0fd4336a734f467301180cd57e94667df"
+    }
+  },
+  "prepared_source_parity": {
+    "files_match_between_architectures": 572652,
+    "symlinks_match_between_architectures": 130,
+    "differences_from_main": [
+      "chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm",
+      "chrome/browser/ui/views/helium/native_frame_materials.h",
+      "chrome/browser/ui/views/helium/native_frame_materials_mac.mm",
+      "chrome/browser/ui/views/tabs/common/tab_view.cc",
+      "chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc",
+      "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc",
+      "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h",
+      "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc",
+      "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h"
+    ],
+    "differences_from_approved_preview": [
+      "chrome/browser/ui/views/frame/BUILD.gn",
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm",
+      "chrome/browser/ui/views/page_info/page_info_bubble_view.cc",
+      "chrome/browser/ui/views/page_info/page_info_bubble_view.h",
+      "chrome/browser/ui/views/page_info/page_info_bubble_view_base.cc",
+      "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h",
+      "chrome/browser/ui/views/page_info/page_info_main_view.cc",
+      "chrome/browser/ui/views/page_info/page_info_main_view.h",
+      "chrome/browser/ui/views/page_info/page_info_view_factory.cc",
+      "chrome/browser/ui/views/page_info/page_info_view_factory.h",
+      "chrome/browser/ui/views/page_info/security_information_view.cc",
+      "chrome/browser/ui/views/page_info/security_information_view.h",
+      "ui/views/BUILD.gn",
+      "ui/views/controls/button/image_button.cc",
+      "ui/views/controls/image_view.cc",
+      "ui/views/controls/view_image_model.h"
+    ],
+    "approved_preview_platform": "3dbed66e7e8ee90f5828cac981b1c225dc5aa85c",
+    "source_sha256": {
+      "chrome/browser/ui/color/mac/native_chrome_color_mixer_mac.mm": "2392f454f45251f6f67b14f8e5e2ebb334e9eff7c993c65e1106fe6f08d467d3",
+      "chrome/browser/ui/views/helium/native_frame_materials.h": "4e3a54a636934fbbbbffc1aa3e8a66d930d1224b794233316a1ca48345b47c0a",
+      "chrome/browser/ui/views/helium/native_frame_materials_mac.mm": "67dd161626c1364e08b80e40bb49e16aa280f1fcbf1b609691582f7b53f51315",
+      "chrome/browser/ui/views/tabs/common/tab_view.cc": "4617dfafd61ba5974c0ecda628aa58c5002cc4bf6b8cb9c8cec6e2cf131c0c0b",
+      "chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc": "b00d97980df321cb2d20f8d06fcb12c9b89a69b69600eead38bfb201c6c3c2bc",
+      "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.cc": "041dc0473da9473190048114d94c0e8b7a3e51aa4310100a950ad8eb9ff7cd19",
+      "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h": "676d89a668107fb5e1f0e622dde9c97510389e6f067e8d3ca6175c916d8688f1",
+      "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc": "58c537646c61c1e974b5f9636942dd9dee120b58e7ea2756aa950483a6b1a24e",
+      "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h": "4e3d0e9a8ee4b0c1d8d7968c3c171f8a64e5eaf0cd9eb9407abf4061c59e13bc"
+    },
+    "prepared_report_sha256": {
+      "arm64": "efc1a6b71094c63574b98230cd4a2b41f597f82c080b5e1273ab37b4503db0df",
+      "x86_64": "fcfd0928926023bd263c8fb2c37cc07a2df07221f20bb790d03043f0d51aa2cb"
+    }
+  },
+  "component_lint_passed": true,
+  "repository_tests": {
+    "run": 108,
+    "skipped": 1
+  },
+  "host_macos": "27.2.1",
+  "builds": {
+    "arm64": {
+      "execution": "Native Apple silicon",
+      "framework_sha256": "690c22e8d6b6f433c958f34eb2a7aed292552d401a6458a87c7473b38c408ab3",
+      "browser_smoke_report_sha256": "73674aa2bf1819fd0a53cb356ca35583031d681d307df695f1da1877557e7562",
+      "production_color_fixtures_passed": true,
+      "native_sidebar_report_sha256": "f5a32091f21851bf742251cbdb66153671d6d2432eb5ebf4dd169852295e91ce",
+      "native_new_tab_report_sha256": "c0d573cf2b0c908c5165f69d14dc6a62e2a3dbd9945adcce224b19ebee5274ac",
+      "native_activation_hover_and_hibernation_passed": true,
+      "new_tab_foreground_matches_approved_preview": true
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "framework_sha256": "c0fbe727d11f5692fae265713f4e2f7dfbb942faea96daf194b9661538dd56e4",
+      "browser_smoke_report_sha256": "b0ddabbd16bb65f4a7bb6d93cf0adb54dda6d18c4cacdb66b4f5f610d20bf753",
+      "production_color_fixtures_passed": true,
+      "headed_capture_limit": "Desktop focus interrupted the additional headed screenshot checks. The Intel browser smoke and AppKit color fixtures passed under Rosetta."
+    }
+  }
+}

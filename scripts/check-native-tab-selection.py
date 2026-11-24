@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check native selected-tab background roles using the production AppKit mixer."""
+"""Check native tab selection fills and foregrounds in the AppKit mixer."""
 import argparse
 from pathlib import Path
 import re
@@ -19,6 +19,7 @@ ids = sorted(set(re.findall(r'(?:ui::)?\b(kColor\w+)', source)) | {
 prefix = r'''
 #import <AppKit/AppKit.h>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <map>
 using SkColor = uint32_t;
@@ -59,6 +60,22 @@ struct ColorProvider {
 using namespace ui;
 '''.replace('IDS', ','.join(ids))
 test = r'''
+double LinearChannel(double channel) {
+  return channel <= 0.04045 ? channel / 12.92
+                            : std::pow((channel + 0.055) / 1.055, 2.4);
+}
+
+double RelativeLuminance(SkColor foreground, SkColor background) {
+  const double alpha = (foreground >> 24) / 255.0;
+  const auto composite = [&](int shift) {
+    const double fg = ((foreground >> shift) & 0xff) / 255.0;
+    const double bg = ((background >> shift) & 0xff) / 255.0;
+    return LinearChannel(fg * alpha + bg * (1.0 - alpha));
+  };
+  return 0.2126 * composite(16) + 0.7152 * composite(8) +
+         0.0722 * composite(0);
+}
+
 int main(){@autoreleasepool {
  [NSApplication sharedApplication];
  for(bool dark:{false,true})for(bool high:{false,true}) {
@@ -77,6 +94,39 @@ int main(){@autoreleasepool {
                  std::pair{kColorTabBackgroundSelectedHoverFrameActive,kColorTabBackgroundActiveFrameActive},
                  std::pair{kColorTabBackgroundSelectedHoverFrameInactive,kColorTabBackgroundActiveFrameInactive}})
    assert(provider.GetColor(pair.first)==provider.GetColor(pair.second));
+  NSAppearanceName appearance = dark
+      ? (high ? NSAppearanceNameAccessibilityHighContrastDarkAqua : NSAppearanceNameDarkAqua)
+      : (high ? NSAppearanceNameAccessibilityHighContrastAqua : NSAppearanceNameAqua);
+  [[NSAppearance appearanceNamed:appearance] performAsCurrentDrawingAppearance:^{
+   const auto focused = provider.GetColor(kColorTabBackgroundActiveFrameActive);
+   const auto inactive = provider.GetColor(kColorTabBackgroundActiveFrameInactive);
+   const auto focused_label = provider.GetColor(kColorTabForegroundActiveFrameActive);
+   const auto inactive_label = provider.GetColor(kColorTabForegroundActiveFrameInactive);
+   NSColor* neutral = NSColor.unemphasizedSelectedContentBackgroundColor;
+   if (dark) {
+    assert(focused == SystemColor(NSColor.selectedContentBackgroundColor));
+    assert(inactive == SystemColor(neutral));
+    assert(focused_label == SystemColor(NSColor.alternateSelectedControlTextColor));
+    assert(inactive_label == SystemColor(NSColor.unemphasizedSelectedTextColor));
+   } else {
+    assert(focused == SystemColor(neutral));
+    assert(focused_label == SystemColor(NSColor.labelColor));
+    assert(inactive_label == focused_label);
+    for (const auto fill : {focused, inactive}) {
+     assert(std::abs(static_cast<int>((fill >> 16) & 0xff) -
+                     static_cast<int>(fill & 0xff)) <= 1);
+     assert(std::abs(static_cast<int>((fill >> 8) & 0xff) -
+                     static_cast<int>(fill & 0xff)) <= 1);
+    }
+    assert(RelativeLuminance(inactive, inactive) >
+           RelativeLuminance(focused, focused));
+    for (const auto fill : {focused, inactive}) {
+     const double fill_luminance = RelativeLuminance(fill, fill);
+     const double label_luminance = RelativeLuminance(focused_label, fill);
+     assert((fill_luminance + 0.05) / (label_luminance + 0.05) >= 4.5);
+    }
+   }
+  }];
   for(int exclusion:{0,1,2,3}) {
    auto excluded=key;
    if(exclusion==0)excluded.frame_style=ui::ColorProviderKey::FrameStyle::kDefault;
@@ -87,7 +137,7 @@ int main(){@autoreleasepool {
    assert(untouched.mixers==0 && untouched.mixer.recipes.empty());
   }
  }
- puts("PASS: native selected and active backgrounds match in light/dark, normal/high contrast, hover and window activation; theme/app/forced-color exclusions preserved");
+ puts("PASS: native fills and foregrounds in light/dark, normal/high contrast, selection, hover and window activation; theme/app/forced-color exclusions preserved");
 }}
 '''
 with tempfile.TemporaryDirectory(prefix='lune-native-tab-selection-') as tmp:
