@@ -1,0 +1,23 @@
+--- a/chrome/browser/ui/window_sizer/window_sizer.cc
++++ b/chrome/browser/ui/window_sizer/window_sizer.cc
+@@ -264,7 +264,19 @@
+ 
+     // No saved placement, figure out some sensible default size based on
+     // the user's screen size.
+-    *bounds = GetDefaultWindowBounds(GetDisplayForNewWindow());
++    const display::Display display = GetDisplayForNewWindow();
++#if BUILDFLAG(IS_MAC)
++    if (browser_ &&
++        browser_->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
++      // Reserve 216 points for vertical tabs alongside the 1100x825 page area.
++      constexpr gfx::Size kInitialWindowSize(1316, 825);
++      *bounds = display.work_area();
++      bounds->Inset(kWindowTilePixels);
++      bounds->ClampToCenteredSize(kInitialWindowSize);
++      return;
++    }
++#endif
++    *bounds = GetDefaultWindowBounds(display);
+     return;
+   }
+ 
