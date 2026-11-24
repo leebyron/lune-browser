@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-24",
+  "scope": "Website browser illustration hover and toggle",
+  "browser_input": "refs/tags/inputs/sidebar-toolbar-controls-1/macos",
+  "production_asset_sha256": {
+    "index.html": "31653769e976748dc9c7af5daffdf67b02090b279745446fe8191a4cfc6414ce",
+    "main.js": "6720d639f9c2a72eeb8f39063c3d5ba9731da0bbb772bb691ffe0acb18efbf0f",
+    "styles.css": "b54959f347a9cb59be91663d1c909d2a4c87112717635e8db6926dc19084600c"
+  },
+  "checks": {
+    "npm_check_including_wrangler_dry_run": true,
+    "production_build": true,
+    "chromium": {
+      "version": "156.0.8078.4",
+      "scenarios": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-dark",
+        "phone-fallback",
+        "desktop-reduced"
+      ],
+      "cases": [
+        "four-pixel entry",
+        "exterior reveal and retention",
+        "toolbar and toggle fade",
+        "keyboard and pointer pinning",
+        "reverse scroll",
+        "cursor and click ring alignment"
+      ]
+    },
+    "system_webkit": {
+      "logical_viewport_widths": [
+        390,
+        1440
+      ],
+      "cases": [
+        "toggle visibility and opacity",
+        "four-pixel rail",
+        "glass geometry",
+        "cursor and click ring alignment",
+        "reverse scroll"
+      ]
+    }
+  },
+  "scope_limit": "Narrow viewport checks ran on macOS."
+}

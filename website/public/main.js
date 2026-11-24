@@ -14,7 +14,7 @@
   let commandOverride=null;
   let commandStart=0,bangStart=0,commandComplete=0,commandDismiss=0,commandEnd=0,bangStartedAt=null,commandFrame=0;
   let panelPointer=null,cursorPath=null,cursorPathLength=0,browserScale=1;
-  const chromeHover={sideReveal:16,sideRetain:128,topRevealOutside:16,topRevealInside:8,topRetain:64};
+  const chromeHover={sideReveal:16,sideRetain:128,topRevealOutside:16,topRevealInside:4,topRetain:64};
   let demoStart=0,demoDistance=460,toolbarStop=25,cursorStop=65,sidebarOverride=null,sidebarHovered=false,demoToolbarActive=false;
   const dock=root.querySelector('.dock'),luneDock=dock.querySelector('.lune'),items=[...dock.querySelectorAll('.dock-item')];
   const reduce=matchMedia('(prefers-reduced-motion:reduce)'), fine=matchMedia('(hover:hover) and (pointer:fine)');
@@ -209,7 +209,8 @@
     demoClick.style.top = `${toggleCenterY}px`;
     const toggleX = toggleCenterX * browserScale;
     const toggleY = toggleCenterY * browserScale;
-    const toolbarX=Math.max(sidebarWidth+24,win.clientWidth/3)*browserScale,toolbarY=4*browserScale;
+    const toolbarX=Math.max(sidebarWidth+24,win.clientWidth/3)*browserScale;
+    const toolbarY=chromeHover.topRevealInside*browserScale/2;
     demoCursor.style.setProperty('--cursor-origin-x', `${originX}px`);
     demoCursor.style.setProperty('--cursor-origin-y', `${originY}px`);
     const incoming = `M ${-originX - 28} ${pageHeight * .38 * browserScale} C ${toolbarX*.35} ${pageHeight*.38*browserScale}, ${toolbarX*.8} ${toolbarY}, ${toolbarX} ${toolbarY}`;
@@ -536,13 +537,14 @@
     sidebarToggle.setAttribute('aria-pressed', String(!floating));
     sidebarToggle.setAttribute('aria-label', floating ? 'Pin sidebar' : 'Unpin sidebar');
     win.dataset.sidebar = !floating ? 'pinned' : visible ? 'floating' : 'hidden';
+    updateSidebarToggle();
     updateWindowControls('sidebar');
     const wasDemoToolbarActive=demoToolbarActive;
     demoToolbarActive=!reduce.matches&&sidebarOverride===null&&progress>=.18&&progress<1&&cursorWithinRetention;
     if(demoToolbarActive)showToolbar();
     else if(wasDemoToolbarActive) {
       if(panelPointer)dismissDistantPanels();
-      else if(!toolbarRegion.contains(document.activeElement)&&!windowControls.contains(document.activeElement))hideToolbar();
+      else if(!toolbarHasFocus()&&!windowControls.contains(document.activeElement))hideToolbar();
     }
     // Use the same measured position for rendering and panel visibility on every
     // screen size. Safari can accept motion-path CSS without moving the SVG.
@@ -568,13 +570,17 @@
     sidebarHovered = true;
     updateSidebar(scroll.scrollTop);
   });
-  sidebarRegion.addEventListener('focusin', () => updateSidebar(scroll.scrollTop));
+  sidebarRegion.addEventListener('focusin', event => {
+    updateSidebar(scroll.scrollTop);
+    if (event.target.matches(':focus-visible')) showToolbar();
+  });
   sidebarRegion.addEventListener('focusout', () => queueMicrotask(() => { dismissDistantPanels();updateSidebar(scroll.scrollTop); }));
   sidebarRegion.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     sidebarHovered = false;
     scroll.focus({preventScroll:true});
     updateSidebar(scroll.scrollTop);
+    if (event.target === sidebarToggle) hideToolbar();
   });
   win.addEventListener('pointerdown', event => {
     if (sidebarRegion.contains(event.target) || windowControls.contains(event.target)) return;
@@ -608,6 +614,13 @@
   windowControls.addEventListener('pointerenter', revealFromWindowControls);
   windowControls.addEventListener('focusin', revealFromWindowControls);
   windowControls.addEventListener('focusout', () => queueMicrotask(dismissDistantPanels));
+  function toolbarHasFocus() {
+    return toolbarRegion.contains(document.activeElement) ||
+      Boolean(sidebarRegion.querySelector(':focus-visible'));
+  }
+  function updateSidebarToggle() {
+    sidebarToggle.inert = win.dataset.sidebar === 'hidden' || !win.hasAttribute('data-toolbar-open');
+  }
   function showToolbar() {
     if (!appVisible) return;
     toolbarRegion.dataset.open = '';
@@ -615,6 +628,7 @@
     toolbar.inert = false;
     toolbar.setAttribute('aria-hidden', 'false');
     toolbarRail.setAttribute('aria-expanded', 'true');
+    updateSidebarToggle();
     updateWindowControls('toolbar');
   }
   function hideToolbar() {
@@ -624,6 +638,7 @@
     toolbar.inert = true;
     toolbar.setAttribute('aria-hidden', 'true');
     toolbarRail.setAttribute('aria-expanded', 'false');
+    updateSidebarToggle();
     updateWindowControls('toolbar');
   }
   function containsPoint(point, rect) {
@@ -648,7 +663,7 @@
     // 64px above the window and below the bottom of the 44px glass controls.
     const topBounds={left:-chromeHover.sideRetain,right:win.clientWidth+chromeHover.sideRetain,
       top:-chromeHover.topRetain,bottom:44+chromeHover.topRetain};
-    if (!demoToolbarActive && toolbarRegion.hasAttribute('data-open') && !toolbarRegion.contains(document.activeElement) &&
+    if (!demoToolbarActive && toolbarRegion.hasAttribute('data-open') && !toolbarHasFocus() &&
         !windowControls.contains(document.activeElement) && !containsPoint(point,topBounds)) hideToolbar();
   }
   function trackPanelPointer(event) {
@@ -664,8 +679,9 @@
     }
     const inTopEntry=point.x>=-chromeHover.sideReveal && point.x<=win.clientWidth+chromeHover.sideReveal &&
       point.y>=-chromeHover.topRevealOutside && point.y<chromeHover.topRevealInside;
-    if (inTopEntry || (win.dataset.sidebar !== 'hidden' &&
-        containsPoint(point,{left:0,right:sidebar.offsetWidth,top:0,bottom:52}))) showToolbar();
+    const inSidebarHeader=win.dataset.sidebar !== 'hidden' &&
+      containsPoint(point,{left:0,right:sidebar.offsetWidth,top:-chromeHover.topRevealOutside,bottom:52});
+    if (inTopEntry || inSidebarHeader) showToolbar();
     dismissDistantPanels();
   }
   document.addEventListener('pointermove', trackPanelPointer, {passive:true});
@@ -692,7 +708,8 @@
     hideToolbar();
   });
   win.addEventListener('pointerdown', event => {
-    if (toolbarRegion.contains(event.target) || windowControls.contains(event.target)) return;
+    if (toolbarRegion.contains(event.target) || sidebarToggle.contains(event.target) ||
+        windowControls.contains(event.target)) return;
     if (toolbarRegion.contains(document.activeElement)) scroll.focus({preventScroll:true});
     if (event.pointerType === 'touch') hideToolbar();
     else trackPanelPointer(event);
