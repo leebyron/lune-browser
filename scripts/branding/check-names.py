@@ -24,8 +24,10 @@ def main():
     fixtures = {
         'IDS_HELIUM_ONBOARDING_PARTNER_TITLE': 'Helium Partner',
         'IDS_HELIUM_ONBOARDING_PARTNER_TOOLTIP': 'Paying for this service will support the development of Helium.',
-        'IDS_LUNE_UPSTREAM_CREDIT': 'Built on Helium, with thanks to its authors and contributors.',
-        'IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT': 'Built on Helium, with thanks to its authors and contributors.',
+        'IDS_LUNE_UPSTREAM_CREDIT': ('Lune is made possible by the Chromium, ungoogled-chromium, '
+                                    'and Helium open source projects and other open source software.'),
+        'IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT': (
+            'Built on Helium browser and ungoogled-chromium with thanks to their authors and contributors'),
         'IDS_SETTINGS_HELIUM_SERVICES': 'Helium services',
         'IDS_LUNE_SERVICES_PROVIDER': 'Lune uses services hosted by Helium.',
         'IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_TITLE': 'Enable Chrome extensions proxied through Helium',
@@ -46,7 +48,6 @@ def main():
         message.text = text
         fingerprint = names.util.compute_fp(message)
         before_ids[name] = fingerprint
-        # The two credit messages share text and therefore the same translation.
         if not any(t.get('id') == fingerprint for t in translations):
             ET.SubElement(translations, 'translation', id=fingerprint).text = text
     ET.SubElement(translations, 'translation', id='123').text = 'Legacy Helium branding'

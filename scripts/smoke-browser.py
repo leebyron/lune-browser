@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import platform
 import plistlib
+import re
 import socket
 import struct
 import subprocess
@@ -183,7 +184,11 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
     credit_script = '''
         const find = root => {
           const own = root.querySelector('#upstream-credit');
-          if (own) return {text: own.textContent.trim(), href: own.querySelector('a')?.href};
+          if (own) return {
+            text: own.textContent.trim(),
+            copyright: own.previousElementSibling?.textContent.trim(),
+            links: [...own.querySelectorAll('a')].map(link => [link.textContent, link.href]),
+          };
           for (const element of root.querySelectorAll('*')) {
             if (element.shadowRoot) { const result = find(element.shadowRoot); if (result) return result; }
           }
@@ -196,8 +201,15 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
         check_icon('about', '#productLogo')
     request('POST', path + '/url', {'url': 'chrome://setup/'})
     onboarding = wait_for("return document.querySelector('.upstream-credit')?.textContent.trim();")
-    if ('Built on Helium, with thanks to its authors and contributors.' not in about['text']
-            or about['href'] != 'https://helium.computer/'):
+    if (about['text'] != ('Lune is made possible by the Chromium, ungoogled-chromium, '
+                          'and Helium open source projects and other open source software.')
+            or not re.fullmatch(r'Copyright \d{4} The Lune Authors\. All rights reserved\.',
+                                about.get('copyright') or '')
+            or about['links'] != [['Chromium', 'https://www.chromium.org/'],
+                                  ['ungoogled-chromium',
+                                   'https://github.com/ungoogled-software/ungoogled-chromium'],
+                                  ['Helium', 'https://helium.computer/'],
+                                  ['open source software', 'chrome://credits/']]):
         raise RuntimeError(f'About attribution is incorrect: {about}')
     if onboarding != ('Built on Helium browser and ungoogled-chromium '
                       'with thanks to their authors and contributors'):

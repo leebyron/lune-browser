@@ -1,0 +1,135 @@
+{
+  "chromium_version": "159.0.8154.13",
+  "base_macos": "181d8e250e4a4dd07f328e9c47671f2819131afc",
+  "macos": "977f4d7523e781bbf7522d5b89d8068e38115eb1",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "patch": "patches/lune/about-upstream-attribution.patch",
+  "patch_sha256": "83cd005a508a7d2a4c54fce79414f04d62f9267ab9abbe4b1824366c94b7f056",
+  "prepared_file_sha256": {
+    "chrome/app/settings_strings.grdp": "670d416859d439b934f7210c000aefe3183224c244720afdf16ae3961fdba618",
+    "chrome/browser/resources/settings/about_page/about_page.html.ts": "7101185d4bac99617fa9d2b8c3e1c88b4d3df8c508a7c8c676bd9d794eaba7c2",
+    "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": "56f2120fd7a14e7868552972c96aa6bbf23a97ec2aaae5541a8f122af7cc0f7c"
+  },
+  "validation": {
+    "zero_fuzz_source_replay": "Both isolated full preparations from the locked archives applied the entire in-order patch series with zero fuzz. Their complete source inventories agree. The three affected files match the preview after domain substitution, localization, and both name passes. The Site Information toolbar retention source matches its independently validated input.",
+    "about_and_onboarding_source": "Both prepared trees passed the source UI, onboarding generator, branding resources, and protected translation checks.",
+    "grit_and_webui": "Both builds produced English and French GRIT attribution resources and a preprocessed About template matching the validated preview. The packaged browser smoke checks verified the exact credit text, copyright order, and all four links.",
+    "arm64_settings_provider_object_sha256": "6e707bb0a925df3a612727f4cb9f31aa674846118536d3a62c6b324ba11aa7fa",
+    "full_ui_source_check": "Passed on both prepared trees after correcting stale assertions for the existing sidebar placement, width, density, and onboarding search order.",
+    "packaged_browser_smoke": "Passed on Apple silicon and Intel under Rosetta, including Settings, packaged artwork, and French and German runtime onboarding credit checks.",
+    "orchestrator": "Signed platform input, lock and Git object validation passed. The repository test suite passed with 107 tests passed and one skipped."
+  },
+  "status": "Validated for development input adoption.",
+  "architectures": {
+    "arm64": {
+      "execution": "native",
+      "preparation": {
+        "prepared_report_sha256": "dab37bf4b3265cb8a19f0499b56efa6e13cf6e1ad304dd04c5ece37901a5166f",
+        "files": 572652,
+        "symlinks": 130,
+        "changed_from_baseline": [
+          "chrome/app/settings_strings.grdp",
+          "chrome/browser/resources/settings/about_page/about_page.html.ts",
+          "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc"
+        ],
+        "preview_source_parity": true,
+        "site_info_source_sha256": "758d9570874f2eaef93aafda9ad1ad7614c881693b02a29b467d42846070667d"
+      },
+      "generated_resources": {
+        "en-US": {
+          "resource_id": 6645,
+          "resource_pack_sha256": "757256eb1a1ae6531a3def79071fe5961002b4b254b34c0906650f1bdb638681"
+        },
+        "fr": {
+          "resource_id": 6645,
+          "resource_pack_sha256": "77bc172f7dd177853f52ab3f9512c3e49f1ebbe9442a4d216ef92325c77f19fd"
+        },
+        "settings_template_sha256": "ec370c93ab647a8c0c725009c07d272a260c4ac3609987984dad0289ac171a78"
+      },
+      "browser_smoke_sha256": "27f2304736d92dfa0cc12ff355c4807d1045cd5e439a6cdf004affe504cda667",
+      "executable_sha256": "af6cd43d10812ad499d0585b775a4f1e2368d3a43966ab5bb19cf2777ec64b9a",
+      "framework_sha256": "077c159afa5b32a8b6f71cb1bf90d2115c4455678e23ddd05d5e227233cec884",
+      "about_credit": {
+        "copyright": "Copyright 2026 The Lune Authors. All rights reserved.",
+        "links": [
+          [
+            "Chromium",
+            "https://www.chromium.org/"
+          ],
+          [
+            "ungoogled-chromium",
+            "https://github.com/ungoogled-software/ungoogled-chromium"
+          ],
+          [
+            "Helium",
+            "https://helium.computer/"
+          ],
+          [
+            "open source software",
+            "chrome://credits/"
+          ]
+        ],
+        "text": "Lune is made possible by the Chromium, ungoogled-chromium, and Helium open source projects and other open source software."
+      },
+      "localized_credits": {
+        "fr": "aad6ea6f2c4f9ea8061c1cf50f79aa2e3eccc3b342205c2b70552e721b4e9ff8",
+        "de": "17b3fb660cd710197c0d8fbe77bab08451817b0c46ba41e74967462d1596ae06"
+      }
+    },
+    "x86_64": {
+      "execution": "Rosetta",
+      "preparation": {
+        "prepared_report_sha256": "6223c0b7f869991fc12e04c41e48b500608e982523c6debf8e17eef2b66010d3",
+        "files": 572652,
+        "symlinks": 130,
+        "changed_from_baseline": [
+          "chrome/app/settings_strings.grdp",
+          "chrome/browser/resources/settings/about_page/about_page.html.ts",
+          "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc"
+        ],
+        "preview_source_parity": true,
+        "site_info_source_sha256": "758d9570874f2eaef93aafda9ad1ad7614c881693b02a29b467d42846070667d"
+      },
+      "generated_resources": {
+        "en-US": {
+          "resource_id": 6645,
+          "resource_pack_sha256": "757256eb1a1ae6531a3def79071fe5961002b4b254b34c0906650f1bdb638681"
+        },
+        "fr": {
+          "resource_id": 6645,
+          "resource_pack_sha256": "77bc172f7dd177853f52ab3f9512c3e49f1ebbe9442a4d216ef92325c77f19fd"
+        },
+        "settings_template_sha256": "ec370c93ab647a8c0c725009c07d272a260c4ac3609987984dad0289ac171a78"
+      },
+      "browser_smoke_sha256": "8e08257a92b4a6b7e599c8d5a4e73cac20da8192f998dbfffcf7562ae5697902",
+      "executable_sha256": "d504d4cc887e6b4b6cdb6e949c71a355c4d38bfd5992d684a239ac95c37deaba",
+      "framework_sha256": "e89966d4fca550a531646eb661f012056ff699070716af824ad1d77898e42f65",
+      "about_credit": {
+        "copyright": "Copyright 2026 The Lune Authors. All rights reserved.",
+        "links": [
+          [
+            "Chromium",
+            "https://www.chromium.org/"
+          ],
+          [
+            "ungoogled-chromium",
+            "https://github.com/ungoogled-software/ungoogled-chromium"
+          ],
+          [
+            "Helium",
+            "https://helium.computer/"
+          ],
+          [
+            "open source software",
+            "chrome://credits/"
+          ]
+        ],
+        "text": "Lune is made possible by the Chromium, ungoogled-chromium, and Helium open source projects and other open source software."
+      },
+      "localized_credits": {
+        "fr": "5a03fa3b456049dae3c0f81a5d2b327e11e7e529922c8ab0de4854eceef90adf",
+        "de": "ce7dc0b5cd3dea3890a48557317663ceff34ad483fe1cee8fe6a778a60101018"
+      }
+    }
+  }
+}

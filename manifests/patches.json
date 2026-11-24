@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "181d8e250e4a4dd07f328e9c47671f2819131afc",
+    "commit": "977f4d7523e781bbf7522d5b89d8068e38115eb1",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1199,6 +1199,10 @@
       {
         "path": "patches/helium/ui/site-info-toolbar-retention.patch",
         "sha256": "58a3502a867bda3bd887da439114c9a75df8a4b949f1f1cc6a7edde4c16b337d"
+      },
+      {
+        "path": "patches/lune/about-upstream-attribution.patch",
+        "sha256": "83cd005a508a7d2a4c54fce79414f04d62f9267ab9abbe4b1824366c94b7f056"
       }
     ],
     "ref": "refs/tags/inputs/site-info-toolbar-retention-1/macos"
@@ -3902,6 +3906,21 @@
       "adaptation": "Acquire the window-local top toolbar reveal hold before presenting the popover and release it when the native popover closes.",
       "commits": [
         "181d8e250e4a4dd07f328e9c47671f2819131afc"
+      ]
+    },
+    {
+      "id": "lune-about-upstream-attribution",
+      "depends_on": [
+        "lune-about-legal-links"
+      ],
+      "patches": [
+        "patches/lune/about-upstream-attribution.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Credit Chromium, ungoogled-chromium, and Helium in About Lune.",
+      "adaptation": "Link the three projects below the copyright and retain the browser credits link.",
+      "commits": [
+        "977f4d7523e781bbf7522d5b89d8068e38115eb1"
       ]
     }
   ],

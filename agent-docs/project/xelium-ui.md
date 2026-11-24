@@ -80,21 +80,23 @@ Read only the relevant preferences from the owner's local Xelium profile. Do not
 copy browsing history, accounts, extensions, cookies, services consent, or
 onboarding-completion state into the repository or new profiles.
 
-- Vertical tabs, aligned right, expanded at 200 px, expand-on-hover enabled.
+- Vertical tabs, aligned left, expanded at 216 px in Standard density, with expand-on-hover enabled.
 - Frameless mode, sidebar pinned, top chrome unpinned, address bar in sidebar.
 - Standard density, 4 px frame, centered location bar, avatar button hidden.
 - Command bar enabled; link peek disabled. Both remain configurable.
 - Xelium's visual MRU tab switcher enabled; at most four pinned tabs per row.
 
 These are registration defaults, not migrations that overwrite existing choices.
-Kagi appears first during onboarding with a suggestion and paid-account note.
+Startpage appears first during onboarding. Kagi follows with a paid-account note.
 Selecting it explicitly changes the search provider; an existing provider is not
 silently overwritten, and DuckDuckGo remains available.
 
-Onboarding and About both say “Built on Helium, with thanks to its authors and
-contributors” and link to `https://helium.computer/`. The two credit message IDs
-are explicitly excluded from Lune's display-name substitution. Existing upstream
-copyright/license information is retained. This does not imply endorsement.
+About Lune places the copyright first, followed by “Lune is made possible by the
+Chromium, ungoogled-chromium, and Helium open source projects and other open
+source software.” The sentence links each project to its site and “open source
+software” to the browser's credits. Onboarding credits Helium browser and
+ungoogled-chromium. Both credit messages are excluded from display-name
+substitution. [Attribution validation](builds/2026-11-24-about-upstream-attribution.json)
 
 The new [Pelagic Signal icon](../../branding/README.md) uses the paired-lune
 geometry and gamut-mapped palette from Lune / Color Atlas. The `.icns` and product
