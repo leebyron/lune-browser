@@ -1,0 +1,53 @@
+--- a/chrome/browser/ui/toasts/BUILD.gn
++++ b/chrome/browser/ui/toasts/BUILD.gn
+@@ -86,7 +86,12 @@
+   ]
+ 
+   if (is_mac) {
+-    deps += [ "//chrome/browser/ui:fullscreen_util_mac" ]
++    deps += [
++      "//chrome/browser/ui:fullscreen_util_mac",
++      "//chrome/browser/ui/views/helium:native_frame_materials",
++      "//ui/color",
++      "//ui/gfx",
++    ]
+   }
+ }
+ 
+--- a/chrome/browser/ui/toasts/toast_controller.cc
++++ b/chrome/browser/ui/toasts/toast_controller.cc
+@@ -49,6 +49,9 @@
+ #include "ui/views/widget/widget.h"
+ 
+ #if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#include "ui/color/color_provider.h"
++#include "ui/gfx/image/image_skia.h"
+ #include "ui/views/views_features.h"
+ #endif
+ 
+@@ -353,6 +356,24 @@
+   // throbber toasts, instantiate an iconless ToastView and add the throbber
+   // child view below.
+   if (spec->has_icon()) {
++#if BUILDFLAG(IS_MAC)
++    if (params.toast_id == ToastId::kZenModeNewTabCreated &&
++        !params.image_override) {
++      const int icon_size = toasts::ToastView::GetIconSize();
++      params.image_override = ui::ImageModel::FromImageGenerator(
++          base::BindRepeating(
++              [](int size, const ui::ImageModel& fallback,
++                 const ui::ColorProvider* colors) {
++                gfx::ImageSkia symbol = helium::NativeToolbarSymbolForName(
++                    "plus.square.on.square", size,
++                    colors->GetColor(ui::kColorSysOnSurface));
++                return symbol.isNull() ? fallback.Rasterize(colors) : symbol;
++              },
++              icon_size, ui::ImageModel::FromVectorIcon(
++                             spec->icon(), ui::kColorSysOnSurface, icon_size)),
++          gfx::Size(icon_size, icon_size));
++    }
++#endif
+     toast_view = std::make_unique<toasts::ToastView>(
+         anchor_view, body_string, spec->icon(), params.image_override,
+         ShouldRenderToastOverWebContents(),
