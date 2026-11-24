@@ -1,0 +1,55 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -4819,8 +4819,8 @@
+   <message name="IDS_LUNE_TERMS_OF_USE" desc="Link to Lune's terms of use on the About page.">
+     Terms of use
+   </message>
+-  <message name="IDS_LUNE_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
+-    Built on Helium, with thanks to its authors and contributors.
++  <message name="IDS_LUNE_UPSTREAM_CREDIT" desc="About Lune attribution below the copyright, with links to Chromium, ungoogled-chromium, and Helium and the browser's open source credits.">
++    Lune is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" rel="noopener noreferrer" href="$1" aria-description="$5"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph>, <ph name="BEGIN_LINK_UNGOOGLED">&lt;a target="_blank" rel="noopener noreferrer" href="$2" aria-description="$5"&gt;</ph>ungoogled-chromium<ph name="END_LINK_UNGOOGLED">&lt;/a&gt;</ph>, and <ph name="BEGIN_LINK_HELIUM">&lt;a target="_blank" rel="noopener noreferrer" href="$3" aria-description="$5"&gt;</ph>Helium<ph name="END_LINK_HELIUM">&lt;/a&gt;</ph> open source projects and other <ph name="BEGIN_LINK_OSS">&lt;a target="_blank" rel="noopener noreferrer" href="$4" aria-description="$5"&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_LUNE_SERVICES_PROVIDER" desc="Lune service provider and update disclosure.">
+     Lune uses services hosted by Helium for extension downloads, !bangs, filter lists, dictionaries, and component updates. Browser updates are provided by Lune at lune.computer.
+--- a/chrome/browser/resources/settings/about_page/about_page.html.ts
++++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
+@@ -100,16 +100,11 @@ export function getHtml(this: SettingsAb
+ 
+ <settings-section>
+   <div class="info-sections">
+-    <div class="info-section" id="upstream-credit">
+-      <div class="secondary">$i18n{luneUpstreamCredit}
+-        <a href="https://helium.computer/" target="_blank" rel="noopener noreferrer">helium.computer</a>
+-      </div>
+-    </div>
+     <div class="info-section">
+       <div class="secondary">$i18n{aboutProductCopyright}</div>
+     </div>
+ 
+-    <div class="info-section">
++    <div class="info-section" id="upstream-credit">
+       <div class="secondary">$i18nRaw{aboutProductLicense}</div>
+     </div>
+     <div class="info-section" id="lune-legal-links">
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -352,7 +352,6 @@ void AddAboutStrings(content::WebUIDataS
+       {"aboutGetHelpUsingChrome", IDS_SETTINGS_GET_HELP_USING_CHROME},
+       {"aboutPageTitle", IDS_SETTINGS_ABOUT_PROGRAM},
+       {"aboutProductTitle", IDS_PRODUCT_NAME},
+-      {"luneUpstreamCredit", IDS_LUNE_UPSTREAM_CREDIT},
+       {"lunePrivacyPolicy", IDS_LUNE_PRIVACY_POLICY},
+       {"luneTermsOfUse", IDS_LUNE_TERMS_OF_USE},
+       {"aboutLearnMoreUpdatingErrors",
+@@ -394,8 +393,9 @@ void AddAboutStrings(content::WebUIDataS
+           base::Time::Now()));
+ 
+   std::u16string license = l10n_util::GetStringFUTF16(
+-      IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
+-      chrome::kChromeUICreditsURL16,
++      IDS_LUNE_UPSTREAM_CREDIT, chrome::kChromiumProjectURL,
++      u"https://github.com/ungoogled-software/ungoogled-chromium",
++      u"https://helium.computer/", chrome::kChromeUICreditsURL16,
+       l10n_util::GetStringUTF16(IDS_SETTINGS_OPENS_IN_NEW_TAB));
+   html_source->AddString("aboutProductLicense", license);
+ 
