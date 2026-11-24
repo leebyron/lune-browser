@@ -21,6 +21,7 @@ Start with the relevant UI surface. Feature records cover behavior, design const
 
 ## Toolbar and window frame
 
+- [Initial browser window size](initial-window-size.md)
 - [Trailing toolbar controls](trailing-toolbar-controls.md)
 - [Toolbar hover modes](toolbar-visibility.md)
 - [Native chrome proximity and fullscreen](native-chrome-hover.md)

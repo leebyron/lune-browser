@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-24",
+  "chromium": "159.0.8154.13",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "macos": "4de4004ebe3d93f43d9d385c74ec6baab56f615f",
+  "macos_ref": "refs/tags/inputs/macos-initial-window-size-1/macos",
+  "patch": "patches/helium/ui/macos-initial-window-size.patch",
+  "patch_sha256": "0df0e9697b9ac0a3ed993467b30959bda98174c394c6f3960f22cac948b78c14",
+  "affected_source": "chrome/browser/ui/window_sizer/window_sizer.cc",
+  "affected_source_sha256": "050e3887f6c5340f15b5fa3420383ca23d4a07af8eb814cbc765cd0da36ede10",
+  "preparation": {
+    "arm64": {
+      "strict_zero_fuzz": true,
+      "initial_window_patch_offsets": 0,
+      "preparation_report_sha256": "5aa1458533ce23bddd873e353a4fa890728d4f353efef4ced387e7b98e558500",
+      "preparation_log_sha256": "a399aac3425e1905c585af2ae4a4283bb8a13c7c49130a1ed22ffa0ac07ee460",
+      "resource_generation_resume": "Resource generation resumed with the project virtual environment after its initial import failed.",
+      "baseline_macos": "f7d3fb332249de57e9b561001d8e57b1f80611d9",
+      "matching_baseline_files": 571342,
+      "matching_baseline_symlinks": 130,
+      "changed_source_files": [
+        "chrome/browser/ui/window_sizer/window_sizer.cc"
+      ],
+      "xml_declaration_case_only_files": 1309,
+      "matches_approved_preview_source": true
+    },
+    "x86_64": {
+      "strict_zero_fuzz": true,
+      "initial_window_patch_offsets": 0,
+      "preparation_report_sha256": "16dab80c796ae6157cddfe86e0c3b1b4f82e82f5df526f9081c166526412234d",
+      "preparation_log_sha256": "dd4968dac5d9af7c562e1d1a67e27057a0a4bb65417a657b2ef6b55f68464aa5",
+      "resource_generation_resume": "Resource generation resumed with the project virtual environment after its initial import failed.",
+      "baseline_macos": "f7d3fb332249de57e9b561001d8e57b1f80611d9",
+      "matching_baseline_files": 571342,
+      "matching_baseline_symlinks": 130,
+      "changed_source_files": [
+        "chrome/browser/ui/window_sizer/window_sizer.cc"
+      ],
+      "xml_declaration_case_only_files": 1309,
+      "matches_approved_preview_source": true
+    }
+  },
+  "approved_preview": {
+    "architecture": "arm64",
+    "host_os": "macOS 27.2.1 (26B131)",
+    "scope": "Affected translation unit compiled with release flags and linked into an isolated preview using the 26.1124.1 inputs.",
+    "framework_sha256": "58226c11881a82fc6989149e4ab055d4c27fe0779520eb69b31d36a8fae0a6ec",
+    "headed_setup_window": {
+      "left": 782,
+      "top": 412,
+      "width": 1316,
+      "height": 825,
+      "windowState": "normal"
+    },
+    "headless_window_sizes": {
+      "roomy": [
+        1316,
+        825
+      ],
+      "compact": [
+        1236,
+        686
+      ],
+      "side-dock": [
+        1251,
+        825
+      ],
+      "portrait": [
+        856,
+        825
+      ],
+      "retina": [
+        1316,
+        825
+      ],
+      "saved": [
+        900,
+        600
+      ],
+      "explicit": [
+        940,
+        640
+      ]
+    }
+  },
+  "repository_tests_passed": true,
+  "adoption_build_scope": "Owner approved adoption without pre-push rebuilds. The arm64 preview supplied runtime evidence. The x86_64 check covered complete source preparation and parity."
+}

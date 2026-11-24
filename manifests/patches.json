@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "f7d3fb332249de57e9b561001d8e57b1f80611d9",
+    "commit": "4de4004ebe3d93f43d9d385c74ec6baab56f615f",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1219,9 +1219,13 @@
       {
         "path": "patches/helium/ui/right-sidebar-toggle-in-toolbar.patch",
         "sha256": "a83d957907546344f960788160a52b5284778bf32102f745bda1d1739024293a"
+      },
+      {
+        "path": "patches/helium/ui/macos-initial-window-size.patch",
+        "sha256": "0df0e9697b9ac0a3ed993467b30959bda98174c394c6f3960f22cac948b78c14"
       }
     ],
-    "ref": "refs/tags/inputs/sidebar-toolbar-controls-1/macos"
+    "ref": "refs/tags/inputs/macos-initial-window-size-1/macos"
   },
   "pull_requests": [
     {
@@ -4002,6 +4006,21 @@
       "adaptation": "Use the right sidebar’s regular top inset and reserve a separate trailing slot while the toggle is enabled.",
       "commits": [
         "f7d3fb332249de57e9b561001d8e57b1f80611d9"
+      ]
+    },
+    {
+      "id": "macos-initial-window-size",
+      "depends_on": [
+        "sidebar-default-width-216"
+      ],
+      "patches": [
+        "patches/helium/ui/macos-initial-window-size.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Size the initial macOS window for a 4:3 content area beside vertical tabs.",
+      "adaptation": "Target 1316 × 825 points and center in the work area inset by 22 points on each edge. Use the fallback for normal windows without available placement.",
+      "commits": [
+        "4de4004ebe3d93f43d9d385c74ec6baab56f615f"
       ]
     }
   ],
