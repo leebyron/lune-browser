@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-24",
+  "scope": "Website download and GitHub redirects",
+  "production_asset_sha256": {
+    "index.html": "1a43ed25d03ad71cdf27e08f9f148ae58aff6ffccbdce23829e80dda2d2dc1e5",
+    "main.js": "6f1421279275b895602d4c8510539d7aac0a0ad9d802e201322b08d083ddee14",
+    "_redirects": "2ce672a6fa9e43ed4aa5c89396804bf0faeb04b29b6c3f1d99233d481d087267"
+  },
+  "checks": {
+    "npm_check_including_wrangler_dry_run": true,
+    "production_build": true,
+    "local_wrangler": {
+      "methods": ["GET", "HEAD"],
+      "status": 307,
+      "locations": {
+        "/download/mac-arm64": "https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-arm64.dmg",
+        "/download/mac-intel": "https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-x86_64.dmg",
+        "/github": "https://github.com/leebyron/lune-browser"
+      }
+    },
+    "homepage_and_readme_link_parity": true,
+    "download_selection": "Script checks covered both chip hints, unknown and denied macOS hints, and Windows.",
+    "github_latest_dmg_head_and_stable_feed_get": "HTTP 200 for both architectures."
+  }
+}

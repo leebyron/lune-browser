@@ -64,10 +64,12 @@ Keep hidden window, panel, and offscreen story controls out of focus with `inert
 
 ## Downloads
 
-Both download actions offer Apple silicon (`arm64`) and Intel (`x86_64`), labeled macOS 13+. Use permanent GitHub latest-asset URLs:
+Both download actions offer Apple silicon (`arm64`) and Intel (`x86_64`), labeled macOS 13+. The website and repository README use the same download URLs:
 
-- [Lune-macos-arm64.dmg](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-arm64.dmg)
-- [Lune-macos-x86_64.dmg](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-x86_64.dmg)
+- [Apple silicon](https://lune.computer/download/mac-arm64)
+- [Intel](https://lune.computer/download/mac-intel)
+
+Both paths return HTTP 307 to the corresponding GitHub latest-release DMG. The homepage links to the GitHub repository through `/github`, which also returns HTTP 307.
 
 Only explicit macOS User-Agent Client Hints for `arm` or `x86` select a direct download. Missing, denied, or unknown architecture hints retain the chooser. Do not infer chip architecture from `MacIntel` or a legacy user-agent string.
 

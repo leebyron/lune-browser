@@ -11,8 +11,8 @@ Visit [lune.computer](https://lune.computer/) for a look at the browser.
 
 ## Download
 
-- [Apple silicon](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-arm64.dmg)
-- [Intel](https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-x86_64.dmg)
+- [Apple silicon](https://lune.computer/download/mac-arm64)
+- [Intel](https://lune.computer/download/mac-intel)
 
 [Release notes](https://github.com/leebyron/lune-browser/releases/latest).
 

@@ -88,6 +88,7 @@ a blanket license to mixed upstream code.
 The static website lives in `website/` on `main` and deploys independently of
 browser builds and services. Its [specification](../../website/spec/README.md)
 defines the story, locally served assets, legal pages, and guarded delivery.
-Downloads use fixed GitHub latest-asset links, with explicit chip detection and
-a chooser when architecture is unknown; browser versions and release metadata
-remain on GitHub. Helium-hosted browser services are separate from this site.
+Download routes on `lune.computer` redirect to fixed GitHub latest-asset links.
+The site uses explicit chip detection and shows a chooser when architecture is
+unknown. GitHub hosts the browser builds and release metadata. Helium-hosted
+browser services are separate from this site.

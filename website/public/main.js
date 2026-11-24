@@ -827,6 +827,8 @@
       const {architecture} = await ua.getHighEntropyValues(['architecture']);
       const build = architecture === 'arm' ? 'arm64' : architecture === 'x86' ? 'x86_64' : null;
       if (!build) return;
+      const choice = root.querySelector(`.download-choice[data-architecture="${build}"]`);
+      if (!choice) return;
       const label = build === 'arm64' ? 'Apple silicon' : 'Intel';
       dismissDownloads();
       root.querySelectorAll('.action.download').forEach(button => {
@@ -835,8 +837,7 @@
         button.querySelector('.download-chevron').remove();
         button.setAttribute('aria-label', `Download for ${label}`);
         button.title = `Download for ${label}`;
-        const url = `https://github.com/leebyron/lune-browser/releases/latest/download/Lune-macos-${build}.dmg`;
-        button.addEventListener('click', () => { window.location.assign(url); });
+        button.addEventListener('click', () => { window.location.assign(choice.href); });
       });
     } catch {
       // Privacy settings can deny high-entropy hints. Leave the explicit choices available.

@@ -7,6 +7,7 @@ The site uses plain HTML, CSS, and JavaScript with Cloudflare Workers Static Ass
 | Route | Canonical source |
 | --- | --- |
 | `/` | [public/index.html](../public/index.html) |
+| `/download/mac-arm64`, `/download/mac-intel`, `/github` | [public/_redirects](../public/_redirects) |
 | `/privacy`, `/privacy.md` | [legal/privacy.md](../../legal/privacy.md) |
 | `/terms`, `/terms.md` | [legal/terms.md](../../legal/terms.md) |
 
@@ -52,6 +53,8 @@ For an authorized deployment:
 3. Verify workflow success, public HTTPS, and byte parity against the exact deployed build. Read back changed homepage assets and any generated legal HTML/Markdown; `_headers` is configuration, not a served file. Do not claim Cloudflare-injected analytics markup is a source change; distinguish it from the generated page when checking responses.
 4. Retain the source commit, hashes, workflow URL, readback result, and material test limits in a dated [build record](../../agent-docs/project/builds/). Follow the [completion process](../../agent-docs/project/committing.md) and stop task-owned previews/servers.
 
-Downloads use the fixed GitHub latest-asset URLs in [experience.md](experience.md#downloads). Keep architecture asset names stable so a browser release does not require website redeployment. Sparkle feeds live in the browser repository, not on this site. Publish immutable browser assets and verify both latest downloads and stable feeds before enabling or changing download links; use [release delivery](../../agent-docs/project/release-delivery.md) for promotion ordering.
+The download routes in [experience.md](experience.md#downloads) redirect to fixed GitHub latest-asset URLs. Keep architecture asset names stable so a browser release does not require website redeployment. When changing a redirect, verify its first-hop status and `Location` on public HTTPS. Cloudflare HTTP Traffic analytics can measure requests to the redirect paths where path filtering is available. GitHub serves the downloads.
+
+Sparkle feeds live in the browser repository, not on this site. Publish immutable browser assets and verify both latest downloads and stable feeds before enabling or changing download links; use [release delivery](../../agent-docs/project/release-delivery.md) for promotion ordering.
 
 Historical deployment evidence includes the [privacy publication](../../agent-docs/project/builds/2026-11-14-privacy-publication.json) and [terms publication](../../agent-docs/project/builds/2026-11-15-terms-publication.json). These are dated observations, not proof of the current live bytes.
