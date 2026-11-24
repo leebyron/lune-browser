@@ -1,0 +1,736 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -19304,8 +19304,20 @@
+     <message name="IDS_COMMAND_BAR_GO_HOME" desc="Command palette action: Go Home.">
+       Go Home
+     </message>
+-    <message name="IDS_COMMAND_BAR_GROUP_TAB" desc="Command palette action: Group Tab.">
+-      Group Tab
++    <message name="IDS_TAB_GROUP_ACTION" desc="Command palette and tab context menu action to create a new group for one or more tabs. [ICU Syntax]">
++      {NUM_TABS, plural,
++      =1 {Group Tab}
++      other {Group Tabs}}
++    </message>
++    <message name="IDS_TAB_CXMENU_MOVE_TAB_TO_GROUP" desc="Tab context menu submenu to move one or more tabs from their current group to an existing group. [ICU Syntax]">
++      {NUM_TABS, plural,
++      =1 {Move Tab to Group}
++      other {Move Tabs to Group}}
++    </message>
++    <message name="IDS_TAB_CXMENU_ADD_TABS_TO_SPLIT_VIEW" desc="Tab context menu action to add one or more tabs to a new split view. [ICU Syntax]">
++      {NUM_TABS, plural,
++      =1 {Add Tab to New Split View}
++      other {Add Tabs to New Split View}}
+     </message>
+     <message name="IDS_COMMAND_BAR_NEW_TAB_GROUP" desc="Command palette action: New Tab Group.">
+       New Tab Group
+--- a/chrome/browser/ui/helium/helium_command_bar_commands.cc
++++ b/chrome/browser/ui/helium/helium_command_bar_commands.cc
+@@ -179,8 +179,10 @@
+      "skip ad|skip advertisement", "arrow.right.to.line"},
+     {IDC_HOME, "IDC_HOME", IDS_COMMAND_BAR_GO_HOME, "home|homepage|home page",
+      "house"},
+-    {IDC_WINDOW_GROUP_TAB, "IDC_WINDOW_GROUP_TAB", IDS_COMMAND_BAR_GROUP_TAB,
+-     "group tab|add tab to new group", "folder"},
++    {kGroupTabs, "IDC_WINDOW_GROUP_TAB", IDS_TAB_GROUP_ACTION,
++     "group tab|add tab to new group|add tabs to new group", "folder"},
++    {kRemoveTabFromGroup, "kRemoveTabFromGroup",
++     IDS_COMMAND_BAR_REMOVE_TAB_FROM_GROUP, "ungroup tab", "folder"},
+     {IDC_CREATE_NEW_TAB_GROUP, "IDC_CREATE_NEW_TAB_GROUP",
+      IDS_COMMAND_BAR_NEW_TAB_GROUP, "new tab group|create tab group",
+      "folder.badge.plus"},
+@@ -453,15 +455,17 @@
+         return std::nullopt;
+       }
+       break;
+-    case IDC_WINDOW_GROUP_TAB:
+-      if (!strip->SupportsTabGroups() ||
+-          !strip->IsContextMenuCommandEnabled(
+-              active, TabStripModel::CommandToggleGrouped)) {
++    case kGroupTabs:
++      if (!strip->IsContextMenuCommandEnabled(
++              active, TabStripModel::CommandAddToNewGroup)) {
+         return std::nullopt;
+       }
+-      if (strip->GetTabGroupForTab(active)) {
+-        label = IDS_COMMAND_BAR_REMOVE_TAB_FROM_GROUP;
+-        symbol = "folder";
++      break;
++    case kRemoveTabFromGroup:
++      if (!strip->IsContextMenuCommandEnabled(
++              active, TabStripModel::CommandRemoveFromGroup) ||
++          !strip->GetTabGroupForTab(active)) {
++        return std::nullopt;
+       }
+       break;
+     case IDC_CREATE_NEW_TAB_GROUP:
+@@ -535,7 +539,13 @@
+   HeliumCommandBarItem item;
+   item.type = HeliumCommandBarItem::Type::kCommand;
+   item.command = command;
+-  item.title = l10n_util::GetStringUTF16(label);
++  if (command == kGroupTabs) {
++    const auto tabs =
++        strip->GetTabsForCommand(strip->GetActiveTab()->GetHandle());
++    item.title = l10n_util::GetPluralStringFUTF16(label, tabs.size());
++  } else {
++    item.title = l10n_util::GetStringUTF16(label);
++  }
+   item.symbol_name = symbol;
+   item.shortcut = CommandShortcut(browser, command);
+   if (media_target) {
+@@ -568,14 +578,9 @@
+       continue;
+     }
+     int score = q.empty() ? 1 : ScoreText(base::i18n::ToLower(item->title), q);
+-    const char* aliases = entry.aliases;
+-    if (entry.command == IDC_WINDOW_GROUP_TAB &&
+-        browser->GetTabStripModel()->GetTabGroupForTab(
+-            browser->GetTabStripModel()->active_index())) {
+-      aliases = "remove tab from group|ungroup tab";
+-    }
+     for (const auto& alias : base::SplitString(
+-             aliases, "|", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
++             entry.aliases, "|", base::TRIM_WHITESPACE,
++             base::SPLIT_WANT_NONEMPTY)) {
+       score = std::max(score, ScoreText(base::UTF8ToUTF16(alias), q));
+     }
+     if (score > 0) {
+@@ -630,13 +635,12 @@
+   }
+   const int active = strip->active_index();
+   switch (item.command) {
+-    case IDC_WINDOW_GROUP_TAB: {
++    case kGroupTabs:
++      strip->ExecuteContextMenuCommand(active,
++                                       TabStripModel::CommandAddToNewGroup);
++      return true;
++    case kRemoveTabFromGroup: {
+       const auto group = strip->GetTabGroupForTab(active);
+-      if (!group) {
+-        const auto created = strip->AddToNewGroup({active});
+-        strip->OpenTabGroupEditor(created);
+-        return true;
+-      }
+       const auto closing =
+           strip->GetGroupsDestroyedFromRemovingIndices({active});
+       strip->MarkTabGroupsForClosing(closing);
+--- a/chrome/browser/ui/helium/helium_command_bar_commands.h
++++ b/chrome/browser/ui/helium/helium_command_bar_commands.h
+@@ -21,6 +21,8 @@
+ inline constexpr int kMediaStop = -8;
+ inline constexpr int kMediaSkipAd = -9;
+ inline constexpr int kKeepOlderTab = -10;
++inline constexpr int kGroupTabs = -11;
++inline constexpr int kRemoveTabFromGroup = -12;
+ 
+ // A single leading / is reserved only outside an applied engine/tab scope.
+ // A leading // remains ordinary input because it may be a URL prefix.
+--- a/chrome/browser/ui/tabs/existing_base_sub_menu_model.cc
++++ b/chrome/browser/ui/tabs/existing_base_sub_menu_model.cc
+@@ -73,10 +73,12 @@
+ ExistingBaseSubMenuModel::MenuItemInfo::~MenuItemInfo() = default;
+ 
+ void ExistingBaseSubMenuModel::Build(
+-    int new_text,
++    std::optional<int> new_text,
+     const std::vector<MenuItemInfo>& menu_item_infos) {
+-  AddItemWithStringId(min_command_id_, new_text);
+-  AddSeparator(ui::NORMAL_SEPARATOR);
++  if (new_text) {
++    AddItemWithStringId(min_command_id_, *new_text);
++    AddSeparator(ui::NORMAL_SEPARATOR);
++  }
+ 
+   // Start command ids after the parent menu's ids to avoid collisions.
+   int command_id = min_command_id_ + 1;
+--- a/chrome/browser/ui/tabs/existing_base_sub_menu_model.h
++++ b/chrome/browser/ui/tabs/existing_base_sub_menu_model.h
+@@ -20,9 +20,8 @@
+ // format of the submenu as follows:
+ // - guaranteed unique IDs for different submenus
+ // - the visual layout of the submenu
+-//  - the first item of the submenu should be the option to add a tab to a new
+-//    object model (e.g. group or window)
+-//  - the next item in the menu should be a separator
++//  - an optional first item to add a tab to a new object model
++//    (e.g. group or window), followed by a separator
+ //  - a maximum of 200 items to add a tab to an existing model
+ class ExistingBaseSubMenuModel : public ui::SimpleMenuModel,
+                                  public ui::SimpleMenuModel::Delegate {
+@@ -97,7 +96,8 @@
+   // the tab to a new object model (e.g. group or window). `menu_item_infos` is
+   // a vector of text and optionally images for adding the tab to an existing
+   // object model.
+-  void Build(int new_text, const std::vector<MenuItemInfo>& menu_item_infos);
++  void Build(std::optional<int> new_text,
++             const std::vector<MenuItemInfo>& menu_item_infos);
+ 
+   // Clears the MenuModel and `command_id_to_target_index_`.
+   void ClearMenu();
+--- a/chrome/browser/ui/tabs/existing_tab_group_sub_menu_model.cc
++++ b/chrome/browser/ui/tabs/existing_tab_group_sub_menu_model.cc
+@@ -98,7 +98,7 @@
+     }
+   }
+ 
+-  Build(IDS_TAB_CXMENU_SUBMENU_NEW_GROUP, menu_item_infos);
++  Build(std::nullopt, menu_item_infos);
+ }
+ 
+ ExistingTabGroupSubMenuModel::ExistingTabGroupSubMenuModel(
+@@ -123,17 +123,16 @@
+     return {};
+   }
+ 
+-  // Add tab groups to `groups` if they differ from our indexes current group.
++  const auto* context_tab = GetContextTab().Get();
++  const auto context_group =
++      context_tab ? context_tab->GetGroup() : std::nullopt;
+   std::vector<tab_groups::TabGroupId> groups;
+   for (auto& group : current_model->group_model()->ListTabGroups()) {
+     if (current_model->IsEphemeralTabGroup(group)) {
+       continue;
+     }
+ 
+-    tabs::TabInterface* context_tab = GetContextTab().Get();
+-    if (model() == current_model && context_tab &&
+-        context_tab->GetGroup().has_value() &&
+-        context_tab->GetGroup().value() == group) {
++    if (model() == current_model && group == context_group) {
+       continue;
+     }
+ 
+@@ -186,57 +185,6 @@
+ }
+ 
+ 
+-// static
+-bool ExistingTabGroupSubMenuModel::ShouldShowSubmenu(
+-    TabStripModel* model,
+-    tabs::TabHandle context_tab,
+-    TabMenuModelDelegate* tab_menu_model_delegate) {
+-  TabGroupModel* group_model = model->group_model();
+-  if (!group_model) {
+-    return false;
+-  }
+-
+-  // Look at tab groups in current window
+-  for (tab_groups::TabGroupId group : group_model->ListTabGroups()) {
+-    if (ShouldShowGroup(model, context_tab, group)) {
+-      return true;
+-    }
+-  }
+-
+-  // Look at tab groups in all other windows
+-  if (tab_menu_model_delegate) {
+-    for (BrowserWindowInterface* browser :
+-         tab_menu_model_delegate->GetOtherBrowserWindows(/*is_app=*/false)) {
+-      TabGroupModel* browser_group_model =
+-          browser->GetTabStripModel()->group_model();
+-      if (!browser_group_model) {
+-        continue;
+-      }
+-      for (tab_groups::TabGroupId group :
+-           browser_group_model->ListTabGroups()) {
+-        if (ShouldShowGroup(model, context_tab, group)) {
+-          return true;
+-        }
+-      }
+-    }
+-  }
+-
+-  return false;
+-}
+-
+-// static
+-bool ExistingTabGroupSubMenuModel::ShouldShowSubmenu(
+-    TabStripModel* model,
+-    int context_index,
+-    TabMenuModelDelegate* tab_menu_model_delegate) {
+-  return ShouldShowSubmenu(
+-      model,
+-      model->ContainsIndex(context_index)
+-          ? model->GetTabAtIndex(context_index)->GetHandle()
+-          : tabs::TabHandle::Null(),
+-      tab_menu_model_delegate);
+-}
+-
+ void ExistingTabGroupSubMenuModel::ExecuteExistingCommand(size_t target_index) {
+   // The tab strip may have been modified while the context menu was open,
+   // including closing or detaching the context tab.
+@@ -262,44 +210,6 @@
+   AddSelectedTabsToOpenGroup(group);
+ }
+ 
+-// static
+-bool ExistingTabGroupSubMenuModel::ShouldShowGroup(
+-    TabStripModel* model,
+-    tabs::TabHandle context_tab,
+-    tab_groups::TabGroupId group) {
+-  if (model->IsEphemeralTabGroup(group)) {
+-    return false;
+-  }
+-
+-  tabs::TabInterface* context_tab_ptr = context_tab.Get();
+-  if (!context_tab_ptr ||
+-      !model->selection_model().IsSelected(context_tab_ptr)) {
+-    if (context_tab_ptr && group != context_tab_ptr->GetGroup()) {
+-      return true;
+-    }
+-  } else {
+-    for (tabs::TabInterface* t : model->selection_model().selected_tabs()) {
+-      if (group != t->GetGroup()) {
+-        return true;
+-      }
+-    }
+-  }
+-  return false;
+-}
+-
+-std::vector<tabs::TabHandle> ExistingTabGroupSubMenuModel::GetSelectedTabs() {
+-  tabs::TabInterface* context_tab = GetContextTab().Get();
+-  if (!context_tab || !model()->selection_model().IsSelected(context_tab)) {
+-    return context_tab ? std::vector<tabs::TabHandle>{GetContextTab()}
+-                       : std::vector<tabs::TabHandle>{};
+-  }
+-  std::vector<tabs::TabHandle> handles;
+-  for (tabs::TabInterface* tab : model()->selection_model().selected_tabs()) {
+-    handles.push_back(tab->GetHandle());
+-  }
+-  return handles;
+-}
+-
+ void ExistingTabGroupSubMenuModel::AddSelectedTabsToOpenGroup(
+     const tab_groups::TabGroupId& group) {
+   // If the group exists in this model, move the tab into it.
+@@ -328,7 +238,7 @@
+   }
+ 
+   // Collect the selected tabs from the source model into a list.
+-  std::vector<tabs::TabHandle> tabs = GetSelectedTabs();
++  std::vector<tabs::TabHandle> tabs = model()->GetTabsForCommand(GetContextTab());
+   if (tabs.empty()) {
+     return;
+   }
+--- a/chrome/browser/ui/tabs/existing_tab_group_sub_menu_model.h
++++ b/chrome/browser/ui/tabs/existing_tab_group_sub_menu_model.h
+@@ -38,17 +38,6 @@
+       delete;
+   ~ExistingTabGroupSubMenuModel() override;
+ 
+-  // Whether the submenu should be shown in the provided context. True iff
+-  // the submenu would show at least one group. Does not assume ownership of
+-  // `model`; `model` must outlive this instance.
+-  static bool ShouldShowSubmenu(TabStripModel* model,
+-                                tabs::TabHandle context_tab,
+-                                TabMenuModelDelegate* tab_menu_model_delegate);
+-  // Temporary forwarding shim:
+-  static bool ShouldShowSubmenu(TabStripModel* model,
+-                                int context_index,
+-                                TabMenuModelDelegate* tab_menu_model_delegate);
+-
+  private:
+   // ExistingBaseSubMenuModel
+   void ExecuteExistingCommand(size_t target_index) override;
+@@ -66,18 +55,7 @@
+   MenuItemInfo CreateMenuItemInfo(const std::u16string& displayed_title,
+                                   const tab_groups::TabGroupColorId&);
+ 
+-  // Whether the submenu should contain the group `group`. True iff at least
+-  // one tab that would be affected by the command is not in `group`.
+-  static bool ShouldShowGroup(TabStripModel* model,
+-                              tabs::TabHandle context_tab,
+-                              tab_groups::TabGroupId group);
+-
+-  // Returns a container of selected tabs for specifying which tabs get added to
+-  // a group. Returns {GetContextTab()} if the context tab is not selected.
+-  std::vector<tabs::TabHandle> GetSelectedTabs();
+-
+-  // Takes the tabs at indices specified by |GetSelectedIndices()| and
+-  // adds them to the open tab group with the given local tab group id.
++  // Adds the tabs targeted by the context menu to the given open group.
+   void AddSelectedTabsToOpenGroup(const tab_groups::TabGroupId&);
+ 
+   // Mapping of the initial tab group to index in the menu model. this must
+--- a/chrome/browser/ui/tabs/tab_menu_model.cc
++++ b/chrome/browser/ui/tabs/tab_menu_model.cc
+@@ -389,6 +389,47 @@
+   }
+   SetElementIdentifierAt(GetItemCount() - 1, kAddNewTabAdjacentMenuItem);
+ 
++  if (tab_strip_->SupportsTabGroups()) {
++    const auto group = context_tab_ptr->GetGroup();
++    const bool is_grouped =
++        group && !tab_strip_->IsEphemeralTabGroup(*group);
++    if (is_grouped) {
++      AddItemWithStringId(TabStripModel::CommandRemoveFromGroup,
++                          IDS_TAB_CXMENU_REMOVE_TAB_FROM_GROUP);
++    } else {
++      AddItem(TabStripModel::CommandAddToNewGroup,
++              l10n_util::GetPluralStringFUTF16(IDS_TAB_GROUP_ACTION, num_tabs));
++      SetElementIdentifierAt(GetItemCount() - 1, kAddToNewGroupItemIdentifier);
++    }
++
++    add_to_existing_group_submenu_ =
++        std::make_unique<ExistingTabGroupSubMenuModel>(
++            delegate(), tab_menu_model_delegate_, tab_strip_, context_tab);
++    const bool has_existing_group =
++        add_to_existing_group_submenu_->GetItemCount() > 0;
++    if (has_existing_group) {
++      AddSubMenu(TabStripModel::CommandAddToExistingGroup,
++                 l10n_util::GetPluralStringFUTF16(
++                     is_grouped ? IDS_TAB_CXMENU_MOVE_TAB_TO_GROUP
++                                : IDS_TAB_CXMENU_ADD_TAB_TO_GROUP,
++                     num_tabs),
++                 add_to_existing_group_submenu_.get());
++    }
++
++    if (features::IsMenuSimplificationEnabled()) {
++      const auto icon = ui::ImageModel::FromVectorIcon(
++          features::IsRoundedIconsEnabled() ? kGridViewIcon
++                                            : kSavedTabGroupBarEverythingOldIcon,
++          ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize);
++      if (!is_grouped) {
++        SetIconForCommandId(TabStripModel::CommandAddToNewGroup, icon);
++      }
++      if (has_existing_group) {
++        SetIconForCommandId(TabStripModel::CommandAddToExistingGroup, icon);
++      }
++    }
++  }
++
+   if (!context_tab_ptr->IsSplit()) {
+     if (tab_strip_->GetActiveTab()->IsSplit()) {
+       swap_with_split_submenu_ =
+@@ -404,11 +445,10 @@
+       SetEnabledAt(swap_with_split_index, num_tabs == 1);
+       SetElementIdentifierAt(swap_with_split_index, kSwapSplitTabsMenuItem);
+     } else {
+-      AddItemWithStringIdAndIcon(
++      AddItemWithIcon(
+           TabStripModel::CommandAddToSplit,
+-          context_tab_ptr == tab_strip_->GetActiveTab()
+-              ? IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT
+-              : IDS_TAB_CXMENU_NEW_SPLIT_WITH_CURRENT,
++          l10n_util::GetPluralStringFUTF16(
++              IDS_TAB_CXMENU_ADD_TABS_TO_SPLIT_VIEW, num_tabs),
+           ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                              ? kSplitSceneIcon
+                                              : kSplitSceneOldIcon,
+@@ -431,6 +471,41 @@
+     SetElementIdentifierAt(GetItemCount() - 1, kArrangeSplitTabsMenuItem);
+   }
+ 
++  AddItem(TabStripModel::CommandMoveTabsToNewWindow,
++          l10n_util::GetPluralStringFUTF16(
++              IDS_TAB_CXMENU_MOVE_TABS_TO_NEW_WINDOW, num_tabs));
++  if (features::IsMenuSimplificationEnabled()) {
++    SetIconForCommandId(
++        TabStripModel::CommandMoveTabsToNewWindow,
++        ui::ImageModel::FromVectorIcon(
++            features::IsRoundedIconsEnabled() ? kOpenInNewIcon
++                                              : kOpenInNewOldIcon,
++            ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
++  }
++
++  AddSeparator(ui::NORMAL_SEPARATOR);
++  AddItemWithStringId(TabStripModel::CommandCopyURL,
++                      num_tabs == 1 ? IDS_TAB_CXMENU_COPY_URL
++                                    : IDS_TAB_CXMENU_COPY_URLS);
++
++  if (ExistingWindowSubMenuModel::ShouldShowSubmenu(tab_strip_->profile())) {
++    // Create submenu with existing windows
++    add_to_existing_window_submenu_ = ExistingWindowSubMenuModel::Create(
++        delegate(), tab_menu_model_delegate_, tab_strip_, context_tab);
++    AddSubMenu(TabStripModel::CommandMoveToExistingWindow,
++               l10n_util::GetPluralStringFUTF16(
++                   IDS_TAB_CXMENU_MOVETOANOTHERWINDOW, num_tabs),
++               add_to_existing_window_submenu_.get());
++    if (features::IsMenuSimplificationEnabled()) {
++      SetIconForCommandId(
++          TabStripModel::CommandMoveToExistingWindow,
++          ui::ImageModel::FromVectorIcon(
++              features::IsRoundedIconsEnabled() ? kOpenInNewIcon
++                                                : kOpenInNewOldIcon,
++              ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
++    }
++  }
++
+   if (tab_strip_->SupportsTabGroups() &&
+       base::FeatureList::IsEnabled(features::kTabGroupsFocusing) &&
+       std::ranges::none_of(tabs, [](tabs::TabHandle tab) {
+@@ -481,89 +556,6 @@
+     }
+   }
+ 
+-  if (ExistingTabGroupSubMenuModel::ShouldShowSubmenu(
+-          tab_strip_, context_tab, tab_menu_model_delegate_)) {
+-    // Create submenu with existing groups
+-    add_to_existing_group_submenu_ =
+-        std::make_unique<ExistingTabGroupSubMenuModel>(
+-            delegate(), tab_menu_model_delegate_, tab_strip_, context_tab);
+-    AddSubMenu(TabStripModel::CommandAddToExistingGroup,
+-               l10n_util::GetPluralStringFUTF16(IDS_TAB_CXMENU_ADD_TAB_TO_GROUP,
+-                                                num_tabs),
+-               add_to_existing_group_submenu_.get());
+-    if (features::IsMenuSimplificationEnabled()) {
+-      SetIconForCommandId(
+-          TabStripModel::CommandAddToExistingGroup,
+-          ui::ImageModel::FromVectorIcon(
+-              features::IsRoundedIconsEnabled()
+-                  ? kGridViewIcon
+-                  : kSavedTabGroupBarEverythingOldIcon,
+-              ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
+-    }
+-  } else {
+-    AddItem(TabStripModel::CommandAddToNewGroup,
+-            l10n_util::GetPluralStringFUTF16(
+-                IDS_TAB_CXMENU_ADD_TAB_TO_NEW_GROUP, num_tabs));
+-    SetElementIdentifierAt(GetItemCount() - 1, kAddToNewGroupItemIdentifier);
+-    if (features::IsMenuSimplificationEnabled()) {
+-      SetIconForCommandId(
+-          TabStripModel::CommandAddToNewGroup,
+-          ui::ImageModel::FromVectorIcon(
+-              features::IsRoundedIconsEnabled()
+-                  ? kGridViewIcon
+-                  : kSavedTabGroupBarEverythingOldIcon,
+-              ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
+-    }
+-  }
+-
+-  for (tabs::TabHandle tab : tabs) {
+-    tabs::TabInterface* t = tab.Get();
+-    if (t) {
+-      std::optional<tab_groups::TabGroupId> group = t->GetGroup();
+-      if (group.has_value() &&
+-          !tab_strip_->IsEphemeralTabGroup(group.value())) {
+-        AddItemWithStringId(TabStripModel::CommandRemoveFromGroup,
+-                            IDS_TAB_CXMENU_REMOVE_TAB_FROM_GROUP);
+-        break;
+-      }
+-    }
+-  }
+-
+-  if (ExistingWindowSubMenuModel::ShouldShowSubmenu(tab_strip_->profile())) {
+-    // Create submenu with existing windows
+-    add_to_existing_window_submenu_ = ExistingWindowSubMenuModel::Create(
+-        delegate(), tab_menu_model_delegate_, tab_strip_, context_tab);
+-    AddSubMenu(TabStripModel::CommandMoveToExistingWindow,
+-               l10n_util::GetPluralStringFUTF16(
+-                   IDS_TAB_CXMENU_MOVETOANOTHERWINDOW, num_tabs),
+-               add_to_existing_window_submenu_.get());
+-    if (features::IsMenuSimplificationEnabled()) {
+-      SetIconForCommandId(
+-          TabStripModel::CommandMoveToExistingWindow,
+-          ui::ImageModel::FromVectorIcon(
+-              features::IsRoundedIconsEnabled() ? kOpenInNewIcon
+-                                                : kOpenInNewOldIcon,
+-              ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
+-    }
+-  } else {
+-    AddItem(TabStripModel::CommandMoveTabsToNewWindow,
+-            l10n_util::GetPluralStringFUTF16(
+-                IDS_TAB_CXMENU_MOVE_TABS_TO_NEW_WINDOW, num_tabs));
+-    if (features::IsMenuSimplificationEnabled()) {
+-      SetIconForCommandId(
+-          TabStripModel::CommandMoveTabsToNewWindow,
+-          ui::ImageModel::FromVectorIcon(
+-              features::IsRoundedIconsEnabled() ? kOpenInNewIcon
+-                                                : kOpenInNewOldIcon,
+-              ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
+-    }
+-  }
+-
+-  AddSeparator(ui::NORMAL_SEPARATOR);
+-  AddItemWithStringId(TabStripModel::CommandCopyURL,
+-                      num_tabs == 1 ? IDS_TAB_CXMENU_COPY_URL
+-                                    : IDS_TAB_CXMENU_COPY_URLS);
+-
+   AddSeparator(ui::NORMAL_SEPARATOR);
+   bool will_pin = tab_strip_->WillContextMenuPin(context_tab);
+   AddItemWithStringId(
+--- a/chrome/browser/ui/tabs/tab_menu_model_browsertest.cc
++++ b/chrome/browser/ui/tabs/tab_menu_model_browsertest.cc
+@@ -135,6 +135,71 @@
+           .has_value());
+ }
+ 
++IN_PROC_BROWSER_TEST_F(TabMenuModelBrowserTest, GroupSelectedTabsMenuOrder) {
++  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
++  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
++  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
++  TabStripModel* strip = browser()->tab_strip_model();
++  strip->ActivateTabAt(0);
++  strip->AddSelectionFromAnchorTo(1);
++
++  const auto check_order = [&](bool has_existing_group) {
++    TabMenuModel menu(&delegate_, TabMenuModelDelegate::From(browser()),
++                      strip, 0);
++    size_t index = 0;
++    EXPECT_EQ(menu.GetCommandIdAt(index++), TabStripModel::CommandNewTabToRight);
++    EXPECT_FALSE(
++        menu.GetIndexOfCommandId(TabStripModel::CommandRemoveFromGroup));
++    EXPECT_EQ(menu.GetCommandIdAt(index), TabStripModel::CommandAddToNewGroup);
++    EXPECT_EQ(menu.GetLabelAt(index++), l10n_util::GetPluralStringFUTF16(
++                                           IDS_TAB_GROUP_ACTION, 2));
++    if (has_existing_group) {
++      EXPECT_EQ(menu.GetCommandIdAt(index++),
++                TabStripModel::CommandAddToExistingGroup);
++    } else {
++      EXPECT_FALSE(
++          menu.GetIndexOfCommandId(TabStripModel::CommandAddToExistingGroup));
++    }
++    EXPECT_EQ(menu.GetCommandIdAt(index), TabStripModel::CommandAddToSplit);
++    EXPECT_EQ(menu.GetLabelAt(index++), l10n_util::GetPluralStringFUTF16(
++                                           IDS_TAB_CXMENU_ADD_TABS_TO_SPLIT_VIEW,
++                                           2));
++    EXPECT_EQ(menu.GetCommandIdAt(index++),
++              TabStripModel::CommandMoveTabsToNewWindow);
++    EXPECT_EQ(menu.GetTypeAt(index), ui::MenuModel::TYPE_SEPARATOR);
++  };
++  check_order(false);
++  const auto other_group = strip->AddToNewGroup({3});
++  check_order(true);
++  strip->ExecuteContextMenuCommand(0, TabStripModel::CommandAddToNewGroup);
++  const auto new_group = strip->GetTabGroupForTab(0);
++  ASSERT_TRUE(new_group);
++  EXPECT_EQ(strip->GetTabGroupForTab(1), new_group);
++  EXPECT_NE(new_group, other_group);
++  EXPECT_FALSE(strip->GetTabGroupForTab(2));
++  EXPECT_EQ(strip->GetTabGroupForTab(3), other_group);
++
++  // A mixed selection still excludes the group of the clicked tab.
++  strip->ActivateTabAt(0);
++  strip->AddSelectionFromAnchorTo(2);
++  {
++    TabMenuModel menu(&delegate_, TabMenuModelDelegate::From(browser()),
++                      strip, 0);
++    EXPECT_FALSE(menu.GetIndexOfCommandId(TabStripModel::CommandAddToNewGroup));
++    EXPECT_EQ(menu.GetCommandIdAt(1), TabStripModel::CommandRemoveFromGroup);
++    EXPECT_EQ(menu.GetCommandIdAt(2), TabStripModel::CommandAddToExistingGroup);
++    EXPECT_EQ(menu.GetLabelAt(2), l10n_util::GetPluralStringFUTF16(
++                                     IDS_TAB_CXMENU_MOVE_TAB_TO_GROUP, 3));
++    EXPECT_EQ(menu.GetSubmenuModelAt(2)->GetItemCount(), 1u);
++  }
++  strip->RemoveFromGroup({3});
++  TabMenuModel menu(&delegate_, TabMenuModelDelegate::From(browser()), strip, 0);
++  EXPECT_FALSE(menu.GetIndexOfCommandId(TabStripModel::CommandAddToNewGroup));
++  EXPECT_FALSE(
++      menu.GetIndexOfCommandId(TabStripModel::CommandAddToExistingGroup));
++  EXPECT_EQ(menu.GetCommandIdAt(1), TabStripModel::CommandRemoveFromGroup);
++}
++
+ IN_PROC_BROWSER_TEST_F(TabMenuModelBrowserTest, AddToExistingGroupSubmenu) {
+   chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
+   chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
+@@ -155,17 +220,14 @@
+           .value();
+   ui::MenuModel* submenu = menu.GetSubmenuModelAt(submenu_index);
+ 
+-  EXPECT_EQ(submenu->GetItemCount(), 5u);
+-  EXPECT_EQ(submenu->GetCommandIdAt(0),
+-            ExistingBaseSubMenuModel::kMinExistingTabGroupCommandId);
+-  EXPECT_EQ(submenu->GetTypeAt(1), ui::MenuModel::TYPE_SEPARATOR);
+-  EXPECT_EQ(submenu->GetCommandIdAt(2),
+-            ExistingBaseSubMenuModel::kMinExistingTabGroupCommandId + 1);
+-  EXPECT_FALSE(submenu->GetIconAt(2).IsEmpty());
+-  EXPECT_EQ(submenu->GetCommandIdAt(3),
+-            ExistingBaseSubMenuModel::kMinExistingTabGroupCommandId + 2);
+-  EXPECT_EQ(submenu->GetCommandIdAt(4),
+-            ExistingBaseSubMenuModel::kMinExistingTabGroupCommandId + 3);
++  EXPECT_EQ(submenu->GetItemCount(), 3u);
++  for (size_t i = 0; i < submenu->GetItemCount(); ++i) {
++    EXPECT_EQ(submenu->GetTypeAt(i), ui::MenuModel::TYPE_COMMAND);
++    EXPECT_EQ(submenu->GetCommandIdAt(i),
++              ExistingBaseSubMenuModel::kMinExistingTabGroupCommandId + 1 +
++                  static_cast<int>(i));
++    EXPECT_FALSE(submenu->GetIconAt(i).IsEmpty());
++  }
+ }
+ 
+ IN_PROC_BROWSER_TEST_F(TabMenuModelBrowserTest,
+@@ -189,14 +251,10 @@
+           .value();
+   ui::MenuModel* submenu = menu.GetSubmenuModelAt(submenu_index);
+ 
+-  EXPECT_EQ(submenu->GetItemCount(), 4u);
++  EXPECT_EQ(submenu->GetItemCount(), 2u);
+   EXPECT_EQ(submenu->GetCommandIdAt(0),
+-            ExistingBaseSubMenuModel::kMinExistingTabGroupCommandId);
+-  EXPECT_EQ(submenu->GetTypeAt(1), ui::MenuModel::TYPE_SEPARATOR);
+-  EXPECT_EQ(submenu->GetCommandIdAt(2),
+             ExistingBaseSubMenuModel::kMinExistingTabGroupCommandId + 1);
+-  EXPECT_FALSE(submenu->GetIconAt(2).IsEmpty());
+-  EXPECT_EQ(submenu->GetCommandIdAt(3),
++  EXPECT_EQ(submenu->GetCommandIdAt(1),
+             ExistingBaseSubMenuModel::kMinExistingTabGroupCommandId + 2);
+ }
+ 
+@@ -221,13 +279,13 @@
+           .value();
+   ui::MenuModel* submenu = menu.GetSubmenuModelAt(submenu_index);
+ 
+-  EXPECT_EQ(submenu->GetItemCount(), 3u);
++  EXPECT_EQ(submenu->GetItemCount(), 1u);
+ 
+   // Ungroup the tab at 0 to make the group in the menu dangle.
+   tab_strip_model->RemoveFromGroup({0});
+ 
+   // Try adding to the group from the menu.
+-  submenu->ActivatedAt(2);
++  submenu->ActivatedAt(0);
+ 
+   EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(0).has_value());
+   EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(1).has_value());
+--- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
+@@ -555,6 +555,24 @@
+   BrowserWindowInterface* browser = browser_view_->browser();
+ 
+   NSEvent* event = NSApp.currentEvent;
++  constexpr auto kShortcutModifiers =
++      NSEventModifierFlagCommand | NSEventModifierFlagControl |
++      NSEventModifierFlagOption | NSEventModifierFlagShift;
++  auto* tab_strip = browser->GetTabStripModel();
++  // Use the default Find Next chord for grouping while multiple tabs are
++  // selected. Explicit Find Next invocations and other bindings still find.
++  if (command == IDC_FIND_NEXT && event.type == NSEventTypeKeyDown &&
++      (event.modifierFlags & kShortcutModifiers) == NSEventModifierFlagCommand &&
++      [event.charactersIgnoringModifiers isEqualToString:@"g"] &&
++      tab_strip && tab_strip->SupportsTabGroups() &&
++      tab_strip->selection_model().size() > 1) {
++    if (!event.isARepeat) {
++      tab_strip->ExecuteContextMenuCommand(
++          tab_strip->active_index(), TabStripModel::CommandAddToNewGroup);
++    }
++    return true;
++  }
++
+   if (event.type == NSEventTypeKeyDown &&
+       (event.modifierFlags & NSEventModifierFlagControl) &&
+       ui::KeyboardCodeFromNSEvent(event) == ui::VKEY_TAB &&
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -6813,6 +6813,22 @@
+     return false;
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // Customizable shortcuts dispatch through Views before the native menu.
++  if (command_id == IDC_FIND_NEXT &&
++      accelerator == ui::Accelerator(ui::VKEY_G, ui::EF_COMMAND_DOWN)) {
++    auto* tab_strip = browser_->GetTabStripModel();
++    if (tab_strip && tab_strip->SupportsTabGroups() &&
++        tab_strip->selection_model().size() > 1) {
++      if (!accelerator.IsRepeat()) {
++        tab_strip->ExecuteContextMenuCommand(
++            tab_strip->active_index(), TabStripModel::CommandAddToNewGroup);
++      }
++      return true;
++    }
++  }
++#endif
++
+   if (MaybeShowVisualTabSwitcher(command_id, accelerator)) {
+     return true;
+   }
