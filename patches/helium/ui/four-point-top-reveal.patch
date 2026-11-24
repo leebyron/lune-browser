@@ -1,0 +1,11 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -523,7 +523,7 @@
+   }
+   NSWindow* window = view->GetWidget()->GetNativeWindow().GetNativeNSWindow();
+   const NSPoint screen_point = NSEvent.mouseLocation;
+-  constexpr CGFloat inside_top_rail = 8;
++  constexpr CGFloat inside_top_rail = 4;
+   if (view->IsFullscreen()) {
+     const NSRect screen = window.screen.frame;
+     const CGFloat pixel = 1.0 / window.backingScaleFactor;
