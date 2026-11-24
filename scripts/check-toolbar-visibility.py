@@ -69,7 +69,7 @@ int TopUIFullscreenYOffset() { return 0; }
 '''
 source = prefix + getter + '\nbool Selected(Prefs* browser_,int command_id) {\n' + selected + '\n}\n'
 source += 'void Execute(Prefs* browser_,int command_id) {\n' + execute + '\n}\n'
-source += 'bool Rail(BrowserView* browser_view,bool in_hover_area) {\n' + rail + 'return in_rail;\n}\n'
+source += 'bool Rail(BrowserView* browser_view,bool in_hover_area,bool above_sidebar_header=false) {\n' + rail + 'return in_rail;\n}\n'
 source += '''bool Present(BrowserView* browser_view,Header* floating_address_bar_,
  bool customize_open,bool dragging,bool resizing,bool window_menu_open,
  bool in_rail,bool in_sidebar_header,bool within_retention,bool editing,bool bubble_open) {
@@ -97,7 +97,9 @@ int main() { @autoreleasepool {
     browser.prefs.values[2]=disabled;
     for (bool area:{false,true}) for (bool pointer:{false,true}) {
       helium::pointer_in_rail=pointer;
-      assert(Rail(&browser,area)==(!disabled&&area&&pointer));
+      for (bool above:{false,true}) {
+        assert(Rail(&browser,area,above)==((!disabled||above)&&area&&pointer));
+      }
     }
     // With page-edge reveal disabled, sidebar, editing, active bubbles and
     // explicit popup holds continue to reveal/retain the exact native header.

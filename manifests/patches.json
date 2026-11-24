@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "977f4d7523e781bbf7522d5b89d8068e38115eb1",
+    "commit": "f7d3fb332249de57e9b561001d8e57b1f80611d9",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1203,9 +1203,25 @@
       {
         "path": "patches/lune/about-upstream-attribution.patch",
         "sha256": "83cd005a508a7d2a4c54fce79414f04d62f9267ab9abbe4b1824366c94b7f056"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-toggle-toolbar-fade.patch",
+        "sha256": "f5fa747ceb65b30558f83536ec42418da9436eb92e404228146ad6a51cbd27c1"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-header-hover-rail.patch",
+        "sha256": "653f454751ac7a2979568f579aa3295646896f396461a72a7eb2a0451689d89a"
+      },
+      {
+        "path": "patches/helium/ui/four-point-top-reveal.patch",
+        "sha256": "2d2fdd13ebc6fae663e94786cdf49372e5eb21e8f5f179668869d244a6654d79"
+      },
+      {
+        "path": "patches/helium/ui/right-sidebar-toggle-in-toolbar.patch",
+        "sha256": "a83d957907546344f960788160a52b5284778bf32102f745bda1d1739024293a"
       }
     ],
-    "ref": "refs/tags/inputs/site-info-toolbar-retention-1/macos"
+    "ref": "refs/tags/inputs/sidebar-toolbar-controls-1/macos"
   },
   "pull_requests": [
     {
@@ -3921,6 +3937,71 @@
       "adaptation": "Link the three projects below the copyright and retain the browser credits link.",
       "commits": [
         "977f4d7523e781bbf7522d5b89d8068e38115eb1"
+      ]
+    },
+    {
+      "id": "sidebar-toggle-toolbar-fade",
+      "depends_on": [
+        "sidebar-toggle-glass",
+        "toolbar-hover-options"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-toggle-toolbar-fade.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Fade the glass sidebar toggle with the floating toolbar.",
+      "adaptation": "Use the toolbar presentation state while the sidebar is visible and the toggle is enabled.",
+      "commits": [
+        "579c3c208591e1caebc064424a318d3d3a9d2e0e"
+      ]
+    },
+    {
+      "id": "sidebar-header-hover-rail",
+      "depends_on": [
+        "toolbar-hover-options",
+        "native-chrome-hover-distances",
+        "sidebar-ui-polish"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-header-hover-rail.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Reveal the toolbar above the visible sidebar header.",
+      "adaptation": "Apply the shared native reveal rail within the sidebar column in both toolbar hover modes.",
+      "commits": [
+        "25720beb653f0a7f607c4c84b4f0973244f4bca3"
+      ]
+    },
+    {
+      "id": "four-point-top-reveal",
+      "depends_on": [
+        "narrow-top-toolbar-reveal",
+        "sidebar-header-hover-rail"
+      ],
+      "patches": [
+        "patches/helium/ui/four-point-top-reveal.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Narrow interior top-edge reveal to four points.",
+      "adaptation": "Use the four-point threshold for the shared native top rail, including the unpinned sidebar.",
+      "commits": [
+        "8936c9997af6c37bb27b63332afa8d230926df76"
+      ]
+    },
+    {
+      "id": "right-sidebar-toggle-in-toolbar",
+      "depends_on": [
+        "sidebar-toggle-toolbar-fade",
+        "sidebar-header-hover-rail"
+      ],
+      "patches": [
+        "patches/helium/ui/right-sidebar-toggle-in-toolbar.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Move the right sidebar toggle into a separate native toolbar glass pill.",
+      "adaptation": "Use the right sidebar’s regular top inset and reserve a separate trailing slot while the toggle is enabled.",
+      "commits": [
+        "f7d3fb332249de57e9b561001d8e57b1f80611d9"
       ]
     }
   ],

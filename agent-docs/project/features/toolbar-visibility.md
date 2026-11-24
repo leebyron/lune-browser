@@ -6,7 +6,8 @@ Requested November 12, 2026. The development lock selects signed input `inputs/t
 
 Show toolbar uses **On hover edge**, **On hover sidebar**, then **Always** in setup. The toolbar/sidebar context menu and Appearance settings use those three choices followed by **Always cover (experimental)** as the final option. Setup continues to exclude experimental cover.
 
-The new mode disables only entry through the page's top-edge hover rail. A visible sidebar's upper region still reveals the toolbar. Address editing, Downloads details, toolbar bubbles, explicit menu holds, pinning and Customize retain their existing behavior. Once revealed, ordinary pointer retention and dismissal remain intact, including the existing exclusion of side-docked DevTools. The preference applies to the profile and updates open windows immediately. Existing profiles and fresh profiles keep the edge-hover behavior as their default.
+The new mode disables only entry through the page's top-edge hover rail. The upper 52 points of a visible sidebar reveal the toolbar. The top reveal
+rail extends above that sidebar column. Address editing, Downloads details, toolbar bubbles, explicit menu holds, pinning and Customize retain their existing behavior. Once revealed, ordinary pointer retention and dismissal remain intact, including the existing exclusion of side-docked DevTools. The preference applies to the profile and updates open windows immediately. Existing profiles and fresh profiles keep the edge-hover behavior as their default.
 
 The edge-triggered mode is labeled **On hover edge** throughout these surfaces. The profile preference `helium.browser.top_controls_hover_disabled` defaults false. On hover sidebar sets it true and clears toolbar pinning and overlay. Selecting any other toolbar mode clears it. The native menu and Settings derive their mutually exclusive selection from these preferences; setup preserves its existing Always display for a saved experimental cover mode.
 

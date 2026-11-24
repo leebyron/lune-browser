@@ -24,6 +24,12 @@ def check(source, arch):
         r'\([^}]+}', header))
     frame = (views / 'frame/browser_frame_view_mac.mm').read_text()
     retention = re.search(r'  const bool within_retention = .*?;', frame, re.S)[0]
+    sidebar_header = re.search(r'  const bool in_sidebar_header = .*?;', frame, re.S)[0]
+    above = re.search(r'  const bool above_sidebar_header = .*?;', frame, re.S)[0]
+    reveal = re.search(r'  const bool in_rail = .*?;', frame, re.S)[0]
+    in_window = re.search(r'  const bool in_window =.*?;', frame, re.S)[0]
+    pointer_decision = '\n'.join([
+        sidebar_header, above, reveal, in_window, retention])
     assert 'helium::IsPointerAboveNativeFullscreenContent(' in frame
     assert 'helium::NativeFullscreenTopControlsOffset(' in frame
     view = (views / 'frame/browser_view.cc').read_text()
@@ -62,7 +68,21 @@ def check(source, arch):
 #define BUILDFLAG(x) 1
 struct BrowserView;
 namespace gfx {
-struct Point { int px; int x() const { return px; } };
+struct Point {
+  int px, py = 0;
+  int x() const { return px; }
+  int y() const { return py; }
+};
+struct Rect {
+  int left, top, width, height;
+  int x() const { return left; }
+  int y() const { return top; }
+  int right() const { return left + width; }
+  bool Contains(const Point& p) const {
+    return p.x() >= x() && p.x() < right() &&
+           p.y() >= y() && p.y() < y() + height;
+  }
+};
 }
 struct BrowserWindowInterface { enum class Type { TYPE_NORMAL, TYPE_POPUP }; };
 namespace tabs {
@@ -147,6 +167,11 @@ struct BrowserView {
   BrowserWindowInterface::Type type=BrowserWindowInterface::Type::TYPE_NORMAL;
   FrameView frame;
   const BrowserView* browser_=this;
+  bool top_hover = true;
+  bool IsTopChromeHoverEnabled() const { return top_hover; }
+  gfx::Rect GetLocalBounds() const {
+    return {0, 0, width(), static_cast<int>(widget->window.contentView.bounds.size.height)};
+  }
   Widget* GetWidget() const { return widget; }
   bool IsFullscreen() const { return fullscreen; }
   const BrowserView* browser() const { return this; }
@@ -183,6 +208,16 @@ bool Retained(bool presented, bool in_hover_area, bool in_window, int y, int bot
   TestPoint cursor{y}; TestRect bounds{bottom};
 ''' + retention + r'''
   return within_retention;
+}
+bool PointerShowsToolbar(BrowserView* browser_view, gfx::Point cursor,
+                         const gfx::Rect& sidebar_header, bool in_hover_area,
+                         bool already_presented, int offset) {
+  TestBar* floating_address_bar_ = [TestBar new];
+  floating_address_bar_.isPresented = already_presented;
+  TestRect bounds{44 + offset};
+  const auto TopUIFullscreenYOffset = [&] { return offset; };
+''' + pointer_decision + r'''
+  return in_rail || in_sidebar_header || within_retention;
 }
 bool SideRetained(bool right, int x, int left, int end) {
   struct SidePoint { int value; int x() const { return value; } } cursor{x};
@@ -233,7 +268,7 @@ int main() { @autoreleasepool {
               if (native_top<=menu_bottom) assert(offset==0);
               else assert(available_top<=menu_bottom && menu_bottom<available_top+1);
               CGFloat gap=screen_top-available_top;
-              CGFloat thickness=gap>0?1/scale:8;
+              CGFloat thickness=gap>0?1/scale:4;
               view.frame.offset=offset;
               for (CGFloat distance : {-1.,0.,gap/2,gap,gap+thickness,
                                         gap+thickness+.25,gap+108,gap+109}) {
@@ -294,19 +329,70 @@ int main() { @autoreleasepool {
         pointer.x=origin.x+(right?1903.5:16);
         assert(!IsPointerInNativeRevealRail(&view,false,0));
       }
-      for (CGFloat depth : {-17.,-16.,0.,7.5,8.,16.}) {
+      for (CGFloat depth : {-17.,-16.,0.,3.,3.5,4.,4.5,7.5,8.,16.}) {
         pointer=NSMakePoint(origin.x+800,origin.y+1080-depth);
         assert(IsPointerInNativeRevealRail(&view,true,0)==
-               (depth>=-16 && depth<8));
+               (depth>=-16 && depth<4));
         for (bool right : {false,true}) {
           view.right=right;
           for (int x : {111,112,1807,1808}) {
             pointer.x=origin.x+x;
             assert(view.IsPointInZenSideTrigger({x}) ==
-                   ((right ? x>=1808 : x<112) && depth>=-16 && depth<8));
+                   ((right ? x>=1808 : x<112) && depth>=-16 && depth<4));
           }
         }
       }
+      const int left_sidebar_width = 216;
+      const int right_sidebar_start = 1704;
+      for (bool right : {false, true}) {
+        const int sidebar_x = right ? right_sidebar_start + 70 : 70;
+        const int boundary_x = right ? right_sidebar_start : left_sidebar_width - 1;
+        const int page_x = right ? right_sidebar_start - 1 : left_sidebar_width;
+        view.top_hover = false;
+        for (int header_y : {0,8}) {
+          const gfx::Rect sidebar = right ?
+              gfx::Rect{right_sidebar_start, header_y, 216, 52} :
+              gfx::Rect{0, header_y, 216, 52};
+          for (int x : {sidebar_x, boundary_x, page_x, 960}) {
+            bool in_column = x == sidebar_x || x == boundary_x;
+            for (int depth : {-65,-64,-17,-16,-1,0,3,4,7,10,51,60,108,109}) {
+              pointer = NSMakePoint(origin.x + x, origin.y + 1080 - depth);
+              const bool in_header = in_column && depth >= header_y &&
+                                     depth < header_y + 52;
+              const bool sidebar_entry = in_header ||
+                  (in_column && depth >= -16 && depth < 4 && depth < header_y);
+              const bool retained = depth >= -64 && depth <= 108;
+              assert(PointerShowsToolbar(&view,{x,depth},sidebar,true,false,0) ==
+                     sidebar_entry);
+              assert(PointerShowsToolbar(&view,{x,depth},sidebar,true,true,0) ==
+                     (sidebar_entry || retained));
+              assert(!PointerShowsToolbar(&view,{x,depth},{},true,false,0));
+              if (!in_column)
+                assert(!PointerShowsToolbar(&view,{x,depth},sidebar,false,true,0));
+            }
+          }
+          view.top_hover = true;
+          pointer = NSMakePoint(origin.x + page_x, origin.y + 1080 + 16);
+          assert(PointerShowsToolbar(&view,{page_x,-16},sidebar,true,false,0));
+          for (int depth : {3,4,5,7}) {
+            pointer = NSMakePoint(origin.x + page_x, origin.y + 1080 - depth);
+            assert(PointerShowsToolbar(&view,{page_x,depth},sidebar,true,false,0) ==
+                   (depth < 4));
+          }
+          view.top_hover = false;
+        }
+        view.fullscreen = true;
+        content.bounds = NSMakeRect(0,0,1920,1050);
+        const gfx::Rect sidebar = right ?
+            gfx::Rect{right_sidebar_start,0,216,52} : gfx::Rect{0,0,216,52};
+        pointer = NSMakePoint(origin.x + sidebar_x, origin.y + 1070);
+        assert(PointerShowsToolbar(&view,{sidebar_x,-20},sidebar,true,false,0));
+        pointer.x = origin.x + page_x;
+        assert(!PointerShowsToolbar(&view,{page_x,-20},sidebar,true,false,0));
+        content.bounds = NSMakeRect(0,0,1920,1080);
+        view.fullscreen = false;
+      }
+      view.top_hover = true;
       assert(NativeFullscreenTopControlsOffset(&view,1)==0);
       assert(!IsPointerAboveNativeFullscreenContent(&view,0));
     }
@@ -342,7 +428,7 @@ int main() { @autoreleasepool {
   assert(!view.ShouldDrawVerticalTabStrip());
   tabs::controller.vertical=true; view.type=BrowserWindowInterface::Type::TYPE_POPUP;
   assert(!view.ShouldDrawVerticalTabStrip());
-  puts("PASS: top entry 8 inside and 16 outside, top retention 64, sidebar top entry 112 on either side, side 16/128, fullscreen menus, display origins and scales");
+  puts("PASS: sidebar header entry and retention on either side in both hover modes, top entry 4 inside and 16 outside, top retention 64, sidebar top entry 112 on either side, side 16/128, fullscreen menus, display origins and scales");
 } }
 '''
     with tempfile.TemporaryDirectory(prefix='lune-fullscreen-hover-') as temp:

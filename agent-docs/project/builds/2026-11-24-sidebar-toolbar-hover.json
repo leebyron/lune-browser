@@ -1,0 +1,174 @@
+{
+  "date": "2026-11-24",
+  "scope": "Main browser input adoption",
+  "chromium": "159.0.8154.13",
+  "base_project": "652ef6e42325af28f8fd286a78188901cfb21de4",
+  "base_macos": "977f4d7523e781bbf7522d5b89d8068e38115eb1",
+  "about_lune_attribution_preserved": true,
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "macos": "f7d3fb332249de57e9b561001d8e57b1f80611d9",
+  "macos_tree": "2054f1504045def91e11b9e4de6ba9e90b31e47b",
+  "input_ref": "refs/tags/inputs/sidebar-toolbar-controls-1/macos",
+  "component_commits": [
+    {
+      "topic": "sidebar-toggle-toolbar-fade",
+      "commit": "579c3c208591e1caebc064424a318d3d3a9d2e0e",
+      "patch_sha256": "f5fa747ceb65b30558f83536ec42418da9436eb92e404228146ad6a51cbd27c1"
+    },
+    {
+      "topic": "sidebar-header-hover-rail",
+      "commit": "25720beb653f0a7f607c4c84b4f0973244f4bca3",
+      "patch_sha256": "653f454751ac7a2979568f579aa3295646896f396461a72a7eb2a0451689d89a"
+    },
+    {
+      "topic": "four-point-top-reveal",
+      "commit": "8936c9997af6c37bb27b63332afa8d230926df76",
+      "patch_sha256": "2d2fdd13ebc6fae663e94786cdf49372e5eb21e8f5f179668869d244a6654d79"
+    },
+    {
+      "topic": "right-sidebar-toggle-in-toolbar",
+      "commit": "f7d3fb332249de57e9b561001d8e57b1f80611d9",
+      "patch_sha256": "a83d957907546344f960788160a52b5284778bf32102f745bda1d1739024293a"
+    }
+  ],
+  "accepted_preview": {
+    "owner_accepted_arm64_behavior": true,
+    "base_macos": "503fde20caa966a4c7bfe58fbaad0f754233c1f4",
+    "framework_sha256": "9ff96e0ed261fb1630c199f8f15d33cf8f87711c94f1bc0e3d345121052a1134",
+    "earlier_preview_fails_sidebar_entry_regression": true
+  },
+  "accepted_right_sidebar_preview": {
+    "owner_accepted_arm64_behavior": true,
+    "framework_sha256": "d00eb239c74d4e37becc4d6f9881882e40eb1cb01588c8006425bfccb703f5d6",
+    "native_pointer_checks_passed": true
+  },
+  "component_lint_passed": true,
+  "repository_tests": {
+    "run": 108,
+    "skipped": 1
+  },
+  "builds": {
+    "arm64": {
+      "execution": "Native Apple silicon",
+      "strict_patches_applied": 693,
+      "prepared_report_sha256": "acc126d7a911ba9e93eb6baf2d611049c7bd86ce39aadf22bcefd8bbd4f34b36",
+      "source_parity": {
+        "settled_base_tree": "6d8a5898e045cfc95536dd83759d97485500638a",
+        "matches_accepted_preview_with_site_info": true,
+        "same_source_files": 572647,
+        "same_symlinks": 130,
+        "changed_source_sha256": {
+          "chrome/browser/ui/views/frame/browser_frame_view_mac.h": "8eb219cffc4fa51645578fb1996796a6c4f56d9d098b64cff66123a1df9cc429",
+          "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "52e71f91137fab21883bd0c3b71b0730a6ec9316776f70143f6c5a766df4a8e7",
+          "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc": "ee8882cbe50ed157b32a8fe9be9204c23dab6488ffcaadf72990398da9373dd9",
+          "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h": "f72c29852bb2d490121a0b8d9d84ff5e1de245fb2b42cd73da3d0f047bce8eaa",
+          "chrome/browser/ui/views/toolbar/toolbar_view.cc": "f6b194dbadc37cc8fe037e6db827c84d0e59a833916fc9bde5548f2db1b9f49e"
+        },
+        "candidate_patch_offsets": 0
+      },
+      "generated_resources": {
+        "settled_toolbar_input_parity": true,
+        "compared_files": 673,
+        "grit_header_sha256": "8aeacf7955b67b3970910f69544aad46c7fab336e4ca2a26c7070669a278d126"
+      },
+      "framework_sha256": "f52bec6590b1462fd8538843a670a12f412d93f26d34cd45d0c76d51b68752cf",
+      "smoke_passed": true,
+      "smoke_report_sha256": "c272df975c59f62ed6e969acfbaf5113adcabf2949f1f2d93611feef4954501f",
+      "focused_fixtures": [
+        "check-fullscreen-header-hover",
+        "check-toolbar-visibility",
+        "check-header-devtools-hover",
+        "check-native-sidebar-pin",
+        "fade-lifetime"
+      ],
+      "native_pointer_cases_per_sidebar_side": [
+        "hidden with sidebar pinned",
+        "sidebar hover excludes the page column",
+        "retention distance cannot reveal",
+        "above sidebar reveals toolbar and toggle",
+        "above sidebar retains both controls",
+        "beyond retention hides both controls",
+        "inside sidebar header reveals both controls",
+        "leaving the header hides both controls",
+        "four points inside page is outside entry",
+        "three points inside page reveals toolbar and toggle",
+        "leaving the toolbar hides the toggle",
+        "edge hover reveals above the page column",
+        "disabled toggle stays hidden",
+        "reenabling toggle restores it"
+      ],
+      "native_pointer_report_sha256": "089c3c49365dabc38cc59785ada4deb391e8f45de3466c7840e427c7c5d1b1fd",
+      "right_layout_report_sha256": "82f35e2d6f2512ffa878c1217a942bf740740c1c66d271fc2437ce9134c08c00",
+      "right_sidebar_top_row_y": 10,
+      "right_sidebar_revealed_top_row_y": 10,
+      "site_info_cases_passed": [
+        "edge/escape",
+        "edge/outside",
+        "edge/toggle",
+        "sidebar/escape"
+      ],
+      "site_info_report_sha256": "c74ce2abb91f5cb4834fbc68d511ba57d0b1d1e8a6af55772b424851848c5f86"
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "strict_patches_applied": 693,
+      "prepared_report_sha256": "21c5eacff490650c5f6cbf410f65f6514205c469e3cbe675140656dc85dbfb6b",
+      "source_parity": {
+        "settled_base_tree": "6d8a5898e045cfc95536dd83759d97485500638a",
+        "matches_accepted_preview_with_site_info": true,
+        "same_source_files": 572647,
+        "same_symlinks": 130,
+        "changed_source_sha256": {
+          "chrome/browser/ui/views/frame/browser_frame_view_mac.h": "8eb219cffc4fa51645578fb1996796a6c4f56d9d098b64cff66123a1df9cc429",
+          "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "52e71f91137fab21883bd0c3b71b0730a6ec9316776f70143f6c5a766df4a8e7",
+          "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.cc": "ee8882cbe50ed157b32a8fe9be9204c23dab6488ffcaadf72990398da9373dd9",
+          "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h": "f72c29852bb2d490121a0b8d9d84ff5e1de245fb2b42cd73da3d0f047bce8eaa",
+          "chrome/browser/ui/views/toolbar/toolbar_view.cc": "f6b194dbadc37cc8fe037e6db827c84d0e59a833916fc9bde5548f2db1b9f49e"
+        },
+        "candidate_patch_offsets": 0
+      },
+      "generated_resources": {
+        "settled_toolbar_input_parity": true,
+        "compared_files": 673,
+        "grit_header_sha256": "8aeacf7955b67b3970910f69544aad46c7fab336e4ca2a26c7070669a278d126"
+      },
+      "framework_sha256": "2915b52bf4728e0a08d589be33bbaa28fe1af5a3c1f6984b42bbd4ad6bc3c722",
+      "smoke_passed": true,
+      "smoke_report_sha256": "7b1442032aed56fd2d733b3e92c01b08f6bd234455cadf1ac6823e826af4494b",
+      "focused_fixtures": [
+        "check-fullscreen-header-hover",
+        "check-toolbar-visibility",
+        "check-header-devtools-hover",
+        "check-native-sidebar-pin",
+        "fade-lifetime"
+      ],
+      "native_pointer_cases_per_sidebar_side": [
+        "hidden with sidebar pinned",
+        "sidebar hover excludes the page column",
+        "retention distance cannot reveal",
+        "above sidebar reveals toolbar and toggle",
+        "above sidebar retains both controls",
+        "beyond retention hides both controls",
+        "inside sidebar header reveals both controls",
+        "leaving the header hides both controls",
+        "four points inside page is outside entry",
+        "three points inside page reveals toolbar and toggle",
+        "leaving the toolbar hides the toggle",
+        "edge hover reveals above the page column",
+        "disabled toggle stays hidden",
+        "reenabling toggle restores it"
+      ],
+      "native_pointer_report_sha256": "36b8eb1f657fffc721a9ef36781d3b2a50099dbbdbca9d7ba94feb57e0ce8b67",
+      "right_layout_report_sha256": "8dc8ff37674e0d3f58fe76cb93a5a81fcf8ecdd823d9d51fca3bac6858e14ff5",
+      "right_sidebar_top_row_y": 10,
+      "right_sidebar_revealed_top_row_y": 10,
+      "site_info_cases_passed": [
+        "edge/escape",
+        "edge/outside",
+        "edge/toggle",
+        "sidebar/escape"
+      ],
+      "site_info_report_sha256": "83238e2ebccdd4dab7736fd69db26292f32d87ba93deaf832de82f845735d5c8"
+    }
+  }
+}

@@ -24,11 +24,14 @@ The sidebar toggle uses a 36 pt native glass container with the same tint,
 shadow and older macOS fallback as Back and Forward. Its 32 pt button stays
 inside the glass content and inherits its foreground appearance.
 
-The toggle sits 8 pt below the sidebar top and 8 pt inside the divider. The
-adjacent Back and Forward pill on the left or the tools pill on the right sits
-8 pt into the content from the same divider. Pinned and fully revealed sidebars
-share this geometry. The toggle fades with the sidebar and follows its existing
-visibility preference.
+On the left, the toggle sits 8 pt below the sidebar top and 8 pt inside the
+divider. The Back and Forward pill sits 8 pt into the content from the same
+divider. On the right, the toggle is its own glass pill at the trailing edge
+of the content toolbar, with 8 pt between it and the tools pill. The first
+sidebar row starts after the normal 10 pt inset. The right toggle also works
+while the unpinned sidebar is closed. The address field takes priority when
+space is too narrow for both controls. The enabled toggle fades with the
+toolbar on either side.
 
 [Sidebar toggle validation](../builds/2026-11-23-sidebar-toggle-glass.json)
 
