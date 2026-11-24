@@ -1,0 +1,1256 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -60,6 +60,7 @@
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/view_ids.h"
+ #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
++#include "chrome/browser/ui/views/controls/rich_hover_button.h"
+ #include "chrome/browser/ui/views/frame/browser_native_widget.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/browser_widget.h"
+@@ -78,6 +79,9 @@
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
++#include "chrome/browser/ui/views/page_info/page_info_main_view.h"
++#include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
++#include "chrome/browser/ui/views/page_info/security_information_view.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip.h"
+ #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_header_view.h"
+@@ -118,6 +122,7 @@
+ #include "ui/base/cocoa/cursor_utils.h"
+ #include "ui/base/hit_test.h"
+ #include "ui/base/l10n/l10n_util.h"
++#include "ui/base/models/image_model.h"
+ #include "ui/base/metadata/metadata_utils.h"
+ #include "ui/base/page_transition_types.h"
+ #include "ui/base/theme_provider.h"
+@@ -126,6 +131,7 @@
+ #include "ui/color/color_provider_manager.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/events/base_event_utils.h"
++#include "ui/events/keycodes/keyboard_code_conversion_mac.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/gfx/color_utils.h"
+ #include "ui/gfx/geometry/insets.h"
+@@ -135,19 +141,26 @@
+ #include "ui/gfx/geometry/rect_f.h"
+ #include "ui/gfx/geometry/size.h"
+ #include "ui/gfx/geometry/vector2d.h"
++#include "ui/gfx/image/image_skia_operations.h"
+ #include "ui/gfx/mac/coordinate_conversion.h"
++#include "ui/gfx/vector_icon_types.h"
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
+ #include "ui/views/context_menu_controller.h"
+ #include "ui/views/controls/button/button.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/native/native_view_host.h"
++#include "ui/views/controls/view_image_model.h"
+ #include "ui/views/layout/box_layout.h"
+ #include "ui/views/layout/layout_manager_base.h"
+ #include "ui/views/layout/layout_types.h"
+ #include "ui/views/view_class_properties.h"
++#include "ui/views/view_hierarchy_changed_details.h"
++#include "ui/views/view_observer.h"
+ #include "ui/views/view_targeter.h"
+ #include "ui/views/view_targeter_delegate.h"
++#include "ui/views/view_utils.h"
++#include "ui/views/widget/native_widget_mac.h"
+ #include "ui/views/widget/widget.h"
+ #include "ui/views/widget/widget_delegate.h"
+ #include "ui/views/widget/widget_observer.h"
+@@ -1688,6 +1701,425 @@ public:
+   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
+ };
+ 
++// AppKit owns the window and material. The existing Views dialog keeps its
++// compositor, event handling, accessibility tree and WebContents lifetime.
++@interface HeliumSiteInfoPopoverDelegate : NSObject <NSPopoverDelegate>
++- (instancetype)initWithWidget:(base::WeakPtr<views::Widget>)widget;
++@end
++
++@implementation HeliumSiteInfoPopoverDelegate {
++  base::WeakPtr<views::Widget> _widget;
++}
++- (instancetype)initWithWidget:(base::WeakPtr<views::Widget>)widget {
++  self = [super init];
++  if (self) {
++    _widget = std::move(widget);
++  }
++  return self;
++}
++- (void)popoverDidClose:(NSNotification*)notification {
++  if (_widget && !_widget->IsClosed()) {
++    _widget->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
++  }
++}
++@end
++
++namespace {
++
++// Match the semantic glyphs used by both rounded and older Page Info icons.
++constexpr auto kSiteInfoSymbols =
++    base::MakeFixedFlatMap<std::string_view, const char*>({
++          {"AccountCircle", "person.crop.circle"},
++          {"AccountCircleOff", "person.crop.circle.badge.xmark"},
++          {"Ad", "rectangle.on.rectangle"},
++          {"AdOff", "rectangle.slash"},
++          {"Ads", "rectangle.on.rectangle"},
++          {"AdsOff", "rectangle.slash"},
++          {"ArrowBack", "chevron.backward"},
++          {"ArrowRight", "chevron.forward"},
++          {"Bluetooth", "antenna.radiowaves.left.and.right"},
++          {"BluetoothDisabled", "antenna.radiowaves.left.and.right.slash"},
++          {"BluetoothScanning", "dot.radiowaves.left.and.right"},
++          {"BluetoothSearching", "dot.radiowaves.left.and.right"},
++          {"Business", "building.2"},
++          {"Cardboard", "eyeglasses"},
++          {"Certificate", "rosette"},
++          {"Chat", "bubble.left"},
++          {"ChatSpark", "bubble.left"},
++          {"ChromeExtension", "puzzlepiece.extension"},
++          {"Close", "xmark"},
++          {"CloseRounded", "xmark"},
++          {"Code", "chevron.left.forwardslash.chevron.right"},
++          {"ContentPaste", "clipboard"},
++          {"Cookie", "externaldrive"},
++          {"Dangerous", "exclamationmark.octagon.fill"},
++          {"Database", "cylinder"},
++          {"DesktopAccessDisabled", "display"},
++          {"DesktopWindows", "display"},
++          {"DeveloperBoard", "cpu"},
++          {"Devices", "laptopcomputer.and.iphone"},
++          {"Domain", "building.2"},
++          {"DomainVerification", "checkmark.seal"},
++          {"Download", "arrow.down.to.line"},
++          {"Download2", "arrow.down.to.line"},
++          {"Extension", "puzzlepiece.extension"},
++          {"Eye", "eye"},
++          {"EyeCrossed", "eye.slash"},
++          {"FileDownload", "arrow.down.document"},
++          {"FileSave", "arrow.down.doc"},
++          {"FontDownload", "textformat"},
++          {"Fullscreen", "arrow.up.left.and.arrow.down.right"},
++          {"HandGesture", "hand.raised"},
++          {"HideImage", "photo"},
++          {"HttpsValid", "lock"},
++          {"InstallDesktop", "arrow.down.to.line"},
++          {"KeyboardArrowRight", "chevron.forward"},
++          {"KeyboardLock", "keyboard"},
++          {"Launch", "arrow.up.right.square"},
++          {"Location", "location"},
++          {"LocationOff", "location.slash"},
++          {"LocationOn", "location"},
++          {"Lock", "lock"},
++          {"Mic", "mic"},
++          {"MicOff", "mic.slash"},
++          {"Midi", "pianokeys"},
++          {"MouseLock", "computermouse"},
++          {"NotSecureWarning", "exclamationmark.triangle.fill"},
++          {"Notifications", "bell"},
++          {"NotificationsOff", "bell.slash"},
++          {"OpenInNew", "arrow.up.right.square"},
++          {"PageInfoContentPaste", "clipboard"},
++          {"Photo", "photo"},
++          {"Piano", "pianokeys"},
++          {"PictureInPicture", "pip"},
++          {"PointerLock", "computermouse"},
++          {"Print", "printer"},
++          {"Printer", "printer"},
++          {"ProtectedContent", "lock.shield"},
++          {"QwacStatus", "checkmark.shield"},
++          {"Router", "wifi"},
++          {"RouterOff", "wifi.slash"},
++          {"SelectWindow", "macwindow"},
++          {"Sensors", "waveform.path"},
++          {"SerialPort", "cable.connector"},
++          {"Settings", "gearshape"},
++          {"ShieldCheck", "checkmark.shield"},
++          {"ShieldCross", "xmark.shield"},
++          {"ShieldQuestion", "shield.lefthalf.filled"},
++          {"SmartCardReader", "creditcard"},
++          {"Star", "star"},
++          {"StarFilled", "star.fill"},
++          {"StarHalf", "star.leadinghalf.filled"},
++          {"StickyNote2", "note.text"},
++          {"StorageAccess", "externaldrive"},
++          {"Storefront", "storefront"},
++          {"SubmenuArrow", "chevron.forward"},
++          {"Sync", "arrow.triangle.2.circlepath"},
++          {"SyncDisabled", "arrow.triangle.2.circlepath"},
++          {"SyncSavedLocally", "internaldrive"},
++          {"Tenancy", "building.2"},
++          {"TouchpadMouse", "computermouse"},
++          {"Usb", "cable.connector"},
++          {"Videocam", "video"},
++          {"VideocamOff", "video.slash"},
++          {"VideogameAsset", "gamecontroller"},
++          {"ViewInAr", "cube"},
++          {"Visibility", "eye"},
++          {"VisibilityOff", "eye.slash"},
++          {"VolumeOff", "speaker.slash"},
++          {"VolumeUp", "speaker.wave.2"},
++          {"Vr180Create2d", "viewfinder"},
++          {"VrHeadset", "eyeglasses"},
++          {"Warning", "exclamationmark.triangle.fill"},
++    });
++
++gfx::ImageSkia RenderSiteInfoSymbol(const ui::VectorIconModel& icon,
++                                    const ui::ColorProvider* colors) {
++  if (!icon.vector_icon()->name) {
++    return {};
++  }
++  std::string_view name(icon.vector_icon()->name);
++  if (name.starts_with("k") && name.ends_with("Icon")) {
++    name.remove_prefix(1);
++    name.remove_suffix(4);
++  }
++  if (name.ends_with("ChromeRefreshOld")) {
++    name.remove_suffix(16);
++  } else if (name.ends_with("RefreshOld")) {
++    name.remove_suffix(10);
++  } else if (name.ends_with("Old")) {
++    name.remove_suffix(3);
++  }
++  if (name.ends_with("Custom")) {
++    name.remove_suffix(6);
++  }
++  if (name.ends_with("Flippable")) {
++    name.remove_suffix(9);
++  }
++
++  auto it = kSiteInfoSymbols.find(name);
++  if (it == kSiteInfoSymbols.end() && name.ends_with("Filled")) {
++    name.remove_suffix(6);
++    it = kSiteInfoSymbols.find(name);
++  }
++  bool blocked = icon.badge_icon() != nullptr;
++  if (it == kSiteInfoSymbols.end() && name.ends_with("Off")) {
++    name.remove_suffix(3);
++    it = kSiteInfoSymbols.find(name);
++    blocked = true;
++  }
++  const int size = icon.icon_size();
++  if (size <= 0 || (!colors && icon.color().IsLogical())) {
++    return {};
++  }
++  const char* symbol = it == kSiteInfoSymbols.end() ? "info.circle" : it->second;
++  const SkColor color =
++      colors && std::string_view(symbol) == "exclamationmark.triangle.fill"
++          ? colors->GetColor(ui::kColorAlertMediumSeverityIcon)
++          : icon.color().ResolveToSkColor(colors);
++  int point_size = std::max(8, size - 4);
++  // Match the regular AppKit control font for Close. Use less emphasis for
++  // the trailing disclosure indicator while keeping the row's hit bounds.
++  const int control_point_size =
++      base::ClampRound([NSFont systemFontSizeForControlSize:NSControlSizeRegular]);
++  if (name == "Close" || name == "CloseRounded") {
++    point_size = std::min(size, control_point_size);
++  } else if (std::string_view(symbol) == "chevron.forward") {
++    point_size = std::min(point_size, control_point_size - 1);
++  }
++  auto image =
++      helium::NativeToolbarSymbolForName(symbol, size, color, point_size);
++  if (image.isNull()) {
++    // A supported version of macOS may ship an earlier SF Symbols catalogue.
++    image = helium::NativeToolbarSymbolForName(
++        "info.circle", size, color, point_size);
++  }
++  if (blocked) {
++    const auto badge =
++        helium::NativeToolbarSymbolForName("nosign", size, color, point_size);
++    image = gfx::ImageSkiaOperations::CreateSuperimposedImage(image, badge);
++  }
++  return image;
++}
++
++class SiteInfoPopoverWidget : public views::NativeWidgetMac,
++                              public views::ViewObserver {
++ public:
++  SiteInfoPopoverWidget(views::Widget* widget, NSView* anchor)
++      : NativeWidgetMac(widget), anchor_(anchor) {}
++
++  void Show(ui::mojom::WindowShowState show_state,
++            const gfx::Rect&) override {
++    NSView* anchor = anchor_;
++    NSView* positioning_view = anchor.superview;
++    if (!positioning_view.window || anchor.hiddenOrHasHiddenAncestor) {
++      GetWidget()->Close();
++      return;
++    }
++
++    auto* root = GetWidget()->GetRootView();
++    views::SetVectorIconRenderer(*root, RenderSiteInfoSymbol);
++    ConfigurePopoverContent(root);
++    root_observation_.Observe(root);
++
++    NSView* contents = GetNativeView().GetNativeNSView();
++    const NSSize content_size = contents.frame.size;
++    NSViewController* controller = [[NSViewController alloc] init];
++    controller.view = [[NSView alloc] initWithFrame:NSMakeRect(
++        0, 0, content_size.width, content_size.height)];
++    contents.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++    // Keep the Views bridge's backing window hidden. Cache its NSView as
++    // NativeViewHost does when moving the content view to another window.
++    SetNativeWindowProperty(
++        views::NativeWidgetMacNSWindowHost::kMovedContentNSView,
++        (__bridge void*)contents);
++    NSWindow* backing_window = GetNativeWindow().GetNativeNSWindow();
++    backing_window.contentView = nil;
++    backing_window.ignoresMouseEvents = YES;
++    [controller.view addSubview:contents];
++
++    popover_delegate_ = [[HeliumSiteInfoPopoverDelegate alloc]
++        initWithWidget:GetWidget()->GetWeakPtr()];
++    popover_ = [[NSPopover alloc] init];
++    popover_.behavior = NSPopoverBehaviorTransient;
++    popover_.delegate = popover_delegate_;
++    popover_.appearance = anchor.effectiveAppearance;
++    popover_.contentViewController = controller;
++    popover_.contentSize = content_size;
++
++    // AppKit clips the positioning rect to its view. Use the capsule's
++    // controls view so the pointer can sit just below the button.
++    const NSRect button_rect = [positioning_view convertRect:anchor.bounds
++                                                   fromView:anchor];
++    const CGFloat downward_offset = positioning_view.isFlipped ? 1 : -1;
++    const NSRect positioning_rect = NSOffsetRect(button_rect, 0, downward_offset);
++    const NSRectEdge preferred_edge =
++        positioning_view.isFlipped ? NSRectEdgeMaxY : NSRectEdgeMinY;
++    remote_cocoa::mojom::NativeWidgetNSWindowHost* host = GetNSWindowHost();
++    // Mark the Views widget as shown before the popover takes key focus so
++    // the toolbar's existing bubble-retention logic can see it.
++    host->OnVisibilityChanged(true);
++    [popover_ showRelativeToRect:positioning_rect
++                         ofView:positioning_view
++                  preferredEdge:preferred_edge];
++    if (!popover_.shown) {
++      GetWidget()->Close();
++      return;
++    }
++    // BridgedContentView clears its size when it moves into an NSWindow
++    // whose content view it does not own. Size it to the AppKit host here.
++    contents.frame = controller.view.bounds;
++    [backing_window orderOut:nil];
++    ClearNativeFocus();
++    NSWindow* popover_window = controller.view.window;
++    [popover_window makeKeyWindow];
++    host->OnWindowKeyStatusChanged(
++        popover_window.isKeyWindow, popover_window.firstResponder == contents,
++        NSApp.fullKeyboardAccessEnabled);
++    GetWidget()->SetInitialFocus(show_state);
++
++    __weak NSView* weak_anchor = anchor;
++    __weak NSWindow* weak_popover_window = popover_window;
++    auto widget = GetWidget()->GetWeakPtr();
++    escape_monitor_ = [NSEvent
++        addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown
++        handler:^NSEvent*(NSEvent* event) {
++          NSWindow* event_window = event.window ?: NSApp.keyWindow;
++          NSWindow* anchor_window = weak_anchor.window;
++          if (widget && !widget->IsClosed() && anchor_window &&
++              (event_window == weak_popover_window ||
++               event_window == anchor_window || NSApp.mainWindow == anchor_window) &&
++              ui::KeyboardCodeFromNSEvent(event) == ui::VKEY_ESCAPE) {
++            widget->CloseWithReason(views::Widget::ClosedReason::kEscKeyPressed);
++            return nil;
++          }
++          return event;
++        }];
++  }
++
++  void SetBounds(const gfx::Rect& bounds) override {
++    NativeWidgetMac::SetBounds(bounds);
++    if (popover_) {
++      popover_.contentSize = NativeWidgetMac::GetClientAreaBoundsInScreen()
++                                 .size()
++                                 .ToCGSize();
++    }
++  }
++
++  gfx::Rect GetClientAreaBoundsInScreen() const override {
++    NSView* contents = popover_.contentViewController.view;
++    NSWindow* window = contents.window;
++    return window ? gfx::ScreenRectFromNSRect(
++                        [window convertRectToScreen:
++                                    [contents convertRect:contents.bounds
++                                                  toView:nil]])
++                  : NativeWidgetMac::GetClientAreaBoundsInScreen();
++  }
++
++  gfx::Rect GetWindowBoundsInScreen() const override {
++    NSWindow* window = popover_.contentViewController.view.window;
++    return window ? gfx::ScreenRectFromNSRect(window.frame)
++                  : NativeWidgetMac::GetWindowBoundsInScreen();
++  }
++
++  void ClearNativeFocus() override {
++    NSView* contents = GetNativeView().GetNativeNSView();
++    [contents.window makeFirstResponder:contents];
++  }
++
++  void Activate() override {
++    [popover_.contentViewController.view.window makeKeyWindow];
++  }
++
++  // The Views sublevel manager orders the widget at the end of Show().
++  // AppKit already positions the popover. Ordering the backing window would
++  // place it over the popover and intercept clicks on its contents.
++  void StackAbove(gfx::NativeView) override {}
++  void StackAtTop() override {}
++
++  void Close() override {
++    ClosePopover();
++    NativeWidgetMac::Close();
++  }
++
++  void CloseNow() override {
++    ClosePopover();
++    NativeWidgetMac::CloseNow();
++  }
++
++ private:
++  void OnViewHierarchyChanged(
++      views::View*, const views::ViewHierarchyChangedDetails& details) override {
++    if (details.is_add) {
++      ConfigurePopoverContent(details.child);
++    }
++  }
++
++  void OnViewIsDeleting(views::View*) override { root_observation_.Reset(); }
++
++  void OnWindowDestroying(gfx::NativeWindow) override { ClosePopover(); }
++
++  static void ConfigurePopoverContent(views::View* view) {
++    if (auto* security = views::AsViewClass<SecurityInformationView>(view)) {
++      security->UsePopoverRowStyle();
++    }
++
++    // AppKit supplies the popover chrome. Let row highlights fill the content
++    // width by clearing the trailing inset used by the Views bubble.
++    if (auto* container =
++            views::AsViewClass<PageInfoMainView::ContainerView>(view)) {
++      container->RemoveExtraRightMargin();
++    }
++    if (view->GetID() ==
++        PageInfoViewFactory::VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_SITE_SETTINGS) {
++      view->ClearProperty(views::kMarginsKey);
++    }
++
++    if (auto* row = views::AsViewClass<RichHoverButton>(view);
++        row && row->GetActionIcon() == PageInfoViewFactory::GetLaunchIcon()) {
++      row->SetActionIcon(ui::ImageModel());
++    }
++
++    // Subpixel text needs an opaque background. AppKit composites the
++    // transparent Views layer over the native popover material.
++    if (auto* label = views::AsViewClass<views::Label>(view)) {
++      label->SetSubpixelRenderingEnabled(false);
++    }
++    for (views::View* child : view->children()) {
++      ConfigurePopoverContent(child);
++    }
++  }
++
++  void ClosePopover() {
++    if (!popover_) {
++      return;
++    }
++    if (escape_monitor_) {
++      [NSEvent removeMonitor:escape_monitor_];
++      escape_monitor_ = nil;
++    }
++    popover_.delegate = nil;
++    [popover_ close];
++    NSView* contents = GetNativeView().GetNativeNSView();
++    NSWindow* backing_window = GetNativeWindow().GetNativeNSWindow();
++    [contents removeFromSuperview];
++    backing_window.contentView = contents;
++    SetNativeWindowProperty(
++        views::NativeWidgetMacNSWindowHost::kMovedContentNSView, nullptr);
++    popover_ = nil;
++    popover_delegate_ = nil;
++  }
++
++  base::ScopedObservation<views::View, views::ViewObserver> root_observation_{
++      this};
++  NSView* __weak anchor_;
++  NSPopover* __strong popover_;
++  id __strong escape_monitor_;
++  HeliumSiteInfoPopoverDelegate* __strong popover_delegate_;
++};
++
++}  // namespace
++
+ // Focus-loss dismissal may precede delivery to the native button. Preserve
+ // that dismissal across its tracking loop, including asynchronous destruction.
+ class HeliumSiteInfoObserver : public views::WidgetObserver {
+@@ -1696,6 +2128,9 @@ class HeliumSiteInfoObserver : public vi
+       : owner_(owner) {
+     observation_.Observe(widget);
+   }
++  void OnWidgetClosing(views::Widget*) override {
++    [owner_ siteInfoClosing];
++  }
+   void OnWidgetVisibilityChanged(views::Widget*, bool visible) override {
+     if (!visible) {
+       [owner_ siteInfoClosing];
+@@ -2011,6 +2446,7 @@ struct HeliumAddressResult {
+     [NSEvent removeMonitor:_siteInfoMouseMonitor];
+     _siteInfoMouseMonitor = nil;
+   }
++  [self dismissSiteInfo];
+   _siteInfoObserver.reset();
+   _siteInfoWidget.reset();
+   if (_autocomplete) {
+@@ -2498,8 +2934,26 @@ struct HeliumAddressResult {
+           .AddInitializedCallback(base::DoNothing())
+           .AddPageInfoClosingCallback(base::DoNothing())
+           .Build();
+-  auto* widget = PageInfoBubbleView::CreatePageInfoBubble(std::move(specification))
+-                     ->GetWidget();
++  auto* widget =
++      PageInfoBubbleView::CreatePageInfoBubble(
++          std::move(specification),
++          base::BindOnce(
++              [](gfx::NativeView anchor, views::Widget::InitParams* params,
++                 views::Widget* widget) {
++                auto* bubble = params->delegate->AsBubbleDialogDelegate();
++                bubble->SetArrow(views::BubbleBorder::NONE);
++                bubble->SetBackgroundColor(SK_ColorTRANSPARENT);
++                bubble->set_close_on_deactivate(false);
++                if (auto* page_info = views::AsViewClass<PageInfoBubbleView>(
++                        bubble->GetContentsView())) {
++                  constexpr int kSiteInfoContentWidth = 344;
++                  page_info->UsePopoverLayout(kSiteInfoContentWidth);
++                }
++                params->native_widget =
++                    new SiteInfoPopoverWidget(widget, anchor.GetNativeNSView());
++              },
++              gfx::NativeView(_siteInfo)))
++          ->GetWidget();
+   _siteInfoWidget = widget->GetWeakPtr();
+   _siteInfoObserver = std::make_unique<HeliumSiteInfoObserver>(self, widget);
+   widget->Show();
+--- a/chrome/browser/ui/views/page_info/page_info_bubble_view.cc
++++ b/chrome/browser/ui/views/page_info/page_info_bubble_view.cc
+@@ -100,7 +100,8 @@ class InternalPageInfoBubbleView : publi
+                              const gfx::Rect& anchor_rect,
+                              gfx::NativeView parent_window,
+                              content::WebContents* web_contents,
+-                             const GURL& url);
++                             const GURL& url,
++                             WidgetInitCallback widget_init);
+   InternalPageInfoBubbleView(const InternalPageInfoBubbleView&) = delete;
+   InternalPageInfoBubbleView& operator=(const InternalPageInfoBubbleView&) =
+       delete;
+@@ -119,7 +120,8 @@ InternalPageInfoBubbleView::InternalPage
+     const gfx::Rect& anchor_rect,
+     gfx::NativeView parent_window,
+     content::WebContents* web_contents,
+-    const GURL& url)
++    const GURL& url,
++    WidgetInitCallback widget_init)
+     : PageInfoBubbleViewBase(anchor,
+                              anchor_rect,
+                              parent_window,
+@@ -156,7 +158,7 @@ InternalPageInfoBubbleView::InternalPage
+ 
+   SetTitle(text);
+ 
+-  views::BubbleDialogDelegateView::CreateBubble(this);
++  CreatePageInfoWidget(std::move(widget_init));
+ 
+   SetLayoutManager(std::make_unique<views::BoxLayout>(
+       views::BoxLayout::Orientation::kVertical, gfx::Insets(),
+@@ -191,7 +193,8 @@ PageInfoBubbleView::PageInfoBubbleView(
+     bool allow_extended_site_info,
+     ChromePageInfoDelegate::GetBrowserCallback get_browser_callback,
+     base::RepeatingClosure open_extensions_menu_callback,
+-    PageInfo::Surface surface)
++    PageInfo::Surface surface,
++    WidgetInitCallback widget_init)
+     : PageInfoBubbleViewBase(anchor,
+                              anchor_rect,
+                              parent_window,
+@@ -236,7 +239,7 @@ PageInfoBubbleView::PageInfoBubbleView(
+         std::make_unique<PageInfoMerchantTrustCoordinator>(web_contents());
+   }
+ 
+-  views::BubbleDialogDelegateView::CreateBubble(this);
++  CreatePageInfoWidget(std::move(widget_init));
+ }
+ 
+ PageInfoBubbleView::~PageInfoBubbleView() {
+@@ -244,9 +247,15 @@ PageInfoBubbleView::~PageInfoBubbleView(
+   RemoveAllChildViews();
+ }
+ 
++void PageInfoBubbleView::UsePopoverLayout(int minimum_content_width) {
++  minimum_content_width_ = minimum_content_width;
++  view_factory_->set_use_popover_subpage_spacing(true);
++}
++
+ // static
+ views::BubbleDialogDelegateView* PageInfoBubbleView::CreatePageInfoBubble(
+-    std::unique_ptr<PageInfoBubbleSpecification> specification) {
++    std::unique_ptr<PageInfoBubbleSpecification> specification,
++    WidgetInitCallback widget_init) {
+   views::BubbleAnchor const anchor = specification->anchor();
+   const gfx::Rect& anchor_rect = specification->anchor_rect();
+   content::WebContents* const web_contents = specification->web_contents();
+@@ -257,7 +266,8 @@ views::BubbleDialogDelegateView* PageInf
+ 
+   if (ShouldRouteToInternalBubble(url, web_contents)) {
+     return new InternalPageInfoBubbleView(anchor, anchor_rect, parent_view,
+-                                          web_contents, url);
++                                          web_contents, url,
++                                          std::move(widget_init));
+   }
+ 
+   PageInfoBubbleView* const bubble =
+@@ -267,7 +277,8 @@ views::BubbleDialogDelegateView* PageInf
+                              specification->show_extended_site_info(),
+                              specification->get_browser_callback(),
+                              specification->get_open_extensions_menu_callback(),
+-                             specification->surface());
++                             specification->surface(),
++                             std::move(widget_init));
+   if (specification->permission_page_type().has_value()) {
+     bubble->OpenPermissionPage(specification->permission_page_type().value());
+   }
+@@ -378,13 +389,14 @@ gfx::Size PageInfoBubbleView::CalculateP
+     return views::View::CalculatePreferredSize(available_size);
+   }
+ 
+-  int width = PageInfoViewFactory::kMinBubbleWidth;
++  const int minimum_width =
++      std::max(PageInfoViewFactory::kMinBubbleWidth, minimum_content_width_);
++  int width;
+   if (available_size.width().is_bounded()) {
+     width = available_size.width().value();
+   } else {
+     width = std::clamp(page_container_->GetPreferredSize().width(),
+-                       PageInfoViewFactory::kMinBubbleWidth,
+-                       PageInfoViewFactory::kMaxBubbleWidth);
++                       minimum_width, PageInfoViewFactory::kMaxBubbleWidth);
+   }
+   return gfx::Size(width,
+                    GetLayoutManager()->GetPreferredHeightForWidth(this, width));
+--- a/chrome/browser/ui/views/page_info/page_info_bubble_view.h
++++ b/chrome/browser/ui/views/page_info/page_info_bubble_view.h
+@@ -38,7 +38,8 @@ class PageInfoBubbleView : public PageIn
+   // |anchor_rect| will be used instead.  |parent_window| will become the
+   // parent of the widget hosting the bubble view.
+   static views::BubbleDialogDelegateView* CreatePageInfoBubble(
+-      std::unique_ptr<PageInfoBubbleSpecification> specification);
++      std::unique_ptr<PageInfoBubbleSpecification> specification,
++      WidgetInitCallback widget_init = {});
+ 
+   // PageInfoNavigationHandler:
+   void OpenMainPage(base::OnceClosure initialized_callback) override;
+@@ -52,6 +53,9 @@ class PageInfoBubbleView : public PageIn
+   // WebContentsObserver:
+   void DidChangeVisibleSecurityState() override;
+ 
++  // Set before the widget is initialized to keep height-for-width layout.
++  void UsePopoverLayout(int minimum_content_width);
++
+   PageInfo* presenter_for_testing() { return presenter_.get(); }
+ 
+  private:
+@@ -65,9 +69,9 @@ class PageInfoBubbleView : public PageIn
+       PageInfoClosingCallback closing_callback,
+       bool allow_extended_site_info,
+       ChromePageInfoDelegate::GetBrowserCallback get_browser_callback,
+-      base::RepeatingClosure open_extensions_menu_callback =
+-          base::RepeatingClosure(),
+-      PageInfo::Surface surface = PageInfo::Surface::kDefault);
++      base::RepeatingClosure open_extensions_menu_callback,
++      PageInfo::Surface surface,
++      WidgetInitCallback widget_init);
+ 
+   // PageInfoBubbleViewBase:
+   gfx::Size CalculatePreferredSize(
+@@ -78,6 +82,8 @@ class PageInfoBubbleView : public PageIn
+ 
+   void AnnouncePageOpened(std::u16string announcement);
+ 
++  int minimum_content_width_ = 0;
++
+   // The presenter that controls the Page Info UI.
+   std::unique_ptr<PageInfo> presenter_;
+ 
+--- a/chrome/browser/ui/views/page_info/page_info_bubble_view_base.cc
++++ b/chrome/browser/ui/views/page_info/page_info_bubble_view_base.cc
+@@ -114,6 +114,20 @@ PageInfoBubbleViewBase::PageInfoBubbleVi
+   SetProperty(views::kElementIdentifierKey, kPageInfoBubbleElementIdentifier);
+ }
+ 
++void PageInfoBubbleViewBase::CreatePageInfoWidget(
++    WidgetInitCallback widget_init) {
++  widget_init_ = std::move(widget_init);
++  views::BubbleDialogDelegateView::CreateBubble(this);
++}
++
++void PageInfoBubbleViewBase::OnBeforeBubbleWidgetInit(
++    views::Widget::InitParams* params,
++    views::Widget* widget) const {
++  if (widget_init_) {
++    std::move(widget_init_).Run(params, widget);
++  }
++}
++
+ void PageInfoBubbleViewBase::OnWidgetDestroying(views::Widget* widget) {
+   BubbleDialogDelegateView::OnWidgetDestroying(widget);
+   if (PageInfoBubbleTracker::GetBubble(web_contents()) == this) {
+--- a/chrome/browser/ui/views/page_info/page_info_bubble_view_base.h
++++ b/chrome/browser/ui/views/page_info/page_info_bubble_view_base.h
+@@ -5,6 +5,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PAGE_INFO_BUBBLE_VIEW_BASE_H_
+ #define CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PAGE_INFO_BUBBLE_VIEW_BASE_H_
+ 
++#include "base/functional/callback.h"
+ #include "components/page_info/page_info_ui.h"
+ #include "content/public/browser/web_contents_observer.h"
+ #include "ui/base/interaction/element_identifier.h"
+@@ -45,6 +46,9 @@ class PageInfoBubbleViewBase : public vi
+ 
+   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kPageInfoBubbleElementIdentifier);
+ 
++  using WidgetInitCallback = base::OnceCallback<void(
++      views::Widget::InitParams*, views::Widget*)>;
++
+   PageInfoBubbleViewBase(const PageInfoBubbleViewBase&) = delete;
+   PageInfoBubbleViewBase& operator=(const PageInfoBubbleViewBase&) = delete;
+ 
+@@ -71,7 +75,11 @@ class PageInfoBubbleViewBase : public vi
+                          BubbleType type,
+                          content::WebContents* web_contents);
+ 
++  void CreatePageInfoWidget(WidgetInitCallback widget_init);
++
+   // views::BubbleDialogDelegateView:
++  void OnBeforeBubbleWidgetInit(views::Widget::InitParams* params,
++                                views::Widget* widget) const override;
+   void OnWidgetDestroying(views::Widget* widget) override;
+ 
+   // WebContentsObserver:
+@@ -85,6 +93,7 @@ class PageInfoBubbleViewBase : public vi
+   void OnVisibilityChanged(content::Visibility visibility) override;
+   void PrimaryPageChanged(content::Page& page) override;
+ 
++  mutable WidgetInitCallback widget_init_;
+   const BubbleType type_ = BUBBLE_NONE;
+ };
+ 
+--- a/ui/views/BUILD.gn
++++ b/ui/views/BUILD.gn
+@@ -201,6 +201,7 @@ component("views") {
+     "controls/focusable_border.h",
+     "controls/highlight_path_generator.h",
+     "controls/image_view.h",
++    "controls/view_image_model.h",
+     "controls/image_view_base.h",
+     "controls/label.h",
+     "controls/link.h",
+--- a/ui/views/controls/button/image_button.cc
++++ b/ui/views/controls/button/image_button.cc
+@@ -22,6 +22,7 @@
+ #include "ui/views/border.h"
+ #include "ui/views/controls/focus_ring.h"
+ #include "ui/views/controls/highlight_path_generator.h"
++#include "ui/views/controls/view_image_model.h"
+ #include "ui/views/layout/layout_provider.h"
+ #include "ui/views/painter.h"
+ #include "ui/views/property_effects.h"
+@@ -63,7 +64,7 @@ void ToggleImageButton::UpdateAccessible
+ }
+ 
+ gfx::ImageSkia ImageButton::GetImage(ButtonState state) const {
+-  return images_[state].Rasterize(GetColorProvider());
++  return RasterizeImageModelForView(*this, images_[state]);
+ }
+ 
+ void ImageButton::SetImageModel(ButtonState for_state,
+@@ -254,16 +255,14 @@ void ImageButton::PaintButtonContents(gf
+ // ImageButton, protected:
+ 
+ gfx::ImageSkia ImageButton::GetImageToPaint() {
+-  const auto* const color_provider = GetColorProvider();
+   if (!images_[STATE_HOVERED].IsEmpty() && hover_animation().is_animating()) {
+     return gfx::ImageSkiaOperations::CreateBlendedImage(
+-        images_[STATE_NORMAL].Rasterize(color_provider),
+-        images_[STATE_HOVERED].Rasterize(color_provider),
++        GetImage(STATE_NORMAL), GetImage(STATE_HOVERED),
+         hover_animation().GetCurrentValue());
+   }
+ 
+-  const auto img = images_[GetState()].Rasterize(color_provider);
+-  return !img.isNull() ? img : images_[STATE_NORMAL].Rasterize(color_provider);
++  const auto img = GetImage(GetState());
++  return !img.isNull() ? img : GetImage(STATE_NORMAL);
+ }
+ 
+ void ToggleImageButton::UpdateAccessibleRoleIfNeeded() {
+--- a/ui/views/controls/image_view.cc
++++ b/ui/views/controls/image_view.cc
+@@ -13,15 +13,47 @@
+ #include "cc/paint/paint_flags.h"
+ #include "skia/ext/image_operations.h"
+ #include "third_party/skia/include/core/SkPath.h"
++#include "ui/base/class_property.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/themed_vector_icon.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/gfx/geometry/skia_conversions.h"
+ #include "ui/gfx/image/image_skia_rep.h"
+ #include "ui/gfx/paint_vector_icon.h"
++#include "ui/views/controls/view_image_model.h"
++#include "ui/views/widget/widget.h"
++
++DEFINE_UI_CLASS_PROPERTY_TYPE(views::VectorIconRenderer)
+ 
+ namespace views {
+ 
++namespace {
++
++DEFINE_UI_CLASS_PROPERTY_KEY(VectorIconRenderer, kVectorIconRenderer, nullptr)
++
++}  // namespace
++
++void SetVectorIconRenderer(View& root, VectorIconRenderer renderer) {
++  root.SetProperty(kVectorIconRenderer, renderer);
++}
++
++gfx::ImageSkia RasterizeImageModelForView(const View& view,
++                                         const ui::ImageModel& image_model) {
++  const ui::ColorProvider* colors = view.GetColorProvider();
++  const Widget* widget = view.GetWidget();
++  const View* root = widget ? widget->GetRootView() : nullptr;
++  if (root && image_model.IsVectorIcon()) {
++    if (auto renderer = root->GetProperty(kVectorIconRenderer)) {
++      gfx::ImageSkia image = renderer(image_model.GetVectorIcon(), colors);
++      if (!image.isNull()) {
++        return image;
++      }
++    }
++  }
++  return image_model.Rasterize(colors);
++}
++
++
+ ImageView::ImageView() = default;
+ 
+ ImageView::ImageView(const ui::ImageModel& image_model) {
+@@ -41,7 +73,7 @@ void ImageView::SetImage(const ui::Image
+ }
+ 
+ gfx::ImageSkia ImageView::GetImage() const {
+-  return image_model_.Rasterize(GetColorProvider());
++  return RasterizeImageModelForView(*this, image_model_);
+ }
+ 
+ ui::ImageModel ImageView::GetImageModel() const {
+@@ -116,7 +148,7 @@ gfx::ImageSkia ImageView::GetPaintImage(
+   }
+ 
+   if (image_model_.IsImage() || image_model_.IsImageGenerator()) {
+-    const gfx::ImageSkia image = image_model_.Rasterize(GetColorProvider());
++    const gfx::ImageSkia image = GetImage();
+     if (image.isNull()) {
+       return image;
+     }
+@@ -141,7 +173,7 @@ gfx::ImageSkia ImageView::GetPaintImage(
+             scaled_size.width(), scaled_size.height()),
+         scale));
+   } else if (scaled_image_.isNull()) {
+-    scaled_image_ = image_model_.Rasterize(GetColorProvider());
++    scaled_image_ = GetImage();
+   }
+   return scaled_image_;
+ }
+--- /dev/null
++++ b/ui/views/controls/view_image_model.h
+@@ -0,0 +1,37 @@
++// Copyright 2026 The Lune Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++// The Helium patch distribution also makes this file available under
++// the terms of the GPL-3.0 license included with the platform component.
++
++#ifndef UI_VIEWS_CONTROLS_VIEW_IMAGE_MODEL_H_
++#define UI_VIEWS_CONTROLS_VIEW_IMAGE_MODEL_H_
++
++#include "ui/views/views_export.h"
++
++namespace gfx {
++class ImageSkia;
++}
++
++namespace ui {
++class ColorProvider;
++class ImageModel;
++class VectorIconModel;
++}
++
++namespace views {
++
++class View;
++
++using VectorIconRenderer = gfx::ImageSkia (*)(const ui::VectorIconModel&,
++                                              const ui::ColorProvider*);
++
++// Installs a renderer on a widget's root view before its images paint.
++VIEWS_EXPORT void SetVectorIconRenderer(View& root, VectorIconRenderer renderer);
++
++gfx::ImageSkia RasterizeImageModelForView(const View& view,
++                                         const ui::ImageModel& image_model);
++
++}  // namespace views
++
++#endif  // UI_VIEWS_CONTROLS_VIEW_IMAGE_MODEL_H_
+--- a/chrome/browser/ui/views/page_info/security_information_view.cc
++++ b/chrome/browser/ui/views/page_info/security_information_view.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/ui/views/page_info/security_information_view.h"
+ 
++#include <algorithm>
+ #include <utility>
+ 
+ #include "base/strings/string_util.h"
+@@ -22,86 +23,80 @@
+ #include "ui/views/layout/table_layout.h"
+ #include "ui/views/view_class_properties.h"
+ 
+-SecurityInformationView::SecurityInformationView(int side_margin) {
+-  ChromeLayoutProvider* layout_provider = ChromeLayoutProvider::Get();
+-  const int icon_label_spacing = layout_provider->GetDistanceMetric(
+-      views::DISTANCE_RELATED_LABEL_HORIZONTAL);
+-  auto hover_button_insets = layout_provider->GetInsetsMetric(
+-      ChromeInsetsMetric::INSETS_PAGE_INFO_HOVER_BUTTON);
+-  // TODO(olesiamarukhno): Unify the column width through all views in the
+-  // page info (RichHoverButton, PermissionSelectorRow, ChosenObjectView,
+-  // SecurityInformationView). Currently, it isn't same everywhere and it
+-  // causes label text next to icon not to be aligned by 1 or 2px.
+-  views::TableLayout* layout =
+-      SetLayoutManager(std::make_unique<views::TableLayout>());
+-  layout->AddPaddingColumn(views::TableLayout::kFixedSize, side_margin)
+-      .AddColumn(views::LayoutAlignment::kCenter,
+-                 views::LayoutAlignment::kCenter,
+-                 views::TableLayout::kFixedSize,
+-                 views::TableLayout::ColumnSize::kUsePreferred, 0, 0)
+-      .AddPaddingColumn(views::TableLayout::kFixedSize, icon_label_spacing)
+-      .AddColumn(views::LayoutAlignment::kStretch,
+-                 views::LayoutAlignment::kStart, 1.0f,
+-                 views::TableLayout::ColumnSize::kUsePreferred, 0, 0)
+-      .AddPaddingColumn(views::TableLayout::kFixedSize, side_margin)
+-      // Add padding before the title so that it's in the same position as when
+-      // this control is a hover button.
+-      .AddPaddingRow(views::TableLayout::kFixedSize, hover_button_insets.top())
+-      .AddRows(1, views::TableLayout::kFixedSize);
++class SecurityInformationView::WidthAwareLabel : public views::StyledLabel {
++  METADATA_HEADER(WidthAwareLabel, views::StyledLabel)
+ 
++ public:
++  void SetPreferredWidth(int width) {
++    if (preferred_width_ == width) {
++      return;
++    }
++    preferred_width_ = width;
++    PreferredSizeChanged();
++  }
++
++ private:
++  gfx::Size CalculatePreferredSize(
++      const views::SizeBounds& available_size) const override {
++    // Keep the initial preferred width for unbounded measurement. When the
++    // table allocates a column, measure the text at that width so wrapping
++    // and the row height agree.
++    return StyledLabel::CalculatePreferredSize(
++        available_size.width().is_bounded()
++            ? available_size
++            : views::SizeBounds(preferred_width_, available_size.height()));
++  }
++
++  int preferred_width_ = 0;
++};
++
++BEGIN_METADATA(SecurityInformationView, WidthAwareLabel)
++END_METADATA
++
++SecurityInformationView::SecurityInformationView(int side_margin)
++    : side_margin_(side_margin) {
+   icon_ = AddChildView(std::make_unique<NonAccessibleImageView>());
+ 
+-  security_summary_label_ =
+-      AddChildView(std::make_unique<views::StyledLabel>());
+-  // TODO(olesiamarukhno): Check padding between summary and description
+-  // labels after more UI is implemented.
+-  security_summary_label_->SetTextContext(
+-      views::style::CONTEXT_DIALOG_BODY_TEXT);
++  security_summary_label_ = AddChildView(std::make_unique<WidthAwareLabel>());
++  security_summary_label_->SetTextContext(views::style::CONTEXT_DIALOG_BODY_TEXT);
+   security_summary_label_->SetID(
+       PageInfoViewFactory::VIEW_ID_PAGE_INFO_SECURITY_SUMMARY_LABEL);
+   security_summary_label_->SetDefaultEnabledColorId(kColorPageInfoForeground);
+-  // The label defaults to a single line, which would force the dialog wider;
+-  // instead give it a width that's the minimum we want it to have.  Then the
+-  // TableLayout will stretch it back out into any additional space available.
+-  min_label_width_ =
+-      PageInfoViewFactory::kMinBubbleWidth - side_margin * 2 -
+-      PageInfoViewFactory::GetConnectionSecureIcon().Size().width() -
+-      icon_label_spacing;
+-  security_summary_label_->SizeToFit(min_label_width_);
+ 
+-  auto start_secondary_row = [=, this]() {
+-    layout->AddRows(1, views::TableLayout::kFixedSize);
+-    AddChildView(std::make_unique<views::View>());  // Skipping the icon column.
+-  };
+-
+-  start_secondary_row();
+-  security_details_label_ =
+-      AddChildView(std::make_unique<views::StyledLabel>());
++  // Secondary rows leave the icon column empty.
++  AddChildView(std::make_unique<views::View>());
++  security_details_label_ = AddChildView(std::make_unique<WidthAwareLabel>());
+   security_details_label_->SetID(
+       PageInfoViewFactory::VIEW_ID_PAGE_INFO_SECURITY_DETAILS_LABEL);
+   security_details_label_->SetDefaultTextStyle(views::style::STYLE_BODY_4);
+   security_details_label_->SetDefaultEnabledColorId(
+       kColorPageInfoSubtitleForeground);
+-  security_details_label_->SizeToFit(min_label_width_);
+ 
+-  start_secondary_row();
++  AddChildView(std::make_unique<views::View>());
+   reset_decisions_label_container_ =
+       AddChildView(std::make_unique<views::View>());
+   reset_decisions_label_container_->SetLayoutManager(
+       std::make_unique<views::BoxLayout>(
+           views::BoxLayout::Orientation::kHorizontal));
+ 
+-  start_secondary_row();
++  AddChildView(std::make_unique<views::View>());
+   password_reuse_button_container_ =
+       AddChildView(std::make_unique<views::View>());
+ 
+-  const int end_padding =
+-      layout_provider->GetDistanceMetric(views::DISTANCE_CONTROL_LIST_VERTICAL);
+-  layout->AddPaddingRow(views::TableLayout::kFixedSize, end_padding);
++  UpdateLayout();
+ }
+ 
+ SecurityInformationView::~SecurityInformationView() = default;
+ 
++void SecurityInformationView::UsePopoverRowStyle() {
++  if (uses_popover_row_style_) {
++    return;
++  }
++  uses_popover_row_style_ = true;
++  security_summary_label_->SetDefaultTextStyle(views::style::STYLE_BODY_3_MEDIUM);
++  UpdateLayout();
++}
++
+ void SecurityInformationView::SetIcon(const ui::ImageModel& image_icon) {
+   icon_->SetImage(image_icon);
+ }
+@@ -109,7 +104,8 @@ void SecurityInformationView::SetIcon(co
+ void SecurityInformationView::SetSummary(const std::u16string& summary_text,
+                                          int text_style) {
+   security_summary_label_->SetText(summary_text);
+-  security_summary_label_->SetDefaultTextStyle(text_style);
++  security_summary_label_->SetDefaultTextStyle(
++      uses_popover_row_style_ ? views::style::STYLE_BODY_3_MEDIUM : text_style);
+ }
+ 
+ void SecurityInformationView::SetDetailsWithLearnMore(
+@@ -265,9 +261,48 @@ void SecurityInformationView::AddPasswor
+   InvalidateLayout();
+ }
+ 
++void SecurityInformationView::UpdateLayout() {
++  auto* layout_provider = ChromeLayoutProvider::Get();
++  const auto row_insets = layout_provider->GetInsetsMetric(
++      ChromeInsetsMetric::INSETS_PAGE_INFO_HOVER_BUTTON);
++  const int side_margin =
++      uses_popover_row_style_ ? row_insets.left() : side_margin_;
++  const int icon_label_spacing =
++      uses_popover_row_style_
++          ? layout_provider->GetDistanceMetric(
++                DISTANCE_RICH_HOVER_BUTTON_ICON_HORIZONTAL)
++          : layout_provider->GetDistanceMetric(
++                views::DISTANCE_RELATED_LABEL_HORIZONTAL);
++  SetLayoutManager(std::make_unique<views::TableLayout>())
++      ->AddPaddingColumn(views::TableLayout::kFixedSize, side_margin)
++      .AddColumn(views::LayoutAlignment::kCenter,
++                 views::LayoutAlignment::kCenter,
++                 views::TableLayout::kFixedSize,
++                 views::TableLayout::ColumnSize::kUsePreferred, 0, 0)
++      .AddPaddingColumn(views::TableLayout::kFixedSize, icon_label_spacing)
++      .AddColumn(views::LayoutAlignment::kStretch,
++                 views::LayoutAlignment::kStart, 1.0f,
++                 views::TableLayout::ColumnSize::kUsePreferred, 0, 0)
++      .AddPaddingColumn(views::TableLayout::kFixedSize, side_margin)
++      .AddPaddingRow(views::TableLayout::kFixedSize, row_insets.top())
++      .AddRows(4, views::TableLayout::kFixedSize)
++      .AddPaddingRow(
++          views::TableLayout::kFixedSize,
++          layout_provider->GetDistanceMetric(
++              views::DISTANCE_CONTROL_LIST_VERTICAL));
++
++  min_label_width_ =
++      PageInfoViewFactory::kMinBubbleWidth - side_margin * 2 -
++      PageInfoViewFactory::GetConnectionSecureIcon().Size().width() -
++      icon_label_spacing;
++  AdjustContentWidth(
++      std::max(min_label_width_,
++               password_reuse_button_container_->GetPreferredSize().width()));
++}
++
+ void SecurityInformationView::AdjustContentWidth(int w) {
+-  security_summary_label_->SizeToFit(w);
+-  security_details_label_->SizeToFit(w);
++  security_summary_label_->SetPreferredWidth(w);
++  security_details_label_->SetPreferredWidth(w);
+ }
+ 
+ BEGIN_METADATA(SecurityInformationView)
+--- a/chrome/browser/ui/views/page_info/security_information_view.h
++++ b/chrome/browser/ui/views/page_info/security_information_view.h
+@@ -11,10 +11,6 @@
+ #include "ui/views/controls/link.h"
+ #include "ui/views/view.h"
+ 
+-namespace views {
+-class StyledLabel;
+-}  // namespace views
+-
+ class NonAccessibleImageView;
+ 
+ // View that represents the header of the page info bubble. The header shows the
+@@ -28,6 +24,8 @@ class SecurityInformationView : public v
+   SecurityInformationView& operator=(const SecurityInformationView&) = delete;
+   ~SecurityInformationView() override;
+ 
++  void UsePopoverRowStyle();
++
+   // Sets the icon representing security state for the current page.
+   void SetIcon(const ui::ImageModel& image_icon);
+ 
+@@ -57,8 +55,13 @@ class SecurityInformationView : public v
+       views::Button::PressedCallback password_reuse_callback);
+ 
+  private:
++  class WidthAwareLabel;
++
++  void UpdateLayout();
+   void AdjustContentWidth(int w);
+ 
++  const int side_margin_;
++  bool uses_popover_row_style_ = false;
+   int min_label_width_ = 0;
+ 
+   // The icon that represents the security state for this site. Used for page
+@@ -67,12 +70,12 @@ class SecurityInformationView : public v
+ 
+   // The label that displays the security summary for this site. Used for page
+   // info v2 only.
+-  raw_ptr<views::StyledLabel> security_summary_label_ = nullptr;
++  raw_ptr<WidthAwareLabel> security_summary_label_ = nullptr;
+ 
+   // The label that displays the status of the identity check for this site.
+   // Includes a link to open the Chrome Help Center article about connection
+   // security.
+-  raw_ptr<views::StyledLabel> security_details_label_ = nullptr;
++  raw_ptr<WidthAwareLabel> security_details_label_ = nullptr;
+ 
+   // A container for the styled label with a link for resetting cert decisions.
+   // This is only shown sometimes, so we use a container to keep track of
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -2045,6 +2045,7 @@ if (is_mac) {
+       "//chrome/browser/ui/navigator",
+       "//chrome/browser/ui/tabs",
+       "//chrome/browser/ui/views/bookmarks",
++      "//chrome/browser/ui/views/controls",
+       "//chrome/browser/ui/views/helium:frame_corner_radius",
+       "//chrome/browser/ui/views/helium:fullscreen_window_controls_mac",
+       "//chrome/browser/ui/views/helium:native_frame_materials",
+--- a/chrome/browser/ui/views/page_info/page_info_main_view.cc
++++ b/chrome/browser/ui/views/page_info/page_info_main_view.cc
+@@ -136,6 +136,12 @@ PageInfoMainView::ContainerView::Contain
+   SetLayoutManager(std::move(box_layout));
+ }
+ 
++void PageInfoMainView::ContainerView::RemoveExtraRightMargin() {
++  auto* layout = static_cast<views::BoxLayout*>(GetLayoutManager());
++  gfx::Insets insets = layout->inside_border_insets();
++  layout->set_inside_border_insets(insets.set_right(0));
++}
++
+ void PageInfoMainView::ContainerView::Update() {
+   PreferredSizeChanged();
+ }
+--- a/chrome/browser/ui/views/page_info/page_info_main_view.h
++++ b/chrome/browser/ui/views/page_info/page_info_main_view.h
+@@ -62,6 +62,8 @@ class PageInfoMainView : public views::V
+    public:
+     explicit ContainerView(bool set_extra_right_margin = true);
+ 
++    void RemoveExtraRightMargin();
++
+     // Notifies that preferred size changed and updates the layout.
+     void Update();
+   };
+--- a/chrome/browser/ui/views/page_info/page_info_view_factory.cc
++++ b/chrome/browser/ui/views/page_info/page_info_view_factory.cc
+@@ -223,6 +223,12 @@ std::unique_ptr<views::View> PageInfoVie
+   ChromeLayoutProvider* layout_provider = ChromeLayoutProvider::Get();
+   const int icon_label_spacing = layout_provider->GetDistanceMetric(
+       views::DISTANCE_RELATED_LABEL_HORIZONTAL);
++  // In the popover, align the title column with body rows that have icons.
++  const int title_leading_margin =
++      use_popover_subpage_spacing_
++          ? layout_provider->GetDistanceMetric(
++                DISTANCE_RICH_HOVER_BUTTON_ICON_HORIZONTAL)
++          : icon_label_spacing;
+   const int side_margin =
+       layout_provider->GetInsetsMetric(views::INSETS_DIALOG).left();
+   const int bottom_margin =
+@@ -259,8 +265,10 @@ std::unique_ptr<views::View> PageInfoVie
+                           })),
+                   std::move(label_wrapper)
+                       .SetOrientation(views::LayoutOrientation::kVertical)
+-                      .SetProperty(views::kMarginsKey,
+-                                   gfx::Insets::VH(0, icon_label_spacing))
++                      .SetProperty(
++                          views::kMarginsKey,
++                          gfx::Insets::TLBR(0, title_leading_margin, 0,
++                                            icon_label_spacing))
+                       .SetProperty(views::kFlexBehaviorKey,
+                                    views::FlexSpecification(
+                                        views::LayoutOrientation::kHorizontal,
+--- a/chrome/browser/ui/views/page_info/page_info_view_factory.h
++++ b/chrome/browser/ui/views/page_info/page_info_view_factory.h
+@@ -134,6 +134,10 @@ class PageInfoViewFactory {
+   // Returns the image model for the vector icon.
+   static const ui::ImageModel GetImageModel(const gfx::VectorIcon& icon);
+ 
++  void set_use_popover_subpage_spacing(bool use_popover_subpage_spacing) {
++    use_popover_subpage_spacing_ = use_popover_subpage_spacing;
++  }
++
+   [[nodiscard]] std::unique_ptr<views::View> CreatePageView(
+       std::u16string title,
+       std::unique_ptr<views::View> content_view);
+@@ -166,6 +170,7 @@ class PageInfoViewFactory {
+   raw_ptr<PageInfoNavigationHandler> navigation_handler_;
+   const bool allow_extended_site_info_;
+   base::RepeatingClosure open_extensions_menu_callback_;
++  bool use_popover_subpage_spacing_ = false;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PAGE_INFO_VIEW_FACTORY_H_
