@@ -1,0 +1,85 @@
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -324,6 +324,8 @@
+       view->GetWidget()->GetName() == "Floating sidebar controls";
+   const bool selection_role = role == NativeGlassColorRole::kSelection ||
+                               role == NativeGlassColorRole::kSelectedLabel;
++  const bool sidebar_hover_role =
++      floating_sidebar && role == NativeGlassColorRole::kHover;
+   if (floating_sidebar || selection_role) {
+     auto* browser = BrowserView::GetBrowserViewForNativeWindow(
+         view->GetWidget()->GetNativeWindow());
+@@ -339,8 +341,8 @@
+       const bool light =
+           [match isEqual:NSAppearanceNameAqua] ||
+           [match isEqual:NSAppearanceNameAccessibilityHighContrastAqua];
+-      const bool native_light_selection =
+-          selection_role && light &&
++      const bool native_light_sidebar_color =
++          (selection_role || sidebar_hover_role) && light &&
+           key.frame_style == ui::ColorProviderKey::FrameStyle::kSystem &&
+           !key.custom_theme && !key.app_controller;
+       const bool themed_sidebar =
+@@ -348,7 +350,7 @@
+           key.contrast_mode != ui::ColorProviderKey::ContrastMode::kHigh &&
+           !ThemeServiceFactory::GetForProfile(browser->GetProfile())
+                ->UsingDeviceTheme();
+-      if ((native_light_selection || themed_sidebar) &&
++      if ((native_light_sidebar_color || themed_sidebar) &&
+           key.forced_colors == ui::ColorProviderKey::ForcedColors::kNone) {
+         key.color_mode = [match isEqual:NSAppearanceNameDarkAqua]
+                              ? ui::ColorProviderKey::ColorMode::kDark
+--- a/chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc
++++ b/chrome/browser/ui/views/tabs/common/vertical_tab_style_views.cc
+@@ -9,6 +9,7 @@
+ 
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/themes/theme_properties.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/frame/browser_frame_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+@@ -18,6 +19,7 @@
+ #include "third_party/skia/include/core/SkPath.h"
+ #include "third_party/skia/include/core/SkRRect.h"
+ #include "ui/base/theme_provider.h"
++#include "ui/color/color_provider.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/gfx/color_utils.h"
+ #include "ui/gfx/geometry/skia_conversions.h"
+@@ -297,20 +299,24 @@
+ }
+ 
+ TabStyle::TabColors VerticalTabStyleViews::CalculateTargetColors() const {
++  const auto selection_state = GetSelectionState();
++  const auto* view = delegate_->GetView();
++  const auto* widget = view->GetWidget();
++  const auto* color_provider = view->GetColorProvider();
+   auto colors = tab_style()->CalculateTargetColors(
+-      GetSelectionState(), IsApparentlyActive(), delegate_->IsHovering(),
+-      delegate_->GetView()->GetWidget()
+-          ? delegate_->GetView()->GetWidget()->ShouldPaintAsActive()
+-          : true,
+-      delegate_->GetView()->GetColorProvider());
+-  if (helium::IsNativeGlassControl(delegate_->GetView())) {
+-    const bool selected = GetSelectionState() != TabStyle::TabSelectionState::kInactive;
+-    colors.foreground_color = *helium::NativeGlassColor(
+-        delegate_->GetView(), selected ? helium::NativeGlassColorRole::kSelectedLabel
+-                                      : helium::NativeGlassColorRole::kLabel);
+-    colors.background_color = GetCurrentTabBackgroundColor(GetSelectionState());
++      selection_state, IsApparentlyActive(), delegate_->IsHovering(),
++      widget ? widget->ShouldPaintAsActive() : true, color_provider);
++  if (helium::IsNativeGlassControl(view)) {
++    const auto label_role = selection_state == TabStyle::TabSelectionState::kInactive
++                                ? helium::NativeGlassColorRole::kLabel
++                                : helium::NativeGlassColorRole::kSelectedLabel;
++    colors.foreground_color = *helium::NativeGlassColor(view, label_role);
++    colors.background_color = GetCurrentTabBackgroundColor(selection_state);
+     colors.focus_ring_color = ui::kColorFocusableBorderFocused;
+     colors.close_button_focus_ring_color = ui::kColorFocusableBorderFocused;
++  } else if (selection_state == TabStyle::TabSelectionState::kInactive &&
++             color_provider) {
++    colors.foreground_color = color_provider->GetColor(kColorToolbarText);
+   }
+   return colors;
+ }
