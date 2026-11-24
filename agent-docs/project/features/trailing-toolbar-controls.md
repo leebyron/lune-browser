@@ -20,6 +20,11 @@ AppKit provides the glass, pointer, and edge placement. Center the pointer
 under the Site Information button and offset the positioning rectangle
 down 1 pt. The popover hosts the existing pages and actions.
 
+Keep the floating toolbar visible while the Site Information popover is open,
+including when the pointer moves into the popover below the hover area. The
+popover holds the owning window's toolbar reveal until dismissal, then the
+selected hover mode resumes. [Toolbar retention validation](../builds/2026-11-24-site-info-toolbar-retention.json)
+
 Use SF Symbols for popover icons and omit trailing external-link glyphs.
 Use a 344 pt minimum content width for website information so the English
 connection warning fits on one line. Use the same typography and icon

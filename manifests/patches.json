@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "503fde20caa966a4c7bfe58fbaad0f754233c1f4",
+    "commit": "181d8e250e4a4dd07f328e9c47671f2819131afc",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1195,8 +1195,13 @@
       {
         "path": "patches/helium/ui/tab-grouping-actions.patch",
         "sha256": "80bdbf8818bf16312a0902f7ba5e404b48c241d3b8112048e8d4ab0d82022486"
+      },
+      {
+        "path": "patches/helium/ui/site-info-toolbar-retention.patch",
+        "sha256": "58a3502a867bda3bd887da439114c9a75df8a4b949f1f1cc6a7edde4c16b337d"
       }
-    ]
+    ],
+    "ref": "refs/tags/inputs/site-info-toolbar-retention-1/macos"
   },
   "pull_requests": [
     {
@@ -3881,6 +3886,22 @@
       "adaptation": "Share new-group dispatch across the tab menu, command palette and Cmd-G, and show only eligible existing groups in add and move submenus.",
       "commits": [
         "503fde20caa966a4c7bfe58fbaad0f754233c1f4"
+      ]
+    },
+    {
+      "id": "site-info-toolbar-retention",
+      "depends_on": [
+        "site-info-popover",
+        "chrome-menu-reveal-retention"
+      ],
+      "patches": [
+        "patches/helium/ui/site-info-toolbar-retention.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep the floating toolbar visible while the native Site Information popover is open.",
+      "adaptation": "Acquire the window-local top toolbar reveal hold before presenting the popover and release it when the native popover closes.",
+      "commits": [
+        "181d8e250e4a4dd07f328e9c47671f2819131afc"
       ]
     }
   ],

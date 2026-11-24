@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-24",
+  "scope": "Main browser input adoption",
+  "chromium": "159.0.8154.13",
+  "base_project": "9dfa8abb60a8b65f81388e128ebdd20f546ca0c9",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "base_macos": "503fde20caa966a4c7bfe58fbaad0f754233c1f4",
+  "macos": "181d8e250e4a4dd07f328e9c47671f2819131afc",
+  "patch": "patches/helium/ui/site-info-toolbar-retention.patch",
+  "patch_sha256": "58a3502a867bda3bd887da439114c9a75df8a4b949f1f1cc6a7edde4c16b337d",
+  "source_parity": {
+    "between_architectures": {
+      "files": 572652,
+      "symlinks": 130
+    },
+    "differs_from_base_only_in": {
+      "chrome/browser/ui/views/frame/browser_frame_view_mac.mm": "758d9570874f2eaef93aafda9ad1ad7614c881693b02a29b467d42846070667d"
+    },
+    "both_match_quilt_preview": true
+  },
+  "component_lint_passed": true,
+  "repository_tests": {
+    "run": 108,
+    "skipped": 1
+  },
+  "native_baseline": {
+    "framework_sha256": "abef0b729321962dfcd46efd07aec81714fff37a271faa1847e79df01195f213",
+    "observation": "The native popover stayed visible after the pointer moved into it below the retention area. The toolbar disappeared in both hover modes."
+  },
+  "builds": {
+    "arm64": {
+      "execution": "Native Apple silicon",
+      "strict_patches_applied": 688,
+      "prepared_report_sha256": "b1eaf4fc96172d2a28005e3830e5d4fed67176fc2f0e9e1b7694786d02f3c703",
+      "build_duration_seconds": 189.12323,
+      "framework_sha256": "292b419936704f91f90758084db7fee8e3cb00d62a81014ed51fa73bfa74d410",
+      "smoke_passed": true,
+      "smoke_report_sha256": "ca947ed5829678b8d215fdc0231950e4d5890131579980b742737d7ef2cce6f7",
+      "native_cases_passed": [
+        "edge/escape",
+        "edge/outside",
+        "edge/toggle",
+        "sidebar/escape"
+      ],
+      "native_report_sha256": "ac523fae88e02485f1c6422b5196b4bd1108b50f23dbbadcff4bdf4b2b0a6498"
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "strict_patches_applied": 688,
+      "prepared_report_sha256": "be5d5a4899742a60da99828d41df2e5797f768a7067f409d293d0de489789767",
+      "build_duration_seconds": 227.061905,
+      "framework_sha256": "99d7d417823e4d95376e3d6e43590a1b11bd4d53175edbf1e2ae69f862465f7f",
+      "smoke_passed": true,
+      "smoke_report_sha256": "a2d4d178a949a22244c6cc18a667e9f0d55bf4f79194545ea2203dfcab3d4ae8",
+      "native_cases_passed": [
+        "edge/escape",
+        "edge/outside",
+        "edge/toggle",
+        "sidebar/escape"
+      ],
+      "native_report_sha256": "6c1daaf4b9ca0b5ffdc346d59fb47858e02864bfa090585665c7b5c6565b4636"
+    }
+  },
+  "validated_macos_commit": "8586e60d37f03ae63359036e307870804dccb97d",
+  "validated_and_signed_macos_tree": "64a230c5b480dc93070c894598bbb119d47805f3"
+}
