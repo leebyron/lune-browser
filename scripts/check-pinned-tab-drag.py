@@ -71,7 +71,10 @@ def main():
     empty = block((common / 'pinned_tab_container_view_vertical_layout.cc').read_text(),
                   'if (children_on_row == 0)')
     template = (root / 'tests/native/tab_drop_placeholder.cc').read_text()
-    fixture = template.replace('// PRODUCTION_PAINT', paint).replace(
+    materials = source / 'chrome/browser/ui/views/helium/native_frame_materials.cc'
+    color = block(materials.read_text(), 'SkColor ChromeDropPlaceholderColor(')
+    fixture = template.replace('// PRODUCTION_DROP_COLOR', color).replace(
+        '// PRODUCTION_PAINT', paint).replace(
         '// PRODUCTION_EMPTY_LAYOUT', empty).replace(
         '// PRODUCTION_ENTRY_POLICY', policy)
     results = {}
@@ -112,6 +115,7 @@ def main():
                   'compile production paint, entry-policy and empty-layout blocks with '
                   'lightweight Views/Canvas stubs; native pointer delivery is not simulated.'),
     }
+    report['production_sha256'][materials.name] = sha(materials)
     if args.morph:
         report['production_sha256'].update({
             name: sha(common / name)

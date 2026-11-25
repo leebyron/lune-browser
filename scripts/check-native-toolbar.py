@@ -20,9 +20,16 @@ start = source.index('\n    switch (role) {')
 end = source.index('    NSColor* color =', start)
 selector = 'NSColor* SelectColor(NativeGlassColorRole role) {\nNSColor* semantic=NSColor.labelColor;\n' + source[start:end] + 'return semantic;\n}\n'
 start = source.index('gfx::ImageSkia NativeToolbarSymbol(')
-end = source.index('\n}  // namespace helium', start)
-symbol = ('gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor);\n'
-          'gfx::ImageSkia NativeToolbarSymbolForName(const char*, int, SkColor);\n' + source[start:end])
+end = source.index('\nSkColor NativeTabCaptureColor(', start)
+constants_start = source.index('constexpr int kNativeDownloadToolbarSymbolPointSize')
+constants_end = source.index('gfx::ImageSkia RenderToolbarSymbol(', constants_start)
+render_start = source.rindex('gfx::ImageSkia RenderToolbarSymbol(')
+render_start = source.rindex('namespace {', 0, render_start)
+render_end = source.index('\n}  // namespace helium', render_start)
+symbol = (source[constants_start:constants_end] +
+          'gfx::ImageSkia NativeToolbarSymbolForIcon(const char*, int, SkColor);\n'
+          'gfx::ImageSkia NativeToolbarSymbolForName(const char*, int, SkColor, int = 16);\n' +
+          source[render_start:render_end] + '\n' + source[start:end])
 symbol_constants = (args.source / 'chrome/browser/ui/helium/helium_command_symbols.h').read_text()
 symbol_constants += '\nnamespace command_symbols = helium::command_symbols;\n'
 action_source = (root / 'native_frame_materials.cc').read_text()
@@ -33,15 +40,24 @@ action_symbols = ('enum { kActionDevTools, kActionTaskManager, '
                   'kActionSidePanelShowCustomizeChromeToolbar };\n' +
                   action_source[start:end])
 frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
-start = frame.index('@interface HeliumHeaderSymbolButton : NSButton')
-button_end = frame.index('\n@end', frame.index('@implementation HeliumHeaderSymbolButton', start))
-header_button = frame[start:button_end + len('\n@end')] + '\n'
+start = frame.index('constexpr CGFloat kToolbarHoverDiameter')
+end = frame.index('\n}  // namespace', start)
+highlight_helpers = frame[start:end] + '\n'
+start = frame.index('@interface HeliumGlassToolbarButton')
+end = frame.index('\n@end', frame.index('@implementation HeliumGlassToolbarButton', start))
+glass_button = frame[start:end + len('\n@end')] + '\n'
+start = frame.index('@interface HeliumHeaderSymbolButton')
+end = frame.index('\n@end', frame.index('@implementation HeliumHeaderSymbolButton', start))
+header_button = highlight_helpers + glass_button + frame[start:end + len('\n@end')] + '\n'
+start = frame.index('static NSRect HeliumAddressEditingFrame(')
+end = frame.index('\n}', start) + 2
+address_editing_frame = frame[start:end] + '\n'
 start = frame.index('  NSRect address_frame = _addressContainer.frame;')
 end = frame.index('  self.contentAware =', start)
-address_layout = (
+address_layout = address_editing_frame + (
     'void ApplyAddressLayout(NSView* _controls, NSView* _addressContainer, '
-    'NSTextField* _address, bool show_reload, bool editing) {\nconst CGFloat outset = 0;\n' +
-    frame[start:end].replace('[self isEditing]', 'editing') + '}\n')
+    'NSTextField* _address, bool show_reload, bool editing, CGFloat outset = 0) {\n' +
+    frame[start:end].replace('  [self layoutScope];\n', '') + '}\n')
 avatar_source = (args.source / 'chrome/browser/ui/views/profiles/avatar_toolbar_button.cc').read_text()
 start = avatar_source.index('void AvatarToolbarButton::AnimationProgressed(')
 avatar_callbacks = avatar_source[start:avatar_source.index('\nstd::optional<SkColor>', start)]
@@ -125,6 +141,8 @@ int main() {
   NSView* controls = [[NSView alloc] initWithFrame:NSMakeRect(0,0,480,36)];
   NSView* container = [[NSView alloc] initWithFrame:NSMakeRect(40,8,400,20)];
   NSTextField* address = [[NSTextField alloc] initWithFrame:container.bounds];
+  [controls addSubview:container];
+  [container addSubview:address];
   address.font = [NSFont systemFontOfSize:13];
   address.stringValue = @"example.com";
   ApplyAddressLayout(controls, container, address, true, false);
@@ -138,10 +156,13 @@ int main() {
   assert(NSWidth(address.frame) == 432);
   address.stringValue = @"example.com";
   ApplyAddressLayout(controls, container, address, false, true);
-  assert(NSMinX(container.frame) == 40 && NSWidth(address.frame) == 432);
-  ApplyAddressLayout(controls, container, address, true, true);
-  assert(NSWidth(container.frame) == 400 && NSWidth(address.frame) == 400);
-  puts("PASS: Reload space reclaimed for long addresses/editing; short center and leading inset stable");
+  assert(NSMinX(container.frame) == 38 && NSMinX(address.frame) == 2 &&
+         NSWidth(address.frame) == 430);
+  controls.frame = NSMakeRect(0,0,504,36);
+  ApplyAddressLayout(controls, container, address, false, true, 12);
+  const NSRect expanded = [controls convertRect:address.frame fromView:container];
+  assert(NSMinX(expanded) == 52 && NSMaxX(expanded) == 494);
+  puts("PASS: aligned editing column, fixed scroll inset, idle centering and expanded trailing inset");
   HeliumHeaderSymbolButton* button = [HeliumHeaderSymbolButton
       buttonWithImage:[NSImage imageWithSystemSymbolName:@"arrow.clockwise"
           accessibilityDescription:nil] target:nil action:nil];
@@ -223,6 +244,13 @@ int main() {
   [window close];
   button.onContextMenu = nil;
   puts("PASS: short click, held menu without click, drag-out, disable, detach, reuse, and unavailable-menu click fallback");
+  const NSRect left = ToolbarHighlightRect(NSMakeRect(0, 0, 36, 36));
+  const NSRect right = ToolbarHighlightRect(NSMakeRect(36, 0, 36, 36));
+  assert(NSEqualRects(left, NSMakeRect(3, 3, 30, 30)));
+  assert(NSEqualRects(right, NSMakeRect(39, 3, 30, 30)));
+  assert(NSEqualRects(ToolbarHighlightRect(NSMakeRect(0, 0, 32, 32)),
+                      NSMakeRect(1, 1, 30, 30)));
+  puts("PASS: grouped highlights stay centered in each toolbar slot");
   NSImage* surface = [[NSImage alloc] initWithSize:button.frame.size];
   auto draw = [&] {
     [surface lockFocus];
@@ -234,19 +262,19 @@ int main() {
     [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:seconds]];
   };
   draw();
-  [button setSymbolHovered:YES];
+  [button setHovered:YES];
   wait(.04);
-  double middle = [[button valueForKey:@"symbolHoverAmount"] doubleValue];
+  double middle = [[button valueForKey:@"hoverAmount"] doubleValue];
   assert(middle > 0 && middle < 1);
   // Reversing while in flight must begin at the current amount.
-  [button setSymbolHovered:NO];
-  double reversed = [[button valueForKey:@"symbolHoverAmount"] doubleValue];
+  [button setHovered:NO];
+  double reversed = [[button valueForKey:@"hoverAmount"] doubleValue];
   assert(reversed >= middle && reversed < 1);
   wait(.13);
-  assert([[button valueForKey:@"symbolHoverAmount"] doubleValue] == 0);
-  [button setSymbolHovered:YES];
+  assert([[button valueForKey:@"hoverAmount"] doubleValue] == 0);
+  [button setHovered:YES];
   wait(.13);
-  assert([[button valueForKey:@"symbolHoverAmount"] doubleValue] == 1);
+  assert([[button valueForKey:@"hoverAmount"] doubleValue] == 1);
   auto sameColor = [](NSColor* a, NSColor* b) {
     b = [b colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
     printf("actual %.4f %.4f %.4f %.4f expected %.4f %.4f %.4f %.4f\n",

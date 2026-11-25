@@ -18,8 +18,16 @@ struct Canvas { int draws=0; template<class T> void DrawRoundRect(Rect,int,T){++
 namespace cc {struct PaintFlags {void setAntiAlias(bool){} void setColor(int){} };}
 namespace ui {constexpr int kColorSysOnSurface=0;}
 struct ColorProvider {int GetColor(int){return 0;}};
-struct HostView {ColorProvider colors; ColorProvider* GetColorProvider(){return &colors;}};
-int SkColorSetA(int,int){return 0;}
+struct HostView {
+  mutable ColorProvider colors;
+  ColorProvider* GetColorProvider() const {return &colors;}
+};
+using SkColor = int;
+namespace views {using View = HostView;}
+int SkColorSetA(int color, int alpha){(void)color; return alpha;}
+namespace helium {
+// PRODUCTION_DROP_COLOR
+}
 enum class LayoutConstant {kVerticalTabCornerRadius,kTabHorizontalPadding};
 int GetLayoutConstant(LayoutConstant c){return c==LayoutConstant::kTabHorizontalPadding?7:6;}
 class DraggedTabsContainer {
@@ -58,6 +66,7 @@ views::ProposedLayout Layout(bool eligible) {
   return layouts;
 }
 int main(){
+  assert(helium::ChromeDropPlaceholderColor(HostView{}) == 24);
   PinnedTabContainerView policy;policy.eligible=true;
   assert(!policy.HasEmptyDropEntry());
   policy.handler.dragging=true;assert(policy.HasEmptyDropEntry());

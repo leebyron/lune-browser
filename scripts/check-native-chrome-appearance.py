@@ -16,8 +16,11 @@ parser.add_argument('--arch', choices=('arm64', 'x86_64'), required=True)
 args = parser.parse_args()
 frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm').read_text()
 start = frame.index('@interface HeliumChromeHitRegion')
-end = frame.index('// An overlay hairline', start)
-surface = frame[start:end]
+end = frame.index('\n@end', frame.index('@implementation HeliumGlassSurface', start))
+surface = frame[start:end + len('\n@end')]
+start = frame.index('@interface HeliumSidebarSurface', end)
+end = frame.index('\n@end', frame.index('@implementation HeliumSidebarSurface', start))
+surface += '\n' + frame[start:end + len('\n@end')]
 colors = (args.source / 'chrome/browser/ui/views/helium/native_frame_materials_mac.mm').read_text()
 edge = colors[colors.index('@interface HeliumFallbackSurfaceEdge'):colors.index('namespace helium {')]
 edge_helper = colors[colors.index('void AddNativeFallbackSurfaceEdge'):colors.index('namespace {', colors.index('void AddNativeFallbackSurfaceEdge'))]
@@ -167,6 +170,8 @@ int main() {
   // Mounted overlay policy stays fixed while glass strength is calibrated.
   assert(fabs(GetFrameMaterialThemeTintOverlayColor(0xffe7ede3, false).alphaComponent - .8) < .0001);
   assert(fabs(GetFrameMaterialThemeTintOverlayColor(0xff10354f, true).alphaComponent - .55) < .0001);
+  auto* theme = ThemeServiceFactory::GetForProfile(nullptr);
+  theme->device = true;
   NSColor* sidebar_tint = NativeSidebarGlassTintColor(&browser);
   assert(fabs(sidebar_tint.alphaComponent - .3) < .0001);
   auto check_tone = [](NSColor* tint, SkColor original, bool dark) {
@@ -191,11 +196,14 @@ int main() {
   NSColor* dark_sidebar_tint = NativeSidebarGlassTintColor(&browser);
   assert(fabs(dark_sidebar_tint.alphaComponent - .4) < .0001);
   check_tone(dark_sidebar_tint, 0xff10354f, true);
-  // Custom palettes retain hue/saturation through the tone adjustment.
+  // Custom palettes retain their color and use a stronger tint.
+  theme->device = false;
   colors.background = 0x80123456;
   NSColor* custom_sidebar_tint = NativeSidebarGlassTintColor(&browser);
-  assert(fabs(custom_sidebar_tint.alphaComponent - .4) < .0001);
-  check_tone(custom_sidebar_tint, 0x80123456, true);
+  assert(fabs(custom_sidebar_tint.alphaComponent - .6) < .0001);
+  assert(fabs(custom_sidebar_tint.redComponent - 18.0/255) < .01);
+  assert(fabs(custom_sidebar_tint.greenComponent - 52.0/255) < .01);
+  assert(fabs(custom_sidebar_tint.blueComponent - 86.0/255) < .01);
   colors.background = 0xffe7ede3;
   browser.widget.key.color_mode = ui::ColorProviderKey::ColorMode::kLight;
   browser.widget.key.contrast_mode = ui::ColorProviderKey::ContrastMode::kHigh;

@@ -4,7 +4,7 @@ Issue: [#34](https://github.com/leebyron/lune-browser/issues/34).
 
 ## Behavior and implementation
 
-Cmd-L keeps the address text aligned with the completion titles when a URL exceeds the available width. The text retains its spacing beside Site Information and Reload while scrolling to either end.
+Cmd-L keeps the address text aligned with the completion titles when a URL exceeds the available width. The text retains its spacing beside the leading icon and at the trailing inset while scrolling to either end. The [focused capsule](floating-address-bar.md) reclaims Reload's space during editing.
 
 AppKit's normal 2 pt line-fragment padding belongs to the scrolling text, so clipping can consume it. The native address field now reserves that margin in its frame and removes the duplicate internal padding from its field editor. Short editing text keeps its existing position. The idle display retains native padding and centering. Shared field editors restore normal padding when used by another control.
 

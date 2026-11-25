@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "0544efa4936b561a3b98dbe12d287714cd9f5d7d",
+    "commit": "26c71335972db5cbc9918cb849e02b7a7a0ceb92",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1263,9 +1263,21 @@
       {
         "path": "patches/helium/ui/command-menu-shadow.patch",
         "sha256": "005c3daf72ecc91c59da8a0a0a847a5c521aff41ab1afe52f7cc2a2c7cb376c4"
+      },
+      {
+        "path": "patches/helium/ui/glass-toolbar-hover.patch",
+        "sha256": "1b74e9019a464f3d8891904ef195a630161d0a9544ed317fb86e118bdb30b51c"
+      },
+      {
+        "path": "patches/helium/ui/glass-toolbar-drag-reordering.patch",
+        "sha256": "c028e82cdee65fb8c4789a1164e2b8ec13f089f9e3354075b39d902ad9eadf5d"
+      },
+      {
+        "path": "patches/helium/ui/focused-address-capsule.patch",
+        "sha256": "2caa27225ab2972e60697c95461a8494de2e134d8722ac0b9b77d9cc10bdc434"
       }
     ],
-    "ref": "refs/tags/inputs/command-menu-shadow-1/macos"
+    "ref": "refs/tags/inputs/glass-toolbar-1/macos"
   },
   "pull_requests": [
     {
@@ -4215,6 +4227,54 @@
       "adaptation": "Set the rounded native shadow to 25% black, 64-point blur and a 32-point downward offset. Expand the translucent popup asymmetrically while preserving the visible panel geometry.",
       "commits": [
         "0544efa4936b561a3b98dbe12d287714cd9f5d7d"
+      ]
+    },
+    {
+      "id": "glass-toolbar-hover",
+      "depends_on": [
+        "native-toolbar-controls",
+        "sidebar-toggle-glass"
+      ],
+      "patches": [
+        "patches/helium/ui/glass-toolbar-hover.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match macOS hover treatment with stable floating toolbar slots.",
+      "adaptation": "Use AppKit glass feedback, fixed square slots, and intended visibility for sizing. Keep the sidebar toggle on its working glass surface and account for fixed launchers.",
+      "commits": [
+        "17acf1d7db9029de89dcf72e285b266c8ff796c2"
+      ]
+    },
+    {
+      "id": "glass-toolbar-drag-reordering",
+      "depends_on": [
+        "glass-toolbar-hover"
+      ],
+      "patches": [
+        "patches/helium/ui/glass-toolbar-drag-reordering.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep floating pinned actions and extensions reorderable throughout drag tracking.",
+      "adaptation": "Use logical drop slots and a drag-lifetime toolbar reveal hold. Share the sidebar drop color and keep the app menu outside the drop area.",
+      "commits": [
+        "9947f9d4c374002f796163c3129cc288dd9d8e8d"
+      ]
+    },
+    {
+      "id": "focused-address-capsule",
+      "depends_on": [
+        "glass-toolbar-hover",
+        "native-search-width",
+        "address-overflow-padding"
+      ],
+      "patches": [
+        "patches/helium/ui/focused-address-capsule.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Align the focused address text with suggestions and animate focus in both directions.",
+      "adaptation": "Give editing the full trailing inset and a passive leading icon. Use a 180 ms ease-out for centered icon scaling, control fades, and text motion.",
+      "commits": [
+        "26c71335972db5cbc9918cb849e02b7a7a0ceb92"
       ]
     }
   ],

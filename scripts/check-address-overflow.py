@@ -16,6 +16,11 @@ frame = (args.source / 'chrome/browser/ui/views/frame/browser_frame_view_mac.mm'
 start = frame.index('static NSRect HeliumAddressEditingFrame(')
 end = frame.index('// Keep the system focus indicator', start)
 production = frame[start:end]
+# The clipboard command uses Chromium services outside this AppKit fixture.
+if '- (void)copy:(id)sender' in production:
+    copy_start = production.index('- (void)copy:(id)sender')
+    copy_end = production.index('\n@end', copy_start)
+    production = production[:copy_start] + production[copy_end:]
 fixture = r'''
 #import <AppKit/AppKit.h>
 #include <algorithm>

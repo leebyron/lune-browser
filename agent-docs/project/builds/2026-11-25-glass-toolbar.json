@@ -1,0 +1,150 @@
+{
+  "date": "2026-11-25",
+  "scope": "Owner-approved glass toolbar hover and sizing, drag reordering, and focused address behavior.",
+  "chromium": "159.0.8154.13",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "base_macos": "0544efa4936b561a3b98dbe12d287714cd9f5d7d",
+  "macos": "26c71335972db5cbc9918cb849e02b7a7a0ceb92",
+  "input_ref": "refs/tags/inputs/glass-toolbar-1/macos",
+  "topics": [
+    {
+      "id": "glass-toolbar-hover",
+      "commit": "17acf1d7db9029de89dcf72e285b266c8ff796c2",
+      "patch": "patches/helium/ui/glass-toolbar-hover.patch"
+    },
+    {
+      "id": "glass-toolbar-drag-reordering",
+      "commit": "9947f9d4c374002f796163c3129cc288dd9d8e8d",
+      "patch": "patches/helium/ui/glass-toolbar-drag-reordering.patch"
+    },
+    {
+      "id": "focused-address-capsule",
+      "commit": "26c71335972db5cbc9918cb849e02b7a7a0ceb92",
+      "patch": "patches/helium/ui/focused-address-capsule.patch"
+    }
+  ],
+  "approved_preview": {
+    "architecture": "arm64",
+    "variant": 15,
+    "framework_sha256": "508279cf56e185c044434c7fd7ae99d47ce2327b347f883df3c8528cbd26eb64",
+    "paired_prepared_files_matching_preview": 16
+  },
+  "address_focus_motion": {
+    "duration_ms": 180,
+    "timing": "ease-out",
+    "both_directions": true,
+    "editor_and_completion_titles_share_a_rendered_text_column": true,
+    "sampled_motion": {
+      "v15": {
+        "max_center_drift_screen_px": 0.5,
+        "frames_sha256": "d4a34260fc2da00ccac8214de0918caa444410d19106d2cf4e91cbcaa9bf6928"
+      },
+      "locked-arm64": {
+        "max_center_drift_screen_px": 0.5,
+        "frames_sha256": "fd643a0379d4c5bb08f8033b91190fe42dc689caf3c21c77558e4b97eb4c53e6"
+      }
+    }
+  },
+  "arm64_hover_raster_samples": {
+    "navigation_separator_contrast": {
+      "startup": 72,
+      "idle": 72,
+      "back-hover": 0,
+      "forward-hover": 0,
+      "restored": 72
+    },
+    "grouped_slot_darkening": 30,
+    "single_surface_darkening": [
+      27,
+      27,
+      27
+    ]
+  },
+  "artifacts": {
+    "arm64": {
+      "preparation": {
+        "strict_zero_fuzz": true,
+        "topic_patches_applied_without_offsets": [
+          "glass-toolbar-hover",
+          "glass-toolbar-drag-reordering",
+          "focused-address-capsule"
+        ],
+        "prepared_report_sha256": "33533cd951d4786ce2f9b6e74c7adede5ddad717dd9da4cdd7c719b0eda737fd",
+        "preparation_log_sha256": "dce56be4dc26c72e132166a465fd8e7ac523f6909cc75cf5427f3ceec1c6b6e1",
+        "identical_baseline_files": 571333,
+        "xml_declaration_case_only_files": 1309,
+        "identical_baseline_symlinks": 130,
+        "paired_prepared_source_inventories_identical": true
+      },
+      "build_and_smoke": {
+        "architecture": "arm64",
+        "execution": "native arm64",
+        "gn_args_sha256": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
+        "duration_seconds": 227.02,
+        "framework_sha256": "a24eeea64024cea9910c0bfd3c487aa496d335899a4586a7dbeaa940b3f3a910",
+        "chromedriver_sha256": "25132fe20b1145464dfdc501c347c62b4893e6f841dd77112c58783028c15b33",
+        "prepared_report_sha256": "33533cd951d4786ce2f9b6e74c7adede5ddad717dd9da4cdd7c719b0eda737fd",
+        "smoke_sha256": "eacfdae755dffdf4ff6bbdf90c2e5b950ed29510632738494c2e227ebcf814a9"
+      },
+      "native_fixtures": {
+        "native-toolbar.log": "58293c86e14cef816367169b2e1faf978a069acdddc9a2d090dd09741001a73d",
+        "address-overflow.json": "f63c79bf01afd18510da15a411b9057440622faada6f02e8175ce6b7ceb93450",
+        "sidebar-drop.json": "70d99d250a2dced1c57d895a9481643dbab96f786475bd4fdee660486b569511",
+        "address-suggestions.log": "95ddd4b435ede847dfde291733b7e83218448473ba292f5325822bafdb700723",
+        "native-fallback-surfaces.log": "705f8c462acb8f5aa6c4937c0033e4faa936ce824f6c2a78c41b1e8a1e87aa5e",
+        "native-chrome-appearance.log": "fc93da7f31a096dd94659854789a6a8bd8fbc61a24deb296e3b923c3ba149208"
+      },
+      "headed_cases": {
+        "completion": "5f73c5e6aab612be1b7d502533acb8b5c4ac556b4c3ef8d007feca75dce38c84",
+        "drag": "06ce33380e516ee003256e14c9b297bff08775142886e3fc850df9b57a65a577",
+        "extensions": "47a396af0796ad59da06afba2f4a0b0e25a940e5e8770cc76e521bd17cbaa261",
+        "mixed-empty": "4517174427b9c045829f4b3166accfd5c59d9edf802515523d6cd736af26efe5",
+        "mixed-installed": "51db40a2bf8e11a26cfccef9c81b99721b8dd4530540b14c1a8509262806e8f2",
+        "sidebar": "ed16fe23cff0dd11985c631f9be1bec17609a96f9be1acaefe90f6344cf5bce5",
+        "hover": "de2895da3a4f09ee000303448247246bfc373f0fc37e48b9f4c8726f49740eda",
+        "single": "380f8915a0240d80939f7b6a2d01602bd3560fc0d89b828d88019942e0f76b4d"
+      }
+    },
+    "x86_64": {
+      "preparation": {
+        "strict_zero_fuzz": true,
+        "topic_patches_applied_without_offsets": [
+          "glass-toolbar-hover",
+          "glass-toolbar-drag-reordering",
+          "focused-address-capsule"
+        ],
+        "prepared_report_sha256": "74cf33f33fbe1e7f9f12571e3a5e1e087ea065584fb06690275fcab06707dd2e",
+        "preparation_log_sha256": "dda5c5aa245ee75b339523b5b680ea97234638e8787987dc2046d16130bf79dc",
+        "identical_baseline_files": 571333,
+        "xml_declaration_case_only_files": 1309,
+        "identical_baseline_symlinks": 130,
+        "paired_prepared_source_inventories_identical": true
+      },
+      "build_and_smoke": {
+        "architecture": "x86_64",
+        "execution": "x86_64 via Rosetta on Apple silicon",
+        "gn_args_sha256": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4",
+        "duration_seconds": 258.89,
+        "framework_sha256": "aaf42d4c90aa6debf14ec71e1626fb365663a6dc259fbd2d1843f623cd497b9f",
+        "chromedriver_sha256": "5fe64b85902e90f3d04a20bd85f47cf8c458a9810cc31e9f94699ea2bf8df4c8",
+        "prepared_report_sha256": "74cf33f33fbe1e7f9f12571e3a5e1e087ea065584fb06690275fcab06707dd2e",
+        "smoke_sha256": "ef7b1dff62ef5be71d689f8dff0ca1da602323952431046c7a40a1f06ccfafa7"
+      },
+      "native_fixtures": {
+        "native-toolbar.log": "58293c86e14cef816367169b2e1faf978a069acdddc9a2d090dd09741001a73d",
+        "address-overflow.json": "8c3b644e36855212b14cc3930e0c5b70e33594b7d0ee145d1db78797939f30a6",
+        "sidebar-drop.json": "283ccdeb19f84bf138c1ae2c3f324cc155674c13e8d7264ad3efdd391d712522",
+        "address-suggestions.log": "95ddd4b435ede847dfde291733b7e83218448473ba292f5325822bafdb700723",
+        "native-fallback-surfaces.log": "705f8c462acb8f5aa6c4937c0033e4faa936ce824f6c2a78c41b1e8a1e87aa5e",
+        "native-chrome-appearance.log": "fc93da7f31a096dd94659854789a6a8bd8fbc61a24deb296e3b923c3ba149208"
+      },
+      "headed_cases": {
+        "completion": "aded6e3e0d336f79ae90954360c6c262ea199bf394327d24c52aae9463a8fa42",
+        "drag": "cbcddaa83eb365ba73b20907a4dcbab7c396d296079a565009e13169c99065e0",
+        "extensions": "cefdecf01f3ee96ff32cb95d3d8c9197661b42de44dd72a3ed616cee593ee793",
+        "mixed-empty": "434f74a9f02c7a217673ac18addaa3dd2f929c9e4b285cee0d11cf6e60955d3a"
+      }
+    }
+  },
+  "validation_scope": "Both packaged builds passed browsing, persistence, Settings, and internal icon checks. Source fixture and headed x86_64 execution used Rosetta. The frame-by-frame animation and broader native toolbar matrix ran on Apple silicon."
+}
