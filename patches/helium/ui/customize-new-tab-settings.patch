@@ -1,0 +1,253 @@
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.css
+@@ -136,6 +136,42 @@
+ }
+ 
+ <if expr="is_macosx">
++#newTabSettings {
++  margin-block-start: 14px;
++}
++
++#newTabHeading {
++  font-size: 13px;
++  font-weight: 600;
++  line-height: 18px;
++  margin: 0 calc(var(--sp-body-padding) + var(--sp-card-inline-padding)) 8px;
++}
++
++#newTabWallpaperButton {
++  display: flex;
++  margin: 4px var(--sp-card-inline-padding) 8px;
++}
++
++#newTabSettings[hidden],
++#newTabWallpaperButton[hidden] {
++  display: none;
++}
++
++#newTabWallpaperContent {
++  align-items: center;
++  display: flex;
++  gap: 8px;
++}
++
++#newTabWallpaperIcon {
++  --cr-icon-image: url(icons/image_old.svg);
++  --cr-icon-size: 14px;
++}
++
++:host-context([webui-rounded-icons]) #newTabWallpaperIcon {
++  --cr-icon-image: url(icons/image.svg);
++}
++
+ @media (forced-colors: none) {
+   :host([native-theme]) {
+     --color-side-panel-content-background: color-mix(in srgb,
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
+@@ -50,12 +50,32 @@
+         <customize-chrome-tools></customize-chrome-tools>
+       </div>
+     ` : ''}
++<if expr="is_macosx">
++    <section id="newTabSettings" aria-labelledby="newTabHeading"
++        ?hidden="${!this.isSourceTabFirstPartyNtp_()}">
++      <h2 id="newTabHeading">$i18n{newTabHeader}</h2>
++      <div id="shortcuts" class="section sp-card">
++        <cr-button id="newTabWallpaperButton" ?hidden="${!this.showEditTheme_}"
++            @click="${this.onChooseWallpaperClick_}">
++          <span id="newTabWallpaperContent">
++            <span id="newTabWallpaperIcon" class="cr-icon" aria-hidden="true"></span>
++            $i18n{changeWallpaper}
++          </span>
++        </cr-button>
++        ${this.isSourceTabFirstPartyNtp_() ? html`
++          <customize-chrome-shortcuts></customize-chrome-shortcuts>
++        ` : ''}
++      </div>
++    </section>
++</if>
++<if expr="not is_macosx">
+     ${this.isSourceTabFirstPartyNtp_() ? html`
+       <hr class="sp-cards-separator">
+       <div id="shortcuts" class="section sp-card">
+         <customize-chrome-shortcuts></customize-chrome-shortcuts>
+       </div>
+     ` : ''}
++</if>
+     ${(this.modulesEnabled_ && this.isSourceTabFirstPartyNtp_()) ? html`
+       <hr class="sp-cards-separator">
+       <div id="modules" class="section sp-card">
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.ts
+@@ -113,7 +113,7 @@
+   protected accessor wallpaperSearchEnabled_: boolean =
+       loadTimeData.getBoolean('wallpaperSearchEnabled');
+   private accessor newTabPageType_: NewTabPageType =
+-      NewTabPageType.kFirstPartyWebUI;
++      NewTabPageType.kNone;
+   protected accessor showEditTheme_: boolean = true;
+   protected accessor showFooter_: boolean = false;
+   private accessor showFooterForManagedBrowser_: boolean = false;
+@@ -131,6 +131,8 @@
+           this.onScrollToSection_.bind(this)),
+       this.apiProxy_.callbackRouter.setThemeEditable.addListener(
+           this.onSetThemeEditable_.bind(this)),
++      this.apiProxy_.callbackRouter.attachedTabStateUpdated.addListener(
++          this.onAttachedTabStateUpdated_.bind(this)),
+       this.apiProxy_.callbackRouter.setFooterSettings.addListener(
+           this.onSetFooterSettings_.bind(this)),
+       // <if expr="is_macosx">
+@@ -191,9 +193,15 @@
+ 
+   override firstUpdated() {
+     ColorChangeUpdater.forDocument().start();
++    // <if expr="is_macosx">
++    this.registerHelpBubble(
++        CHANGE_CHROME_THEME_BUTTON_ELEMENT_ID, '#newTabWallpaperButton');
++    // </if>
++    // <if expr="not is_macosx">
+     this.registerHelpBubble(
+         CHANGE_CHROME_THEME_BUTTON_ELEMENT_ID,
+         ['#appearanceElement', '#editThemeButton']);
++    // </if>
+   }
+ 
+   private onScrollToSection_(section: CustomizeChromeSection) {
+@@ -220,6 +228,16 @@
+     element.scrollIntoView({behavior: 'auto'});
+   }
+ 
++  private onAttachedTabStateUpdated_(type: NewTabPageType) {
++    this.newTabPageType_ = type;
++    // <if expr="is_macosx">
++    if (!this.isSourceTabFirstPartyNtp_() &&
++        this.page_ !== CustomizeChromePage.TOOLBAR) {
++      this.page_ = CustomizeChromePage.OVERVIEW;
++    }
++    // </if>
++  }
++
+   private onSetThemeEditable_(isThemeEditable: boolean) {
+     this.showEditTheme_ = isThemeEditable;
+   }
+@@ -249,10 +267,14 @@
+   protected async onBackClick_() {
+     switch (this.page_) {
+       case CustomizeChromePage.CATEGORIES:
++        this.page_ = CustomizeChromePage.OVERVIEW;
++        await this.updateComplete;
++        this.focusOnWallpaperButton_();
++        break;
+       case CustomizeChromePage.TOOLBAR:
+         this.page_ = CustomizeChromePage.OVERVIEW;
+         await this.updateComplete;
+-        this.$.appearanceElement.focusOnThemeButton();
++        this.shadowRoot.querySelector<HTMLElement>('#toolbarButton')?.focus();
+         break;
+       case CustomizeChromePage.THEMES:
+       case CustomizeChromePage.WALLPAPER_SEARCH:
+@@ -287,8 +309,23 @@
+   protected async onLocalImageUpload_() {
+     this.page_ = CustomizeChromePage.OVERVIEW;
+     await this.updateComplete;
++    this.focusOnWallpaperButton_();
++  }
++
++  private focusOnWallpaperButton_() {
++    // <if expr="is_macosx">
++    this.shadowRoot.querySelector<HTMLElement>('#newTabWallpaperButton')?.focus();
++    // </if>
++    // <if expr="not is_macosx">
+     this.$.appearanceElement.focusOnThemeButton();
++    // </if>
++  }
++
++  // <if expr="is_macosx">
++  protected onChooseWallpaperClick_() {
++    this.apiProxy_.handler.chooseLocalCustomBackground();
+   }
++  // </if>
+ 
+   protected onWallpaperSearchClick_() {
+     this.onWallpaperSearchSelect_();
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts
+@@ -43,6 +43,7 @@
+       @change="${this.onContentAwareChromeChange_}">
+   </cr-toggle>
+ </div>
++<if expr="not is_macosx">
+ <div id="editButtonsContainer" ?hidden="${!this.showEditTheme_ && !this.showClassicChromeButton_}">
+   <hr class="sp-hr">
+   <cr-button id="editThemeButton"
+@@ -59,6 +60,7 @@
+     $i18n{resetToDefaultButtonLabel}
+   </cr-button>
+ </div>
++</if>
+ ${this.showManagedDialog_ ? html`
+   <managed-dialog @close="${this.onManagedDialogClose_}"
+       title="$i18n{managedColorsTitle}" body="$i18n{managedColorsBody}">
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.ts
+@@ -28,9 +28,13 @@
+ export interface AppearanceElement {
+   $: {
+     chromeColors: HTMLElement,
++    // <if expr="not is_macosx">
+     editThemeButton: HTMLButtonElement,
++    // </if>
+     themeSnapshot: HTMLElement,
++    // <if expr="not is_macosx">
+     setClassicChromeButton: HTMLButtonElement,
++    // </if>
+     thirdPartyThemeLinkButton: HTMLButtonElement,
+     followThemeToggle: HTMLElement,
+     followThemeToggleControl: CrToggleElement,
+@@ -189,15 +193,19 @@
+       announcer.announce(this.i18n('updatedToClassicChrome'));
+       // If the classicChrome button has focus, change focus to editTheme
+       // button, since the button is disappearing.
++      // <if expr="not is_macosx">
+       if (this.shadowRoot.activeElement === this.$.setClassicChromeButton) {
+         this.focusOnThemeButton();
+       }
++      // </if>
+     }
+   }
+ 
++  // <if expr="not is_macosx">
+   focusOnThemeButton() {
+     this.$.editThemeButton.focus();
+   }
++  // </if>
+ 
+   private computeEditThemeButtonText_(): string {
+     return this.i18n(
+@@ -315,6 +323,7 @@
+     }
+   }
+ 
++  // <if expr="not is_macosx">
+   protected onSetClassicChromeClick_() {
+     if (this.handleClickForManagedThemes_()) {
+       return;
+@@ -324,6 +333,7 @@
+     recordCustomizeChromeAction(
+         CustomizeChromeAction.SET_CLASSIC_CHROME_THEME_CLICKED);
+   }
++  // </if>
+ 
+   protected onContentAwareChromeChange_(e: CustomEvent<boolean>) {
+     this.apiProxy_.handler.setContentAwareChrome(e.detail);
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
+@@ -113,6 +113,7 @@
+       {"title", IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE},
+       // Header strings.
+       {"appearanceHeader", IDS_NTP_CUSTOMIZE_APPEARANCE_LABEL},
++      {"newTabHeader", IDS_NEW_TAB_TITLE},
+       {"cardsHeader", IDS_NTP_CUSTOMIZE_MENU_MODULES_LABEL},
+       {"categoriesHeader", IDS_NTP_CUSTOMIZE_THEMES_HEADER},
+       {"footerHeader", IDS_NTP_CUSTOMIZE_FOOTER_HEADER},
