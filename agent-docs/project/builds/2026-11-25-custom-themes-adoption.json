@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-25",
+  "scope": "Adopt the approved Custom browser theme, Customize and Setup behavior.",
+  "issue": 56,
+  "base_main": "ad27894f4a74a74ed92fffb262eea4a3c46f2393",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "macos": "d4369eab59a3c279f3855e4b33e77cda3b6a340b",
+  "macos_ref": "refs/tags/inputs/custom-themes-1/macos",
+  "chromium": "159.0.8154.13",
+  "component_commits": {
+    "custom-theme-palette": "f654df585cc7007a01b730b450977ad7301755e3",
+    "customize-picker-artwork": "c6d36da07900ded704cfeb714ee1da4917c34dc9",
+    "custom-theme-picker": "d7db0f5960758a05c95e8c05faf3e90569e90f92",
+    "customize-new-tab-settings": "4885dd57fd479698a0cc94b283e9f8429ef98c4d",
+    "custom-theme-setup": "79911d5e2925504988480474cbd34912187cd983",
+    "custom-theme-picker-shared-webui": "d4369eab59a3c279f3855e4b33e77cda3b6a340b"
+  },
+  "approved_preview_framework_sha256": "3654ab97c31b6d10d598bc2b85b59f4b2068d0c18f87ae00566c1ff5b294a6e6",
+  "preview_source_adaptation": [
+    "Recomposed the approved feature patches on the glass toolbar and focused address capsule input.",
+    "Verified that the shared macOS frame includes the unchanged Customize close and glass toolbar changes.",
+    "Registered the two missing theme labels for shared WebUI consumers and added fallback styling where Customize tokens are absent."
+  ],
+  "validation": {
+    "arm64": {
+      "execution": "native arm64",
+      "preparation": {
+        "zero_fuzz": true,
+        "report_sha256": "02bd5e474f12f08a372697dc0cacf1f60b59fc481807ca1fe525068b7e6d4a50",
+        "log_sha256": "09fb2509ea012ed4883e4e32946b2e12b83cd376767cbfc4a1d7e84381fef675",
+        "source_and_resource_files_compared": 55,
+        "matching_prepared_file_hashes_sha256": "04f8db26f5b4ca1e4efc09f44c081b44aaf13158584c5d9443d311e320542bdb",
+        "full_source_inventory_matches_other_architecture": true,
+        "preview_xml_declaration_case_only": [
+          "chrome/app/generated_resources.grd",
+          "components/helium_onboarding/helium_onboarding_strings.grdp"
+        ],
+        "unrelated_xml_declaration_case_only": 0
+      },
+      "artifact": {
+        "executable_sha256": "af6cd43d10812ad499d0585b775a4f1e2368d3a43966ab5bb19cf2777ec64b9a",
+        "framework_sha256": "79d8347f3810e934c9818f81800d9092089b2ba09330ae918aa35baf5bbc030e",
+        "chromedriver_sha256": "3a4f3dae60d640233ca65d7417dc19d80d467b90e56874989c10fa23b893c276",
+        "gn_args_sha256": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e"
+      },
+      "checks": {
+        "packaged_browser_and_settings_smoke_sha256": "19b77ddfb45db4412c611fc1ac9852dedb9aa10391bbf22af2ed13d9bf208740",
+        "setup_flow_sha256": "977cdf9ff3e4c52a378bef1236554b2e2f928708f5e2a305ffdaea48e7fb9f7d",
+        "setup_custom_reopens_customize": true,
+        "setup_reopen_check_sha256": "977cdf9ff3e4c52a378bef1236554b2e2f928708f5e2a305ffdaea48e7fb9f7d",
+        "custom_palette_and_history_sha256": "7d011b2418e3f5843f29824260909834b42335a118fb935901c0ec0a089024e3",
+        "new_tab_navigation_sha256": "bfd739a3a96a9d99eccd05d123fd6eb3ff5e4afcc94e3a76db9cb3775d07dcf6",
+        "saved_wallpaper_and_layout_sha256": "c423c947abe8ca748a5db94e9c103eb6d01cb24b1a84c84d63fd41bd6e02ca3c",
+        "shared_picker_and_restart_sha256": "4663729bf90454ef735eaf0242f7b3709ee0b9df3fbd9240a61d85eaa0088ead",
+        "native_chrome_appearance_sha256": "fc93da7f31a096dd94659854789a6a8bd8fbc61a24deb296e3b923c3ba149208",
+        "native_toolbar_sha256": "58293c86e14cef816367169b2e1faf978a069acdddc9a2d090dd09741001a73d",
+        "new_tab_visibility_on_new_tab_web_page_and_return": [
+          true,
+          false,
+          true
+        ],
+        "glass_bottom_gap_px": 12,
+        "wallpaper_icon_label_centered": true,
+        "wallpaper_reset_present": false,
+        "settings_theme_choices": [
+          "Native",
+          "Lune",
+          "Custom"
+        ],
+        "legacy_variant_migrated_when_edited": true,
+        "custom_seed_persisted_through_native_and_restart": true
+      }
+    },
+    "x86_64": {
+      "execution": "x86_64 via Rosetta on Apple silicon",
+      "preparation": {
+        "zero_fuzz": true,
+        "report_sha256": "b07853e9e81e115374ee98967fb4dfe032de6a1e958957e114e5929f53bbee69",
+        "log_sha256": "942b911ec71b38386d7cf1ace75d7f5aeb20348d036776f88089b9fbcc151d5d",
+        "source_and_resource_files_compared": 55,
+        "matching_prepared_file_hashes_sha256": "2dce9709c3af0d4888a79068dbc87bda04df8c5c33e0333b7e243b591e9fbac6",
+        "full_source_inventory_matches_other_architecture": true,
+        "preview_xml_declaration_case_only": [
+          "chrome/app/generated_resources.grd",
+          "components/helium_onboarding/helium_onboarding_strings.grdp"
+        ],
+        "unrelated_xml_declaration_case_only": 0
+      },
+      "artifact": {
+        "executable_sha256": "d504d4cc887e6b4b6cdb6e949c71a355c4d38bfd5992d684a239ac95c37deaba",
+        "framework_sha256": "570c945a1c33f9141bab25eea405414d1571c3722388cd9bb0a5c2de84bad9ab",
+        "chromedriver_sha256": "bcfdc8ee1e1dede270c04c6b19fa1c0de1f5431b4573d6c0638cc4963dc153fd",
+        "gn_args_sha256": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4"
+      },
+      "checks": {
+        "packaged_browser_and_settings_smoke_sha256": "d650634ca65e96fb65e46b84ab93988883b3a638bec9dc9d10e55f7274813323",
+        "setup_flow_sha256": "9ca897a83537d90469530bafad1863b3c87c4afbe29c9a8dac38d6f653ee4a0d",
+        "setup_custom_reopens_customize": true,
+        "setup_reopen_check_sha256": "9ca897a83537d90469530bafad1863b3c87c4afbe29c9a8dac38d6f653ee4a0d",
+        "custom_palette_and_history_sha256": "c5add4f5d908719e7aa67f50a6e396d512b54ca8ab0b610dfbe3d2e2d71ea649",
+        "new_tab_navigation_sha256": "2dbf648ed1cae91f421ce6bc1580edafa51ee2cc3f526f5d6b89809300efde9d",
+        "saved_wallpaper_and_layout_sha256": "c423c947abe8ca748a5db94e9c103eb6d01cb24b1a84c84d63fd41bd6e02ca3c",
+        "shared_picker_and_restart_sha256": "4663729bf90454ef735eaf0242f7b3709ee0b9df3fbd9240a61d85eaa0088ead",
+        "native_chrome_appearance_sha256": "fc93da7f31a096dd94659854789a6a8bd8fbc61a24deb296e3b923c3ba149208",
+        "native_toolbar_sha256": "58293c86e14cef816367169b2e1faf978a069acdddc9a2d090dd09741001a73d",
+        "new_tab_visibility_on_new_tab_web_page_and_return": [
+          true,
+          false,
+          true
+        ],
+        "glass_bottom_gap_px": 12,
+        "wallpaper_icon_label_centered": true,
+        "wallpaper_reset_present": false,
+        "settings_theme_choices": [
+          "Native",
+          "Lune",
+          "Custom"
+        ],
+        "legacy_variant_migrated_when_edited": true,
+        "custom_seed_persisted_through_native_and_restart": true
+      }
+    }
+  },
+  "orchestrator": {
+    "tests_run": 108,
+    "tests_skipped": 1,
+    "component_patch_lint": "passed",
+    "live_workflow_policy": "passed"
+  }
+}

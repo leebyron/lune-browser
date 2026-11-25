@@ -113,8 +113,7 @@ try:
  assert report['finish']['title']=='Customize Lune'
  report['dropdowns']=js("return [...document.querySelectorAll('#finish-page select')].map(s=>({label:s.getAttribute('aria-label'),value:s.value,options:[...s.options].map(o=>({value:o.value,label:o.label}))}))")
  assert [d['label'] for d in report['dropdowns']]==['Appearance','Theme','Tab sidebar','Show toolbar']
- assert [v['label'] for v in report['dropdowns'][1]['options'][:2]]==['System','Lune']
- assert len(report['dropdowns'][1]['options'])==16
+ assert [v['label'] for v in report['dropdowns'][1]['options']]==['System','Lune','Custom']
  assert report['dropdowns'][1]['value']=='lune'
  def select(label,value):
   js("const s=document.querySelector('#finish-page select[aria-label="+json.dumps(label)+"]');s.value="+json.dumps(value)+";s.dispatchEvent(new Event('change',{bubbles:true}));")
@@ -128,7 +127,13 @@ try:
   colors=js('return [document.documentElement,document.body,document.querySelector("main")].map(e=>getComputedStyle(e).backgroundColor)')
   assert len(set(colors))==1,colors
   report['backgroundsByAppearance'][value]=colors
- for option in report['dropdowns'][1]['options']:select('Theme',option['value'])
+ for value in ('system','lune'):select('Theme',value)
+ js("chrome.send('setOnboardingAppearance',[false]);")
+ wait("return innerWidth === "+str(report['beforeAppearanceWidth']))
+ select('Theme','custom')
+ wait("return innerWidth === "+str(report['appearanceWidth']))
+ report['customReopenedAppearance']=True
+ assert not js("return !!document.querySelector('#finish-page .edit-color')")
  select('Theme','lune')
  assert [o['label'] for o in report['dropdowns'][3]['options']]==['On hover edge','On hover sidebar','Always']
  select('Show toolbar','always');select('Show toolbar','hover');select('Show toolbar','no-hover');select('Show toolbar','always')

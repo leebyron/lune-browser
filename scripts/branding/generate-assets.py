@@ -25,6 +25,10 @@ def paths(config):
             for sweep in (0, 1)]
 
 
+def favicon_viewbox(config):
+    extent = config['outer_radius'] + config['center_offset']
+    return f'{150-extent:g} {150-extent:g} {2*extent:g} {2*extent:g}'
+
 def svg(data, tile=True, mode=None, favicon=False):
     def colors(p):
         return f'.ground{{fill:{p["ground"]}}}.left{{fill:{p["left"]}}}.right{{fill:{p["right"]}}}'
@@ -37,8 +41,7 @@ def svg(data, tile=True, mode=None, favicon=False):
     transform = 'translate(152 152) scale(2.4)'
     if favicon:
         # Square canvas tightly fitted to the wider dimension of the mark.
-        extent = data['geometry']['outer_radius'] + data['geometry']['center_offset']
-        viewbox = f'{150-extent:g} {150-extent:g} {2*extent:g} {2*extent:g}'
+        viewbox = favicon_viewbox(data['geometry'])
         size = 'width="256" height="256"'
         tile_rect = ''
         transform = ''
@@ -83,6 +86,7 @@ def vector(data, colored=False):
 
 def outputs(data):
     mono = ' '.join(paths(data['geometry']))
+    mono_viewbox = favicon_viewbox(data['geometry'])
     return {
         'branding/lune.svg': svg(data),
         'branding/lune-light.svg': svg(data, mode='light'),
@@ -91,7 +95,7 @@ def outputs(data):
         'website/public/assets/lune-mark.svg': svg(data, tile=False),
         'website/public/favicon.svg': svg(data, tile=False, favicon=True),
         'out/branding/internal/product_logo.svg': svg(data),
-        'out/branding/internal/product_logo_mono.svg': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><path fill="currentColor" d="{mono}"/></svg>\n',
+        'out/branding/internal/product_logo_mono.svg': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{mono_viewbox}"><path fill="currentColor" d="{mono}"/></svg>\n',
         'out/branding/internal/product_logo.icon': vector(data),
         'out/branding/internal/product_logo_color.icon': vector(data, colored=True),
     }

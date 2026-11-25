@@ -74,6 +74,8 @@ Start with the relevant UI surface. Feature records cover behavior, design const
 
 ## Other browser behavior and historical integration
 
+- [Custom browser themes](custom-themes.md)
+
 - [Tracking parameters in opened and copied links](tracking-query-cleanup.md)
 - [Download menus and native progress](downloads.md)
 - [Dock-pinning message bar](dock-infobar.md)

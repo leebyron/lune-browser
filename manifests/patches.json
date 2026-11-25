@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "26c71335972db5cbc9918cb849e02b7a7a0ceb92",
+    "commit": "d4369eab59a3c279f3855e4b33e77cda3b6a340b",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1275,9 +1275,29 @@
       {
         "path": "patches/helium/ui/focused-address-capsule.patch",
         "sha256": "2caa27225ab2972e60697c95461a8494de2e134d8722ac0b9b77d9cc10bdc434"
+      },
+      {
+        "path": "patches/helium/ui/custom-theme-palette.patch",
+        "sha256": "b22048042c2fea3d9edab437e8c4dad75f02bfa55b6d3adec5433e093e542631"
+      },
+      {
+        "path": "patches/helium/ui/custom-theme-picker.patch",
+        "sha256": "afcc8bc03cb142d26b18b582a1d48015b5f7d6417fa7bd7d56a1d9cfe2b1a4f0"
+      },
+      {
+        "path": "patches/helium/ui/customize-new-tab-settings.patch",
+        "sha256": "7d2d17cc60b4ebabb8f99925527433acf2152e03299e5d9e17bf94df33eb9d76"
+      },
+      {
+        "path": "patches/helium/ui/custom-theme-setup.patch",
+        "sha256": "7fe7665f5fd165bf9d9d41a953c90bef35949b65f2ebbd356771b77e0028370d"
+      },
+      {
+        "path": "patches/helium/ui/custom-theme-picker-shared-webui.patch",
+        "sha256": "d633c483506c481a280adf4f04eb5b24ff3cfb518eee6adf33f559293f9979bb"
       }
     ],
-    "ref": "refs/tags/inputs/glass-toolbar-1/macos"
+    "ref": "refs/tags/inputs/custom-themes-1/macos"
   },
   "pull_requests": [
     {
@@ -4275,6 +4295,83 @@
       "adaptation": "Give editing the full trailing inset and a passive leading icon. Use a 180 ms ease-out for centered icon scaling, control fades, and text motion.",
       "commits": [
         "26c71335972db5cbc9918cb849e02b7a7a0ceb92"
+      ]
+    },
+    {
+      "id": "custom-theme-palette",
+      "depends_on": [
+        "link-copied-toast-symbol"
+      ],
+      "patches": [
+        "patches/helium/ui/custom-theme-palette.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Generate a theme from one wheel position.",
+      "adaptation": "Encode hue and saturation in an appearance-independent seed and preserve legacy variants through the existing profile and sync formats.",
+      "commits": [
+        "f654df585cc7007a01b730b450977ad7301755e3"
+      ]
+    },
+    {
+      "id": "custom-theme-picker",
+      "depends_on": [
+        "custom-theme-palette",
+        "setup-header-icons"
+      ],
+      "patches": [
+        "patches/helium/ui/custom-theme-picker.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Provide Native, Lune, and Custom in a compact macOS Customize panel.",
+      "adaptation": "Add the hue and saturation wheel, live previews, Restore, panel-local undo and redo, and native symbol artwork. Preserve native panel edge resizing.",
+      "commits": [
+        "c6d36da07900ded704cfeb714ee1da4917c34dc9",
+        "d7db0f5960758a05c95e8c05faf3e90569e90f92"
+      ]
+    },
+    {
+      "id": "customize-new-tab-settings",
+      "depends_on": [
+        "custom-theme-picker"
+      ],
+      "patches": [
+        "patches/helium/ui/customize-new-tab-settings.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Show wallpaper and shortcuts controls only next to New Tab.",
+      "adaptation": "Use the attached tab type to gate an externally headed settings group with a centered wallpaper action.",
+      "commits": [
+        "4885dd57fd479698a0cc94b283e9f8429ef98c4d"
+      ]
+    },
+    {
+      "id": "custom-theme-setup",
+      "depends_on": [
+        "custom-theme-picker"
+      ],
+      "patches": [
+        "patches/helium/ui/custom-theme-setup.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Share the browser theme selection with Setup.",
+      "adaptation": "Offer System, Lune, and Custom, using the native side panel to edit Custom.",
+      "commits": [
+        "79911d5e2925504988480474cbd34912187cd983"
+      ]
+    },
+    {
+      "id": "custom-theme-picker-shared-webui",
+      "depends_on": [
+        "custom-theme-picker"
+      ],
+      "patches": [
+        "patches/helium/ui/custom-theme-picker-shared-webui.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Preserve Custom theme editing on shared picker screens.",
+      "adaptation": "Provide the same localized theme labels to each shared picker consumer and include visual fallbacks.",
+      "commits": [
+        "d4369eab59a3c279f3855e4b33e77cda3b6a340b"
       ]
     }
   ],
