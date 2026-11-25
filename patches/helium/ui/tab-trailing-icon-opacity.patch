@@ -1,0 +1,252 @@
+--- a/chrome/browser/ui/tabs/tab_style.h
++++ b/chrome/browser/ui/tabs/tab_style.h
+@@ -7,6 +7,7 @@
+ 
+ #include <tuple>
+ 
++#include "base/numerics/safe_conversions.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/tabs/tab_types.h"
+ #include "third_party/skia/include/core/SkColor.h"
+@@ -25,6 +26,15 @@
+ // etc.
+ class TabStyle {
+  public:
++  static constexpr float kControlRestingOpacity = 0.7f;
++
++  static SkColor GetRestingControlColor(SkColor foreground) {
++    return SkColorSetA(
++        foreground,
++        base::ClampRound<SkAlpha>(SkColorGetA(foreground) *
++                                  kControlRestingOpacity));
++  }
++
+   // The different types of path GetPath() can return. Different paths are used
+   // in different situations, but most (excluding `kClip`) are roughly the same
+   // shape.
+--- a/chrome/browser/ui/views/helium/native_tab_alert_icon.h
++++ b/chrome/browser/ui/views/helium/native_tab_alert_icon.h
+@@ -20,7 +20,6 @@
+ struct TabAlertSymbol {
+   const char* name;
+   const char* fallback = nullptr;
+-  bool use_tab_foreground = false;
+   bool use_capture_color = false;
+ };
+ 
+@@ -28,14 +27,11 @@
+     std::optional<tabs::TabAlert> state) {
+   switch (state.value_or(tabs::TabAlert::kNone)) {
+     case tabs::TabAlert::kPipPlaying:
+-      return TabAlertSymbol{.name = "pip",
+-                            .use_tab_foreground = true};
++      return TabAlertSymbol{.name = "pip"};
+     case tabs::TabAlert::kAudioPlaying:
+-      return TabAlertSymbol{.name = "speaker.wave.2",
+-                            .use_tab_foreground = true};
++      return TabAlertSymbol{.name = "speaker.wave.2"};
+     case tabs::TabAlert::kAudioMuting:
+-      return TabAlertSymbol{.name = "speaker.slash",
+-                            .use_tab_foreground = true};
++      return TabAlertSymbol{.name = "speaker.slash"};
+     case tabs::TabAlert::kVideoRecording:
+       return TabAlertSymbol{.name = "video", .use_capture_color = true};
+     case tabs::TabAlert::kAudioRecording:
+@@ -70,11 +66,7 @@
+ }
+ 
+ inline gfx::ImageSkia NativeTabAlertImage(const TabAlertSymbol& symbol,
+-                                         const views::View* view,
+                                          SkColor foreground) {
+-  if (symbol.use_capture_color) {
+-    foreground = NativeTabCaptureColor(view);
+-  }
+   gfx::ImageSkia image = NativeSidebarSymbolForName(symbol.name, foreground);
+   if (image.isNull() && symbol.fallback) {
+     image = NativeSidebarSymbolForName(symbol.fallback, foreground);
+--- a/chrome/browser/ui/views/tabs/hovercard/fade_footer_view.cc
++++ b/chrome/browser/ui/views/tabs/hovercard/fade_footer_view.cc
+@@ -228,7 +228,9 @@
+   if (const auto symbol = helium::GetTabAlertSymbol(alert);
+       symbol && GetColorProvider()) {
+     const SkColor color = GetColorProvider()->GetColor(color_id);
+-    const gfx::ImageSkia image = helium::NativeTabAlertImage(*symbol, this, color);
++    const gfx::ImageSkia image = helium::NativeTabAlertImage(
++        *symbol, symbol->use_capture_color ? helium::NativeTabCaptureColor(this)
++                                           : color);
+     if (!image.isNull()) {
+       if (alert == tabs::TabAlert::kBluetoothScanActive &&
+           animate_bluetooth_scan_ && IsDrawn() &&
+--- a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
+@@ -38,6 +38,8 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "base/functional/bind.h"
++#include "base/numerics/safe_conversions.h"
++#include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/views/helium/native_tab_alert_icon.h"
+ #endif
+ 
+@@ -295,17 +297,15 @@
+ #endif
+   tab_foreground_color_ = foreground_color;
+ #if BUILDFLAG(IS_MAC)
+-  if (const auto symbol = helium::GetTabAlertSymbol(alert_state_)) {
+-    if (changed || !symbol->use_tab_foreground) {
+-      UpdateIconForAlertState(*alert_state_);
+-    }
+-    return;
++  if (changed && alert_state_) {
++    UpdateIconForAlertState(*alert_state_);
+   }
+-#endif
++#else
+   if (alert_state_ == tabs::TabAlert::kAudioPlaying ||
+       alert_state_ == tabs::TabAlert::kAudioMuting) {
+     UpdateIconForAlertState(*alert_state_);
+   }
++#endif
+ }
+ 
+ views::View* AlertIndicatorButton::GetTooltipHandlerForPoint(
+@@ -451,6 +451,18 @@
+ }
+ 
+ void AlertIndicatorButton::PaintButtonContents(gfx::Canvas* canvas) {
++#if BUILDFLAG(IS_MAC)
++  // Apply the same opacity to the native, animated and fallback artwork.
++  if (GetState() == STATE_NORMAL || GetState() == STATE_DISABLED) {
++    canvas->SaveLayerAlpha(
++        base::ClampRound<uint8_t>(SK_AlphaOPAQUE *
++                                  TabStyle::kControlRestingOpacity),
++        GetLocalBounds());
++    ImageButton::PaintButtonContents(canvas);
++    canvas->Restore();
++    return;
++  }
++#endif
+   ImageButton::PaintButtonContents(canvas);
+ }
+ 
+@@ -541,14 +553,12 @@
+           : gfx::kPlaceholderColor;
+ 
+ #if BUILDFLAG(IS_MAC)
++  const SkColor foreground = tab_foreground_color_.value_or(
++      color_provider ? color_provider->GetColor(ui::kColorLabelForeground)
++                     : gfx::kPlaceholderColor);
+   if (const auto symbol = helium::GetTabAlertSymbol(state);
+       symbol && color_provider) {
+-    const SkColor foreground =
+-        symbol->use_tab_foreground && tab_foreground_color_
+-            ? *tab_foreground_color_
+-            : color_provider->GetColor(color);
+-    gfx::ImageSkia native_image =
+-        helium::NativeTabAlertImage(*symbol, this, foreground);
++    gfx::ImageSkia native_image = helium::NativeTabAlertImage(*symbol, foreground);
+     if (!native_image.isNull()) {
+       if (state == tabs::TabAlert::kBluetoothScanActive && IsDrawn() &&
+           gfx::Animation::ShouldRenderRichAnimation()) {
+@@ -574,12 +584,21 @@
+   bluetooth_scan_animation_.reset();
+ #endif
+ 
+-  const ui::ImageModel indicator_image = tabs::GetAlertImageModel(state, color);
++  auto indicator_image = tabs::GetAlertImageModel(state, color);
++  auto pressed_image = GetTabAlertIndicatorImageForPressedState(state, color);
++#if BUILDFLAG(IS_MAC)
++  const auto recolor = [foreground](const ui::ImageModel& image) {
++    const auto& icon = image.GetVectorIcon();
++    return ui::ImageModel::FromVectorIcon(
++        *icon.vector_icon(), foreground, icon.icon_size(), icon.badge_icon());
++  };
++  indicator_image = recolor(indicator_image);
++  pressed_image = recolor(pressed_image);
++#endif
+ 
+   SetImageModel(views::Button::STATE_NORMAL, indicator_image);
+   SetImageModel(views::Button::STATE_DISABLED, indicator_image);
+-  SetImageModel(views::Button::STATE_PRESSED,
+-                GetTabAlertIndicatorImageForPressedState(state, color));
++  SetImageModel(views::Button::STATE_PRESSED, pressed_image);
+ }
+ 
+ BEGIN_METADATA(AlertIndicatorButton)
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
+@@ -264,10 +264,17 @@
+   return true;
+ }
+ void TabCloseButton::UpdateIcon() {
++  const SkColor foreground = colors_.foreground_color;
++  SkColor resting_foreground = foreground;
+ #if BUILDFLAG(IS_MAC)
+-  const auto native_icon = sidebar_style_ ? GetSidebarIcon() : ui::ImageModel();
++  resting_foreground = TabStyle::GetRestingControlColor(foreground);
++  const auto native_icon =
++      sidebar_style_ ? GetSidebarIcon(foreground) : ui::ImageModel();
+   if (!native_icon.IsEmpty()) {
+-    SetImageModel(views::Button::STATE_NORMAL, native_icon);
++    SetImageModel(views::Button::STATE_NORMAL,
++                  resting_foreground == foreground
++                      ? native_icon
++                      : GetSidebarIcon(resting_foreground));
+     SetImageModel(views::Button::STATE_HOVERED, native_icon);
+     SetImageModel(views::Button::STATE_PRESSED, native_icon);
+     return;
+@@ -278,21 +285,15 @@
+                                : kCloseTabChromeRefreshOldIcon;
+   const auto& icon = action_ == Action::kKeep ? kArrowUpwardIcon : close_icon;
+ 
+-  SetImageModel(views::Button::STATE_NORMAL,
+-                ui::ImageModel::FromVectorIcon(
+-                    icon, colors_.foreground_color,
+-                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
+-                        (sidebar_style_ ? 4 : 0)));
+-  SetImageModel(views::Button::STATE_HOVERED,
+-                ui::ImageModel::FromVectorIcon(
+-                    icon, colors_.foreground_color,
+-                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
+-                        (sidebar_style_ ? 4 : 0)));
+-  SetImageModel(views::Button::STATE_PRESSED,
+-                ui::ImageModel::FromVectorIcon(
+-                    icon, colors_.foreground_color,
+-                    GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
+-                        (sidebar_style_ ? 4 : 0)));
++  const int icon_size = GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
++                        (sidebar_style_ ? 4 : 0);
++  const auto active_icon =
++      ui::ImageModel::FromVectorIcon(icon, foreground, icon_size);
++  SetImageModel(
++      views::Button::STATE_NORMAL,
++      ui::ImageModel::FromVectorIcon(icon, resting_foreground, icon_size));
++  SetImageModel(views::Button::STATE_HOVERED, active_icon);
++  SetImageModel(views::Button::STATE_PRESSED, active_icon);
+ }
+ 
+ BEGIN_METADATA(TabCloseButton)
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.h
+@@ -73,7 +73,7 @@
+   bool GetHitTestMask(SkPath* mask) const override;
+ 
+ #if BUILDFLAG(IS_MAC)
+-  ui::ImageModel GetSidebarIcon() const;
++  ui::ImageModel GetSidebarIcon(SkColor color) const;
+ #endif
+ 
+   const bool sidebar_style_;
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button_mac.mm
+@@ -6,8 +6,7 @@
+ 
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ 
+-ui::ImageModel TabCloseButton::GetSidebarIcon() const {
++ui::ImageModel TabCloseButton::GetSidebarIcon(SkColor color) const {
+   return ui::ImageModel::FromImageSkia(helium::NativeSidebarSymbolForName(
+-      action_ == Action::kKeep ? "arrow.turn.left.up" : "xmark",
+-      colors_.foreground_color));
++      action_ == Action::kKeep ? "arrow.turn.left.up" : "xmark", color));
+ }
