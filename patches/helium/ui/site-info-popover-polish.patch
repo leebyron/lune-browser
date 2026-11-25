@@ -1,0 +1,608 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -43,6 +43,7 @@
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/cocoa/fullscreen/fullscreen_menubar_tracker.h"
+ #include "chrome/browser/ui/cocoa/fullscreen/fullscreen_toolbar_controller.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+ #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
+ #include "chrome/browser/ui/fullscreen_util_mac.h"
+@@ -83,6 +84,7 @@
+ #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+ #include "chrome/browser/ui/views/page_info/page_info_main_view.h"
+ #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
++#include "chrome/browser/ui/views/page_info/permission_toggle_row_view.h"
+ #include "chrome/browser/ui/views/page_info/security_information_view.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip.h"
+@@ -148,12 +150,16 @@
+ #include "ui/gfx/mac/coordinate_conversion.h"
+ #include "ui/gfx/vector_icon_types.h"
+ #include "ui/native_theme/native_theme.h"
++#include "ui/views/animation/ink_drop.h"
++#include "ui/views/bubble/bubble_frame_view.h"
+ #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
+ #include "ui/views/context_menu_controller.h"
+ #include "ui/views/controls/button/button.h"
+ #include "ui/views/controls/label.h"
+ #include "ui/views/controls/native/native_view_host.h"
++#include "ui/views/controls/scroll_view.h"
+ #include "ui/views/controls/view_image_model.h"
++#include "ui/views/layout/flex_layout_view.h"
+ #include "ui/views/layout/box_layout.h"
+ #include "ui/views/layout/layout_manager_base.h"
+ #include "ui/views/layout/layout_types.h"
+@@ -1740,8 +1746,90 @@
+ }
+ @end
+ 
++@interface HeliumSiteInfoResetButton : NSButton
++- (instancetype)initWithAction:(base::RepeatingClosure)action;
++@end
++
++@implementation HeliumSiteInfoResetButton {
++  base::RepeatingClosure _callback;
++}
++
++- (instancetype)initWithAction:(base::RepeatingClosure)action {
++  self = [super initWithFrame:NSZeroRect];
++  if (self) {
++    _callback = std::move(action);
++    self.title = base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
++        IDS_SETTINGS_SITE_SETTINGS_SITE_RESET_ALL));
++    self.bezelStyle = NSBezelStyleRounded;
++    self.controlSize = NSControlSizeSmall;
++    self.font = [NSFont systemFontOfSize:
++        [NSFont systemFontSizeForControlSize:self.controlSize]];
++    [self setButtonType:NSButtonTypeMomentaryPushIn];
++    self.target = self;
++    self.action = @selector(resetPermission:);
++  }
++  return self;
++}
++
++- (void)resetPermission:(id)sender {
++  auto callback = _callback;
++  callback.Run();
++}
++@end
++
+ namespace {
+ 
++class SiteInfoResetButtonHost : public views::NativeViewHost {
++ public:
++  explicit SiteInfoResetButtonHost(base::RepeatingClosure action)
++      : button_([[HeliumSiteInfoResetButton alloc]
++            initWithAction:std::move(action)]) {
++    const NSSize size = button_.fittingSize;
++    SetPreferredSize(gfx::Size(base::ClampCeil(size.width),
++                               base::ClampCeil(size.height)));
++  }
++
++  void AddedToWidget() override {
++    if (GetVisible()) {
++      AttachButton();
++    }
++  }
++
++ private:
++  void AttachButton() {
++    if (!native_view()) {
++      Attach(gfx::NativeView(button_));
++    }
++  }
++
++  void VisibilityChanged(views::View* starting_from, bool visible) override {
++    if (GetWidget()) {
++      if (visible && IsDrawn()) {
++        AttachButton();
++      } else if (!visible && native_view()) {
++        Detach();
++      }
++    }
++    views::NativeViewHost::VisibilityChanged(starting_from, visible);
++  }
++
++  void Layout(PassKey) override {
++    LayoutSuperclass<views::NativeViewHost>(this);
++    NSView* container = button_.superview;
++    if (!container || button_.hidden) {
++      return;
++    }
++    // The Views root is inset inside the AppKit popover window.
++    const gfx::Rect bounds = ConvertRectToWidget(GetContentsBounds());
++    const CGFloat y = container.isFlipped
++                          ? bounds.y()
++                          : NSHeight(container.bounds) - bounds.bottom();
++    button_.frame = NSMakeRect(bounds.x(), y, bounds.width(), bounds.height());
++  }
++
++  HeliumSiteInfoResetButton* __strong button_;
++};
++
+ // Match the semantic glyphs used by both rounded and older Page Info icons.
+ constexpr auto kSiteInfoSymbols =
+     base::MakeFixedFlatMap<std::string_view, const char*>({
+@@ -1776,12 +1864,9 @@
+           {"Devices", "laptopcomputer.and.iphone"},
+           {"Domain", "building.2"},
+           {"DomainVerification", "checkmark.seal"},
+-          {"Download", "arrow.down.to.line"},
+-          {"Download2", "arrow.down.to.line"},
+           {"Extension", "puzzlepiece.extension"},
+           {"Eye", "eye"},
+           {"EyeCrossed", "eye.slash"},
+-          {"FileDownload", "arrow.down.document"},
+           {"FileSave", "arrow.down.doc"},
+           {"FontDownload", "textformat"},
+           {"Fullscreen", "arrow.up.left.and.arrow.down.right"},
+@@ -1888,11 +1973,18 @@
+   if (size <= 0 || (!colors && icon.color().IsLogical())) {
+     return {};
+   }
+-  const char* symbol = it == kSiteInfoSymbols.end() ? "info.circle" : it->second;
++  const bool is_download = name == "Download" || name == "Download2" ||
++                           name == "FileDownload";
++  const char* symbol = is_download ? "arrow.down.circle"
++                      : it == kSiteInfoSymbols.end() ? "info.circle"
++                                                     : it->second;
++  ui::ColorId color_id = kColorPageInfoForeground;
++  if (std::string_view(symbol) == "exclamationmark.triangle.fill") {
++    color_id = ui::kColorAlertMediumSeverityIcon;
++  }
+   const SkColor color =
+-      colors && std::string_view(symbol) == "exclamationmark.triangle.fill"
+-          ? colors->GetColor(ui::kColorAlertMediumSeverityIcon)
+-          : icon.color().ResolveToSkColor(colors);
++      colors ? colors->GetColor(color_id)
++             : icon.color().ResolveToSkColor(colors);
+   int point_size = std::max(8, size - 4);
+   // Match the regular AppKit control font for Close. Use less emphasis for
+   // the trailing disclosure indicator while keeping the row's hit bounds.
+@@ -1910,7 +2002,7 @@
+     image = helium::NativeToolbarSymbolForName(
+         "info.circle", size, color, point_size);
+   }
+-  if (blocked) {
++  if (blocked && !is_download) {
+     const auto badge =
+         helium::NativeToolbarSymbolForName("nosign", size, color, point_size);
+     image = gfx::ImageSkiaOperations::CreateSuperimposedImage(image, badge);
+@@ -1936,13 +2028,82 @@
+   }
+ }
+ 
++constexpr int kSiteInfoSubpageTopAdjustment = 4;
++
++void ConfigureSiteInfoPopoverHeader(views::FlexLayoutView& header) {
++  views::View* back = nullptr;
++  views::View* close = nullptr;
++  for (views::View* child : header.children()) {
++    if (child->GetID() == PageInfoViewFactory::VIEW_ID_PAGE_INFO_BACK_BUTTON) {
++      back = child;
++    } else if (child->GetID() ==
++               PageInfoViewFactory::VIEW_ID_PAGE_INFO_CLOSE_BUTTON) {
++      close = child;
++    }
++  }
++  if (!close || !close->GetVisible()) {
++    return;
++  }
++  close->SetVisible(false);
++
++  views::View* labels = &header;
++  gfx::Insets header_margins = header.GetInteriorMargin();
++  if (back) {
++    header.SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
++    header_margins.set_bottom(0);
++    if (auto* title = header.GetViewByID(
++            PageInfoViewFactory::VIEW_ID_PAGE_INFO_SUBPAGE_TITLE)) {
++      labels = title->parent();
++      const auto* margins = labels->GetProperty(views::kMarginsKey);
++      labels->SetProperty(views::kMarginsKey,
++                          gfx::Insets::VH(0, margins ? margins->right() : 0));
++    }
++    // Keep the title centered across the panel, independent of the Back button.
++    auto* spacer = header.AddChildView(std::make_unique<views::View>());
++    spacer->SetCanProcessEventsWithinSubtree(false);
++    spacer->SetPreferredSize(back->GetPreferredSize());
++    if (const auto* padding = back->GetProperty(views::kInternalPaddingKey)) {
++      spacer->SetProperty(views::kInternalPaddingKey, *padding);
++    }
++  } else {
++    header_margins.set_top(header_margins.top() + kSiteInfoSubpageTopAdjustment);
++  }
++  header.SetInteriorMargin(header_margins);
++  for (views::View* child : labels->children()) {
++    if (auto* label = views::AsViewClass<views::Label>(child)) {
++      if (back &&
++          label->GetID() != PageInfoViewFactory::VIEW_ID_PAGE_INFO_SUBPAGE_TITLE) {
++        label->SetVisible(false);
++        continue;
++      }
++      label->SetTextStyle(views::style::STYLE_BODY_3);
++      label->SetHorizontalAlignment(gfx::ALIGN_CENTER);
++    }
++  }
++}
++
+ void ConfigureSiteInfoPopoverContent(views::View* view) {
++  if (auto* layout = views::AsViewClass<views::FlexLayoutView>(view)) {
++    ConfigureSiteInfoPopoverHeader(*layout);
++  }
++  if (auto* frame = views::AsViewClass<views::BubbleFrameView>(view)) {
++    if (auto* title = views::AsViewClass<views::Label>(frame->title())) {
++      title->SetTextStyle(views::style::STYLE_BODY_3);
++      title->SetHorizontalAlignment(gfx::ALIGN_CENTER);
++    }
++  }
+   if (auto* security = views::AsViewClass<SecurityInformationView>(view)) {
+     security->UsePopoverRowStyle();
+   }
++  if (auto* main = views::AsViewClass<PageInfoMainView>(view)) {
++    main->UseAutomaticDownloadsPopoverRow(base::BindRepeating(
++        [](base::RepeatingClosure action) -> std::unique_ptr<views::View> {
++          return std::make_unique<SiteInfoResetButtonHost>(std::move(action));
++        }));
++  }
+ 
+-  // AppKit supplies the popover chrome. Let row highlights fill the content
+-  // width by clearing the trailing inset used by the Views bubble.
++  // Remove the Views bubble's asymmetric margins so the highlight can
++  // use the same inset on each edge.
+   if (auto* container =
+           views::AsViewClass<PageInfoMainView::ContainerView>(view)) {
+     container->RemoveExtraRightMargin();
+@@ -1951,17 +2112,42 @@
+       PageInfoViewFactory::VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_SITE_SETTINGS) {
+     view->ClearProperty(views::kMarginsKey);
+   }
++  if (view->GetID() == PageInfoViewFactory::VIEW_ID_PAGE_INFO_BACK_BUTTON) {
++    if (auto* button = views::AsViewClass<views::Button>(view)) {
++      button->SetAnimateOnStateChange(false);
++      button->SetAnimationDuration(base::TimeDelta());
++      views::InkDrop::Get(button)->GetInkDrop()->SetHoverHighlightFadeDuration(
++          base::TimeDelta());
++    }
++  }
+ 
++  if (auto* scroll = views::AsViewClass<views::ScrollView>(view);
++      scroll && scroll->GetID() !=
++                    PageInfoViewFactory::
++                        VIEW_ID_PAGE_INFO_PERMISSION_SUBPAGE_FILE_SYSTEM_SCROLL_PANEL) {
++    // Let the AppKit material show through the main permission list.
++    scroll->SetBackgroundColor(std::nullopt);
++  }
++
++  constexpr int kRowHighlightInset = 10;
++  if (auto* row = views::AsViewClass<HoverButton>(view)) {
++    row->SetAnimateOnStateChange(false);
++    helium::ConfigureNativePopoverHighlight(
++        *row, /*is_icon_button=*/false, kRowHighlightInset);
++  }
+   if (auto* row = views::AsViewClass<RichHoverButton>(view);
+       row && row->GetActionIcon() == PageInfoViewFactory::GetLaunchIcon()) {
+     row->SetActionIcon(ui::ImageModel());
+   }
+-
+-  // Subpixel text needs an opaque background. AppKit composites the
+-  // transparent Views layer over the native popover material.
+-  if (auto* label = views::AsViewClass<views::Label>(view)) {
+-    label->SetSubpixelRenderingEnabled(false);
++  if (auto* row = views::AsViewClass<PermissionToggleRowView>(view);
++      row && !views::InkDrop::Get(row)) {
++    row->SetNotifyEnterExitOnChild(true);
++    views::InkDrop::Install(row, std::make_unique<views::InkDropHost>(row));
++    helium::ConfigureNativePopoverHighlight(
++        *row, /*is_icon_button=*/false, kRowHighlightInset);
+   }
++
++  ConfigurePopoverLabel(view);
+   for (views::View* child : view->children()) {
+     ConfigureSiteInfoPopoverContent(child);
+   }
+@@ -3103,12 +3289,19 @@
+                  views::Widget* widget) {
+                 auto* bubble = params->delegate->AsBubbleDialogDelegate();
+                 bubble->SetArrow(views::BubbleBorder::NONE);
++                bubble->SetShowCloseButton(false);
+                 bubble->SetBackgroundColor(SK_ColorTRANSPARENT);
+                 bubble->set_close_on_deactivate(false);
+                 if (auto* page_info = views::AsViewClass<PageInfoBubbleView>(
+                         bubble->GetContentsView())) {
+                   constexpr int kSiteInfoContentWidth = 344;
+                   page_info->UsePopoverLayout(kSiteInfoContentWidth);
++                  gfx::Insets margins = page_info->frame_margins().contents;
++                  // Match the Back button's leading inset, which already
++                  // accounts for the image button's internal padding.
++                  margins.set_top(margins.top() -
++                                  kSiteInfoSubpageTopAdjustment);
++                  page_info->set_margins(margins);
+                 }
+                 params->native_widget =
+                     new ToolbarPopoverWidget(
+--- a/chrome/browser/ui/views/page_info/page_info_main_view.cc
++++ b/chrome/browser/ui/views/page_info/page_info_main_view.cc
+@@ -336,6 +336,34 @@
+                                           kColorPageInfoForeground);
+ }
+ 
++void PageInfoMainView::UseAutomaticDownloadsPopoverRow(
++    PermissionToggleRowView::ResetButtonFactory reset_button_factory) {
++  if (automatic_downloads_reset_factory_) {
++    return;
++  }
++  automatic_downloads_reset_factory_ = std::move(reset_button_factory);
++  // The popover can configure the view while it is being added after Back.
++  // Wait for the hierarchy notification to finish before attaching the button.
++  content::GetUIThreadTaskRunner({})->PostTask(
++      FROM_HERE,
++      base::BindOnce(&PageInfoMainView::ApplyAutomaticDownloadsPopoverRow,
++                     weak_factory_.GetWeakPtr()));
++}
++
++void PageInfoMainView::ApplyAutomaticDownloadsPopoverRow() {
++  const auto it =
++      syncable_permission_rows_.find(ContentSettingsType::AUTOMATIC_DOWNLOADS);
++  if (it == syncable_permission_rows_.end()) {
++    return;
++  }
++  it->second->UsePopoverToggleStyle(automatic_downloads_reset_factory_);
++  PermissionInfoList permissions;
++  for (const auto& row : toggle_rows_) {
++    permissions.push_back(row->permission());
++  }
++  UpdateResetButton(permissions);
++}
++
+ void PageInfoMainView::SetPermissionInfo(
+     const PermissionInfoList& permission_info_list,
+     ChosenObjectInfoList chosen_object_info_list) {
+@@ -429,6 +457,10 @@
+         content_view->AddChildView(std::make_unique<PermissionToggleRowView>(
+             ui_delegate_, navigation_handler_, permission, should_show_spacer));
+     toggle_row->AddObserver(this);
++    if (automatic_downloads_reset_factory_ &&
++        permission.type == ContentSettingsType::AUTOMATIC_DOWNLOADS) {
++      toggle_row->UsePopoverToggleStyle(automatic_downloads_reset_factory_);
++    }
+     toggle_row->SetProperty(views::kCrossAxisAlignmentKey,
+                             views::LayoutAlignment::kStretch);
+     syncable_permission_rows_.emplace(permission.type, toggle_row);
+@@ -454,7 +486,10 @@
+             // chosen object is revoked, which clears `toggle_rows_` and
+             // `chosen_object_rows_` and destroys all child views.
+             for (size_t i = 0; i < view->toggle_rows_.size(); ++i) {
+-              view->toggle_rows_[i]->ResetPermission();
++              auto* row = view->toggle_rows_[i].get();
++              if (!row->HasInlineResetButton()) {
++                row->ResetPermission();
++              }
+             }
+             for (size_t i = 0; i < view->chosen_object_rows_.size(); ++i) {
+               view->chosen_object_rows_[i]->ResetPermission();
+@@ -493,9 +528,21 @@
+ 
+ void PageInfoMainView::UpdateResetButton(
+     const PermissionInfoList& permission_info_list) {
++  const auto automatic_downloads =
++      syncable_permission_rows_.find(ContentSettingsType::AUTOMATIC_DOWNLOADS);
++  const bool has_inline_reset =
++      automatic_downloads != syncable_permission_rows_.end() &&
++      automatic_downloads->second->HasInlineResetButton();
++  if (has_inline_reset) {
++    reset_button_->SetVisible(false);
++  }
+   reset_button_->SetEnabled(false);
+   int num_permissions = 0;
+   for (const auto& permission : permission_info_list) {
++    if (has_inline_reset &&
++        permission.type == ContentSettingsType::AUTOMATIC_DOWNLOADS) {
++      continue;
++    }
+     const bool is_permission_user_managed =
+         permission.source == content_settings::SettingSource::kUser &&
+         (ui_delegate_->ShouldShowAllow(permission.type) ||
+--- a/chrome/browser/ui/views/page_info/page_info_main_view.h
++++ b/chrome/browser/ui/views/page_info/page_info_main_view.h
+@@ -11,6 +11,7 @@
+ #include "base/memory/raw_ptr.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/ui/views/page_info/chosen_object_view_observer.h"
++#include "chrome/browser/ui/views/page_info/permission_toggle_row_view.h"
+ #include "chrome/browser/ui/views/page_info/permission_toggle_row_view_observer.h"
+ #include "components/content_settings/core/common/content_settings_types.h"
+ #include "components/page_info/core/page_info_types.h"
+@@ -31,7 +32,6 @@
+ class RichHoverButton;
+ class PageInfoNavigationHandler;
+ class PageInfoSecurityContentView;
+-class PermissionToggleRowView;
+ 
+ namespace test {
+ class PageInfoBubbleViewTestApi;
+@@ -77,6 +77,9 @@
+                        base::RepeatingClosure());
+   ~PageInfoMainView() override;
+ 
++  void UseAutomaticDownloadsPopoverRow(
++      PermissionToggleRowView::ResetButtonFactory reset_button_factory);
++
+   // PageInfoUI implementations.
+   void SetPermissionInfo(const PermissionInfoList& permission_info_list,
+                          ChosenObjectInfoList chosen_object_info_list) override;
+@@ -137,6 +140,7 @@
+   // enables it if any permission is in a non-default state. Also updates
+   // the label depending on the number of visible permissions.
+   void UpdateResetButton(const PermissionInfoList& permission_info_list);
++  void ApplyAutomaticDownloadsPopoverRow();
+ 
+   // Handles clicks on the "Extensions" button in the site settings section.
+   void OnSeeExtensionsClicked();
+@@ -196,6 +200,7 @@
+   // The view that contains the scroll view with permission rows and the reset
+   // button, surrounded by separators.
+   raw_ptr<views::View> permissions_view_ = nullptr;
++  PermissionToggleRowView::ResetButtonFactory automatic_downloads_reset_factory_;
+ 
+   // The section that contains a separator and buttons with extended site
+   // information: "About this site" and "Merchant trust". The section is only
+--- a/chrome/browser/ui/views/page_info/page_info_view_factory.cc
++++ b/chrome/browser/ui/views/page_info/page_info_view_factory.cc
+@@ -234,7 +234,7 @@
+   const int bottom_margin =
+       layout_provider->GetDistanceMetric(DISTANCE_CONTENT_LIST_VERTICAL_MULTI);
+ 
+-  return views::Builder<views::FlexLayoutView>()
++  auto header = views::Builder<views::FlexLayoutView>()
+       .SetOrientation(views::LayoutOrientation::kVertical)
+       .AddChildren(
+           views::Builder<views::FlexLayoutView>()
+@@ -285,9 +285,12 @@
+                       .CustomConfigure(base::BindOnce([](views::View* view) {
+                         view->SetProperty(views::kInternalPaddingKey,
+                                           view->GetInsets());
+-                      }))),
+-          views::Builder<views::View>(CreateSeparator()))
++                      }))))
+       .Build();
++  if (!use_popover_subpage_spacing_) {
++    header->AddChildView(CreateSeparator());
++  }
++  return header;
+ }
+ 
+ // static
+--- a/chrome/browser/ui/views/page_info/permission_toggle_row_view.cc
++++ b/chrome/browser/ui/views/page_info/permission_toggle_row_view.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/ui/views/page_info/permission_toggle_row_view.h"
+ 
++#include <algorithm>
+ #include <string>
+ #include <string_view>
+ 
+@@ -26,6 +27,7 @@
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/ui_base_features.h"
++#include "ui/events/event.h"
+ #include "ui/strings/grit/ui_strings.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/controls/button/image_button.h"
+@@ -183,6 +185,38 @@
+   UpdateUiOnPermissionChanged();
+ }
+ 
++void PermissionToggleRowView::UsePopoverToggleStyle(
++    const ResetButtonFactory& reset_button_factory) {
++  if (!toggle_button_ || inline_reset_button_) {
++    return;
++  }
++
++  auto button = reset_button_factory.Run(
++      base::BindRepeating(&PermissionToggleRowView::ResetPermission,
++                          base::Unretained(this)));
++  const int top_inset =
++      std::max(0, (row_view_->GetFirstLineHeight() -
++                   button->GetPreferredSize().height()) / 2);
++  button->SetProperty(views::kMarginsKey,
++                      gfx::Insets::TLBR(top_inset, 6, 0, 4));
++  button->SetVisible(permission_.setting.has_value());
++  inline_reset_button_ = row_view_->AddControl(std::move(button));
++  row_view_->ReorderChildView(inline_reset_button_,
++                              row_view_->GetIndexOf(toggle_button_).value());
++}
++
++bool PermissionToggleRowView::OnMousePressed(const ui::MouseEvent& event) {
++  return inline_reset_button_ && toggle_button_->GetEnabled() &&
++         event.IsOnlyLeftMouseButton();
++}
++
++void PermissionToggleRowView::OnMouseReleased(const ui::MouseEvent& event) {
++  if (inline_reset_button_ && toggle_button_->GetEnabled() &&
++      event.IsLeftMouseButton() && HitTestPoint(event.location())) {
++    OnToggleButtonPressed();
++  }
++}
++
+ void PermissionToggleRowView::OnToggleButtonPressed() {
+   PageInfoUI::ToggleBetweenAllowAndBlock(permission_);
+   PermissionChanged();
+@@ -311,6 +345,9 @@
+     toggle_button_->SetEnabled(!permission_blocked_on_system_level_);
+     toggle_button_->AnimateIsOn(PageInfoUI::IsToggleOn(permission_));
+   }
++  if (inline_reset_button_) {
++    inline_reset_button_->SetVisible(permission_.setting.has_value());
++  }
+ 
+   // Reset |state_label_|, readd it after if needed.
+   if (state_label_) {
+--- a/chrome/browser/ui/views/page_info/permission_toggle_row_view.h
++++ b/chrome/browser/ui/views/page_info/permission_toggle_row_view.h
+@@ -5,9 +5,11 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PERMISSION_TOGGLE_ROW_VIEW_H_
+ #define CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PERMISSION_TOGGLE_ROW_VIEW_H_
+ 
++#include <memory>
+ #include <string>
+ #include <string_view>
+ 
++#include "base/functional/callback_forward.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/observer_list.h"
+ #include "chrome/browser/ui/views/controls/rich_controls_container_view.h"
+@@ -54,6 +56,12 @@
+   void PermissionChanged();
+   void UpdatePermission(const PageInfo::PermissionInfo& permission);
+   void ResetPermission();
++  using ResetButtonFactory =
++      base::RepeatingCallback<std::unique_ptr<views::View>(
++          base::RepeatingClosure)>;
++  void UsePopoverToggleStyle(const ResetButtonFactory& reset_button_factory);
++  bool HasInlineResetButton() const { return inline_reset_button_ != nullptr; }
++  const PageInfo::PermissionInfo& permission() const { return permission_; }
+ 
+   std::u16string_view GetRowTitleForTesting() const {
+     return row_view_->GetTitleForTesting();
+@@ -70,6 +78,9 @@
+  private:
+   friend class test::PageInfoBubbleViewTestApi;
+ 
++  bool OnMousePressed(const ui::MouseEvent& event) override;
++  void OnMouseReleased(const ui::MouseEvent& event) override;
++
+   void OnToggleButtonPressed();
+   void AddToggleButton(const std::u16string& toggle_accessible_name,
+                        int icon_label_spacing);
+@@ -87,6 +98,7 @@
+       blocked_on_system_level_label_ = nullptr;
+   raw_ptr<views::ToggleButton, DanglingUntriaged> toggle_button_ = nullptr;
+   raw_ptr<views::View, DanglingUntriaged> spacer_view_ = nullptr;
++  raw_ptr<views::View, DanglingUntriaged> inline_reset_button_ = nullptr;
+ 
+   raw_ptr<ChromePageInfoUiDelegate, DanglingUntriaged> delegate_ = nullptr;
+   raw_ptr<PageInfoNavigationHandler, DanglingUntriaged> navigation_handler_ =
+--- a/chrome/browser/ui/views/page_info/security_information_view.cc
++++ b/chrome/browser/ui/views/page_info/security_information_view.cc
+@@ -93,7 +93,7 @@
+     return;
+   }
+   uses_popover_row_style_ = true;
+-  security_summary_label_->SetDefaultTextStyle(views::style::STYLE_BODY_3_MEDIUM);
++  security_summary_label_->SetDefaultTextStyle(views::style::STYLE_BODY_3);
+   UpdateLayout();
+ }
+ 
+@@ -105,7 +105,7 @@
+                                          int text_style) {
+   security_summary_label_->SetText(summary_text);
+   security_summary_label_->SetDefaultTextStyle(
+-      uses_popover_row_style_ ? views::style::STYLE_BODY_3_MEDIUM : text_style);
++      uses_popover_row_style_ ? views::style::STYLE_BODY_3 : text_style);
+ }
+ 
+ void SecurityInformationView::SetDetailsWithLearnMore(
