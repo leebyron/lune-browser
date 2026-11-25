@@ -1,0 +1,1908 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -3019,7 +3019,7 @@
+         </message>
+         <message name="IDS_DOWNLOAD_BUBBLE_FOOTER_LABEL"
+                  desc="In Title Case: Label in the Download Bubble for the button that opens a full list of download history">
+-          Full Download History
++          Show All Downloads
+         </message>
+       </if>
+       <if expr="not use_titlecase">
+@@ -3029,7 +3029,7 @@
+         </message>
+         <message name="IDS_DOWNLOAD_BUBBLE_FOOTER_LABEL"
+                  desc="Label in the Download Bubble for the button that opens a full list of download history">
+-          Full download history
++          Show all downloads
+         </message>
+       </if>
+       <message name="IDS_DOWNLOAD_BUBBLE_FOOTER_TOOLTIP_LABEL"
+@@ -3328,26 +3328,47 @@
+                desc="For Incognito/Guest mode, text notifying that downloads are visible to others on the device.">
+         Anyone using this device can see downloaded files
+       </message>
+-      <message name="IDS_DOWNLOAD_BUBBLE_RESUME_QUICK_ACTION"
+-            desc="Tooltip label for action to resume a download.">
+-        Resume
+-      </message>
++      <if expr="is_macosx">
++        <message name="IDS_DOWNLOAD_BUBBLE_RESUME_QUICK_ACTION" desc="Status text shown when hovering the button to resume a download.">
++          Resume Download
++        </message>
++      </if>
++      <if expr="not is_macosx">
++        <message name="IDS_DOWNLOAD_BUBBLE_RESUME_QUICK_ACTION"
++              desc="Tooltip label for action to resume a download.">
++          Resume
++        </message>
++      </if>
+       <message name="IDS_DOWNLOAD_BUBBLE_RESUME_QUICK_ACTION_ACCESSIBILITY"
+             desc="Accessibility label for action to resume a download.">
+         Resume <ph name="FILE_NAME">$1<ex>bla.exe</ex></ph>
+       </message>
+-      <message name="IDS_DOWNLOAD_BUBBLE_PAUSE_QUICK_ACTION"
+-              desc="Tooltip label for action to pause a download.">
+-        Pause
+-      </message>
++      <if expr="is_macosx">
++        <message name="IDS_DOWNLOAD_BUBBLE_PAUSE_QUICK_ACTION" desc="Status text shown when hovering the button to pause a download.">
++          Pause Download
++        </message>
++      </if>
++      <if expr="not is_macosx">
++        <message name="IDS_DOWNLOAD_BUBBLE_PAUSE_QUICK_ACTION"
++                desc="Tooltip label for action to pause a download.">
++          Pause
++        </message>
++      </if>
+       <message name="IDS_DOWNLOAD_BUBBLE_PAUSE_QUICK_ACTION_ACCESSIBILITY"
+               desc="Accessibility label for action to pause a download.">
+         Pause <ph name="FILE_NAME">$1<ex>bla.exe</ex></ph>
+       </message>
+-      <message name="IDS_DOWNLOAD_BUBBLE_CANCEL_QUICK_ACTION"
+-              desc="Tooltip label for action to cancel a download.">
+-        Cancel
+-      </message>
++      <if expr="is_macosx">
++        <message name="IDS_DOWNLOAD_BUBBLE_CANCEL_QUICK_ACTION" desc="Status text shown when hovering the button to cancel a download.">
++          Cancel Download
++        </message>
++      </if>
++      <if expr="not is_macosx">
++        <message name="IDS_DOWNLOAD_BUBBLE_CANCEL_QUICK_ACTION"
++                desc="Tooltip label for action to cancel a download.">
++          Cancel
++        </message>
++      </if>
+       <message name="IDS_DOWNLOAD_BUBBLE_CANCEL_QUICK_ACTION_ACCESSIBILITY"
+               desc="Accessibility label for action to cancel a download.">
+         Cancel <ph name="FILE_NAME">$1<ex>bla.exe</ex></ph>
+--- a/chrome/browser/icon_loader.cc
++++ b/chrome/browser/icon_loader.cc
+@@ -51,7 +51,15 @@
+ 
+ #if !BUILDFLAG(IS_WIN)
+ void IconLoader::ReadGroup() {
+-  group_ = GroupForFilepath(file_path_);
++#if BUILDFLAG(IS_MAC)
++  // Finder icons can differ for files of the same content type.
++  if (icon_size_ == FILE_ICON) {
++    group_ = file_path_.value();
++  } else
++#endif
++  {
++    group_ = GroupForFilepath(file_path_);
++  }
+ 
+   GetReadIconTaskRunner()->PostTask(
+       FROM_HERE, base::BindOnce(&IconLoader::ReadIcon, base::Unretained(this)));
+--- a/chrome/browser/icon_loader.h
++++ b/chrome/browser/icon_loader.h
+@@ -41,6 +41,9 @@
+     NORMAL,     // 32x32
+     LARGE,      // Windows: 32x32, Linux: 48x48, Mac: Unsupported
+     ALL,        // All sizes available
++#if BUILDFLAG(IS_MAC)
++    FILE_ICON,  // 24x24 Finder file icon with a content-type fallback.
++#endif
+   };
+ 
+   // The callback invoked when an icon has been read. The parameters are:
+--- a/chrome/browser/icon_loader_mac.mm
++++ b/chrome/browser/icon_loader_mac.mm
+@@ -55,8 +55,20 @@
+ }
+ 
+ void IconLoader::ReadIcon() {
+-  UTType* type = [UTType typeWithIdentifier:base::SysUTF8ToNSString(group_)];
+-  NSImage* icon = [NSWorkspace.sharedWorkspace iconForContentType:type];
++  NSWorkspace* workspace = NSWorkspace.sharedWorkspace;
++  NSImage* icon = nil;
++  if (icon_size_ == FILE_ICON) {
++    NSURL* url = base::apple::FilePathToNSURL(file_path_);
++    if ([url checkResourceIsReachableAndReturnError:nil]) {
++      icon = [workspace iconForFile:url.path];
++    }
++  }
++  if (!icon) {
++    const IconGroup type_group =
++        icon_size_ == FILE_ICON ? GroupForFilepath(file_path_) : group_;
++    UTType* type = [UTType typeWithIdentifier:base::SysUTF8ToNSString(type_group)];
++    icon = [workspace iconForContentType:type];
++  }
+ 
+   gfx::Image image;
+   if (icon_size_ == ALL) {
+@@ -71,6 +83,9 @@
+       case IconLoader::NORMAL:
+         size = NSMakeSize(32, 32);
+         break;
++      case IconLoader::FILE_ICON:
++        size = NSMakeSize(24, 24);
++        break;
+       default:
+         NOTREACHED();
+     }
+--- a/chrome/browser/icon_manager.cc
++++ b/chrome/browser/icon_manager.cc
+@@ -72,11 +72,21 @@
+     const base::FilePath& file_path,
+     IconLoader::IconSize size,
+     float scale) {
+-  auto group_it = group_cache_.find(file_path);
+-  if (group_it == group_cache_.end())
+-    return nullptr;
++  IconLoader::IconGroup group;
++#if BUILDFLAG(IS_MAC)
++  if (size == IconLoader::FILE_ICON) {
++    group = file_path.value();
++  } else
++#endif
++  {
++    auto group_it = group_cache_.find(file_path);
++    if (group_it == group_cache_.end()) {
++      return nullptr;
++    }
++    group = group_it->second;
++  }
+ 
+-  CacheKey key(group_it->second, size, scale);
++  CacheKey key(group, size, scale);
+   auto icon_it = icon_cache_.find(key);
+   if (icon_it == icon_cache_.end())
+     return nullptr;
+@@ -100,6 +110,11 @@
+   else
+     icon_cache_.erase(key);
+ 
++#if BUILDFLAG(IS_MAC)
++  if (size == IconLoader::FILE_ICON) {
++    return;
++  }
++#endif
+   group_cache_[file_path] = group;
+ }
+ 
+--- a/chrome/browser/ui/views/download/BUILD.gn
++++ b/chrome/browser/ui/views/download/BUILD.gn
+@@ -105,7 +105,10 @@
+       "//ui/strings:ui_strings_grit",
+     ]
+     if (is_mac) {
+-      deps += [ "//chrome/browser/ui:fullscreen_util_mac" ]
++      deps += [
++        "//chrome/browser/ui:fullscreen_util_mac",
++        "//chrome/browser/ui/views/helium:native_frame_materials",
++      ]
+     }
+   }
+ }
+--- a/chrome/browser/ui/views/download/bubble/download_bubble_primary_view.cc
++++ b/chrome/browser/ui/views/download/bubble/download_bubble_primary_view.cc
+@@ -7,6 +7,7 @@
+ #include <string_view>
+ 
+ #include "base/time/time.h"
++#include "build/build_config.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+@@ -63,6 +64,9 @@
+       info);
+   row_list_view_ = row_list_view.get();
+   scroll_view_ = AddChildView(std::make_unique<views::ScrollView>());
++#if BUILDFLAG(IS_MAC)
++  scroll_view_->SetBackgroundColor(std::nullopt);
++#endif
+   scroll_view_->SetContents(std::move(row_list_view));
+   scroll_view_->ClipHeightTo(0, kMaxHeightForRowList);
+   scroll_view_->SetHorizontalScrollBarMode(
+--- a/chrome/browser/ui/views/download/bubble/download_bubble_row_view.cc
++++ b/chrome/browser/ui/views/download/bubble/download_bubble_row_view.cc
+@@ -4,14 +4,20 @@
+ 
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_row_view.h"
+ 
++#include <algorithm>
+ #include <string_view>
+ #include <utility>
+ 
++#include "base/containers/adapters.h"
+ #include "base/files/file_path.h"
++#include "base/functional/bind.h"
+ #include "base/functional/callback.h"
++#include "base/location.h"
+ #include "base/metrics/histogram_functions.h"
+ #include "base/strings/string_util.h"
++#include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
++#include "build/build_config.h"
+ #include "chrome/app/chrome_command_ids.h"
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/browser_process.h"
+@@ -26,15 +32,18 @@
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/chrome_pages.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_navigation_handler.h"
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_row_list_view.h"
+ #include "chrome/browser/ui/views/download/download_ui_context_menu_view.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/download/public/common/download_item.h"
+ #include "components/vector_icons/vector_icons.h"
++#include "third_party/skia/include/core/SkPath.h"
+ #include "ui/base/clipboard/scoped_clipboard_writer.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/l10n/time_format.h"
+@@ -44,10 +53,13 @@
+ #include "ui/base/text/bytes_formatting.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/color/color_id.h"
++#include "ui/color/color_provider.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/display/screen.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/gfx/geometry/insets.h"
++#include "ui/gfx/geometry/skia_conversions.h"
++#include "ui/gfx/image/image_skia_operations.h"
+ #include "ui/gfx/image/image_util.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/animation/ink_drop.h"
+@@ -68,6 +80,7 @@
+ #include "ui/views/layout/layout_provider.h"
+ #include "ui/views/layout/layout_types.h"
+ #include "ui/views/layout/table_layout.h"
++#include "ui/views/masked_targeter_delegate.h"
+ #include "ui/views/rect_based_targeting_utils.h"
+ #include "ui/views/style/typography.h"
+ #include "ui/views/style/typography_provider.h"
+@@ -92,6 +105,12 @@
+ }
+ 
+ constexpr int kDownloadButtonHeight = 24;
++constexpr int kMacFileIconSize = 24;
++
++gfx::Insets GetDownloadRowInsets() {
++  return BUILDFLAG(IS_MAC) ? gfx::Insets::VH(5, 8)
++                          : GetLayoutInsets(DOWNLOAD_ROW);
++}
+ constexpr int kDownloadSubpageIconMargin = 2;
+ // Padding between elements in the row (except icon and label).
+ constexpr gfx::Insets kRowInterElementPadding = gfx::Insets::TLBR(0, 8, 0, 0);
+@@ -101,6 +120,106 @@
+ // Main Button, Subpage Icon.
+ constexpr int kNumColumns = 5;
+ 
++#if BUILDFLAG(IS_MAC)
++constexpr int kDownloadActionCanvas = 20;
++constexpr int kDownloadActionMargin = 3;
++constexpr int kSharedActionEdge = 4;
++
++bool IsQuickActionHoveredOrPressed(const views::ImageButton& button) {
++  return button.IsDrawn() &&
++         (button.GetState() == views::Button::STATE_HOVERED ||
++          button.GetState() == views::Button::STATE_PRESSED);
++}
++
++const char* GetNativeDownloadActionSymbol(DownloadCommands::Command command) {
++  switch (command) {
++    case DownloadCommands::RESUME:
++      return "play";
++    case DownloadCommands::PAUSE:
++      return "pause";
++    case DownloadCommands::SHOW_IN_FOLDER:
++      return "folder";
++    case DownloadCommands::CANCEL:
++      return "xmark";
++    default:
++      NOTREACHED();
++  }
++}
++
++class DownloadQuickActionButton : public views::ImageButton,
++                                  public views::MaskedTargeterDelegate {
++ public:
++  DownloadQuickActionButton(PressedCallback callback,
++                            DownloadCommands::Command command,
++                            base::RepeatingClosure state_changed)
++      : ImageButton(std::move(callback)),
++        command_(command),
++        state_changed_(std::move(state_changed)) {
++    views::ConfigureVectorImageButton(this);
++    SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
++    const char* symbol = GetNativeDownloadActionSymbol(command);
++    SetImageModel(STATE_NORMAL, MakeIcon(symbol, /*dimmed=*/true));
++    const auto active_icon = MakeIcon(symbol, /*dimmed=*/false);
++    SetImageModel(STATE_HOVERED, active_icon);
++    SetImageModel(STATE_PRESSED, active_icon);
++  }
++
++  gfx::Insets SetSharesInsideEdge(bool shares_inside_edge) {
++    hit_insets_ = gfx::Insets();
++    gfx::Insets margins = gfx::Insets::TLBR(0, kDownloadActionMargin, 0, 0);
++    if (shares_inside_edge) {
++      if (command_ == DownloadCommands::CANCEL) {
++        margins.set_left(-kSharedActionEdge);
++        hit_insets_.set_left(kSharedActionEdge);
++      } else if (command_ == DownloadCommands::PAUSE ||
++                 command_ == DownloadCommands::RESUME) {
++        margins.set_right(-kSharedActionEdge);
++        hit_insets_.set_right(kSharedActionEdge);
++      }
++    }
++    return margins;
++  }
++
++ private:
++  static ui::ImageModel MakeIcon(const char* symbol, bool dimmed) {
++    return ui::ImageModel::FromImageGenerator(
++        base::BindRepeating(
++            [](const char* symbol, bool dimmed,
++               const ui::ColorProvider* colors) {
++              auto image = helium::NativeToolbarSymbolForName(
++                  symbol, kDownloadActionCanvas,
++                  colors->GetColor(ui::kColorLabelForeground),
++                  helium::kNativeDownloadSymbolPointSize);
++              return dimmed
++                         ? gfx::ImageSkiaOperations::CreateTransparentImage(
++                               image, 0.7)
++                         : image;
++            },
++            symbol, dimmed),
++        gfx::Size(kDownloadActionCanvas, kDownloadActionCanvas));
++  }
++
++  void StateChanged(ButtonState old_state) override {
++    ImageButton::StateChanged(old_state);
++    if (state_changed_) {
++      state_changed_.Run();
++    }
++  }
++
++  bool GetHitTestMask(SkPath* mask) const override {
++    // Split the overlapping targets at the midpoint between their centers.
++    gfx::Rect bounds = GetLocalBounds();
++    bounds.Inset(hit_insets_);
++    *mask = SkPath::Rect(gfx::RectToSkRect(GetMirroredRect(bounds)));
++    return true;
++  }
++
++  const DownloadCommands::Command command_;
++  const base::RepeatingClosure state_changed_;
++  gfx::Insets hit_insets_;
++};
++#endif
++
+ // A stub subclass of Button that has no visuals.
+ class DownloadBubbleTransparentButton : public views::Button {
+   METADATA_HEADER(DownloadBubbleTransparentButton, views::Button)
+@@ -210,9 +329,13 @@
+     return true;
+   }
+ 
+-  const IconLoader::IconSize icon_loader_size = IconLoader::NORMAL;
+-  // IconLoader::SMALL returns 16x16 icon and IconLoader::NORMAL returns 20x20
+-  // icon.
++  IconLoader::IconSize icon_loader_size = IconLoader::NORMAL;
++#if BUILDFLAG(IS_MAC)
++  if (info_->model()->GetState() == download::DownloadItem::COMPLETE) {
++    icon_loader_size = IconLoader::FILE_ICON;
++  }
++#endif
++  cancelable_task_tracker_.TryCancelAll();
+   IconManager* const im = g_browser_process->icon_manager();
+   // Can be null in tests.
+   if (!im) {
+@@ -232,10 +355,15 @@
+ }
+ 
+ void DownloadBubbleRowView::OnFileIconLoaded(gfx::Image icon) {
++#if BUILDFLAG(IS_MAC)
++  // ImageView fits the workspace icon without discarding its Retina rep.
++  file_icon_ = icon.IsEmpty() ? GetDefaultIconImage(GetColorProvider()) : icon;
++#else
+   const int icon_size = GetLayoutConstant(LayoutConstant::kDownloadIconSize);
+   file_icon_ = ResizedImage(
+       icon.IsEmpty() ? GetDefaultIconImage(GetColorProvider()) : icon,
+       {icon_size, icon_size});
++#endif
+   // Don't overwrite an override icon from the most recent invocation of
+   // SetIcon.
+   if (last_overridden_icon_) {
+@@ -260,25 +388,46 @@
+   // even if it is not used as the |icon_|. If this returns true, it set the
+   // |icon_| to a |file_icon_|, which may be a filetype icon or a default icon.
+   // But if there is an override, it will be re-set below.
+-  bool file_type_icon_set = StartLoadFileIcon();
++  last_overridden_icon_ = nullptr;
++  const bool file_type_icon_set = StartLoadFileIcon();
+ 
+   if (info_->icon_override()) {
+     last_overridden_icon_ = info_->icon_override();
+     has_default_icon_ = false;
+-    SetIconFromImageModel(ui::ImageModel::FromVectorIcon(
++    const auto fallback = ui::ImageModel::FromVectorIcon(
+         *info_->icon_override(), info_->secondary_color(),
+-        GetLayoutConstant(LayoutConstant::kDownloadIconSize)));
++        GetLayoutConstant(LayoutConstant::kDownloadIconSize));
++#if BUILDFLAG(IS_MAC)
++    const auto state = info_->model()->GetState();
++    if (state == download::DownloadItem::CANCELLED ||
++        (state == download::DownloadItem::INTERRUPTED &&
++         info_->model()->GetLastFailState() ==
++             offline_items_collection::FailState::USER_CANCELED)) {
++      SetIconFromImageModel(ui::ImageModel::FromImageGenerator(
++          base::BindRepeating(
++              [](ui::ColorId color_id, const ui::ImageModel& fallback,
++                 const ui::ColorProvider* colors) {
++                const SkColor color = colors->GetColor(color_id);
++                auto icon = helium::NativeToolbarSymbolForName(
++                    "x.circle", kMacFileIconSize, color);
++                if (icon.isNull()) {
++                  icon = helium::NativeToolbarSymbolForName(
++                      "xmark.circle", kMacFileIconSize, color);
++                }
++                return icon.isNull() ? fallback.Rasterize(colors) : icon;
++              },
++              info_->secondary_color(), fallback),
++          gfx::Size(kMacFileIconSize, kMacFileIconSize)));
++      return;
++    }
++#endif
++    SetIconFromImageModel(fallback);
+     return;
+   }
+ 
+   // For downloads in incognito mode.
+   if (info_->model()->profile() &&
+       info_->model()->profile()->IsIncognitoProfile()) {
+-    if (last_overridden_icon_ == &(features::IsRoundedIconsEnabled()
+-                                       ? kIncognitoCircleFilledIcon
+-                                       : kIncognitoOldIcon)) {
+-      return;
+-    }
+     last_overridden_icon_ =
+         &(features::IsRoundedIconsEnabled() ? kIncognitoCircleFilledIcon
+                                             : kIncognitoOldIcon);
+@@ -293,11 +442,6 @@
+   // For downloads in guest sessions.
+   if (info_->model()->profile() &&
+       info_->model()->profile()->IsGuestSession()) {
+-    if (last_overridden_icon_ == &(features::IsRoundedIconsEnabled()
+-                                       ? kAccountCircleIcon
+-                                       : kUserAccountAvatarOldIcon)) {
+-      return;
+-    }
+     last_overridden_icon_ =
+         &(features::IsRoundedIconsEnabled() ? kAccountCircleIcon
+                                             : kUserAccountAvatarOldIcon);
+@@ -307,8 +451,6 @@
+     return;
+   }
+ 
+-  last_overridden_icon_ = nullptr;
+-
+   if (file_type_icon_set || has_default_icon_) {
+     return;
+   }
+@@ -351,24 +493,29 @@
+       fixed_width_(fixed_width) {
+   CHECK(info_->model());
+   info_->AddObserver(this);
+-  SetBorder(views::CreateEmptyBorder(GetLayoutInsets(DOWNLOAD_ROW)));
++  SetBorder(views::CreateEmptyBorder(GetDownloadRowInsets()));
+ 
+   views::InkDrop::Install(this, std::make_unique<views::InkDropHost>(this));
+-  views::InstallRectHighlightPathGenerator(this);
++#if !BUILDFLAG(IS_MAC)
+   views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
++  views::InstallRectHighlightPathGenerator(this);
+   views::InkDrop::UseInkDropForFloodFillRipple(views::InkDrop::Get(this),
+                                                /*highlight_on_hover=*/true,
+                                                /*highlight_on_focus=*/true);
+   views::InkDrop::Get(this)->SetBaseColor(kColorDownloadBubbleRowHover);
+   views::InkDrop::Get(this)->SetHighlightOpacity(1.0f);
++#endif
+ 
+-  const int icon_label_spacing = ChromeLayoutProvider::Get()->GetDistanceMetric(
+-      views::DISTANCE_RELATED_LABEL_HORIZONTAL);
++  const int icon_label_spacing = BUILDFLAG(IS_MAC)
++      ? 6
++      : ChromeLayoutProvider::Get()->GetDistanceMetric(
++            views::DISTANCE_RELATED_LABEL_HORIZONTAL);
+ 
+   SetLayoutManager(std::make_unique<views::TableLayout>())
+       // Download Icon
+       ->AddColumn(views::LayoutAlignment::kCenter,
+-                  views::LayoutAlignment::kStart,
++                  BUILDFLAG(IS_MAC) ? views::LayoutAlignment::kCenter
++                                    : views::LayoutAlignment::kStart,
+                   views::TableLayout::kFixedSize,
+                   views::TableLayout::ColumnSize::kUsePreferred, 0, 0)
+       // Download name label (primary_label_)
+@@ -403,12 +550,16 @@
+ 
+   icon_ = AddChildView(std::make_unique<views::ImageView>());
+   icon_->SetCanProcessEventsWithinSubtree(false);
+-  icon_->SetBorder(views::CreateEmptyBorder(GetLayoutInsets(DOWNLOAD_ICON)));
++  if (!BUILDFLAG(IS_MAC)) {
++    icon_->SetBorder(views::CreateEmptyBorder(GetLayoutInsets(DOWNLOAD_ICON)));
++  }
+   // Make sure the icon is above the inkdrops.
+   icon_->SetPaintToLayer();
+   icon_->layer()->SetFillsBoundsOpaquely(false);
+   icon_->SetProperty(views::kTableColAndRowSpanKey, gfx::Size(1, 2));
+-  const int icon_size = GetLayoutConstant(LayoutConstant::kDownloadIconSize);
++  const int icon_size = BUILDFLAG(IS_MAC)
++                            ? kMacFileIconSize
++                            : GetLayoutConstant(LayoutConstant::kDownloadIconSize);
+   icon_->SetImageSize({icon_size, icon_size});
+ 
+   primary_label_ = AddChildView(std::make_unique<views::Label>(
+@@ -416,9 +567,15 @@
+       views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_PRIMARY));
+   primary_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+   primary_label_->SetCanProcessEventsWithinSubtree(false);
+-  primary_label_->SetMultiLine(true);
+-  primary_label_->SetAllowCharacterBreak(true);
+-  primary_label_->SetTextStyle(views::style::STYLE_BODY_3_MEDIUM);
++  primary_label_->SetMultiLine(!BUILDFLAG(IS_MAC));
++  if (BUILDFLAG(IS_MAC)) {
++    primary_label_->SetElideBehavior(gfx::FADE_TAIL);
++  } else {
++    primary_label_->SetAllowCharacterBreak(true);
++  }
++  primary_label_->SetTextStyle(BUILDFLAG(IS_MAC)
++                                    ? views::style::STYLE_BODY_3
++                                    : views::style::STYLE_BODY_3_MEDIUM);
+ 
+   main_button_holder_ = AddChildView(std::make_unique<views::FlexLayoutView>());
+   AddMainPageButton(DownloadCommands::CANCEL,
+@@ -442,19 +599,26 @@
+ 
+   // Note that the addition order of these quick actions matches the visible
+   // order, i.e. buttons added first will appear first (left in LTR)
+-  quick_action_holder_ =
+-      AddChildView(std::make_unique<views::FlexLayoutView>());
++#if BUILDFLAG(IS_MAC)
++  quick_action_holder_ = AddChildView(std::make_unique<views::View>());
++#else
++  quick_action_holder_ = AddChildView(std::make_unique<views::FlexLayoutView>());
++#endif
+   // All the quick action buttons are added as children. Later on, only the ones
+   // that are enabled will be made visible in UpdateButtons().
+   AddQuickAction(DownloadCommands::RESUME);
+   AddQuickAction(DownloadCommands::PAUSE);
+   AddQuickAction(DownloadCommands::SHOW_IN_FOLDER);
+   AddQuickAction(DownloadCommands::CANCEL);
+-  AddQuickAction(DownloadCommands::OPEN_WHEN_COMPLETE);
++  if (!BUILDFLAG(IS_MAC)) {
++    AddQuickAction(DownloadCommands::OPEN_WHEN_COMPLETE);
++  }
+   quick_action_holder_->SetVisible(false);
+   quick_action_holder_->SetProperty(views::kViewIgnoredByLayoutKey, true);
+-  quick_action_holder_->SetBackground(
+-      views::CreateSolidBackground(ui::kColorDialogBackground));
++  if (!BUILDFLAG(IS_MAC)) {
++    quick_action_holder_->SetBackground(
++        views::CreateSolidBackground(ui::kColorDialogBackground));
++  }
+ 
+   subpage_icon_holder_ =
+       AddChildView(std::make_unique<views::FlexLayoutView>());
+@@ -482,8 +646,12 @@
+   secondary_label_->SetProperty(views::kTableColAndRowSpanKey,
+                                 gfx::Size(kNumColumns - 2, 1));
+   secondary_label_->SetCanProcessEventsWithinSubtree(false);
+-  secondary_label_->SetMultiLine(true);
+-  secondary_label_->SetAllowCharacterBreak(true);
++  if (BUILDFLAG(IS_MAC)) {
++    secondary_label_->SetElideBehavior(gfx::FADE_TAIL);
++  } else {
++    secondary_label_->SetMultiLine(true);
++    secondary_label_->SetAllowCharacterBreak(true);
++  }
+   secondary_label_->SetTextStyle(views::style::STYLE_BODY_5);
+ 
+   // TODO(crbug.com/40875578): Remove the progress bar holder view here.
+@@ -619,40 +787,146 @@
+   if (now) {
+     UpdateRowForFocus(/*visible=*/Contains(now),
+                       /*request_focus_on_last_quick_action=*/false);
++#if BUILDFLAG(IS_MAC)
++    UpdateNativePopoverHighlight(IsMouseHovered(), now);
++#endif
+   }
+ }
+ 
+ void DownloadBubbleRowView::UpdateRowForHover(bool hovered) {
++#if BUILDFLAG(IS_MAC)
++  views::View* focused = GetFocusManager() ? GetFocusManager()->GetFocusedView()
++                                           : nullptr;
++  const bool row_interacted = hovered || Contains(focused);
++  UpdateQuickActionVisibility(row_interacted);
++  UpdateNativePopoverHighlight(hovered, focused);
++#else
+   quick_action_holder_->SetVisible(hovered);
++#endif
++}
++
++void DownloadBubbleRowView::UpdateQuickActionVisibility(bool row_interacted) {
++#if BUILDFLAG(IS_MAC)
++  row_interacted |=
++      quick_actions_.at(DownloadCommands::SHOW_IN_FOLDER)->GetVisible();
++#endif
++  if (quick_action_holder_->GetVisible() == row_interacted) {
++    return;
++  }
++  quick_action_holder_->SetVisible(row_interacted);
++#if BUILDFLAG(IS_MAC)
++  // The action holder is overlaid and is ignored by the table layout.
++  InvalidateLayout();
++#endif
++}
++
++void DownloadBubbleRowView::UpdateNativePopoverHighlight(
++    bool hovered,
++    const views::View* focused) {
++#if BUILDFLAG(IS_MAC)
++  const auto* model = info_->model();
++  const bool has_row_hover_action =
++      info_->main_button_enabled() && model &&
++      (info_->has_subpage() ||
++       (model->GetState() == download::DownloadItem::COMPLETE &&
++        !model->GetFileExternallyRemoved()));
++  const bool quick_action_highlighted = std::ranges::any_of(
++      quick_actions_, [focused](const auto& entry) {
++        const auto& [command, button] = entry;
++        return IsQuickActionHoveredOrPressed(*button) ||
++               (command == DownloadCommands::SHOW_IN_FOLDER &&
++                button->GetVisible() && button.get() == focused);
++      });
++  const bool highlighted =
++      (Contains(focused) || (hovered && has_row_hover_action)) &&
++      !quick_action_highlighted;
++  if (highlighted == (background() != nullptr)) {
++    return;
++  }
++  SetBackground(highlighted ? views::CreateRoundedRectBackground(
++                                  kColorHoverButtonBackgroundHovered,
++                                  gfx::RoundedCornersF(
++                                      helium::kNativePopoverRowCornerRadius),
++                                  gfx::Insets::VH(1, 0))
++                            : nullptr);
++#endif
+ }
+ 
+ void DownloadBubbleRowView::UpdateRowForFocus(
+     bool visible,
+     bool request_focus_on_last_quick_action) {
+-  quick_action_holder_->SetVisible(visible);
++  UpdateQuickActionVisibility(
++      visible || (BUILDFLAG(IS_MAC) && IsMouseHovered()));
+   views::InkDrop::Get(this)->GetInkDrop()->SetFocused(visible);
+   // Update focus only if focus received from a different row.
+   bool should_set_focus = request_focus_on_last_quick_action &&
+                           GetFocusManager() &&
+                           !Contains(GetFocusManager()->GetFocusedView());
+-  if (should_set_focus && !info_->quick_actions().empty()) {
+-    quick_actions_[info_->quick_actions().back().command]->RequestFocus();
++  if (should_set_focus) {
++    for (const auto& action : base::Reversed(info_->quick_actions())) {
++      auto button = quick_actions_.find(action.command);
++      if (button != quick_actions_.end() && button->second->GetVisible()) {
++        button->second->RequestFocus();
++        break;
++      }
++    }
+   }
+ }
+ 
+ void DownloadBubbleRowView::Layout(PassKey) {
+   LayoutSuperclass<views::View>(this);
+   transparent_button_->SetBoundsRect(GetLocalBounds());
+-  gfx::Size quick_actions_size = quick_action_holder_->GetPreferredSize();
+-  gfx::Insets insets = GetLayoutInsets(DOWNLOAD_ROW);
++  const gfx::Size quick_actions_size = LayoutQuickActions();
++  const gfx::Insets insets = GetDownloadRowInsets();
++  const int action_x = width() - quick_actions_size.width() - insets.right();
++  const int action_y = BUILDFLAG(IS_MAC)
++                           ? (height() - quick_actions_size.height()) / 2
++                           : insets.top();
+   quick_action_holder_->SetBoundsRect(
+-      gfx::Rect(gfx::Point(GetLocalBounds().width() -
+-                               quick_actions_size.width() - insets.right(),
+-                           insets.top()),
+-                quick_actions_size));
++      gfx::Rect(gfx::Point(action_x, action_y), quick_actions_size));
++  if (BUILDFLAG(IS_MAC) && quick_action_holder_->GetVisible() &&
++      quick_actions_size.width() > 0) {
++    constexpr int kLabelActionGap = 6;
++    for (views::Label* label : {primary_label_.get(), secondary_label_.get()}) {
++      gfx::Rect bounds = label->bounds();
++      bounds.set_width(std::clamp(action_x - kLabelActionGap - bounds.x(), 0,
++                                  bounds.width()));
++      label->SetBoundsRect(bounds);
++    }
++  }
++  if (BUILDFLAG(IS_MAC) && progress_bar_->GetVisible()) {
++    gfx::Rect progress_bounds = progress_bar_holder_->bounds();
++    progress_bounds.Offset(0, -1);
++    progress_bar_holder_->SetBoundsRect(progress_bounds);
++  }
+   inkdrop_container_->SetBoundsRect(GetLocalBounds());
+ }
+ 
++gfx::Size DownloadBubbleRowView::LayoutQuickActions() {
++#if BUILDFLAG(IS_MAC)
++  const bool share_inside_edge =
++      quick_actions_.at(DownloadCommands::CANCEL)->GetVisible() &&
++      (quick_actions_.at(DownloadCommands::PAUSE)->GetVisible() ||
++       quick_actions_.at(DownloadCommands::RESUME)->GetVisible());
++  int width = 0;
++  for (views::View* child : quick_action_holder_->children()) {
++    if (!child->GetVisible()) {
++      continue;
++    }
++    auto* button = static_cast<DownloadQuickActionButton*>(child);
++    const gfx::Insets margins = button->SetSharesInsideEdge(share_inside_edge);
++    width += margins.left();
++    button->SetBounds(width, 0, helium::kNativeDownloadButtonSize,
++                      helium::kNativeDownloadButtonSize);
++    width += helium::kNativeDownloadButtonSize + margins.right();
++  }
++  return width > 0 ? gfx::Size(width, helium::kNativeDownloadButtonSize)
++                   : gfx::Size();
++#else
++  return quick_action_holder_->GetPreferredSize();
++#endif
++}
++
+ void DownloadBubbleRowView::OnMainButtonPressed(const ui::Event& event) {
+   if (!bubble_controller_ || !navigation_handler_ ||
+       !info_->main_button_enabled() || !info_->model()) {
+@@ -697,20 +971,32 @@
+              .IsCommandEnabled(action.command)) {
+       continue;
+     }
+-    views::ImageButton* action_button = quick_actions_[action.command];
++    auto button = quick_actions_.find(action.command);
++    if (button == quick_actions_.end()) {
++      continue;
++    }
++    views::ImageButton* action_button = button->second;
++#if !BUILDFLAG(IS_MAC)
+     action_button->SetImageModel(
+         views::Button::STATE_NORMAL,
+         ui::ImageModel::FromVectorIcon(
+-            *(action.icon), ui::kColorIcon,
++            *action.icon, ui::kColorIcon,
+             GetLayoutConstant(LayoutConstant::kDownloadIconSize)));
++    action_button->SetTooltipText(action.hover_text);
++#endif
+     action_button->GetViewAccessibility().SetName(
+         GetAccessibleNameForQuickAction(action.command));
+-    action_button->SetTooltipText(action.hover_text);
+     action_button->SetVisible(true);
+     buttons_to_remove.erase(action.command);
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  bool removed_hovered_action = false;
++#endif
+   for (const auto& pair : buttons_to_remove) {
++#if BUILDFLAG(IS_MAC)
++    removed_hovered_action |= IsQuickActionHoveredOrPressed(*pair.second);
++#endif
+     pair.second->SetVisible(false);
+   }
+ 
+@@ -728,6 +1014,31 @@
+   }
+ 
+   subpage_icon_->SetVisible(info_->has_subpage());
++#if BUILDFLAG(IS_MAC)
++  const views::View* focused =
++      GetFocusManager() ? GetFocusManager()->GetFocusedView() : nullptr;
++  const bool hovered = IsMouseHovered();
++  UpdateQuickActionVisibility(hovered || Contains(focused));
++  UpdateNativePopoverHighlight(hovered, focused);
++  InvalidateLayout();
++  if (auto* widget = GetWidget(); removed_hovered_action && widget) {
++    // Pause and Resume can replace one another beneath a stationary cursor.
++    // Retarget hover after the button event and the replacement layout.
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE,
++        base::BindOnce(
++            [](base::WeakPtr<views::Widget> widget) {
++              if (!widget || widget->IsClosed()) {
++                return;
++              }
++              widget->LayoutRootViewIfNecessary();
++              if (widget && !widget->IsClosed()) {
++                widget->SynthesizeMouseMoveEvent();
++              }
++            },
++            widget->GetWeakPtr()));
++  }
++#endif
+ }
+ 
+ void DownloadBubbleRowView::UpdateProgressBar() {
+@@ -753,16 +1064,17 @@
+   primary_label_->SetText(
+       info_->model()->GetFileNameToReportUser().LossyDisplayName());
+   UpdateStatusText();
++  const std::u16string status = GetStatusText();
+ 
+   if (info_->has_subpage()) {
+     transparent_button_->GetViewAccessibility().SetName(
+         l10n_util::GetStringFUTF16(
+             IDS_DOWNLOAD_BUBBLE_MAIN_BUTTON_SUBPAGE,
+             std::u16string(primary_label_->GetText()),
+-            std::u16string(secondary_label_->GetText())));
++            status));
+   } else {
+     transparent_button_->GetViewAccessibility().SetName(base::JoinString(
+-        {primary_label_->GetText(), secondary_label_->GetText()}, u" "));
++        {primary_label_->GetText(), status}, u" "));
+   }
+ 
+   secondary_label_->SetEnabledColor(info_->secondary_text_color());
+@@ -821,18 +1133,54 @@
+ 
+ void DownloadBubbleRowView::AddQuickAction(DownloadCommands::Command command) {
+   // Unretained is safe because this owns and outlives the quick action button.
++  auto pressed = base::BindRepeating(
++      &DownloadBubbleRowView::OnActionButtonPressed, base::Unretained(this),
++      command);
++  std::unique_ptr<views::ImageButton> button;
++#if BUILDFLAG(IS_MAC)
++  button = std::make_unique<DownloadQuickActionButton>(
++      std::move(pressed), command,
++      base::BindRepeating(
++          [](DownloadBubbleRowView* row) {
++            if (!row->secondary_label_) {
++              return;
++            }
++            row->UpdateStatusText();
++            const auto* focused =
++                row->GetFocusManager()
++                    ? row->GetFocusManager()->GetFocusedView()
++                    : nullptr;
++            row->UpdateNativePopoverHighlight(row->IsMouseHovered(), focused);
++          },
++          base::Unretained(this)));
++#else
++  button = views::CreateVectorImageButton(std::move(pressed));
++#endif
+   views::ImageButton* quick_action =
+-      quick_action_holder_->AddChildView(views::CreateVectorImageButton(
+-          base::BindRepeating(&DownloadBubbleRowView::OnActionButtonPressed,
+-                              base::Unretained(this), command)));
++      quick_action_holder_->AddChildView(std::move(button));
++  quick_action->SetVisible(false);
++#if BUILDFLAG(IS_MAC)
++  quick_action->SetBorder(nullptr);
++  const int target_size = helium::kNativeDownloadButtonSize;
++  quick_action->SetPreferredSize(gfx::Size(target_size, target_size));
++  quick_action->SetAnimateOnStateChange(false);
++  const bool highlight_on_focus = command == DownloadCommands::SHOW_IN_FOLDER;
++  if (!highlight_on_focus) {
++    quick_action->SetInstallFocusRingOnFocus(true);
++  }
++  helium::ConfigureNativePopoverHighlight(*quick_action,
++                                         /*is_icon_button=*/true,
++                                         /*horizontal_inset=*/0,
++                                         highlight_on_focus);
++#else
+   InstallCircleHighlightPathGenerator(quick_action);
+   quick_action->SetBorder(
+       views::CreateEmptyBorder(GetLayoutInsets(DOWNLOAD_ICON)));
+   quick_action->SetProperty(views::kMarginsKey, kRowInterElementPadding);
+-  quick_action->SetVisible(false);
+   views::InkDrop::Get(quick_action)
+       ->SetBaseColor(views::TypographyProvider::Get().GetColorId(
+           views::style::CONTEXT_BUTTON, views::style::STYLE_SECONDARY));
++#endif
+ 
+   if (command == DownloadCommands::OPEN_WHEN_COMPLETE ||
+       command == DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN) {
+@@ -936,8 +1284,25 @@
+ }
+ 
+ void DownloadBubbleRowView::UpdateStatusText() {
+-  secondary_label_->SetText(info_->model()->GetStatusTextForLabel(
+-      secondary_label_->font_list(), secondary_label_->width()));
++#if BUILDFLAG(IS_MAC)
++  for (const auto& action : info_->quick_actions()) {
++    const auto button = quick_actions_.find(action.command);
++    if (button != quick_actions_.end() &&
++        IsQuickActionHoveredOrPressed(*button->second)) {
++      secondary_label_->SetText(action.hover_text);
++      return;
++    }
++  }
++#endif
++  secondary_label_->SetText(GetStatusText());
++}
++
++std::u16string DownloadBubbleRowView::GetStatusText() const {
++  // Let the macOS label fade the full text, including a promoted origin URL.
++  const int available_width =
++      BUILDFLAG(IS_MAC) ? 0 : secondary_label_->width();
++  return info_->model()->GetStatusTextForLabel(secondary_label_->font_list(),
++                                              available_width);
+ }
+ 
+ bool DownloadBubbleRowView::AcceleratorPressed(
+--- a/chrome/browser/ui/views/download/bubble/download_bubble_row_view.h
++++ b/chrome/browser/ui/views/download/bubble/download_bubble_row_view.h
+@@ -135,6 +135,10 @@
+   void UpdateRow(bool initial_setup);
+ 
+   void UpdateStatusText();
++  std::u16string GetStatusText() const;
++  void UpdateQuickActionVisibility(bool row_interacted);
++  gfx::Size LayoutQuickActions();
++  void UpdateNativePopoverHighlight(bool hovered, const views::View* focused);
+   void UpdateButtons();
+   void UpdateProgressBar();
+   void UpdateLabels();
+@@ -201,7 +205,7 @@
+   // Holder for the main button.
+   raw_ptr<views::FlexLayoutView> main_button_holder_ = nullptr;
+   // Holder for the quick actions.
+-  raw_ptr<views::FlexLayoutView> quick_action_holder_ = nullptr;
++  raw_ptr<views::View> quick_action_holder_ = nullptr;
+ 
+   // The progress bar for in-progress downloads.
+   raw_ptr<views::ProgressBar> progress_bar_ = nullptr;
+--- a/chrome/browser/ui/views/download/bubble/download_dialog_view.cc
++++ b/chrome/browser/ui/views/download/bubble/download_dialog_view.cc
+@@ -8,6 +8,7 @@
+ 
+ #include "base/functional/bind.h"
+ #include "base/logging.h"
++#include "build/build_config.h"
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/chrome_pages.h"
+@@ -18,6 +19,7 @@
+ #include "chrome/browser/ui/views/controls/rich_hover_button.h"
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_navigation_handler.h"
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_row_list_view.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/safe_browsing/core/common/features.h"
+ #include "components/vector_icons/vector_icons.h"
+@@ -33,6 +35,7 @@
+ #include "ui/views/animation/ink_drop.h"
+ #include "ui/views/controls/button/image_button.h"
+ #include "ui/views/controls/button/image_button_factory.h"
++#include "ui/views/controls/button/label_button.h"
+ #include "ui/views/controls/highlight_path_generator.h"
+ #include "ui/views/controls/image_view.h"
+ #include "ui/views/controls/link.h"
+@@ -53,6 +56,27 @@
+ 
+ namespace {
+ 
++#if BUILDFLAG(IS_MAC)
++class ShowAllDownloadsButton : public views::LabelButton {
++  METADATA_HEADER(ShowAllDownloadsButton, views::LabelButton)
++
++ public:
++  explicit ShowAllDownloadsButton(base::RepeatingClosure callback)
++      : LabelButton(std::move(callback),
++                    l10n_util::GetStringUTF16(IDS_DOWNLOAD_BUBBLE_FOOTER_LABEL),
++                    views::style::CONTEXT_DIALOG_BODY_TEXT) {
++    SetHorizontalAlignment(gfx::ALIGN_LEFT);
++    SetLabelStyle(views::style::STYLE_BODY_3);
++    SetAnimateOnStateChange(false);
++    helium::ConfigureNativePopoverHighlight(*this);
++    SetTooltipText(
++        l10n_util::GetStringUTF16(IDS_DOWNLOAD_BUBBLE_FOOTER_TOOLTIP_LABEL));
++  }
++};
++
++BEGIN_METADATA(ShowAllDownloadsButton)
++END_METADATA
++#else
+ class ShowAllDownloadsButton : public RichHoverButton {
+   METADATA_HEADER(ShowAllDownloadsButton, RichHoverButton)
+ 
+@@ -113,11 +137,16 @@
+ 
+ BEGIN_METADATA(ShowAllDownloadsButton)
+ END_METADATA
++#endif
+ 
+ }  // namespace
+ 
+ views::View* DownloadDialogView::GetInitiallyFocusedView() {
++#if BUILDFLAG(IS_MAC)
++  return nullptr;
++#else
+   return close_button_;
++#endif
+ }
+ 
+ void DownloadDialogView::CloseBubble() {
+@@ -129,7 +158,14 @@
+ 
+ void DownloadDialogView::ShowAllDownloads() {
+   if (browser_) {
++    auto navigation_handler = navigation_handler_;
+     chrome::ShowDownloads(browser_);
++#if BUILDFLAG(IS_MAC)
++    if (navigation_handler) {
++      navigation_handler->CloseDialog(
++          views::Widget::ClosedReason::kUnspecified);
++    }
++#endif
+   }
+ }
+ 
+@@ -170,7 +206,9 @@
+   AddChildView(
+       std::make_unique<ShowAllDownloadsButton>(base::BindRepeating(
+           &DownloadDialogView::ShowAllDownloads, base::Unretained(this))))
+-      ->SetBorder(views::CreateEmptyBorder(GetLayoutInsets(DOWNLOAD_ROW)));
++      ->SetBorder(views::CreateEmptyBorder(
++          BUILDFLAG(IS_MAC) ? gfx::Insets::VH(7, 12)
++                            : GetLayoutInsets(DOWNLOAD_ROW)));
+ }
+ 
+ DownloadDialogView::DownloadDialogView(
+@@ -179,7 +217,9 @@
+     base::WeakPtr<DownloadBubbleNavigationHandler> navigation_handler,
+     const DownloadBubbleRowListViewInfo& info)
+     : navigation_handler_(std::move(navigation_handler)), browser_(browser) {
+-  AddHeader();
++  if (!BUILDFLAG(IS_MAC)) {
++    AddHeader();
++  }
+   MaybeAddOtrInfoRow(browser_);
+   BuildAndAddScrollView(browser_, std::move(bubble_controller),
+                         navigation_handler_, info, DefaultPreferredWidth());
+--- a/chrome/browser/ui/views/download/bubble/download_dialog_view.h
++++ b/chrome/browser/ui/views/download/bubble/download_dialog_view.h
+@@ -23,8 +23,7 @@
+ 
+ // This view represents the 'main view' that is shown when the user clicks on
+ // the download toolbar button. Unlike the partial view, it does not
+-// automatically close. It also has a header and close button, as well as a
+-// footer with a link to chrome://downloads.
++// automatically close. Its footer links to chrome://downloads.
+ class DownloadDialogView : public DownloadBubblePrimaryView {
+   METADATA_HEADER(DownloadDialogView, DownloadBubblePrimaryView)
+ 
+@@ -40,8 +39,7 @@
+   ~DownloadDialogView() override;
+ 
+   // DownloadBubblePrimaryView:
+-  // Returns the close button. The close button should be the initially focused
+-  // view to make it easier for the user to close the dialog.
++  // On platforms with a close button, give it initial focus.
+   views::View* GetInitiallyFocusedView() override;
+ 
+  private:
+--- a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
++++ b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
+@@ -105,9 +105,13 @@
+ }
+ 
+ gfx::Insets GetPrimaryViewMargin() {
++#if BUILDFLAG(IS_MAC)
++  return gfx::Insets(10);
++#else
+   return gfx::Insets::VH(ChromeLayoutProvider::Get()->GetDistanceMetric(
+                              views::DISTANCE_RELATED_CONTROL_VERTICAL),
+                          0);
++#endif
+ }
+ 
+ gfx::Insets GetSecurityViewMargin() {
+@@ -116,6 +120,49 @@
+                          0);
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++class DownloadPopoverDelegate : public views::BubbleDialogDelegate {
++ public:
++  DownloadPopoverDelegate(const views::BubbleAnchor& anchor,
++                          views::BubbleBorder::Arrow arrow,
++                          gfx::NativeView browser_view,
++                          bool reveal_top,
++                          bool can_use_popover)
++      : BubbleDialogDelegate(anchor, arrow, views::BubbleBorder::DIALOG_SHADOW,
++                             /*autosize=*/true),
++        browser_view_(browser_view),
++        anchor_rect_(anchor.GetAnchorRect()),
++        reveal_top_(reveal_top),
++        can_use_popover_(can_use_popover) {}
++
++  bool uses_native_popover() const { return uses_native_popover_; }
++
++  void OnBeforeBubbleWidgetInit(views::Widget::InitParams* params,
++                                views::Widget* widget) const override {
++    if (!can_use_popover_) {
++      return;
++    }
++    auto* native_widget = BrowserView::CreateDownloadsPopover(
++        widget, browser_view_, anchor_rect_, reveal_top_);
++    if (native_widget) {
++      params->native_widget = native_widget;
++      auto* bubble = params->delegate->AsBubbleDialogDelegate();
++      bubble->SetArrow(views::BubbleBorder::NONE);
++      bubble->SetBackgroundColor(SK_ColorTRANSPARENT);
++      bubble->set_close_on_deactivate(false);
++      uses_native_popover_ = true;
++    }
++  }
++
++ private:
++  const gfx::NativeView browser_view_;
++  const gfx::Rect anchor_rect_;
++  const bool reveal_top_;
++  const bool can_use_popover_;
++  mutable bool uses_native_popover_ = false;
++};
++#endif
++
+ }  // namespace
+ 
+ // static
+@@ -549,6 +596,11 @@
+ }
+ 
+ void DownloadToolbarUIController::InvokeUI() {
++  if (uses_native_popover_ && IsShowingDetails()) {
++    CloseDialog(views::Widget::ClosedReason::kCloseButtonClicked);
++    controller_->OnButtonPressed();
++    return;
++  }
+   if (!bubble_delegate_ && !bubble_controller_->GetMainView().empty()) {
+     button_click_time_ = base::TimeTicks::Now();
+     ShowBubble(DownloadBubbleMode::kComplete);
+@@ -707,13 +759,23 @@
+   }
+   const views::BubbleBorder::Arrow arrow =
+       BrowserView::GetSidebarBubbleArrow(anchor.value());
++#if BUILDFLAG(IS_MAC)
++  const bool reveal_top = !browser_view_->IsVerticalAddressBarInSidebar() ||
++                          helium::IsFloatingToolbarControl(anchor->GetIfView());
++  auto* contents = browser_view_->GetActiveWebContents();
++  auto bubble_delegate = std::make_unique<DownloadPopoverDelegate>(
++      anchor.value(), arrow, browser_view_->GetWidget()->GetNativeView(),
++      reveal_top, primary_view_mode_ == DownloadBubbleMode::kComplete ||
++          (browser_view_->GetWidget()->IsActive() &&
++           (!contents || !contents->IsShowingContextMenu())));
++#else
+   auto bubble_delegate = std::make_unique<views::BubbleDialogDelegate>(
+-      anchor.value(), arrow,
+-      views::BubbleBorder::DIALOG_SHADOW,
++      anchor.value(), arrow, views::BubbleBorder::DIALOG_SHADOW,
+       /*autosize=*/true);
++#endif
+   bubble_delegate->SetOwnedByWidget(
+       views::WidgetDelegate::OwnedByWidgetPassKey());
+-  bubble_delegate->SetTitle(
++  bubble_delegate->SetAccessibleTitle(
+       l10n_util::GetStringUTF16(IDS_DOWNLOAD_BUBBLE_HEADER_LABEL));
+   bubble_delegate->SetShowTitle(false);
+   bubble_delegate->set_internal_name(kBubbleName);
+@@ -741,6 +803,10 @@
+           std::move(bubble_delegate),
+           views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+   CHECK(bubble_widget);
++#if BUILDFLAG(IS_MAC)
++  uses_native_popover_ = static_cast<DownloadPopoverDelegate*>(bubble_delegate_)
++                             ->uses_native_popover();
++#endif
+ 
+   if (primary_view_mode_ != DownloadBubbleMode::kPartial &&
+       !button_click_time_.is_null()) {
+@@ -771,8 +837,13 @@
+   } else {
+     bubble_widget->Show();
+   }
+-  bubble_closer_ = std::make_unique<BubbleCloser>(anchor.value(), bubble_widget,
+-                                                  weak_factory_.GetWeakPtr());
++  if (!bubble_delegate_) {
++    return;
++  }
++  if (!uses_native_popover_) {
++    bubble_closer_ = std::make_unique<BubbleCloser>(
++        anchor.value(), bubble_widget, weak_factory_.GetWeakPtr());
++  }
+ 
+   action_item_->SetIsShowingBubble(true);
+ 
+@@ -795,6 +866,7 @@
+   immersive_revealed_lock_.reset();
+   bubble_delegate_ = nullptr;
+   bubble_contents_ = nullptr;
++  uses_native_popover_ = false;
+   bubble_closer_.reset();
+   UpdateIconDormant();
+   action_item_->SetIsShowingBubble(false);
+--- a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h
++++ b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h
+@@ -243,6 +243,7 @@
+   // Set when a bubble is going to be created, i.e. `bubble_delegate_`
+   // will likely be non-null soon if this is true.
+   bool pending_bubble_ = false;
++  bool uses_native_popover_ = false;
+ 
+   // Security page content to show when the bubble finishes being created.
+   std::optional<offline_items_collection::ContentId> pending_security_content_;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -14,6 +14,7 @@
+ #include "base/command_line.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/functional/bind.h"
++#include "base/functional/callback.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/i18n/rtl.h"
+ #include "base/logging.h"
+@@ -135,6 +136,7 @@
+ #include "ui/events/keycodes/keyboard_code_conversion_mac.h"
+ #include "ui/gfx/canvas.h"
+ #include "ui/gfx/color_utils.h"
++#include "ui/gfx/font_list.h"
+ #include "ui/gfx/geometry/insets.h"
+ #include "ui/gfx/geometry/outsets_f.h"
+ #include "ui/gfx/geometry/rect.h"
+@@ -1717,11 +1719,11 @@
+ 
+ // AppKit owns the window and material. The existing Views dialog keeps its
+ // compositor, event handling, accessibility tree and WebContents lifetime.
+-@interface HeliumSiteInfoPopoverDelegate : NSObject <NSPopoverDelegate>
++@interface HeliumToolbarPopoverDelegate : NSObject <NSPopoverDelegate>
+ - (instancetype)initWithWidget:(base::WeakPtr<views::Widget>)widget;
+ @end
+ 
+-@implementation HeliumSiteInfoPopoverDelegate {
++@implementation HeliumToolbarPopoverDelegate {
+   base::WeakPtr<views::Widget> _widget;
+ }
+ - (instancetype)initWithWidget:(base::WeakPtr<views::Widget>)widget {
+@@ -1916,16 +1918,75 @@
+   return image;
+ }
+ 
+-class SiteInfoPopoverWidget : public views::NativeWidgetMac,
+-                              public views::ViewObserver {
++void ConfigurePopoverLabel(views::View* view) {
++  if (auto* label = views::AsViewClass<views::Label>(view)) {
++    // AppKit composites these labels over translucent material.
++    label->SetSubpixelRenderingEnabled(false);
++    const gfx::FontList& font = label->font_list();
++    if (font.GetFontWeight() > gfx::Font::Weight::NORMAL) {
++      label->SetFontList(font.DeriveWithWeight(gfx::Font::Weight::NORMAL));
++    }
++  }
++}
++
++void ConfigureTransparentPopoverText(views::View* view) {
++  ConfigurePopoverLabel(view);
++  for (views::View* child : view->children()) {
++    ConfigureTransparentPopoverText(child);
++  }
++}
++
++void ConfigureSiteInfoPopoverContent(views::View* view) {
++  if (auto* security = views::AsViewClass<SecurityInformationView>(view)) {
++    security->UsePopoverRowStyle();
++  }
++
++  // AppKit supplies the popover chrome. Let row highlights fill the content
++  // width by clearing the trailing inset used by the Views bubble.
++  if (auto* container =
++          views::AsViewClass<PageInfoMainView::ContainerView>(view)) {
++    container->RemoveExtraRightMargin();
++  }
++  if (view->GetID() ==
++      PageInfoViewFactory::VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_SITE_SETTINGS) {
++    view->ClearProperty(views::kMarginsKey);
++  }
++
++  if (auto* row = views::AsViewClass<RichHoverButton>(view);
++      row && row->GetActionIcon() == PageInfoViewFactory::GetLaunchIcon()) {
++    row->SetActionIcon(ui::ImageModel());
++  }
++
++  // Subpixel text needs an opaque background. AppKit composites the
++  // transparent Views layer over the native popover material.
++  if (auto* label = views::AsViewClass<views::Label>(view)) {
++    label->SetSubpixelRenderingEnabled(false);
++  }
++  for (views::View* child : view->children()) {
++    ConfigureSiteInfoPopoverContent(child);
++  }
++}
++
++class ToolbarPopoverWidget : public views::NativeWidgetMac,
++                             public views::ViewObserver {
+  public:
+-  SiteInfoPopoverWidget(views::Widget* widget, NSView* anchor)
+-      : NativeWidgetMac(widget), anchor_(anchor) {}
++  ToolbarPopoverWidget(views::Widget* widget,
++                       NSView* anchor,
++                       std::optional<gfx::Rect> anchor_rect,
++                       bool reveal_top,
++                       base::RepeatingCallback<void(views::View*)> configure,
++                       views::VectorIconRenderer icon_renderer = nullptr)
++      : NativeWidgetMac(widget),
++        anchor_(anchor),
++        anchor_rect_(anchor_rect),
++        reveal_top_(reveal_top),
++        configure_(std::move(configure)),
++        icon_renderer_(icon_renderer) {}
+ 
+   void Show(ui::mojom::WindowShowState show_state,
+             const gfx::Rect&) override {
+     NSView* anchor = anchor_;
+-    NSView* positioning_view = anchor.superview;
++    NSView* positioning_view = anchor_rect_ ? anchor : anchor.superview;
+     if (!positioning_view.window || anchor.hiddenOrHasHiddenAncestor) {
+       GetWidget()->Close();
+       return;
+@@ -1936,11 +1997,13 @@
+     toolbar_reveal_hold_ = BrowserView::HoldChromeRevealForMenu(
+         views::Widget::GetWidgetForNativeWindow(
+             gfx::NativeWindow(positioning_view.window)),
+-        /*reveal_top=*/true);
++        reveal_top_);
+ 
+     auto* root = GetWidget()->GetRootView();
+-    views::SetVectorIconRenderer(*root, RenderSiteInfoSymbol);
+-    ConfigurePopoverContent(root);
++    if (icon_renderer_) {
++      views::SetVectorIconRenderer(*root, icon_renderer_);
++    }
++    configure_.Run(root);
+     root_observation_.Observe(root);
+ 
+     NSView* contents = GetNativeView().GetNativeNSView();
+@@ -1959,23 +2022,34 @@
+     backing_window.ignoresMouseEvents = YES;
+     [controller.view addSubview:contents];
+ 
+-    popover_delegate_ = [[HeliumSiteInfoPopoverDelegate alloc]
++    popover_delegate_ = [[HeliumToolbarPopoverDelegate alloc]
+         initWithWidget:GetWidget()->GetWeakPtr()];
+     popover_ = [[NSPopover alloc] init];
+-    popover_.behavior = NSPopoverBehaviorTransient;
++    // The browser can reclaim key focus during toolbar activation. Downloads
++    // dismisses on outside input and app deactivation using the real window.
++    popover_.behavior = anchor_rect_ ? NSPopoverBehaviorApplicationDefined
++                                    : NSPopoverBehaviorTransient;
+     popover_.delegate = popover_delegate_;
+     popover_.appearance = anchor.effectiveAppearance;
+     popover_.contentViewController = controller;
+     popover_.contentSize = content_size;
+ 
+-    // AppKit clips the positioning rect to its view. Use the capsule's
+-    // controls view so the pointer can sit just below the button.
+-    const NSRect button_rect = [positioning_view convertRect:anchor.bounds
+-                                                   fromView:anchor];
++    NSRect button_rect;
++    if (anchor_rect_) {
++      const NSRect window_rect = [positioning_view.window convertRectFromScreen:
++          gfx::ScreenRectToNSRect(*anchor_rect_)];
++      button_rect = [positioning_view convertRect:window_rect fromView:nil];
++    } else {
++      button_rect = [positioning_view convertRect:anchor.bounds fromView:anchor];
++    }
++    // The positioning view includes room for the one-point gap below
++    // the button. AppKit anchors the arrow and adjusts for screen edges.
+     const CGFloat downward_offset = positioning_view.isFlipped ? 1 : -1;
+-    const NSRect positioning_rect = NSOffsetRect(button_rect, 0, downward_offset);
++    const NSRect positioning_rect =
++        NSOffsetRect(button_rect, 0, downward_offset);
+     const NSRectEdge preferred_edge =
+         positioning_view.isFlipped ? NSRectEdgeMaxY : NSRectEdgeMinY;
++    NSWindow* previous_key_window = NSApp.keyWindow;
+     remote_cocoa::mojom::NativeWidgetNSWindowHost* host = GetNSWindowHost();
+     // The popover presents the Views contents in a separate AppKit window.
+     host->OnVisibilityChanged(true);
+@@ -1990,29 +2064,94 @@
+     // whose content view it does not own. Size it to the AppKit host here.
+     contents.frame = controller.view.bounds;
+     [backing_window orderOut:nil];
+-    ClearNativeFocus();
+     NSWindow* popover_window = controller.view.window;
+-    [popover_window makeKeyWindow];
+-    host->OnWindowKeyStatusChanged(
+-        popover_window.isKeyWindow, popover_window.firstResponder == contents,
+-        NSApp.fullKeyboardAccessEnabled);
+-    GetWidget()->SetInitialFocus(show_state);
++    if (show_state != ui::mojom::WindowShowState::kInactive) {
++      ClearNativeFocus();
++      [popover_window makeKeyWindow];
++      host->OnWindowKeyStatusChanged(
++          popover_window.isKeyWindow, popover_window.firstResponder == contents,
++          NSApp.fullKeyboardAccessEnabled);
++      GetWidget()->SetInitialFocus(show_state);
++    } else if (popover_window.isKeyWindow) {
++      [previous_key_window makeKeyWindow];
++    }
++    if (anchor_rect_) {
++      // An automatically shown Downloads popover can become key on click.
++      key_observer_ = [NSNotificationCenter.defaultCenter
++          addObserverForName:NSWindowDidBecomeKeyNotification
++                      object:popover_window
++                       queue:nil
++                  usingBlock:^(NSNotification*) {
++        ClearNativeFocus();
++        host->OnWindowKeyStatusChanged(
++            true, popover_window.firstResponder == contents,
++            NSApp.fullKeyboardAccessEnabled);
++      }];
++    }
+ 
+     __weak NSView* weak_anchor = anchor;
+     __weak NSWindow* weak_popover_window = popover_window;
++    __weak NSWindow* weak_parent_window = positioning_view.window.parentWindow;
+     auto widget = GetWidget()->GetWeakPtr();
++    NSEventMask events = NSEventMaskKeyDown;
++    if (anchor_rect_) {
++      events |= NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp |
++                NSEventMaskRightMouseDown | NSEventMaskOtherMouseDown;
++      app_deactivation_observer_ = [NSNotificationCenter.defaultCenter
++          addObserverForName:NSApplicationDidResignActiveNotification
++                      object:NSApp
++                       queue:nil
++                  usingBlock:^(NSNotification*) {
++        if (widget && !widget->IsClosed()) {
++          widget->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
++        }
++      }];
++    }
++    const bool manages_outside_clicks = anchor_rect_.has_value();
++    __block bool pressed_anchor = false;
+     escape_monitor_ = [NSEvent
+-        addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown
++        addLocalMonitorForEventsMatchingMask:events
+         handler:^NSEvent*(NSEvent* event) {
+           NSWindow* event_window = event.window ?: NSApp.keyWindow;
+           NSWindow* anchor_window = weak_anchor.window;
+-          if (widget && !widget->IsClosed() && anchor_window &&
++          if (!widget || widget->IsClosed() || !anchor_window) {
++            return event;
++          }
++          if (event.type == NSEventTypeKeyDown &&
+               (event_window == weak_popover_window ||
+-               event_window == anchor_window || NSApp.mainWindow == anchor_window) &&
++               event_window == anchor_window ||
++               (weak_parent_window && event_window == weak_parent_window) ||
++               NSApp.mainWindow == anchor_window) &&
+               ui::KeyboardCodeFromNSEvent(event) == ui::VKEY_ESCAPE) {
+             widget->CloseWithReason(views::Widget::ClosedReason::kEscKeyPressed);
+             return nil;
+           }
++          if (manages_outside_clicks && event.type != NSEventTypeKeyDown) {
++            const NSPoint screen_point = event.window
++                ? [event.window convertPointToScreen:event.locationInWindow]
++                : event.locationInWindow;
++            const NSPoint window_point =
++                [anchor_window convertPointFromScreen:screen_point];
++            const NSPoint anchor_point =
++                [weak_anchor convertPoint:window_point fromView:nil];
++            const bool over_anchor = NSPointInRect(anchor_point, button_rect);
++            if (event.type == NSEventTypeLeftMouseUp) {
++              if (pressed_anchor) {
++                pressed_anchor = false;
++                if (over_anchor) {
++                  widget->CloseWithReason(
++                      views::Widget::ClosedReason::kCloseButtonClicked);
++                }
++                return nil;
++              }
++            } else if (event.type == NSEventTypeLeftMouseDown && over_anchor) {
++              // Swallow both events so the toolbar cannot reopen the popover.
++              pressed_anchor = true;
++              return nil;
++            } else if (event_window != weak_popover_window) {
++              widget->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
++            }
++          }
+           return event;
+         }];
+   }
+@@ -2071,7 +2210,7 @@
+   void OnViewHierarchyChanged(
+       views::View*, const views::ViewHierarchyChangedDetails& details) override {
+     if (details.is_add) {
+-      ConfigurePopoverContent(details.child);
++      configure_.Run(details.child);
+     }
+   }
+ 
+@@ -2079,37 +2218,6 @@
+ 
+   void OnWindowDestroying(gfx::NativeWindow) override { ClosePopover(); }
+ 
+-  static void ConfigurePopoverContent(views::View* view) {
+-    if (auto* security = views::AsViewClass<SecurityInformationView>(view)) {
+-      security->UsePopoverRowStyle();
+-    }
+-
+-    // AppKit supplies the popover chrome. Let row highlights fill the content
+-    // width by clearing the trailing inset used by the Views bubble.
+-    if (auto* container =
+-            views::AsViewClass<PageInfoMainView::ContainerView>(view)) {
+-      container->RemoveExtraRightMargin();
+-    }
+-    if (view->GetID() ==
+-        PageInfoViewFactory::VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_SITE_SETTINGS) {
+-      view->ClearProperty(views::kMarginsKey);
+-    }
+-
+-    if (auto* row = views::AsViewClass<RichHoverButton>(view);
+-        row && row->GetActionIcon() == PageInfoViewFactory::GetLaunchIcon()) {
+-      row->SetActionIcon(ui::ImageModel());
+-    }
+-
+-    // Subpixel text needs an opaque background. AppKit composites the
+-    // transparent Views layer over the native popover material.
+-    if (auto* label = views::AsViewClass<views::Label>(view)) {
+-      label->SetSubpixelRenderingEnabled(false);
+-    }
+-    for (views::View* child : view->children()) {
+-      ConfigurePopoverContent(child);
+-    }
+-  }
+-
+   void ClosePopover() {
+     if (!popover_) {
+       return;
+@@ -2118,6 +2226,15 @@
+       [NSEvent removeMonitor:escape_monitor_];
+       escape_monitor_ = nil;
+     }
++    if (key_observer_) {
++      [NSNotificationCenter.defaultCenter removeObserver:key_observer_];
++      key_observer_ = nil;
++    }
++    if (app_deactivation_observer_) {
++      [NSNotificationCenter.defaultCenter
++          removeObserver:app_deactivation_observer_];
++      app_deactivation_observer_ = nil;
++    }
+     popover_.delegate = nil;
+     [popover_ close];
+     NSView* contents = GetNativeView().GetNativeNSView();
+@@ -2135,13 +2252,35 @@
+   base::ScopedObservation<views::View, views::ViewObserver> root_observation_{
+       this};
+   NSView* __weak anchor_;
++  const std::optional<gfx::Rect> anchor_rect_;
++  const bool reveal_top_;
++  const base::RepeatingCallback<void(views::View*)> configure_;
++  const views::VectorIconRenderer icon_renderer_;
+   NSPopover* __strong popover_;
+   id __strong escape_monitor_;
+-  HeliumSiteInfoPopoverDelegate* __strong popover_delegate_;
++  id __strong key_observer_;
++  id __strong app_deactivation_observer_;
++  HeliumToolbarPopoverDelegate* __strong popover_delegate_;
+ };
+ 
+ }  // namespace
+ 
++// static
++views::NativeWidget* BrowserView::CreateDownloadsPopover(
++    views::Widget* widget,
++    gfx::NativeView browser_view,
++    const gfx::Rect& anchor_rect,
++    bool reveal_top) {
++  NSView* positioning_view = browser_view.GetNativeNSView();
++  if (!positioning_view.window || positioning_view.hiddenOrHasHiddenAncestor ||
++      anchor_rect.IsEmpty()) {
++    return nullptr;
++  }
++  return new ToolbarPopoverWidget(
++      widget, positioning_view, anchor_rect, reveal_top,
++      base::BindRepeating(ConfigureTransparentPopoverText));
++}
++
+ // Focus-loss dismissal may precede delivery to the native button. Preserve
+ // that dismissal across its tracking loop, including asynchronous destruction.
+ class HeliumSiteInfoObserver : public views::WidgetObserver {
+@@ -2972,7 +3111,11 @@
+                   page_info->UsePopoverLayout(kSiteInfoContentWidth);
+                 }
+                 params->native_widget =
+-                    new SiteInfoPopoverWidget(widget, anchor.GetNativeNSView());
++                    new ToolbarPopoverWidget(
++                        widget, anchor.GetNativeNSView(), std::nullopt,
++                        /*reveal_top=*/true,
++                        base::BindRepeating(ConfigureSiteInfoPopoverContent),
++                        RenderSiteInfoSymbol);
+               },
+               gfx::NativeView(_siteInfo)))
+           ->GetWidget();
+--- a/chrome/browser/ui/views/frame/browser_view.h
++++ b/chrome/browser/ui/views/frame/browser_view.h
+@@ -480,6 +480,13 @@
+       const views::View* anchor_view);
+   static views::BubbleBorder::Arrow GetSidebarBubbleArrow(
+       const views::BubbleAnchor& anchor);
++#if BUILDFLAG(IS_MAC)
++  static views::NativeWidget* CreateDownloadsPopover(
++      views::Widget* widget,
++      gfx::NativeView browser_view,
++      const gfx::Rect& anchor_rect,
++      bool reveal_top);
++#endif
+   static views::MenuAnchorPosition GetSidebarMenuAnchorPosition(
+       const views::View* anchor_view);
+ 
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -47,6 +47,13 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ SkColor NativeTabCaptureColor(const views::View* view);
++inline constexpr int kNativePopoverRowCornerRadius = 11;
++inline constexpr int kNativeDownloadButtonSize = 36;
++inline constexpr int kNativeDownloadSymbolPointSize = 13;
++void ConfigureNativePopoverHighlight(views::View& view,
++                                     bool is_icon_button = false,
++                                     int horizontal_inset = 0,
++                                     bool highlight_on_focus = true);
+ #endif
+ 
+ // Shared artwork for native chrome and the Customize toolbar list.
+--- a/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
++++ b/chrome/browser/ui/views/helium/native_frame_materials_mac.mm
+@@ -30,6 +30,8 @@
+ #include "ui/gfx/image/image_skia_operations.h"
+ #include "ui/gfx/image/image_skia_util_mac.h"
+ #include "ui/native_theme/native_theme.h"
++#include "ui/views/animation/ink_drop.h"
++#include "ui/views/controls/highlight_path_generator.h"
+ #include "ui/views/widget/widget.h"
+ 
+ // Draw above fallback content without adding an input region or layout inset.
+@@ -81,6 +83,26 @@
+   return result;
+ }
+ 
++void ConfigureNativePopoverHighlight(views::View& view,
++                                     bool is_icon_button,
++                                     int horizontal_inset,
++                                     bool highlight_on_focus) {
++  if (is_icon_button) {
++    views::InstallCircleHighlightPathGenerator(&view);
++  } else {
++    views::InstallRoundRectHighlightPathGenerator(
++        &view, gfx::Insets::VH(1, horizontal_inset),
++        kNativePopoverRowCornerRadius);
++  }
++  auto* ink_drop = views::InkDrop::Get(&view);
++  ink_drop->SetMode(views::InkDropHost::InkDropMode::ON_NO_ANIMATE);
++  views::InkDrop::UseInkDropForFloodFillRipple(
++      ink_drop, /*highlight_on_hover=*/true, highlight_on_focus);
++  ink_drop->SetBaseColor(kColorHoverButtonBackgroundHovered);
++  ink_drop->SetHighlightOpacity(1.0f);
++  ink_drop->GetInkDrop()->SetHoverHighlightFadeDuration(base::TimeDelta());
++}
++
+ void AddNativeFallbackSurfaceEdge(NSView* surface, CGFloat radius) {
+   HeliumFallbackSurfaceEdge* edge =
+       [[HeliumFallbackSurfaceEdge alloc] initWithFrame:surface.bounds];
+@@ -576,6 +598,20 @@
+ 
+ DEFINE_UI_CLASS_PROPERTY_KEY(int, kNativeDownloadProgressKey, 0)
+ 
++namespace {
++
++constexpr int kNativeDownloadToolbarSymbolPointSize = 15;
++// The badge shifts the base glyph down and left in the SF Symbols canvas.
++constexpr NSPoint kDownloadBadgeOffset = {1, 1};
++
++gfx::ImageSkia RenderToolbarSymbol(const char* symbol_name,
++                                   int size,
++                                   SkColor color,
++                                   int symbol_point_size,
++                                   NSPoint offset);
++
++}  // namespace
++
+ gfx::ImageSkia NativeDownloadProgressSymbol(int size, SkColor color,
+                                            int percent) {
+   // Measure the native medium-weight symbol once at 16x resolution. The ring
+@@ -591,7 +627,8 @@
+     NSImage* arrow = [NSImage imageWithSystemSymbolName:@"arrow.down.circle"
+                               accessibilityDescription:nil];
+     arrow = [arrow imageWithSymbolConfiguration:
+-        [NSImageSymbolConfiguration configurationWithPointSize:16
++        [NSImageSymbolConfiguration configurationWithPointSize:
++                                        kNativeDownloadToolbarSymbolPointSize
+                                                        weight:NSFontWeightMedium]];
+     const NSSize natural = arrow.size;
+     const CGFloat fit = std::min<CGFloat>(1, std::min(20 / natural.width,
+@@ -732,16 +769,24 @@
+              icon_name == "kExtensionOldIcon") {
+     name = @"puzzlepiece.extension";
+   } else if (icon_name == "kDownloadProgressStatusIcon") {
+-    name = @"arrow.down.circle.badge.clock";
++    return NativeToolbarSymbolForName("arrow.down.circle.badge.clock", size,
++                                      color, kNativeDownloadToolbarSymbolPointSize);
+   } else if (icon_name == "kDownloadCompleteStatusIcon") {
+-    name = @"arrow.down.circle.badge.checkmark";
++    return RenderToolbarSymbol("arrow.down.circle.badge.checkmark", size, color,
++                               kNativeDownloadToolbarSymbolPointSize,
++                               kDownloadBadgeOffset);
+   } else if (icon_name == "kDownloadPausedStatusIcon") {
+-    name = @"arrow.down.circle.badge.pause";
++    return RenderToolbarSymbol("arrow.down.circle.badge.pause", size, color,
++                               kNativeDownloadToolbarSymbolPointSize,
++                               kDownloadBadgeOffset);
+   } else if (icon_name == "kDownloadErrorStatusIcon") {
+-    name = @"arrow.down.circle.badge.xmark";
++    return RenderToolbarSymbol("arrow.down.circle.badge.xmark", size, color,
++                               kNativeDownloadToolbarSymbolPointSize,
++                               kDownloadBadgeOffset);
+   } else if (icon_name == "kDownloadIcon" ||
+              icon_name == "kDownloadToolbarButtonChromeRefreshOldIcon") {
+-    name = @"arrow.down.circle";
++    return NativeToolbarSymbolForName("arrow.down.circle", size, color,
++                                      kNativeDownloadToolbarSymbolPointSize);
+   } else if (icon_name == "kSplitSceneIcon" ||
+              icon_name == "kSplitSceneOldIcon") {
+     name = @"rectangle.split.2x1";
+@@ -869,40 +914,48 @@
+       gfx::ImageSkiaFromNSImage(image), color);
+ }
+ 
+-gfx::ImageSkia NativeToolbarSymbolForName(const char* symbol_name,
+-                                          int size,
+-                                          SkColor color,
+-                                          int symbol_point_size) {
++namespace {
++
++gfx::ImageSkia RenderToolbarSymbol(const char* symbol_name,
++                                   int size,
++                                   SkColor color,
++                                   int symbol_point_size,
++                                   NSPoint offset) {
+   if (!symbol_name) {
+     return {};
+   }
+   NSString* name = @(symbol_name);
+   NSImage* symbol = [NSImage imageWithSystemSymbolName:name
+                               accessibilityDescription:nil];
+-  if (!symbol && ([name isEqualToString:@"arrow.down.circle.badge.clock"] ||
+-                  [name isEqualToString:@"arrow.down.circle.badge.checkmark"])) {
++  const bool completion_badge =
++      [name isEqualToString:@"arrow.down.circle.badge.checkmark"];
++  if (!symbol && (completion_badge ||
++                  [name isEqualToString:@"arrow.down.circle.badge.clock"])) {
+     // These compound names are absent from some supported symbol catalogues.
+     // Compose only native SF artwork, with a transparent knockout separating
+     // the badge from the arrow. Newer systems can use the compound directly.
+     NSImage* arrow = [NSImage imageWithSystemSymbolName:@"arrow.down.circle"
+                               accessibilityDescription:nil];
+-    NSString* badge_name = [name hasSuffix:@"clock"]
+-                               ? @"clock.fill" : @"checkmark.circle.fill";
++    NSString* badge_name = completion_badge ? @"checkmark.circle.fill"
++                                            : @"clock.fill";
+     NSImage* badge = [NSImage imageWithSystemSymbolName:badge_name
+                               accessibilityDescription:nil];
+     if (arrow && badge) {
+       symbol = [NSImage imageWithSize:NSMakeSize(20, 20) flipped:NO
+           drawingHandler:^BOOL(NSRect bounds) {
+-        [arrow drawInRect:NSMakeRect(0, 3, 17, 17)];
++        const NSRect arrow_rect = completion_badge
++            ? NSMakeRect(0, 0, 18, 18) : NSMakeRect(0, 3, 17, 17);
++        const CGFloat badge_y = completion_badge ? 10 : 0;
++        [arrow drawInRect:arrow_rect];
+         [[NSColor blackColor] setFill];
+         NSBezierPath* knockout = [NSBezierPath bezierPathWithOvalInRect:
+-            NSMakeRect(10, 0, 10, 10)];
++            NSMakeRect(10, badge_y, 10, 10)];
+         [NSGraphicsContext saveGraphicsState];
+         NSGraphicsContext.currentContext.compositingOperation =
+             NSCompositingOperationDestinationOut;
+         [knockout fill];
+         [NSGraphicsContext restoreGraphicsState];
+-        [badge drawInRect:NSMakeRect(11, 1, 8, 8)];
++        [badge drawInRect:NSMakeRect(11, badge_y + 1, 8, 8)];
+         return YES;
+       }];
+     }
+@@ -923,8 +976,8 @@
+         size / symbol_size.width, size / symbol_size.height));
+     symbol_size.width *= scale;
+     symbol_size.height *= scale;
+-    [symbol drawInRect:NSMakeRect((size - symbol_size.width) / 2,
+-                                 (size - symbol_size.height) / 2,
++    [symbol drawInRect:NSMakeRect((size - symbol_size.width) / 2 + offset.x,
++                                 (size - symbol_size.height) / 2 + offset.y,
+                                  symbol_size.width, symbol_size.height)];
+     return YES;
+   }];
+@@ -932,4 +985,14 @@
+       gfx::ImageSkiaFromNSImage(image), color);
+ }
+ 
++}  // namespace
++
++gfx::ImageSkia NativeToolbarSymbolForName(const char* symbol_name,
++                                         int size,
++                                         SkColor color,
++                                         int symbol_point_size) {
++  return RenderToolbarSymbol(symbol_name, size, color, symbol_point_size,
++                             NSZeroPoint);
++}
++
+ }  // namespace helium
+--- a/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
+@@ -208,6 +208,13 @@
+     // Want to avoid this ever getting called during teardown.
+     return gfx::Size();
+   }
++#if BUILDFLAG(IS_MAC)
++  if (action_id_ == kActionShowDownloads &&
++      helium::IsFloatingToolbarControl(this)) {
++    return gfx::Size(helium::kNativeDownloadButtonSize,
++                     helium::kNativeDownloadButtonSize);
++  }
++#endif
+   const gfx::Size toolbar_button_size = container_->GetDefaultButtonSize();
+   const gfx::Size preferred_size =
+       ToolbarButton::CalculatePreferredSize(available_size);
+--- a/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.cc
+@@ -142,9 +142,14 @@
+   int total_width = interior_margin_.width();
+   int left = interior_margin_.left();
+   index = 0;
+-  const int height = helium::IsFloatingToolbarControl(host_view())
+-                         ? helium::FloatingToolbarButtonSize()
+-                         : GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
++  int height = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
++  if (helium::IsFloatingToolbarControl(host_view())) {
++    height = helium::FloatingToolbarButtonSize();
++    for (const size_t child_index : visible_child_indices) {
++      height = std::max(
++          height, host_view()->children()[child_index]->GetPreferredSize().height());
++    }
++  }
+   for (auto view : host_view()->children()) {
+     if (visible_child_indices.size() && index == visible_child_indices.back()) {
+       const gfx::Size preferred_size = view->GetPreferredSize();
