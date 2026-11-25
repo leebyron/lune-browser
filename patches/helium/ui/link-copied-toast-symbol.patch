@@ -1,0 +1,40 @@
+--- a/chrome/browser/ui/toasts/toast_controller.cc
++++ b/chrome/browser/ui/toasts/toast_controller.cc
+@@ -357,20 +357,30 @@
+   // child view below.
+   if (spec->has_icon()) {
+ #if BUILDFLAG(IS_MAC)
+-    if (params.toast_id == ToastId::kZenModeNewTabCreated &&
+-        !params.image_override) {
++    const char* symbol_name = nullptr;
++    switch (params.toast_id) {
++      case ToastId::kLinkCopied:
++        symbol_name = "link";
++        break;
++      case ToastId::kZenModeNewTabCreated:
++        symbol_name = "plus.square.on.square";
++        break;
++      default:
++        break;
++    }
++    if (symbol_name && !params.image_override) {
+       const int icon_size = toasts::ToastView::GetIconSize();
+       params.image_override = ui::ImageModel::FromImageGenerator(
+           base::BindRepeating(
+-              [](int size, const ui::ImageModel& fallback,
++              [](const char* name, int size, const ui::ImageModel& fallback,
+                  const ui::ColorProvider* colors) {
+                 gfx::ImageSkia symbol = helium::NativeToolbarSymbolForName(
+-                    "plus.square.on.square", size,
+-                    colors->GetColor(ui::kColorSysOnSurface));
++                    name, size, colors->GetColor(ui::kColorSysOnSurface));
+                 return symbol.isNull() ? fallback.Rasterize(colors) : symbol;
+               },
+-              icon_size, ui::ImageModel::FromVectorIcon(
+-                             spec->icon(), ui::kColorSysOnSurface, icon_size)),
++              symbol_name, icon_size,
++              ui::ImageModel::FromVectorIcon(
++                  spec->icon(), ui::kColorSysOnSurface, icon_size)),
+           gfx::Size(icon_size, icon_size));
+     }
+ #endif
