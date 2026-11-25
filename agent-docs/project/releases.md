@@ -37,6 +37,8 @@ Keep release notes terse and factual. Lead with new features, then bug fixes and
 
 Describe concrete changes without humor, lighthearted framing, marketing language or an internal work log. Tie each change to the frozen inputs and the last actually published release; verify that diff and do not use unpublished allocations or previews as the baseline. Do not invent security fixes or imply an engine upgrade when Chromium is unchanged. State the exact engine and freshness status; keep test scope and limitations in validation evidence.
 
+Link every Chromium version mention directly to the official upstream release notes for that version. Use the version number as the link text, including when citing a previous engine or an observed Stable build.
+
 Keep each paragraph and list item on one source line. Allow natural wrapping; do not insert manual line breaks or hard-wrap prose.
 
 Publication notes may be clarified later while browser binaries, tags and frozen records remain unchanged. Store revised publication notes separately from hash-locked historical notes, and verify GitHub readback.
