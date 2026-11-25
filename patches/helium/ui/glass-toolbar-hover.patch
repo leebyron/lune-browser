@@ -1,0 +1,966 @@
+--- a/chrome/browser/ui/views/extensions/extensions_toolbar_button.cc
++++ b/chrome/browser/ui/views/extensions/extensions_toolbar_button.cc
+@@ -15,6 +15,7 @@
+ #include "chrome/browser/ui/views/extensions/extensions_menu_view.h"
+ #include "chrome/browser/ui/views/extensions/extensions_request_access_button.h"
+ #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+ #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+ #include "chrome/grit/generated_resources.h"
+@@ -92,6 +93,9 @@ gfx::Size ExtensionsToolbarButton::Calcu
+ }
+ 
+ gfx::Size ExtensionsToolbarButton::GetMinimumSize() const {
++  if (helium::IsFloatingToolbarControl(this)) {
++    return GetPreferredSize();
++  }
+   const int icon_size = GetIconSize();
+   gfx::Size min_size(icon_size, icon_size);
+   min_size.SetToMin(GetPreferredSize());
+@@ -142,6 +146,7 @@ void ExtensionsToolbarButton::OnWidgetDe
+   extension_menu_observation_.Reset();
+   pressed_lock_.reset();
+   extensions_toolbar_->OnMenuClosed();
++  ReleaseChromeRevealForMenu();
+ }
+ 
+ void ExtensionsToolbarButton::ToggleExtensionsMenu() {
+@@ -163,6 +168,7 @@ void ExtensionsToolbarButton::ToggleExte
+     anchor = ToolbarButtonProvider::From(browser_)
+                  ->GetDefaultExtensionDialogAnchor();
+   }
++  HoldChromeRevealForMenu();
+   pressed_lock_ = menu_button_controller_->TakeLock();
+   extensions_toolbar_->OnMenuOpening();
+   base::RecordAction(base::UserMetricsAction("Extensions.Toolbar.MenuOpened"));
+@@ -183,8 +189,14 @@ void ExtensionsToolbarButton::ToggleExte
+         anchor, browser_, extensions_toolbar_->GetToolbarViewModel(),
+         extensions_toolbar_);
+   }
+-  extensions_menu_widget_ = menu->GetWeakPtr();
+-  extension_menu_observation_.Observe(menu);
++  if (menu) {
++    extensions_menu_widget_ = menu->GetWeakPtr();
++    extension_menu_observation_.Observe(menu);
++  } else {
++    pressed_lock_.reset();
++    extensions_toolbar_->OnMenuClosed();
++    ReleaseChromeRevealForMenu();
++  }
+ }
+ 
+ bool ExtensionsToolbarButton::GetExtensionsMenuShowing() const {
+--- a/chrome/browser/ui/views/extensions/extensions_toolbar_desktop.cc
++++ b/chrome/browser/ui/views/extensions/extensions_toolbar_desktop.cc
+@@ -41,6 +41,7 @@
+ #include "chrome/browser/ui/views/extensions/extensions_request_access_button.h"
+ #include "chrome/browser/ui/views/extensions/extensions_toolbar_button.h"
+ #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop_view_controller.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_action_hover_card_controller.h"
+@@ -735,6 +736,10 @@ views::LabelButton* ExtensionsToolbarDes
+ }
+ 
+ gfx::Size ExtensionsToolbarDesktop::GetToolbarActionSize() {
++  if (helium::IsFloatingToolbarControl(this)) {
++    const int size = helium::FloatingToolbarButtonSize();
++    return gfx::Size(size, size);
++  }
+   constexpr gfx::Size kDefaultSize(28, 28);
+   BrowserView* const browser_view =
+       BrowserView::GetBrowserViewForBrowser(browser_);
+@@ -1154,13 +1159,21 @@ void ExtensionsToolbarDesktop::UpdateCon
+ }
+ 
+ bool ExtensionsToolbarDesktop::ShouldContainerBeVisible() const {
+-  if (!browser_->GetProfile()->GetPrefs()->GetBoolean(
+-          prefs::kShowExtensionsButton) ||
++  const PrefService* prefs = browser_->GetProfile()->GetPrefs();
++  if (!prefs->GetBoolean(prefs::kShowExtensionsButton) ||
+       base::CommandLine::ForCurrentProcess()->HasSwitch(
+           "hide-extensions-menu")) {
+     return false;
+   }
+ 
++  // In the floating toolbar the Customize switch explicitly shows this
++  // control, including the menu's empty state.
++  if (helium::IsFloatingToolbarControl(this) &&
++      (prefs->FindPreference(prefs::kShowExtensionsButton)->HasUserSetting() ||
++       GetExtensionsButton()->GetExtensionsMenuShowing())) {
++    return true;
++  }
++
+   // The container (and extensions-menu button) should not be visible if we have
+   // no extensions.
+   if (!toolbar_view_model_->HasAnyExtensions()) {
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.h
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.h
+@@ -40,6 +40,7 @@ enum class ToolbarVisibilityStyle;
+ @class HeliumWindowControls;
+ @class HeliumGlassNavigation;
+ @class HeliumGlassSurface;
++@class HeliumGlassToolbarActions;
+ @class HeliumGlassDragRegion;
+ @class HeliumGlassSidebarButton;
+ @class HeliumGlassCloseButton;
+@@ -204,7 +205,7 @@ class BrowserFrameViewMac : public Brows
+   HeliumGlassSidebarButton* __strong floating_sidebar_button_ = nil;
+   HeliumGlassNavigation* __strong floating_navigation_ = nil;
+   HeliumGlassDragRegion* __strong floating_drag_region_ = nil;
+-  HeliumGlassSurface* __strong floating_toolbar_material_ = nil;
++  HeliumGlassToolbarActions* __strong floating_toolbar_material_ = nil;
+   std::unique_ptr<views::Widget> floating_toolbar_widget_;
+   HeliumHeaderScrollRouter* __strong header_scroll_router_ = nil;
+   bool floating_toolbar_presented_ = false;
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -11,6 +11,7 @@
+ #include <utility>
+ #include <vector>
+ 
++#include "base/callback_list.h"
+ #include "base/command_line.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/functional/bind.h"
+@@ -160,7 +161,6 @@
+ #include "ui/views/controls/scroll_view.h"
+ #include "ui/views/controls/view_image_model.h"
+ #include "ui/views/layout/flex_layout_view.h"
+-#include "ui/views/layout/box_layout.h"
+ #include "ui/views/layout/layout_manager_base.h"
+ #include "ui/views/layout/layout_types.h"
+ #include "ui/views/view_class_properties.h"
+@@ -205,6 +205,41 @@ void CollectFloatingToolbarButtons(views
+   }
+ }
+ 
++// Use the same slots for measuring the child window and laying out its
++// controls. The widget can still have its previous bounds while a preference
++// or an animated action changes the width of the row.
++class FloatingToolbarLayout : public views::LayoutManagerBase {
++ protected:
++  views::ProposedLayout CalculateProposedLayout(
++      const views::SizeBounds&) const override {
++    views::ProposedLayout layout;
++    int x = 0;
++    for (views::View* child : host_view()->children()) {
++      if (!IsChildIncludedInLayout(child)) {
++        continue;
++      }
++      std::vector<views::View*> buttons;
++      CollectFloatingToolbarButtons(child, buttons);
++      if (buttons.empty()) {
++        layout.child_layouts.emplace_back(child, false);
++        continue;
++      }
++      int slots_width = 0;
++      for (const views::View* button : buttons) {
++        slots_width += std::max(helium::kNativeToolbarControlHeight,
++                                button->GetPreferredSize().width());
++      }
++      const int width = std::max(slots_width, child->GetPreferredSize().width());
++      layout.child_layouts.emplace_back(
++          child, true,
++          gfx::Rect(x, 0, width, helium::kNativeToolbarControlHeight));
++      x += width;
++    }
++    layout.host_size = gfx::Size(x, helium::kNativeToolbarControlHeight);
++    return layout;
++  }
++};
++
+ int FloatingNavigationWidth(BrowserView* view) {
+   auto* prefs = view->GetProfile()->GetPrefs();
+   return 36 * (static_cast<int>(prefs->GetBoolean(prefs::kShowBackButton)) +
+@@ -662,6 +697,273 @@ cc::Region DockedDevToolsHeaderExclusion
+ - (void)didFadeOut {}
+ @end
+ 
++namespace {
++constexpr CGFloat kToolbarHoverDiameter = 30;
++constexpr NSTimeInterval kToolbarSymbolHoverDuration = .10;
++
++NSRect ToolbarHighlightRect(NSRect slot) {
++  const CGFloat inset =
++      std::max(CGFloat(0), (NSHeight(slot) - kToolbarHoverDiameter) / 2);
++  return NSInsetRect(slot, inset, inset);
++}
++
++void DrawToolbarHighlight(NSRect bounds, BOOL pressed) {
++  const BOOL dark = [[NSAppearance.currentDrawingAppearance
++      bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua,
++                                          NSAppearanceNameDarkAqua]]
++      isEqualToString:NSAppearanceNameDarkAqua];
++  const CGFloat opacity = dark ? (pressed ? .16 : .105)
++                               : (pressed ? .08 : .04);
++  NSColor* color = dark ? NSColor.whiteColor : NSColor.blackColor;
++  [[color colorWithAlphaComponent:opacity] setFill];
++  const CGFloat radius = std::min(NSWidth(bounds), NSHeight(bounds)) / 2;
++  [[NSBezierPath bezierPathWithRoundedRect:bounds xRadius:radius
++                                  yRadius:radius] fill];
++}
++
++bool WindowReceivesToolbarPointer(NSWindow* window, NSPoint screen_point) {
++  return window.isVisible && !window.ignoresMouseEvents &&
++         NSPointInRect(screen_point, window.frame) &&
++         [NSWindow windowNumberAtPoint:screen_point belowWindowWithWindowNumber:0]
++             == window.windowNumber;
++}
++}  // namespace
++
++@interface HeliumToolbarHighlight : NSView
++@property(nonatomic) BOOL pressed;
++@end
++@implementation HeliumToolbarHighlight
++@synthesize pressed = _pressed;
++- (NSView*)hitTest:(NSPoint)point {
++  return nil;
++}
++- (void)viewDidChangeEffectiveAppearance {
++  [super viewDidChangeEffectiveAppearance];
++  self.needsDisplay = YES;
++}
++- (void)drawRect:(NSRect)dirtyRect {
++  DrawToolbarHighlight(self.bounds, self.pressed);
++}
++- (void)setPressed:(BOOL)pressed {
++  if (_pressed != pressed) {
++    _pressed = pressed;
++    self.needsDisplay = YES;
++  }
++}
++@end
++
++// The real actions live in a transparent Views child window. Paint their
++// feedback in the AppKit glass content directly below that window.
++@interface HeliumGlassToolbarActions : HeliumGlassSurface
++- (void)setButtons:(const std::vector<views::View*>&)buttons;
++@end
++@implementation HeliumGlassToolbarActions {
++  std::vector<base::WeakPtr<views::Button>> _buttons;
++  std::vector<base::CallbackListSubscription> _subscriptions;
++  HeliumToolbarHighlight* _highlight;
++}
++- (void)setButtons:(const std::vector<views::View*>&)buttons {
++  if (!std::ranges::equal(buttons, _buttons,
++                         [](views::View* view, const auto& button) {
++                           return view == button.get();
++                         })) {
++    _subscriptions.clear();
++    _buttons.clear();
++    __weak HeliumGlassToolbarActions* weakSelf = self;
++    for (auto* view : buttons) {
++      auto* button = views::Button::AsButton(view);
++      _buttons.push_back(button->GetWeakPtr());
++      _subscriptions.push_back(button->AddStateChangedCallback(
++          base::BindRepeating(^{ [weakSelf updateHighlight]; })));
++    }
++  }
++  [self updateHighlight];
++}
++- (void)updateHighlight {
++  NSWindow* window = self.controlsWindow;
++  if (_buttons.empty() ||
++      !WindowReceivesToolbarPointer(window, NSEvent.mouseLocation)) {
++    _highlight.hidden = YES;
++    return;
++  }
++  for (const auto& button : _buttons) {
++    if (!button || !button->IsDrawn() ||
++        button->GetState() == views::Button::STATE_DISABLED ||
++        !button->IsMouseHovered()) {
++      continue;
++    }
++    auto* contents = button->GetWidget()->GetContentsView();
++    const gfx::Rect bounds = views::View::ConvertRectToTarget(
++        button.get(), contents, button->GetLocalBounds());
++    const NSRect slot =
++        NSMakeRect(bounds.x(), NSHeight(_controls.bounds) - bounds.bottom(),
++                   bounds.width(), bounds.height());
++    const NSRect frame = _buttons.size() == 1
++        ? _controls.bounds : ToolbarHighlightRect(slot);
++    if (!_highlight) {
++      _highlight = [[HeliumToolbarHighlight alloc] initWithFrame:frame];
++      _highlight.wantsLayer = YES;
++      [_controls addSubview:_highlight];
++    }
++    _highlight.frame = frame;
++    _highlight.pressed = button->GetState() == views::Button::STATE_PRESSED;
++    _highlight.hidden = NO;
++    return;
++  }
++  _highlight.hidden = YES;
++}
++@end
++
++@interface HeliumGlassToolbarButton : NSButton
++@property(nonatomic) BOOL fillsGlassOnHover;
++@property(nonatomic, readonly) CGFloat hoverAmount;
++@property(nonatomic, readonly) BOOL showsHoverOrFocus;
++@property(nonatomic, copy) void (^onHoverOrFocusChanged)(void);
++- (BOOL)isPointerOverButton;
++@end
++
++@implementation HeliumGlassToolbarButton {
++  NSTrackingArea* _hoverTrackingArea;
++  BOOL _hovered;
++  BOOL _focused;
++  NSTimer* _hoverTimer;
++  CGFloat _hoverAmount;
++  CGFloat _hoverFadeFrom;
++  NSTimeInterval _hoverFadeStart;
++}
++@synthesize fillsGlassOnHover = _fillsGlassOnHover;
++@synthesize hoverAmount = _hoverAmount;
++@synthesize onHoverOrFocusChanged = _onHoverOrFocusChanged;
++- (void)dealloc {
++  [_hoverTimer invalidate];
++}
++- (void)viewDidMoveToWindow {
++  [super viewDidMoveToWindow];
++  if (!self.window) {
++    [_hoverTimer invalidate];
++    _hoverTimer = nil;
++    _hovered = NO;
++    _focused = NO;
++    _hoverAmount = 0;
++  }
++}
++- (BOOL)showsHoverOrFocus {
++  return self.enabled && !self.hidden &&
++         ([self isPointerOverButton] || (_focused && self.window.isKeyWindow));
++}
++- (BOOL)becomeFirstResponder {
++  if (![super becomeFirstResponder]) {
++    return NO;
++  }
++  _focused = YES;
++  if (_onHoverOrFocusChanged) {
++    _onHoverOrFocusChanged();
++  }
++  return YES;
++}
++- (BOOL)resignFirstResponder {
++  if (![super resignFirstResponder]) {
++    return NO;
++  }
++  _focused = NO;
++  if (_onHoverOrFocusChanged) {
++    _onHoverOrFocusChanged();
++  }
++  return YES;
++}
++- (void)advanceHoverFade {
++  const CGFloat progress = std::clamp(
++      (NSDate.timeIntervalSinceReferenceDate - _hoverFadeStart) /
++          kToolbarSymbolHoverDuration,
++      0.0, 1.0);
++  const CGFloat target = _hovered ? 1 : 0;
++  _hoverAmount = _hoverFadeFrom + (target - _hoverFadeFrom) * progress;
++  self.needsDisplay = YES;
++  if (progress >= 1) {
++    [_hoverTimer invalidate];
++    _hoverTimer = nil;
++  }
++}
++- (void)setHovered:(BOOL)hovered {
++  if (_hovered == hovered) {
++    return;
++  }
++  if (_hoverTimer) {
++    [self advanceHoverFade];
++    [_hoverTimer invalidate];
++    _hoverTimer = nil;
++  }
++  _hovered = hovered;
++  self.needsDisplay = YES;
++  if (_onHoverOrFocusChanged) {
++    _onHoverOrFocusChanged();
++  }
++  if (NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion) {
++    _hoverAmount = hovered ? 1 : 0;
++    self.needsDisplay = YES;
++    return;
++  }
++  _hoverFadeFrom = _hoverAmount;
++  _hoverFadeStart = NSDate.timeIntervalSinceReferenceDate;
++  __weak HeliumGlassToolbarButton* weakSelf = self;
++  _hoverTimer = [NSTimer timerWithTimeInterval:1.0 / 60 repeats:YES
++      block:^(NSTimer* timer) {
++        [weakSelf advanceHoverFade];
++      }];
++  [NSRunLoop.mainRunLoop addTimer:_hoverTimer forMode:NSRunLoopCommonModes];
++}
++- (void)updateTrackingAreas {
++  [super updateTrackingAreas];
++  if (_hoverTrackingArea) {
++    [self removeTrackingArea:_hoverTrackingArea];
++  }
++  if (self.bordered) {
++    _hoverTrackingArea = nil;
++    return;
++  }
++  _hoverTrackingArea = [[NSTrackingArea alloc]
++      initWithRect:NSZeroRect
++           options:NSTrackingMouseEnteredAndExited | NSTrackingActiveInKeyWindow |
++                   NSTrackingInVisibleRect
++             owner:self
++          userInfo:nil];
++  [self addTrackingArea:_hoverTrackingArea];
++  [self refreshPointerHover];
++}
++- (void)refreshPointerHover {
++  [self setHovered:[self isPointerOverButton]];
++}
++- (BOOL)isPointerOverButton {
++  NSWindow* window = self.window;
++  if (!window.isKeyWindow || self.isHiddenOrHasHiddenAncestor) {
++    return NO;
++  }
++  const NSPoint pointer = NSEvent.mouseLocation;
++  const NSRect bounds = [window convertRectToScreen:
++      [self convertRect:NSIntersectionRect(self.bounds, self.visibleRect)
++                 toView:nil]];
++  return NSPointInRect(pointer, bounds) &&
++         WindowReceivesToolbarPointer(window, pointer);
++}
++- (void)mouseEntered:(NSEvent*)event {
++  [self refreshPointerHover];
++}
++- (void)mouseExited:(NSEvent*)event {
++  [self setHovered:NO];
++}
++- (void)drawRect:(NSRect)dirtyRect {
++  const BOOL pressed = self.cell.isHighlighted &&
++                       (NSEvent.pressedMouseButtons & 1);
++  if (!self.bordered && self.enabled &&
++      (pressed || [self isPointerOverButton])) {
++    const NSRect frame = self.fillsGlassOnHover
++        ? self.bounds : ToolbarHighlightRect(self.bounds);
++    DrawToolbarHighlight(frame, pressed);
++  }
++  [super drawRect:dirtyRect];
++}
++@end
++
+ // A material-only view must leave the parent Views resize area and native
+ // traffic lights interactive; the separate child widget owns the tab controls.
+ @interface HeliumSidebarSurface : HeliumGlassSurface
+@@ -701,7 +1003,7 @@ cc::Region DockedDevToolsHeaderExclusion
+ 
+ // Borderless symbol buttons do not receive the native traffic lights' inactive
+ // window treatment. Keep the sidebar action enabled while matching that state.
+-@interface HeliumSidebarPinButton : NSButton
++@interface HeliumSidebarPinButton : HeliumGlassToolbarButton
+ @end
+ @implementation HeliumSidebarPinButton {
+   NSMutableArray<id>* _activationObservers;
+@@ -755,7 +1057,7 @@ cc::Region DockedDevToolsHeaderExclusion
+ @implementation HeliumGlassSidebarButton {
+   base::WeakPtr<BrowserView> _browser;
+   views::ViewTracker _host;
+-  NSButton* _button;
++  HeliumGlassToolbarButton* _button;
+ }
+ - (instancetype)initWithBrowserView:(BrowserView*)view host:(views::View*)host {
+   self = [super initWithFrame:NSMakeRect(0, 0, 36, 36)];
+@@ -771,7 +1073,8 @@ cc::Region DockedDevToolsHeaderExclusion
+                target:self
+                action:@selector(toggle:)];
+   _button.bordered = NO;
+-  _button.frame = NSMakeRect(2, 2, 32, 32);
++  _button.fillsGlassOnHover = YES;
++  _button.frame = _controls.bounds;
+   _button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+   _button.toolTip = view->IsZenModeSideChromePinned()
+                         ? @"Unpin sidebar" : @"Pin sidebar";
+@@ -1147,19 +1450,14 @@ ToolbarButton* NativeToolbarMenuButton(b
+ }
+ }  // namespace
+ 
+-// Match the Views toolbar's semantic symbol colors without a hover bezel.
+-@interface HeliumHeaderSymbolButton : NSButton <NSGestureRecognizerDelegate>
++// Match the Views toolbar's semantic symbol colors and preserve history menus.
++@interface HeliumHeaderSymbolButton
++    : HeliumGlassToolbarButton <NSGestureRecognizerDelegate>
+ @property(nonatomic, copy) void (^onContextMenu)(NSView* sender);
+ @property(nonatomic, copy) BOOL (^canShowContextMenu)(NSView* sender);
+ @end
+ @implementation HeliumHeaderSymbolButton {
+   NSPressGestureRecognizer* _menuPress;
+-  NSTrackingArea* _symbolTrackingArea;
+-  BOOL _symbolHovered;
+-  NSTimer* _symbolFadeTimer;
+-  CGFloat _symbolHoverAmount;
+-  CGFloat _symbolFadeFrom;
+-  NSTimeInterval _symbolFadeStart;
+ }
+ @synthesize onContextMenu = _onContextMenu;
+ @synthesize canShowContextMenu = _canShowContextMenu;
+@@ -1200,18 +1498,9 @@ ToolbarButton* NativeToolbarMenuButton(b
+     self.onContextMenu(self);
+   }
+ }
+-- (void)dealloc {
+-  [_symbolFadeTimer invalidate];
+-}
+ - (void)viewDidMoveToWindow {
+   [super viewDidMoveToWindow];
+   _menuPress.enabled = self.window && self.enabled && self.onContextMenu;
+-  if (!self.window) {
+-    [_symbolFadeTimer invalidate];
+-    _symbolFadeTimer = nil;
+-    _symbolHovered = NO;
+-    _symbolHoverAmount = 0;
+-  }
+ }
+ - (void)rightMouseDown:(NSEvent*)event {
+   if (self.onContextMenu) {
+@@ -1230,59 +1519,6 @@ ToolbarButton* NativeToolbarMenuButton(b
+   }
+   [super mouseDown:event];
+ }
+-- (void)advanceSymbolFade {
+-  const CGFloat progress = std::clamp(
+-      (NSDate.timeIntervalSinceReferenceDate - _symbolFadeStart) / 0.1,
+-      0.0, 1.0);
+-  const CGFloat target = _symbolHovered ? 1 : 0;
+-  _symbolHoverAmount = _symbolFadeFrom + (target - _symbolFadeFrom) * progress;
+-  self.needsDisplay = YES;
+-  if (progress >= 1) {
+-    [_symbolFadeTimer invalidate];
+-    _symbolFadeTimer = nil;
+-  }
+-}
+-- (void)setSymbolHovered:(BOOL)hovered {
+-  if (_symbolHovered == hovered) {
+-    return;
+-  }
+-  if (_symbolFadeTimer) {
+-    [self advanceSymbolFade];
+-    [_symbolFadeTimer invalidate];
+-  }
+-  _symbolHovered = hovered;
+-  _symbolFadeFrom = _symbolHoverAmount;
+-  _symbolFadeStart = NSDate.timeIntervalSinceReferenceDate;
+-  __weak HeliumHeaderSymbolButton* weakSelf = self;
+-  _symbolFadeTimer = [NSTimer timerWithTimeInterval:1.0 / 60 repeats:YES
+-      block:^(NSTimer* timer) {
+-        [weakSelf advanceSymbolFade];
+-      }];
+-  [NSRunLoop.mainRunLoop addTimer:_symbolFadeTimer forMode:NSRunLoopCommonModes];
+-}
+-- (void)updateTrackingAreas {
+-  [super updateTrackingAreas];
+-  if (_symbolTrackingArea) {
+-    [self removeTrackingArea:_symbolTrackingArea];
+-  }
+-  _symbolTrackingArea = [[NSTrackingArea alloc]
+-      initWithRect:NSZeroRect
+-           options:NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways |
+-                   NSTrackingInVisibleRect
+-             owner:self
+-          userInfo:nil];
+-  [self addTrackingArea:_symbolTrackingArea];
+-  [self setSymbolHovered:self.window && NSMouseInRect(
+-      [self convertPoint:self.window.mouseLocationOutsideOfEventStream
+-                fromView:nil], self.visibleRect, self.isFlipped)];
+-  self.needsDisplay = YES;
+-}
+-- (void)mouseEntered:(NSEvent*)event {
+-  [self setSymbolHovered:YES];
+-}
+-- (void)mouseExited:(NSEvent*)event {
+-  [self setSymbolHovered:NO];
+-}
+ - (void)drawRect:(NSRect)dirtyRect {
+   NSColor* tint = NSColor.secondaryLabelColor;
+   if (!self.enabled) {
+@@ -1291,7 +1527,7 @@ ToolbarButton* NativeToolbarMenuButton(b
+     tint = [tint colorWithSystemEffect:NSColorSystemEffectPressed];
+   } else {
+     NSColor* hover = [tint colorWithSystemEffect:NSColorSystemEffectRollover];
+-    tint = [tint blendedColorWithFraction:_symbolHoverAmount ofColor:hover];
++    tint = [tint blendedColorWithFraction:self.hoverAmount ofColor:hover];
+   }
+   if (![self.contentTintColor isEqual:tint]) {
+     self.contentTintColor = tint;
+@@ -1349,8 +1585,8 @@ void ConfigureNativeToolbarMenu(HeliumHe
+                action:@selector(goForward:)];
+   ConfigureNativeToolbarMenu(_back, _browserView, VIEW_ID_BACK_BUTTON);
+   ConfigureNativeToolbarMenu(_forward, _browserView, VIEW_ID_FORWARD_BUTTON);
+-  _back.frame = NSMakeRect(4, 2, 32, 32);
+-  _forward.frame = NSMakeRect(36, 2, 32, 32);
++  _back.frame = NSMakeRect(0, 0, 36, 36);
++  _forward.frame = NSMakeRect(36, 0, 36, 36);
+   for (NSButton* button in @[ _back, _forward ]) {
+     button.bordered = NO;
+     button.image =
+@@ -1360,9 +1596,13 @@ void ConfigureNativeToolbarMenu(HeliumHe
+                                                   weight:NSFontWeightMedium]];
+     [_controls addSubview:button];
+   }
+-  _separator = [[NSBox alloc] initWithFrame:NSMakeRect(35.5, 10, 1, 16)];
++  _separator = [[NSBox alloc] initWithFrame:NSMakeRect(35.5, 8, 1, 20)];
+   _separator.boxType = NSBoxSeparator;
+   [_controls addSubview:_separator];
++  __weak HeliumGlassNavigation* weakSelf = self;
++  void (^updateSeparator)(void) = ^{ [weakSelf updateSeparator]; };
++  _back.onHoverOrFocusChanged = updateSeparator;
++  _forward.onHoverOrFocusChanged = updateSeparator;
+   _back.toolTip = base::SysUTF16ToNSString(
+       l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_BACK));
+   _forward.toolTip = base::SysUTF16ToNSString(
+@@ -1376,6 +1616,10 @@ void ConfigureNativeToolbarMenu(HeliumHe
+   _forward.accessibilityLabel = _forward.toolTip;
+   return self;
+ }
++- (void)updateSeparator {
++  _separator.hidden = _back.hidden || _forward.hidden ||
++                      _back.showsHoverOrFocus || _forward.showsHoverOrFocus;
++}
+ - (void)refresh {
+   if (_browserView) {
+     auto* prefs = _browserView->GetProfile()->GetPrefs();
+@@ -1383,14 +1627,15 @@ void ConfigureNativeToolbarMenu(HeliumHe
+     const bool forward = prefs->GetBoolean(prefs::kShowForwardButton);
+     _back.hidden = !back;
+     _forward.hidden = !forward;
+-    _separator.hidden = !(back && forward);
+-    _back.frame = NSMakeRect(forward ? 4 : 2, 2, 32, 32);
+-    _forward.frame = NSMakeRect(back ? 36 : 2, 2, 32, 32);
++    _back.fillsGlassOnHover = !forward;
++    _forward.fillsGlassOnHover = !back;
++    _forward.frame = NSMakeRect(back ? 36 : 0, 0, 36, 36);
+   }
+   const bool has_contents = _browserView && _browserView->GetActiveWebContents();
+   _back.enabled = has_contents && chrome::CanGoBack(_browserView->browser());
+   _forward.enabled =
+       has_contents && chrome::CanGoForward(_browserView->browser());
++  [self updateSeparator];
+ }
+ - (void)goBack:(id)sender {
+   if (_browserView) {
+@@ -4532,17 +4777,13 @@ int BrowserFrameViewMac::FloatingToolbar
+     floating_toolbar_widget_->SetNativeWindowProperty(
+         BrowserView::kBrowserViewKey, GetBrowserView());
+     auto root = std::make_unique<views::View>();
+-    root->SetLayoutManager(std::make_unique<views::BoxLayout>(
+-                               views::BoxLayout::Orientation::kHorizontal,
+-                               gfx::Insets::VH(0, 4), 2))
+-        ->set_cross_axis_alignment(
+-            views::BoxLayout::CrossAxisAlignment::kCenter);
++    root->SetLayoutManager(std::make_unique<FloatingToolbarLayout>());
+     floating_toolbar_widget_->SetContentsView(std::move(root));
+     auto* material_host = GetBrowserView()->AddChildView(
+         std::make_unique<views::NativeViewHost>());
+     floating_toolbar_material_host_.SetView(material_host);
+     floating_toolbar_material_ =
+-        [[HeliumGlassSurface alloc] initWithFrame:NSZeroRect];
++        [[HeliumGlassToolbarActions alloc] initWithFrame:NSZeroRect];
+     material_host->Attach(gfx::NativeView(floating_toolbar_material_));
+     auto weak_widget = floating_toolbar_widget_->GetWeakPtr();
+     floating_toolbar_material_.onAppearanceChanged = ^(NSAppearance* appearance) {
+@@ -4558,18 +4799,13 @@ int BrowserFrameViewMac::FloatingToolbar
+   }
+   toolbar->SetFloatingNavigation(true);
+   toolbar->SetFloatingControlsHost(floating_toolbar_widget_->GetContentsView());
+-  auto* contents = floating_toolbar_widget_->GetContentsView();
+-  std::vector<views::View*> buttons;
+-  CollectFloatingToolbarButtons(contents, buttons);
+-  auto* layout = static_cast<views::BoxLayout*>(contents->GetLayoutManager());
+-  layout->set_inside_border_insets(
+-      buttons.size() == 1 ? gfx::Insets() : gfx::Insets::VH(0, 4));
+-  layout->set_main_axis_alignment(
+-      views::BoxLayout::MainAxisAlignment::kCenter);
+-  if (buttons.empty()) {
+-    return 0;
++  const int width =
++      floating_toolbar_widget_->GetContentsView()->GetPreferredSize().width();
++  if (floating_toolbar_widget_->dragged_view()) {
++    // Drag placeholders must not move the glass or its drop targets.
++    return std::max(width, floating_toolbar_target_bounds_.width());
+   }
+-  return buttons.size() == 1 ? 36 : contents->GetPreferredSize().width();
++  return width;
+ }
+ 
+ void BrowserFrameViewMac::ResetFloatingToolbar() {
+@@ -4577,6 +4813,7 @@ void BrowserFrameViewMac::ResetFloatingT
+   header_scroll_router_ = nil;
+   floating_toolbar_material_.onAppearanceChanged = nil;
+   floating_toolbar_material_.controlsWindow = nil;
++  [floating_toolbar_material_ setButtons:{}];
+   ResetFloatingSidebar();
+   if (auto* toolbar =
+           static_cast<ToolbarView*>(floating_toolbar_owner_.view())) {
+@@ -4702,6 +4939,7 @@ void BrowserFrameViewMac::UpdateFloating
+     // Remove both the surface and its input window immediately. Keep the
+     // controls attached so visibility changes can reveal the group again.
+     [floating_toolbar_material_ setRevealFraction:0];
++    [floating_toolbar_material_ setButtons:{}];
+     floating_toolbar_material_.controlsWindow = nil;
+     material_host->SetVisible(false);
+     window.ignoresMouseEvents = YES;
+@@ -4737,8 +4975,7 @@ void BrowserFrameViewMac::UpdateFloating
+     floating_toolbar_material_.controlsWindow = window;
+     views::View::ConvertRectToScreen(view, &bounds);
+     const bool layout_changed =
+-        floating_toolbar_widget_->GetWindowBoundsInScreen().size() !=
+-        bounds.size();
++        floating_toolbar_target_bounds_.size() != bounds.size();
+     // Position the child window before showing it; only opacity is animated.
+     if (bounds != floating_toolbar_target_bounds_ ||
+         !floating_toolbar_presented_) {
+@@ -4766,7 +5003,8 @@ void BrowserFrameViewMac::UpdateFloating
+       }
+       gfx::Rect child_bounds = child->bounds();
+       child_bounds.Offset(
+-          (contents->width() - button_bounds.width()) / 2 - button_bounds.x(),
++          std::max(0, (contents->width() - button_bounds.width()) / 2) -
++              button_bounds.x(),
+           0);
+       child->SetBoundsRect(child_bounds);
+     }
+@@ -4783,7 +5021,9 @@ void BrowserFrameViewMac::UpdateFloating
+           }
+           completionHandler:nil];
+     }
++    [floating_toolbar_material_ setButtons:buttons];
+   } else if (floating_toolbar_presented_) {
++    [floating_toolbar_material_ setButtons:{}];
+     window.ignoresMouseEvents = YES;
+     [NSAnimationContext
+         runAnimationGroup:^(NSAnimationContext* context) {
+--- a/chrome/browser/ui/views/helium/native_frame_materials.cc
++++ b/chrome/browser/ui/views/helium/native_frame_materials.cc
+@@ -47,7 +47,12 @@ bool IsFloatingToolbarControl(const view
+ }
+ 
+ int FloatingToolbarButtonSize() {
+-  return std::max(32, GetLayoutConstant(LayoutConstant::kToolbarButtonHeight));
++#if BUILDFLAG(IS_MAC)
++  // Match the height and end radius of the glass pill with square slots.
++  return kNativeToolbarControlHeight;
++#else
++  return GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
++#endif
+ }
+ 
+ bool IsNativeGlassControl(const views::View* view) {
+--- a/chrome/browser/ui/views/toolbar/browser_app_menu_button.cc
++++ b/chrome/browser/ui/views/toolbar/browser_app_menu_button.cc
+@@ -166,18 +166,6 @@ void BrowserAppMenuButton::UpdateThemeBa
+       !IsLabelPresentAndVisible());
+ }
+ 
+-gfx::Size BrowserAppMenuButton::CalculatePreferredSize(
+-    const views::SizeBounds& available_size) const {
+-  gfx::Size preferred = ToolbarButton::CalculatePreferredSize(available_size);
+-  if (helium::IsFloatingToolbarControl(this) && GetText().empty()) {
+-    // The short horizontal ellipsis needs less optical padding than a full
+-    // square symbol. Its extra 1 pt per side belongs to the hit target, not
+-    // the glass group's outer margin. Preserve labeled action width.
+-    preferred.Enlarge(-2, 0);
+-  }
+-  return preferred;
+-}
+-
+ void BrowserAppMenuButton::UpdateIcon() {
+   const gfx::VectorIcon& icon =
+       ui::TouchUiController::Get()->touch_ui()
+@@ -311,7 +299,7 @@ bool BrowserAppMenuButton::HandleAccessi
+ gfx::Size BrowserAppMenuButton::GetMinimumSize() const {
+   if (helium::IsFloatingToolbarControl(this) && GetText().empty()) {
+     const int size = helium::FloatingToolbarButtonSize();
+-    return gfx::Size(size - 4, size);
++    return gfx::Size(size, size);
+   }
+   const int size = GetTargetSize().height();
+   return gfx::Size(size, size);
+--- a/chrome/browser/ui/views/toolbar/browser_app_menu_button.h
++++ b/chrome/browser/ui/views/toolbar/browser_app_menu_button.h
+@@ -64,8 +64,6 @@ class BrowserAppMenuButton : public AppM
+ 
+   // views::View:
+   gfx::Size GetMinimumSize() const override;
+-  gfx::Size CalculatePreferredSize(
+-      const views::SizeBounds& available_size) const override;
+ 
+  private:
+   base::CallbackListSubscription sidebar_mode_subscription_;
+--- a/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.cc
+@@ -17,9 +17,14 @@ PinnedToolbarActionsContainerLayout::Cal
+     const views::SizeBounds& size_bounds) const {
+   views::ProposedLayout layout;
+ 
++  const bool floating = helium::IsFloatingToolbarControl(host_view());
++  const gfx::Insets interior_margin = floating ? gfx::Insets() : interior_margin_;
++  auto margins_for = [floating](const views::View* child) {
++    return floating ? gfx::Insets() : *child->GetProperty(views::kMarginsKey);
++  };
+   const bool size_bounded = size_bounds.is_fully_bounded();
+   int remaining_width =
+-      size_bounded ? (size_bounds.width().value() - interior_margin_.width())
++      size_bounded ? (size_bounds.width().value() - interior_margin.width())
+                    : 0;
+   bool has_found_button_forced_visible = false;
+   int mid_priority_width = 0;
+@@ -30,15 +35,15 @@ PinnedToolbarActionsContainerLayout::Cal
+   // needed for medium priority views.
+   if (size_bounded) {
+     for (views::View* child : host_view()->children()) {
+-      if (!IsChildIncludedInLayout(child)) {
++      if (!IsChildIncludedInLayout(child) ||
++          (floating && !views::Button::AsButton(child))) {
+         continue;
+       }
+       const PinnedToolbarActionFlexPriority priority =
+           static_cast<PinnedToolbarActionFlexPriority>(
+               child->GetProperty(kToolbarButtonFlexPriorityKey));
+       gfx::Size preferred_size = child->GetPreferredSize();
+-      preferred_size.Enlarge(child->GetProperty(views::kMarginsKey)->width(),
+-                             0);
++      preferred_size.Enlarge(margins_for(child).width(), 0);
+ 
+       // Include forced visible views.
+       if (priority == PinnedToolbarActionFlexPriority::kHigh) {
+@@ -81,7 +86,8 @@ PinnedToolbarActionsContainerLayout::Cal
+   size_t divider_index = 0;
+   int divider_width = 0;
+   for (const auto& i : std::views::reverse(host_view()->children())) {
+-    if (!IsChildIncludedInLayout(i)) {
++    if (!IsChildIncludedInLayout(i) ||
++        (floating && !views::Button::AsButton(i))) {
+       index--;
+       continue;
+     }
+@@ -90,13 +96,13 @@ PinnedToolbarActionsContainerLayout::Cal
+     if (!views::Button::AsButton(i)) {
+       divider_index = index;
+       divider_width = i->GetPreferredSize().width() +
+-                      i->GetProperty(views::kMarginsKey)->width();
++                      margins_for(i).width();
+       index--;
+       continue;
+     }
+     // Get the preferred size and include the divider width if this view is
+     // causing the divider to need to be shown.
+-    const int margin_width = i->GetProperty(views::kMarginsKey)->width();
++    const int margin_width = margins_for(i).width();
+     gfx::Size preferred_size = i->GetPreferredSize();
+     preferred_size.Enlarge(margin_width, 0);
+     if (divider_index > index && !divider_space_preallocated) {
+@@ -139,11 +145,11 @@ PinnedToolbarActionsContainerLayout::Cal
+   }
+ 
+   // 4. Create layout based on prior calculations.
+-  int total_width = interior_margin_.width();
+-  int left = interior_margin_.left();
++  int total_width = interior_margin.width();
++  int left = interior_margin.left();
+   index = 0;
+   int height = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
+-  if (helium::IsFloatingToolbarControl(host_view())) {
++  if (floating) {
+     height = helium::FloatingToolbarButtonSize();
+     for (const size_t child_index : visible_child_indices) {
+       height = std::max(
+@@ -154,14 +160,13 @@ PinnedToolbarActionsContainerLayout::Cal
+     if (visible_child_indices.size() && index == visible_child_indices.back()) {
+       const gfx::Size preferred_size = view->GetPreferredSize();
+       const int y = (height - preferred_size.height()) / 2;
+-      left += view->GetProperty(views::kMarginsKey)->left();
++      const gfx::Insets margins = margins_for(view);
++      left += margins.left();
+       layout.child_layouts.emplace_back(views::ChildLayout{
+           view, true,
+           gfx::Rect(left, y, preferred_size.width(), preferred_size.height())});
+-      left += preferred_size.width() +
+-              view->GetProperty(views::kMarginsKey)->right();
+-      total_width += preferred_size.width() +
+-                     view->GetProperty(views::kMarginsKey)->width();
++      left += preferred_size.width() + margins.right();
++      total_width += preferred_size.width() + margins.width();
+       visible_child_indices.pop_back();
+     } else {
+       layout.child_layouts.emplace_back(views::ChildLayout{view, false});
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -2891,7 +2891,11 @@ void ToolbarView::OnShowAvatarButtonChan
+ }
+ 
+ void ToolbarView::OnShowExtensionsButtonChanged() {
+-  extensions_container_->SetVisible(show_extensions_button_.GetValue());
++  if (helium::IsFloatingToolbarControl(extensions_container_)) {
++    extensions_container_->UpdateContainerVisibility();
++  } else {
++    extensions_container_->SetVisible(show_extensions_button_.GetValue());
++  }
+ }
+ 
+ void ToolbarView::OnShowMenuButtonChanged() {
+@@ -3025,8 +3029,6 @@ void ToolbarView::SetFloatingControlsHos
+     if (!floating_controls_state_.empty() && extensions_container_) {
+       extensions_container_->GetTargetLayoutManager()->SetDefault(
+           views::kMarginsKey, gfx::Insets::VH(0, 2));
+-      extensions_container_->GetExtensionsButton()->ClearProperty(
+-          views::kMarginsKey);
+     }
+     for (const auto& state : floating_controls_state_) {
+       if (state.view && state.view->parent() != this) {
+@@ -3046,6 +3048,9 @@ void ToolbarView::SetFloatingControlsHos
+       }
+     }
+     floating_controls_state_.clear();
++    if (extensions_container_) {
++      extensions_container_->UpdateContainerVisibility();
++    }
+     OnShowMediaButtonChanged();
+     InvalidateLayout();
+     return;
+@@ -3054,12 +3059,8 @@ void ToolbarView::SetFloatingControlsHos
+     return;
+   }
+   if (extensions_container_) {
+-    // Keep the extension buttons' 2 pt spacing on their trailing side only.
+-    // With collapsed margins, clearing the menu button's margin then leaves
+-    // exactly zero gap before the first extension, including after reordering.
++    // Each button occupies a complete glass slot, including its hover inset.
+     extensions_container_->GetTargetLayoutManager()->SetDefault(
+-        views::kMarginsKey, gfx::Insets::TLBR(0, 0, 0, 2));
+-    extensions_container_->GetExtensionsButton()->SetProperty(
+         views::kMarginsKey, gfx::Insets());
+   }
+   const auto controls = children();
+@@ -3079,12 +3080,7 @@ void ToolbarView::SetFloatingControlsHos
+     // Overflow may have hidden a control without changing its intended
+     // visibility. Preserve that intent when the new layout takes ownership.
+     const bool can_be_visible = layout_manager_->CanBeVisible(control);
+-    // Cancel the floating BoxLayout's 2 pt inter-child gap after Media
+-    // Controls while preserving its full hit target and other spacing.
+-    control->SetProperty(
+-        views::kMarginsKey, control == media_button_view_
+-                                ? gfx::Insets::TLBR(0, 0, 0, -2)
+-                                : gfx::Insets());
++    control->SetProperty(views::kMarginsKey, gfx::Insets());
+     auto owned_control = RemoveChildViewT(control);
+     owned_control->SetVisible(can_be_visible);
+     host->AddChildView(std::move(owned_control));
+@@ -3102,6 +3098,12 @@ void ToolbarView::SetFloatingControlsHos
+   if (media_button_view_ && media_button_view_->parent() == host) {
+     host->ReorderChildView(media_button_view_, 0);
+   }
++  if (app_menu_button_ && app_menu_button_->parent() == host) {
++    host->ReorderChildView(app_menu_button_, host->children().size() - 1);
++  }
++  if (extensions_container_) {
++    extensions_container_->UpdateContainerVisibility();
++  }
+   // Reevaluate after reparenting so active sessions immediately occupy
+   // their slot in the floating group. The media controller still owns
+   // availability, enabled state, and the dialog lifecycle.
