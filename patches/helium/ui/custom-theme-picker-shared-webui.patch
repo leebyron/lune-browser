@@ -1,0 +1,96 @@
+--- a/chrome/browser/ui/webui/feature_showcase/feature_showcase_ui.cc
++++ b/chrome/browser/ui/webui/feature_showcase/feature_showcase_ui.cc
+@@ -131,7 +131,8 @@
+       // cr-theme-color-picker strings:
+       {"close", IDS_CLOSE},
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
+-      {"themeSystem", IDS_SETTINGS_SYSTEM},
++      {"themeLabel", IDS_SETTINGS_THEMES},
++      {"themeNative", IDS_NTP_CUSTOMIZE_THEME_NATIVE},
+       {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
+       {"themeRestore", IDS_ACCNAME_RESTORE},
+       {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
+--- a/chrome/browser/ui/webui/new_tab_page/core/ntp_load_time_data.cc
++++ b/chrome/browser/ui/webui/new_tab_page/core/ntp_load_time_data.cc
+@@ -348,7 +348,8 @@
+ 
+       // Customize button and dialog.
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
+-      {"themeSystem", IDS_SETTINGS_SYSTEM},
++      {"themeLabel", IDS_SETTINGS_THEMES},
++      {"themeNative", IDS_NTP_CUSTOMIZE_THEME_NATIVE},
+       {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
+       {"themeRestore", IDS_ACCNAME_RESTORE},
+       {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -2629,7 +2629,8 @@
+       // Color picker strings:
+       {"colorsContainerLabel", IDS_NTP_THEMES_CONTAINER_LABEL},
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
+-      {"themeSystem", IDS_SETTINGS_SYSTEM},
++      {"themeLabel", IDS_SETTINGS_THEMES},
++      {"themeNative", IDS_NTP_CUSTOMIZE_THEME_NATIVE},
+       {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
+       {"themeRestore", IDS_ACCNAME_RESTORE},
+       {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
+--- a/chrome/browser/ui/webui/signin/profile_customization_ui.cc
++++ b/chrome/browser/ui/webui/signin/profile_customization_ui.cc
+@@ -93,7 +93,8 @@
+       // Color picker strings:
+       {"close", IDS_CLOSE},
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
+-      {"themeSystem", IDS_SETTINGS_SYSTEM},
++      {"themeLabel", IDS_SETTINGS_THEMES},
++      {"themeNative", IDS_NTP_CUSTOMIZE_THEME_NATIVE},
+       {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
+       {"themeRestore", IDS_ACCNAME_RESTORE},
+       {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
+--- a/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.css
++++ b/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.css
+@@ -71,9 +71,9 @@
+   border-radius: 10px;
+   box-shadow: inset 0 0 0 1px var(--customize-segmented-edge);
+   display: grid;
+-  gap: var(--customize-segmented-gap);
++  gap: var(--customize-segmented-gap, 6px);
+   grid-template-columns: repeat(3, minmax(0, 1fr));
+-  padding: var(--customize-segmented-inset);
++  padding: var(--customize-segmented-inset, 0);
+ }
+ 
+ .theme-choices label {
+@@ -98,7 +98,7 @@
+   box-sizing: border-box;
+   color: var(--cr-primary-text-color);
+   display: flex;
+-  gap: var(--appearance-symbol-gap);
++  gap: var(--appearance-symbol-gap, 0);
+   justify-content: center;
+   min-height: 32px;
+   overflow-wrap: anywhere;
+@@ -109,9 +109,9 @@
+ .theme-symbol {
+   background-color: currentColor;
+   flex: none;
+-  height: var(--appearance-symbol-size);
++  height: var(--appearance-symbol-size, 0);
+   mask: var(--theme-symbol, none) center / contain no-repeat;
+-  width: var(--appearance-symbol-size);
++  width: var(--appearance-symbol-size, 0);
+ }
+ 
+ [data-theme='system'] {
+@@ -132,8 +132,10 @@
+ }
+ 
+ .theme-choices input:checked + .theme-option {
+-  background: var(--customize-segmented-selected);
+-  border-color: var(--customize-segmented-edge);
++  background: var(--customize-segmented-selected,
++      var(--color-theme-color-picker-option-background,
++      var(--cr-fallback-color-neutral-container)));
++  border-color: var(--customize-segmented-edge, currentColor);
+ }
+ 
+ .theme-choices input:focus-visible + .theme-option,
