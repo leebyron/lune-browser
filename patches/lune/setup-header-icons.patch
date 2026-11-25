@@ -1,0 +1,209 @@
+--- a/components/helium_onboarding/BUILD.gn
++++ b/components/helium_onboarding/BUILD.gn
+@@ -44,6 +44,12 @@
+     "public/syne-latin.woff2",
+     "public/wallpaper-light.jpg",
+     "public/wallpaper-dark.jpg",
++    "public/setup-header-icons/eye.slash.png",
++    "public/setup-header-icons/lock.badge.checkmark.png",
++    "public/setup-header-icons/magnifyingglass.png",
++    "public/setup-header-icons/paintbrush.pointed.png",
++    "public/setup-header-icons/point.3.connected.trianglepath.dotted.png",
++    "public/setup-header-icons/square.and.arrow.down.png",
+     "public/Inter-OFL.txt",
+     "public/Syne-OFL.txt",
+     "src/app.css",
+@@ -52,7 +58,6 @@
+     "src/lib/browser/appearance.ts",
+     "src/lib/browser/setup.ts",
+     "src/lib/browser/index.ts",
+-    "src/icons/tabler/IconAdjustments.svelte",
+     "src/components/ImportPrompt.svelte",
+     "src/App.svelte",
+     "src/lib/onboarding-flow.ts",
+@@ -67,6 +72,8 @@
+     "src/pages/index.ts",
+     "src/pages/Welcome.svelte",
+     "src/pages/SearchEngine.svelte",
++    "src/pages/Privacy.svelte",
++    "src/pages/DataImport.svelte",
+     "src/components/PreferenceToggle.svelte",
+     "src/components/SearchEngineItem.svelte",
+     "src/components/PasswordManagerOption.svelte",
+--- a/components/helium_onboarding/src/components/PageHeader.svelte
++++ b/components/helium_onboarding/src/components/PageHeader.svelte
+@@ -1,36 +1,18 @@
+ <script lang="ts">
+-    import type { Component } from "svelte";
+-
+     type Props = {
+         title: string;
+         subtitle: string;
+         noTopMargin?: boolean;
+-        verticalTitle?: boolean;
+-        iconHeight?: string;
+-        Icon?: Component;
++        symbol: string;
+     };
+ 
+-    const {
+-        title,
+-        subtitle,
+-        noTopMargin,
+-        verticalTitle,
+-        iconHeight,
+-        Icon,
+-    }: Props = $props();
++    const { title, subtitle, noTopMargin, symbol }: Props = $props();
+ </script>
+ 
+ <div class="page-header" class:no-top-margin={noTopMargin}>
+-    <div class="title" class:vertical={verticalTitle}>
+-        {#if Icon}
+-        <div class="header-icon">
+-            {#if iconHeight}
+-                <Icon height={iconHeight} />
+-            {:else}
+-                <Icon />
+-            {/if}
+-        </div>
+-        {/if}
++    <div class="title">
++        <span class="header-icon" aria-hidden="true"
++            style:--header-icon={ `url('/setup-header-icons/${symbol}.png')` }></span>
+         <h2>{title}</h2>
+     </div>
+     <p>{subtitle}</p>
+@@ -57,33 +39,14 @@
+         & .title {
+             display: flex;
+             align-items: center;
+-            flex-wrap: wrap;
+             justify-content: center;
+             gap: 10px;
+ 
+             & .header-icon {
+-                display: flex;
++                flex: 0 0 32px;
+                 height: 32px;
+-                width: 32px;
+-            }
+-
+-            & .header-icon :global(svg) {
+-                width: 100%;
+-                height: 100%;
+-                stroke-width: 2px;
+-            }
+-
+-            &.vertical {
+-                flex-direction: column;
+-
+-                & .header-icon {
+-                    height: 48px;
+-                    width: 48px;
+-                }
+-
+-                & .header-icon :global(svg) {
+-                    stroke-width: 1.6px;
+-                }
++                background-color: currentColor;
++                mask: var(--header-icon) center / contain no-repeat;
+             }
+         }
+     }
+--- a/components/helium_onboarding/src/pages/DataImport.svelte
++++ b/components/helium_onboarding/src/pages/DataImport.svelte
+@@ -14,8 +14,6 @@
+     import BrowserProfileGroup from "../components/BrowserProfileGroup.svelte";
+     import BrowserImportGraphic from "../components/BrowserImportGraphic.svelte";
+ 
+-    import IconTransferIn from "../icons/tabler/IconTransferIn.svelte";
+-
+     const PROMPT_FADE_DURATION = 80;
+ 
+     // The browser only sets this where users can grant access to protected
+@@ -70,7 +68,7 @@
+             title={s.dataImport.title}
+             subtitle={s.dataImport.subtitle}
+             noTopMargin={!discovered}
+-            Icon={IconTransferIn}
++            symbol="square.and.arrow.down"
+         />
+         <div class="import-content">
+             {#if !discovered}
+--- a/components/helium_onboarding/src/pages/Finish.svelte
++++ b/components/helium_onboarding/src/pages/Finish.svelte
+@@ -4,7 +4,6 @@
+     import { currentPage } from "../lib/onboarding-flow";
+     import { preferences, setPref, appearance, setColorScheme, setTheme } from "../lib/browser";
+     import PageHeader from "../components/PageHeader.svelte";
+-    import IconAdjustments from "../icons/tabler/IconAdjustments.svelte";
+     const visible = $derived($currentPage === "Finish");
+     const themes = $derived([
+         {value: 'system', label: s.finish.themeSystem},
+@@ -26,7 +25,7 @@
+ </script>
+ <div id="finish-page" class="onboarding-page" class:visible inert={!visible}>
+     <div class="scrollable-page">
+-        <PageHeader title={s.finish.title} subtitle={s.finish.body} Icon={IconAdjustments} />
++        <PageHeader title={s.finish.title} subtitle={s.finish.body} symbol="paintbrush.pointed" />
+         <div class="page-content">
+             <div class="appearance-options">
+                 <div class="option"><span>{s.finish.appearance}</span>
+--- a/components/helium_onboarding/src/pages/HeliumServices.svelte
++++ b/components/helium_onboarding/src/pages/HeliumServices.svelte
+@@ -41,6 +41,7 @@
+         <PageHeader
+             title={s.services.title}
+             subtitle={s.services.provider}
++            symbol="point.3.connected.trianglepath.dotted"
+         />
+         <div class="page-content">
+             <PreferenceToggle
+--- a/components/helium_onboarding/src/pages/PasswordManager.svelte
++++ b/components/helium_onboarding/src/pages/PasswordManager.svelte
+@@ -8,7 +8,6 @@
+     import PageHeader from "../components/PageHeader.svelte";
+     import PasswordManagerOption from "../components/PasswordManagerOption.svelte";
+ 
+-    import IconLockStar from "../icons/tabler/IconLockStar.svelte";
+ 
+     const visible = $derived($currentPage === "PasswordManager");
+ </script>
+@@ -18,7 +17,7 @@
+         <PageHeader
+             title={s.password.title}
+             subtitle={s.password.subtitle}
+-            Icon={IconLockStar}
++            symbol="lock.badge.checkmark"
+         />
+ 
+         {#if !$preferences['services.enabled'] || !$preferences['services.ext_proxy'] || !$preferences['services.user_consented']}
+--- a/components/helium_onboarding/src/pages/Privacy.svelte
++++ b/components/helium_onboarding/src/pages/Privacy.svelte
+@@ -27,7 +27,7 @@
+ 
+ <div id="privacy-page" class="onboarding-page" class:visible inert={!visible}>
+     <div class="scrollable-page">
+-        <PageHeader title={s.privacy.title} subtitle={s.privacy.body} />
++        <PageHeader title={s.privacy.title} subtitle={s.privacy.body} symbol="eye.slash" />
+         <div class="page-content">
+             {#each choices as choice (choice.prefName)}
+                 {#if choice.available}
+--- a/components/helium_onboarding/src/pages/SearchEngine.svelte
++++ b/components/helium_onboarding/src/pages/SearchEngine.svelte
+@@ -1,5 +1,4 @@
+ <script lang="ts">
+-    import { IconSearch } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { getKeyword, searchEngines } from "../lib/browser";
+     import { currentPage } from "../lib/onboarding-flow";
+@@ -21,7 +20,7 @@
+         <PageHeader
+             title={s.search.title}
+             subtitle={s.search.subtitle}
+-            Icon={IconSearch}
++            symbol="magnifyingglass"
+         />
+ 
+         <div class="page-content">

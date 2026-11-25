@@ -15,6 +15,9 @@ helium_resources() {
   python3 "$_main_repo/utils/replace_resources.py" "$_root_dir/resources/platform_resources.txt" "$_root_dir/resources" "$_src_dir"
   python3 "$_main_repo/utils/replace_resources.py" "$_main_repo/resources/helium_resources.txt" "$_main_repo/resources" "$_src_dir"
   python3 "$_main_repo/utils/replace_resources.py" "$_root_dir/resources/lune_resources.txt" "$_root_dir/resources" "$_src_dir"
+  /usr/bin/xcrun swift -module-cache-path "$_root_dir/build/swift-module-cache" \
+    "$_root_dir/devutils/render_onboarding_symbols.swift" \
+    "$_src_dir/components/helium_onboarding/public/setup-header-icons"
 }
 
 fetch_sources() {
