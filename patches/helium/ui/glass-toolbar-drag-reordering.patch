@@ -1,0 +1,359 @@
+--- a/chrome/browser/ui/views/extensions/extensions_toolbar_desktop.cc
++++ b/chrome/browser/ui/views/extensions/extensions_toolbar_desktop.cc
+@@ -1053,6 +1053,8 @@ int ExtensionsToolbarDesktop::OnDragUpda
+ 
+   if (!drop_info_.get() || drop_info_->index != before_icon) {
+     drop_info_ = std::make_unique<DropInfo>(data.id(), before_icon);
++    helium::SetFloatingToolbarDropPlaceholder(
++        GetViewForId(drop_info_->action_id), true);
+     SetExtensionIconVisibility(drop_info_->action_id, false);
+     ReorderAllChildViews();
+   }
+@@ -1074,7 +1076,7 @@ void ExtensionsToolbarDesktop::OnDragExi
+ views::View::DropCallback ExtensionsToolbarDesktop::GetDropCallback(
+     const ui::DropTargetEvent& event) {
+   BrowserActionDragData data;
+-  if (!data.Read(event.data())) {
++  if (!drop_info_ || !data.Read(event.data())) {
+     return base::NullCallback();
+   }
+ 
+@@ -1105,8 +1107,23 @@ void ExtensionsToolbarDesktop::OnWidgetD
+ }
+ 
+ size_t ExtensionsToolbarDesktop::WidthToIconCount(int x_offset) {
++  const bool floating = helium::IsFloatingToolbarControl(this);
++  if (floating) {
++    // With a vertical address bar, the Extensions menu and any access chip
++    // precede the extensions. Drop indexes count only the extensions.
++    for (const views::View* child : children()) {
++      if (child != main_item() && child != request_access_button_) {
++        break;
++      }
++      if (child->GetVisible()) {
++        x_offset -= child->width();
++      }
++    }
++  }
+   const int element_padding =
+-      GetLayoutConstant(LayoutConstant::kToolbarElementPadding);
++      floating
++          ? 0
++          : GetLayoutConstant(LayoutConstant::kToolbarElementPadding);
+   size_t unclamped_count =
+       std::max((x_offset + element_padding) /
+                    (GetToolbarActionSize().width() + element_padding),
+@@ -1266,6 +1283,8 @@ void ExtensionsToolbarDesktop::MovePinne
+ 
+ void ExtensionsToolbarDesktop::DragDropCleanup(
+     const ToolbarActionsModel::ActionId& dragged_extension_id) {
++  helium::SetFloatingToolbarDropPlaceholder(
++      GetViewForId(dragged_extension_id), false);
+   ReorderAllChildViews();
+   GetAnimatingLayoutManager()->PostOrQueueAction(base::BindOnce(
+       &ExtensionsToolbarDesktop::SetExtensionIconVisibility,
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -246,6 +246,21 @@ int FloatingNavigationWidth(BrowserView*
+                static_cast<int>(prefs->GetBoolean(prefs::kShowForwardButton)));
+ }
+ 
++class FloatingToolbarWidget : public views::Widget {
++ protected:
++  void OnDragDropWillStart() override {
++    // Acquire the hold before AppKit enters its drag loop. The pointer can
++    // leave the toolbar and come back to a drop target within the same drag.
++    drag_reveal_hold_ =
++        BrowserView::HoldChromeRevealForMenu(this, /*reveal_top=*/true);
++  }
++
++  void OnDragDropCompleted() override { drag_reveal_hold_.RunAndReset(); }
++
++ private:
++  base::ScopedClosureRunner drag_reveal_hold_;
++};
++
+ NSAppearance* FloatingChromeAppearance(BrowserView* view) {
+   const auto scheme = ThemeServiceFactory::GetForProfile(view->GetProfile())
+                           ->GetBrowserColorScheme();
+@@ -781,7 +796,9 @@ bool WindowReceivesToolbarPointer(NSWind
+ }
+ - (void)updateHighlight {
+   NSWindow* window = self.controlsWindow;
+-  if (_buttons.empty() ||
++  auto* widget =
++      views::Widget::GetWidgetForNativeWindow(gfx::NativeWindow(window));
++  if (_buttons.empty() || (widget && widget->dragged_view()) ||
+       !WindowReceivesToolbarPointer(window, NSEvent.mouseLocation)) {
+     _highlight.hidden = YES;
+     return;
+@@ -4761,7 +4778,7 @@ int BrowserFrameViewMac::FloatingToolbar
+   }
+   if (!floating_toolbar_widget_) {
+     floating_toolbar_owner_.SetView(toolbar);
+-    floating_toolbar_widget_ = std::make_unique<views::Widget>();
++    floating_toolbar_widget_ = std::make_unique<FloatingToolbarWidget>();
+     views::Widget::InitParams params(
+         views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+         views::Widget::InitParams::TYPE_POPUP);
+--- a/chrome/browser/ui/views/helium/native_frame_materials.cc
++++ b/chrome/browser/ui/views/helium/native_frame_materials.cc
+@@ -7,6 +7,7 @@
+ #include <algorithm>
+ 
+ #include "build/build_config.h"
++#include "cc/paint/paint_flags.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -16,12 +17,20 @@
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
++#include "ui/base/class_property.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_provider.h"
++#include "ui/gfx/canvas.h"
+ #include "ui/gfx/image/image_skia.h"
+ #include "ui/views/view.h"
+ #include "ui/views/widget/widget.h"
+ 
+ namespace helium {
+ 
++namespace {
++DEFINE_UI_CLASS_PROPERTY_KEY(bool, kFloatingToolbarDropPlaceholderKey, false)
++}  // namespace
++
+ const char* NativeToolbarSymbolNameForAction(int action_id) {
+   switch (action_id) {
+     case kActionDevTools:
+@@ -55,6 +64,34 @@ int FloatingToolbarButtonSize() {
+ #endif
+ }
+ 
++SkColor ChromeDropPlaceholderColor(const views::View& view) {
++  return SkColorSetA(view.GetColorProvider()->GetColor(ui::kColorSysOnSurface),
++                     24);
++}
++
++void SetFloatingToolbarDropPlaceholder(views::View* view, bool shown) {
++  if (!view || (shown && !IsFloatingToolbarControl(view)) ||
++      view->GetProperty(kFloatingToolbarDropPlaceholderKey) == shown) {
++    return;
++  }
++  view->SetProperty(kFloatingToolbarDropPlaceholderKey, shown);
++  view->SchedulePaint();
++}
++
++void PaintFloatingToolbarDropPlaceholder(const views::View& view,
++                                         gfx::Canvas& canvas) {
++  if (!view.GetProperty(kFloatingToolbarDropPlaceholderKey)) {
++    return;
++  }
++  gfx::Rect bounds = view.GetLocalBounds();
++  bounds.Inset(3);
++  cc::PaintFlags flags;
++  flags.setAntiAlias(true);
++  flags.setColor(ChromeDropPlaceholderColor(view));
++  canvas.DrawRoundRect(bounds, std::min(bounds.width(), bounds.height()) / 2.f,
++                       flags);
++}
++
+ bool IsNativeGlassControl(const views::View* view) {
+ #if BUILDFLAG(IS_MAC)
+   const auto* widget = view ? view->GetWidget() : nullptr;
+--- a/chrome/browser/ui/views/helium/native_frame_materials.h
++++ b/chrome/browser/ui/views/helium/native_frame_materials.h
+@@ -15,6 +15,7 @@ class BrowserView;
+ class BrowserWindowInterface;
+ 
+ namespace gfx {
++class Canvas;
+ class ImageSkia;
+ }  // namespace gfx
+ 
+@@ -28,6 +29,10 @@ namespace helium {
+ // AppKit supplies semantic state colors and symbol artwork.
+ bool IsFloatingToolbarControl(const views::View* view);
+ int FloatingToolbarButtonSize();
++SkColor ChromeDropPlaceholderColor(const views::View& view);
++void SetFloatingToolbarDropPlaceholder(views::View* view, bool shown);
++void PaintFloatingToolbarDropPlaceholder(const views::View& view,
++                                         gfx::Canvas& canvas);
+ gfx::ImageSkia NativeToolbarSymbol(const views::View* view,
+                                  const char* icon_name, int size,
+                                  SkColor color);
+--- a/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
++++ b/chrome/browser/ui/views/tabs/common/dragged_tabs_container.cc
+@@ -17,6 +17,7 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_drag_handler.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_header_view.h"
+@@ -200,8 +201,7 @@ void DraggedTabsContainer::PaintDropPlac
+   }
+   cc::PaintFlags flags;
+   flags.setAntiAlias(true);
+-  flags.setColor(SkColorSetA(host_view_->GetColorProvider()->GetColor(
+-                                ui::kColorSysOnSurface), 24));
++  flags.setColor(helium::ChromeDropPlaceholderColor(*host_view_));
+   canvas->DrawRoundRect(
+       drop_placeholder_bounds_,
+       GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius), flags);
+--- a/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.cc
++++ b/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.cc
+@@ -28,6 +28,7 @@
+ #include "chrome/browser/ui/views/extensions/browser_action_drag_data.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/download_button_views.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
+ #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container_layout.h"
+@@ -346,32 +347,15 @@ int PinnedToolbarActionsContainer::OnDra
+     return ui::DragDropTypes::DRAG_NONE;
+   }
+ 
+-  size_t before_icon = 0;
+-  // Figure out where to display the icon during dragging transition.
+-
+-  // First, since we want to update the dragged action's position from before
+-  // an icon to after it when the event passes the midpoint between two icons.
+-  // This will convert the event coordinate into the index of the icon we want
+-  // to display the dragged action before. We also mirror the event.x() so
+-  // that our calculations are consistent with left-to-right.
+-  // Note we are not including popped-out icons here, only the pinned actions.
+-  const int offset_into_icon_area = GetMirroredXInView(event.x());
+-  const size_t before_icon_unclamped = WidthToIconCount(offset_into_icon_area);
+-
+-  const size_t visible_pinned_icons = std::ranges::count_if(
+-      pinned_buttons_,
+-      [](PinnedActionToolbarButton* button) { return button->GetVisible(); });
+-  const size_t button_offset = pinned_buttons_.size() - visible_pinned_icons;
++  const auto index = GetDropIndex(event.x(), *action_id);
++  if (!index) {
++    return ui::DragDropTypes::DRAG_NONE;
++  }
+ 
+-  // Because the user can drag outside the container bounds, we need to clamp
+-  // to the valid range.
+-  before_icon =
+-      std::min(before_icon_unclamped, visible_pinned_icons - 1) + button_offset;
+-
+-  if (!drop_info_.get() || drop_info_->index != before_icon) {
+-    drop_info_ = std::make_unique<DropInfo>(
+-        *actions::ActionIdMap::StringToActionId(data.id()), before_icon);
++  if (!drop_info_ || drop_info_->index != *index) {
++    drop_info_ = std::make_unique<DropInfo>(*action_id, *index);
+     if (auto* button = GetPinnedButtonFor(drop_info_->action_id)) {
++      helium::SetFloatingToolbarDropPlaceholder(button, true);
+       button->SetIconVisibility(false);
+     }
+     ReorderViews();
+@@ -393,12 +377,14 @@ void PinnedToolbarActionsContainer::OnDr
+ views::View::DropCallback PinnedToolbarActionsContainer::GetDropCallback(
+     const ui::DropTargetEvent& event) {
+   BrowserActionDragData data;
+-  if (!data.Read(event.data())) {
++  if (!drop_info_ || !data.Read(event.data())) {
+     return base::NullCallback();
+   }
+ 
+   auto action_id = drop_info_->action_id;
+-  auto index = drop_info_->index;
++  const size_t index = helium::IsFloatingToolbarControl(this)
++      ? GetDropIndex(event.x(), action_id).value_or(drop_info_->index)
++      : drop_info_->index;
+   drop_info_.reset();
+   base::ScopedClosureRunner cleanup(
+       base::BindOnce(&PinnedToolbarActionsContainer::DragDropCleanup,
+@@ -828,6 +814,8 @@ void PinnedToolbarActionsContainer::Move
+ 
+ void PinnedToolbarActionsContainer::DragDropCleanup(
+     actions::ActionId dragged_action_id) {
++  helium::SetFloatingToolbarDropPlaceholder(
++      GetPinnedButtonFor(dragged_action_id), false);
+   ReorderViews();
+   GetAnimatingLayoutManager()->PostOrQueueAction(base::BindOnce(
+       &PinnedToolbarActionsContainer::SetActionButtonIconVisibility,
+@@ -847,6 +835,41 @@ size_t PinnedToolbarActionsContainer::Wi
+   return std::min(unclamped_count, pinned_buttons_.size());
+ }
+ 
++std::optional<size_t> PinnedToolbarActionsContainer::GetDropIndex(
++    int event_x,
++    actions::ActionId dragged_id) {
++  int offset = GetMirroredXInView(event_x);
++  if (helium::IsFloatingToolbarControl(this)) {
++    const auto* layout = GetAnimatingLayoutManager();
++    std::optional<size_t> last_slot;
++    for (size_t i = 0; i < pinned_buttons_.size(); ++i) {
++      auto* button = pinned_buttons_[i].get();
++      if (button->GetActionId() != dragged_id &&
++          !layout->CanBeVisible(button) && !button->GetVisible()) {
++        continue;
++      }
++      // Read the logical slots. The dragged action keeps its space while
++      // the actual views are animated to temporary positions.
++      offset -= button->GetPreferredSize().width();
++      last_slot = i;
++      if (offset < 0) {
++        break;
++      }
++    }
++    return last_slot;
++  }
++
++  const size_t visible_pinned_icons = std::ranges::count_if(
++      pinned_buttons_,
++      [](PinnedActionToolbarButton* button) { return button->GetVisible(); });
++  if (visible_pinned_icons == 0) {
++    return std::nullopt;
++  }
++  const size_t button_offset = pinned_buttons_.size() - visible_pinned_icons;
++  return std::min(WidthToIconCount(offset), visible_pinned_icons - 1) +
++         button_offset;
++}
++
+ const std::vector<actions::ActionId>&
+ PinnedToolbarActionsContainer::PinnedActionIds() const {
+   return model_->PinnedActionIds();
+--- a/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h
++++ b/chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h
+@@ -174,6 +174,7 @@ class PinnedToolbarActionsContainer
+ 
+   // Utility function for going from width to icon counts.
+   size_t WidthToIconCount(int x_offset);
++  std::optional<size_t> GetDropIndex(int event_x, actions::ActionId dragged_id);
+ 
+   const std::unique_ptr<BrowserObserver> browser_observer_;
+   raw_ptr<BrowserView> browser_view_;
+--- a/chrome/browser/ui/views/toolbar/toolbar_action_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_action_view.cc
+@@ -104,7 +104,9 @@ ToolbarActionView::ToolbarActionView(Too
+ }
+ 
+ void ToolbarActionView::OnPaintBackground(gfx::Canvas* canvas) {
+-  if (!helium::IsFloatingToolbarControl(this)) {
++  if (helium::IsFloatingToolbarControl(this)) {
++    helium::PaintFloatingToolbarDropPlaceholder(*this, *canvas);
++  } else {
+     MenuButton::OnPaintBackground(canvas);
+   }
+ }
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -151,7 +151,9 @@ void ToolbarButton::AddedToWidget() {
+ }
+ 
+ void ToolbarButton::OnPaintBackground(gfx::Canvas* canvas) {
+-  if (!helium::IsFloatingToolbarControl(this)) {
++  if (helium::IsFloatingToolbarControl(this)) {
++    helium::PaintFloatingToolbarDropPlaceholder(*this, *canvas);
++  } else {
+     LabelButton::OnPaintBackground(canvas);
+   }
+ }
