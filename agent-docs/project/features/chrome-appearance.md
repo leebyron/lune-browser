@@ -60,3 +60,6 @@ The **New tab opened** toast uses the `plus.square.on.square` SF Symbol at the
 existing toast icon size. It uses the toast foreground color and falls back
 to the registered vector icon if AppKit cannot supply the symbol.
 [Build and native toast checks](../builds/2026-11-23-sidebar-background-input.json)
+
+The **Link copied** toast uses the macOS `link` SF Symbol with the same
+foreground and vector fallback.

@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "2a4ee9a69b775a0152dd41019f59f051ac54fb28",
+    "commit": "7b955e7d05b341041575e15ac21443538690a8c4",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1255,9 +1255,13 @@
       {
         "path": "patches/lune/setup-header-icons.patch",
         "sha256": "a6154b981357f9af2592d8daa9e3e1ca3cff652443a1667f6760f85d1a3e7c6b"
+      },
+      {
+        "path": "patches/helium/ui/link-copied-toast-symbol.patch",
+        "sha256": "da184070009903307410597368fd32de5e2054b9d08cc91644278e9c7fe50e3d"
       }
     ],
-    "ref": "refs/tags/inputs/setup-header-icons-1/macos"
+    "ref": "refs/tags/inputs/link-copied-toast-1/macos"
   },
   "pull_requests": [
     {
@@ -4177,6 +4181,21 @@
       "adaptation": "Generate six AppKit glyph masks during macOS source preparation. Place each mask beside its heading and use the heading color in both appearances.",
       "commits": [
         "2a4ee9a69b775a0152dd41019f59f051ac54fb28"
+      ]
+    },
+    {
+      "id": "link-copied-toast-symbol",
+      "depends_on": [
+        "background-tab-toast-symbol"
+      ],
+      "patches": [
+        "patches/helium/ui/link-copied-toast-symbol.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the link SF Symbol in the Link copied toast.",
+      "adaptation": "Reuse the macOS toast renderer with the toast foreground and registered vector fallback.",
+      "commits": [
+        "7b955e7d05b341041575e15ac21443538690a8c4"
       ]
     }
   ],
