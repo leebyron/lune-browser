@@ -1,0 +1,134 @@
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -94,6 +94,16 @@
+ constexpr gfx::VectorIcon kHeliumServicesIcon = {
+     kHeliumServicesReps, std::size(kHeliumServicesReps), "helium_services"};
+ 
++SkColor GetFooterLabelColor(const views::View& view) {
++#if BUILDFLAG(IS_MAC)
++  constexpr ui::ColorId fallback = ui::kColorLabelForeground;
++#else
++  constexpr ui::ColorId fallback = kColorTabForegroundInactiveFrameActive;
++#endif
++  return helium::NativeGlassControlColor(&view).value_or(
++      view.GetColorProvider()->GetColor(fallback));
++}
++
+ // Match the density and native colors of the surrounding tab rows. A footer
+ // action keeps its preferred height even when the tabs have room to grow.
+ class FooterButton : public views::LabelButton {
+@@ -130,11 +140,29 @@
+ 
+   void OnThemeChanged() override {
+     views::LabelButton::OnThemeChanged();
+-    const SkColor color = helium::NativeGlassControlColor(this).value_or(
+-        GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive));
++    const SkColor color = GetFooterLabelColor(*this);
+     SetEnabledTextColors(color);
++#if BUILDFLAG(IS_MAC)
++    UpdateNormalForeground(color);
++    const auto active = ui::ImageModel::FromVectorIcon(*icon_, color, 16);
++    SetImageModel(STATE_HOVERED, active);
++    SetImageModel(STATE_PRESSED, active);
++#else
+     SetImageModel(STATE_NORMAL,
+                   ui::ImageModel::FromVectorIcon(*icon_, color, 16));
++#endif
++  }
++
++  void SetRowHovered(bool hovered) {
++#if BUILDFLAG(IS_MAC)
++    if (row_hovered_ == hovered) {
++      return;
++    }
++    row_hovered_ = hovered;
++    if (GetWidget()) {
++      UpdateNormalForeground(GetFooterLabelColor(*this));
++    }
++#endif
+   }
+ 
+   void OnPaintBackground(gfx::Canvas* canvas) override {
+@@ -154,6 +182,19 @@
+   }
+ 
+  private:
++#if BUILDFLAG(IS_MAC)
++  void UpdateNormalForeground(SkColor label_color) {
++    // The leading action loses its own hover when the pointer moves to the
++    // trailing control. The row's label and icon should stay at full strength.
++    const SkColor color = row_hovered_
++                              ? label_color
++                              : TabStyle::GetRestingControlColor(label_color);
++    SetTextColor(STATE_NORMAL, color);
++    SetImageModel(STATE_NORMAL, ui::ImageModel::FromVectorIcon(*icon_, color, 16));
++  }
++
++  bool row_hovered_ = false;
++#endif
+   const raw_ref<const gfx::VectorIcon> icon_;
+   const bool paint_hover_;
+ };
+@@ -170,11 +211,16 @@
+   void SetColors(TabStyle::TabColors colors) {
+     TabCloseButton::SetColors(colors);
+ #if BUILDFLAG(IS_MAC)
+-    const auto icon = ui::ImageModel::FromImageSkia(
+-        helium::NativeSidebarSymbolForName("info.circle", colors.foreground_color));
+-    for (auto state : {STATE_NORMAL, STATE_HOVERED, STATE_PRESSED}) {
+-      SetImageModel(state, icon);
+-    }
++    const SkColor foreground = colors.foreground_color;
++    SetImageModel(STATE_NORMAL,
++                  ui::ImageModel::FromImageSkia(
++                      helium::NativeSidebarSymbolForName(
++                          "info.circle",
++                          TabStyle::GetRestingControlColor(foreground))));
++    const auto active = ui::ImageModel::FromImageSkia(
++        helium::NativeSidebarSymbolForName("info.circle", foreground));
++    SetImageModel(STATE_HOVERED, active);
++    SetImageModel(STATE_PRESSED, active);
+ #endif
+   }
+ };
+@@ -228,21 +274,18 @@
+   views::LabelButton* close() { return close_; }
+   void SetCollapsed(bool collapsed) {
+     collapsed_ = collapsed;
+-    close_->SetVisible(!collapsed_ && IsMouseHovered());
++    UpdateHover(IsMouseHovered());
+   }
+   void OnMouseEntered(const ui::MouseEvent& event) override {
+-    close_->SetVisible(!collapsed_);
+-    SchedulePaint();
++    UpdateHover(true);
+   }
+   void OnMouseExited(const ui::MouseEvent& event) override {
+-    close_->SetVisible(false);
+-    SchedulePaint();
++    UpdateHover(false);
+   }
+   void OnThemeChanged() override {
+     views::View::OnThemeChanged();
+     TabStyle::TabColors colors;
+-    colors.foreground_color = helium::NativeGlassControlColor(this).value_or(
+-        GetColorProvider()->GetColor(kColorTabForegroundInactiveFrameActive));
++    colors.foreground_color = GetFooterLabelColor(*this);
+     colors.background_color = GetColorProvider()->GetColor(
+         kColorTabBackgroundInactiveHoverFrameActive);
+     if (release_notes_) {
+@@ -267,7 +310,13 @@
+   }
+ 
+  private:
+-  raw_ptr<views::LabelButton> action_;
++  void UpdateHover(bool hovered) {
++    action_->SetRowHovered(hovered);
++    close_->SetVisible(!collapsed_ && hovered);
++    SchedulePaint();
++  }
++
++  raw_ptr<FooterButton> action_;
+   raw_ptr<TabCloseButton> close_;
+   raw_ptr<ReleaseNotesButton> release_notes_ = nullptr;
+   bool collapsed_ = false;
