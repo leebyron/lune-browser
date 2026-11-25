@@ -1,0 +1,152 @@
+--- a/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
++++ b/chrome/browser/ui/webui/onboarding/onboarding_handler.cc
+@@ -8,9 +8,7 @@
+ #include "base/containers/fixed_flat_set.h"
+ #include "components/helium_services/helium_services_helpers.h"
+ #include "base/strings/string_util.h"
+-#include "base/strings/string_number_conversions.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+-#include "chrome/browser/ui/webui/cr_components/theme_color_picker/customize_chrome_colors.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/values.h"
+@@ -508,27 +506,14 @@
+   std::string selected = "lune";
+   if (service->UsingDeviceTheme()) {
+     selected = "system";
+-  } else if (service->GetIsGrayscale()) {
+-    selected = "grayscale";
+-  } else if (service->GetUserColor().has_value() ||
+-             service->UsingExtensionTheme()) {
++#if BUILDFLAG(IS_MAC)
++  } else if (service->IsMacCustomTheme() || service->UsingExtensionTheme()) {
+     selected = "custom";
+-  }
+-  base::ListValue colors;
+-  for (const auto& color : kDynamicCustomizeChromeColors) {
+-    colors.Append(base::DictValue()
+-                      .Set("value", base::NumberToString(color.id))
+-                      .Set("label", l10n_util::GetStringUTF8(color.label_id)));
+-    if (selected == "custom" &&
+-        service->GetUserColor() == color.color &&
+-        service->GetBrowserColorVariant() == color.variant) {
+-      selected = base::NumberToString(color.id);
+-    }
++#endif
+   }
+   return base::DictValue()
+       .Set("scheme", static_cast<int>(service->GetBrowserColorScheme()))
+-      .Set("theme", selected)
+-      .Set("colors", std::move(colors));
++      .Set("theme", selected);
+ }
+ 
+ void OnboardingMessageHandler::HandleGetAppearance(const base::ListValue& args) {
+@@ -564,21 +549,18 @@
+   }
+   auto* service = ThemeServiceFactory::GetForProfile(profile_);
+   const auto& selected = args[0].GetString();
++#if BUILDFLAG(IS_MAC)
++  if (selected == "system" || selected == "lune") {
++    service->SetMacThemePreset(selected == "system");
++  } else if (selected == "custom") {
++    service->SelectMacCustomTheme();
++  }
++#else
+   if (selected == "system") {
+     service->UseDeviceTheme(true);
+   } else if (selected == "lune") {
+     service->SetUserColor(std::nullopt);
+     service->UseDeviceTheme(false);
+-  } else if (selected == "grayscale") {
+-    service->SetIsGrayscale(true);
+-    service->UseDeviceTheme(false);
+-  } else {
+-    for (const auto& color : kDynamicCustomizeChromeColors) {
+-      if (selected == base::NumberToString(color.id)) {
+-        service->SetUserColorAndBrowserColorVariant(color.color, color.variant);
+-        service->UseDeviceTheme(false);
+-        break;
+-      }
+-    }
+   }
++#endif
+ }
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -314,7 +314,6 @@
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_THEME" desc="Onboarding appearance choice.">Theme</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_LUNE" desc="Onboarding appearance choice.">Lune</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_SYSTEM" desc="Onboarding appearance choice.">System</message>
+-<message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_GRAYSCALE" desc="Onboarding appearance choice.">Grayscale</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_THEME_CUSTOM" desc="Onboarding appearance choice.">Custom</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER" desc="Onboarding appearance choice.">Show toolbar</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_NO_HOVER" desc="Disable page-edge toolbar hover reveal.">On hover sidebar</message>
+--- a/components/helium_onboarding/src/lib/browser/appearance.ts
++++ b/components/helium_onboarding/src/lib/browser/appearance.ts
+@@ -4,9 +4,8 @@
+ export type Appearance = {
+     scheme: number;
+     theme: string;
+-    colors: {value: string; label: string}[];
+ };
+-const state = writable<Appearance>({scheme: 0, theme: 'lune', colors: []});
++const state = writable<Appearance>({scheme: 0, theme: 'lune'});
+ export const appearance = readonly(state);
+ export const setup = () => {
+     cr.addWebUiListener('onboarding-appearance-changed', (value: Appearance) => state.set(value));
+--- a/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
++++ b/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
+@@ -165,7 +165,7 @@
+     mhjfbmdgcfjbbpaeojofohoefgiehjai: true,
+ };
+ 
+-const appearance = {scheme: 0, theme: 'lune', colors: [{value: '2', label: 'Blue'}, {value: '6', label: 'Green'}]};
++const appearance = {scheme: 0, theme: 'lune'};
+ 
+ const _send_polyfill = (msg: string, params?: any[]) => {
+     // The development preview has no native appearance panel.
+--- a/components/helium_onboarding/src/pages/Finish.svelte
++++ b/components/helium_onboarding/src/pages/Finish.svelte
+@@ -5,13 +5,18 @@
+     import { preferences, setPref, appearance, setColorScheme, setTheme } from "../lib/browser";
+     import PageHeader from "../components/PageHeader.svelte";
+     const visible = $derived($currentPage === "Finish");
+-    const themes = $derived([
++    const themes = [
+         {value: 'system', label: s.finish.themeSystem},
+         {value: 'lune', label: s.finish.themeLune},
+-        {value: 'grayscale', label: s.finish.themeGrayscale},
+-        ...$appearance.colors,
+-        ...($appearance.theme === 'custom' ? [{value: 'custom', label: s.finish.themeCustom}] : []),
+-    ]);
++        {value: 'custom', label: s.finish.themeCustom},
++    ];
++    function showAppearance() {
++        chrome.send('setOnboardingAppearance', [true]);
++    }
++    function changeTheme(value: string) {
++        setTheme(value);
++        if (value === 'custom') showAppearance();
++    }
+     async function setHeader(value: string) {
+         await setPref('browser.top_controls_hover_disabled', value === 'no-hover');
+         await setPref('browser.top_controls_overlay', false);
+@@ -19,7 +24,7 @@
+     }
+     $effect(() => {
+         if (!visible) return;
+-        chrome.send('setOnboardingAppearance', [true]);
++        showAppearance();
+         return () => chrome.send('setOnboardingAppearance', [false]);
+     });
+ </script>
+@@ -35,7 +40,7 @@
+                 </div>
+                 <div class="option"><span>{s.finish.theme}</span>
+                     <Dropdown aria-label={s.finish.theme} value={$appearance.theme} options={themes}
+-                        onchange={(event) => setTheme(event.currentTarget.value)} />
++                        onchange={(event) => changeTheme(event.currentTarget.value)} />
+                 </div>
+                 <div class="option"><span>{s.finish.tabsPosition}</span>
+                     <Dropdown aria-label={s.finish.tabsPosition}
