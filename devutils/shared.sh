@@ -15,9 +15,16 @@ helium_resources() {
   python3 "$_main_repo/utils/replace_resources.py" "$_root_dir/resources/platform_resources.txt" "$_root_dir/resources" "$_src_dir"
   python3 "$_main_repo/utils/replace_resources.py" "$_main_repo/resources/helium_resources.txt" "$_main_repo/resources" "$_src_dir"
   python3 "$_main_repo/utils/replace_resources.py" "$_root_dir/resources/lune_resources.txt" "$_root_dir/resources" "$_src_dir"
+  render_sf_symbols "$_src_dir/components/helium_onboarding/public/setup-header-icons" \
+    point.3.connected.trianglepath.dotted eye.slash magnifyingglass \
+    square.and.arrow.down lock.badge.checkmark paintbrush.pointed
+  render_sf_symbols "$_src_dir/chrome/browser/resources/side_panel/customize_chrome/icons" \
+    circle.lefthalf.filled finder moon paintpalette sun.max
+}
+
+render_sf_symbols() {
   /usr/bin/xcrun swift -module-cache-path "$_root_dir/build/swift-module-cache" \
-    "$_root_dir/devutils/render_onboarding_symbols.swift" \
-    "$_src_dir/components/helium_onboarding/public/setup-header-icons"
+    "$_root_dir/devutils/render_sf_symbols.swift" "$@"
 }
 
 fetch_sources() {
