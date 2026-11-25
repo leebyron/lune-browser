@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "18b36f320155e3b1c2e8ca22303a862715c979b3",
+    "commit": "2a4ee9a69b775a0152dd41019f59f051ac54fb28",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1251,9 +1251,13 @@
       {
         "path": "patches/helium/ui/setup-option-grids.patch",
         "sha256": "1b3dbe0b09f3f1f34482b1e2fa99c77b6071147d4b6edef8ddc46fc07bf292fb"
+      },
+      {
+        "path": "patches/lune/setup-header-icons.patch",
+        "sha256": "a6154b981357f9af2592d8daa9e3e1ca3cff652443a1667f6760f85d1a3e7c6b"
       }
     ],
-    "ref": "refs/tags/inputs/setup-option-grids-1/macos"
+    "ref": "refs/tags/inputs/setup-header-icons-1/macos"
   },
   "pull_requests": [
     {
@@ -4158,6 +4162,21 @@
       "adaptation": "Share a 920 px single-column breakpoint and use the 12 px card gap for both side gutters. Cards fill their tracks within a centered, 1000 px maximum content area.",
       "commits": [
         "18b36f320155e3b1c2e8ca22303a862715c979b3"
+      ]
+    },
+    {
+      "id": "setup-header-icons",
+      "depends_on": [
+        "setup-option-grids"
+      ],
+      "patches": [
+        "patches/lune/setup-header-icons.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Identify the six setup steps with macOS system symbols.",
+      "adaptation": "Generate six AppKit glyph masks during macOS source preparation. Place each mask beside its heading and use the heading color in both appearances.",
+      "commits": [
+        "2a4ee9a69b775a0152dd41019f59f051ac54fb28"
       ]
     }
   ],

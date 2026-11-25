@@ -130,3 +130,9 @@ mutating preferences, and both selections setting pinned/overlay preferences
 correctly. This is frontend validation with the development browser bridge; no
 full native rebuild or packaged-flow rerun is claimed for this change. Previously
 published binaries retain their frozen inputs.
+
+## Step header symbols — November 24, 2026
+
+Search engine, Privacy, Services, Import, Password manager, and Customize Lune use the AppKit symbols `magnifyingglass`, `eye.slash`, `point.3.connected.trianglepath.dotted`, `square.and.arrow.down`, `lock.badge.checkmark`, and `paintbrush.pointed`. macOS source preparation generates monochrome masks from AppKit. Setup draws the masks in the heading color and keeps each decorative icon beside its heading when the text wraps. [Apple SF Symbols](https://developer.apple.com/design/human-interface-guidelines/sf-symbols)
+
+The light and dark Lune previews passed at 1100px and 360px respectively. Zero-fuzz source preparation reproduced all eight source files and six masks. The Vite bundle and GRIT manifest checks passed. The owner waived browser builds before source adoption. See the [validation record](../builds/2026-11-24-setup-header-icons.json).
