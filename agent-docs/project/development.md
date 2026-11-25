@@ -14,6 +14,48 @@ Reuse checks when the relevant source, config, toolchain and artifact identities
 
 Keep normal site navigation available in previews handed to reviewers, including when the preview also loads a local test fixture. Automated smoke runs can still use an isolated profile with restricted DNS.
 
+## Preview setup without rebuilding Lune
+
+Run the actual Svelte setup project from an existing prepared Chromium tree. Use
+the tree's bundled Node or Node 22.18 or newer. The prepared tree supplies the
+frontend dependencies. A standalone copy lets you edit while the donor tree stays
+available for other work.
+
+```sh
+node scripts/preview-setup.mjs /path/to/prepared/chromium/src \
+  --copy-to .work/setup-preview
+```
+
+Open `http://127.0.0.1:5173/` in a browser that is already installed. Edit `src/`,
+`public/`, or `helium_onboarding_strings.grdp` in the working copy. Vite updates
+components and styles in place and reloads for artwork and regenerated strings.
+The current step stays in the URL across full reloads, which start with the
+scenario's original mock preferences. Stop the server with Control-C. Resume by
+passing `.work/setup-preview` as the source. You can also pass a prepared tree
+you own directly and skip the copy. Use `--port` to run another preview alongside it.
+
+Use `?step=Finish` to open Customize Lune directly. The step names are `Welcome`,
+`SearchEngine`, `Privacy`, `HeliumServices`, `DataImport`, `PasswordManager`, and
+`Finish`. Add `&scenario=import-empty` or another scenario to the same URL.
+
+| Scenario | How to reproduce |
+| --- | --- |
+| `fresh` (default) | Walk through setup with simulated search engines, preferences, browser profiles, and extension installs. |
+| `services-off` | Open PasswordManager to see the one-time download notice. |
+| `import-empty` | Open DataImport and click Import to see an empty result. |
+| `import-error` | Open DataImport and click Import to see a discovery error and retry. |
+| `import-failure` | Open DataImport, discover and select a profile, then click Next to exercise a failed import response. |
+| `extension-error` | Open PasswordManager and click Install on an available manager. |
+
+Use browser DevTools for narrow viewports, light and dark color schemes, and reduced
+motion. The loopback preview uses the mock browser bridge. Check native appearance,
+safe-area insets, import permissions, localized strings and browser-side side effects
+in packaged `chrome://setup/`. When ready to adopt edits from a standalone copy,
+apply them in the owning prepared tree with quilt and follow the usual validation
+and adoption steps. See [onboarding](features/onboarding.md) for the packaged flow.
+The [preview validation record](builds/2026-11-24-setup-preview.json) includes
+save-to-preview timings and the scenarios exercised in Lune.
+
 ## Coordinate shared workspaces
 
 Reuse sources, outputs, download and compiler caches. Before editing or building, inspect the preparation report and ownership. Keep one ignored coordination record next to the tree, such as `.work/<workspace>/development-workspace.json`, with the owner/task, source and output paths, exact core/platform inputs and engine version, active patch order and current operation.
