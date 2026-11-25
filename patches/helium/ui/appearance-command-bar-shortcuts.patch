@@ -1,0 +1,22 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -432,9 +432,16 @@
+     <message name="IDS_SETTINGS_COMMAND_BAR" desc="Label for the toggle that enables the native command bar.">
+       Command bar
+     </message>
+-    <message name="IDS_SETTINGS_COMMAND_BAR_DESCRIPTION" desc="Description for the command bar toggle in appearance settings.">
+-      Open a floating command bar with Cmd+T / Cmd+L instead, anywhere including settings pages
+-    </message>
++    <if expr="is_macosx">
++      <message name="IDS_SETTINGS_COMMAND_BAR_DESCRIPTION" desc="Description for the command bar toggle in appearance settings.">
++        Open the floating command bar with ⌘T. Use ⌘/ to show commands.
++      </message>
++    </if>
++    <if expr="not is_macosx">
++      <message name="IDS_SETTINGS_COMMAND_BAR_DESCRIPTION" desc="Description for the command bar toggle in appearance settings.">
++        Open a floating command bar with Cmd+T / Cmd+L instead, anywhere including settings pages
++      </message>
++    </if>
+     <message name="IDS_SETTINGS_LINK_PEEK" desc="Label for the toggle that enables the native link peek preview.">
+       Link peek
+     </message>

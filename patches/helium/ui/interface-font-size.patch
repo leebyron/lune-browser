@@ -1,0 +1,652 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -325,6 +325,15 @@
+     <message name="IDS_SETTINGS_UI_DENSITY_SPACIOUS" desc="Spacious option in the interface density dropdown, which makes tabs, toolbar buttons and the address bar larger.">
+       Comfortable
+     </message>
++    <message name="IDS_SETTINGS_UI_FONT" desc="Label for the browser interface font size selector.">
++      Interface font
++    </message>
++    <message name="IDS_SETTINGS_UI_FONT_NORMAL" desc="Option for normal browser interface font size.">
++      Normal
++    </message>
++    <message name="IDS_SETTINGS_UI_FONT_LARGER" desc="Option for larger browser interface font size.">
++      Larger
++    </message>
+     <message name="IDS_SETTINGS_PINNED_TABS_PER_ROW" desc="Label for the dropdown which controls the maximum number of pinned tabs shown per row in the vertical tab strip.">
+       Maximum pinned tabs per row
+     </message>
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -37,6 +37,7 @@
+ #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
+ #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
+ #include "chrome/common/extensions/api/settings_private.h"
++#include "chrome/common/interface_font_pref_names.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/browser/ui/helium/page_top_window_drag_pref.h"
+ #include "chrome/common/sidebar_tab_drag_pref_names.h"
+@@ -742,6 +743,9 @@
+   (*s_allowlist)[::prefs::kAccessibilityImageLabelsEnabled] =
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumUiDensity] = settings_api::PrefType::kNumber;
++#if BUILDFLAG(IS_MAC)
++  (*s_allowlist)[::prefs::kHeliumUiFont] = settings_api::PrefType::kNumber;
++#endif
+   (*s_allowlist)[::prefs::kAccessibilityCaptionsTextSize] =
+       settings_api::PrefType::kString;
+   (*s_allowlist)[::prefs::kAccessibilityCaptionsTextFont] =
+--- a/chrome/browser/prefs/browser_prefs.cc
++++ b/chrome/browser/prefs/browser_prefs.cc
+@@ -2823,6 +2823,10 @@
+   local_state->ClearPref(kMinimumAllowedChromeVersion);
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ 
++#if BUILDFLAG(IS_MAC)
++  MigrateBrowserUiFontPref(local_state);
++#endif
++
+   // Please don't delete the following line. It is used by PRESUBMIT.py.
+   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
+ 
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -55,7 +55,7 @@
+       </div>
+       ${this.shouldShowUiDensityRestart_() ? html`
+         <cr-button id="uiDensityRestart"
+-            @click="${this.onUiDensityRestartClick_}">
++            @click="${this.onInterfaceStyleRestartClick_}">
+           $i18n{restart}
+         </cr-button>
+         <div class="separator"></div>
+@@ -68,6 +68,22 @@
+ <if expr="is_macosx">
+     <div class="cr-row">
+       <div class="flex cr-padded-text" aria-hidden="true">
++        $i18n{uiFont}
++      </div>
++      ${this.shouldShowUiFontRestart_() ? html`
++        <cr-button id="uiFontRestart"
++            @click="${this.onInterfaceStyleRestartClick_}">
++          $i18n{restart}
++        </cr-button>
++        <div class="separator"></div>
++      ` : ''}
++      <settings-dropdown-menu id="uiFont" label="$i18n{uiFont}"
++          pref-key="helium.browser.ui_font"
++          .menuOptions="${this.uiFontOptions_}">
++      </settings-dropdown-menu>
++    </div>
++    <div class="cr-row">
++      <div class="flex cr-padded-text" aria-hidden="true">
+         $i18n{showToolbar}
+       </div>
+       <settings-dropdown-menu id="showToolbar" label="$i18n{showToolbar}"
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
+@@ -182,6 +182,9 @@
+       ntpSimplificationBookmarksBarEnabled_: {type: Boolean},
+       bookmarksBarOptions_: {type: Array},
+       uiDensityPref_: {type: Object},
++      // <if expr="is_macosx">
++      uiFontPref_: {type: Object},
++      // </if>
+       uiDensityOptions_: {type: Array},
+       roundedFramePref_: {type: Object},
+       frameThicknessPref_: {type: Object},
+@@ -333,6 +336,17 @@
+     {value: 1, name: loadTimeData.getString('uiDensitySpacious')},
+   ];
+ 
++  // <if expr="is_macosx">
++  protected accessor uiFontPref_: PrefObject<number>|undefined = undefined;
++  private readonly uiFontAtStartup_ =
++      loadTimeData.getInteger('uiFontAtStartup');
++  // Values match HeliumUiFont in layout_constants.h.
++  protected readonly uiFontOptions_: DropdownMenuOptionList = [
++    {value: 0, name: loadTimeData.getString('uiFontNormal')},
++    {value: 1, name: loadTimeData.getString('uiFontLarger')},
++  ];
++  // </if>
++
+   protected accessor roundedFramePref_: PrefObject<boolean>|undefined =
+       undefined;
+ 
+@@ -426,6 +440,9 @@
+       'browser.show_home_button': 'showHomeButtonPref_',
+       'extensions.theme.id': 'themeIdPref_',
+       'helium.browser.ui_density': 'uiDensityPref_',
++      // <if expr="is_macosx">
++      'helium.browser.ui_font': 'uiFontPref_',
++      // </if>
+       'helium.browser.rounded_frame': 'roundedFramePref_',
+       'helium.browser.rounded_frame_thickness': 'frameThicknessPref_',
+       // <if expr="is_linux">
+@@ -571,7 +588,14 @@
+         this.uiDensityPref_.value !== this.uiDensityAtStartup_;
+   }
+ 
+-  protected onUiDensityRestartClick_() {
++  // <if expr="is_macosx">
++  protected shouldShowUiFontRestart_(): boolean {
++    return !!this.uiFontPref_ &&
++        this.uiFontPref_.value !== this.uiFontAtStartup_;
++  }
++  // </if>
++
++  protected onInterfaceStyleRestartClick_() {
+     this.performRestart(RestartType.RESTART);
+   }
+ 
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -1500,6 +1500,7 @@
+   sources = [
+     "layout_constants.cc",
+     "layout_constants.h",
++    "sidebar_font.h",
+   ]
+ 
+   public_deps = [ "//ui/gfx/geometry" ]
+@@ -1516,6 +1517,11 @@
+     "//ui/base:features",
+   ]
+ 
++  if (is_mac) {
++    deps += [ "//ui/gfx" ]
++    frameworks = [ "CoreFoundation.framework" ]
++  }
++
+   if (!is_android) {
+     deps += [ "//chrome/browser/ui/tabs:features" ]
+   }
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/ui/browser_ui_prefs.h"
++#include "chrome/browser/ui/sidebar_font.h"
+ 
+ #include <memory>
+ #include <string>
+@@ -17,6 +18,7 @@
+ #include "chrome/browser/upgrade_detector/upgrade_detector.h"
+ #include "chrome/common/buildflags.h"
+ #include "chrome/common/helium_command_bar_pref_names.h"
++#include "chrome/common/interface_font_pref_names.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/common/sidebar_tab_drag_pref_names.h"
+ #include "chrome/common/tab_loading_progress_pref_names.h"
+@@ -39,6 +41,20 @@
+ #include "ui/accessibility/accessibility_features.h"
+ #endif
+ 
++#if BUILDFLAG(IS_MAC)
++void MigrateBrowserUiFontPref(PrefService* local_state) {
++  if (local_state->GetUserPrefValue(prefs::kHeliumUiFont)) {
++    return;
++  }
++  const bool spacious = local_state->GetInteger(prefs::kHeliumUiDensity) ==
++                         std::to_underlying(HeliumUiDensity::kSpacious);
++  // Store both results. Changing density later must not repeat the migration.
++  local_state->SetInteger(
++      prefs::kHeliumUiFont, std::to_underlying(spacious ? HeliumUiFont::kLarger
++                                                      : HeliumUiFont::kNormal));
++}
++#endif
++
+ void RegisterBrowserPrefs(PrefRegistrySimple* registry) {
+   registry->RegisterBooleanPref(prefs::kAllowFileSelectionDialogs, true);
+ 
+@@ -101,6 +117,10 @@
+   registry->RegisterBooleanPref(prefs::kHeliumDefaultBrowserRejected, false);
+   registry->RegisterIntegerPref(prefs::kHeliumUiDensity,
+                                 std::to_underlying(HeliumUiDensity::kDefault));
++#if BUILDFLAG(IS_MAC)
++  registry->RegisterIntegerPref(prefs::kHeliumUiFont,
++                                std::to_underlying(HeliumUiFont::kNormal));
++#endif
+   registry->RegisterIntegerPref(prefs::kHeliumRoundedFrameThickness, 4);
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+--- a/chrome/browser/ui/browser_ui_prefs.h
++++ b/chrome/browser/ui/browser_ui_prefs.h
+@@ -5,12 +5,18 @@
+ #ifndef CHROME_BROWSER_UI_BROWSER_UI_PREFS_H_
+ #define CHROME_BROWSER_UI_BROWSER_UI_PREFS_H_
+ 
++#include "build/build_config.h"
++
+ class PrefRegistrySimple;
++class PrefService;
+ 
+ namespace user_prefs {
+ class PrefRegistrySyncable;
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++void MigrateBrowserUiFontPref(PrefService* local_state);
++#endif
+ void RegisterBrowserPrefs(PrefRegistrySimple* registry);
+ void RegisterBrowserUserPrefs(user_prefs::PrefRegistrySyncable* registry);
+ 
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -3,7 +3,12 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/sidebar_font.h"
+ 
++#include <algorithm>
++#include <cmath>
++#include <string>
++#include <string_view>
+ #include <utility>
+ 
+ #include "base/notreached.h"
+@@ -11,6 +16,7 @@
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/ui/tabs/features.h"
+ #include "chrome/browser/ui/ui_features.h"
++#include "chrome/common/interface_font_pref_names.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/omnibox/common/omnibox_features.h"
+ #include "components/prefs/pref_service.h"
+@@ -22,6 +28,15 @@
+ #include "chromeos/constants/chromeos_features.h"
+ #endif
+ 
++#if BUILDFLAG(IS_MAC)
++#include <CoreFoundation/CoreFoundation.h>
++
++#include "base/apple/foundation_util.h"
++#include "base/apple/scoped_cftyperef.h"
++#include "base/strings/sys_string_conversions.h"
++#include "ui/gfx/font_list.h"
++#endif
++
+ HeliumUiDensity GetHeliumUiDensity() {
+   // Read once, so that the whole session uses the same sizes.
+   static const HeliumUiDensity density = [] {
+@@ -36,6 +51,78 @@
+   return density;
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++namespace {
++
++double GetMacReadingSizeScale() {
++  // AppKit's system font does not expose the Accessibility > Display > Text
++  // size selection. Read the system's preferred reading-size category when
++  // available. Older macOS versions and unknown categories use the default.
++  base::apple::ScopedCFTypeRef<CFPropertyListRef> reading_preferences(
++      CFPreferencesCopyAppValue(CFSTR("FontSizeCategory"),
++                                CFSTR("com.apple.universalaccess")));
++  const auto dictionary =
++      base::apple::CFCast<CFDictionaryRef>(reading_preferences.get());
++  if (!dictionary) {
++    return 1.0;
++  }
++  const auto category = base::apple::GetValueFromDictionary<CFStringRef>(
++      dictionary, CFSTR("global"));
++  if (!category) {
++    return 1.0;
++  }
++
++  constexpr double kDefaultReadingSize = 11.0;
++  constexpr std::pair<std::string_view, int> kReadingSizes[] = {
++      {"XXXS", 9}, {"XXS", 10}, {"XS", 11}, {"S", 12}, {"M", 13},
++      {"L", 14}, {"XL", 15}, {"XXL", 16}, {"XXXL", 17}, {"AX1", 20},
++      {"AX2", 24}, {"AX3", 29}, {"AX4", 35}, {"AX5", 42},
++  };
++  const std::string selected = base::SysCFStringRefToUTF8(category);
++  for (const auto& [name, point_size] : kReadingSizes) {
++    if (selected == name) {
++      return point_size / kDefaultReadingSize;
++    }
++  }
++  return 1.0;
++}
++
++int ScaleSidebarFontSize(int base_size) {
++  static const double reading_scale = GetMacReadingSizeScale();
++  // At the default reading size, rounding at this scale preserves the
++  // previous 12/14 pt labels and 9/10 pt date headings.
++  constexpr double kLargerScale = 1.15;
++  return std::lround(base_size * reading_scale *
++                     (GetHeliumUiFont() == HeliumUiFont::kLarger ? kLargerScale
++                                                               : 1.0));
++}
++
++}  // namespace
++
++HeliumUiFont GetHeliumUiFont() {
++  // Like density, the font preset applies consistently across the session.
++  const PrefService* local_state =
++      g_browser_process ? g_browser_process->local_state() : nullptr;
++  if (!local_state) {
++    return HeliumUiFont::kNormal;
++  }
++  static const auto font = [local_state] {
++    if (local_state->GetInteger(prefs::kHeliumUiFont) ==
++        std::to_underlying(HeliumUiFont::kLarger)) {
++      return HeliumUiFont::kLarger;
++    }
++    return HeliumUiFont::kNormal;
++  }();
++  return font;
++}
++
++gfx::FontList GetSidebarFont(const gfx::FontList& font, int size_delta) {
++  return font.DeriveWithSizeDelta(
++      ScaleSidebarFontSize(font.GetFontSize() + size_delta) -
++      font.GetFontSize());
++}
++#endif
++
+ int GetLayoutConstant(LayoutConstant constant) {
+   const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
+   const bool spacious = IsSpaciousUiDensity();
+@@ -192,8 +279,21 @@
+       return 8;
+     case LayoutConstant::kVerticalTabCornerRadius:
+       return spacious ? 12 : 8;
+-    case LayoutConstant::kVerticalTabHeight:
+-      return spacious ? 36 : 30;
++    case LayoutConstant::kVerticalTabHeight: {
++      const int height = spacious ? 36 : 30;
++#if BUILDFLAG(IS_MAC)
++      // Ordinary font presets fit both densities. Leave extra room for
++      // larger macOS reading sizes when the label would otherwise clip.
++      if (ScaleSidebarFontSize(12) > 14) {
++        static const int min_label_height = [] {
++          const gfx::FontList font;
++          return GetSidebarFont(font, 12 - font.GetFontSize()).GetHeight() + 8;
++        }();
++        return std::max(height, min_label_height);
++      }
++#endif
++      return height;
++    }
+     case LayoutConstant::kVerticalTabPinnedHeight:
+       return spacious ? 46 : 36;
+     case LayoutConstant::kVerticalTabMinWidth:
+--- a/chrome/browser/ui/views/frame/sidebar_footer_view.cc
++++ b/chrome/browser/ui/views/frame/sidebar_footer_view.cc
+@@ -2,6 +2,7 @@
+ // You can use, redistribute, and/or modify this source code under
+ // the terms of the GPL-3.0 license that can be found in the LICENSE file.
+ 
++#include "chrome/browser/ui/sidebar_font.h"
+ #include "chrome/browser/ui/views/frame/sidebar_footer_view.h"
+ 
+ #include <algorithm>
+@@ -117,9 +118,13 @@
+                            l10n_util::GetStringUTF16(message)),
+         icon_(icon),
+         paint_hover_(paint_hover) {
++#if BUILDFLAG(IS_MAC)
++    label()->SetFontList(GetSidebarFont(label()->font_list()));
++#else
+     if (IsSpaciousUiDensity()) {
+       SetLabelStyle(views::style::STYLE_BODY_2);
+     }
++#endif
+     SetHorizontalAlignment(gfx::ALIGN_LEFT);
+     const int padding = GetLayoutConstant(LayoutConstant::kTabHorizontalPadding);
+     SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(4, padding + 2, 4,
+--- a/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_view_vertical_layout.cc
+@@ -12,7 +12,9 @@
+ #include "chrome/browser/ui/views/tabs/common/tab_group_line_view.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_unfocus_button.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_view.h"
++#include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ #include "ui/gfx/animation/tween.h"
++#include "ui/gfx/font_list.h"
+ #include "ui/gfx/geometry/rect.h"
+ #include "ui/gfx/geometry/size.h"
+ #include "ui/views/layout/proposed_layout.h"
+@@ -23,7 +25,12 @@
+ constexpr int kFocusedHeadersGap = 2;
+ 
+ int GetGroupHeaderHeight() {
+-  return IsSpaciousUiDensity() ? 28 : 24;
++  const int height = IsSpaciousUiDensity() ? 28 : 24;
++#if BUILDFLAG(IS_MAC)
++  return std::max(height, GetSidebarSectionFont().GetHeight() + 6);
++#else
++  return height;
++#endif
+ }
+ }  // namespace
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.cc
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/ui/sidebar_font.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_strip_utils.h"
+ 
++#include <algorithm>
+ #include <cmath>
+ 
+ #include "base/check_op.h"
+@@ -110,16 +112,32 @@
+   return 0;
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++gfx::FontList GetSidebarDateFont() {
++  return GetSidebarFont(views::Label::GetDefaultFontList(), -3);
++}
++#endif
++
+ gfx::FontList GetSidebarSectionFont() {
++#if BUILDFLAG(IS_MAC)
++  return GetSidebarFont(views::Label::GetDefaultFontList())
++      .DeriveWithWeight(gfx::Font::Weight::SEMIBOLD);
++#else
+   const auto style = IsSpaciousUiDensity() ? views::style::STYLE_BODY_2
+                                           : views::style::STYLE_PRIMARY;
+   return views::TypographyProvider::Get()
+       .GetFont(views::style::CONTEXT_LABEL, style)
+       .DeriveWithWeight(gfx::Font::Weight::SEMIBOLD);
++#endif
+ }
+ 
+ int GetSidebarDateHeadingHeight() {
+-  return IsSpaciousUiDensity() ? 20 : 16;
++  const int height = IsSpaciousUiDensity() ? 20 : 16;
++#if BUILDFLAG(IS_MAC)
++  return std::max(height, GetSidebarDateFont().GetHeight() + 1);
++#else
++  return height;
++#endif
+ }
+ 
+ void LayoutSidebarSectionHeader(views::ProposedLayout& layout,
+--- a/chrome/browser/ui/views/tabs/common/tab_strip_utils.h
++++ b/chrome/browser/ui/views/tabs/common/tab_strip_utils.h
+@@ -5,6 +5,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_TABS_COMMON_TAB_STRIP_UTILS_H_
+ #define CHROME_BROWSER_UI_VIEWS_TABS_COMMON_TAB_STRIP_UTILS_H_
+ 
++#include "build/build_config.h"
+ #include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
+ #include "ui/gfx/geometry/rect.h"
+ 
+@@ -65,6 +66,9 @@
+ // Padding inside sidebar rows, never around their scroll viewports.
+ int GetSidebarContentPadding(const BrowserView* browser);
+ 
++#if BUILDFLAG(IS_MAC)
++gfx::FontList GetSidebarDateFont();
++#endif
+ gfx::FontList GetSidebarSectionFont();
+ int GetSidebarDateHeadingHeight();
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/ui/sidebar_font.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_view_vertical_layout.h"
+ 
+ #include <algorithm>
+@@ -18,6 +19,7 @@
+ #include "chrome/browser/ui/views/tabs/tab/tab_title.h"
+ #include "chrome/browser/ui/views/tabs/tab_style_views.h"
+ #include "ui/gfx/animation/tween.h"
++#include "ui/views/controls/label.h"
+ #include "ui/views/style/typography.h"
+ #include "ui/views/view_utils.h"
+ 
+@@ -33,9 +35,14 @@
+ 
+ void TabViewVerticalLayout::OnInstalled(views::View* host) {
+   TabView::LayoutManager::OnInstalled(host);
++#if BUILDFLAG(IS_MAC)
++  TabView().title_->SetFontList(
++      GetSidebarFont(views::Label::GetDefaultFontList()));
++#else
+   if (IsSpaciousUiDensity()) {
+     TabView().title_->SetTextStyle(views::style::STYLE_BODY_2);
+   }
++#endif
+   tab_children_configs_ = {
+       TabChildConfig(TabView().close_button_,
+                      GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) + 6,
+--- a/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
++++ b/chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.cc
+@@ -902,8 +902,12 @@
+       label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+       label->SetEnabledColor(ui::kColorLabelForegroundSecondary);
+       label->SetAutoColorReadabilityEnabled(false);
++#if BUILDFLAG(IS_MAC)
++      label->SetFontList(GetSidebarDateFont());
++#else
+       label->SetFontList(label->font_list().DeriveWithSizeDelta(
+           IsSpaciousUiDensity() ? -2 : -3));
++#endif
+       label->SetVerticalAlignment(gfx::ALIGN_TOP);
+       // Center the additional row space around the existing optical inset.
+       const int spare_height =
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -2,6 +2,7 @@
+ // You can use, redistribute, and/or modify this source code under
+ // the terms of the GPL-3.0 license that can be found in the LICENSE file.
+ 
++#include "chrome/browser/ui/sidebar_font.h"
+ #include "chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h"
+ 
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+@@ -30,9 +31,13 @@
+           browser,
+           GetLayoutConstant(LayoutConstant::kVerticalTabStripNewTabButtonSize),
+           kIconSize) {
++#if BUILDFLAG(IS_MAC)
++  label()->SetFontList(GetSidebarFont(label()->font_list()));
++#else
+   if (IsSpaciousUiDensity()) {
+     SetLabelStyle(views::style::STYLE_BODY_2);
+   }
++#endif
+   SetCornerRadius(GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius));
+   // Paint exactly one tab-style hover fill; no toolbar ink-drop overlay.
+   views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/ui/sidebar_font.h"
+ #include "chrome/browser/ui/webui/settings/settings_localized_strings_provider.h"
+ 
+ #include <string>
+@@ -295,6 +296,11 @@
+       {"uiDensity", IDS_SETTINGS_UI_DENSITY},
+       {"uiDensityDefault", IDS_SETTINGS_UI_DENSITY_DEFAULT},
+       {"uiDensitySpacious", IDS_SETTINGS_UI_DENSITY_SPACIOUS},
++#if BUILDFLAG(IS_MAC)
++      {"uiFont", IDS_SETTINGS_UI_FONT},
++      {"uiFontNormal", IDS_SETTINGS_UI_FONT_NORMAL},
++      {"uiFontLarger", IDS_SETTINGS_UI_FONT_LARGER},
++#endif
+       {"pageColorsTitle", IDS_SETTINGS_PAGE_COLORS_TITLE},
+       {"pageColorsSubtitle", IDS_SETTINGS_PAGE_COLORS_SUBTITLE},
+       {"pageColorsOptionNoPreference",
+@@ -332,6 +338,10 @@
+                           std::to_underlying(GetHeliumUiDensity()));
+ #endif
+ 
++#if BUILDFLAG(IS_MAC)
++  html_source->AddInteger("uiFontAtStartup",
++                          std::to_underlying(GetHeliumUiFont()));
++#endif
+   AddAxAnnotationsSectionStrings(html_source);
+   AddCaptionSubpageStrings(html_source);
+ }
+--- /dev/null
++++ b/chrome/browser/ui/sidebar_font.h
+@@ -0,0 +1,23 @@
++// Copyright 2026 The Lune Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_SIDEBAR_FONT_H_
++#define CHROME_BROWSER_UI_SIDEBAR_FONT_H_
++
++#include "build/build_config.h"
++
++namespace gfx {
++class FontList;
++}  // namespace gfx
++
++#if BUILDFLAG(IS_MAC)
++enum class HeliumUiFont { kNormal = 0, kLarger = 1 };
++
++HeliumUiFont GetHeliumUiFont();
++
++// Applies the macOS reading size and the selected font preset.
++gfx::FontList GetSidebarFont(const gfx::FontList& font, int size_delta = 0);
++#endif
++
++#endif  // CHROME_BROWSER_UI_SIDEBAR_FONT_H_
+--- a/chrome/common/BUILD.gn
++++ b/chrome/common/BUILD.gn
+@@ -562,6 +562,7 @@
+     "pref_font_script_names-inl.h",
+     "pref_font_webkit_names.h",
+     "pref_names.h",
++    "interface_font_pref_names.h",
+     "sidebar_tab_drag_pref_names.h",
+     "tab_loading_progress_pref_names.h",
+   ]
+--- /dev/null
++++ b/chrome/common/interface_font_pref_names.h
+@@ -0,0 +1,15 @@
++// Copyright 2026 The Lune Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_COMMON_INTERFACE_FONT_PREF_NAMES_H_
++#define CHROME_COMMON_INTERFACE_FONT_PREF_NAMES_H_
++
++namespace prefs {
++
++// Local-state preference for the font size of browser sidebar labels.
++inline constexpr char kHeliumUiFont[] = "helium.browser.ui_font";
++
++}  // namespace prefs
++
++#endif  // CHROME_COMMON_INTERFACE_FONT_PREF_NAMES_H_
