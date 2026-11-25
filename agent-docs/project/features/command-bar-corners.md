@@ -5,21 +5,23 @@ result-row refinements for [#12](https://github.com/leebyron/lune-browser/issues
 
 ## Accepted behavior
 
-The native glass sits inside a 48 pt transparent margin on every side of its
-translucent popup window. The native host receives the inner bounds; widget
-position and sizing include the margin. This leaves room for native edge effects
-instead of cutting them into square corners. Clicking the transparent margin
-dismisses the popup through its existing widget lifecycle. Chromium's nearly
-transparent window backing and its surface-invalidation workaround are preserved.
+The Command-T and Command-/ palettes cast a diffuse supplemental shadow with
+25% black, a 64 pt native blur radius, and a 32 pt downward offset. The shadow
+follows the glass's 18 pt rounded silhouette as the panel resizes. The
+older-macOS fallback uses the same shadow.
 
-A supplemental shadow on the material uses 5% black, 10 pt blur, and a 3 pt
-downward offset. Its explicit 20 pt rounded silhouette follows panel resizing.
-There is no extra window shadow or clipping mask around the native glass.
+The translucent popup reserves 120 pt above the panel, 152 pt on each side, and
+184 pt below it so the shadow and native glass edges can fade. The material
+occupies the inner bounds, and clicking the transparent margin dismisses the
+popup.
 
-The visible panel is at most 600 pt wide and shrinks to leave at least 36 pt
-on either side of the browser window. Its top is anchored where a maximum-height
-five-row panel (320 pt) would be vertically centered. Shorter lists keep that top
-edge. The transparent shadow margin is excluded from visible-panel geometry.
+The visible panel is at most 720 pt wide and shrinks to leave at least 36 pt on
+either side of the browser window. Its top is anchored where a maximum-height
+five-row panel (319 pt) would be vertically centered. Shorter lists keep that top
+edge.
+
+See the [shadow adoption record](../builds/2026-11-25-command-menu-shadow.json)
+for the signed input, paired build checks, and matching website deployment.
 
 The empty panel is 52 pt tall. The input uses its native fitting height and is
 vertically centered; the provider pill shares its center. Results start directly
@@ -94,8 +96,8 @@ Portable checks:
 ```sh
 python3 scripts/check-native-address-suggestions.py .work/chromium-158/macos/build/src --arch arm64
 python3 scripts/check-native-address-suggestions.py .work/chromium-158/macos/build/src --arch x86_64
-python3 scripts/check-native-command-bar-shadow.py .work/chromium-158/macos/build/src --arch arm64
-python3 scripts/check-native-command-bar-shadow.py .work/chromium-158/macos/build/src --arch x86_64
+python3 scripts/check-native-command-bar-shadow.py /path/to/prepared/src --arch arm64
+python3 scripts/check-native-command-bar-shadow.py /path/to/prepared/src --arch x86_64
 ```
 
 Native Intel hardware and the older macOS material fallback remain unverified.

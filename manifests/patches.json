@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "7b955e7d05b341041575e15ac21443538690a8c4",
+    "commit": "0544efa4936b561a3b98dbe12d287714cd9f5d7d",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1259,9 +1259,13 @@
       {
         "path": "patches/helium/ui/link-copied-toast-symbol.patch",
         "sha256": "da184070009903307410597368fd32de5e2054b9d08cc91644278e9c7fe50e3d"
+      },
+      {
+        "path": "patches/helium/ui/command-menu-shadow.patch",
+        "sha256": "005c3daf72ecc91c59da8a0a0a847a5c521aff41ab1afe52f7cc2a2c7cb376c4"
       }
     ],
-    "ref": "refs/tags/inputs/link-copied-toast-1/macos"
+    "ref": "refs/tags/inputs/command-menu-shadow-1/macos"
   },
   "pull_requests": [
     {
@@ -4196,6 +4200,21 @@
       "adaptation": "Reuse the macOS toast renderer with the toast foreground and registered vector fallback.",
       "commits": [
         "7b955e7d05b341041575e15ac21443538690a8c4"
+      ]
+    },
+    {
+      "id": "command-menu-shadow",
+      "depends_on": [
+        "command-menu-stable-glass"
+      ],
+      "patches": [
+        "patches/helium/ui/command-menu-shadow.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Give the shared Command-T palette a broader, lower shadow.",
+      "adaptation": "Set the rounded native shadow to 25% black, 64-point blur and a 32-point downward offset. Expand the translucent popup asymmetrically while preserving the visible panel geometry.",
+      "commits": [
+        "0544efa4936b561a3b98dbe12d287714cd9f5d7d"
       ]
     }
   ],

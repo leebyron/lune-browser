@@ -49,11 +49,11 @@ NSView* MakeCommand(NSView* pane, NSAppearance* appearance) {
 '''+construct+'''
  return native.material;
 }
-void CheckShadow(NSView* view) {
+void CheckShadow(NSView* view, CGFloat opacity, CGFloat blur, CGFloat y_offset) {
  assert(!view.clipsToBounds);
- assert(fabs(view.shadow.shadowColor.alphaComponent - .05) < .001);
- assert(view.shadow.shadowBlurRadius == 10);
- assert(view.shadow.shadowOffset.height == -3);
+ assert(fabs(view.shadow.shadowColor.alphaComponent - opacity) < .001);
+ assert(view.shadow.shadowBlurRadius == blur);
+ assert(NSEqualSizes(view.shadow.shadowOffset, NSMakeSize(0, y_offset)));
  assert(CGRectEqualToRect(CGPathGetBoundingBox(view.layer.shadowPath), view.bounds));
 }
 void CheckEdge(NSView* effect) {
@@ -89,29 +89,29 @@ int main() { @autoreleasepool {
  TestSurface* surface = [[TestSurface alloc] initWithFrame:NSMakeRect(30,30,300,36)];
  [window.contentView addSubview:surface];
  [surface setRevealFraction:1];
- CheckShadow(surface.material);
+ CheckShadow(surface.material, .05, 10, -3);
  CheckEdge(surface.effect);
  [surface setFrameSize:NSMakeSize(480,200)];
  [surface resizeSubviewsWithOldSize:NSMakeSize(300,36)];
- CheckShadow(surface.material);
+ CheckShadow(surface.material, .05, 10, -3);
  CheckEdge(surface.effect);
  NSView* pane = [[NSView alloc] initWithFrame:NSMakeRect(48,48,600,52)];
  pane.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
  NSView* command = MakeCommand(pane, [NSAppearance appearanceNamed:NSAppearanceNameAqua]);
  [window.contentView addSubview:command];
- CheckShadow(command);
+ CheckShadow(command, .25, 64, -32);
  CheckEdge(command.subviews.lastObject);
  assert(NSEqualRects(pane.frame, command.bounds));
  for (NSValue* size in @[[NSValue valueWithSize:NSMakeSize(600,320)],
                          [NSValue valueWithSize:NSMakeSize(300,164)]]) {
   command.frameSize = size.sizeValue;
   [command layoutSubtreeIfNeeded];
-  CheckShadow(command);
+  CheckShadow(command, .25, 64, -32);
   CheckEdge(command.subviews.lastObject);
   assert(NSEqualRects(pane.frame, command.bounds));
  }
  [window close];
- puts("PASS: fallback hairlines rasterize in four appearances; content/hit bounds, resizing 5% control/Command-T shadows, and 16/12 pt frame branches");
+ puts("PASS: fallback hairlines rasterize in four appearances; content/hit bounds, resizing control and Command-T shadows, and 16/12 pt frame branches");
 }}
 '''
 with tempfile.TemporaryDirectory(prefix='lune-fallback-') as tmp:

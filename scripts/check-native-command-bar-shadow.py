@@ -18,21 +18,21 @@ end = text.index('@interface HeliumCommandResults', start)
 fixture='''
 int main(){@autoreleasepool{
  [NSApplication sharedApplication];
- HeliumCommandMaterial* view=[[HeliumCommandMaterial alloc] initWithFrame:NSMakeRect(0,0,600,52)];
+ HeliumCommandMaterial* view=[[HeliumCommandMaterial alloc] initWithFrame:NSMakeRect(0,0,720,52)];
  assert(!view.clipsToBounds);
  assert(kGlassCornerRadius == 18);
  assert(kGlassCornerRadius == kHeliumNativeResultInset + kHeliumNativeResultCornerRadius);
  assert(kResultsBottomInset + kHeliumNativeResultVerticalInset == kHeliumNativeResultInset);
- assert(fabs(view.shadow.shadowColor.alphaComponent-.05)<.001);
- assert(view.shadow.shadowBlurRadius==10);
- assert(view.shadow.shadowOffset.height==-3);
- for(NSValue* size in @[[NSValue valueWithSize:NSMakeSize(600,52)], [NSValue valueWithSize:NSMakeSize(600,320)], [NSValue valueWithSize:NSMakeSize(300,164)]]){
+ assert(fabs(view.shadow.shadowColor.alphaComponent-.25)<.001);
+ assert(view.shadow.shadowBlurRadius==64);
+ assert(NSEqualSizes(view.shadow.shadowOffset, NSMakeSize(0, -32)));
+ for(NSValue* size in @[[NSValue valueWithSize:NSMakeSize(720,52)], [NSValue valueWithSize:NSMakeSize(720,319)], [NSValue valueWithSize:NSMakeSize(300,163)]]){
   [view setFrameSize:size.sizeValue];
   assert(CGRectEqualToRect(CGPathGetBoundingBox(view.layer.shadowPath),view.bounds));
   assert(!CGPathContainsPoint(view.layer.shadowPath,nullptr,CGPointMake(0,0),false));
   assert(CGPathContainsPoint(view.layer.shadowPath,nullptr,CGPointMake(20,20),false));
  }
- puts("PASS: subtle native material shadow, unclipped rounded path follows empty/full/narrow dimensions");
+ puts("PASS: diffuse downward native material shadow, unclipped rounded path follows empty/full/narrow dimensions");
 }}
 '''
 with tempfile.TemporaryDirectory(prefix='lune-command-shadow-') as tmp:

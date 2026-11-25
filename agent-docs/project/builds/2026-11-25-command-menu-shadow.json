@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-25",
+  "scope": "Adopt the owner-approved diffuse downward Command-T and Command-/ shadow.",
+  "component": "0544efa4936b561a3b98dbe12d287714cd9f5d7d",
+  "input_tag": "refs/tags/inputs/command-menu-shadow-1/macos",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "chromium": "159.0.8154.13",
+  "shadow": {
+    "opacity": 0.25,
+    "radius_pt": 64,
+    "downward_offset_pt": 32
+  },
+  "preview_accepted": {
+    "architecture": "arm64",
+    "variant": 4,
+    "date": "2026-11-25",
+    "framework_sha256": "61c86213ee3e85d67fe97e665bbbf1e03dcbeda0d17c07ba2d771ca9157c6b06"
+  },
+  "artifacts": {
+    "arm64": {
+      "execution": "native arm64",
+      "preparation": {
+        "strict_zero_fuzz": true,
+        "prepared_report_sha256": "644cd4ab880ce7ee60b0197ab46434d2fba3d42f8e642912b733096b14cb5f4e",
+        "preparation_log_sha256": "bbe2a0aed315d6a29ca6020ebdf405269b5e4546498b6b6ea163ce6f5bddf4c7",
+        "identical_baseline_files": 571348,
+        "xml_declaration_case_only_files": 1309,
+        "paired_source_inventories_identical": true,
+        "identical_baseline_symlinks": 130,
+        "approved_source_sha256": "da34b5480bc0b6548ba881ce68333704207ee160a0c730e5c2771af3fad98b19"
+      },
+      "build": {
+        "arch": "arm64",
+        "execution": "native arm64",
+        "gn_args_sha256": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
+        "duration_seconds": 155.0,
+        "framework_sha256": "07aeb2dde57f35f79b95f4fdd05deb6548d0ff07f484430052a2d9b86d1248c5",
+        "chromedriver_sha256": "25132fe20b1145464dfdc501c347c62b4893e6f841dd77112c58783028c15b33",
+        "prepared_report_sha256": "644cd4ab880ce7ee60b0197ab46434d2fba3d42f8e642912b733096b14cb5f4e",
+        "smoke_sha256": "a5150af7f9680471121aa78d0d3cc2e0432e1bce66c1adb80efa4953aac79932"
+      },
+      "headless_smoke": "Passed packaged UI, Settings, internal artwork and persistence checks.",
+      "native_checks": [
+        "command-bar-shadow",
+        "command-menu-glass",
+        "fallback-surfaces"
+      ],
+      "headed_command_palette": "Passed Command-T and Command-/, shared panel placement and size, Escape and shadow-margin dismissal."
+    },
+    "x86_64": {
+      "execution": "x86_64 via Rosetta on Apple silicon",
+      "preparation": {
+        "strict_zero_fuzz": true,
+        "prepared_report_sha256": "707917c4d6267da587d3c08edf25da460d589fd86203fef53fbaa2af2e6588aa",
+        "preparation_log_sha256": "d272d240ce1da8b13a9474644ae799c1562e16112131b726e2b0c0a35afb722f",
+        "identical_baseline_files": 571348,
+        "xml_declaration_case_only_files": 1309,
+        "paired_source_inventories_identical": true,
+        "identical_baseline_symlinks": 130,
+        "approved_source_sha256": "da34b5480bc0b6548ba881ce68333704207ee160a0c730e5c2771af3fad98b19"
+      },
+      "build": {
+        "arch": "x86_64",
+        "execution": "x86_64 via Rosetta on Apple silicon",
+        "gn_args_sha256": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4",
+        "duration_seconds": 169.65,
+        "framework_sha256": "94b4b9c3b1f7c35b7615c67c911945c7c309c9f1482e8ba1d25d1c1b8f230146",
+        "chromedriver_sha256": "5fe64b85902e90f3d04a20bd85f47cf8c458a9810cc31e9f94699ea2bf8df4c8",
+        "prepared_report_sha256": "707917c4d6267da587d3c08edf25da460d589fd86203fef53fbaa2af2e6588aa",
+        "smoke_sha256": "174355fa791227445d3d6ef0582e75cf68acf28ce6e0933e588bf2d17fcd1006"
+      },
+      "headless_smoke": "Passed packaged UI, Settings, internal artwork and persistence checks.",
+      "native_checks": [
+        "command-bar-shadow",
+        "command-menu-glass",
+        "fallback-surfaces"
+      ],
+      "headed_command_palette": "Passed Command-T and Command-/, shared panel placement and size, Escape and shadow-margin dismissal."
+    }
+  },
+  "website": {
+    "commit": "eba04509c8e6f36813cf59a0ff1390de70a46236",
+    "workflow": "https://github.com/leebyron/lune-browser/actions/runs/45574915967",
+    "production_assets_matched": 7,
+    "stylesheet_sha256": "79fb565d89da978ed878313e5863dec0511973d0209ad58d3c9b31daeca667d8"
+  },
+  "repository_tests": "108 run, one skipped, zero failures.",
+  "validation_scope": "The fallback material branch was exercised in native fixtures on the Apple silicon host. The headed Intel build and Intel fixtures ran under Rosetta."
+}
