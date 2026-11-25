@@ -1,0 +1,92 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -16,6 +16,7 @@
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials_mac.h"
+ #include "chrome/browser/ui/views/helium/native_text_field_mac.h"
++#include "ui/gfx/geometry/insets.h"
+ #include "ui/gfx/image/image.h"
+ #include "ui/native_theme/native_theme.h"
+ #include "ui/views/border.h"
+@@ -24,13 +25,12 @@
+ #include "ui/views/widget/widget.h"
+ 
+ namespace {
++// Allow the diffuse shadow to fade inside the translucent popup window.
++// Give the downward shadow additional room below the panel.
++constexpr gfx::Insets kShadowInsets = gfx::Insets::TLBR(120, 152, 184, 152);
+ constexpr int kWidth = 720;
+ constexpr int kWindowSideMargin = 36;
+ constexpr int kInputHeight = 52;
+-// Keep the glass's native edge effects inside the translucent popup window.
+-// A window ending at the material bounds cuts those effects into square
+-// corners.
+-constexpr int kGlassOutset = 48;
+ constexpr size_t kVisibleResults = 5;
+ // Match the selected row curve with an equal visible side and bottom gap.
+ constexpr int kGlassCornerRadius =
+@@ -83,7 +83,7 @@ NSString* TagForItem(const HeliumCommand
+ 
+ }  // namespace
+ 
+-// Supplement the native glass shadow with a faint, explicit silhouette.
++// Cast a diffuse shadow from the panel's rounded silhouette.
+ @interface HeliumCommandMaterial : NSView
+ @end
+ 
+@@ -93,9 +93,9 @@ NSString* TagForItem(const HeliumCommand
+     self.wantsLayer = YES;
+     self.clipsToBounds = NO;
+     NSShadow* shadow = [[NSShadow alloc] init];
+-    shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.05];
+-    shadow.shadowBlurRadius = 10;
+-    shadow.shadowOffset = NSMakeSize(0, -3);
++    shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.25];
++    shadow.shadowBlurRadius = 64;
++    shadow.shadowOffset = NSMakeSize(0, -32);
+     self.shadow = shadow;
+     [self updateShadowPath];
+   }
+@@ -239,13 +239,13 @@ HeliumCommandBarView* HeliumCommandBarVi
+   const gfx::Rect bounds = parent_widget->GetWindowBoundsInScreen();
+   view->native_->width =
+       std::min(kWidth, std::max(0, bounds.width() - 2 * kWindowSideMargin));
+-  const int window_width = view->native_->width + 2 * kGlassOutset;
++  const int window_width = view->native_->width + kShadowInsets.width();
++  const int panel_y =
++      bounds.y() + (bounds.height() - CommandBarHeight(kVisibleResults)) / 2;
+   widget->SetBounds(
+       gfx::Rect(bounds.x() + (bounds.width() - window_width) / 2,
+-                bounds.y() + (bounds.height() - CommandBarHeight(kVisibleResults)) / 2 -
+-                    kGlassOutset,
+-                window_width,
+-                kInputHeight + 2 * kGlassOutset));
++                panel_y - kShadowInsets.top(), window_width,
++                kInputHeight + kShadowInsets.height()));
+   view->native_->host->Attach(gfx::NativeView(view->native_->material));
+   widget->Show();
+   widget->AddObserver(view);
+@@ -339,7 +339,7 @@ HeliumCommandBarView::HeliumCommandBarVi
+       native_(std::make_unique<Native>()) {
+   SetModalType(ui::mojom::ModalType::kNone);
+   auto contents = std::make_unique<CommandBarContents>();
+-  contents->SetBorder(views::CreateEmptyBorder(gfx::Insets(kGlassOutset)));
++  contents->SetBorder(views::CreateEmptyBorder(kShadowInsets));
+   contents->SetLayoutManager(std::make_unique<views::FillLayout>());
+   native_->host =
+       contents->AddChildView(std::make_unique<views::NativeViewHost>());
+@@ -579,10 +579,11 @@ void HeliumCommandBarView::ResizeToConte
+   if (!GetWidget()) {
+     return;
+   }
+-  const int height = CommandBarHeight(native_->pane.rows.count) +
+-                     2 * kGlassOutset;
++  const int height =
++      CommandBarHeight(native_->pane.rows.count) + kShadowInsets.height();
+   if (GetWidget()->GetWindowBoundsInScreen().height() != height) {
+-    GetWidget()->SetSize(gfx::Size(native_->width + 2 * kGlassOutset, height));
++    GetWidget()->SetSize(
++        gfx::Size(native_->width + kShadowInsets.width(), height));
+   }
+   native_->pane.needsLayout = YES;
+ }
