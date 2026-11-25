@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "512bf932dea6325d1e925a5d40d6e29768199b86",
+    "commit": "18b36f320155e3b1c2e8ca22303a862715c979b3",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1247,9 +1247,13 @@
       {
         "path": "patches/helium/ui/download-open-countdown.patch",
         "sha256": "858e245f5d8f7c8e8604b7d191a7356c3fe9395c28981efd297c48d630a68a6a"
+      },
+      {
+        "path": "patches/helium/ui/setup-option-grids.patch",
+        "sha256": "1b3dbe0b09f3f1f34482b1e2fa99c77b6071147d4b6edef8ddc46fc07bf292fb"
       }
     ],
-    "ref": "refs/tags/inputs/downloads-popover-2/macos"
+    "ref": "refs/tags/inputs/setup-option-grids-1/macos"
   },
   "pull_requests": [
     {
@@ -4139,6 +4143,21 @@
       "adaptation": "Keep the shared localized countdown string and remove either terminal ellipsis representation in the Downloads bubble formatter.",
       "commits": [
         "512bf932dea6325d1e925a5d40d6e29768199b86"
+      ]
+    },
+    {
+      "id": "setup-option-grids",
+      "depends_on": [
+        "onboarding-search-layout"
+      ],
+      "patches": [
+        "patches/helium/ui/setup-option-grids.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Align option-card spacing across Search Engine and Password Manager.",
+      "adaptation": "Share a 920 px single-column breakpoint and use the 12 px card gap for both side gutters. Cards fill their tracks within a centered, 1000 px maximum content area.",
+      "commits": [
+        "18b36f320155e3b1c2e8ca22303a862715c979b3"
       ]
     }
   ],
