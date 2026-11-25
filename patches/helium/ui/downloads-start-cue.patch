@@ -1,0 +1,332 @@
+--- a/chrome/browser/ui/views/download/BUILD.gn
++++ b/chrome/browser/ui/views/download/BUILD.gn
+@@ -95,6 +95,7 @@
+       "//chrome/browser/ui/immersive:immersive_mode_controller",
+       "//chrome/browser/ui/tabs:tab_strip",
+       "//chrome/browser/ui/views/controls",
++      "//chrome/browser/ui/views/frame:browser_frame_view",
+       "//chrome/browser/ui/views/toolbar",
+       "//components/autofill/content/browser",
+       "//components/constrained_window",
+--- a/chrome/browser/ui/views/download/bubble/download_bubble_started_animation_views.cc
++++ b/chrome/browser/ui/views/download/bubble/download_bubble_started_animation_views.cc
+@@ -4,88 +4,52 @@
+ 
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_started_animation_views.h"
+ 
++#include <algorithm>
++
++#include "build/build_config.h"
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/ui/views/download/download_started_animation_views.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/models/image_model.h"
+ #include "ui/base/ui_base_features.h"
++#include "ui/gfx/animation/tween.h"
+ #include "ui/gfx/geometry/size.h"
+ #include "ui/gfx/image/image_skia.h"
+ #include "ui/gfx/image/image_skia_operations.h"
+ #include "ui/gfx/paint_vector_icon.h"
++#include "ui/gfx/vector_icon_types.h"
++
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/views/helium/native_frame_materials.h"
++#endif
+ 
+ namespace {
+ 
+-// The animation is piecewise linear, composed of 2 phases, phase one is 300 ms
+-// and phase two is 200 ms.
+-constexpr base::TimeDelta kAnimationDuration = base::Milliseconds(500);
+-constexpr double kAnimationPhaseSwitchProgress = 0.6;
+-constexpr int kIconSize = 26;
+-constexpr int kIconBackgroundRadius = 32;
++constexpr base::TimeDelta kAnimationDuration = base::Milliseconds(380);
++constexpr int kIconSize = 18;
++constexpr int kIconBackgroundRadius = 12;
++constexpr int kHorizontalTravel = 48;
++constexpr int kVerticalTravel = 96;
++constexpr double kFadeInEnd = 0.25;
++constexpr double kFadeOutStart = 0.65;
++constexpr float kPeakOpacity = 0.8f;
+ 
+ ui::ImageModel GetDownloadIconImageModel(SkColor image_foreground_color,
+                                          SkColor image_background_color) {
+-  gfx::ImageSkia icon = gfx::CreateVectorIcon(gfx::IconDescription(
+-      features::IsRoundedIconsEnabled() ? kDownloadIcon
+-                                        : kDownloadToolbarButtonOldIcon,
+-      kIconSize, image_foreground_color));
+-  gfx::ImageSkia image =
++  gfx::ImageSkia icon;
++#if BUILDFLAG(IS_MAC)
++  icon = helium::NativeToolbarSymbolForIcon(kDownloadIcon.name, kIconSize,
++                                            image_foreground_color);
++#endif
++  if (icon.isNull()) {
++    icon = gfx::CreateVectorIcon(
++        features::IsRoundedIconsEnabled() ? kDownloadIcon
++                                         : kDownloadToolbarButtonOldIcon,
++        kIconSize, image_foreground_color);
++  }
++  return ui::ImageModel::FromImageSkia(
+       gfx::ImageSkiaOperations::CreateImageWithCircleBackground(
+-          kIconBackgroundRadius, image_background_color, icon);
+-  return ui::ImageModel::FromImageSkia(image);
+-}
+-
+-// Rescales the current progress value of the animation such that the progress
+-// goes from 0.0 to 1.0 within phase one.
+-double GetPhaseOneProgress(double current_value) {
+-  CHECK_LE(current_value, kAnimationPhaseSwitchProgress,
+-           base::NotFatalUntil::M162);
+-  return current_value / kAnimationPhaseSwitchProgress;
+-}
+-
+-// Rescales the current progress value of the animation such that the progress
+-// goes from 0.0 to 1.0 within phase two.
+-double GetPhaseTwoProgress(double current_value) {
+-  CHECK_GE(current_value, kAnimationPhaseSwitchProgress,
+-           base::NotFatalUntil::M162);
+-  return (current_value - kAnimationPhaseSwitchProgress) /
+-         (1.0 - kAnimationPhaseSwitchProgress);
+-}
+-
+-// Breaks down the y-axis movement for each phase for simplicity.
+-int GetYForPhaseOne(double phase_one_progress,
+-                    const gfx::Rect& web_contents_bounds,
+-                    const gfx::Rect& toolbar_icon_bounds,
+-                    const gfx::Size& image_size) {
+-  // Start centered at 50% of viewport height.
+-  const int start =
+-      web_contents_bounds.CenterPoint().y() - image_size.height() / 2;
+-  // End phase one at 40 px below the center of the toolbar icon.
+-  const int end = toolbar_icon_bounds.bottom_center().y() + 40;
+-  return static_cast<int>(start + (end - start) * phase_one_progress);
+-}
+-
+-int GetYForPhaseTwo(double phase_two_progress,
+-                    const gfx::Rect& web_contents_bounds,
+-                    const gfx::Rect& toolbar_icon_bounds,
+-                    const gfx::Size& image_size) {
+-  // Start where phase one ended.
+-  const int start = toolbar_icon_bounds.bottom_center().y() + 40;
+-  // End centered over the toolbar icon.
+-  const int end =
+-      toolbar_icon_bounds.CenterPoint().y() - image_size.height() / 2;
+-  return static_cast<int>(start + (end - start) * phase_two_progress);
+-}
+-
+-// Breaks down the opacity changes for each phase for simplicity.
+-float GetOpacityForPhaseOne(double phase_one_progress) {
+-  // Go from 0 to 1 opacity.
+-  return static_cast<float>(phase_one_progress);
+-}
+-
+-float GetOpacityForPhaseTwo(double phase_two_progress) {
+-  // Go from 1 to 0 opacity.
+-  return static_cast<float>(1 - phase_two_progress);
++          kIconBackgroundRadius, image_background_color, icon));
+ }
+ 
+ }  // namespace
+@@ -106,32 +70,31 @@
+     default;
+ 
+ int DownloadBubbleStartedAnimationViews::GetX() const {
+-  // Align the centers of the animation and the toolbar icon.
+-  return toolbar_icon_bounds_.CenterPoint().x() -
+-         GetPreferredSize().width() / 2;
++  const int end = toolbar_icon_bounds_.CenterPoint().x() -
++                  GetPreferredSize().width() / 2;
++  const int travel =
++      std::clamp(end - web_contents_bounds().x(), 0, kHorizontalTravel);
++  return gfx::Tween::IntValueBetween(
++      gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT, GetCurrentValue()),
++      end - travel, end);
+ }
+ 
+ int DownloadBubbleStartedAnimationViews::GetY() const {
+-  if (GetCurrentValue() <= kAnimationPhaseSwitchProgress) {
+-    return GetYForPhaseOne(GetPhaseOneProgress(GetCurrentValue()),
+-                           web_contents_bounds(), toolbar_icon_bounds_,
+-                           GetPreferredSize());
+-  }
+-  return GetYForPhaseTwo(GetPhaseTwoProgress(GetCurrentValue()),
+-                         web_contents_bounds(), toolbar_icon_bounds_,
+-                         GetPreferredSize());
++  const int height = GetPreferredSize().height();
++  const int end = toolbar_icon_bounds_.CenterPoint().y() - height / 2;
++  const int start =
++      std::clamp(end + kVerticalTravel, web_contents_bounds().y(),
++                 web_contents_bounds().bottom() - height);
++  return gfx::Tween::IntValueBetween(
++      gfx::Tween::CalculateValue(gfx::Tween::EASE_IN_OUT, GetCurrentValue()),
++      start, end);
+ }
+ 
+ float DownloadBubbleStartedAnimationViews::GetOpacity() const {
+-  if (GetCurrentValue() <= kAnimationPhaseSwitchProgress) {
+-    return GetOpacityForPhaseOne(GetPhaseOneProgress(GetCurrentValue()));
+-  }
+-  return GetOpacityForPhaseTwo(GetPhaseTwoProgress(GetCurrentValue()));
+-}
+-
+-bool DownloadBubbleStartedAnimationViews::WebContentsTooSmall(
+-    const gfx::Size& image_size) const {
+-  return web_contents_bounds().height() < image_size.height() + 40;
++  const double progress = GetCurrentValue();
++  return kPeakOpacity * static_cast<float>(
++      std::min({1.0, progress / kFadeInEnd,
++                (1.0 - progress) / (1.0 - kFadeOutStart)}));
+ }
+ 
+ BEGIN_METADATA(DownloadBubbleStartedAnimationViews)
+--- a/chrome/browser/ui/views/download/bubble/download_bubble_started_animation_views.h
++++ b/chrome/browser/ui/views/download/bubble/download_bubble_started_animation_views.h
+@@ -18,10 +18,8 @@
+ class Size;
+ }  // namespace gfx
+ 
+-// An animation that starts halfway down the screen and moves upwards towards
+-// the download bubble toolbar icon. The animation is piecewise linear, composed
+-// of 2 phases. During phase one, the icon moves upwards and fades in. During
+-// phase two, the icon continues moving upwards and fades out.
++// Briefly moves a download symbol from below and left of the toolbar button
++// into the button, fading as it arrives.
+ // TODO(crbug.com/40255939): Investigate writing this using more modern
+ // frameworks like layers and views animation builder.
+ class DownloadBubbleStartedAnimationViews
+@@ -45,8 +43,6 @@
+   int GetX() const override;
+   int GetY() const override;
+   float GetOpacity() const override;
+-  bool WebContentsTooSmall(const gfx::Size& image_size) const override;
+-
+   // Bounds of the download bubble icon in the screen coordinate system.
+   gfx::Rect toolbar_icon_bounds_;
+ };
+--- a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
++++ b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
+@@ -12,6 +12,7 @@
+ #include <string>
+ 
+ #include "base/functional/bind.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/location.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/metrics/histogram_functions.h"
+@@ -35,6 +36,7 @@
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_contents_view.h"
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_started_animation_views.h"
++#include "chrome/browser/ui/views/frame/browser_frame_view.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/helium/native_frame_materials.h"
+ #include "chrome/browser/ui/views/toolbar/download_button.h"
+@@ -91,6 +93,7 @@
+ // Close the partial bubble after 5 seconds if the user doesn't interact with
+ // it.
+ constexpr base::TimeDelta kAutoClosePartialViewDelay = base::Seconds(5);
++constexpr base::TimeDelta kDownloadStartToolbarReveal = base::Seconds(1);
+ 
+ PinnedToolbarActions* GetPinnedToolbarActions(BrowserView* browser_view) {
+   auto* toolbar_button_provider = browser_view->toolbar_button_provider();
+@@ -246,9 +249,22 @@
+   if (updates.show_animation && show_download_started_animation_) {
+     has_pending_download_started_animation_ = true;
+     if (auto* container = GetPinnedToolbarActions(browser_view_)) {
++      if (!container->GetDownloadButton()) {
++        container->ShowActionEphemerallyInToolbar(kActionShowDownloads, true);
++      }
++      base::ScopedClosureRunner toolbar_reveal_hold;
++      auto* widget = browser_view_->browser_widget();
++      auto* frame = widget ? widget->GetFrameView() : nullptr;
++      if ((frame && frame->HasFloatingAddressBar()) ||
++          !browser_view_->IsVerticalAddressBarInSidebar()) {
++        // Reveal the header before waiting for the button, since a hidden
++        // floating toolbar may not have attached its controls to the widget.
++        toolbar_reveal_hold = BrowserView::HoldChromeRevealForMenu(
++            browser_view_->GetWidget(), /*reveal_top=*/true);
++      }
+       container->PostOrQueueActionAfterAnimation(base::BindOnce(
+           &DownloadToolbarUIController::ShowPendingDownloadStartedAnimation,
+-          weak_factory_.GetWeakPtr()));
++          weak_factory_.GetWeakPtr(), std::move(toolbar_reveal_hold)));
+     }
+   }
+   if (updates.new_state && *updates.new_state != state_) {
+@@ -610,15 +626,22 @@
+   controller_->OnButtonPressed();
+ }
+ 
+-void DownloadToolbarUIController::ShowPendingDownloadStartedAnimation() {
+-  if (!has_pending_download_started_animation_) {
++void DownloadToolbarUIController::ShowPendingDownloadStartedAnimation(
++    base::ScopedClosureRunner toolbar_reveal_hold) {
++  if (toolbar_reveal_hold) {
++    // A concurrent menu or download retains its own reveal hold.
++    content::GetUIThreadTaskRunner({})->PostDelayedTask(
++        FROM_HERE,
++        base::BindOnce(
++            [](base::ScopedClosureRunner hold) { hold.RunAndReset(); },
++            std::move(toolbar_reveal_hold)),
++        kDownloadStartToolbarReveal);
++  }
++  if (!has_pending_download_started_animation_ || !browser_view_) {
+     return;
+   }
+   CHECK(show_download_started_animation_);
+   has_pending_download_started_animation_ = false;
+-  if (!gfx::Animation::ShouldRenderRichAnimation()) {
+-    return;
+-  }
+   tabs::TabInterface* const tab =
+       browser_view_->browser()->GetActiveTabInterface();
+   content::WebContents* const web_contents = tab ? tab->GetContents() : nullptr;
+@@ -626,6 +649,15 @@
+       !platform_util::IsVisible(web_contents->GetNativeView())) {
+     return;
+   }
++  if (!gfx::Animation::ShouldRenderRichAnimation()) {
++    return;
++  }
++  if (auto* frame = browser_view_->browser_widget()->GetFrameView();
++      frame && frame->HasFloatingAddressBar()) {
++    // Settle the AppKit child window after an unpinned Downloads button
++    // changes the toolbar width. The cue needs the new screen coordinates.
++    frame->UpdateFloatingAddressBar();
++  }
+   // Animation cleans itself up after it's done.
+   if (auto* button = GetDownloadsButton(browser_view_)) {
+     new DownloadBubbleStartedAnimationViews(
+--- a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h
++++ b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h
+@@ -8,6 +8,7 @@
+ #include <optional>
+ #include <string>
+ 
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/scoped_observation.h"
+ #include "base/timer/timer.h"
+@@ -114,7 +115,8 @@
+ 
+   // If |has_pending_download_started_animation_| is true, shows an animation of
+   // a download icon moving upwards towards the toolbar icon.
+-  void ShowPendingDownloadStartedAnimation();
++  void ShowPendingDownloadStartedAnimation(
++      base::ScopedClosureRunner toolbar_reveal_hold);
+ 
+   DownloadBubbleUIController* bubble_controller() {
+     return bubble_controller_.get();
+--- a/chrome/browser/ui/views/frame/browser_view.h
++++ b/chrome/browser/ui/views/frame/browser_view.h
+@@ -463,7 +463,7 @@
+   // Keeps currently revealed chrome stable until a menu closes or its owner
+   // is destroyed. Nested menus share a window-local hold; hidden chrome stays
+   // hidden unless reveal_top is requested for a header-anchored menu/bubble.
+-  // Only chrome menu presenters should acquire this handle.
++  // Download start animations also use this handle to keep their target visible.
+   static base::ScopedClosureRunner HoldChromeRevealForMenu(
+       views::Widget* widget, bool reveal_top = false);
+   bool IsChromeRevealHeldForMenu() const { return chrome_menu_hold_count_ > 0; }
