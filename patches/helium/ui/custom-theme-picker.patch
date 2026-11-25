@@ -1,0 +1,1915 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -7716,7 +7716,7 @@
+         Theme updated to uploaded image
+       </message>
+       <message name="IDS_HELIUM_CONTENT_AWARE_CHROME" desc="Label for adapting native browser glass and its controls to the content underneath.">
+-        Content aware
++        Content reactive liquid glass
+       </message>
+       <message name="IDS_NTP_CUSTOMIZE_CHROME_FOLLOW_THEME_LABEL" desc="The label for the toggle to use the system color scheme instead of that from the browser.">
+         Follow device colors
+@@ -7772,6 +7772,18 @@
+       <message name="IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL" desc="The label for the color picker in the customization menu on the New Tab Page">
+         Custom color
+       </message>
++      <message name="IDS_NTP_CUSTOMIZE_THEME_NATIVE" desc="Name of the browser theme option that follows macOS system colors.">
++        Native
++      </message>
++      <message name="IDS_NTP_CUSTOMIZE_THEME_CUSTOM" desc="Name of the custom browser theme option.">
++        Custom
++      </message>
++      <message name="IDS_NTP_CUSTOMIZE_THEME_HUE" desc="Label for the hue control in the browser theme color wheel.">
++        Hue
++      </message>
++      <message name="IDS_NTP_CUSTOMIZE_THEME_SATURATION" desc="Label for the saturation control in the browser theme color wheel.">
++        Saturation
++      </message>
+       <message name="IDS_NTP_CUSTOMIZE_COLOR_HUE_SLIDER_TITLE" desc="The label for the hue slider in the customization menu on the New Tab Page that allows a user to pick a color for their theme">
+         Color picker
+       </message>
+@@ -7911,7 +7923,7 @@
+         Dark
+       </message>
+       <message name="IDS_NTP_CUSTOMIZE_CHROME_COLOR_SCHEME_MODE_SYSTEM_LABEL" desc="A color scheme mode option for browser system mode, which follows the OS color scheme mode in customize chrome side panel.">
+-        Device
++        Auto
+       </message>
+       <message name="IDS_NTP_CUSTOMIZE_CHROME_WEBSTORE_LABEL" desc="The message that prompts user to customize Chrome with Chrome webstore.">
+         Customize your browser even more with extensions from the <ph name="BEGIN_LINK1">&lt;a href="#" id="chromeWebstoreLink"&gt;</ph>Chrome Web Store<ph name="END_LINK1">&lt;/a&gt;</ph>
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.css
+@@ -32,6 +32,12 @@
+   /* Gap between grid tiles; always half the inline padding (8px at >= 360px,
+    * 4px at 200px). */
+   --customize-chrome-grid-gap: calc(var(--sp-card-inline-padding) / 2);
++<if expr="is_macosx">
++  display: grid;
++  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
++  grid-template-rows: 52px minmax(0, 1fr);
++  height: 100%;
++</if>
+ }
+ 
+ #container {
+@@ -40,9 +46,6 @@
+   display: block;
+   height: 100%;
+   padding: var(--sp-body-padding) 0;
+-<if expr="is_macosx">
+-  padding-top: 52px;
+-</if>
+   position: relative;
+ }
+ 
+@@ -133,8 +136,24 @@
+ }
+ 
+ <if expr="is_macosx">
+-/* Leave space beside the existing Appearance row for the native glass close. */
+-#appearance > sp-heading {
+-  padding-inline-end: 52px;
++@media (forced-colors: none) {
++  :host([native-theme]) {
++    --color-side-panel-content-background: color-mix(in srgb,
++        var(--color-sys-base-container), var(--color-sys-neutral-container) 12%);
++    --color-side-panel-card-background: color-mix(in srgb,
++        var(--color-sys-base-container), var(--color-sys-neutral-container) 42%);
++    background: var(--color-side-panel-content-background);
++  }
++}
++
++#panel-title {
++  align-self: center;
++  color: var(--cr-primary-text-color);
++  font-size: 13px;
++  font-weight: 600;
++  line-height: 18px;
++  margin: 0;
++  padding-inline: var(--sp-card-inline-padding) 52px;
++  user-select: none;
+ }
+ </if>
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
+@@ -8,14 +8,19 @@
+ 
+ export function getHtml(this: AppElement) {
+   return html`<!--_html_template_start_-->
++<if expr="is_macosx">
++<h1 id="panel-title">$i18n{title}</h1>
++</if>
+ <cr-page-selector id="container"
+     class="sp-scroller sp-scroller-top-of-page sp-scroller-bottom-of-page"
+     selected="${this.page_}" attr-for-selected="page-name">
+   <div page-name="overview" id="overviewPage">
+     <div id="appearance" class="section sp-card">
++<if expr="not is_macosx">
+       <sp-heading hide-back-button class="separator">
+         <h2 slot="heading">$i18n{appearanceHeader}</h2>
+       </sp-heading>
++</if>
+       <customize-chrome-appearance @edit-theme-click="${this.onEditThemeClick_}"
+           @wallpaper-search-click="${this.onWallpaperSearchClick_}"
+           id="appearanceElement">
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.ts
+@@ -133,6 +133,11 @@
+           this.onSetThemeEditable_.bind(this)),
+       this.apiProxy_.callbackRouter.setFooterSettings.addListener(
+           this.onSetFooterSettings_.bind(this)),
++      // <if expr="is_macosx">
++      this.apiProxy_.callbackRouter.setTheme.addListener(theme => {
++        this.toggleAttribute('native-theme', theme.followDeviceTheme);
++      }),
++      // </if>
+     ];
+ 
+     this.apiProxy_.handler.updateAttachedTabState();
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.css
+@@ -11,6 +11,36 @@
+  * #include=cr-hidden-style-lit cr-icons-lit sp-shared-style
+  * #css_wrapper_metadata_end */
+ 
++<if expr="is_macosx">
++:host {
++  --customize-segmented-track:
++      color-mix(in srgb, var(--cr-primary-text-color) 7%, transparent);
++  --customize-segmented-edge:
++      color-mix(in srgb, var(--cr-primary-text-color) 13%, transparent);
++  --customize-segmented-selected: var(--color-side-panel-card-background);
++  --customize-segmented-gap: 3px;
++  --customize-segmented-inset: 3px;
++  --customize-segmented-option-border: transparent;
++  --customize-segmented-selected-weight: 500;
++  --appearance-symbol-size: 15px;
++  --appearance-symbol-gap: 5px;
++  --appearance-symbol-systemMode: url(icons/circle.lefthalf.filled.png);
++  --appearance-symbol-lightMode: url(icons/sun.max.png);
++  --appearance-symbol-darkMode: url(icons/moon.png);
++  --theme-symbol-system: url(icons/finder.png);
++  --theme-symbol-lune: url(icons/lune-favicon.svg);
++  --theme-symbol-custom: url(icons/paintpalette.png);
++}
++
++#appearance-label {
++  color: var(--cr-secondary-text-color);
++  font-size: 11px;
++  font-weight: 600;
++  line-height: 16px;
++  margin: 2px var(--sp-card-inline-padding) 5px;
++}
++</if>
++
+ #themeSnapshot {
+   display: block;
+ }
+@@ -99,8 +129,10 @@
+ 
+ customize-color-scheme-mode {
+   display: block;
+-  margin: 16px;
+-  margin-top: 0;
++  margin: 0 var(--sp-card-inline-padding) 8px;
++<if expr="is_macosx">
++  margin-bottom: 12px;
++</if>
+ }
+ 
+ cr-theme-color-picker {
+@@ -132,6 +164,13 @@
+   padding: 10px var(--sp-card-inline-padding);
+ }
+ 
++<if expr="is_macosx">
++#contentAwareChrome {
++  margin-block-end: 0;
++  padding-block-end: 4px;
++}
++</if>
++
+ #followThemeToggleTitle {
+   font-size: inherit;
+   line-height: inherit;
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts
+@@ -13,16 +13,10 @@
+     @edit-theme-click="${this.onEditThemeClick_}"
+     hidden>
+ </customize-chrome-theme-snapshot>
++<if expr="is_macosx">
++<h2 id="appearance-label">$i18n{appearanceHeader}</h2>
++</if>
+ <customize-color-scheme-mode></customize-color-scheme-mode>
+-<div id="contentAwareChrome" class="sp-card-content"
+-    ?hidden="${!this.theme_?.contentAwareChromeSupported}">
+-  <span id="contentAwareChromeLabel">$i18n{contentAwareChrome}</span>
+-  <cr-toggle id="contentAwareChromeToggle"
+-      aria-labelledby="contentAwareChromeLabel"
+-      ?checked="${!!this.theme_?.contentAwareChrome}"
+-      @change="${this.onContentAwareChromeChange_}">
+-  </cr-toggle>
+-</div>
+ <cr-theme-color-picker id="chromeColors" ?hidden="${!this.showColorPicker_}">
+ </cr-theme-color-picker>
+ <div id="followThemeToggle" class="sp-card-content"
+@@ -40,6 +34,15 @@
+     label="${this.thirdPartyThemeName_}"
+     label-description="$i18n{currentTheme}">
+ </customize-chrome-hover-button>
++<div id="contentAwareChrome" class="sp-card-content"
++    ?hidden="${!this.theme_?.contentAwareChromeSupported}">
++  <span id="contentAwareChromeLabel">$i18n{contentAwareChrome}</span>
++  <cr-toggle id="contentAwareChromeToggle"
++      aria-labelledby="contentAwareChromeLabel"
++      ?checked="${!!this.theme_?.contentAwareChrome}"
++      @change="${this.onContentAwareChromeChange_}">
++  </cr-toggle>
++</div>
+ <div id="editButtonsContainer" ?hidden="${!this.showEditTheme_ && !this.showClassicChromeButton_}">
+   <hr class="sp-hr">
+   <cr-button id="editThemeButton"
+--- a/chrome/browser/resources/side_panel/customize_chrome/icons/BUILD.gn
++++ b/chrome/browser/resources/side_panel/customize_chrome/icons/BUILD.gn
+@@ -39,6 +39,16 @@
+     "uploaded_image.svg",
+     "writing.svg",
+   ]
++  if (is_mac) {
++    input_files += [
++      "circle.lefthalf.filled.png",
++      "finder.png",
++      "lune-favicon.svg",
++      "moon.png",
++      "paintpalette.png",
++      "sun.max.png",
++    ]
++  }
+   input_files_base_dir = rebase_path(".", "//")
+   resource_path_prefix = "icons"
+ }
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -5424,11 +5424,13 @@
+ void BrowserFrameViewMac::UpdateFloatingCustomizeClose() {
+   auto* view = GetBrowserView();
+   auto* panel = view->side_panel();
+-  const bool eligible = view->IsCustomizeChromeShowing();
+   auto* host = static_cast<views::NativeViewHost*>(
+       floating_customize_close_host_.view());
+-  if (!eligible) {
+-    if (host) {
++  // This host sits above the Views panel and cannot share its closing clip.
++  // Hide it at the start of the slide so the full-size pill never trails it.
++  if (!view->IsCustomizeChromeShowing() || panel->IsClosing()) {
++    if (host && host->GetVisible()) {
++      [floating_customize_close_ setRevealFraction:0];
+       host->SetVisible(false);
+     }
+     return;
+@@ -5447,7 +5449,10 @@
+   floating_customize_close_.contentAware =
+       view->GetProfile()->GetPrefs()->GetBoolean(prefs::kHeliumContentAwareChrome);
+   floating_customize_close_.appearance = FloatingChromeAppearance(view);
+-  host->SetVisible(true);
++  if (!host->GetVisible()) {
++    [floating_customize_close_ setRevealFraction:1];
++    host->SetVisible(true);
++  }
+ }
+ 
+ bool BrowserFrameViewMac::IsPointInFloatingWindowControls(
+--- a/chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.cc
++++ b/chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.cc
+@@ -49,6 +49,22 @@
+   customize_chrome_ui_->UpdateThemeEditable(ShouldEnableEditTheme(url));
+ }
+ 
++void SidePanelControllerViews::OnEntryShown(SidePanelEntry* entry) {
++  if (customize_chrome_ui_) {
++    customize_chrome_ui_->SetThemeEditingSession(true);
++  }
++  SidePanelControllerBase::OnEntryShown(entry);
++}
++
++void SidePanelControllerViews::OnEntryWillHide(
++    SidePanelEntry* entry,
++    SidePanelEntryHideReason reason) {
++  if (customize_chrome_ui_) {
++    customize_chrome_ui_->SetThemeEditingSession(false);
++  }
++  SidePanelControllerBase::OnEntryWillHide(entry, reason);
++}
++
+ void SidePanelControllerViews::OpenSidePanel(
+     SidePanelOpenTrigger trigger,
+     std::optional<CustomizeChromeSection> section) {
+--- a/chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.h
++++ b/chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.h
+@@ -32,6 +32,9 @@
+  private:
+   // SidePanelControllerBase:
+   void OnEntryRegisteredForUrl(const GURL& url) override;
++  void OnEntryShown(SidePanelEntry* entry) override;
++  void OnEntryWillHide(SidePanelEntry* entry,
++                       SidePanelEntryHideReason reason) override;
+ 
+   // Returns true for 1P NTP or extension NTP, otherwise returns false.
+   bool ShouldEnableEditTheme(const GURL& url) const;
+--- a/chrome/browser/ui/views/side_panel/side_panel.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel.cc
+@@ -73,18 +73,25 @@
+ constexpr int kResizeAreaMargin = 6;
+ constexpr int kSidePanelMinimumContentWidth = 200;
+ constexpr int kSidePanelDefaultWidthSnapDistance = 15;
++constexpr int kCustomizeSidePanelWidth = 312;
+ 
+ constexpr BrowserAnimationGroup kAnimationGroup =
+     SidePanelAnimations::kSidePanel;
+ 
++bool IsCustomizePanel(const BrowserView* browser_view) {
++#if BUILDFLAG(IS_MAC)
++  auto* ui = SidePanelUI::From(browser_view->browser());
++  return ui && ui->GetCurrentEntryId() == SidePanelEntryId::kCustomizeChrome;
++#else
++  return false;
++#endif
++}
++
+ gfx::RoundedCornersF GetContentRoundedCorners(const BrowserView* browser_view,
+                                               const SidePanel* side_panel) {
+-#if BUILDFLAG(IS_MAC)
+-  if (auto* ui = SidePanelUI::From(browser_view->browser());
+-      ui && ui->GetCurrentEntryId() == SidePanelEntryId::kCustomizeChrome) {
++  if (IsCustomizePanel(browser_view)) {
+     return {};
+   }
+-#endif
+   const int generic_radius = GetGenericFrameRadius();
+   const bool is_fullscreen =
+       side_panel->GetWidget() && side_panel->GetWidget()->IsFullscreen();
+@@ -127,7 +134,11 @@
+ // on top of the top-content separator and some units of background inside the
+ // toolbar (or bookmarks bar) itself. Subtract both of those to not get
+ // visually-excessive padding.
+-gfx::Insets GetBorderInsets(const SidePanel* side_panel) {
++gfx::Insets GetBorderInsets(const SidePanel* side_panel,
++                           const BrowserView* browser_view) {
++  if (IsCustomizePanel(browser_view)) {
++    return {};
++  }
+   const int content_thickness = GetBorderThickness(kContentMargin);
+   const int resize_area_thickness = GetBorderThickness(kResizeAreaMargin);
+   const bool resize_area_on_left = IsResizeAreaOnLeft(side_panel);
+@@ -402,7 +413,7 @@
+ }
+ 
+ void SidePanel::UpdateBorderInsets() {
+-  gfx::Insets border_insets = GetBorderInsets(this);
++  gfx::Insets border_insets = GetBorderInsets(this, browser_view_);
+   if (header_view_) {
+     int top_inset = header_view_->height() - border_insets.top();
+     border_insets += gfx::Insets::TLBR(top_inset, 0, 0, 0);
+@@ -428,6 +439,8 @@
+     return;
+   }
+ 
++  UpdateBorderInsets();
++
+   PrefService* pref_service =
+       browser_view_->browser()->GetProfile()->GetPrefs();
+   const base::DictValue& dict =
+@@ -443,14 +456,17 @@
+   if (std::optional<int> width_from_pref = dict.FindInt(panel_id)) {
+     SetPanelWidth(width_from_pref.value());
+   } else {
+-    SetPanelWidth(side_panel_ui->GetCurrentEntryDefaultContentWidth() +
+-                  GetBorderInsets(this).width());
++    SetPanelWidth(IsCustomizePanel(browser_view_)
++                      ? kCustomizeSidePanelWidth
++                      : side_panel_ui->GetCurrentEntryDefaultContentWidth() +
++                            GetBorderInsets(this, browser_view_).width());
+   }
+ }
+ 
+ void SidePanel::OverrideContentsWidth(int width) {
+-  if (CanOverrideWidth()) {
+-    SetPanelWidth(ClampPanelWidth(width + GetBorderInsets(this).width()));
++  if (CanOverrideWidth() && !IsCustomizePanel(browser_view_)) {
++    SetPanelWidth(
++        ClampPanelWidth(width + GetBorderInsets(this, browser_view_).width()));
+   }
+ }
+ 
+@@ -467,7 +483,7 @@
+ gfx::Size SidePanel::GetMinimumSize() const {
+   const int min_height = 0;
+   return gfx::Size(
+-      kSidePanelMinimumContentWidth + GetBorderInsets(this).width(),
++      kSidePanelMinimumContentWidth + GetBorderInsets(this, browser_view_).width(),
+       min_height);
+ }
+ 
+@@ -528,8 +544,8 @@
+       height() > 0 ? height() : browser_view_->height();
+ 
+   return gfx::Size(
+-      std::max(0, side_panel_width - GetBorderInsets(this).width()),
+-      std::max(0, side_panel_height - GetBorderInsets(this).height()));
++      std::max(0, side_panel_width - GetBorderInsets(this, browser_view_).width()),
++      std::max(0, side_panel_height - GetBorderInsets(this, browser_view_).height()));
+ }
+ 
+ void SidePanel::OnBoundsChanged(const gfx::Rect& previous_bounds) {
+@@ -607,8 +623,11 @@
+   }
+ 
+   proposed_width = ClampPanelWidth(proposed_width);
+-  const int default_width = SidePanelEntry::kSidePanelDefaultContentWidth +
+-                            GetBorderInsets(this).width();
++  const int default_width =
++      IsCustomizePanel(browser_view_)
++          ? kCustomizeSidePanelWidth
++          : SidePanelEntry::kSidePanelDefaultContentWidth +
++                GetBorderInsets(this, browser_view_).width();
+   if (std::abs(proposed_width - default_width) <
+       kSidePanelDefaultWidthSnapDistance) {
+     proposed_width = ClampPanelWidth(default_width);
+@@ -641,7 +660,7 @@
+       return;
+     }
+ 
+-    int side_panel_contents_width = width() - GetBorderInsets(this).width();
++    int side_panel_contents_width = width() - GetBorderInsets(this, browser_view_).width();
+     int browser_window_width = browser_view_->width();
+     SidePanelMetrics::RecordSidePanelResizeMetrics(
+         id.value(), side_panel_contents_width, browser_window_width);
+--- a/chrome/browser/ui/views/side_panel/side_panel_resize_area.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_resize_area.cc
+@@ -142,9 +142,18 @@
+   gfx::Rect local_bounds = parent()->GetLocalBounds();
+   gfx::Rect contents_bounds = parent()->GetContentsBounds();
+ 
++  const bool on_left =
++      side_panel_->IsRightAligned() != base::i18n::IsRTL();
++  if (contents_bounds.width() == local_bounds.width()) {
++    // A flush panel still has a resize target along the page-facing edge.
++    constexpr int kFlushResizeWidth = 6;
++    SetBounds(on_left ? 0 : local_bounds.right() - kFlushResizeWidth,
++              local_bounds.y(), kFlushResizeWidth, local_bounds.height());
++    return;
++  }
++
+   gfx::Rect resize_bounds;
+-  if ((side_panel_->IsRightAligned() && !base::i18n::IsRTL()) ||
+-      (!side_panel_->IsRightAligned() && base::i18n::IsRTL())) {
++  if (on_left) {
+     int resize_width = contents_bounds.x() - views::Separator::kThickness;
+     if (resize_width < 0) {
+       resize_width = 0;
+--- a/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.cc
++++ b/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.cc
+@@ -4,9 +4,13 @@
+ 
+ #include "chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.h"
+ 
++#include <cmath>
+ #include <limits>
++#include <utility>
+ 
++#include "base/auto_reset.h"
+ #include "base/containers/fixed_flat_map.h"
++#include "build/build_config.h"
+ #include "chrome/browser/new_tab_page/chrome_colors/generated_colors_info.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/themes/theme_service.h"
+@@ -25,8 +29,8 @@
+ #include "ui/base/mojom/themes.mojom.h"
+ #include "ui/color/color_provider.h"
+ #include "ui/color/color_provider_key.h"
+-#include "ui/color/color_provider_manager.h"
+ #include "ui/color/dynamic_color/palette_factory.h"
++#include "ui/gfx/color_utils.h"
+ #include "ui/native_theme/native_theme.h"
+ 
+ namespace {
+@@ -40,6 +44,7 @@
+       {BCV::kNeutral, SV::kNeutral},
+       {BCV::kVibrant, SV::kVibrant},
+       {BCV::kExpressive, SV::kExpressive},
++      {BCV::kCustomChroma, SV::kCustomChroma},
+   });
+   return kSchemeVariantMap.at(color_variant);
+ }
+@@ -84,9 +89,19 @@
+ 
+   ntp_custom_background_service_observation_.Observe(
+       ntp_custom_background_service_.get());
++#if BUILDFLAG(IS_MAC)
++  opening_color_ = observed_color_ = GetCustomColorState();
++#endif
+ }
+ 
+-ThemeColorPickerHandler::~ThemeColorPickerHandler() = default;
++ThemeColorPickerHandler::~ThemeColorPickerHandler() {
++#if BUILDFLAG(IS_MAC)
++  if (drag_start_) {
++    theme_service_observation_.Reset();
++    ApplyCustomColorState(*drag_start_);
++  }
++#endif
++}
+ 
+ // static
+ void ThemeColorPickerHandler::RegisterProfilePrefs(
+@@ -95,8 +110,14 @@
+ }
+ 
+ void ThemeColorPickerHandler::SetDefaultColor() {
++#if BUILDFLAG(IS_MAC)
++  EditCustomColor(theme_color_picker::mojom::CustomColorAction::kCancelDrag);
++  base::AutoReset<bool> applying(&applying_custom_color_, true);
++  theme_service_->SetMacThemePreset(/*follow_device=*/false);
++#else
+   theme_service_->SetUserColor(std::nullopt);
+   theme_service_->UseDeviceTheme(false);
++#endif
+   MaybeIncrementSeedColorChangeCount();
+ }
+ 
+@@ -104,8 +125,14 @@
+   if (theme_service_->UsingPolicyTheme()) {
+     return;
+   }
++#if BUILDFLAG(IS_MAC)
++  EditCustomColor(theme_color_picker::mojom::CustomColorAction::kCancelDrag);
++  base::AutoReset<bool> applying(&applying_custom_color_, true);
++  theme_service_->SetMacThemePreset(/*follow_device=*/true);
++#else
+   theme_service_->SetUserColor(std::nullopt);
+   theme_service_->UseDeviceTheme(true);
++#endif
+   MaybeIncrementSeedColorChangeCount();
+ }
+ 
+@@ -137,6 +164,166 @@
+   std::move(callback).Run(std::move(colors));
+ }
+ 
++void ThemeColorPickerHandler::SelectCustomColor() {
++#if BUILDFLAG(IS_MAC)
++  if (theme_service_->UsingPolicyTheme() || theme_service_->IsMacCustomTheme()) {
++    return;
++  }
++  base::AutoReset<bool> applying(&applying_custom_color_, true);
++  theme_service_->SelectMacCustomTheme();
++  MaybeIncrementSeedColorChangeCount();
++#endif
++}
++
++void ThemeColorPickerHandler::SetCustomColor(float hue,
++                                                float saturation,
++                                                bool is_drag) {
++#if BUILDFLAG(IS_MAC)
++  const auto current = GetCustomColorState();
++  if (!editing_session_ || !current || is_drag != drag_start_.has_value() ||
++      !std::isfinite(hue) || !std::isfinite(saturation) || hue < 0 ||
++      hue > 360 || saturation < 0 || saturation > 1) {
++    return;
++  }
++
++  // Store the point at appearance-independent lightness using the existing
++  // opaque RGB seed representation.
++  const CustomColorState next{
++      color_utils::HSLToSkColor(
++          {hue == 360 ? 0 : hue / 360.0, saturation, 0.5}, SK_AlphaOPAQUE),
++      ui::mojom::BrowserColorVariant::kCustomChroma, false, false};
++  if (*current == next) {
++    return;
++  }
++  if (!is_drag) {
++    SaveUndo(*current);
++  }
++  ApplyCustomColorState(next);
++  MaybeIncrementSeedColorChangeCount();
++#endif
++}
++
++void ThemeColorPickerHandler::SetEditingSession(bool active) {
++#if BUILDFLAG(IS_MAC)
++  if (editing_session_ == active) {
++    return;
++  }
++  editing_session_ = active;
++  auto drag_start = std::exchange(drag_start_, std::nullopt);
++  undo_.clear();
++  redo_.clear();
++  if (drag_start) {
++    ApplyCustomColorState(*drag_start);
++  }
++  opening_color_ = active ? GetCustomColorState() : std::nullopt;
++  UpdateTheme();
++#endif
++}
++
++void ThemeColorPickerHandler::EditCustomColor(
++    theme_color_picker::mojom::CustomColorAction action) {
++#if BUILDFLAG(IS_MAC)
++  using Action = theme_color_picker::mojom::CustomColorAction;
++  const auto current = GetCustomColorState();
++  if (!editing_session_ || !current) {
++    return;
++  }
++
++  switch (action) {
++    case Action::kBeginDrag:
++      if (!drag_start_) {
++        drag_start_ = current;
++      }
++      return;
++    case Action::kCommitDrag:
++      if (auto start = std::exchange(drag_start_, std::nullopt)) {
++        if (*start != *current) {
++          SaveUndo(*start);
++        }
++        UpdateTheme();
++      }
++      return;
++    case Action::kCancelDrag:
++      if (auto start = std::exchange(drag_start_, std::nullopt)) {
++        if (*start != *current) {
++          ApplyCustomColorState(*start);
++        } else {
++          UpdateTheme();
++        }
++      }
++      return;
++    case Action::kUndo:
++      if (!drag_start_) {
++        MoveHistory(undo_, redo_, *current);
++      }
++      return;
++    case Action::kRedo:
++      if (!drag_start_) {
++        MoveHistory(redo_, undo_, *current);
++      }
++      return;
++    case Action::kRestore:
++      if (!drag_start_ && opening_color_ && *opening_color_ != *current) {
++        SaveUndo(*current);
++        ApplyCustomColorState(*opening_color_);
++      }
++      return;
++  }
++#endif
++}
++
++#if BUILDFLAG(IS_MAC)
++std::optional<ThemeColorPickerHandler::CustomColorState>
++ThemeColorPickerHandler::GetCustomColorState() const {
++  if (!theme_service_->IsMacCustomTheme()) {
++    return std::nullopt;
++  }
++  return CustomColorState{
++      theme_service_->GetMacCustomThemeColor(),
++      theme_service_->GetBrowserColorVariant(),
++      theme_service_->GetIsGrayscale(),
++      theme_service_->UsingAutogeneratedTheme()};
++}
++
++void ThemeColorPickerHandler::ApplyCustomColorState(
++    const CustomColorState& state) {
++  if (theme_service_->UsingPolicyTheme()) {
++    return;
++  }
++  base::AutoReset<bool> applying(&applying_custom_color_, true);
++  if (state.grayscale) {
++    theme_service_->SetIsGrayscale(true);
++  } else if (state.autogenerated) {
++    theme_service_->BuildAutogeneratedThemeFromColor(state.color);
++  } else {
++    theme_service_->SetUserColorAndBrowserColorVariant(state.color,
++                                                      state.variant);
++  }
++}
++
++void ThemeColorPickerHandler::SaveUndo(const CustomColorState& state) {
++  constexpr size_t kMaxUndoEntries = 100;
++  if (undo_.size() >= kMaxUndoEntries) {
++    undo_.pop_front();
++  }
++  undo_.push_back(state);
++  redo_.clear();
++}
++
++void ThemeColorPickerHandler::MoveHistory(
++    std::deque<CustomColorState>& from,
++    std::deque<CustomColorState>& to,
++    const CustomColorState& current) {
++  if (from.empty()) {
++    return;
++  }
++  const auto state = from.back();
++  from.pop_back();
++  to.push_back(current);
++  ApplyCustomColorState(state);
++}
++#endif
++
+ void ThemeColorPickerHandler::RemoveBackgroundImage() {
+   if (ntp_custom_background_service_) {
+     ntp_custom_background_service_->ResetCustomBackgroundInfo();
+@@ -208,27 +395,17 @@
+ 
+   theme->is_dark_mode = theme_service_->BrowserUsesDarkColors();
+ #if BUILDFLAG(IS_MAC)
+-  // Sample the actual palettes so the swatches follow OS accents and appearance.
+-  for (bool system : {true, false}) {
+-    auto key = native_theme->GetColorProviderKey(nullptr);
+-    key.color_mode = theme->is_dark_mode
+-                         ? ui::ColorProviderKey::ColorMode::kDark
+-                         : ui::ColorProviderKey::ColorMode::kLight;
+-    key.user_color_source = system
+-                                ? ui::ColorProviderKey::UserColorSource::kAccent
+-                                : ui::ColorProviderKey::UserColorSource::kBaseline;
+-    key.user_color.reset();
+-    key.frame_style = system ? ui::ColorProviderKey::FrameStyle::kSystem
+-                             : ui::ColorProviderKey::FrameStyle::kDefault;
+-    const auto* colors = ui::ColorProviderManager::Get().GetColorProviderFor(key);
+-    auto preset = theme_color_picker::mojom::ThemePreset::New();
+-    preset->name = system ? l10n_util::GetStringUTF8(IDS_SETTINGS_SYSTEM) : "Lune";
+-    preset->follow_device_theme = system;
+-    preset->background = colors->GetColor(ui::kColorSysPrimary);
+-    preset->foreground = colors->GetColor(ui::kColorSysBase);
+-    preset->base = colors->GetColor(ui::kColorSysSurface);
+-    theme->presets.push_back(std::move(preset));
+-  }
++  color_utils::HSL point;
++  color_utils::SkColorToHSL(theme_service_->GetMacCustomThemeColor(), &point);
++  const auto current = GetCustomColorState();
++  const bool can_edit_history = editing_session_ && current && !drag_start_;
++  // Keep Restore tied to the committed color during a live preview.
++  const auto& committed = drag_start_ ? drag_start_ : current;
++  theme->color_wheel = theme_color_picker::mojom::ColorWheel::New(
++      point.h * 360.0, point.s, current.has_value(),
++      editing_session_ && current && opening_color_ &&
++          opening_color_ != committed,
++      can_edit_history && !undo_.empty(), can_edit_history && !redo_.empty());
+ #endif
+   client_->SetTheme(std::move(theme));
+ }
+@@ -251,6 +428,17 @@
+ }
+ 
+ void ThemeColorPickerHandler::OnThemeChanged() {
++#if BUILDFLAG(IS_MAC)
++  const auto current = GetCustomColorState();
++  if (!applying_custom_color_ && observed_color_ != current) {
++    // Another picker, policy or extension changed the profile's color.
++    // Discard stale edits rather than overriding the new choice.
++    drag_start_.reset();
++    undo_.clear();
++    redo_.clear();
++  }
++  observed_color_ = current;
++#endif
+   UpdateTheme();
+ }
+ 
+--- a/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.h
++++ b/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.h
+@@ -5,7 +5,11 @@
+ #ifndef CHROME_BROWSER_UI_WEBUI_CR_COMPONENTS_THEME_COLOR_PICKER_THEME_COLOR_PICKER_HANDLER_H_
+ #define CHROME_BROWSER_UI_WEBUI_CR_COMPONENTS_THEME_COLOR_PICKER_THEME_COLOR_PICKER_HANDLER_H_
+ 
++#include <deque>
++#include <optional>
++
+ #include "base/memory/raw_ptr.h"
++#include "build/build_config.h"
+ #include "base/scoped_observation.h"
+ #include "chrome/browser/search/background/ntp_custom_background_service.h"
+ #include "chrome/browser/themes/theme_service.h"
+@@ -53,6 +57,12 @@
+   void SetSeedColor(SkColor seed_color,
+                     ui::mojom::BrowserColorVariant variant) override;
+   void SetSeedColorFromHue(float hue) override;
++  void SelectCustomColor() override;
++  void SetCustomColor(float hue, float saturation, bool is_drag) override;
++  void EditCustomColor(
++      theme_color_picker::mojom::CustomColorAction action) override;
++
++  void SetEditingSession(bool active);
+   void GetChromeColors(bool is_dark_mode,
+                        GetChromeColorsCallback callback) override;
+   void RemoveBackgroundImage() override;
+@@ -70,6 +80,32 @@
+   // NtpCustomBackgroundServiceObserver:
+   void OnCustomBackgroundImageUpdated() override;
+ 
++#if BUILDFLAG(IS_MAC)
++  struct CustomColorState {
++    SkColor color;
++    ui::mojom::BrowserColorVariant variant;
++    bool grayscale;
++    bool autogenerated;
++
++    bool operator==(const CustomColorState&) const = default;
++  };
++
++  std::optional<CustomColorState> GetCustomColorState() const;
++  void ApplyCustomColorState(const CustomColorState& state);
++  void SaveUndo(const CustomColorState& state);
++  void MoveHistory(std::deque<CustomColorState>& from,
++                   std::deque<CustomColorState>& to,
++                   const CustomColorState& current);
++
++  bool editing_session_ = true;
++  bool applying_custom_color_ = false;
++  std::optional<CustomColorState> opening_color_;
++  std::optional<CustomColorState> observed_color_;
++  std::optional<CustomColorState> drag_start_;
++  std::deque<CustomColorState> undo_;
++  std::deque<CustomColorState> redo_;
++#endif
++
+   bool seed_color_changed_ = false;
+   raw_ptr<NtpCustomBackgroundService> ntp_custom_background_service_;
+   raw_ptr<Profile> profile_;
+--- a/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler_unittest.cc
++++ b/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler_unittest.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.h"
+ 
+ #include <functional>
++#include <limits>
+ #include <memory>
+ #include <string>
+ #include <vector>
+@@ -13,6 +14,7 @@
+ #include "base/memory/raw_ptr.h"
+ #include "base/test/gmock_move_support.h"
+ #include "base/test/mock_callback.h"
++#include "build/build_config.h"
+ #include "chrome/browser/new_tab_page/chrome_colors/generated_colors_info.h"
+ #include "chrome/browser/search/background/ntp_custom_background_service.h"
+ #include "chrome/browser/themes/theme_service.h"
+@@ -58,6 +60,7 @@
+       {BCV::kNeutral, SV::kNeutral},
+       {BCV::kVibrant, SV::kVibrant},
+       {BCV::kExpressive, SV::kExpressive},
++      {BCV::kCustomChroma, SV::kCustomChroma},
+   });
+   return kSchemeVariantMap.at(color_variant);
+ }
+@@ -92,7 +95,10 @@
+ 
+ class MockThemeService : public ThemeService {
+  public:
+-  MockThemeService() : ThemeService(nullptr, theme_helper_) { set_ready(); }
++  explicit MockThemeService(Profile* profile)
++      : ThemeService(profile, theme_helper_) {
++    set_ready();
++  }
+   using ThemeService::NotifyThemeChanged;
+   MOCK_METHOD(void, UseDefaultTheme, ());
+   MOCK_CONST_METHOD0(UsingDefaultTheme, bool());
+@@ -111,6 +117,10 @@
+   MOCK_METHOD(void,
+               SetUserColorAndBrowserColorVariant,
+               (SkColor, ui::mojom::BrowserColorVariant));
++#if BUILDFLAG(IS_MAC)
++  MOCK_METHOD(void, SetMacThemePreset, (bool), (override));
++  MOCK_METHOD(void, SelectMacCustomTheme, (), (override));
++#endif
+   MOCK_METHOD(void, SetIsGrayscale, (bool));
+   MOCK_CONST_METHOD0(GetIsGrayscale, bool());
+ 
+@@ -124,7 +134,8 @@
+       ThemeServiceFactory::GetInstance(),
+       base::BindRepeating([](content::BrowserContext* context)
+                               -> std::unique_ptr<KeyedService> {
+-        return std::make_unique<testing::NiceMock<MockThemeService>>();
++        return std::make_unique<testing::NiceMock<MockThemeService>>(
++            Profile::FromBrowserContext(context));
+       }));
+   return profile_builder.Build();
+ }
+@@ -470,6 +481,10 @@
+                       ThemeUpdateSource::kCustomBackgroundService));
+ 
+ TEST_F(ThemeColorPickerHandlerTest, SetDefaultColor) {
++#if BUILDFLAG(IS_MAC)
++  EXPECT_CALL(mock_theme_service(), SetMacThemePreset(false));
++  handler().SetDefaultColor();
++#else
+   std::optional<SkColor> color;
+   EXPECT_CALL(mock_theme_service(), SetUserColor)
+       .Times(1)
+@@ -479,7 +494,38 @@
+   handler().SetDefaultColor();
+ 
+   EXPECT_FALSE(color.has_value());
++#endif
++}
++
++#if BUILDFLAG(IS_MAC)
++TEST_F(ThemeColorPickerHandlerTest, SetCustomColorValidatesAndEncodesPoint) {
++  using Variant = ui::mojom::BrowserColorVariant;
++  ON_CALL(mock_theme_service(), GetUserColor())
++      .WillByDefault(testing::Return(std::optional<SkColor>(SK_ColorBLUE)));
++  EXPECT_CALL(mock_theme_service(),
++              SetUserColorAndBrowserColorVariant(_, Variant::kCustomChroma))
++      .Times(0);
++  handler().SetCustomColor(200, -0.1, /*is_drag=*/false);
++  handler().SetCustomColor(200, 1.1, /*is_drag=*/false);
++  handler().SetCustomColor(-1, 0.5, /*is_drag=*/false);
++  handler().SetCustomColor(std::numeric_limits<float>::quiet_NaN(), 0.5, /*is_drag=*/false);
++  Mock::VerifyAndClearExpectations(&mock_theme_service());
++
++  EXPECT_CALL(mock_theme_service(), SetUserColorAndBrowserColorVariant(
++                                        SK_ColorCYAN, Variant::kCustomChroma));
++  handler().SetCustomColor(180, 1, /*is_drag=*/false);
++}
++
++TEST_F(ThemeColorPickerHandlerTest, ManagedPolicyRejectsCustomColor) {
++  ON_CALL(mock_theme_service(), UsingPolicyTheme())
++      .WillByDefault(testing::Return(true));
++  EXPECT_CALL(mock_theme_service(), SelectMacCustomTheme()).Times(0);
++  EXPECT_CALL(mock_theme_service(), SetUserColorAndBrowserColorVariant(_, _))
++      .Times(0);
++  handler().SelectCustomColor();
++  handler().SetCustomColor(180, 1, /*is_drag=*/false);
+ }
++#endif
+ 
+ TEST_F(ThemeColorPickerHandlerTest, SetGreyDefaultColor) {
+   bool is_grey;
+--- a/chrome/browser/ui/webui/feature_showcase/feature_showcase_ui.cc
++++ b/chrome/browser/ui/webui/feature_showcase/feature_showcase_ui.cc
+@@ -131,6 +131,11 @@
+       // cr-theme-color-picker strings:
+       {"close", IDS_CLOSE},
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
++      {"themeSystem", IDS_SETTINGS_SYSTEM},
++      {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
++      {"themeRestore", IDS_ACCNAME_RESTORE},
++      {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
++      {"themeSaturation", IDS_NTP_CUSTOMIZE_THEME_SATURATION},
+       {"colorsContainerLabel", IDS_NTP_THEMES_CONTAINER_LABEL},
+       {"defaultColorName", IDS_NTP_CUSTOMIZE_DEFAULT_LABEL},
+       {"hueSliderTitle", IDS_NTP_CUSTOMIZE_COLOR_HUE_SLIDER_TITLE},
+--- a/chrome/browser/ui/webui/new_tab_page/core/ntp_load_time_data.cc
++++ b/chrome/browser/ui/webui/new_tab_page/core/ntp_load_time_data.cc
+@@ -348,6 +348,11 @@
+ 
+       // Customize button and dialog.
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
++      {"themeSystem", IDS_SETTINGS_SYSTEM},
++      {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
++      {"themeRestore", IDS_ACCNAME_RESTORE},
++      {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
++      {"themeSaturation", IDS_NTP_CUSTOMIZE_THEME_SATURATION},
+       {"hueSliderTitle", IDS_NTP_CUSTOMIZE_COLOR_HUE_SLIDER_TITLE},
+       {"hueSliderAriaLabel", IDS_NTP_CUSTOMIZE_COLOR_HUE_SLIDER_ARIA_LABEL},
+       {"customizeButton", IDS_NTP_CUSTOMIZE_BUTTON_LABEL},
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -2629,6 +2629,11 @@
+       // Color picker strings:
+       {"colorsContainerLabel", IDS_NTP_THEMES_CONTAINER_LABEL},
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
++      {"themeSystem", IDS_SETTINGS_SYSTEM},
++      {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
++      {"themeRestore", IDS_ACCNAME_RESTORE},
++      {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
++      {"themeSaturation", IDS_NTP_CUSTOMIZE_THEME_SATURATION},
+       {"defaultColorName", IDS_NTP_CUSTOMIZE_DEFAULT_LABEL},
+       {"greyDefaultColorName", IDS_NTP_CUSTOMIZE_GREY_DEFAULT_LABEL},
+       {"hueSliderTitle", IDS_NTP_CUSTOMIZE_COLOR_HUE_SLIDER_TITLE},
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
+@@ -127,6 +127,12 @@
+       {"classicChrome", IDS_NTP_CUSTOMIZE_NO_BACKGROUND_LABEL},
+       {"colorsContainerLabel", IDS_NTP_THEMES_CONTAINER_LABEL},
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
++      {"themeLabel", IDS_SETTINGS_THEMES},
++      {"themeNative", IDS_NTP_CUSTOMIZE_THEME_NATIVE},
++      {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
++      {"themeRestore", IDS_ACCNAME_RESTORE},
++      {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
++      {"themeSaturation", IDS_NTP_CUSTOMIZE_THEME_SATURATION},
+       {"currentTheme", IDS_NTP_CUSTOMIZE_CHROME_CURRENT_THEME_LABEL},
+       {"defaultColorName", IDS_NTP_CUSTOMIZE_DEFAULT_LABEL},
+       {"greyDefaultColorName", IDS_NTP_CUSTOMIZE_GREY_DEFAULT_LABEL},
+@@ -398,6 +404,13 @@
+   }
+ }
+ 
++void CustomizeChromeUI::SetThemeEditingSession(bool active) {
++  theme_editing_session_ = active;
++  if (theme_color_picker_handler_) {
++    theme_color_picker_handler_->SetEditingSession(active);
++  }
++}
++
+ base::WeakPtr<CustomizeChromeUI> CustomizeChromeUI::GetWeakPtr() {
+   return weak_ptr_factory_.GetWeakPtr();
+ }
+@@ -521,6 +534,7 @@
+       std::move(handler), std::move(client),
+       NtpCustomBackgroundServiceFactory::GetForProfile(profile_),
+       web_contents_);
++  theme_color_picker_handler_->SetEditingSession(theme_editing_session_);
+ }
+ 
+ #if !BUILDFLAG(IS_ANDROID)
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.h
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.h
+@@ -90,6 +90,7 @@
+ 
+   // Passthrough that calls to CustomizeChromePage's UpdateThemeEditable.
+   void UpdateThemeEditable(bool is_theme_editable);
++  void SetThemeEditingSession(bool active);
+ 
+   // Gets a weak pointer to this object.
+   base::WeakPtr<CustomizeChromeUI> GetWeakPtr();
+@@ -219,6 +220,7 @@
+       side_panel::customize_chrome::mojom::CustomizeToolbarHandlerFactory>
+       customize_toolbar_handler_factory_receiver_{this};
+ #endif
++  bool theme_editing_session_ = false;
+   const int64_t id_;
+ 
+   base::WeakPtrFactory<CustomizeChromeUI> weak_ptr_factory_{this};
+--- a/chrome/browser/ui/webui/signin/profile_customization_ui.cc
++++ b/chrome/browser/ui/webui/signin/profile_customization_ui.cc
+@@ -93,6 +93,11 @@
+       // Color picker strings:
+       {"close", IDS_CLOSE},
+       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
++      {"themeSystem", IDS_SETTINGS_SYSTEM},
++      {"themeCustom", IDS_NTP_CUSTOMIZE_THEME_CUSTOM},
++      {"themeRestore", IDS_ACCNAME_RESTORE},
++      {"themeHue", IDS_NTP_CUSTOMIZE_THEME_HUE},
++      {"themeSaturation", IDS_NTP_CUSTOMIZE_THEME_SATURATION},
+       {"colorsContainerLabel", IDS_NTP_THEMES_CONTAINER_LABEL},
+       {"defaultColorName", IDS_NTP_CUSTOMIZE_DEFAULT_LABEL},
+       {"hueSliderTitle", IDS_NTP_CUSTOMIZE_COLOR_HUE_SLIDER_TITLE},
+--- a/chrome/browser/ui/webui_browser/webui_browser_window.cc
++++ b/chrome/browser/ui/webui_browser/webui_browser_window.cc
+@@ -104,6 +104,7 @@
+       {BCV::kNeutral, SV::kNeutral},
+       {BCV::kVibrant, SV::kVibrant},
+       {BCV::kExpressive, SV::kExpressive},
++      {BCV::kCustomChroma, SV::kCustomChroma},
+   });
+   return kSchemeVariantMap.at(color_variant);
+ }
+--- a/ui/webui/resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.html.ts
++++ b/ui/webui/resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.html.ts
+@@ -13,7 +13,9 @@
+     @selected-changed="${this.onSelectedChanged_}">
+   ${this.colorSchemeModeOptions_.map(item => html`
+     <segmented-button-option name="${item.id}" title="${this.i18n(item.id)}">
+-      <div id="${item.id}" class="cr-icon" slot="prefix-icon"></div>
++      <span class="appearance-symbol" slot="prefix-icon" aria-hidden="true"
++          style="--appearance-symbol:var(--appearance-symbol-${item.id})">
++      </span>
+       ${this.i18n(item.id)}
+     </segmented-button-option>
+   `)}
+--- a/ui/webui/resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.ts
++++ b/ui/webui/resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.ts
+@@ -21,6 +21,10 @@
+ 
+ export const colorSchemeModeOptions: ColorSchemeModeOption[] = [
+   {
++    id: 'systemMode',
++    value: ColorSchemeMode.kSystem,
++  },
++  {
+     id: 'lightMode',
+     value: ColorSchemeMode.kLight,
+   },
+@@ -28,10 +32,6 @@
+     id: 'darkMode',
+     value: ColorSchemeMode.kDark,
+   },
+-  {
+-    id: 'systemMode',
+-    value: ColorSchemeMode.kSystem,
+-  },
+ ];
+ 
+ const CustomizeColorSchemeModeElementBase = I18nMixinLit(CrLitElement);
+--- a/ui/webui/resources/cr_components/customize_color_scheme_mode/segmented_button.css
++++ b/ui/webui/resources/cr_components/customize_color_scheme_mode/segmented_button.css
+@@ -9,25 +9,19 @@
+  * #css_wrapper_metadata_end */
+ 
+ :host {
+-  --segmented-button-height: 40px;
+-  --segmented-button-width: 100%;
+-  --segmented-button-padding: 2px;
+-  --segmented-button-radius: 11px;
+   --segmented-button-child-radius: 8px;
++  display: block;
+ }
+ 
+ cr-radio-group {
+-  border: 1px var(--color-segmented-button-border,
+-      var(--cr-fallback-color-tonal-outline)) solid;
+-  border-radius: var(--segmented-button-radius);
+-  box-sizing: border-box;
++  background: var(--customize-segmented-track, transparent);
++  border-radius: 10px;
++  box-shadow: inset 0 0 0 1px var(--customize-segmented-edge, transparent);
+   display: grid;
+-  grid-auto-columns: 1fr;
++  gap: var(--customize-segmented-gap, 6px);
++  grid-auto-columns: minmax(0, 1fr);
+   grid-auto-flow: column;
+-  height: var(--segmented-button-height);
+-  padding: var(--segmented-button-padding);
+-  width: var(--segmented-button-width);
+-  gap: var(--segmented-button-padding);
++  padding: var(--customize-segmented-inset, 0);
+ }
+ 
+ :host ::slotted(*) {
+--- a/ui/webui/resources/cr_components/customize_color_scheme_mode/segmented_button_option.css
++++ b/ui/webui/resources/cr_components/customize_color_scheme_mode/segmented_button_option.css
+@@ -9,104 +9,51 @@
+  * #css_wrapper_metadata_end */
+ 
+ #button {
++  border: 1px solid var(--customize-segmented-option-border,
++      var(--cr-separator-color));
+   border-radius: var(--segmented-button-child-radius);
+   box-sizing: border-box;
+-  color: var(--color-segmented-button-foreground-unchecked,
+-      var(--cr-fallback-color-on-surface-subtle));
+-  container-type: inline-size;
++  color: var(--cr-primary-text-color);
+   cursor: pointer;
+-  font-size: 12px;
+-  font-weight: 500;
+   height: 100%;
+-  overflow: hidden;
+-  padding: 4px 8px;
++  min-height: 32px;
++  overflow-wrap: anywhere;
++  padding: 4px 6px;
+   position: relative;
+-}
+-
+-#button:focus {
+-  outline: none;
++  text-align: center;
+ }
+ 
+ :host([checked]) #button {
+-  background-color: var(--color-segmented-button-checked,
+-      var(--cr-fallback-color-primary));
+-  color: var(--color-segmented-button-foreground-checked,
+-      var(--cr-fallback-color-on-primary));
+-}
+-
+-#button #overlay {
+-  border-radius: var(--segmented-button-child-radius);
+-  box-sizing: border-box;
+-  height: 100%;
+-  left: 0;
+-  position: absolute;
+-  top: 0;
+-  width: 100%;
++  background: var(--customize-segmented-selected,
++      var(--color-theme-color-picker-option-background,
++      var(--cr-fallback-color-neutral-container)));
++  border-color: var(--customize-segmented-edge, currentColor);
++  font-weight: var(--customize-segmented-selected-weight, 600);
+ }
+ 
+-#button:hover #overlay {
+-  background-color: var(--color-segmented-button-hover,
+-      var(--cr-hover-on-subtle-background-color));
+-}
+-
+-#button:focus-visible #overlay {
+-  border: 2px var(--color-segmented-button-border) solid;
+-}
+-
+-cr-ripple {
+-  color: var(--color-segmented-button-ripple,
+-      var(--cr-active-neutral-on-subtle-background-color));
++#button:focus-visible {
++  outline: 2px solid var(--cr-focus-outline-color);
++  outline-offset: 2px;
+ }
+ 
+ #container {
+   align-items: center;
+   display: flex;
+-  flex-direction: row;
++  gap: var(--appearance-symbol-gap, 0);
+   height: 100%;
+   justify-content: center;
+ }
+ 
+-#button ::slotted(.cr-icon) {
+-  --cr-icon-color: var(--color-segmented-button-foreground-unchecked,
+-      var(--cr-fallback-color-on-surface-subtle));
+-  --cr-icon-button-margin-start: 0;
+-  --cr-icon-ripple-margin: 8px;
+-  --cr-icon-ripple-size: 16px;
+-  --cr-icon-size: 16px;
++::slotted(.appearance-symbol) {
++  background-color: currentColor;
++  display: block;
++  flex: none;
++  height: var(--appearance-symbol-size, 0);
++  mask: var(--appearance-symbol, none) center / contain no-repeat;
++  width: var(--appearance-symbol-size, 0);
+ }
+ 
+-:host([checked]) #prefixIcon,
+-#checkmark {
++#checkmark,
++#overlay {
+   display: none;
+-  flex-shrink: 0;
+-}
+-
+-:host([checked]) #checkmark {
+-  display: block;
+-  fill: var(--color-segmented-button-foreground-checked,
+-      var(--cr-fallback-color-on-primary));
+-  height: 16px;
+-  margin-inline-end: 8px;
+-  width: 16px;
+-}
+-
+-#content {
+-  line-height: 16px;
+-  max-height: 100%;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-  white-space: nowrap;
+-}
+-
+-/* Drop the icons when there is not enough room to show them alongside the
+- * label (either in a narrow side panel or when text-size-adjust boosts the
+- * font size). The 16px icon and its 8px margin take a fixed 24px, while the
+- * longest English label ("Device") is ~5.3ch wide; unlike em, ch resolves
+- * against the computed font metrics and therefore scales with
+- * text-size-adjust. */
+-@container (max-width: calc(24px + 6ch)) {
+-  :host([checked]) #checkmark,
+-  #prefixIcon {
+-    display: none;
+-  }
+ }
+--- a/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.css
++++ b/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.css
+@@ -53,3 +53,159 @@
+ :host-context([webui-rounded-icons]) #colorPickerIcon {
+   -webkit-mask-image: url(chrome://resources/images/colorize.svg);
+ }
++
++.theme-group {
++  padding: var(--cr-theme-color-picker-grid-padding);
++}
++
++#theme-label {
++  color: var(--cr-secondary-text-color);
++  font-size: 11px;
++  font-weight: 600;
++  line-height: 16px;
++  margin: 0 0 5px;
++}
++
++.theme-choices {
++  background: var(--customize-segmented-track);
++  border-radius: 10px;
++  box-shadow: inset 0 0 0 1px var(--customize-segmented-edge);
++  display: grid;
++  gap: var(--customize-segmented-gap);
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++  padding: var(--customize-segmented-inset);
++}
++
++.theme-choices label {
++  display: grid;
++  min-width: 0;
++  position: relative;
++}
++
++.theme-choices input {
++  height: 100%;
++  inset: 0;
++  margin: 0;
++  opacity: 0;
++  position: absolute;
++  width: 100%;
++}
++
++.theme-option {
++  align-items: center;
++  border: 1px solid transparent;
++  border-radius: 8px;
++  box-sizing: border-box;
++  color: var(--cr-primary-text-color);
++  display: flex;
++  gap: var(--appearance-symbol-gap);
++  justify-content: center;
++  min-height: 32px;
++  overflow-wrap: anywhere;
++  padding: 4px 6px;
++  text-align: center;
++}
++
++.theme-symbol {
++  background-color: currentColor;
++  flex: none;
++  height: var(--appearance-symbol-size);
++  mask: var(--theme-symbol, none) center / contain no-repeat;
++  width: var(--appearance-symbol-size);
++}
++
++[data-theme='system'] {
++  --theme-symbol: var(--theme-symbol-system);
++}
++
++[data-theme='lune'] {
++  --theme-symbol: var(--theme-symbol-lune);
++}
++
++[data-theme='lune'] .theme-symbol {
++  /* SF Symbol bitmaps have transparent padding inside the 15px slot. */
++  mask-size: 12px;
++}
++
++[data-theme='custom'] {
++  --theme-symbol: var(--theme-symbol-custom);
++}
++
++.theme-choices input:checked + .theme-option {
++  background: var(--customize-segmented-selected);
++  border-color: var(--customize-segmented-edge);
++}
++
++.theme-choices input:focus-visible + .theme-option,
++#colorWheel:focus-visible {
++  outline: 2px solid var(--cr-focus-outline-color);
++  outline-offset: 2px;
++}
++
++#customColorEditor {
++  display: grid;
++  gap: 10px;
++  margin: 14px auto 0;
++  max-width: 220px;
++  padding: var(--cr-theme-color-picker-grid-padding);
++}
++
++#colorWheel {
++  --wheel-lightness: 70%;
++  --wheel-border: rgb(0 0 0 / 34%);
++  aspect-ratio: 1;
++  background:
++      radial-gradient(circle closest-side,
++          hsl(0 0% var(--wheel-lightness)),
++          hsl(0 0% var(--wheel-lightness) / 0)),
++      conic-gradient(in srgb,
++          hsl(0 100% var(--wheel-lightness)),
++          hsl(60 100% var(--wheel-lightness)),
++          hsl(120 100% var(--wheel-lightness)),
++          hsl(180 100% var(--wheel-lightness)),
++          hsl(240 100% var(--wheel-lightness)),
++          hsl(300 100% var(--wheel-lightness)),
++          hsl(360 100% var(--wheel-lightness)));
++  border-radius: 50%;
++  box-shadow: inset 0 0 0 1px var(--wheel-border);
++  cursor: crosshair;
++  justify-self: center;
++  position: relative;
++  touch-action: none;
++  width: min(100%, 184px);
++}
++
++#colorWheel.dark {
++  --wheel-lightness: 44%;
++  --wheel-border: rgb(255 255 255 / 28%);
++}
++
++#wheelMarker {
++  border: 2px solid white;
++  border-radius: 50%;
++  box-shadow: 0 0 0 1.5px black;
++  box-sizing: border-box;
++  height: 13px;
++  pointer-events: none;
++  position: absolute;
++  transform: translate(-50%, -50%);
++  width: 13px;
++}
++
++.restore-color {
++  background: transparent;
++  border: 1px solid var(--cr-separator-color);
++  border-radius: 8px;
++  color: var(--cr-primary-text-color);
++  cursor: pointer;
++  font: inherit;
++  justify-self: center;
++  padding: 4px 12px;
++}
++
++@media (forced-colors: active) {
++  #colorWheel,
++  #wheelMarker {
++    forced-color-adjust: none;
++  }
++}
+--- a/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.html.ts
++++ b/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.html.ts
+@@ -9,19 +9,48 @@
+ export function getHtml(this: ThemeColorPickerElement) {
+   // clang-format off
+   return html`
++  ${this.theme_?.colorWheel ? html`
++  <div class="theme-group">
++    <h2 id="theme-label">${this.i18n('themeLabel')}</h2>
++    <div class="theme-choices" role="radiogroup" aria-labelledby="theme-label">
++      ${this.getWheelThemeChoices_().map(({id, label, checked}) => html`
++        <label data-theme="${id}">
++          <input type="radio" name="browser-theme" value="${id}"
++              .checked="${checked}"
++              @click="${this.onWheelThemeClick_}"
++              @change="${this.onWheelThemeChange_}">
++          <span class="theme-option">
++            <span class="theme-symbol" aria-hidden="true"></span>${label}
++          </span>
++        </label>
++      `)}
++    </div>
++  </div>
++  ${this.theme_.colorWheel.selected ? html`
++    <div id="customColorEditor">
++      <div id="colorWheel" tabindex="0" role="group"
++          aria-label="${this.wheelAccessibleLabel_()}"
++          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"
++          class="${this.theme_.isDarkMode ? 'dark' : ''}"
++          @keydown="${this.onWheelKeydown_}"
++          @pointerdown="${this.onWheelPointerdown_}"
++          @pointermove="${this.onWheelPointermove_}"
++          @pointerup="${this.onWheelPointerup_}"
++          @lostpointercapture="${this.onWheelLostpointercapture_}">
++        <div id="wheelMarker" style="${this.wheelMarkerStyle_()}"></div>
++      </div>
++      ${this.theme_.colorWheel.canRestore ? html`
++        <button type="button" class="restore-color"
++            @click="${this.onRestoreClick_}">
++          ${this.i18n('themeRestore')}
++        </button>
++      ` : ''}
++    </div>
++  ` : ''}
++  ` : html`
+ <!-- TODO(crbug.com/40881996): Make grid adaptive. -->
+ <cr-grid columns="${this.columns}" role="radiogroup"
+     aria-label="${this.i18n('colorsContainerLabel')}">
+-  ${(this.theme_?.presets ?? []).map(preset => html`
+-    <cr-theme-color .backgroundColor="${preset.background}"
+-        .baseColor="${preset.base}" .foregroundColor="${preset.foreground}"
+-        title="${preset.name}" aria-label="${preset.name}" role="radio"
+-        ?checked="${this.isPresetSelected_(preset.followDeviceTheme)}"
+-        aria-checked="${this.isPresetSelected_(preset.followDeviceTheme)}"
+-        tabindex="${this.tabIndex_(this.isPresetSelected_(preset.followDeviceTheme))}"
+-        data-system="${preset.followDeviceTheme}" @click="${this.onPresetClick_}">
+-    </cr-theme-color>
+-  `)}
+   <cr-theme-color id="greyDefaultColor"
+       .backgroundColor="${this.greyDefaultColor_.background}"
+       .baseColor="${this.greyDefaultColor_.base}"
+@@ -60,6 +89,8 @@
+     @selected-hue-changed="${this.onSelectedHueChanged_}">
+ </cr-theme-hue-slider-dialog>
+ 
++`}
++
+ ${this.showManagedDialog_ ? html`
+   <managed-dialog @close="${this.onManagedDialogClose_}"
+       title="${this.i18n('managedColorsTitle')}"
+--- a/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.mojom
++++ b/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.mojom
+@@ -7,13 +7,23 @@
+ import "skia/public/mojom/skcolor.mojom";
+ import "ui/base/mojom/themes.mojom";
+ 
+-// A built-in theme choice, with colors from its native color provider.
+-struct ThemePreset {
+-  string name;
+-  bool follow_device_theme;
+-  skia.mojom.SkColor background;
+-  skia.mojom.SkColor foreground;
+-  skia.mojom.SkColor base;
++// The editable color point for the macOS theme picker.
++struct ColorWheel {
++  float hue;
++  float saturation;
++  bool selected;
++  bool can_restore;
++  bool can_undo;
++  bool can_redo;
++};
++
++enum CustomColorAction {
++  kBeginDrag,
++  kCommitDrag,
++  kCancelDrag,
++  kUndo,
++  kRedo,
++  kRestore,
+ };
+ 
+ // A generic theme.
+@@ -44,7 +54,7 @@
+   ui.mojom.BrowserColorVariant browser_color_variant;
+   // True if following the OS theme.
+   bool follow_device_theme;
+-  array<ThemePreset> presets;
++  ColorWheel? color_wheel;
+ };
+ 
+ struct ChromeColor {
+@@ -93,6 +103,15 @@
+   // Sets a Chrome theme generated from |hue|.
+   SetSeedColorFromHue(float hue);
+ 
++  // Restores the retained point or activates the initial Custom theme.
++  SelectCustomColor();
++
++  // Sets the Custom theme to a normalized hue (degrees) and saturation.
++  SetCustomColor(float hue, float saturation, bool is_drag);
++
++  // Edits are grouped by drag and retained only for the current editor session.
++  EditCustomColor(CustomColorAction action);
++
+   // Removes background image.
+   RemoveBackgroundImage();
+ };
+--- a/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.ts
++++ b/ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.ts
+@@ -18,21 +18,17 @@
+ import {EMPTY_COLOR} from './color_utils.js';
+ import type {Color, SelectedColor} from './color_utils.js';
+ import {ColorType, DARK_BASELINE_BLUE_COLOR, DARK_BASELINE_GREY_COLOR, LIGHT_BASELINE_BLUE_COLOR, LIGHT_BASELINE_GREY_COLOR} from './color_utils.js';
+-import type {ThemeColorElement} from './theme_color.js';
+ import {getCss} from './theme_color_picker.css.js';
+ import {getHtml} from './theme_color_picker.html.js';
+-import {browserProxyFactory} from './theme_color_picker.mojom-webui.js';
++import {browserProxyFactory, CustomColorAction} from './theme_color_picker.mojom-webui.js';
+ import type {ChromeColor, Theme, ThemeColorPickerHandlerInterface} from './theme_color_picker.mojom-webui.js';
+ import type {ThemeHueSliderDialogElement} from './theme_hue_slider_dialog.js';
+ 
+ const ThemeColorPickerElementBase = I18nMixinLit(CrLitElement);
+ 
+-export interface ThemeColorPickerElement {
+-  $: {
+-    customColor: ThemeColorElement,
+-    colorPickerIcon: HTMLElement,
+-    hueSlider: ThemeHueSliderDialogElement,
+-  };
++interface WheelPoint {
++  hue: number;
++  saturation: number;
+ }
+ 
+ export class ThemeColorPickerElement extends ThemeColorPickerElementBase {
+@@ -59,6 +55,7 @@
+       isGreyDefaultColorSelected_: {type: Boolean, state: true},
+       isCustomColorSelected_: {type: Boolean, state: true},
+       customColor_: {type: Object, state: true},
++      wheelPoint_: {type: Object, state: true},
+       showManagedDialog_: {type: Boolean, state: true},
+       columns: {type: Number},
+     };
+@@ -73,6 +70,11 @@
+   protected accessor isGreyDefaultColorSelected_: boolean = false;
+   protected accessor isCustomColorSelected_: boolean = false;
+   protected accessor customColor_: Color = EMPTY_COLOR;
++  protected accessor wheelPoint_: WheelPoint = {hue: 0, saturation: 0};
++  private wheelPointerId_: number|null = null;
++  private wheelApplyTimer_: number|null = null;
++  private readonly historyKeydown_ = (e: KeyboardEvent) =>
++      this.handleHistoryKeydown_(e);
+   private setThemeListenerId_: number|null = null;
+ 
+   protected accessor showManagedDialog_: boolean = false;
+@@ -83,16 +85,26 @@
+ 
+   override connectedCallback() {
+     super.connectedCallback();
++    document.addEventListener('keydown', this.historyKeydown_);
+     this.setThemeListenerId_ =
+         browserProxyFactory.getInstance().callbackRouter.setTheme.addListener(
+             theme => {
+               this.theme_ = theme;
++              if (this.wheelPointerId_ === null && theme.colorWheel) {
++                this.restoreWheelPoint_();
++              }
+             });
+     this.handler_.updateTheme();
+   }
+ 
+   override disconnectedCallback() {
+     super.disconnectedCallback();
++    document.removeEventListener('keydown', this.historyKeydown_);
++    if (this.wheelPointerId_ !== null) {
++      this.wheelPointerId_ = null;
++      this.cancelWheelApply_();
++      this.handler_.editCustomColor(CustomColorAction.kCancelDrag);
++    }
+     browserProxyFactory.getInstance().callbackRouter.removeListener(
+         this.setThemeListenerId_!);
+   }
+@@ -103,6 +115,9 @@
+     const changedPrivateProperties =
+         changedProperties as Map<PropertyKey, unknown>;
+     if (changedPrivateProperties.has('theme_')) {
++      if (this.theme_?.colorWheel) {
++        return;
++      }
+       this.defaultColor_ = this.computeDefaultColor_();
+       this.greyDefaultColor_ = this.computeGreyDefaultColor_();
+       this.updateColors_();
+@@ -124,6 +139,10 @@
+   override updated(changedProperties: PropertyValues<this>) {
+     super.updated(changedProperties);
+ 
++    if (this.theme_?.colorWheel) {
++      return;
++    }
++
+     const changedPrivateProperties =
+         changedProperties as Map<PropertyKey, unknown>;
+ 
+@@ -151,7 +170,7 @@
+       return {type: ColorType.NONE};
+     }
+     if (this.theme_.followDeviceTheme) {
+-      return {type: this.theme_.presets.length ? ColorType.NONE : ColorType.CUSTOM};
++      return {type: ColorType.CUSTOM};
+     }
+     if (this.theme_.isGreyBaseline) {
+       return {type: ColorType.GREY};
+@@ -209,20 +228,202 @@
+     return selected ? '0' : '-1';
+   }
+ 
+-  protected isPresetSelected_(system: boolean): boolean {
+-    return system ? !!this.theme_?.followDeviceTheme :
+-                    this.isDefaultColorSelected_;
++  protected onWheelThemeClick_(e: MouseEvent) {
++    if (this.handleClickForManagedColors_()) {
++      e.preventDefault();
++    }
++  }
++
++  protected getWheelThemeChoices_() {
++    const theme = this.theme_;
++    assert(theme?.colorWheel);
++    return [
++      {
++        id: 'system',
++        label: this.i18n('themeNative'),
++        checked: theme.followDeviceTheme,
++      },
++      {
++        id: 'lune',
++        label: 'Lune',
++        checked: !theme.followDeviceTheme && !theme.colorWheel.selected &&
++            !theme.hasThirdPartyTheme && !theme.colorsManagedByPolicy,
++      },
++      {
++        id: 'custom',
++        label: this.i18n('themeCustom'),
++        checked: theme.colorWheel.selected,
++      },
++    ];
++  }
++
++  protected onWheelThemeChange_(e: Event) {
++    switch ((e.currentTarget as HTMLInputElement).value) {
++      case 'system':
++        this.handler_.setSystemColor();
++        break;
++      case 'lune':
++        this.handler_.setDefaultColor();
++        break;
++      case 'custom':
++        this.handler_.selectCustomColor();
++        break;
++    }
+   }
+ 
+-  protected onPresetClick_(e: Event) {
+-    if (this.handleClickForManagedColors_()) {
++  protected wheelMarkerStyle_(): string {
++    const angle = this.wheelPoint_.hue * Math.PI / 180;
++    const radius = 50 * this.wheelPoint_.saturation;
++    const x = 50 + radius * Math.sin(angle);
++    const y = 50 - radius * Math.cos(angle);
++    return `left:${x}%;top:${y}%`;
++  }
++
++  protected onWheelPointerdown_(e: PointerEvent) {
++    if (e.button !== 0 || this.wheelPointerId_ !== null) {
++      return;
++    }
++    this.wheelPointerId_ = e.pointerId;
++    const wheel = e.currentTarget as HTMLElement;
++    wheel.focus({preventScroll: true});
++    wheel.setPointerCapture(e.pointerId);
++    this.handler_.editCustomColor(CustomColorAction.kBeginDrag);
++    this.updatePointerPoint_(e);
++    this.scheduleWheelApply_();
++  }
++
++  protected onWheelPointermove_(e: PointerEvent) {
++    if (this.wheelPointerId_ === e.pointerId) {
++      this.updatePointerPoint_(e);
++      this.scheduleWheelApply_();
++    }
++  }
++
++  protected onWheelPointerup_(e: PointerEvent) {
++    if (this.wheelPointerId_ !== e.pointerId) {
++      return;
++    }
++    this.updatePointerPoint_(e);
++    this.wheelPointerId_ = null;
++    this.cancelWheelApply_();
++    this.applyWheelPoint_(true);
++    this.handler_.editCustomColor(CustomColorAction.kCommitDrag);
++  }
++
++  protected onWheelLostpointercapture_(e: PointerEvent) {
++    if (this.wheelPointerId_ === e.pointerId) {
++      this.wheelPointerId_ = null;
++      this.cancelWheelApply_();
++      this.handler_.editCustomColor(CustomColorAction.kCancelDrag);
++      this.restoreWheelPoint_();
++    }
++  }
++
++  protected onWheelKeydown_(e: KeyboardEvent) {
++    if (e.metaKey || e.ctrlKey || e.altKey || this.wheelPointerId_ !== null) {
++      return;
++    }
++    let {hue, saturation} = this.wheelPoint_;
++    const step = e.shiftKey ? 5 : 1;
++    switch (e.key) {
++      case 'ArrowLeft':
++        hue = (hue + 360 - step * 3) % 360;
++        break;
++      case 'ArrowRight':
++        hue = (hue + step * 3) % 360;
++        break;
++      case 'ArrowUp':
++        saturation = Math.min(1, saturation + step * 0.03);
++        break;
++      case 'ArrowDown':
++        saturation = Math.max(0, saturation - step * 0.03);
++        break;
++      default:
++        return;
++    }
++    e.preventDefault();
++    this.wheelPoint_ = {hue, saturation};
++    this.applyWheelPoint_(false);
++  }
++
++  protected wheelAccessibleLabel_(): string {
++    const {hue, saturation} = this.wheelPoint_;
++    return [
++      this.i18n('colorPickerLabel'),
++      this.i18n('themeHue') + ' ' + (Math.round(hue) % 360) + '°',
++      this.i18n('themeSaturation') + ' ' + Math.round(saturation * 100) + '%',
++    ].join(', ');
++  }
++
++  protected onRestoreClick_() {
++    this.handler_.editCustomColor(CustomColorAction.kRestore);
++  }
++
++  private handleHistoryKeydown_(e: KeyboardEvent) {
++    const wheel = this.theme_?.colorWheel;
++    if (!wheel?.selected || this.hidden || !this.isConnected ||
++        e.defaultPrevented || e.isComposing || !e.metaKey ||
++        e.altKey || e.ctrlKey || this.wheelPointerId_ !== null) {
++      return;
++    }
++    const target = e.composedPath()[0];
++    if ((target instanceof HTMLInputElement && target.type !== 'radio') ||
++        target instanceof HTMLTextAreaElement ||
++        (target instanceof HTMLElement && target.isContentEditable)) {
+       return;
+     }
+-    const system = (e.currentTarget as HTMLElement).dataset['system'] === 'true';
+-    if (system) {
+-      this.handler_.setSystemColor();
+-    } else {
+-      this.handler_.setDefaultColor();
++
++    const key = e.key.toLowerCase();
++    const undo = key === 'z' && !e.shiftKey && wheel.canUndo;
++    const redo = (key === 'y' || (key === 'z' && e.shiftKey)) && wheel.canRedo;
++    if (undo || redo) {
++      e.preventDefault();
++      this.handler_.editCustomColor(
++          undo ? CustomColorAction.kUndo : CustomColorAction.kRedo);
++    }
++  }
++
++  private scheduleWheelApply_() {
++    if (this.wheelApplyTimer_ === null) {
++      // Apply the latest point, not each event, while rebuilding native chrome.
++      this.wheelApplyTimer_ = window.setTimeout(() => {
++        this.wheelApplyTimer_ = null;
++        this.applyWheelPoint_(true);
++      }, 100);
++    }
++  }
++
++  private cancelWheelApply_() {
++    if (this.wheelApplyTimer_ !== null) {
++      window.clearTimeout(this.wheelApplyTimer_);
++      this.wheelApplyTimer_ = null;
++    }
++  }
++
++  private applyWheelPoint_(isDrag: boolean) {
++    this.handler_.setCustomColor(
++        this.wheelPoint_.hue, this.wheelPoint_.saturation, isDrag);
++  }
++
++  private updatePointerPoint_(e: PointerEvent) {
++    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
++    const radius = rect.width / 2;
++    const x = e.clientX - rect.left - radius;
++    const y = e.clientY - rect.top - radius;
++    const distance = Math.hypot(x, y);
++    const saturation = distance <= 8 ? 0 : Math.min(distance / radius, 1);
++    const hue = saturation === 0 ? this.wheelPoint_.hue :
++        (Math.atan2(x, -y) * 180 / Math.PI + 360) % 360;
++    this.wheelPoint_ = {hue, saturation};
++  }
++
++  private restoreWheelPoint_() {
++    const point = this.theme_?.colorWheel;
++    if (point) {
++      this.wheelPoint_ = {
++        hue: point.saturation === 0 ? this.wheelPoint_.hue : point.hue,
++        saturation: point.saturation,
++      };
+     }
+   }
+ 
+@@ -256,11 +457,17 @@
+       return;
+     }
+ 
+-    this.$.hueSlider.showAt(this.$.colorPickerIcon);
++    this.hueSlider_.showAt(
++        this.shadowRoot.querySelector<HTMLElement>('#colorPickerIcon')!);
++  }
++
++  private get hueSlider_() {
++    return this.shadowRoot.querySelector<ThemeHueSliderDialogElement>(
++        '#hueSlider')!;
+   }
+ 
+   protected onSelectedHueChanged_() {
+-    const selectedHue = this.$.hueSlider.selectedHue;
++    const selectedHue = this.hueSlider_.selectedHue;
+     if (this.theme_ && this.theme_.seedColorHue === selectedHue) {
+       return;
+     }
+@@ -280,9 +487,10 @@
+       foreground: this.theme_.foregroundColor!,
+       base: {value: 0},
+     };
+-    this.$.colorPickerIcon.style.setProperty(
+-        'background-color', skColorToRgba(this.theme_.colorPickerIconColor));
+-    this.$.hueSlider.selectedHue = this.theme_.seedColorHue;
++    this.shadowRoot.querySelector<HTMLElement>('#colorPickerIcon')!.style
++        .setProperty('background-color',
++                     skColorToRgba(this.theme_.colorPickerIconColor));
++    this.hueSlider_.selectedHue = this.theme_.seedColorHue;
+   }
+ 
+   private async updateColors_() {
