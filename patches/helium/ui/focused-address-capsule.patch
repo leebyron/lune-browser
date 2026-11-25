@@ -1,0 +1,427 @@
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -2025,6 +2025,7 @@ if (is_mac) {
+       "//chrome/browser/headless",
+       "//chrome/browser/picture_in_picture",
+       "//chrome/browser/profiles:profile",
++      "//chrome/browser/search",
+       "//chrome/browser/search_engines",
+       "//chrome/browser/themes",
+       "//chrome/browser/ui:browser_commands",
+@@ -2044,6 +2045,7 @@ if (is_mac) {
+       "//chrome/browser/ui/immersive:immersive_mode_controller",
+       "//chrome/browser/ui/navigator",
+       "//chrome/browser/ui/tabs",
++      "//chrome/browser/ui/tabs:tab_strip",
+       "//chrome/browser/ui/views/bookmarks",
+       "//chrome/browser/ui/views/controls",
+       "//chrome/browser/ui/views/helium:frame_corner_radius",
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -36,6 +36,7 @@
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/profiles/profile_observer.h"
++#include "chrome/browser/search/search.h"
+ #include "chrome/browser/search_engines/template_url_service_factory.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/themes/theme_service.h"
+@@ -61,6 +62,8 @@
+ #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+ #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+ #include "chrome/browser/ui/side_panel/side_panel_ui.h"
++#include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ #include "chrome/browser/ui/view_ids.h"
+ #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
+@@ -113,6 +116,7 @@
+ #include "components/search_engines/template_url_service.h"
+ #include "components/search_engines/template_url_service_observer.h"
+ #include "components/strings/grit/components_strings.h"
++#include "content/public/browser/favicon_status.h"
+ #include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/navigation_entry.h"
+ #include "content/public/browser/page_top_window_drag_mac.h"
+@@ -147,6 +151,7 @@
+ #include "ui/gfx/geometry/rect_f.h"
+ #include "ui/gfx/geometry/size.h"
+ #include "ui/gfx/geometry/vector2d.h"
++#include "ui/gfx/image/image.h"
+ #include "ui/gfx/image/image_skia_operations.h"
+ #include "ui/gfx/mac/coordinate_conversion.h"
+ #include "ui/gfx/vector_icon_types.h"
+@@ -176,8 +181,8 @@
+ 
+ namespace {
+ 
+-constexpr int kExpandedAddressBarMaxWidth = 720;
+-constexpr int kAddressResultOutset = kHeliumNativeResultInset + 2;
++constexpr int kExpandedAddressBarMaxWidth = 724;
++constexpr int kAddressResultOutset = kHeliumNativeResultInset + 4;
+ 
+ // Count intended layout visibility, not the previous painted layout. New
+ // actions and zero-width containers can be temporarily hidden by animation or
+@@ -1940,6 +1945,7 @@ static void ConfigureWindowControlsClose
+ - (void)leaveBangRestoringTrigger:(BOOL)restore;
+ - (BOOL)dismissSiteInfo;
+ - (void)siteInfoClosing;
++- (void)updateLeadingIcon;
+ - (void)shutdown;
+ @end
+ 
+@@ -2759,6 +2765,51 @@ struct HeliumAddressResult {
+   std::optional<HeliumCommandBarItem> bang;
+ };
+ 
++// Tab updates include favicon changes that arrive after navigation commits.
++class HeliumAddressFaviconObserver : public TabStripModelObserver {
++ public:
++  HeliumAddressFaviconObserver(HeliumFloatingAddressBar* owner,
++                               TabStripModel* model)
++      : owner_(owner) {
++    model->AddObserver(this);
++  }
++
++  void OnTabChangedAt(tabs::TabInterface* tab, TabChangeType) override {
++    if (tab->IsActivated()) {
++      [owner_ updateLeadingIcon];
++    }
++  }
++
++ private:
++  HeliumFloatingAddressBar* __weak owner_;
++};
++
++@interface HeliumAddressLeadingIcon : NSImageView
++@end
++@implementation HeliumAddressLeadingIcon
++- (NSView*)hitTest:(NSPoint)point {
++  return nil;
++}
++@end
++
++namespace {
++constexpr CFTimeInterval kAddressFocusDuration = .18;
++NSString* const kAddressTextTranslation = @"transform.translation.x";
++NSString* const kAddressIconPop = @"address-icon-pop";
++
++CABasicAnimation* AddressFocusAnimation(NSString* key_path,
++                                       CGFloat from,
++                                       CGFloat to) {
++  CABasicAnimation* animation = [CABasicAnimation animationWithKeyPath:key_path];
++  animation.fromValue = @(from);
++  animation.toValue = @(to);
++  animation.duration = kAddressFocusDuration;
++  animation.timingFunction =
++      [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
++  return animation;
++}
++}  // namespace
++
+ @implementation HeliumFloatingAddressBar {
+   base::WeakPtr<BrowserView> _browserView;
+   HeliumGlassAddressField* _address;
+@@ -2777,8 +2828,12 @@ struct HeliumAddressResult {
+   id _siteInfoMouseMonitor;
+   base::WeakPtr<views::Widget> _siteInfoWidget;
+   std::unique_ptr<HeliumSiteInfoObserver> _siteInfoObserver;
++  std::unique_ptr<HeliumAddressFaviconObserver> _faviconObserver;
+   BOOL _suppressSiteInfoRelease;
+-  NSButton* _siteInfo;
++  HeliumHeaderSymbolButton* _siteInfo;
++  HeliumAddressLeadingIcon* _focusedIcon;
++  NSImage* _defaultPageSymbol;
++  NSImage* _searchSymbol;
+   HeliumHeaderSymbolButton* _reload;
+ }
+ 
+@@ -2830,24 +2885,42 @@ struct HeliumAddressResult {
+     return nil;
+   }
+   _browserView = browserView->GetAsWeakPtr();
+-  _siteInfo =
+-      [HeliumHeaderSymbolButton buttonWithImage:[NSImage imageWithSystemSymbolName:@"slider.horizontal.below.rectangle"
+-                                          accessibilityDescription:nil]
+-                         target:self
+-                         action:@selector(showSiteInfo:)];
+-  _siteInfo.image =
+-      [_siteInfo.image imageWithSymbolConfiguration:
+-                           [NSImageSymbolConfiguration
+-                               configurationWithPointSize:14
+-                                                   weight:NSFontWeightMedium]];
++  auto* symbolConfiguration = [NSImageSymbolConfiguration
++      configurationWithPointSize:14
++                          weight:NSFontWeightMedium];
++  NSImage* siteInfoSymbol = [[NSImage
++      imageWithSystemSymbolName:@"slider.horizontal.below.rectangle"
++       accessibilityDescription:nil]
++      imageWithSymbolConfiguration:symbolConfiguration];
++  _defaultPageSymbol = [[NSImage imageWithSystemSymbolName:@"globe"
++                                 accessibilityDescription:nil]
++      imageWithSymbolConfiguration:symbolConfiguration];
++  _searchSymbol = [[NSImage imageWithSystemSymbolName:@"magnifyingglass"
++                            accessibilityDescription:nil]
++      imageWithSymbolConfiguration:symbolConfiguration];
++  _siteInfo = [HeliumHeaderSymbolButton buttonWithImage:siteInfoSymbol
++                                               target:self
++                                               action:@selector(showSiteInfo:)];
+   _siteInfo.bordered = NO;
+-  _siteInfo.frame = NSMakeRect(4, 2, 32, 32);
++  _siteInfo.frame = NSMakeRect(2, 2, 32, 32);
+   _siteInfo.autoresizingMask = NSViewMinYMargin;
++  _siteInfo.wantsLayer = YES;
+   _siteInfo.toolTip = base::SysUTF16ToNSString(
+       l10n_util::GetStringUTF16(IDS_TOOLTIP_LOCATION_ICON));
+   _siteInfo.accessibilityLabel = _siteInfo.toolTip;
+   [_controls addSubview:_siteInfo];
+ 
++  _focusedIcon = [[HeliumAddressLeadingIcon alloc] initWithFrame:_siteInfo.frame];
++  _focusedIcon.autoresizingMask = NSViewMinYMargin;
++  _focusedIcon.imageScaling = NSImageScaleNone;
++  _focusedIcon.contentTintColor = NSColor.secondaryLabelColor;
++  _focusedIcon.accessibilityElement = NO;
++  _focusedIcon.wantsLayer = YES;
++  _focusedIcon.hidden = YES;
++  [_controls addSubview:_focusedIcon];
++  _faviconObserver = std::make_unique<HeliumAddressFaviconObserver>(
++      self, browserView->browser()->GetTabStripModel());
++
+   _addressContainer = [[NSView alloc] initWithFrame:NSMakeRect(40, 8, 400, 20)];
+   _addressContainer.wantsLayer = YES;
+   _addressContainer.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
+@@ -2955,10 +3028,34 @@ struct HeliumAddressResult {
+   _reload.bordered = NO;
+   _reload.frame = NSMakeRect(446, 2, 32, 32);
+   _reload.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
++  _reload.wantsLayer = YES;
+   [_controls addSubview:_reload];
+   return self;
+ }
+ 
++- (void)updateLeadingIcon {
++  if (![self isEditing] || !_browserView) {
++    return;
++  }
++  NSImage* image = _defaultPageSymbol;
++  auto* contents = _browserView->GetActiveWebContents();
++  auto* entry =
++      contents ? contents->GetController().GetVisibleEntry() : nullptr;
++  if (entry) {
++    const GURL& url = entry->GetVirtualURL();
++    const auto& favicon = entry->GetFavicon();
++    if (search::IsWebUINewTabPageOrigin(url) || search::IsNTPURL(url) ||
++        search::IsSplitViewNewTabPage(url)) {
++      image = _searchSymbol;
++    } else if (favicon.valid && !favicon.image.IsEmpty()) {
++      image = favicon.image.AsNSImage();
++    }
++  }
++  if (_focusedIcon.image != image) {
++    _focusedIcon.image = image;
++  }
++}
++
+ - (void)refresh {
+   [_address noteFocusRingMaskChanged];
+   if (!_browserView) {
+@@ -2986,6 +3083,7 @@ struct HeliumAddressResult {
+   _address.accessibilityLabel =
+       base::SysUTF16ToNSString(l10n_util::GetStringUTF16(IDS_ACCNAME_LOCATION));
+ 
++  [self updateLeadingIcon];
+   _siteInfo.accessibilityHelp =
+       base::SysUTF16ToNSString(model->GetSecureAccessibilityText());
+   auto* contents = _browserView->GetActiveWebContents();
+@@ -3001,35 +3099,42 @@ struct HeliumAddressResult {
+   _reload.toolTip = base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
+       loading ? IDS_TOOLTIP_STOP : IDS_TOOLTIP_RELOAD));
+   _reload.accessibilityLabel = _reload.toolTip;
+-  const bool show_reload = _browserView->GetProfile()->GetPrefs()->GetBoolean(
+-      prefs::kShowReloadButton);
++  const BOOL editing = [self isEditing];
++  const bool show_reload =
++      !editing && _browserView->GetProfile()->GetPrefs()->GetBoolean(
++                      prefs::kShowReloadButton);
++  _siteInfo.hidden = editing;
++  _focusedIcon.hidden = !editing;
+   _reload.hidden = !show_reload;
+   const CGFloat outset = [self horizontalOutset];
+   NSRect site_frame = _siteInfo.frame;
+-  site_frame.origin.x = 4 + outset;
++  site_frame.origin.x = 2 + outset;
+   _siteInfo.frame = site_frame;
++  _focusedIcon.frame = site_frame;
+   NSRect reload_frame = _reload.frame;
+   reload_frame.origin.x = NSWidth(_controls.bounds) - 34 - outset;
+   _reload.frame = reload_frame;
+   NSRect address_frame = _addressContainer.frame;
+-  address_frame.origin.x = 40 + outset;
+-  // Widen only the glass/results; keep the header controls fixed on screen.
+-  // Reclaim Reload's 32 pt target without changing the leading inset.
++  // Keep the editor's fixed 2 pt scroll inset, and line up the text with
++  // the suggestion titles in the wider capsule.
++  address_frame.origin.x = (editing ? 38 : 40) + outset;
++  // Keep the leading control fixed as results widen the glass. Editing can
++  // use the full trailing edge of the wider capsule as well as Reload's slot.
+   const CGFloat standard_width = std::max<CGFloat>(
+       0, NSWidth(_controls.bounds) - NSMinX(address_frame) - 40 - outset);
+   address_frame.size.width = std::max<CGFloat>(
+       0, NSWidth(_controls.bounds) - NSMinX(address_frame) -
+-             (show_reload ? 40 : 8) - outset);
++             (show_reload ? 40 : 8) - (editing ? 0 : outset));
+   _addressContainer.frame = address_frame;
+   NSRect field_bounds = _addressContainer.bounds;
+-  if (!show_reload && ![self isEditing]) {
++  if (!show_reload && !editing) {
+     // Short display addresses retain their accepted center. Longer addresses
+     // can use the reclaimed width, and editing always gets the whole field.
+     field_bounds.size.width = std::clamp<CGFloat>(
+         _address.cell.cellSize.width, standard_width, NSWidth(field_bounds));
+   }
+-  _address.frame = [self isEditing] ? HeliumAddressEditingFrame(field_bounds)
+-                                    : field_bounds;
++  _address.frame =
++      editing ? HeliumAddressEditingFrame(field_bounds) : field_bounds;
+   [self layoutScope];
+   self.contentAware = _browserView->GetProfile()->GetPrefs()->GetBoolean(
+       prefs::kHeliumContentAwareChrome);
+@@ -3041,6 +3146,7 @@ struct HeliumAddressResult {
+   // AppKit can retain this view beyond the BrowserView and even its profile.
+   // Destroy profile-backed providers while their KeyedServices are still alive.
+   // The profile observer also covers incognito's last-window shutdown.
++  _faviconObserver.reset();
+   _browserView.reset();
+   _editing = NO;
+   [_address cancelFocusRestoration];
+@@ -3091,6 +3197,68 @@ struct HeliumAddressResult {
+                                  kHeliumNativeResultRowHeight * _results.size());
+ }
+ 
++- (CGFloat)addressTextOriginInWindow {
++  const NSRect bounds = _address.bounds;
++  CGFloat origin = NSMinX([_address convertRect:bounds toView:nil]);
++  if (!_address.userEditing) {
++    NSString* text = _address.stringValue.length ? _address.stringValue
++                                                 : _address.placeholderString;
++    const CGFloat width =
++        [text sizeWithAttributes:@{NSFontAttributeName : _address.font}].width;
++    origin += std::max<CGFloat>(2, (NSWidth(bounds) - width) / 2);
++  }
++  return origin;
++}
++
++- (CGFloat)presentedAddressTextOriginInWindow {
++  CALayer* presentation = _addressContainer.layer.presentationLayer;
++  NSNumber* translation = [presentation valueForKeyPath:kAddressTextTranslation];
++  return [self addressTextOriginInWindow] + translation.doubleValue;
++}
++
++- (void)animateFocusTransitionFrom:(CGFloat)previousTextOrigin {
++  [_addressContainer.layer removeAnimationForKey:kAddressTextTranslation];
++  [_focusedIcon.layer removeAnimationForKey:kAddressIconPop];
++  [_siteInfo.layer removeAnimationForKey:@"opacity"];
++  [_reload.layer removeAnimationForKey:@"opacity"];
++  if (NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion) {
++    return;
++  }
++
++  // Move the containing layer so the AppKit field editor and its selection
++  // travel together. The actual control frames already have their final layout.
++  const CFTimeInterval start = CACurrentMediaTime();
++  const auto add = [start](CALayer* layer, NSString* key, CAAnimation* motion) {
++    motion.beginTime = [layer convertTime:start fromLayer:nil];
++    [layer addAnimation:motion forKey:key];
++  };
++  const CGFloat offset = previousTextOrigin - [self addressTextOriginInWindow];
++  add(_addressContainer.layer, kAddressTextTranslation,
++      AddressFocusAnimation(kAddressTextTranslation, offset, 0));
++  if (_editing) {
++    CALayer* layer = _focusedIcon.layer;
++    const CGSize size = layer.bounds.size;
++    const CGPoint anchor = layer.anchorPoint;
++    // AppKit uses a corner anchor for this backing layer. Ease scale and
++    // translation component by component so the slot's center stays fixed.
++    CAAnimationGroup* pop = [CAAnimationGroup animation];
++    pop.duration = kAddressFocusDuration;
++    pop.animations = @[
++      AddressFocusAnimation(@"transform.scale", 0, 1),
++      AddressFocusAnimation(kAddressTextTranslation,
++                            (.5 - anchor.x) * size.width, 0),
++      AddressFocusAnimation(@"transform.translation.y",
++                            (.5 - anchor.y) * size.height, 0),
++    ];
++    add(layer, kAddressIconPop, pop);
++  } else {
++    add(_siteInfo.layer, @"opacity", AddressFocusAnimation(@"opacity", 0, 1));
++    if (!_reload.hidden) {
++      add(_reload.layer, @"opacity", AddressFocusAnimation(@"opacity", 0, 1));
++    }
++  }
++}
++
+ - (void)beginEditing {
+   if (!_browserView) {
+     return;
+@@ -3099,11 +3267,7 @@ struct HeliumAddressResult {
+   _scopeWasTyped = NO;
+   _scopePill.hidden = YES;
+   const BOOL firstFocus = !_editing;
+-  const CGFloat display_width = NSWidth(_address.bounds);
+-  const CGFloat textWidth =
+-      [_address.stringValue
+-          sizeWithAttributes:@{NSFontAttributeName : _address.font}]
+-          .width;
++  const CGFloat previousTextOrigin = [self presentedAddressTextOriginInWindow];
+   _editing = YES;
+   _address.userEditing = YES;
+   _address.frame = HeliumAddressEditingFrame(_addressContainer.bounds);
+@@ -3122,22 +3286,8 @@ struct HeliumAddressResult {
+   _address.currentEditor.alignment = NSTextAlignmentLeft;
+   [_address selectText:nil];
+   [self.window invalidateCursorRectsForView:self];
+-  // Animate the editor's containing layer, not NSTextField's frame. AppKit
+-  // owns a separate field editor whose geometry otherwise lags behind frame
+-  // animation, leaving the selection at its old position or clipping it out.
+-  [_addressContainer.layer removeAnimationForKey:@"address-alignment"];
+-  if (firstFocus &&
+-      !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion) {
+-    const CGFloat offset =
+-        std::max<CGFloat>(0, (display_width - textWidth) / 2);
+-    CABasicAnimation* motion =
+-        [CABasicAnimation animationWithKeyPath:@"transform.translation.x"];
+-    motion.fromValue = @(offset);
+-    motion.toValue = @0;
+-    motion.duration = 0.18;
+-    motion.timingFunction = [CAMediaTimingFunction
+-        functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+-    [_addressContainer.layer addAnimation:motion forKey:@"address-alignment"];
++  if (firstFocus) {
++    [self animateFocusTransitionFrom:previousTextOrigin];
+   }
+ }
+ 
+@@ -3249,9 +3399,10 @@ struct HeliumAddressResult {
+ }
+ 
+ - (void)finishEditing {
+-  if (!_autocomplete) {
++  if (!_editing || !_autocomplete) {
+     return;
+   }
++  const CGFloat previousTextOrigin = [self presentedAddressTextOriginInWindow];
+   _editing = NO;
+   [_address cancelFocusRestoration];
+   _scopeKeyword.clear();
+@@ -3267,10 +3418,10 @@ struct HeliumAddressResult {
+   }
+   [_suggestions removeAllObjects];
+   _address.alignment = NSTextAlignmentCenter;
+-  [_addressContainer.layer removeAnimationForKey:@"address-alignment"];
+   // Shrink the glass before relaying out the fixed header controls.
+   if (_browserView) {
+     _browserView->browser_widget()->GetFrameView()->UpdateFloatingAddressBar();
++    [self animateFocusTransitionFrom:previousTextOrigin];
+   }
+ }
+ 
