@@ -1,0 +1,7 @@
+# Chromium 159.0.8154.34
+
+Chromium Dash reports `159.0.8154.34` for the macOS Stable channel. Both Imput archive metadata manifests identify Chromium source commit `4deb883708d3d25100c5aac2148aafc95dae95ac`. The release uses the existing reviewed Helium and ungoogled-chromium ancestry. [Chromium Dash](https://chromiumdash.appspot.com/releases?platform=Mac) · [Chrome's early Stable announcement](https://chromereleases.googleblog.com/2026/11/early-stable-update-for-desktop_027920431.html) · [Source archives](https://github.com/imputnet/chromium-tarballs/releases/tag/chromium-159.0.8154.34)
+
+Verified the SHA-256 of the base and both macOS source archives. Comparing the normalized archive inventories with `159.0.8154.13` found 26 changed base entries. Both host overlays retained identical file and symlink contents. The pinned GN, Siso, Clang, Rust and PGO profiles match the existing release recipe on the arm64 build host.
+
+The upstream changes touch files also edited by `bromite/disable-fetching-field-trials.patch` and `helium/core/noise/core.patch`. Their existing hunks replay with zero fuzz. The core input advances `chromium_version.txt`. The platform input advances the core gitlink on top of the settled Lune feature composition from `3a2c2069b933c9abac01755d52c0380e1535127e`. See [paired adoption evidence](2026-11-25-chromium-159-stable.json) for the full source and browser validation.
