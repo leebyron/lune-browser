@@ -1,0 +1,339 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -4711,8 +4711,8 @@
+     </message>
+   </if>
+   <if expr="is_macosx">
+-    <message name="IDS_SETTINGS_VERTICAL_COLLAPSE_SHORTCUT" desc="Toggle in settings that allows you to enable the keyboard shortcut that toggles vertical tabs in the Vertical layout. It's enabled by default.">
+-      Use ⌘+S to toggle vertical tabs in Vertical layout
++    <message name="IDS_SETTINGS_VERTICAL_COLLAPSE_SHORTCUT" desc="Setting that enables the keyboard shortcut for toggling the sidebar. It is enabled by default.">
++      Use ⌘+S to toggle sidebar
+     </message>
+   </if>
+   <if expr="not is_macosx">
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -88,6 +88,34 @@
+           .menuOptions="${this.sidePanelAlignmentOptions_}">
+       </settings-dropdown-menu>
+     </div>
++    <settings-toggle-button class="hr" id="sidebarPinned"
++        pref-key="helium.browser.zen_mode_sidebar_pinned"
++        label="$i18n{zenModePinSidebar}">
++    </settings-toggle-button>
++    <div class="cr-row">
++      <div class="flex cr-padded-text" aria-hidden="true">
++        $i18n{pinnedTabsPerRow}
++      </div>
++      <settings-dropdown-menu id="pinnedTabsPerRow"
++          label="$i18n{pinnedTabsPerRow}"
++          pref-key="helium.browser.vertical_pinned_tabs_per_row"
++          .menuOptions="${this.pinnedTabsPerRowOptions_}">
++      </settings-dropdown-menu>
++    </div>
++    <settings-toggle-button class="hr" id="showTabLoadingProgress"
++        pref-key="helium.browser.show_tab_loading_progress"
++        label="$i18n{showTabLoadingProgress}">
++    </settings-toggle-button>
++    <settings-toggle-button class="hr"
++        pref-key="helium.command_bar.enabled"
++        label="$i18n{commandBarEnabled}"
++        sub-label="$i18n{commandBarEnabledDescription}">
++    </settings-toggle-button>
++    <settings-toggle-button class="hr"
++        pref-key="helium.link_peek.enabled"
++        label="$i18n{linkPeekEnabled}"
++        sub-label="$i18n{linkPeekEnabledDescription}">
++    </settings-toggle-button>
+ </if>
+     <div id="toolbarRow" class="settings-row">
+       <cr-link-row id="customizeToolbar" label="$i18n{customizeToolbar}"
+@@ -129,12 +157,6 @@
+       </settings-dropdown-menu>
+     </div>
+     <!-- </if> -->
+-    <settings-toggle-button class="hr"
+-        ?hidden="${!this.showNativeFrameMaterialsOption_}"
+-        pref-key="helium.browser.native_frame_materials"
+-        label="$i18n{nativeFrameMaterials}"
+-        sub-label="$i18n{nativeFrameMaterialsDescription}">
+-    </settings-toggle-button>
+     <settings-toggle-button class="hr" elide-label
+         ?hidden="${!this.pageVisibility_.homeButton}"
+         pref-key="browser.show_home_button" label="$i18n{showHomeButton}"
+@@ -283,6 +305,7 @@
+         `)}
+       </select>
+     </div>
++<if expr="not is_macosx">
+     <div class="settings-row-stack indented-toggles"
+         ?hidden="${!this.pageVisibility_.pageZoom}">
+       <settings-toggle-button id="showZoomIndicator"
+@@ -290,6 +313,7 @@
+           label="$i18n{showZoomIndicator}">
+       </settings-toggle-button>
+     </div>
++</if>
+   </div>
+ </settings-section>
+ ${this.shouldShowRelaunchDialog ? html`
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
+@@ -174,7 +174,6 @@
+ 
+       showHoverCardImagesOption_: {type: Boolean},
+       showManagedThemeDialog_: {type: Boolean},
+-      showNativeFrameMaterialsOption_: {type: Boolean},
+       // <if expr="is_macosx">
+       glassEffectOptions_: {type: Array},
+       showGlassEffectEnabled_: {type: Boolean},
+@@ -211,6 +210,13 @@
+       undefined;
+   protected accessor toolbarHoverDisabledPref_: PrefObject<boolean>|undefined =
+       undefined;
++  protected readonly pinnedTabsPerRowOptions_: DropdownMenuOptionList = [
++    {value: 0, name: loadTimeData.getString('pinnedTabsPerRowUncapped')},
++    {value: 1, name: '1'},
++    {value: 2, name: '2'},
++    {value: 3, name: '3'},
++    {value: 4, name: '4'},
++  ];
+   protected readonly toolbarOptions_: DropdownMenuOptionList = [
+     {value: 'hover', name: loadTimeData.getString('showToolbarHover')},
+     {value: 'no-hover', name: loadTimeData.getString('showToolbarNoHover')},
+@@ -376,8 +382,6 @@
+   protected accessor showHoverCardImagesOption_: boolean =
+       loadTimeData.getBoolean('showHoverCardImagesOption');
+   protected accessor showManagedThemeDialog_: boolean = false;
+-  protected accessor showNativeFrameMaterialsOption_: boolean =
+-      loadTimeData.getBoolean('showNativeFrameMaterialsOption');
+   // <if expr="is_macosx">
+   protected accessor showGlassEffectEnabled_: boolean =
+       loadTimeData.getBoolean('showGlassEffectEnabled');
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page_index.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page_index.html.ts
+@@ -10,8 +10,10 @@
+   return html`<!--_html_template_start_-->
+ <cr-view-manager id="viewManager" class="cr-centered-card-container"
+     ?show-all="${this.shouldShowAll}">
++<if expr="not is_macosx">
+   <settings-appearance-layout-page slot="view" id="layout">
+   </settings-appearance-layout-page>
++</if>
+ 
+   <settings-appearance-page slot="view" id="appearance">
+   </settings-appearance-page>
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page_index.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page_index.ts
+@@ -4,7 +4,9 @@
+ 
+ import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
+ import './appearance_behavior_page.js';
++// <if expr="not is_macosx">
+ import './appearance_layout_page.js';
++// </if>
+ import './appearance_page.js';
+ 
+ import type {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
+--- a/chrome/browser/ui/helium/helium_layout_state_controller.cc
++++ b/chrome/browser/ui/helium/helium_layout_state_controller.cc
+@@ -7,6 +7,7 @@
+ #include <utility>
+ 
+ #include "base/functional/bind.h"
++#include "build/build_config.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/common/pref_names.h"
+@@ -22,11 +23,15 @@
+                                 *this) {
+   pref_change_registrar_.Init(pref_service_);
+ 
+-  pref_change_registrar_.AddMultiple(
+-      {prefs::kHeliumLayout, prefs::kHeliumZenMode,
+-       prefs::kHeliumVerticalAddressBarInSidebar},
++  auto on_layout_changed =
+       base::BindRepeating(&HeliumLayoutStateController::NotifyStateChanged,
+-                          base::Unretained(this)));
++                          base::Unretained(this));
++  pref_change_registrar_.Add(prefs::kHeliumLayout, on_layout_changed);
++#if !BUILDFLAG(IS_MAC)
++  pref_change_registrar_.AddMultiple(
++      {prefs::kHeliumZenMode, prefs::kHeliumVerticalAddressBarInSidebar},
++      on_layout_changed);
++#endif
+ }
+ 
+ HeliumLayoutStateController::~HeliumLayoutStateController() = default;
+@@ -54,15 +59,24 @@
+ }
+ 
+ bool HeliumLayoutStateController::IsZenModeEnabled() const {
++#if BUILDFLAG(IS_MAC)
++  return true;
++#else
+   return pref_service_->GetBoolean(prefs::kHeliumZenMode);
++#endif
+ }
+ 
+ bool HeliumLayoutStateController::IsVerticalAddressBarInSidebar() const {
+   if (features::IsWebUIToolbarEnabled()) {
+     return false;
+   }
++#if BUILDFLAG(IS_MAC)
++  // This also selects the native floating toolbar on macOS.
++  return IsVerticalLayout();
++#else
+   return IsVerticalLayout() && IsZenModeEnabled() &&
+          pref_service_->GetBoolean(prefs::kHeliumVerticalAddressBarInSidebar);
++#endif
+ }
+ 
+ void HeliumLayoutStateController::SetBrowserLayout(HeliumLayoutType layout) {
+--- a/chrome/browser/ui/tabs/tab_strip_model.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model.cc
+@@ -1974,7 +1974,7 @@
+   // to inherit the parent's opener attribute, so that if this tab is then
+   // closed we'll jump back to the parent tab.
+   bool inherit_opener = (add_types & ADD_INHERIT_OPENER) == ADD_INHERIT_OPENER;
+-  bool prepended_new_tab = false;
++  bool positioned_sidebar_tab = false;
+ 
+   if (ui::PageTransitionTypeIncludingQualifiersIs(transition,
+                                                   ui::PAGE_TRANSITION_LINK) &&
+@@ -2000,10 +2000,16 @@
+           profile_->GetPrefs()->GetBoolean(prefs::kNewTabNextToActive);
+       const auto opener_group = GetTabGroupForTab(active_index());
+ 
+-      if (!(add_types & ADD_PINNED) &&
+-          UsesVerticalTabStrip(delegate())) {
++      if (!(add_types & ADD_PINNED) && UsesVerticalTabStrip(delegate())) {
+         index = IndexOfFirstRegularTab();
+-        prepended_new_tab = true;
++        if (new_tab_next_to_active && active_index() >= index) {
++          index = active_index();
++          // Keep split tabs together and place the new tab above the split.
++          if (const auto split = GetSplitForTab(index)) {
++            index = GetIndexRangeOfSplit(*split).GetMin();
++          }
++        }
++        positioned_sidebar_tab = true;
+       } else if (count() >= 1 && new_tab_next_to_active) {
+         if (group_model_ && opener_group && !(add_types & ADD_ACTIVE)) {
+           index = static_cast<int>(
+@@ -2049,11 +2055,10 @@
+ 
+   if (ui::PageTransitionTypeIncludingQualifiersIs(transition,
+                                                   ui::PAGE_TRANSITION_TYPED) &&
+-      (index == count() || prepended_new_tab)) {
+-    // Typed tabs opened at the default position inherit their opener, whether
+-    // appended in horizontal mode or prepended in the sidebar. This covers the
+-    // cases where the user creates a New Tab (e.g. Ctrl+T, or clicks the New
+-    // Tab button), or types in the address bar and presses Alt+Enter. This
++      (index == count() || positioned_sidebar_tab)) {
++    // Typed tabs appended in horizontal mode or placed by the sidebar policy
++    // inherit their opener. This covers the New Tab shortcut and button,
++    // as well as pressing Alt+Enter in the address bar. This
+     // allows for opening a new Tab to quickly look up something. When this Tab
+     // is closed, the old one is re-activated, not the next-adjacent.
+     inherit_opener = true;
+--- a/chrome/browser/ui/views/frame/browser_native_widget_mac.h
++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.h
+@@ -13,7 +13,6 @@
+ #include "chrome/browser/command_observer.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/views/frame/browser_native_widget.h"
+-#include "components/prefs/pref_change_registrar.h"
+ #include "ui/color/color_provider_key.h"
+ #include "third_party/skia/include/core/SkColor.h"
+ #include "ui/base/mojom/window_open_disposition.mojom-forward.h"
+@@ -103,7 +102,6 @@
+   void UpdateBackground();
+   void UpdateGlassEligibility(bool is_glass_eligible);
+   void UpdateBackgroundColor();
+-  void OnNativeFrameMaterialsPrefChanged();
+   // Called when the window's first frame is on screen. Posts
+   // EndInputContextDeferral().
+   void OnFirstFramePresented(
+@@ -114,7 +112,6 @@
+   raw_ptr<BrowserView> browser_view_;  // Weak. Our ClientView.
+   BrowserWindowTouchBarViewsDelegate* __strong touch_bar_delegate_;
+   NSView* __strong background_view_;
+-  PrefChangeRegistrar pref_change_registrar_;
+   std::optional<ui::ColorProviderKey::ColorMode> last_color_mode_;
+   std::optional<SkColor> last_theme_color_;
+   std::optional<bool> last_is_glass_eligible_;
+--- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
+@@ -190,12 +190,6 @@
+     : views::NativeWidgetMac(browser_widget), browser_view_(browser_view) {
+   CHECK(browser_widget);
+   CHECK(browser_view);
+-  pref_change_registrar_.Init(browser_view_->GetProfile()->GetPrefs());
+-  pref_change_registrar_.Add(
+-      prefs::kHeliumNativeFrameMaterials,
+-      base::BindRepeating(
+-          &BrowserNativeWidgetMac::OnNativeFrameMaterialsPrefChanged,
+-          base::Unretained(this)));
+   if (GetRemoteCocoaApplicationHost()) {
+     // Only add observer on PWA.
+     chrome::AddCommandObserver(browser_view_->browser(), IDC_BACK, this);
+@@ -275,7 +269,6 @@
+   touch_bar_delegate_ = nullptr;
+   [background_view_ removeFromSuperview];
+   background_view_ = nil;
+-  pref_change_registrar_.Reset();
+   paint_as_active_subscription_ = {};
+   browser_view_ = nullptr;
+   last_color_mode_.reset();
+@@ -949,10 +942,3 @@
+   helium::UpdateNativeFrameMaterialBackgroundView(background_view_, color_mode,
+                                                   theme_color);
+ }
+-
+-void BrowserNativeWidgetMac::OnNativeFrameMaterialsPrefChanged() {
+-  UpdateBackground();
+-  if (browser_view_ && browser_view_->GetWidget()) {
+-    browser_view_->GetWidget()->ThemeChanged();
+-  }
+-}
+--- a/chrome/browser/ui/views/helium/native_frame_materials.cc
++++ b/chrome/browser/ui/views/helium/native_frame_materials.cc
+@@ -8,15 +8,12 @@
+ 
+ #include "build/build_config.h"
+ #include "cc/paint/paint_flags.h"
+-#include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/helium/helium_command_symbols.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+-#include "chrome/common/pref_names.h"
+-#include "components/prefs/pref_service.h"
+ #include "ui/base/class_property.h"
+ #include "ui/color/color_id.h"
+ #include "ui/color/color_provider.h"
+@@ -128,9 +125,7 @@
+     return false;
+   }
+ 
+-  const Profile* profile = browser_view->GetProfile();
+-  return profile &&
+-         profile->GetPrefs()->GetBoolean(prefs::kHeliumNativeFrameMaterials);
++  return true;
+ }
+ 
+ bool ShouldUseNativeFrameMaterials(const BrowserWindowInterface* browser) {
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -761,8 +761,6 @@
+       "showEverythingMenuEnabled",
+       tab_groups::SavedTabGroupUtils::IsEnabledForProfile(profile));
+ 
+-  html_source->AddBoolean("showNativeFrameMaterialsOption",
+-                          features::HeliumNativeFrameAvailable());
+   html_source->AddBoolean("showCtrlTabMru",
+                           base::FeatureList::IsEnabled(features::kCtrlTabMru));
+   html_source->AddBoolean(
