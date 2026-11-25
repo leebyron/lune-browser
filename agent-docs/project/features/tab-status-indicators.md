@@ -7,6 +7,10 @@ position on hover or when it has keyboard focus. Recording, sharing, device
 and VR alerts report status. Pinned and icon-only tabs show the highest-priority
 alert in the compact icon area.
 
+Tab status glyphs use the tab label color at 70% opacity at rest. Interactive
+glyphs return to full strength on hover or press. The resting opacity applies
+to both native and fallback artwork, including the Bluetooth scan animation.
+
 | Status | SF Symbol | Fallback when unavailable |
 | --- | --- | --- |
 | Picture-in-Picture | `pip` | |
@@ -24,7 +28,7 @@ alert in the compact icon area.
 | VR headset | `vision.pro` | `eyeglasses` |
 
 Recording and outbound tab and screen sharing use AppKit’s system red in
-both surfaces. The media icons in the tab strip use the tab label color.
+hover-card footers.
 A connected Bluetooth device shows a steady antenna. Scanning cycles
 through the native symbol’s variable-opacity waves from the inside out in
 the tab and hover card. Reduce Motion gives the scanning alert a steady
@@ -33,6 +37,8 @@ resolve a suitable symbol.
 
 See the [adoption validation](../builds/2026-11-21-tab-status-symbols.json)
 for the owner review, source replay and browser builds.
+
+[Downloads and browser chrome validation](../builds/2026-11-24-downloads-popover.json)
 
 ## Tab context menu
 

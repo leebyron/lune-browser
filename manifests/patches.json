@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "4de4004ebe3d93f43d9d385c74ec6baab56f615f",
+    "commit": "512bf932dea6325d1e925a5d40d6e29768199b86",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1223,9 +1223,33 @@
       {
         "path": "patches/helium/ui/macos-initial-window-size.patch",
         "sha256": "0df0e9697b9ac0a3ed993467b30959bda98174c394c6f3960f22cac948b78c14"
+      },
+      {
+        "path": "patches/helium/ui/downloads-popover.patch",
+        "sha256": "36b4c4d59be7cf67e5033d82d1b303b7b695b2d10e5cc2213afb6449bbc014d5"
+      },
+      {
+        "path": "patches/helium/ui/downloads-start-cue.patch",
+        "sha256": "0ad1173bf5c05a7f87e4bc408f4ea55f653a9c956ebd3204677b60cf0c79ab59"
+      },
+      {
+        "path": "patches/helium/ui/site-info-popover-polish.patch",
+        "sha256": "185b19c4211475f9917df8a7c3c5e52c2640c5710a3c2d1e831eb0add6564758"
+      },
+      {
+        "path": "patches/helium/ui/tab-trailing-icon-opacity.patch",
+        "sha256": "ffe31887e6fcc07d7875623b2fc816b97fa4ab0a49b91cd20a02e900b7fe3566"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-footer-label-opacity.patch",
+        "sha256": "35983c8bee0fdb321e93d85de2d00d39045d5f75ee51686ec3e646a84c006e31"
+      },
+      {
+        "path": "patches/helium/ui/download-open-countdown.patch",
+        "sha256": "858e245f5d8f7c8e8604b7d191a7356c3fe9395c28981efd297c48d630a68a6a"
       }
     ],
-    "ref": "refs/tags/inputs/macos-initial-window-size-1/macos"
+    "ref": "refs/tags/inputs/downloads-popover-2/macos"
   },
   "pull_requests": [
     {
@@ -4021,6 +4045,100 @@
       "adaptation": "Target 1316 × 825 points and center in the work area inset by 22 points on each edge. Use the fallback for normal windows without available placement.",
       "commits": [
         "4de4004ebe3d93f43d9d385c74ec6baab56f615f"
+      ]
+    },
+    {
+      "id": "downloads-popover",
+      "depends_on": [
+        "native-download-progress",
+        "site-info-toolbar-retention"
+      ],
+      "patches": [
+        "patches/helium/ui/downloads-popover.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Present Downloads in a native, arrowed popover.",
+      "adaptation": "Retain the toolbar through dismissal and use native file artwork, inline action circles, single-line faded labels, and actionable row highlights.",
+      "commits": [
+        "28fcd119a0e4d0eb8d364702ee5880b1418ba56e"
+      ]
+    },
+    {
+      "id": "downloads-start-cue",
+      "depends_on": [
+        "downloads-popover"
+      ],
+      "patches": [
+        "patches/helium/ui/downloads-start-cue.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Make new downloads easier to locate without a large animation.",
+      "adaptation": "Use a 24 pt cue with 48 pt of horizontal travel and keep the toolbar visible for at least one second.",
+      "commits": [
+        "e9add2d32a734987cce265d2b613ce8b12dd2ef2"
+      ]
+    },
+    {
+      "id": "site-info-popover-polish",
+      "depends_on": [
+        "downloads-popover",
+        "site-info-popover"
+      ],
+      "patches": [
+        "patches/helium/ui/site-info-popover-polish.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match Site Information to the native Downloads popover treatment.",
+      "adaptation": "Center compact titles, preserve the warning color, inset the row highlights, and add native inline reset and row-wide toggling for Automatic downloads.",
+      "commits": [
+        "970524e8fa3fcd34c1eafbc2a30a7ef7fdc9773c"
+      ]
+    },
+    {
+      "id": "tab-trailing-icon-opacity",
+      "depends_on": [
+        "native-tab-status-indicators",
+        "sidebar-ui-polish"
+      ],
+      "patches": [
+        "patches/helium/ui/tab-trailing-icon-opacity.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use consistent foreground and opacity for trailing tab icons.",
+      "adaptation": "Use tab label color at 70% in the resting state and full opacity on interactive hover or press.",
+      "commits": [
+        "a570eaefca9b068d70e1124dd9ba740f0633bd3a"
+      ]
+    },
+    {
+      "id": "sidebar-footer-label-opacity",
+      "depends_on": [
+        "sidebar-footer",
+        "tab-trailing-icon-opacity"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-footer-label-opacity.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match sidebar footer actions to the tab foreground and hover treatment.",
+      "adaptation": "Keep footer text and glyphs at full opacity while hovering their row, including over the close button.",
+      "commits": [
+        "419300a55910b53d41693252d2c158cf8327fb86"
+      ]
+    },
+    {
+      "id": "download-open-countdown",
+      "depends_on": [
+        "downloads-popover"
+      ],
+      "patches": [
+        "patches/helium/ui/download-open-countdown.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Remove trailing dots from the opening countdown in Downloads.",
+      "adaptation": "Keep the shared localized countdown string and remove either terminal ellipsis representation in the Downloads bubble formatter.",
+      "commits": [
+        "512bf932dea6325d1e925a5d40d6e29768199b86"
       ]
     }
   ],

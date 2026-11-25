@@ -16,6 +16,9 @@ Accepted November 21, 2026 for [issue #54](https://github.com/leebyron/lune-brow
 
 - Tab, New Tab, footer and section labels use 14 pt. Date labels use 10 pt. Group headers are 28 px and date rows are 20 px, with the added space distributed above and below their labels.
 - Tabs and tab-like footer controls use a 12 px outer corner radius. The 26 × 26 px close targets use a concentric 6 px highlight radius. Trailing tab status icons and group chevrons share the close glyph's horizontal center.
+- On macOS, tab Close and Keep glyphs use the tab label color at 70% opacity until their own button is hovered or pressed.
 - The expanded sidebar defaults and snaps to 240 px. Standard uses 216 px. A saved width takes precedence in either density.
+
+[Downloads and browser chrome validation](../builds/2026-11-24-downloads-popover.json)
 
 [Validation record](../builds/2026-11-21-sidebar-ui-polish.json)

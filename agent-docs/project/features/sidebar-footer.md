@@ -4,6 +4,8 @@ Requested November 7, 2026. Development implementation; not release-accepted.
 The owner accepted the final sidebar/footer design on November 7, 2026, including
 the hover label layout, tooltip removal and smaller close symbol.
 
+[Downloads and browser chrome validation](../builds/2026-11-24-downloads-popover.json)
+
 ## Behavior
 
 The vertical sidebar reserves a footer below the scrolling tabs for two browser
@@ -12,8 +14,11 @@ to relaunch. No other infobars are routed here. Horizontal mode retains the
 existing default-browser infobar and toolbar update treatment.
 
 Each action is one compact row with a 16 pt icon and its existing localized
-label. Rows use the tab height, transparent resting background, native semantic
-foreground and tab-style hover fill. The default-browser row reads “Make default
+label. Rows use the tab height, transparent resting background, label
+foreground and tab-style hover fill. On macOS, the leading icon and label
+use 70% opacity at rest and full opacity across the entire hovered row.
+The trailing button uses 70% opacity until it is hovered or pressed.
+The default-browser row reads “Make default
 browser” and contains its close button inside the shared hover surface, visible
 only while hovered. Its context menu retains “Don't ask me again” without a
 second visible row. Sidebar tab close buttons also appear only on hover, including selected tabs

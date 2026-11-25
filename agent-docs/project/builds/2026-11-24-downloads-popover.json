@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-24",
+  "chromium": "159.0.8154.13",
+  "helium": "0a6fb01cf62cf69f8e6ed1044b167f5516bfda74",
+  "previous_macos": "4de4004ebe3d93f43d9d385c74ec6baab56f615f",
+  "macos": "512bf932dea6325d1e925a5d40d6e29768199b86",
+  "macos_ref": "refs/tags/inputs/downloads-popover-2/macos",
+  "browser_lock_sha256": "d0f7245d4094009525820ebb5655cb2c157510278a4a25777de8d1c5c6f98398",
+  "component_commits": [
+    {
+      "id": "downloads-popover",
+      "depends_on": [
+        "native-download-progress",
+        "site-info-toolbar-retention"
+      ],
+      "patches": [
+        "patches/helium/ui/downloads-popover.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Present Downloads in a native, arrowed popover.",
+      "adaptation": "Retain the toolbar through dismissal and use native file artwork, inline action circles, single-line faded labels, and actionable row highlights.",
+      "commits": [
+        "28fcd119a0e4d0eb8d364702ee5880b1418ba56e"
+      ]
+    },
+    {
+      "id": "downloads-start-cue",
+      "depends_on": [
+        "downloads-popover"
+      ],
+      "patches": [
+        "patches/helium/ui/downloads-start-cue.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Make new downloads easier to locate without a large animation.",
+      "adaptation": "Use a 24 pt cue with 48 pt of horizontal travel and keep the toolbar visible for at least one second.",
+      "commits": [
+        "e9add2d32a734987cce265d2b613ce8b12dd2ef2"
+      ]
+    },
+    {
+      "id": "site-info-popover-polish",
+      "depends_on": [
+        "downloads-popover",
+        "site-info-popover"
+      ],
+      "patches": [
+        "patches/helium/ui/site-info-popover-polish.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match Site Information to the native Downloads popover treatment.",
+      "adaptation": "Center compact titles, preserve the warning color, inset the row highlights, and add native inline reset and row-wide toggling for Automatic downloads.",
+      "commits": [
+        "970524e8fa3fcd34c1eafbc2a30a7ef7fdc9773c"
+      ]
+    },
+    {
+      "id": "tab-trailing-icon-opacity",
+      "depends_on": [
+        "native-tab-status-indicators",
+        "sidebar-ui-polish"
+      ],
+      "patches": [
+        "patches/helium/ui/tab-trailing-icon-opacity.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use consistent foreground and opacity for trailing tab icons.",
+      "adaptation": "Use tab label color at 70% in the resting state and full opacity on interactive hover or press.",
+      "commits": [
+        "a570eaefca9b068d70e1124dd9ba740f0633bd3a"
+      ]
+    },
+    {
+      "id": "sidebar-footer-label-opacity",
+      "depends_on": [
+        "sidebar-footer",
+        "tab-trailing-icon-opacity"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-footer-label-opacity.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match sidebar footer actions to the tab foreground and hover treatment.",
+      "adaptation": "Keep footer text and glyphs at full opacity while hovering their row, including over the close button.",
+      "commits": [
+        "419300a55910b53d41693252d2c158cf8327fb86"
+      ]
+    },
+    {
+      "id": "download-open-countdown",
+      "depends_on": [
+        "downloads-popover"
+      ],
+      "patches": [
+        "patches/helium/ui/download-open-countdown.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Remove trailing dots from the opening countdown in Downloads.",
+      "adaptation": "Keep the shared localized countdown string and remove either terminal ellipsis representation in the Downloads bubble formatter.",
+      "commits": [
+        "512bf932dea6325d1e925a5d40d6e29768199b86"
+      ]
+    }
+  ],
+  "preparation_note": "The Downloads resource patch was regenerated against the pre-localization XML. Both clean preparations use the same accepted English captions.",
+  "builds": {
+    "arm64": {
+      "preparation": {
+        "architecture": "arm64",
+        "strict_zero_fuzz": true,
+        "new_patch_offsets": 0,
+        "prepared_report_sha256": "73e3b63b3eea55e03fbdcec2811af14115afbb6130de72b15eaeeb256132c8e9",
+        "preparation_log_sha256": "89a2aef006f7da0322956d6a51ef47ff094c94f04e3ae1e1014b658c93ff50a9",
+        "approved_source_files_matching": 37,
+        "generated_resources_matches_except_approved_preview_final_newline": true,
+        "other_included_change": "chrome/browser/ui/window_sizer/window_sizer.cc",
+        "xml_declaration_case_only_files": 0,
+        "matching_baseline_files": 572614,
+        "matching_baseline_symlinks": 130
+      },
+      "framework_sha256": "d8d08ba9faeff38ad59007de370d7659d8783d7d6d63bc12a1643a801dc4423f",
+      "chromedriver_sha256": "25132fe20b1145464dfdc501c347c62b4893e6f841dd77112c58783028c15b33",
+      "gn_args_sha256": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
+      "smoke_report_sha256": "70a36fc7574c0a0d1ca97497dfac42296704b9e9580ffb324e8b66a1a56fbdfd",
+      "smoke_mode": "headless",
+      "execution": "native arm64",
+      "passed": true
+    },
+    "x86_64": {
+      "preparation": {
+        "architecture": "x86_64",
+        "strict_zero_fuzz": true,
+        "new_patch_offsets": 0,
+        "prepared_report_sha256": "b9e17c621e2c326379b2d30ee581c77a3900c82acec8cb5adaca97ec11663ecb",
+        "preparation_log_sha256": "66803995746167c68b42d8e4c53fb691787ffdb4a3a1aeb6688ce125c9d7187b",
+        "approved_source_files_matching": 37,
+        "generated_resources_matches_except_approved_preview_final_newline": true,
+        "other_included_change": "chrome/browser/ui/window_sizer/window_sizer.cc",
+        "xml_declaration_case_only_files": 0,
+        "matching_baseline_files": 572614,
+        "matching_baseline_symlinks": 130
+      },
+      "framework_sha256": "d1e6c94f07a3c5b428a5429661b97ced0b37bc2f1908d4ab7e5b4b7d04a4e998",
+      "chromedriver_sha256": "5fe64b85902e90f3d04a20bd85f47cf8c458a9810cc31e9f94699ea2bf8df4c8",
+      "gn_args_sha256": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4",
+      "smoke_report_sha256": "6252442186f0aea97d4e13df521e82d3166edbd1cbccf0af1a0085a6938b530f",
+      "smoke_mode": "headless",
+      "execution": "x86_64 via Rosetta on Apple silicon",
+      "passed": true
+    }
+  },
+  "native_arm64": {
+    "framework_sha256": "d8d08ba9faeff38ad59007de370d7659d8783d7d6d63bc12a1643a801dc4423f",
+    "opening_countdown_has_no_trailing_dots": true,
+    "hover_and_actions": {
+      "row_backgrounds": {
+        "in-progress": {
+          "hover_highlight": false,
+          "rest": [
+            250,
+            250
+          ],
+          "hover": [
+            250,
+            250
+          ]
+        },
+        "paused": {
+          "hover_highlight": false,
+          "rest": [
+            250,
+            250
+          ],
+          "hover": [
+            250,
+            250
+          ]
+        },
+        "canceled": {
+          "hover_highlight": false,
+          "rest": [
+            250,
+            250
+          ],
+          "hover": [
+            250,
+            250
+          ]
+        },
+        "completed": {
+          "hover_highlight": true,
+          "rest": [
+            250,
+            250
+          ],
+          "hover": [
+            237,
+            237
+          ]
+        }
+      },
+      "exclusive_quick_action_highlight": true,
+      "action_clicks": [
+        "Pause",
+        "Resume",
+        "Stop"
+      ]
+    },
+    "prior_approved_progress_and_site_information": "dd2c714193abed814e3241cb81dbc3df52f6d49bd13de5bf4cc9914f216bce12",
+    "countdown_capture_sha256": "51e278344bcd43a9d8361e1e799b7338a4f1dbaec831584c97511a17a6dfc573",
+    "long_filename_and_status_use_one_line": true,
+    "toolbar_start_motion": {
+      "initial_toolbar_hidden": true,
+      "indicator_size_pt": 24,
+      "toolbar_visible_seconds_sampled": 1.667,
+      "toolbar_visible_after_second_indicator_sample_seconds": 1.129,
+      "toolbar_dismissed_with_cursor_in_content": true,
+      "animations": [
+        {
+          "first_seconds": 0.719,
+          "observed_duration_seconds": 0.322,
+          "right_pt": 40,
+          "up_pt": 93,
+          "first_half_horizontal_pt_per_second": 166.3,
+          "second_half_horizontal_pt_per_second": 78.0,
+          "peak_window_opacity": 0.8
+        },
+        {
+          "first_seconds": 1.22,
+          "observed_duration_seconds": 0.34,
+          "right_pt": 40,
+          "up_pt": 94,
+          "first_half_horizontal_pt_per_second": 169.4,
+          "second_half_horizontal_pt_per_second": 65.1,
+          "peak_window_opacity": 0.8
+        }
+      ]
+    }
+  },
+  "repository_tests": {
+    "total": 108,
+    "skipped": 1,
+    "passed": true
+  }
+}

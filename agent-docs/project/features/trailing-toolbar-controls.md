@@ -25,12 +25,29 @@ including when the pointer moves into the popover below the hover area. The
 popover holds the owning window's toolbar reveal until dismissal, then the
 selected hover mode resumes. [Toolbar retention validation](../builds/2026-11-24-site-info-toolbar-retention.json)
 
-Use SF Symbols for popover icons and omit trailing external-link glyphs.
+Use SF Symbols in the primary label color for popover icons, with yellow
+for the security warning triangle. Omit trailing external-link glyphs.
+Center the title on the main page and subpages at the standard 13 pt
+label size and regular weight. Subpages show only their own titles.
+Omit Close. In subpages, center Back and the title vertically in the
+compact header. Give Back the same top and leading inset and show its
+circular hover highlight immediately. Omit the divider below the subpage
+header.
 Use a 344 pt minimum content width for website information so the English
 connection warning fits on one line. Use the same typography and icon
-column as the secure connection row, with a yellow warning symbol. Align
-subpage headings with body row text, and let the row highlight reach the
-edges of the popover content. [Build validation](../builds/2026-11-23-site-info-popover.json)
+column as the secure connection row. Use the same inset rounded hover
+highlight as Downloads. Let the AppKit material show through the
+permission list, including the Automatic downloads row. Use regular-weight
+labels and headings. Distinguish headings, row titles, and details with size
+and color.
+Clicking the Automatic downloads row or its switch changes the site setting.
+Keep its `arrow.down.circle` icon in both states. When the site has an
+override, show a small AppKit **Reset** button immediately before the switch
+that restores the default for Automatic downloads.
+
+[Downloads and browser chrome validation](../builds/2026-11-24-downloads-popover.json)
+
+[Original popover validation](../builds/2026-11-23-site-info-popover.json)
 
 ## Customize temporary icon removal
 
