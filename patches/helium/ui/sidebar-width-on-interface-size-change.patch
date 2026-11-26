@@ -1,0 +1,248 @@
+--- a/chrome/browser/sessions/session_restore.cc
++++ b/chrome/browser/sessions/session_restore.cc
+@@ -93,6 +93,7 @@
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/extensions/extension_metrics.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/sidebar_width_prefs.h"
+ #include "chrome/common/url_constants.h"
+ #include "components/keep_alive_registry/keep_alive_types.h"
+ #include "components/keep_alive_registry/scoped_keep_alive.h"
+@@ -1431,6 +1432,18 @@ class SessionRestoreImpl : public Browse
+       }
+     }
+ 
++#if BUILDFLAG(IS_MAC)
++    // Untagged windows were saved before sidebar widths had a generation.
++    int width_generation = 0;
++    const auto width_generation_entry =
++        extra_data.find(prefs::kSidebarWidthGeneration);
++    if ((width_generation_entry != extra_data.end() &&
++         !base::StringToInt(width_generation_entry->second, &width_generation)) ||
++        width_generation != GetSidebarWidthGeneration()) {
++      params.vertical_tab_strip_uncollapsed_width.reset();
++    }
++#endif
++
+     if (base::FeatureList::IsEnabled(features::kTabGroupsFocusing)) {
+       auto it = extra_data.find(
+           tabs::TabStripModelSelectionState::kFocusedTabGroupIdKey);
+--- a/chrome/browser/sessions/session_service_base.cc
++++ b/chrome/browser/sessions/session_service_base.cc
+@@ -43,6 +43,7 @@
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
+ #include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
++#include "chrome/common/sidebar_width_prefs.h"
+ #include "components/saved_tab_groups/public/tab_group_sync_service.h"
+ #include "components/sessions/content/content_serialized_navigation_builder.h"
+ #include "components/sessions/content/session_tab_helper.h"
+@@ -807,6 +808,12 @@ void SessionServiceBase::BuildCommandsFo
+             browser->GetSessionID(),
+             tabs::VerticalTabStripStateController::kUncollapsedWidthKey,
+             base::NumberToString(controller->GetUncollapsedWidth())));
++#if BUILDFLAG(IS_MAC)
++    command_storage_manager()->AppendRebuildCommand(
++        sessions::CreateAddWindowExtraDataCommand(
++            browser->GetSessionID(), prefs::kSidebarWidthGeneration,
++            base::NumberToString(GetSidebarWidthGeneration())));
++#endif
+   }
+ 
+   int index = 0;
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -21,6 +21,7 @@
+ #include "chrome/common/interface_font_pref_names.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/common/sidebar_tab_drag_pref_names.h"
++#include "chrome/common/sidebar_width_prefs.h"
+ #include "chrome/common/tab_loading_progress_pref_names.h"
+ #include "components/helium_services/pref_names.h"
+ #include "components/policy/core/common/policy_pref_names.h"
+@@ -42,6 +43,27 @@
+ #endif
+ 
+ #if BUILDFLAG(IS_MAC)
++namespace {
++
++constexpr char kSidebarWidthLastDensity[] = "vertical_tabs.width_last_density";
++constexpr int kUnknownSidebarWidthDensity = -1;
++
++}  // namespace
++
++void UpdateSidebarWidthGeneration(PrefService* local_state) {
++  const int density = std::to_underlying(GetHeliumUiDensity());
++  const int last_density = local_state->GetInteger(kSidebarWidthLastDensity);
++  if (last_density == density) {
++    return;
++  }
++  if (last_density != kUnknownSidebarWidthDensity) {
++    local_state->SetInteger(
++        prefs::kSidebarWidthGeneration,
++        local_state->GetInteger(prefs::kSidebarWidthGeneration) + 1);
++  }
++  local_state->SetInteger(kSidebarWidthLastDensity, density);
++}
++
+ void MigrateBrowserUiFontPref(PrefService* local_state) {
+   if (local_state->GetUserPrefValue(prefs::kHeliumUiFont)) {
+     return;
+@@ -120,6 +142,9 @@ void RegisterBrowserPrefs(PrefRegistrySi
+ #if BUILDFLAG(IS_MAC)
+   registry->RegisterIntegerPref(prefs::kHeliumUiFont,
+                                 std::to_underlying(HeliumUiFont::kNormal));
++  registry->RegisterIntegerPref(kSidebarWidthLastDensity,
++                                kUnknownSidebarWidthDensity);
++  registry->RegisterIntegerPref(prefs::kSidebarWidthGeneration, 0);
+ #endif
+   registry->RegisterIntegerPref(prefs::kHeliumRoundedFrameThickness, 4);
+ 
+--- a/chrome/browser/ui/browser_window/internal/browser_window_features.cc
++++ b/chrome/browser/ui/browser_window/internal/browser_window_features.cc
+@@ -184,6 +184,7 @@
+ #include "chrome/browser/ui/zoom/browser_window_zoom_observer.h"
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/sidebar_width_prefs.h"
+ #include "components/breadcrumbs/core/breadcrumbs_status.h"
+ #include "components/collaboration/public/collaboration_service.h"
+ #include "components/commerce/core/commerce_feature_list.h"
+@@ -632,6 +633,12 @@ void BrowserWindowFeatures::Init(Browser
+           profile->GetPrefs()->GetBoolean(prefs::kVerticalTabsCollapsedState);
+       restored_state_uncollapsed_width =
+           profile->GetPrefs()->GetInteger(prefs::kVerticalTabsUncollapsedWidth);
++#if BUILDFLAG(IS_MAC)
++      if (profile->GetPrefs()->GetInteger(prefs::kSidebarWidthGeneration) !=
++          GetSidebarWidthGeneration()) {
++        restored_state_uncollapsed_width.reset();
++      }
++#endif
+     }
+ 
+     helium_layout_state_controller_ =
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -18,6 +18,7 @@
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/common/interface_font_pref_names.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/sidebar_width_prefs.h"
+ #include "components/omnibox/common/omnibox_features.h"
+ #include "components/prefs/pref_service.h"
+ #include "ui/base/pointer/touch_ui_controller.h"
+@@ -52,6 +53,15 @@ HeliumUiDensity GetHeliumUiDensity() {
+ }
+ 
+ #if BUILDFLAG(IS_MAC)
++int GetSidebarWidthGeneration() {
++  PrefService* local_state =
++      g_browser_process ? g_browser_process->local_state() : nullptr;
++  const PrefService::Preference* generation =
++      local_state ? local_state->FindPreference(prefs::kSidebarWidthGeneration)
++                  : nullptr;
++  return generation ? generation->GetValue()->GetInt() : 0;
++}
++
+ namespace {
+ 
+ double GetMacReadingSizeScale() {
+--- a/chrome/browser/ui/tabs/tab_strip_prefs.cc
++++ b/chrome/browser/ui/tabs/tab_strip_prefs.cc
+@@ -18,6 +18,7 @@
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/sidebar_width_prefs.h"
+ #include "chrome/browser/ui/helium/page_top_window_drag_pref.h"
+ #include "components/pref_registry/pref_registry_syncable.h"
+ #include "components/prefs/pref_service.h"
+@@ -42,6 +43,9 @@ void RegisterProfilePrefs(user_prefs::Pr
+   registry->RegisterBooleanPref(prefs::kVerticalTabsCollapsedState, false);
+   registry->RegisterIntegerPref(prefs::kVerticalTabsUncollapsedWidth,
+                                 GetVerticalTabStripDefaultUncollapsedWidth());
++#if BUILDFLAG(IS_MAC)
++  registry->RegisterIntegerPref(prefs::kSidebarWidthGeneration, 0);
++#endif
+   registry->RegisterTimePref(prefs::kVerticalTabsEverythingMenuLastPressed,
+                              base::Time());
+ 
+--- a/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
++++ b/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
+@@ -29,6 +29,7 @@
+ #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+ #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/sidebar_width_prefs.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/feature_engagement/public/feature_constants.h"
+ #include "components/prefs/pref_notifier_impl.h"
+@@ -371,6 +372,11 @@ void VerticalTabStripStateControllerImpl
+     session_service_->AddWindowExtraData(
+         session_id_, kUncollapsedWidthKey,
+         base::NumberToString(state_.uncollapsed_width));
++#if BUILDFLAG(IS_MAC)
++    session_service_->AddWindowExtraData(
++        session_id_, prefs::kSidebarWidthGeneration,
++        base::NumberToString(GetSidebarWidthGeneration()));
++#endif
+   }
+ }
+ 
+@@ -380,6 +386,10 @@ void VerticalTabStripStateControllerImpl
+                               state_.collapsed);
+     pref_service_->SetInteger(prefs::kVerticalTabsUncollapsedWidth,
+                               state_.uncollapsed_width);
++#if BUILDFLAG(IS_MAC)
++    pref_service_->SetInteger(prefs::kSidebarWidthGeneration,
++                              GetSidebarWidthGeneration());
++#endif
+   }
+ }
+ 
+--- /dev/null
++++ b/chrome/common/sidebar_width_prefs.h
+@@ -0,0 +1,23 @@
++// Copyright 2026 The Lune Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_COMMON_SIDEBAR_WIDTH_PREFS_H_
++#define CHROME_COMMON_SIDEBAR_WIDTH_PREFS_H_
++
++class PrefService;
++
++namespace prefs {
++
++// Stored in Local State, profile preferences and session window metadata.
++inline constexpr char kSidebarWidthGeneration[] =
++    "vertical_tabs.width_generation";
++
++}  // namespace prefs
++
++// Advance the generation when the configured interface size takes effect.
++// Widths saved before this reset was implemented belong to generation zero.
++void UpdateSidebarWidthGeneration(PrefService* local_state);
++int GetSidebarWidthGeneration();
++
++#endif  // CHROME_COMMON_SIDEBAR_WIDTH_PREFS_H_
+--- a/chrome/browser/browser_process_impl.cc
++++ b/chrome/browser/browser_process_impl.cc
+@@ -104,6 +104,7 @@
+ #include "chrome/common/chrome_paths.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/sidebar_width_prefs.h"
+ #include "chrome/common/url_constants.h"
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/installer/util/google_update_settings.h"
+@@ -547,6 +548,9 @@ void BrowserProcessImpl::Init() {
+ #endif  // !BUILDFLAG(IS_ANDROID)
+ 
+   MigrateObsoleteLocalStatePrefs(local_state());
++#if BUILDFLAG(IS_MAC)
++  UpdateSidebarWidthGeneration(local_state());
++#endif
+   pref_change_registrar_.Init(local_state());
+ 
+ #if BUILDFLAG(IS_ANDROID)
