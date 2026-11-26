@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "8b82b9b147e95206601648ff287b2d35e6ab03cd",
+    "commit": "b24b679ea85d52da343f40e9f8c6f22ee378613f",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1295,9 +1295,25 @@
       {
         "path": "patches/helium/ui/custom-theme-picker-shared-webui.patch",
         "sha256": "d633c483506c481a280adf4f04eb5b24ff3cfb518eee6adf33f559293f9979bb"
+      },
+      {
+        "path": "patches/helium/ui/appearance-settings.patch",
+        "sha256": "77b1804acff9fa6ce0ed68f3c56f94832db36202db1c4fd85426433b51e7161e"
+      },
+      {
+        "path": "patches/helium/ui/appearance-command-bar-shortcuts.patch",
+        "sha256": "060345f7822c875728fa1e72c91174231a68d2367dbf786e0213e70eed3743b5"
+      },
+      {
+        "path": "patches/helium/ui/interface-font-size.patch",
+        "sha256": "a15878c36b49e324c58253f0e9b123ef8fbced6d5e03acb4fda69611132d317a"
+      },
+      {
+        "path": "patches/helium/ui/sidebar-width-on-interface-size-change.patch",
+        "sha256": "21876d66afce31a1047b87bc51e5f2b4c7ce6a81bcc6e6b5a6251fa82ebd1291"
       }
     ],
-    "ref": "refs/tags/inputs/chromium-159-8154-34-1/macos"
+    "ref": "refs/tags/inputs/appearance-settings-4/macos"
   },
   "pull_requests": [
     {
@@ -4372,6 +4388,68 @@
       "adaptation": "Provide the same localized theme labels to each shared picker consumer and include visual fallbacks.",
       "commits": [
         "d4369eab59a3c279f3855e4b33e77cda3b6a340b"
+      ]
+    },
+    {
+      "id": "appearance-settings",
+      "depends_on": [
+        "settings-row-layout",
+        "sidebar-new-tab",
+        "glass-toolbar-hover"
+      ],
+      "patches": [
+        "patches/helium/ui/appearance-settings.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Merge overlapping macOS settings and remove controls superseded by the native appearance.",
+      "adaptation": "Keep native chrome independent of retired preferences and honor adjacent placement above the active vertical tab.",
+      "commits": [
+        "c47d7cca8f3bbe2d60af804fe5ba8c01546ac508"
+      ]
+    },
+    {
+      "id": "appearance-command-bar-shortcuts",
+      "depends_on": [
+        "appearance-settings"
+      ],
+      "patches": [
+        "patches/helium/ui/appearance-command-bar-shortcuts.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Describe the Command-T and Command-slash shortcuts used by the macOS command bar.",
+      "adaptation": "Keep the macOS copy distinct from the upstream fallback shortcut description.",
+      "commits": [
+        "ece927b886d24b54c3684e0830eda2f2a92a7379"
+      ]
+    },
+    {
+      "id": "interface-font-size",
+      "depends_on": [
+        "appearance-settings"
+      ],
+      "patches": [
+        "patches/helium/ui/interface-font-size.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Separate vertical sidebar typography from the browser interface density.",
+      "adaptation": "Read the macOS reading-size preference at launch and preserve the existing default sizes and density on migration.",
+      "commits": [
+        "ece927b886d24b54c3684e0830eda2f2a92a7379"
+      ]
+    },
+    {
+      "id": "sidebar-width-on-interface-size-change",
+      "depends_on": [
+        "appearance-settings"
+      ],
+      "patches": [
+        "patches/helium/ui/sidebar-width-on-interface-size-change.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the selected interface size default after restarting into a different size.",
+      "adaptation": "Invalidate older profile and session widths without affecting other saved sidebar state.",
+      "commits": [
+        "b24b679ea85d52da343f40e9f8c6f22ee378613f"
       ]
     }
   ],

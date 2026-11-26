@@ -1,0 +1,107 @@
+{
+  "scope": "Final Appearance and behavior input for future Lune builds",
+  "chromium": "159.0.8154.34",
+  "locked_input": {
+    "commit": "b24b679ea85d52da343f40e9f8c6f22ee378613f",
+    "upstream_commit": "0e6652ec877e64a32bb732d8f8d00d56bcb6d46e",
+    "tree": "eab0e580b45c1fc6e3cc639c131dae483b57b8f4",
+    "ref": "refs/tags/inputs/appearance-settings-4/macos"
+  },
+  "helium_commit": "83b604ec9cca515a331e9728721a6209e37b6a8d",
+  "repository_tests": {
+    "total": 108,
+    "skipped": 1,
+    "passed": true
+  },
+  "builds": {
+    "arm64": {
+      "execution": "Apple silicon",
+      "strict_preparation_inventory_sha256": "ee6908ebb42be238ee5488861aa8ba0920d67e13c914a6f8e905ed0bfbe0996b",
+      "source_count": 572667,
+      "symlink_count": 130,
+      "build_report_sha256": "effaa38dd7ac652d4dec9655eb3a8abfe957be168c1d8e48116e005c5fc81977",
+      "browser_framework_sha256": "80a4aaf837148b23d4b557e50c4d6feef89e310eb13214ddc97c1d806413cd57",
+      "smoke_report_sha256": "929a19f1aea6c48e47a29733594248cedde275e6f0f31dafcb72a6b42cca4e59",
+      "appearance_and_tab_checks_sha256": "fa69e72a34a7a9cf99bb2c1b8a699f811f1c46797800b94f6e7a6db878405fce",
+      "interface_font_checks_sha256": "5ff90e4fb39a4d2cf5e97f24d3f64b0d3727a402ddfca8fc79ed8a4fd5ffa8b9",
+      "sidebar_width_checks_sha256": "67faabb40d26459e00d0284c2b0835796e25dda5e050fbc1526b62c9c49862cc",
+      "restart_widths_pt": {
+        "standard_to_comfortable": [
+          240
+        ],
+        "comfortable_to_standard": [
+          216
+        ],
+        "comfortable_restored_windows": [
+          240,
+          240
+        ],
+        "standard_restored_windows": [
+          216,
+          216
+        ],
+        "custom_comfortable_after_ordinary_restart": [
+          322
+        ]
+      },
+      "native_command_toolbar_and_sidebar_checks_sha256": "d102aaff7b8017adab42ba1cb2155a452aaaa65520389f186e193f5b28570541",
+      "native_command_t_cases": [
+        {
+          "case": "Adjacent setting off in Command-T palette",
+          "active_before": "B",
+          "new_index": 1
+        },
+        {
+          "case": "Adjacent setting on in Command-T palette",
+          "active_before": "B",
+          "new_index": 2
+        },
+        {
+          "case": "Adjacent setting with pinned opener",
+          "active_before": "Pinned",
+          "new_index": 1
+        },
+        {
+          "case": "Adjacent setting with Command bar disabled",
+          "active_before": "B",
+          "new_index": 2
+        }
+      ]
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "strict_preparation_inventory_sha256": "8e7f0581fbd8c95cce97d63dedf098554a164fe2a9150772db43eda18a18a726",
+      "source_count": 572667,
+      "symlink_count": 130,
+      "build_report_sha256": "3e082a14105dba778bf657023092f8e0907581ccdde0818efc851985416261a8",
+      "browser_framework_sha256": "592f2dae09801f0d2a5ccc23ec0bda15708b09b37099e2f49ebab579db43e60c",
+      "smoke_report_sha256": "87ebe224c534c3209e8bc919088ea939cb5cbf2084edb4a63d84ecc356b88485",
+      "appearance_and_tab_checks_sha256": "fa69e72a34a7a9cf99bb2c1b8a699f811f1c46797800b94f6e7a6db878405fce",
+      "interface_font_checks_sha256": "5ff90e4fb39a4d2cf5e97f24d3f64b0d3727a402ddfca8fc79ed8a4fd5ffa8b9",
+      "sidebar_width_checks_sha256": "67faabb40d26459e00d0284c2b0835796e25dda5e050fbc1526b62c9c49862cc",
+      "restart_widths_pt": {
+        "standard_to_comfortable": [
+          240
+        ],
+        "comfortable_to_standard": [
+          216
+        ],
+        "comfortable_restored_windows": [
+          240,
+          240
+        ],
+        "standard_restored_windows": [
+          216,
+          216
+        ],
+        "custom_comfortable_after_ordinary_restart": [
+          322
+        ]
+      },
+      "native_interaction_limit": "The desktop locked before the Intel keyboard fixture could become active. Apple silicon keyboard and both packaged tab-model checks passed.",
+      "extended_toolbar_inset_smoke": "Passed on retry"
+    }
+  },
+  "full_prepared_source_parity": true,
+  "appearance_changed_paths_with_exact_parity": 34
+}

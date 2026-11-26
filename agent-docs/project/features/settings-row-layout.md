@@ -12,6 +12,51 @@ sections. Standard Settings uses its existing separator styling. Related
 content can share one group, as the excluded-domain description and form
 do in **Remove tracking parameters**.
 
+## Appearance and behavior on macOS
+
+Appearance includes the sidebar and toolbar controls. **Always show the
+sidebar** sits directly below **Sidebar position** as a full-width row.
+**Show toolbar** selects the toolbar reveal mode. The separate Layout section
+and its legacy frame, address-bar, and collapse controls are omitted.
+
+Normal vertical-tab windows keep the native floating toolbar and frame even
+when an older profile saved the frameless mode, sidebar address bar, or native
+frame materials preference as off. The **Use ⌘+S to toggle sidebar** setting
+continues to switch between sidebar pinning and the Save Page shortcut.
+
+[Appearance settings validation](../builds/2026-11-25-appearance-settings.json)
+
+### Interface size and font
+
+**Interface size** controls the Standard and Comfortable geometry, including
+sidebar widths, row dimensions, and spacing. When a new size takes effect on
+restart, the expanded sidebar width resets to 216 pt for Standard or 240 pt
+for Comfortable. This applies to new windows and restored windows. A custom
+width persists across restarts with the same interface size, including font
+changes. [Sidebar width validation](../builds/2026-11-25-sidebar-width-reset.json)
+
+**Interface font** controls the
+sidebar typography that previously changed with density. Both preferences
+apply on restart. The first launch with the new preference keeps Larger for
+existing Comfortable installations. Other installations start at Normal.
+
+Normal uses the macOS preferred reading size, with the standard reading size
+as the fallback. Larger scales Normal by 15 percent before rounding. With the
+system reading size at Default, Normal uses 12 pt labels and 9 pt date headings.
+Larger uses 14 pt labels and 10 pt date headings. Both presets fit both
+densities at the default reading size. Large macOS reading sizes can increase
+the minimum height of text rows.
+
+The Command bar description lists ⌘T for the floating palette and ⌘/ for
+commands. The native address field receives ⌘L in Lune’s floating layout.
+
+[Interface font preview validation](../builds/2026-11-25-interface-font.json)
+
+The settled Appearance input passed strict replay and full source parity for both
+architectures. Packaged checks covered the merged Settings rows, new tab
+placement, both font choices, and sidebar width after changing size. Native
+keyboard shortcuts passed on Apple silicon. Intel ran under Rosetta. [Adoption validation](../builds/2026-11-25-appearance-settings-adoption.json)
+
 ## Source and validation
 
 The platform selects `lune/settings-row-layout.patch`. The refresh and

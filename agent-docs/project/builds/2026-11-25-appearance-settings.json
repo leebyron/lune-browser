@@ -1,0 +1,227 @@
+{
+  "chromium": "159.0.8154.34",
+  "helium": "83b604ec9cca515a331e9728721a6209e37b6a8d",
+  "macos": "c47d7cca8f3bbe2d60af804fe5ba8c01546ac508",
+  "macos_input_ref": "refs/tags/inputs/appearance-settings-1/macos",
+  "patch": "patches/helium/ui/appearance-settings.patch",
+  "focused_quilt_replay": "zero fuzz and offsets",
+  "repository_tests": {
+    "run": 108,
+    "skipped": 1,
+    "passed": true
+  },
+  "patch_lint_and_component_checks_passed": true,
+  "native_shortcuts": "Headed testing was unavailable while the display was locked. The packaged tab API exercised the tab model used by the Command-T command.",
+  "builds": {
+    "arm64": {
+      "execution": "native Apple silicon",
+      "complete_preparation_zero_fuzz_and_source_inventory_passed": true,
+      "changed_files_matching_focused_quilt": 11,
+      "prepared_report_sha256": "6de8aa99f745376b35a065891eeff05a52fc4a27f6ec775add67ad50ac509aa3",
+      "focused_source_parity_sha256": "f913bbdf8f756f6147a989a0aef4926b2c75efcc8f9e2c3b7b07dda0f88b4b5d",
+      "framework_sha256": "e86bcab32c0b59e7e2072ee60ebb60a3e76a342cf0ddd5e45b8adfdfb2c92597",
+      "browser_settings_artwork_and_toolbar_inset_smoke_passed": true,
+      "toolbar_inset_smoke_case_count": 40,
+      "packaged_settings_and_tab_placement": {
+        "settings": {
+          "sections": [
+            "appearance",
+            "behavior",
+            "fonts"
+          ],
+          "sidebar": {
+            "label": "Always show the sidebar",
+            "pref": "helium.browser.zen_mode_sidebar_pinned",
+            "directlyBelow": true,
+            "indented": false
+          },
+          "directPositionControls": [
+            "sidebarPosition"
+          ],
+          "visiblePrefs": [
+            "helium.browser.ui_density",
+            "helium.browser.page_top_window_drag",
+            "helium.browser.vertical_right_aligned",
+            "helium.browser.zen_mode_sidebar_pinned",
+            "helium.browser.vertical_pinned_tabs_per_row",
+            "helium.browser.show_tab_loading_progress",
+            "helium.command_bar.enabled",
+            "helium.link_peek.enabled",
+            "browser.show_home_button",
+            "bookmark_bar.visibility_state",
+            "bookmark_bar.show_tab_groups",
+            "browser.hovercard.image_previews_enabled",
+            "browser.hovercard.memory_usage_enabled",
+            "webkit.webprefs.default_font_size",
+            "helium.browser.new_tab_next_to_active",
+            "helium.browser.mru_tab_cycling",
+            "helium.browser.bracket_tab_cycling_mru",
+            "helium.browser.visual_tab_switcher",
+            "helium.browser.visual_tab_switcher_list",
+            "helium.browser.shift_right_click_context_menu",
+            "helium.settings.a11y.copy_page_url_shortcut",
+            "helium.settings.behavior.vertical_collapse_shortcut",
+            "auto_pin_new_tab_groups",
+            "helium.browser.sidebar_tab_drag_haptics",
+            "browser.split_view_drag_and_drop_enabled",
+            "helium.tabs.cleanup_move_hours",
+            "helium.tabs.cleanup_close_hours",
+            "helium.tabs.cleanup_move_grouped"
+          ],
+          "shortcut": "Use ⌘+S to toggle sidebar",
+          "bookmarks": [
+            [
+              "Always show",
+              "Only show on New Tab page",
+              "Always hide"
+            ],
+            "Show tab groups in bookmarks bar",
+            "Automatically pin new tab groups to the bookmarks bar"
+          ],
+          "topLevelToolbar": true,
+          "zoom": true
+        },
+        "saved_legacy_prefs": "false for all three at launch",
+        "sidebar_pin_settings_toggle": true,
+        "toolbar_inset_with_retired_prefs_off": 52,
+        "model_cases": [
+          {
+            "case": "Setting off prepends regular tabs",
+            "active_before": "B",
+            "new_index": 1
+          },
+          {
+            "case": "Setting on places new tabs above active",
+            "active_before": "B",
+            "new_index": 2
+          },
+          {
+            "case": "Pinned opener keeps the pinned section intact",
+            "active_before": "Pinned",
+            "new_index": 1
+          },
+          {
+            "case": "Explicit index keeps priority",
+            "active_before": "C",
+            "new_index": 1
+          },
+          {
+            "case": "Insertion inside a regular group",
+            "active_before": "C",
+            "new_index": 3
+          },
+          {
+            "case": "Second split pane places new tab above pair",
+            "active_before": "C",
+            "new_index": 2
+          }
+        ]
+      }
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple silicon",
+      "complete_preparation_zero_fuzz_and_source_inventory_passed": true,
+      "changed_files_matching_focused_quilt": 11,
+      "prepared_report_sha256": "944e8875b715a05c4711f72e11ddc2b446e78f1fdb5671c792087151199dce3d",
+      "focused_source_parity_sha256": "f913bbdf8f756f6147a989a0aef4926b2c75efcc8f9e2c3b7b07dda0f88b4b5d",
+      "framework_sha256": "dbe8dfbc0391a7d3fbfb548104bf4ff32ba8225d85aa2274bf563a3b0cd2e4d1",
+      "browser_settings_artwork_and_toolbar_inset_smoke_passed": true,
+      "toolbar_inset_smoke_case_count": 40,
+      "packaged_settings_and_tab_placement": {
+        "settings": {
+          "sections": [
+            "appearance",
+            "behavior",
+            "fonts"
+          ],
+          "sidebar": {
+            "label": "Always show the sidebar",
+            "pref": "helium.browser.zen_mode_sidebar_pinned",
+            "directlyBelow": true,
+            "indented": false
+          },
+          "directPositionControls": [
+            "sidebarPosition"
+          ],
+          "visiblePrefs": [
+            "helium.browser.ui_density",
+            "helium.browser.page_top_window_drag",
+            "helium.browser.vertical_right_aligned",
+            "helium.browser.zen_mode_sidebar_pinned",
+            "helium.browser.vertical_pinned_tabs_per_row",
+            "helium.browser.show_tab_loading_progress",
+            "helium.command_bar.enabled",
+            "helium.link_peek.enabled",
+            "browser.show_home_button",
+            "bookmark_bar.visibility_state",
+            "bookmark_bar.show_tab_groups",
+            "browser.hovercard.image_previews_enabled",
+            "browser.hovercard.memory_usage_enabled",
+            "webkit.webprefs.default_font_size",
+            "helium.browser.new_tab_next_to_active",
+            "helium.browser.mru_tab_cycling",
+            "helium.browser.bracket_tab_cycling_mru",
+            "helium.browser.visual_tab_switcher",
+            "helium.browser.visual_tab_switcher_list",
+            "helium.browser.shift_right_click_context_menu",
+            "helium.settings.a11y.copy_page_url_shortcut",
+            "helium.settings.behavior.vertical_collapse_shortcut",
+            "auto_pin_new_tab_groups",
+            "helium.browser.sidebar_tab_drag_haptics",
+            "browser.split_view_drag_and_drop_enabled",
+            "helium.tabs.cleanup_move_hours",
+            "helium.tabs.cleanup_close_hours",
+            "helium.tabs.cleanup_move_grouped"
+          ],
+          "shortcut": "Use ⌘+S to toggle sidebar",
+          "bookmarks": [
+            [
+              "Always show",
+              "Only show on New Tab page",
+              "Always hide"
+            ],
+            "Show tab groups in bookmarks bar",
+            "Automatically pin new tab groups to the bookmarks bar"
+          ],
+          "topLevelToolbar": true,
+          "zoom": true
+        },
+        "saved_legacy_prefs": "false for all three at launch",
+        "sidebar_pin_settings_toggle": true,
+        "toolbar_inset_with_retired_prefs_off": 52,
+        "model_cases": [
+          {
+            "case": "Setting off prepends regular tabs",
+            "active_before": "B",
+            "new_index": 1
+          },
+          {
+            "case": "Setting on places new tabs above active",
+            "active_before": "B",
+            "new_index": 2
+          },
+          {
+            "case": "Pinned opener keeps the pinned section intact",
+            "active_before": "Pinned",
+            "new_index": 1
+          },
+          {
+            "case": "Explicit index keeps priority",
+            "active_before": "C",
+            "new_index": 1
+          },
+          {
+            "case": "Insertion inside a regular group",
+            "active_before": "C",
+            "new_index": 3
+          },
+          {
+            "case": "Second split pane places new tab above pair",
+            "active_before": "C",
+            "new_index": 2
+          }
+        ]
+      }
+    }
+  }
+}

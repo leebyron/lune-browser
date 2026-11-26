@@ -9,10 +9,12 @@ regular tabs. It remains outside both scrolling viewports, so scrolling regular
 tabs does not move the button. With no pinned tabs, it is the first row. With only
 pinned tabs, it remains available below them.
 
-Ordinary new tabs use the first unpinned index. This includes the New Tab button,
-new tabs created through the Command-T palette, and default-position API tabs.
-The sidebar policy takes precedence over the inherited next-to-active preference.
-Existing tabs are not reordered when switching modes.
+Ordinary new tabs open below the pinned tabs and groups. This includes the New
+Tab button, new tabs created through the Command-T palette, and default-position
+API tabs. With **Open new tabs next to the active tab** enabled, they open above
+the active regular tab, or above both tabs when the active tab is in a split.
+With a pinned tab or pinned group member active, they open at the start of the
+regular tabs. Changing the setting leaves existing tabs in their current order.
 
 Links opened in a new tab use the position immediately after the active tab.
 Successive background links therefore appear newest-first immediately below their
