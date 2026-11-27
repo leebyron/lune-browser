@@ -1,0 +1,139 @@
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -1571,10 +1571,9 @@
+     if (!sender.window || !button || !button->CanShowContextMenu()) {
+       return;
+     }
+-    const NSRect anchor = [sender.window convertRectToScreen:
+-        [sender convertRect:sender.bounds toView:nil]];
++    const gfx::Point anchor = gfx::ScreenPointFromNSPoint(NSEvent.mouseLocation);
+     button->ShowContextMenuAtScreenBounds(
+-        gfx::ScreenRectFromNSRect(anchor), ui::mojom::MenuSourceType::kMouse);
++        gfx::Rect(anchor, gfx::Size()), ui::mojom::MenuSourceType::kMouse);
+   };
+ }
+ }  // namespace
+--- a/chrome/browser/ui/views/toolbar/reload_button.cc
++++ b/chrome/browser/ui/views/toolbar/reload_button.cc
+@@ -192,6 +192,12 @@
+                                   IDS_RELOAD_MENU_HARD_RELOAD_ITEM);
+   menu_model->AddItemWithStringId(IDC_RELOAD_CLEARING_CACHE,
+                                   IDS_RELOAD_MENU_EMPTY_AND_HARD_RELOAD_ITEM);
++#if BUILDFLAG(IS_MAC)
++  // Show the existing accelerators in AppKit's context-menu shortcut column.
++  for (size_t index = 0; index < menu_model->GetItemCount(); ++index) {
++    menu_model->SetForceShowAcceleratorForItemAt(index, true);
++  }
++#endif
+   return menu_model;
+ }
+ 
+--- a/chrome/browser/ui/views/toolbar/toolbar_button.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_button.cc
+@@ -743,7 +743,9 @@
+       base::BindRepeating(&ToolbarButton::OnMenuClosed, base::Unretained(this));
+   if (use_native_context_menu) {
+     menu_runner_ = std::make_unique<views::MenuRunner>(
+-        menu_model, views::MenuRunner::CONTEXT_MENU, std::move(on_menu_closed));
++        menu_model,
++        views::MenuRunner::CONTEXT_MENU | views::MenuRunner::FIXED_ANCHOR,
++        std::move(on_menu_closed));
+   } else {
+     menu_model_adapter_ = std::make_unique<views::MenuModelAdapter>(
+         menu_model, std::move(on_menu_closed));
+--- a/ui/base/cocoa/menu_utils.h
++++ b/ui/base/cocoa/menu_utils.h
+@@ -25,15 +25,16 @@
+ namespace ui {
+ 
+ // Returns an appropriate event (with a location) suitable for showing a context
+-// menu. Uses [NSApp currentEvent] if it's a non-nil mouse click event,
+-// otherwise creates an autoreleased dummy event located at `anchor`, where
+-// `anchor` is in screen coordinates.
++// menu. Uses [NSApp currentEvent] if `prefer_current_mouse_event` is true and
++// the current event is a mouse click. Otherwise creates an autoreleased dummy
++// event located at `anchor` in screen coordinates.
+ COMPONENT_EXPORT(UI_BASE)
+ NSEvent* EventForPositioningContextMenu(const gfx::Point& anchor,
+-                                        NSWindow* window);
++                                        NSWindow* window,
++                                        bool prefer_current_mouse_event = true);
+ 
+-// Same as above, but `position` is in window coordinates relative to `window`
+-// instead.
++// Uses the current mouse click or the fallback `position` in window
++// coordinates relative to `window`.
+ COMPONENT_EXPORT(UI_BASE)
+ NSEvent* EventForPositioningContextMenuRelativeToWindow(const NSPoint& position,
+                                                         NSWindow* window);
+--- a/ui/base/cocoa/menu_utils.mm
++++ b/ui/base/cocoa/menu_utils.mm
+@@ -20,14 +20,30 @@
+ // This is null when there is no menu.
+ std::optional<gfx::Point> g_active_menu_location;
+ 
++NSEvent* MakeContextMenuEvent(const NSPoint& location, NSWindow* window) {
++  return [NSEvent mouseEventWithType:NSEventTypeRightMouseDown
++                            location:location
++                       modifierFlags:0
++                           timestamp:0
++                        windowNumber:window.windowNumber
++                             context:nil
++                         eventNumber:0
++                          clickCount:1
++                            pressure:0];
++}
++
+ }  // namespace
+ 
+ namespace ui {
+ 
+ NSEvent* EventForPositioningContextMenu(const gfx::Point& anchor,
+-                                        NSWindow* window) {
++                                        NSWindow* window,
++                                        bool prefer_current_mouse_event) {
+   NSPoint location_in_window =
+       [window convertPointFromScreen:gfx::ScreenPointToNSPoint(anchor)];
++  if (!prefer_current_mouse_event) {
++    return MakeContextMenuEvent(location_in_window, window);
++  }
+   return EventForPositioningContextMenuRelativeToWindow(location_in_window,
+                                                         window);
+ }
+@@ -46,15 +62,7 @@
+     default:
+       break;
+   }
+-  return [NSEvent mouseEventWithType:NSEventTypeRightMouseDown
+-                            location:anchor
+-                       modifierFlags:0
+-                           timestamp:0
+-                        windowNumber:window.windowNumber
+-                             context:nil
+-                         eventNumber:0
+-                          clickCount:1
+-                            pressure:0];
++  return MakeContextMenuEvent(anchor, window);
+ }
+ 
+ void ShowContextMenu(NSMenu* menu,
+--- a/ui/views/controls/menu/menu_runner_impl_cocoa.mm
++++ b/ui/views/controls/menu/menu_runner_impl_cocoa.mm
+@@ -91,11 +91,12 @@
+   NSWindow* window = parent->GetNativeWindow().GetNativeNSWindow();
+   NSView* view = parent->GetNativeView().GetNativeNSView();
+ 
+-  ui::ShowContextMenu(
+-      menu_controller_.menu,
+-      ui::EventForPositioningContextMenu(bounds.CenterPoint(), window), view,
+-      /*allow_nested_tasks=*/false,
+-      views::ElementTrackerViews::GetContextForWidget(parent));
++  NSEvent* event = ui::EventForPositioningContextMenu(
++      bounds.CenterPoint(), window,
++      /*prefer_current_mouse_event=*/!(run_types & MenuRunner::FIXED_ANCHOR));
++  ui::ShowContextMenu(menu_controller_.menu, event, view,
++                      /*allow_nested_tasks=*/false,
++                      views::ElementTrackerViews::GetContextForWidget(parent));
+ 
+   closing_event_time_ = ui::EventTimeForNow();
+   running_ = false;
