@@ -1,0 +1,106 @@
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.css
+@@ -33,9 +33,11 @@
+    * 4px at 200px). */
+   --customize-chrome-grid-gap: calc(var(--sp-card-inline-padding) / 2);
+ <if expr="is_macosx">
+-  display: grid;
++  --customize-chrome-heading-line-height: 18px;
++  --customize-chrome-top-padding:
++      calc(52px - var(--customize-chrome-heading-line-height));
++  display: block;
+   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+-  grid-template-rows: 52px minmax(0, 1fr);
+   height: 100%;
+   user-select: none;
+ </if>
+@@ -53,6 +55,7 @@
+   background-color: var(--color-side-panel-content-background);
+   overflow-x: hidden;
+   overflow-y: auto;
++  padding-block-start: var(--customize-chrome-top-padding);
+ </if>
+ }
+ 
+@@ -152,10 +155,18 @@ customize-chrome-appearance {
+ .section-heading {
+   font-size: 13px;
+   font-weight: 600;
+-  line-height: 18px;
++  line-height: var(--customize-chrome-heading-line-height);
+   margin: 0 calc(var(--sp-body-padding) + var(--sp-card-inline-padding)) 8px;
+ }
+ 
++.section-heading:focus {
++  outline: none;
++}
++
++#appearanceSettings {
++  scroll-margin-block-start: var(--customize-chrome-top-padding);
++}
++
+ #toolbarHeading {
+   scroll-margin-block-start: var(--sp-body-padding);
+ }
+@@ -194,14 +205,4 @@ customize-chrome-appearance {
+     background: var(--color-side-panel-content-background);
+   }
+ }
+-
+-#panel-title {
+-  align-self: center;
+-  color: var(--cr-primary-text-color);
+-  font-size: 13px;
+-  font-weight: 600;
+-  line-height: 18px;
+-  margin: 0;
+-  padding-inline: var(--sp-card-inline-padding) 52px;
+-}
+ </if>
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
+@@ -8,15 +8,16 @@ import type {AppElement} from './app.js'
+ 
+ export function getHtml(this: AppElement) {
+   return html`<!--_html_template_start_-->
+-<if expr="is_macosx">
+-<h1 id="panel-title">$i18n{title}</h1>
+-</if>
+ <cr-page-selector id="container"
+ <if expr="not is_macosx">
+     class="sp-scroller sp-scroller-top-of-page sp-scroller-bottom-of-page"
+ </if>
+     selected="${this.page_}" attr-for-selected="page-name">
+   <div page-name="overview" id="overviewPage">
++<if expr="is_macosx">
++    <section id="appearanceSettings" aria-labelledby="appearanceHeading">
++      <h1 id="appearanceHeading" class="section-heading">$i18n{title}</h1>
++</if>
+     <div id="appearance" class="section sp-card">
+ <if expr="not is_macosx">
+       <sp-heading hide-back-button class="separator">
+@@ -28,6 +29,9 @@ export function getHtml(this: AppElement
+           id="appearanceElement">
+       </customize-chrome-appearance>
+     </div>
++<if expr="is_macosx">
++    </section>
++</if>
+ <if expr="not is_macosx">
+     <hr class="sp-cards-separator">
+     ${this.toolbarCustomizationEnabled_ ? html`
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.ts
+@@ -37,7 +37,12 @@ import type {ThemesElement} from './them
+ 
+ const SECTION_TO_SELECTOR = {
+   [CustomizeChromeSection.kUnspecified]: '',
++  // <if expr="is_macosx">
++  [CustomizeChromeSection.kAppearance]: '#appearanceSettings',
++  // </if>
++  // <if expr="not is_macosx">
+   [CustomizeChromeSection.kAppearance]: '#appearance',
++  // </if>
+   [CustomizeChromeSection.kShortcuts]: '#shortcuts',
+   [CustomizeChromeSection.kModules]: '#modules',
+   [CustomizeChromeSection.kFooter]: '#footer',
