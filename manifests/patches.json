@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "91f4a936dced6bc574413b7d68710f0ec6c9a219",
+    "commit": "b306ff7a87e00a0557292478e655ddd75fefe700",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1323,9 +1323,25 @@
       {
         "path": "patches/lune/onboarding-services-privacy.patch",
         "sha256": "334f7c4886aac46a867521dd3fc7245e5d009dc2b7d335bb6b2d7bc0c7d6896e"
+      },
+      {
+        "path": "patches/helium/ui/inline-customize-toolbar.patch",
+        "sha256": "6830dafb130533d002a11c47654f49ec10ec11e877f1dc1a1c3b59789780b0e8"
+      },
+      {
+        "path": "patches/helium/ui/scrolling-customize-heading.patch",
+        "sha256": "1907a0661487249e9323a7ca66ef8aa3adb1496c1926d474a37e59d42f85cf55"
+      },
+      {
+        "path": "patches/helium/ui/customize-settings-row-polish.patch",
+        "sha256": "e7199ac9e3dfd075f061a24f87ded7eb4a984bd2189000bce2bac008dadc0ada"
+      },
+      {
+        "path": "patches/helium/ui/customize-section-spacing.patch",
+        "sha256": "50c5703cd968413bafe69c573ac48607ce1173e39858756ab0386173de0baa58"
       }
     ],
-    "ref": "refs/tags/inputs/setup-services-copy-6/macos"
+    "ref": "refs/tags/inputs/customize-lune-panel-1/macos"
   },
   "pull_requests": [
     {
@@ -4505,6 +4521,67 @@
       "adaptation": "Use the welcome footer typography for the linked provider and privacy disclosure. Describe certificate protection updates, shorten the one-time password manager notice, and track the Widevine delivery failure separately.",
       "commits": [
         "91f4a936dced6bc574413b7d68710f0ec6c9a219"
+      ]
+    },
+    {
+      "id": "inline-customize-toolbar",
+      "depends_on": [
+        "custom-theme-picker-shared-webui",
+        "appearance-settings"
+      ],
+      "patches": [
+        "patches/helium/ui/inline-customize-toolbar.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Place toolbar customization alongside the other Customize Lune settings.",
+      "adaptation": "Use the New Tab section styling and route existing toolbar entry points to the inline heading. Use the system scrollbar with the panel background for automatic contrast.",
+      "commits": [
+        "95769065cd1722bd724c461d26f2d316e631fcb6"
+      ]
+    },
+    {
+      "id": "scrolling-customize-heading",
+      "depends_on": [
+        "inline-customize-toolbar"
+      ],
+      "patches": [
+        "patches/helium/ui/scrolling-customize-heading.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Move the Customize Lune heading into the scrolling appearance section.",
+      "adaptation": "Use a 34 px entry inset, the native floating close button, and heading focus without a ring.",
+      "commits": [
+        "b47c171b618d25ffff2fb922f6b8ae08065fc457"
+      ]
+    },
+    {
+      "id": "customize-settings-row-polish",
+      "depends_on": [
+        "scrolling-customize-heading"
+      ],
+      "patches": [
+        "patches/helium/ui/customize-settings-row-polish.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use inset settings highlights and consistent button styling.",
+      "adaptation": "Share 4 px insets and 5 px rounding, make the Liquid Glass row clickable, and localize the Customize New Tab heading.",
+      "commits": [
+        "c67e70746567d2e90e523d14b0e7818b6cc43067"
+      ]
+    },
+    {
+      "id": "customize-section-spacing",
+      "depends_on": [
+        "customize-settings-row-polish"
+      ],
+      "patches": [
+        "patches/helium/ui/customize-section-spacing.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the same heading spacing throughout Customize Lune.",
+      "adaptation": "Place initial and shortcut-targeted headings 4 px below the close button centerline and select thin system scrollbars.",
+      "commits": [
+        "b306ff7a87e00a0557292478e655ddd75fefe700"
       ]
     }
   ],

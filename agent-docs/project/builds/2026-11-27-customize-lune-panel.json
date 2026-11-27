@@ -1,0 +1,130 @@
+{
+  "date": "2026-11-27",
+  "scope": "Main adoption of the user-approved Customize Lune panel",
+  "base_main": "58dc38a7be8b9629d6ae21f5b0c42eaebf26f7d5",
+  "base_platform": "91f4a936dced6bc574413b7d68710f0ec6c9a219",
+  "chromium": "159.0.8154.34",
+  "helium": "83b604ec9cca515a331e9728721a6209e37b6a8d",
+  "platform_commit": "b306ff7a87e00a0557292478e655ddd75fefe700",
+  "platform_ref": "refs/tags/inputs/customize-lune-panel-1/macos",
+  "browser_lock_sha256": "e8bc43c82b851b6cd0565999d01acdd8a037a3c09cead30b92cb946a082b542d",
+  "review": {
+    "accepted_component": "e77699d48fb23d542886bda7becee33a6b31ee53",
+    "accepted_apple_silicon_framework_sha256": "c6f92566186cbf3f6ef94bab41026e06b41ff17eee3d55578cdf3c5b8b35d963",
+    "initial_and_jump_heading_top_css_px": 21,
+    "keyboard_and_pointer_review": "User approved the Apple silicon preview for main adoption."
+  },
+  "composition": "Preserve main’s native toolbar menu and Setup Services patches in order, then append the four Customize Lune patches byte-for-byte.",
+  "source_preparation": {
+    "complete_locked_zero_fuzz_replay": true,
+    "customize_patch_offsets": 0,
+    "each_build_source_matches_the_full_prepared_inventory": true,
+    "accepted_preview_source_comparison": {
+      "byte_identical": {
+        "chrome/browser/resources/side_panel/customize_chrome/app.css": "b11f576aa31b95e0318f70a4e14f7c52032a4d7ed287fd3e7618139fae9f0ae0",
+        "chrome/browser/resources/side_panel/customize_chrome/app.html.ts": "c212b69f71186ccfdde052e3ece6ca5ff4be582ccb62e5395c92cb4ab6df452a",
+        "chrome/browser/resources/side_panel/customize_chrome/app.ts": "4f471a88afc6246a2b24e3ee569d19d2731d7406a32457ef42d39025ec588191",
+        "chrome/browser/resources/side_panel/customize_chrome/appearance.css": "46d4071c800341900f8f2d28277303bdc23331c00e1754101caa21caaf8decc0",
+        "chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts": "8247979b450d29faa92518d948c44efa101ad570a81ee9b7997ffafe8f0d8268",
+        "chrome/browser/resources/side_panel/customize_chrome/appearance.ts": "1b251f7325647da44183fb2099219219d573c65052bc00844cf0ee5c914a2ab0",
+        "chrome/browser/resources/side_panel/customize_chrome/cards.css": "a55785a157001c1a1982c6cc3363d7d32782f312283da402869b2ff17f1c085b",
+        "chrome/browser/resources/side_panel/customize_chrome/cards.html.ts": "c516ab5e8bd667a493f0e6f0f91a34fec4443d8e8d0d3c18ef5242e0aba4112a",
+        "chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.css": "1472b486d7e5533c6e13e9c3ab5f6b7a9b0ecee13e6aada87f10142cd4115ea8",
+        "chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.html.ts": "9c975e9f998bd58de53f20d203007f66106c6f635eb3f00b688e606e715e2bbc",
+        "chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.ts": "63ba8e8cd45631147116e81e323278cf397a1d1559d6d2a9b2b42b618fbc87ff",
+        "chrome/browser/resources/side_panel/customize_chrome/shortcuts.css": "bbb3d086ea97e2fd969a468817fa57f403d4d5b5bda978e84dda89bdc75b2d1e",
+        "chrome/browser/resources/side_panel/customize_chrome/shortcuts.html.ts": "4a4c3aa4ea2e5a9755316858e9a52e049eda81da744dc3e2562043fa040ee85c",
+        "chrome/browser/resources/side_panel/customize_chrome/toggle_container_shared.css": "2f2b51ecdd5ba5915d7422a921881817e4f4b256c9673ff369eef77251532069",
+        "chrome/browser/resources/side_panel/customize_chrome/wallpaper_search/wallpaper_search.css": "d04d5c9b2f33b3516c523d706cf3bf60592f5a986093cfd2d79ba4048b8f9c41",
+        "chrome/browser/resources/side_panel/customize_chrome/wallpaper_search/wallpaper_search.html.ts": "5db502691f95d35d5c6a4746b15ad69f555a07e3888e8b96d116e3947662e441",
+        "chrome/browser/resources/side_panel/shared/sp_shared_style.css": "45fdf86ba264a95526be809808ea82db32887abf40b1cf85d55cde9af2955a8a",
+        "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc": "d6c11146bf5c3d37a0cdf29995bfc5086bff5f866fc0518b4d0586ac3eaddb56"
+      },
+      "preview_added_trailing_newline": {
+        "chrome/app/generated_resources.grd": {
+          "prepared_sha256": "77f95ac5b0c1fd3cd671a4e86ab0dbee57334fe5991f34b57fb33cfad29d6e87",
+          "preview_sha256": "54c776264188a1a537cbc841ef28380f83553f53b6cd74c120c99deafe1d8aa3"
+        }
+      }
+    }
+  },
+  "packaged_parity": {
+    "customize_and_shared_resources_matching_preview": 104,
+    "new_tab_heading_locale_sha256": {
+      "en": "06c9afd3a397be727db34206a3e967054b036dd332e97ba336fcb47c54c2ecf9",
+      "fr": "06c9afd3a397be727db34206a3e967054b036dd332e97ba336fcb47c54c2ecf9",
+      "de": "06c9afd3a397be727db34206a3e967054b036dd332e97ba336fcb47c54c2ecf9"
+    }
+  },
+  "checks": "Both architectures passed WebUI lint, packaged browser smoke, Setup flow, and focused Customize runtime checks. Native Intel app execution used Rosetta.",
+  "builds": {
+    "arm64": {
+      "passed": true,
+      "architecture": "arm64",
+      "host_architecture": "arm64",
+      "rosetta": false,
+      "xcode": "Xcode 27.2\nBuild version 27B52",
+      "framework_sha256": "082a221095759d957e81e3180ed5eb1522ca7a464c185fe8356a1f2700484cd1",
+      "prepared_report_sha256": "bd22b6c9a498652bb55f9a2660ef9e0bb2d1b918a767f766681f64f77467b450",
+      "source_parity_sha256": "0eed073daf9a638ff71ea762514d48284c94de3e29efb1e38acb025513ab9665",
+      "matching_prepared_files": 572667,
+      "matching_prepared_symlinks": 130,
+      "resource_parity_sha256": "8e377f00ce7d216c1411f647ffa0dc870fb016001db9810c92edd176ce342599",
+      "matching_customize_resources": 104,
+      "matching_heading_locales": [
+        "de",
+        "en",
+        "fr"
+      ],
+      "cache_preflight": {
+        "dry_run_passed": true,
+        "invalidation_reasons": {
+          "newer_input": 18,
+          "command_changed": 3,
+          "missing_output": 64,
+          "missing_dependency": 1
+        }
+      },
+      "build_log_sha256": "46027e54bc6b76ac76d80891c7e655bc4f03e1b06acb2df8e515ffc975c53ce2",
+      "smoke_sha256": "8b25e34198585dcbaf6e7a1805464ae84cc4d889e9fe629b348e4d9004e76804",
+      "onboarding_sha256": "326322d058f3b81cbac143ebb112da6bed7ddda56b3ef93338c143e68dc91ab3",
+      "headless_customize_sha256": "52fd39f6114bd69a0f9dfd0a673a2af76e3fae73ba741d1bad79ca92f1200f6a",
+      "native_customize_sha256": "7f4f892cc07cc2fb76ac9cf5fc964d0cf73ea46f2f1a8008776e31623c5f8f4f",
+      "native_scrollbar_thumb_device_px": 12
+    },
+    "x86_64": {
+      "passed": true,
+      "architecture": "x86_64",
+      "host_architecture": "arm64",
+      "rosetta": true,
+      "xcode": "Xcode 27.2\nBuild version 27B52",
+      "framework_sha256": "38bff0e2b9d889908c09dbedff5ffd8b86af4c4bd6e32626eb7c6c4b00a67925",
+      "prepared_report_sha256": "bd22b6c9a498652bb55f9a2660ef9e0bb2d1b918a767f766681f64f77467b450",
+      "source_parity_sha256": "0eed073daf9a638ff71ea762514d48284c94de3e29efb1e38acb025513ab9665",
+      "matching_prepared_files": 572667,
+      "matching_prepared_symlinks": 130,
+      "resource_parity_sha256": "8e377f00ce7d216c1411f647ffa0dc870fb016001db9810c92edd176ce342599",
+      "matching_customize_resources": 104,
+      "matching_heading_locales": [
+        "de",
+        "en",
+        "fr"
+      ],
+      "cache_preflight": {
+        "dry_run_passed": true,
+        "invalidation_reasons": {
+          "newer_input": 13,
+          "command_changed": 3,
+          "missing_output": 64,
+          "missing_dependency": 1
+        }
+      },
+      "build_log_sha256": "488d08055801cdcb77ce6105e9c70a803e6d610f3e58e9ef84d051ef957e79fe",
+      "smoke_sha256": "2fa2a10644293529a71b4bffbfed30911898314fb29bc8f623efa3101e9545e9",
+      "onboarding_sha256": "b8e66c7baf8f13823c02f0ecf5b5aa12bd87099a58aa9afb760a4408cc86d1c0",
+      "headless_customize_sha256": "e5ab260876684e866d5ac8bd616898fb9bb3144ebc42dcff60e58882dbf7ace5",
+      "native_customize_sha256": "9faf7daa9e72dcc761c56e66bd3130fbb831cce76a5ff57b4e55ddb8f842603f",
+      "native_scrollbar_thumb_device_px": 12
+    }
+  }
+}
