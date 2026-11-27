@@ -93,8 +93,11 @@ try:
  next_();wait("return document.querySelector('#services-page.visible')")
  assert not js("return !!document.querySelector('#services-page input[id=\"ublock.enabled-toggle\"]')")
  report['services']=js("return document.querySelector('#services-page').innerText")
- assert 'Update browser automatically' in report['services'] and 'proxied through Helium' in report['services']
- assert js("return [...document.querySelectorAll('#services-page input')].length===6 && [...document.querySelectorAll('#services-page input')].every(e=>e.checked && !e.disabled)")
+ service_choices = js("""return [...document.querySelectorAll('#services-page input')]
+     .map(input => [input.id, input.checked, input.disabled]);""")
+ expected_service_choices = ['services.browser_updates', 'search.suggest_enabled', 'services.ext_proxy',
+                             'services.bangs', 'services.ublock_assets', 'services.component_updates']
+ assert service_choices == [[key + '-toggle', True, False] for key in expected_service_choices]
  js("document.querySelectorAll('#services-page input').forEach(e=>e.click())")
  wait("return [...document.querySelectorAll('#services-page input')].every(e=>!e.checked && !e.disabled)")
  assert js("return document.querySelectorAll('.progress-step').length") == 7
@@ -106,6 +109,10 @@ try:
  assert js("return document.querySelector('#setup-buttons button:last-child svg') !== null")
  report['beforeAppearanceWidth']=js('return innerWidth')
  next_();wait("return document.querySelector('#password-manager-page.visible .one-time-notice')")
+ report['passwordManagerSubtitle']=js("return document.querySelector('#password-manager-page .page-header p').innerText")
+ report['passwordManagerExtensionNoticeTitle']=js("return document.querySelector('.one-time-notice .notice-title')?.innerText ?? null")
+ report['passwordManagerExtensionNotice']=js("return document.querySelector('.one-time-notice p:last-child').innerText")
+ assert 'one-time' in report['passwordManagerExtensionNotice']
  next_();wait("return document.querySelector('#finish-page.visible')")
  time.sleep(.6)
  report['appearanceWidth']=js('return innerWidth')

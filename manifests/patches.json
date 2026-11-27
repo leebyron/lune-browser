@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "40025eb8da4c1effec60ad5e68ea0dcfa7b240c5",
+    "commit": "91f4a936dced6bc574413b7d68710f0ec6c9a219",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1319,9 +1319,13 @@
       {
         "path": "patches/helium/ui/native-toolbar-menu-cursor-and-shortcuts.patch",
         "sha256": "91402940cea0b46442b2fcae33e74e1c67a110b91de792c1f370c06bb6bf5ef8"
+      },
+      {
+        "path": "patches/lune/onboarding-services-privacy.patch",
+        "sha256": "334f7c4886aac46a867521dd3fc7245e5d009dc2b7d335bb6b2d7bc0c7d6896e"
       }
     ],
-    "ref": "refs/tags/inputs/native-toolbar-context-menus-1/macos"
+    "ref": "refs/tags/inputs/setup-services-copy-6/macos"
   },
   "pull_requests": [
     {
@@ -4489,6 +4493,18 @@
       "adaptation": "Honor the explicit cursor anchor in Cocoa and display existing accelerators through native key equivalents.",
       "commits": [
         "40025eb8da4c1effec60ad5e68ea0dcfa7b240c5"
+      ]
+    },
+    {
+      "id": "setup-services-copy",
+      "patches": [
+        "patches/lune/onboarding-services-privacy.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Identify Helium Services and explain what the setup toggles enable.",
+      "adaptation": "Use the welcome footer typography for the linked provider and privacy disclosure. Describe certificate protection updates, shorten the one-time password manager notice, and track the Widevine delivery failure separately.",
+      "commits": [
+        "91f4a936dced6bc574413b7d68710f0ec6c9a219"
       ]
     }
   ],

@@ -246,8 +246,17 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
     js('document.querySelector("#setup-buttons button:last-child").click();')
     wait_for('return !!document.querySelector("#services-page.visible");')
     service_disclosure = js('return document.querySelector("#services-page").innerText;')
-    if ('Enable Chrome extensions proxied through Helium' not in service_disclosure or
-            'Update browser automatically' not in service_disclosure or
+    service_links = js("""return [...document.querySelectorAll('#services-page .services-intro a')]
+        .map(link => [link.textContent.trim(), link.href]);""")
+    if service_links:
+        assert service_links == [
+            ['Helium Services', 'https://github.com/imputnet/helium-services'],
+            ['does not collect', 'https://helium.computer/privacy'],
+        ], service_links
+        assert 'Lune uses Helium Services. Helium does not collect any personal information.' in service_disclosure
+    elif 'Enable Chrome extensions proxied through Helium' not in service_disclosure:
+        raise RuntimeError('Missing Helium provider disclosure: ' + service_disclosure)
+    if ('Update browser automatically' not in service_disclosure or
             'GitHub' not in service_disclosure or
             'Lune services' in service_disclosure):
         raise RuntimeError('Incorrect onboarding provider disclosure: ' + service_disclosure)

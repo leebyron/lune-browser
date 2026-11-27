@@ -1,26 +1,34 @@
 # Setup Services and one-time password manager installation
 
+The November 27, 2026 revision selects the one-line provider disclosure, updated toggle copy, and shorter password manager notice for future builds through `inputs/setup-services-copy-6/macos`.
+
 Status: accepted November 14, 2026 and selected for future main builds through `inputs/setup-services-1/macos` at `956bc5a32fbdc7cdf89ee1ba5946683a6f69d71f`. Published 26.1114.1 remains unchanged. Privacy policy work remains deferred.
 
 ## Behavior
 
-The current review preview adds Privacy to the sequence after Search engine and before Services. Services has no heading icon and introduces the section with “Control Lune’s connections beyond the websites you visit.” Automatic browser updates and search suggestions move here as the first two controls. They remain independent of Helium. The descriptions lead with the benefit and tersely name the recipient and request data, retaining the optional filter-list provider caveat; security/media component updates appear last and describe certificate protections and protected video playback.
+The current review preview adds Privacy to the sequence after Search engine and before Services. Services introduces the section with “Control Lune’s connections beyond the websites you visit.” Automatic browser updates and search suggestions are the first two controls. They remain independent of Helium. Toggle titles say what they enable and descriptions explain how the feature works. The security component updates option appears last and describes certificate protections.
 
 Privacy offers Block ads and trackers, Remove tracking parameters, Fingerprinting protection, Opt out of websites sharing your information (Global Privacy Control), and Do Not Track. The blocker and link cleanup descriptions identify the pre-bundled lists. The Global Privacy Control description reads “Send a Global Privacy Control signal to limit the sale or sharing of your data.” Global Privacy Control and Do Not Track default to on, and Use Defaults enables both. Confirming Privacy with the blocker on authorizes its local installation. Going Back or skipping Privacy leaves a fresh profile without installation authorization. Confirmed changes to existing blockers use the extension registrar and respect policy. The blocker option is independent of Helium services.
 
 Services omits the custom-instance row. Automatic browser updates and search suggestions appear above the separator. The toggle controls retain their compact layout and 12px separator margins. Any part of a switch row in Setup activates the switch. The switch also supports keyboard focus and Space.
 
+Below the separator, one centered disclosure uses the welcome footer’s privacy typography. “Helium Services” links to the [Helium Services project](https://github.com/imputnet/helium-services) and “does not collect” links to [Helium’s privacy policy](https://helium.computer/privacy). Both links open in separate tabs.
+
 Setup omits the Helium master switch. The visible Helium choices determine its value, including setting it off when every applicable service is off. A profile with a previously disabled master displays its remembered service choices as off; choosing one service does not reactivate the others. Settings retains its existing master switch. Next confirms service consent and the suggested-search recommendation. Use Defaults and unchanged custom setup produce the same service preferences.
 
 Update privacy filter lists through Helium controls downloads by uBlock Origin and the list Lune downloads for native link cleanup. Lune can refresh its rules with uBlock Origin disabled. With updates off, native cleanup uses the packaged rules. Settings → Privacy and security → Remove tracking parameters controls local cleanup and domain exclusions. [Tracking parameters in opened and copied links](tracking-query-cleanup.md)
 
-The password manager step and its progress dot remain available when extension services are off. Before any install, the page explains that choosing Install authorizes a one-time use of the extension proxy and does not enable future extension updates. Merely opening the page sends no extension-service request. Setup descriptions use balanced text wrapping. The disabled-extension warning block is centered on the page, with left-aligned text and a vertically centered warning triangle on its left.
+The Password manager subtitle reads “Install a password manager as a browser extension.” The step and its progress dot remain available when extension services are off. The notice title is “Extensions are disabled” and its description is “Allows a one-time download through Helium's proxy. Updates remain disabled.” Merely opening the page sends no extension-service request. The centered warning fits its contents up to 640 px and wraps in narrower windows. Its text is left-aligned, with a vertically centered warning triangle on its left.
 
 The native onboarding handler restricts requests to the six offered password manager IDs and requires an explicit installation-only permission argument when ordinary service access is unavailable. The permission is carried by the selected installer through metadata and package downloads, including required modules. It is not a global preference override: unrelated extension installs, background extension updates, other Helium services, and saved consent/settings retain their existing gates. The normal native extension permission prompt and package verification remain in place.
 
 Setup registers a standard browser leave warning while `completed_onboarding` is false. Completing setup or choosing Use Defaults clears that condition before navigation. The browser controls the wording and requires a prior user interaction before displaying a `beforeunload` prompt.
 
 ## Validation and reproducible checks
+
+The paired adoption builds passed complete zero-fuzz preparation and source parity, packaged browsing and Settings smoke, and the Setup flow with the updated password-manager warning. The Intel checks ran under Rosetta. [Adoption evidence](../builds/2026-11-27-setup-services-copy.json)
+
+The Services disclosure revision was checked at desktop and narrow widths in light and dark, with keyboard activation of both links. A separate test of installed Lune 26.1125.1 (Chromium 159.0.8154.34, arm64) opted in only to component updates in a disposable profile. CRLSet installed version `10940` through Helium’s component update endpoint. Widevine returned “Update error,” remained at `0.0.0.0`, and no CDM was installed. A secure-context Widevine request with H.264 and AAC was rejected before and after the update attempt. The setup description names certificate protections. The test used no Netflix account. [Widevine investigation #57](https://github.com/leebyron/lune-browser/issues/57)
 
 The existing `.work/older-tabs-arrangement` prepared source and incremental outputs are reused above adopted platform input `0acd40ed5d8f40d7dfe2445cff7ca5578b510a05`. No additional Chromium source copy was created. Reusable service behavior, Lune provider copy and the close warning are separate patches. Strict focused replay of all 26 affected files has zero fuzz, zero offsets and exact source parity; this is not a new full Chromium preparation.
 
