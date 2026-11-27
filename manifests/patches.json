@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "b24b679ea85d52da343f40e9f8c6f22ee378613f",
+    "commit": "40025eb8da4c1effec60ad5e68ea0dcfa7b240c5",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1311,9 +1311,17 @@
       {
         "path": "patches/helium/ui/sidebar-width-on-interface-size-change.patch",
         "sha256": "21876d66afce31a1047b87bc51e5f2b4c7ce6a81bcc6e6b5a6251fa82ebd1291"
+      },
+      {
+        "path": "patches/helium/ui/native-toolbar-context-menus.patch",
+        "sha256": "b43d12bcf98aa9db20354503f28409a2b2501e5295bca04222d01d2311473e09"
+      },
+      {
+        "path": "patches/helium/ui/native-toolbar-menu-cursor-and-shortcuts.patch",
+        "sha256": "91402940cea0b46442b2fcae33e74e1c67a110b91de792c1f370c06bb6bf5ef8"
       }
     ],
-    "ref": "refs/tags/inputs/appearance-settings-4/macos"
+    "ref": "refs/tags/inputs/native-toolbar-context-menus-1/macos"
   },
   "pull_requests": [
     {
@@ -4450,6 +4458,37 @@
       "adaptation": "Invalidate older profile and session widths without affecting other saved sidebar state.",
       "commits": [
         "b24b679ea85d52da343f40e9f8c6f22ee378613f"
+      ]
+    },
+    {
+      "id": "native-toolbar-context-menus",
+      "depends_on": [
+        "native-toolbar-controls",
+        "chrome-menu-reveal-retention"
+      ],
+      "patches": [
+        "patches/helium/ui/native-toolbar-context-menus.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Match system context menus on native macOS navigation and reload controls.",
+      "adaptation": "Run the existing Chromium menu models through AppKit from the native toolbar gestures and keep the toolbar visible during menu tracking.",
+      "commits": [
+        "40025eb8da4c1effec60ad5e68ea0dcfa7b240c5"
+      ]
+    },
+    {
+      "id": "native-toolbar-menu-cursor-and-shortcuts",
+      "depends_on": [
+        "native-toolbar-context-menus"
+      ],
+      "patches": [
+        "patches/helium/ui/native-toolbar-menu-cursor-and-shortcuts.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Use the same cursor-relative placement for both pointer gestures and retain Reload shortcut labels.",
+      "adaptation": "Honor the explicit cursor anchor in Cocoa and display existing accelerators through native key equivalents.",
+      "commits": [
+        "40025eb8da4c1effec60ad5e68ea0dcfa7b240c5"
       ]
     }
   ],

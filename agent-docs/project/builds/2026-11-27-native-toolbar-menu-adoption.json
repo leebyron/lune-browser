@@ -1,0 +1,71 @@
+{
+  "scope": "Main development input adoption",
+  "baseline_main": "7a9e4b98ff56f6c86536fb1df49156b264be20d4",
+  "chromium": "159.0.8154.34",
+  "helium": "83b604ec9cca515a331e9728721a6209e37b6a8d",
+  "macos": "40025eb8da4c1effec60ad5e68ea0dcfa7b240c5",
+  "macos_ref": "refs/tags/inputs/native-toolbar-context-menus-1/macos",
+  "macos_tree": "55c0f7515062f18b5105b76e646fb0f2ab849c12",
+  "signed_input_tree_matches_accepted_preview": true,
+  "owner_acceptance": "Physical Apple silicon preview, November 27, 2026",
+  "source_preparation_and_parity": {
+    "input": "40025eb8da4c1effec60ad5e68ea0dcfa7b240c5",
+    "full_preparation_report_sha256": "d31201b54c86c8ef389ff6813f405fe39bd101411374beafcf63d50e0f4f5e1d",
+    "full_preparation_log_sha256": "a97c4681041d9c61cdc066244c8da9ad3a43cebd0aeaf435ec2dd020481c2b70",
+    "zero_fuzz_preparation": true,
+    "inventory_sha256": "f47b5f530ca4c8b46681e7342e807e1e79198dc3ccd3f8419c3b895bdd730ac0",
+    "files": 572667,
+    "symlinks": 130,
+    "exact_match": [
+      "accepted arm64 preview",
+      "incremental x86_64 source"
+    ]
+  },
+  "checks": {
+    "component_and_translation_lint": "passed",
+    "lock_ancestry_signed_input_and_gitlink": "passed",
+    "repository_tests": {
+      "passed": 107,
+      "skipped": 1
+    },
+    "inherited_workflow_policy": "passed"
+  },
+  "native_scenarios": [
+    "Back, Forward and Reload use AppKit menus for right-click, Control-click and hold.",
+    "Right-click and hold use the same popup position at two cursor positions on each button.",
+    "Native history selection, Normal Reload, cancellation, ordinary clicks and disabled Forward."
+  ],
+  "visually_verified_reload_shortcut_column": {
+    "Normal Reload": "⌘R",
+    "Hard Reload": "⇧⌘R"
+  },
+  "architectures": {
+    "arm64": {
+      "architecture": "arm64",
+      "execution": "Apple silicon",
+      "build": "passed",
+      "smoke": "passed",
+      "gn_args_sha256": "cbf28b8d37a454fa9ad7f77959cb18f795121ae3f64b556b6616f483f785429e",
+      "build_log_sha256": "dbdc17b56ae1563ce92c64006ecf754310caa59f7736bd377d96405d4f847065",
+      "smoke_report_sha256": "a334e3b42b7aa33880042482fd94e136aa43678c153fd4c4282c82545ef16762",
+      "framework_sha256": "deeb00daeecaff499c4360ffaef298258f8c106033946d3c344093e18eb86a91",
+      "executable_sha256": "840ea9bd0ddbe7006855c2bc360a4a3ac381084b087c0750065cd1d24e9b0f92",
+      "accepted_preview_framework_reverified": true,
+      "native_cases_passed": 26,
+      "native_report_sha256": "5e61e53d2f61bf413ed5625e65f135498ee8565af94399b6cb6c99378368d6fb"
+    },
+    "x86_64": {
+      "architecture": "x86_64",
+      "execution": "Rosetta on Apple silicon",
+      "build": "passed",
+      "smoke": "passed",
+      "gn_args_sha256": "24ff63233bfe48dfcd62d65465c556be5719669bee7d139c742f8bff568906b4",
+      "build_log_sha256": "9d819b6cc7d3ed44dc1183713da2f0a77b8c871c506496dfb0cce554708e9a0f",
+      "smoke_report_sha256": "7b26c07011c960dcd9f732279fdfee9e7c3f570343b93b2db7e58c5843ccf4d7",
+      "framework_sha256": "bb7efb753529f39085e0523bf804e89fdc1bc9c70c7c211f5606933393e4b473",
+      "executable_sha256": "1519687dfeaf0578ceec924743b026982bdefeccab5f4fa6f15673d146b12239",
+      "native_cases_passed": 26,
+      "native_report_sha256": "c9380cb9a7bdf921406b336cfee1f59ebcb6be209204abdb5014310f710a6207"
+    }
+  }
+}
