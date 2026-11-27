@@ -1,0 +1,338 @@
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.css
+@@ -37,6 +37,7 @@
+   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+   grid-template-rows: 52px minmax(0, 1fr);
+   height: 100%;
++  user-select: none;
+ </if>
+ }
+ 
+@@ -47,6 +48,12 @@
+   height: 100%;
+   padding: var(--sp-body-padding) 0;
+   position: relative;
++<if expr="is_macosx">
++  /* Keep the system scrollbar and let it pick contrast from this surface. */
++  background-color: var(--color-side-panel-content-background);
++  overflow-x: hidden;
++  overflow-y: auto;
++</if>
+ }
+ 
+ .section {
+@@ -61,6 +68,7 @@
+       var(--customize-chrome-max-width) - var(--sp-body-padding));
+ }
+ 
++<if expr="not is_macosx">
+ #toolbarButton {
+   border: none;
+   color: var(--cr-primary-text-color);
+@@ -79,6 +87,7 @@
+   display: flex;
+   gap: 4px;
+ }
++</if>
+ 
+ customize-chrome-appearance,
+ customize-chrome-shortcuts,
+@@ -136,17 +145,21 @@ customize-chrome-appearance {
+ }
+ 
+ <if expr="is_macosx">
+-#newTabSettings {
++.labeled-section {
+   margin-block-start: 14px;
+ }
+ 
+-#newTabHeading {
++.section-heading {
+   font-size: 13px;
+   font-weight: 600;
+   line-height: 18px;
+   margin: 0 calc(var(--sp-body-padding) + var(--sp-card-inline-padding)) 8px;
+ }
+ 
++#toolbarHeading {
++  scroll-margin-block-start: var(--sp-body-padding);
++}
++
+ #newTabWallpaperButton {
+   display: flex;
+   margin: 4px var(--sp-card-inline-padding) 8px;
+@@ -190,6 +203,5 @@ customize-chrome-appearance {
+   line-height: 18px;
+   margin: 0;
+   padding-inline: var(--sp-card-inline-padding) 52px;
+-  user-select: none;
+ }
+ </if>
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
+@@ -12,7 +12,9 @@ export function getHtml(this: AppElement
+ <h1 id="panel-title">$i18n{title}</h1>
+ </if>
+ <cr-page-selector id="container"
++<if expr="not is_macosx">
+     class="sp-scroller sp-scroller-top-of-page sp-scroller-bottom-of-page"
++</if>
+     selected="${this.page_}" attr-for-selected="page-name">
+   <div page-name="overview" id="overviewPage">
+     <div id="appearance" class="section sp-card">
+@@ -26,6 +28,7 @@ export function getHtml(this: AppElement
+           id="appearanceElement">
+       </customize-chrome-appearance>
+     </div>
++<if expr="not is_macosx">
+     <hr class="sp-cards-separator">
+     ${this.toolbarCustomizationEnabled_ ? html`
+       <cr-button id="toolbarButton" class="section sp-card"
+@@ -39,6 +42,7 @@ export function getHtml(this: AppElement
+         <cr-icon icon="cr:chevron-right" slot="suffix-icon"></cr-icon>
+       </cr-button>
+     ` : ''}
++</if>
+     ${this.ntpNextFeaturesEnabled_ && this.ntpNextDisablementEnabled_ &&
+             this.aimPolicyEnabled_ && this.isSourceTabFirstPartyNtp_() ?
+         html`
+@@ -51,9 +55,10 @@ export function getHtml(this: AppElement
+       </div>
+     ` : ''}
+ <if expr="is_macosx">
+-    <section id="newTabSettings" aria-labelledby="newTabHeading"
++    <section id="newTabSettings" class="labeled-section"
++        aria-labelledby="newTabHeading"
+         ?hidden="${!this.isSourceTabFirstPartyNtp_()}">
+-      <h2 id="newTabHeading">$i18n{newTabHeader}</h2>
++      <h2 id="newTabHeading" class="section-heading">$i18n{newTabHeader}</h2>
+       <div id="shortcuts" class="section sp-card">
+         <cr-button id="newTabWallpaperButton" ?hidden="${!this.showEditTheme_}"
+             @click="${this.onChooseWallpaperClick_}">
+@@ -67,6 +72,14 @@ export function getHtml(this: AppElement
+         ` : ''}
+       </div>
+     </section>
++    ${this.toolbarCustomizationEnabled_ ? html`
++      <section class="labeled-section" aria-labelledby="toolbarHeading">
++        <h2 id="toolbarHeading" class="section-heading" tabindex="-1">
++          $i18n{toolbarHeader}
++        </h2>
++        <customize-chrome-toolbar></customize-chrome-toolbar>
++      </section>
++    ` : ''}
+ </if>
+ <if expr="not is_macosx">
+     ${this.isSourceTabFirstPartyNtp_() ? html`
+@@ -141,11 +154,13 @@ export function getHtml(this: AppElement
+         page-name="wallpaper-search" id="wallpaperSearchPage">
+     </customize-chrome-wallpaper-search>
+   ` : ''}
++<if expr="not is_macosx">
+   ${this.toolbarCustomizationEnabled_ ? html`
+     <customize-chrome-toolbar @back-click="${this.onBackClick_}"
+         page-name="toolbar" id="toolbarPage">
+     </customize-chrome-toolbar>
+   ` : ''}
++</if>
+ </cr-page-selector>
+ <!--_html_template_end_-->`;
+ }
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.ts
+@@ -21,6 +21,7 @@ import './wallpaper_search/wallpaper_sea
+ 
+ import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
+ import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
++import type {CrPageSelectorElement} from 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
+ import {assert, assertNotReached, assertNotReachedCase} from 'chrome://resources/js/assert.js';
+ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+ import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+@@ -40,6 +41,9 @@ const SECTION_TO_SELECTOR = {
+   [CustomizeChromeSection.kShortcuts]: '#shortcuts',
+   [CustomizeChromeSection.kModules]: '#modules',
+   [CustomizeChromeSection.kFooter]: '#footer',
++  // <if expr="is_macosx">
++  [CustomizeChromeSection.kToolbar]: '#toolbarHeading',
++  // </if>
+ };
+ 
+ const CHANGE_CHROME_THEME_BUTTON_ELEMENT_ID =
+@@ -49,7 +53,9 @@ export enum CustomizeChromePage {
+   OVERVIEW = 'overview',
+   CATEGORIES = 'categories',
+   THEMES = 'themes',
++  // <if expr="not is_macosx">
+   TOOLBAR = 'toolbar',
++  // </if>
+   WALLPAPER_SEARCH = 'wallpaper-search',
+ }
+ 
+@@ -57,6 +63,7 @@ const AppElementBase = HelpBubbleMixinLi
+ 
+ export interface AppElement {
+   $: {
++    container: CrPageSelectorElement,
+     overviewPage: HTMLElement,
+     appearanceElement: AppearanceElement,
+   };
+@@ -204,12 +211,13 @@ export class AppElement extends AppEleme
+     // </if>
+   }
+ 
+-  private onScrollToSection_(section: CustomizeChromeSection) {
++  private async onScrollToSection_(section: CustomizeChromeSection) {
+     if (section === CustomizeChromeSection.kWallpaperSearch) {
+       this.onWallpaperSearchSelect_();
+       return;
+     }
+ 
++    // <if expr="not is_macosx">
+     if (section === CustomizeChromeSection.kToolbar) {
+       this.openToolbarCustomizationPage();
+       chrome.metricsPrivate.recordUserAction(
+@@ -217,22 +225,36 @@ export class AppElement extends AppEleme
+           '.OpenedFromOutsideCustomizeChrome');
+       return;
+     }
++    // </if>
+ 
+     const selector = SECTION_TO_SELECTOR[section];
+-    const element = this.shadowRoot.querySelector(selector);
+-    if (!element) {
++    if (!selector) {
+       return;
+     }
+ 
+     this.page_ = CustomizeChromePage.OVERVIEW;
++    await this.updateComplete;
++    await this.$.container.updateComplete;
++    const element = this.shadowRoot.querySelector<HTMLElement>(selector);
++    if (!element) {
++      return;
++    }
++
++    // <if expr="is_macosx">
++    if (section === CustomizeChromeSection.kToolbar) {
++      element.focus({preventScroll: true});
++      chrome.metricsPrivate.recordUserAction(
++          'Actions.CustomizeToolbarSidePanel' +
++          '.OpenedFromOutsideCustomizeChrome');
++    }
++    // </if>
+     element.scrollIntoView({behavior: 'auto'});
+   }
+ 
+   private onAttachedTabStateUpdated_(type: NewTabPageType) {
+     this.newTabPageType_ = type;
+     // <if expr="is_macosx">
+-    if (!this.isSourceTabFirstPartyNtp_() &&
+-        this.page_ !== CustomizeChromePage.TOOLBAR) {
++    if (!this.isSourceTabFirstPartyNtp_()) {
+       this.page_ = CustomizeChromePage.OVERVIEW;
+     }
+     // </if>
+@@ -271,11 +293,13 @@ export class AppElement extends AppEleme
+         await this.updateComplete;
+         this.focusOnWallpaperButton_();
+         break;
++      // <if expr="not is_macosx">
+       case CustomizeChromePage.TOOLBAR:
+         this.page_ = CustomizeChromePage.OVERVIEW;
+         await this.updateComplete;
+         this.shadowRoot.querySelector<HTMLElement>('#toolbarButton')?.focus();
+         break;
++      // </if>
+       case CustomizeChromePage.THEMES:
+       case CustomizeChromePage.WALLPAPER_SEARCH:
+         this.page_ = CustomizeChromePage.CATEGORIES;
+@@ -365,6 +389,7 @@ export class AppElement extends AppEleme
+     this.apiProxy_.handler.openChromeWebStoreHomePage();
+   }
+ 
++  // <if expr="not is_macosx">
+   protected onToolbarCustomizationButtonClick_() {
+     this.openToolbarCustomizationPage();
+     chrome.metricsPrivate.recordUserAction(
+@@ -378,6 +403,7 @@ export class AppElement extends AppEleme
+     await this.updateComplete;
+     page.focusOnBackButton();
+   }
++  // </if>
+ }
+ 
+ declare global {
+--- a/chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.html.ts
+@@ -9,11 +9,13 @@ import type {ToolbarElement} from './too
+ export function getHtml(this: ToolbarElement) {
+   return html`<!--_html_template_start_-->
+ <div class="sp-card" id="pinningSelectionCard">
++<if expr="not is_macosx">
+   <sp-heading id="heading" class="separator" @back-button-click="${this.onBackButtonClick_}"
+       back-button-aria-label="$i18n{backButton}"
+       back-button-title="$i18n{backButton}">
+     <h2 slot="heading">$i18n{toolbarHeader}</h2>
+   </sp-heading>
++</if>
+   ${this.categories_.map((category, categoryIndex) => html`
+     ${this.actions_.map(action => html`
+       ${action.category === category.id ? html`
+--- a/chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.ts
+@@ -2,11 +2,15 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++// <if expr="not is_macosx">
+ import 'chrome://customize-chrome-side-panel.top-chrome/shared/sp_heading.js';
++// </if>
+ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+ import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
+ 
++// <if expr="not is_macosx">
+ import type {SpHeadingElement} from 'chrome://customize-chrome-side-panel.top-chrome/shared/sp_heading.js';
++// </if>
+ import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
+ import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
+ import {WebUiListenerMixinLit} from 'chrome://resources/cr_elements/web_ui_listener_mixin_lit.js';
+@@ -23,7 +27,9 @@ const ToolbarElementBase = WebUiListener
+ 
+ export interface ToolbarElement {
+   $: {
++    // <if expr="not is_macosx">
+     heading: SpHeadingElement,
++    // </if>
+     pinningSelectionCard: HTMLElement,
+   };
+ }
+@@ -83,6 +89,7 @@ export class ToolbarElement extends Tool
+     this.listenerIds_ = [];
+   }
+ 
++  // <if expr="not is_macosx">
+   focusOnBackButton() {
+     this.$.heading.getBackButton().focus();
+   }
+@@ -90,6 +97,7 @@ export class ToolbarElement extends Tool
+   protected onBackButtonClick_() {
+     this.fire('back-click');
+   }
++  // </if>
+ 
+   protected onResetToDefaultClick_() {
+     this.apiProxy_.handler.resetToDefault();
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
+@@ -119,7 +119,11 @@ CustomizeChromeUI::CustomizeChromeUI(con
+       {"footerHeader", IDS_NTP_CUSTOMIZE_FOOTER_HEADER},
+       {"toolsHeader", IDS_NTP_CUSTOMIZE_TOOLS_HEADER},
+       {"shortcutsHeader", IDS_NTP_CUSTOMIZE_MENU_SHORTCUTS_LABEL},
++#if BUILDFLAG(IS_MAC)
++      {"toolbarHeader", IDS_SHOW_CUSTOMIZE_CHROME_TOOLBAR},
++#else
+       {"toolbarHeader", IDS_NTP_CUSTOMIZE_MENU_TOOLBAR_LABEL},
++#endif
+       {"extensionsHeader", IDS_NTP_CUSTOMIZE_MENU_EXTENSIONS_LABEL},
+       // Appearance strings.
+       {"changeTheme", IDS_NTP_CUSTOMIZE_CHROME_CHANGE_THEME_LABEL},
