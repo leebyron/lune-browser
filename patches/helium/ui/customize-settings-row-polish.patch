@@ -1,0 +1,378 @@
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -19397,6 +19397,11 @@ Please help our engineers fix this probl
+     <message name="IDS_ON_DEVICE_MODEL_CATEGORY_LIVE_TRANSCRIPTION_DESCRIPTION" translateable="false" desc="Short description for the live transcription on-device AI capability in Settings.">
+       Transcribes speech to text in real time
+     </message>
++    <if expr="is_macosx">
++      <message name="IDS_NTP_CUSTOMIZE_NEW_TAB_HEADER" desc="Heading above wallpaper and shortcuts settings for the browser's built-in New Tab page.">
++        Customize New Tab
++      </message>
++    </if>
+   </messages>
+ </release>
+-</grit>
+\ No newline at end of file
++</grit>
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.css
+@@ -33,6 +33,8 @@
+    * 4px at 200px). */
+   --customize-chrome-grid-gap: calc(var(--sp-card-inline-padding) / 2);
+ <if expr="is_macosx">
++  --customize-chrome-control-edge:
++      color-mix(in srgb, var(--cr-primary-text-color) 13%, transparent);
+   --customize-chrome-heading-line-height: 18px;
+   --customize-chrome-top-padding:
+       calc(52px - var(--customize-chrome-heading-line-height));
+@@ -181,15 +183,12 @@ customize-chrome-appearance {
+   display: none;
+ }
+ 
+-#newTabWallpaperContent {
+-  align-items: center;
+-  display: flex;
+-  gap: 8px;
+-}
+-
+ #newTabWallpaperIcon {
++  --cr-icon-color: currentColor;
+   --cr-icon-image: url(icons/image_old.svg);
+   --cr-icon-size: 14px;
++  height: 14px;
++  width: 14px;
+ }
+ 
+ :host-context([webui-rounded-icons]) #newTabWallpaperIcon {
+--- a/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/app.html.ts
+@@ -64,12 +64,13 @@ export function getHtml(this: AppElement
+         ?hidden="${!this.isSourceTabFirstPartyNtp_()}">
+       <h2 id="newTabHeading" class="section-heading">$i18n{newTabHeader}</h2>
+       <div id="shortcuts" class="section sp-card">
+-        <cr-button id="newTabWallpaperButton" ?hidden="${!this.showEditTheme_}"
++        <cr-button id="newTabWallpaperButton"
++            class="sp-centered-button sp-settings-button"
++            ?hidden="${!this.showEditTheme_}"
+             @click="${this.onChooseWallpaperClick_}">
+-          <span id="newTabWallpaperContent">
+-            <span id="newTabWallpaperIcon" class="cr-icon" aria-hidden="true"></span>
+-            $i18n{changeWallpaper}
+-          </span>
++          <span id="newTabWallpaperIcon" class="cr-icon no-overlap"
++              slot="prefix-icon" aria-hidden="true"></span>
++          $i18n{changeWallpaper}
+         </cr-button>
+         ${this.isSourceTabFirstPartyNtp_() ? html`
+           <customize-chrome-shortcuts></customize-chrome-shortcuts>
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.css
+@@ -15,8 +15,7 @@
+ :host {
+   --customize-segmented-track:
+       color-mix(in srgb, var(--cr-primary-text-color) 7%, transparent);
+-  --customize-segmented-edge:
+-      color-mix(in srgb, var(--cr-primary-text-color) 13%, transparent);
++  --customize-segmented-edge: var(--customize-chrome-control-edge);
+   --customize-segmented-selected: var(--color-side-panel-card-background);
+   --customize-segmented-gap: 3px;
+   --customize-segmented-inset: 3px;
+@@ -167,7 +166,7 @@ cr-theme-color-picker {
+ <if expr="is_macosx">
+ #contentAwareChrome {
+   margin-block-end: 0;
+-  padding-block-end: 4px;
++  padding: var(--sp-card-padding);
+ }
+ </if>
+ 
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.html.ts
+@@ -34,7 +34,10 @@ export function getHtml(this: Appearance
+     label="${this.thirdPartyThemeName_}"
+     label-description="$i18n{currentTheme}">
+ </customize-chrome-hover-button>
+-<div id="contentAwareChrome" class="sp-card-content"
++<div id="contentAwareChrome" class="sp-card-content sp-inset-settings-row"
++<if expr="is_macosx">
++    @click="${this.onContentAwareChromeClick_}"
++</if>
+     ?hidden="${!this.theme_?.contentAwareChromeSupported}">
+   <span id="contentAwareChromeLabel">$i18n{contentAwareChrome}</span>
+   <cr-toggle id="contentAwareChromeToggle"
+--- a/chrome/browser/resources/side_panel/customize_chrome/appearance.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/appearance.ts
+@@ -28,6 +28,7 @@ import type {BrowserProxy, Theme} from '
+ export interface AppearanceElement {
+   $: {
+     chromeColors: HTMLElement,
++    contentAwareChromeToggle: CrToggleElement,
+     // <if expr="not is_macosx">
+     editThemeButton: HTMLButtonElement,
+     // </if>
+@@ -335,6 +336,12 @@ export class AppearanceElement extends A
+   }
+   // </if>
+ 
++  // <if expr="is_macosx">
++  protected onContentAwareChromeClick_() {
++    this.$.contentAwareChromeToggle.click();
++  }
++  // </if>
++
+   protected onContentAwareChromeChange_(e: CustomEvent<boolean>) {
+     this.apiProxy_.handler.setContentAwareChrome(e.detail);
+   }
+--- a/chrome/browser/resources/side_panel/customize_chrome/cards.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/cards.css
+@@ -25,6 +25,7 @@
+   padding-inline-start: calc(2 * var(--sp-card-inline-padding));
+ }
+ 
++<if expr="not is_macosx">
+ .card:hover {
+   background-color: var(--cr-hover-background-color);
+   cursor: pointer;
+@@ -34,6 +35,7 @@
+   background-color: var(--cr-menu-background-focus-color);
+   outline: none;
+ }
++</if>
+ 
+ .card-checkbox::part(label-container) {
+   flex-grow: 1;
+--- a/chrome/browser/resources/side_panel/customize_chrome/cards.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/cards.html.ts
+@@ -21,7 +21,8 @@ export function getHtml(this: CardsEleme
+   <cr-collapse ?opened="${this.show_}" ?no-animation="${!this.initialized_}">
+     <hr class="sp-hr">
+     ${this.modules_.map((item, index) => html`
+-      <div class="card" data-index="${index}" @click="${this.onCardClick_}"
++      <div class="card sp-inset-settings-row" data-index="${index}"
++          @click="${this.onCardClick_}"
+           ?hidden="${!item.visible}">
+         <cr-checkbox class="card-checkbox label-first" data-index="${index}"
+             ?checked="${item.enabled}" ?disabled="${this.managedByPolicy_}"
+--- a/chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.css
+@@ -30,6 +30,7 @@
+   justify-content: flex-start;
+ }
+ 
++<if expr="not is_macosx">
+ .toggle-container:hover {
+   background-color: var(--cr-hover-background-color);
+   cursor: pointer;
+@@ -39,6 +40,7 @@
+   background-color: var(--cr-menu-background-focus-color);
+   outline: none;
+ }
++</if>
+ 
+ .sp-hr {
+   width: auto;
+@@ -80,8 +82,14 @@
+ }
+ 
+ #resetToDefaultButton {
++<if expr="is_macosx">
++  margin: 8px var(--sp-card-inline-padding);
++  width: calc(100% - 2 * var(--sp-card-inline-padding));
++</if>
++<if expr="not is_macosx">
+   margin: 8px 16px;
+   width: calc(100% - 32px);
++</if>
+ }
+ 
+ #resetToDefaultIcon {
+--- a/chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/customize_toolbar/toolbar.html.ts
+@@ -21,7 +21,8 @@ export function getHtml(this: ToolbarEle
+       ${action.category === category.id ? html`
+         ${!action.hasEnterpriseControlledPinnedState ? html`
+           <div
+-              class="toggle-container choose-icons-row-container choose-icons-row"
++              class="toggle-container choose-icons-row-container
++                  choose-icons-row sp-inset-settings-row"
+               @click="${
+                   this.getActionToggleHandler_(action.id, !action.pinned)}">
+             <img class="toggle-icon" src="${action.iconUrl}" aria-hidden="true">
+@@ -52,7 +53,7 @@ export function getHtml(this: ToolbarEle
+     ` : ''}
+   `)}
+   <hr class="sp-hr">
+-  <cr-button id="resetToDefaultButton"
++  <cr-button id="resetToDefaultButton" class="sp-centered-button sp-settings-button"
+       @click="${this.onResetToDefaultClick_}"
+       ?disabled="${this.resetToDefaultDisabled_}">
+     <div id="resetToDefaultIcon" class="cr-icon" slot="prefix-icon"></div>
+--- a/chrome/browser/resources/side_panel/customize_chrome/shortcuts.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/shortcuts.css
+@@ -38,6 +38,7 @@ cr-radio-group {
+   padding-inline-start: calc(3 * var(--sp-card-inline-padding));
+ }
+ 
++<if expr="not is_macosx">
+ .option:hover {
+   background-color: var(--cr-hover-background-color);
+   cursor: pointer;
+@@ -47,6 +48,7 @@ cr-radio-group {
+   background-color: var(--cr-menu-background-focus-color);
+   outline: none;
+ }
++</if>
+ 
+ .option[hidden] {
+   display: none;
+--- a/chrome/browser/resources/side_panel/customize_chrome/shortcuts.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/shortcuts.html.ts
+@@ -18,7 +18,7 @@ export function getHtml(this: ShortcutsE
+ <div id="options">
+   <cr-collapse ?opened="${this.show_}" ?no-animation="${!this.initialized_}">
+     <hr class="sp-hr">
+-    <div id="enterpriseShortcutsMixedContainer" class="option"
++    <div id="enterpriseShortcutsMixedContainer" class="option sp-inset-settings-row"
+         @click="${this.onShowEnterpriseShortcutsClick_}"
+         ?hidden="${!this.showEnterprisePersonalMixedSidepanel_()}">
+       ${this.getEnterpriseShortcutConfigs_().map(item => html`
+@@ -31,7 +31,7 @@ export function getHtml(this: ShortcutsE
+         </cr-checkbox>
+       `)}
+     </div>
+-    <div id="personalShortcutsContainer" class="option"
++    <div id="personalShortcutsContainer" class="option sp-inset-settings-row"
+         @click="${this.onShowPersonalShortcutsClick_}"
+         ?hidden="${!this.showEnterprisePersonalMixedSidepanel_()}">
+       <customize-chrome-button-label label="$i18n{showPersonalShortcutsToggle}"
+@@ -50,7 +50,8 @@ export function getHtml(this: ShortcutsE
+         @selected-changed="${this.onRadioSelectionSelectedChanged_}"
+         nested-selectable>
+       ${this.getRadioSelectionShortcutConfigs_().map(item => html`
+-        <div class="option" id="${item.containerName}" data-type="${item.type}"
++        <div class="option sp-inset-settings-row" id="${item.containerName}"
++            data-type="${item.type}"
+             @click="${this.onOptionClick_}">
+           <customize-chrome-button-label label="${item.title}"
+               label-description="${item.description}">
+--- a/chrome/browser/resources/side_panel/customize_chrome/toggle_container_shared.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/toggle_container_shared.css
+@@ -17,6 +17,7 @@
+   padding: var(--sp-card-padding);
+ }
+ 
++<if expr="not is_macosx">
+ #showToggleContainer:hover {
+   background-color: var(--cr-hover-background-color);
+   cursor: pointer;
+@@ -26,6 +27,7 @@
+   background-color: var(--cr-menu-background-focus-color);
+   outline: none;
+ }
++</if>
+ 
+ #showToggleTitle {
+   font-size: inherit;
+--- a/chrome/browser/resources/side_panel/customize_chrome/wallpaper_search/wallpaper_search.css
++++ b/chrome/browser/resources/side_panel/customize_chrome/wallpaper_search/wallpaper_search.css
+@@ -297,9 +297,11 @@ cr-grid {
+   cursor: pointer;
+ }
+ 
++<if expr="not is_macosx">
+ #inspirationToggle:hover {
+   background-color: var(--cr-hover-background-color);
+ }
++</if>
+ 
+ #inspirationToggle .cr-icon {
+   margin-inline-start: 0;
+--- a/chrome/browser/resources/side_panel/customize_chrome/wallpaper_search/wallpaper_search.html.ts
++++ b/chrome/browser/resources/side_panel/customize_chrome/wallpaper_search/wallpaper_search.html.ts
+@@ -91,7 +91,7 @@ export function getHtml(this: WallpaperS
+       </cr-theme-hue-slider-dialog>
+       <div id="btnContainer">
+         <cr-button id="submitButton" @click="${this.onSearchClick_}"
+-            class="action-button">
++            class="action-button sp-centered-button">
+           <div id="imageIcon" class="cr-icon" slot="prefix-icon"></div>
+           $i18n{wallpaperSearchSubmitBtn}
+         </cr-button>
+@@ -161,7 +161,7 @@ ${this.inspirationCardEnabled_ ? html`
+         @click="${this.onInspirationToggleClick_}"
+         @keydown="${this.onButtonKeydown_}"
+         aria-expanded="${this.openInspirations_}" tabindex="0"
+-        id="inspirationToggle">
++        id="inspirationToggle" class="sp-inset-settings-row">
+       <h2 slot="heading">$i18n{wallpaperSearchInspirationHeader}</h2>
+       <div class="cr-icon ${this.inspirationToggleIcon_}" slot="buttons"></div>
+     </sp-heading>
+--- a/chrome/browser/resources/side_panel/shared/sp_shared_style.css
++++ b/chrome/browser/resources/side_panel/shared/sp_shared_style.css
+@@ -9,13 +9,52 @@
+  * #css_wrapper_metadata_end */
+ 
+ .sp-card {
++  --sp-card-border-radius: 9px;
+   background: var(--color-side-panel-card-background);
+-  border-radius: 9px;
++  border-radius: var(--sp-card-border-radius);
+   display: block;
+   margin: 0 var(--sp-body-padding);
+   padding: var(--sp-card-block-padding) 0;
+ }
+ 
++<if expr="is_macosx">
++:is(#showToggleContainer, .sp-inset-settings-row) {
++  isolation: isolate;
++  position: relative;
++}
++
++:is(#showToggleContainer, .sp-inset-settings-row)::before {
++  --sp-settings-row-inset: 4px;
++  border-radius: calc(var(--sp-card-border-radius) - var(--sp-settings-row-inset));
++  content: '';
++  inset: 0 var(--sp-settings-row-inset);
++  pointer-events: none;
++  position: absolute;
++  z-index: -1;
++}
++
++:is(#showToggleContainer, .sp-inset-settings-row):hover {
++  cursor: pointer;
++}
++
++:is(#showToggleContainer, .sp-inset-settings-row):hover::before {
++  background-color: var(--cr-hover-background-color);
++}
++
++:is(#showToggleContainer, .sp-inset-settings-row):focus-visible::before,
++:is(#showToggleContainer, .sp-inset-settings-row):has(:focus-visible)::before {
++  background-color: var(--cr-menu-background-focus-color);
++}
++
++.sp-centered-button {
++  --icon-block-padding-small: var(--icon-block-padding-large);
++}
++
++.sp-settings-button {
++  --cr-button-border-color: var(--customize-chrome-control-edge);
++}
++</if>
++
+ .sp-card sp-heading {
+   margin: 0;
+   padding: 0 var(--sp-card-inline-padding);
+--- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
++++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.cc
+@@ -113,7 +113,9 @@ CustomizeChromeUI::CustomizeChromeUI(con
+       {"title", IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE},
+       // Header strings.
+       {"appearanceHeader", IDS_NTP_CUSTOMIZE_APPEARANCE_LABEL},
+-      {"newTabHeader", IDS_NEW_TAB_TITLE},
++#if BUILDFLAG(IS_MAC)
++      {"newTabHeader", IDS_NTP_CUSTOMIZE_NEW_TAB_HEADER},
++#endif
+       {"cardsHeader", IDS_NTP_CUSTOMIZE_MENU_MODULES_LABEL},
+       {"categoriesHeader", IDS_NTP_CUSTOMIZE_THEMES_HEADER},
+       {"footerHeader", IDS_NTP_CUSTOMIZE_FOOTER_HEADER},
