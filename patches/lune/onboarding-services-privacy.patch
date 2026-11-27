@@ -1,0 +1,227 @@
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -81,8 +81,8 @@
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_TITLE" desc="Title of the onboarding screen for Helium services consent.">
+   Services
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_SERVICES_SUBTITLE" desc="Subtitle explaining when Helium services consent choices take effect.">
+-  Services are not active until you consent to using them. Changes will be applied after you go to the next page.
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_SUBTITLE" desc="Subtitle of the setup screen for controlling service connections.">
++  Control Lune’s connections beyond the websites you visit.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_CONNECTION_TITLE" desc="Title of the global toggle for connecting to Helium services.">
+   Allow connecting to Helium services
+@@ -91,16 +91,16 @@
+   Helium services provide additional functionality, such as: extension downloads, native !bangs, filter list updates. When disabled, none of these features will work, but Helium will not make any web requests.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_BANGS_TITLE" desc="Title of the toggle for downloading the Helium bangs list.">
+-  Download !bang shortcuts from Helium
++  Search sites with !bangs
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_BANGS_DESC" desc="Description of the toggle for downloading the Helium bangs list.">
+-  Search sites with !w and other shortcuts. Sends your IP address to Helium when downloading the list.
++  Downloads a list of search shortcuts. Matching happens on your device.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_TITLE" desc="Title of the toggle for proxying extension downloads and updates.">
+-  Enable Chrome extensions proxied through Helium
++  Enable browser extensions
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_DESC" desc="Description of the toggle for proxying extension downloads and updates.">
+-  Install password managers and other extensions. Sends your IP address, extension IDs, and versions to Helium.
++  Install and update Chrome extensions through Helium's proxy.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_ENABLED_TITLE" desc="Title of the switch controlling the bundled ad and tracker blocker.">
+   Block ads and trackers
+@@ -109,10 +109,10 @@
+   Enables the uBlock Origin extension with a pre-bundled filter list.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_TITLE" desc="Title of the toggle for downloading uBlock Origin filter lists.">
+-  Update privacy filter lists through Helium
++  Keep privacy filters up to date
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_DESC" desc="Description of the toggle for downloading uBlock Origin filter lists.">
+-  Keep uBlock Origin and link cleanup up to date. Helium receives your IP address and list requests. Optional uBlock Origin lists may contact their providers.
++  Downloads new rules for uBlock Origin and link tracking parameter removal.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_AUTOUPDATES_TITLE" desc="Title of the toggle for automatic browser updates on platforms where Helium updates the browser.">
+   Allow automatic browser updates
+@@ -127,10 +127,10 @@
+   Helium will automatically check for component updates and install them. We recommend keeping this setting enabled. On Linux, browser updates are handled by your distro's package manager. Please check for Helium package updates at least every week.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_SPELLCHECK_TITLE" desc="Title of the toggle for downloading spell check dictionary files.">
+-  Download spelling dictionaries from Helium
++  Download spelling dictionaries
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_SPELLCHECK_DESC" desc="Description of the toggle for downloading spell check dictionary files.">
+-  Check spelling on your device. Helium receives your IP address and requested dictionary language.
++  Use local dictionaries to check spelling as you type.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_TITLE" desc="Title of the option describing custom Helium services instances.">
+   Use your own instance of Helium services
+@@ -246,7 +246,7 @@
+   Password manager
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_PASSWORD_SUBTITLE" desc="Subtitle of the onboarding screen for choosing a password manager.">
+-  Helium doesn't have a built-in password manager. Would you like to install one from the Web Store?
++  Install a password manager as a browser extension.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_PASSWORD_IMPORT_GUIDE" desc="Link label linking to a password manager import guide. Short title for a guide.">
+   Import
+@@ -289,8 +289,8 @@
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
+   Built on <ph name="BEGIN_LINK_HELIUM">$1</ph>Helium browser<ph name="END_LINK_HELIUM">$2</ph> and <ph name="BEGIN_LINK_UNGOOGLED">$3</ph>ungoogled-chromium<ph name="END_LINK_UNGOOGLED">$4</ph> with thanks to their authors and contributors
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_SERVICES_PROVIDER" desc="Lune service provider and update disclosure.">
+-  Control Lune’s connections beyond the websites you visit.
++<message name="IDS_HELIUM_ONBOARDING_SERVICES_PROVIDER" desc="Short disclosure about the Helium-hosted features. The links open the Helium Services project and the provider's privacy policy.">
++  Lune uses <ph name="BEGIN_LINK_SERVICES">$1</ph>Helium Services<ph name="END_LINK_SERVICES">$2</ph>. Helium <ph name="BEGIN_LINK_PRIVACY">$3</ph>does not collect<ph name="END_LINK_PRIVACY">$4</ph> any personal information.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_CONSENT" desc="Lune service provider and update disclosure.">
+   Allow Lune to connect to Helium-hosted services. Choosing Next confirms these settings.
+@@ -299,7 +299,7 @@
+   You can host your own Helium services instance and select it in Lune settings.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_LUNE_UPDATES" desc="Lune service provider and update disclosure.">
+-  Get browser and security updates. Sends your IP address and browser version to GitHub.
++  Check GitHub for new Lune releases, sharing your IP address and browser version.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_UPDATES_TITLE" desc="Automatic browser update switch.">Update browser automatically</message>
+ 
+@@ -321,15 +321,15 @@
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_COVER" desc="Keep the toolbar visible and allow pages to opt into drawing beneath it.">Always cover (experimental)</message>
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_HEADER_ALWAYS" desc="Onboarding appearance choice.">Always</message>
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_TITLE" desc="Opt in to search-engine suggestions during setup.">Show search suggestions</message>
+-<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_DESC" desc="Explains partial query disclosure to the chosen search engine.">Sends address bar text to your search engine for suggestions.</message>
++<message name="IDS_HELIUM_ONBOARDING_SEARCH_SUGGESTIONS_DESC" desc="Explains partial query disclosure to the chosen search engine.">Send what you type in the address bar to your search engine.</message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_SEARCH_SUGGESTIONS" desc="Discloses search suggestions included in the Use defaults setup choice.">Defaults include search suggestions from your selected search engine.</message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_TITLE" desc="Independent automatic Helium service component updates toggle.">
+-  Update security and media components through Helium
++  Keep security components up to date
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_COMPONENT_UPDATES_DESC" desc="Description of automatic Helium service component updates.">
+-  Update certificate protections and protected video playback. Sends your IP address, component IDs and versions, browser/OS details, and update results to Helium.
++  Downloads updates for certificate protections.
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_PASSWORD_ONE_TIME_NOTICE" desc="Explains the installation-only Helium permission when ongoing extension service access is off.">
+-  Extension services are off. Choosing Install allows a one-time use of Helium’s extension proxy to install that password manager. Helium receives your IP address and the extension request. Your service settings stay unchanged; future extension updates remain disabled.
++<message name="IDS_HELIUM_ONBOARDING_PASSWORD_ONE_TIME_NOTICE" desc="Warning for a one-time password manager download when extensions are disabled. Keep the warning title first and between the BEGIN_TITLE and END_TITLE placeholders. The rest is the warning description.">
++  <ph name="BEGIN_TITLE">$1</ph>Extensions are disabled<ph name="END_TITLE">$2</ph> Allows a one-time download through Helium's proxy. Updates remain disabled.
+ </message>
+ </grit-part>
+--- a/components/helium_onboarding/src/pages/HeliumServices.svelte
++++ b/components/helium_onboarding/src/pages/HeliumServices.svelte
+@@ -1,6 +1,8 @@
+ <script lang="ts">
+ 
++    import { Link } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
++    import { parseLocalizedString } from "../lib/i18n";
+     import { platform } from "../lib/platform";
+     import { currentPage } from "../lib/onboarding-flow";
+ 
+@@ -8,6 +10,7 @@
+     import PageHeader from "../components/PageHeader.svelte";
+ 
+     const visible = $derived($currentPage === "HeliumServices");
++    const privacyNote = parseLocalizedString(s.services.provider);
+     const services = ([
+         {
+             title: s.services.extensionsTitle,
+@@ -36,11 +39,11 @@
+     ] as const).filter(service => service.available);
+ </script>
+ 
+-<div id="services-page" class="onboarding-page" class:visible>
++<div id="services-page" class="onboarding-page" class:visible inert={!visible}>
+     <div class="scrollable-page">
+         <PageHeader
+             title={s.services.title}
+-            subtitle={s.services.provider}
++            subtitle={s.services.subtitle}
+             symbol="point.3.connected.trianglepath.dotted"
+         />
+         <div class="page-content">
+@@ -57,6 +60,7 @@
+                 compact
+             />
+             <div class="toggle-separator"></div>
++            <p class="services-intro">{#each privacyNote as part}{#if part.kind === "linkServices"}<Link href="https://github.com/imputnet/helium-services">{part.text}</Link>{:else if part.kind === "linkPrivacy"}<Link href="https://helium.computer/privacy">{part.text}</Link>{:else}{part.text}{/if}{/each}</p>
+             {#each services as service (service.prefName)}
+                 <PreferenceToggle
+                     title={service.title}
+@@ -85,6 +89,21 @@
+     .page-content :global(.compact-text) { flex: 1; }
+     .scrollable-page { max-width: 760px; }
+ 
++    .page-content .services-intro {
++        align-self: stretch;
++        margin: 0;
++        padding-inline: 18px;
++        font: 400 11px/1.2 Inter, sans-serif;
++        color: var(--secondary);
++        text-align: center;
++        text-wrap: balance;
++    }
++
++    .services-intro :global(a) {
++        font: inherit;
++        color: inherit;
++    }
++
+     .toggle-separator {
+         margin-block: 12px;
+         height: 2px;
+--- a/components/helium_onboarding/src/pages/PasswordManager.svelte
++++ b/components/helium_onboarding/src/pages/PasswordManager.svelte
+@@ -1,6 +1,7 @@
+ <script lang="ts">
+     import { preferences } from "../lib/browser";
+     import { s } from "../lib/strings";
++    import { parseLocalizedString } from "../lib/i18n";
+     import { platform } from "../lib/platform";
+     import { currentPage } from "../lib/onboarding-flow";
+     import { passwordManagers } from "../lib/password-managers";
+@@ -10,6 +11,7 @@
+ 
+ 
+     const visible = $derived($currentPage === "PasswordManager");
++    const notice = parseLocalizedString(s.password.oneTimeNotice);
+ </script>
+ 
+ <div id="password-manager-page" class="onboarding-page" class:visible>
+@@ -26,7 +28,15 @@
+                     <path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+                     <path d="M12 9v4m0 4h.01" />
+                 </svg>
+-                <p>{s.password.oneTimeNotice}</p>
++                <div>
++                    {#each notice as part}
++                        {#if part.kind === "title"}
++                            <p class="notice-title">{part.text}</p>
++                        {:else if part.text.trim()}
++                            <p>{part.text.trim()}</p>
++                        {/if}
++                    {/each}
++                </div>
+             </div>
+         {/if}
+         <div class="page-content setup-options-grid">
+@@ -41,6 +51,7 @@
+ 
+ <style>
+     .one-time-notice {
++        width: fit-content;
+         max-width: 640px;
+         display: flex;
+         align-items: center;
+@@ -55,4 +66,10 @@
+     }
+     .one-time-notice svg { flex: 0 0 24px; }
+     .one-time-notice p { margin: 0; font: inherit; }
++    .one-time-notice .notice-title {
++        margin-bottom: 2px;
++        font-size: 14px;
++        font-weight: 500;
++        line-height: 20px;
++    }
+ </style>
