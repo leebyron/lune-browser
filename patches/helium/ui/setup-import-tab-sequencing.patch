@@ -1,0 +1,263 @@
+Index: source/chrome/browser/ui/webui/settings/brave_import_data_handler.cc
+===================================================================
+--- source.orig/chrome/browser/ui/webui/settings/brave_import_data_handler.cc
++++ source/chrome/browser/ui/webui/settings/brave_import_data_handler.cc
+@@ -138,23 +138,31 @@ void BraveImportDataHandler::StartImport
+     const user_data_importer::SourceProfile& source_profile,
+     uint16_t imported_items) {
+   FireWebUIListener("import-data-status-changed", base::Value("inProgress"));
+-  if (imported_items & importer::kOpenTabs) {
+-    imported_items &= ~importer::kOpenTabs;
+-    base::ThreadPool::PostTaskAndReplyWithResult(
+-        FROM_HERE, {base::MayBlock()},
+-        base::BindOnce(&importer::ReadOpenTabs, source_profile.importer_type,
+-                       source_profile.source_path),
+-        base::BindOnce(&BraveImportDataHandler::OpenImportedTabs,
+-                       weak_factory_.GetWeakPtr(), source_profile,
+-                       imported_items));
++  const bool import_tabs = (imported_items & importer::kOpenTabs) != 0;
++  imported_items &= ~importer::kOpenTabs;
++  if (!imported_items) {
++    // A tabs-only profile has no other data to transfer first.
++    ImportTabs(source_profile, /*profile_imported=*/false);
+     return;
+   }
+-  StartDataImport(source_profile, imported_items, /*opened_tabs=*/false);
++  StartDataImport(source_profile, imported_items, import_tabs);
++}
++
++void BraveImportDataHandler::ImportTabs(
++    const user_data_importer::SourceProfile& source_profile,
++    bool profile_imported) {
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE, {base::MayBlock()},
++      base::BindOnce(&importer::ReadOpenTabs, source_profile.importer_type,
++                     source_profile.source_path),
++      base::BindOnce(&BraveImportDataHandler::OpenImportedTabs,
++                     weak_factory_.GetWeakPtr(), source_profile,
++                     profile_imported));
+ }
+ 
+ void BraveImportDataHandler::OpenImportedTabs(
+     const user_data_importer::SourceProfile& source_profile,
+-    uint16_t imported_items,
++    bool profile_imported,
+     importer::OpenTabsForImport tabs) {
+   auto* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+       web_ui()->GetWebContents());
+@@ -171,17 +179,13 @@ void BraveImportDataHandler::OpenImporte
+       }
+     }
+   }
+-  StartDataImport(source_profile, imported_items, opened_tabs);
++  OnImportEnded(source_profile, profile_imported || opened_tabs);
+ }
+ 
+ void BraveImportDataHandler::StartDataImport(
+     const user_data_importer::SourceProfile& source_profile,
+     uint16_t imported_items,
+-    bool opened_tabs) {
+-  if (!imported_items) {
+-    OnImportEnded(source_profile, opened_tabs);
+-    return;
+-  }
++    bool import_tabs) {
+   // If another import is already ongoing, let it finish silently.
+   if (import_observers_.count(source_profile.source_path)) {
+     import_observers_.erase(source_profile.source_path);
+@@ -193,7 +197,7 @@ void BraveImportDataHandler::StartDataIm
+       std::make_unique<BraveImporterObserver>(
+           importer_host, source_profile, imported_items,
+           base::BindRepeating(&BraveImportDataHandler::NotifyImportProgress,
+-                              weak_factory_.GetWeakPtr(), opened_tabs));
++                              weak_factory_.GetWeakPtr(), import_tabs));
+ 
+   importer_host->set_parent_window(
+       web_ui()->GetWebContents()->GetTopLevelNativeWindow());
+@@ -205,7 +209,7 @@ void BraveImportDataHandler::StartDataIm
+ }
+ 
+ void BraveImportDataHandler::NotifyImportProgress(
+-    bool opened_tabs,
++    bool import_tabs,
+     const user_data_importer::SourceProfile& source_profile,
+     const base::DictValue& info) {
+   const std::string* event = info.FindString("event");
+@@ -214,10 +218,21 @@ void BraveImportDataHandler::NotifyImpor
+   }
+   content::GetUIThreadTaskRunner({})->PostTask(
+       FROM_HERE,
+-      base::BindOnce(&BraveImportDataHandler::OnImportEnded,
+-                     weak_factory_.GetWeakPtr(), source_profile,
+-                     opened_tabs ||
+-                         info.FindBool("did_succeed").value_or(false)));
++      base::BindOnce(&BraveImportDataHandler::OnDataImportEnded,
++                     weak_factory_.GetWeakPtr(), source_profile, import_tabs,
++                     info.FindBool("did_succeed").value_or(false)));
++}
++
++void BraveImportDataHandler::OnDataImportEnded(
++    const user_data_importer::SourceProfile& source_profile,
++    bool import_tabs,
++    bool did_succeed) {
++  import_observers_.erase(source_profile.source_path);
++  if (did_succeed && import_tabs) {
++    ImportTabs(source_profile, /*profile_imported=*/true);
++    return;
++  }
++  OnImportEnded(source_profile, did_succeed);
+ }
+ 
+ void BraveImportDataHandler::HandleImportData(const base::ListValue& args) {
+@@ -227,7 +242,6 @@ void BraveImportDataHandler::HandleImpor
+ void BraveImportDataHandler::OnImportEnded(
+     const user_data_importer::SourceProfile& source_profile,
+     bool did_succeed) {
+-  import_observers_.erase(source_profile.source_path);
+   FireWebUIListener("import-data-status-changed",
+                     base::Value(did_succeed ? kImportStatusSucceeded
+                                             : kImportStatusFailed));
+Index: source/chrome/browser/ui/webui/settings/brave_import_data_handler.h
+===================================================================
+--- source.orig/chrome/browser/ui/webui/settings/brave_import_data_handler.h
++++ source/chrome/browser/ui/webui/settings/brave_import_data_handler.h
+@@ -77,14 +77,19 @@ class BraveImportDataHandler : public Im
+   bool guide_dialog_is_requested_ = false;
+ #endif
+  private:
++  void ImportTabs(const user_data_importer::SourceProfile& source_profile,
++                  bool profile_imported);
+   void OpenImportedTabs(const user_data_importer::SourceProfile& source_profile,
+-                        uint16_t imported_items,
++                        bool profile_imported,
+                         importer::OpenTabsForImport tabs);
+   void StartDataImport(const user_data_importer::SourceProfile& source_profile,
+                        uint16_t imported_items,
+-                       bool opened_tabs);
++                       bool import_tabs);
++  void OnDataImportEnded(const user_data_importer::SourceProfile& source_profile,
++                         bool import_tabs,
++                         bool did_succeed);
+   void NotifyImportProgress(
+-      bool opened_tabs,
++      bool import_tabs,
+       const user_data_importer::SourceProfile& source_profile,
+       const base::DictValue& info);
+ 
+Index: source/chrome/common/importer/chrome_importer_utils_mac.mm
+===================================================================
+--- source.orig/chrome/common/importer/chrome_importer_utils_mac.mm
++++ source/chrome/common/importer/chrome_importer_utils_mac.mm
+@@ -59,13 +59,13 @@ using ArcSidebarItems =
+ struct ArcSidebarProfile {
+   std::vector<std::string> space_names;
+   importer::OpenTabsForImport open_tabs;
+-  std::vector<GURL> loose_pins;
++  std::vector<importer::PinnedTabGroupForImport> space_pins;
+ };
+ 
+ struct ArcSidebarVisitedItems {
++  std::set<std::string_view> spaces;
+   std::set<std::string_view> today_tabs;
+   std::set<std::string_view> pinned_folders;
+-  std::set<std::string_view> loose_pins;
+ };
+ 
+ using ArcSidebarProfiles = std::map<std::string, ArcSidebarProfile, std::less<>>;
+@@ -134,8 +134,9 @@ void AppendArcTabUrls(const base::ListVa
+ 
+ void AppendArcPinnedItems(const base::ListValue& children,
+                           const ArcSidebarItems& items,
+-                          ArcSidebarVisitedItems& visited,
+-                          ArcSidebarProfile& profile) {
++                          std::set<std::string_view>& visited_folders,
++                          std::vector<importer::PinnedTabGroupForImport>& folders,
++                          std::vector<GURL>& loose_pins) {
+   base::ListValue loose_items;
+   for (const auto& child : children) {
+     const auto* id = child.GetIfString();
+@@ -148,7 +149,7 @@ void AppendArcPinnedItems(const base::Li
+       continue;
+     }
+     const auto* folder = item->second->FindList("childrenIds");
+-    if (!folder || !visited.pinned_folders.insert(*id).second) {
++    if (!folder || !visited_folders.insert(*id).second) {
+       continue;
+     }
+ 
+@@ -157,13 +158,14 @@ void AppendArcPinnedItems(const base::Li
+     AppendArcTabUrls(*folder, items, /*flatten_folders=*/true, seen_tabs, tabs);
+     if (!tabs.empty()) {
+       const auto* title = item->second->FindString("title");
+-      profile.open_tabs.pinned_groups.push_back(
++      folders.push_back(
+           {title ? base::UTF8ToUTF16(*title) : std::u16string(), std::move(tabs)});
+     }
+   }
+ 
++  std::set<std::string_view> seen_loose_pins;
+   AppendArcTabUrls(loose_items, items, /*flatten_folders=*/false,
+-                   visited.loose_pins, profile.loose_pins);
++                   seen_loose_pins, loose_pins);
+ }
+ 
+ std::optional<ArcSidebarProfiles> ReadArcSidebarProfiles(
+@@ -209,36 +211,49 @@ std::optional<ArcSidebarProfiles> ReadAr
+     }
+     // The sidebar lists alternate IDs and their dictionaries.
+     for (size_t i = 0; i + 1 < spaces->size(); i += 2) {
++      const auto* space_id = (*spaces)[i].GetIfString();
+       const auto* space = (*spaces)[i + 1].GetIfDict();
+-      if (!(*spaces)[i].is_string() || !space) {
++      if (!space_id || !space) {
+         continue;
+       }
+       const std::string_view id = GetArcSpaceProfile(*space, machine_id);
+       if (id.empty()) {
+         continue;
+       }
++      auto& visited_items = visited[id];
++      if (!visited_items.spaces.insert(*space_id).second) {
++        continue;
++      }
+       auto& profile = profiles[std::string(id)];
++      auto& space_pins = profile.space_pins.emplace_back();
+       if (const auto* title = space->FindString("title")) {
+         const auto name = base::TrimWhitespaceASCII(*title, base::TRIM_ALL);
+-        auto& names = profile.space_names;
+-        if (!name.empty() && std::ranges::find(names, name) == names.end()) {
+-          names.emplace_back(name);
++        if (!name.empty()) {
++          space_pins.title = base::UTF8ToUTF16(name);
++          auto& names = profile.space_names;
++          if (std::ranges::find(names, name) == names.end()) {
++            names.emplace_back(name);
++          }
+         }
+       }
+-      auto& visited_items = visited[id];
+       if (const auto* today = FindArcSpaceItems(*space, items, "unpinned")) {
+         AppendArcTabUrls(*today, items, /*flatten_folders=*/false,
+                          visited_items.today_tabs, profile.open_tabs.urls);
+       }
+       if (const auto* pins = FindArcSpaceItems(*space, items, "pinned")) {
+-        AppendArcPinnedItems(*pins, items, visited_items, profile);
++        AppendArcPinnedItems(*pins, items, visited_items.pinned_folders,
++                             profile.open_tabs.pinned_groups, space_pins.urls);
+       }
+     }
+   }
+   for (auto& [id, profile] : profiles) {
+-    if (!profile.loose_pins.empty()) {
+-      profile.open_tabs.pinned_groups.push_back(
+-          {std::nullopt, std::move(profile.loose_pins)});
++    for (auto& space_pins : profile.space_pins) {
++      if (!space_pins.urls.empty()) {
++        if (profile.space_pins.size() == 1) {
++          space_pins.title.reset();
++        }
++        profile.open_tabs.pinned_groups.push_back(std::move(space_pins));
++      }
+     }
+   }
+   if (!found_space_list) {
