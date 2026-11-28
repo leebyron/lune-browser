@@ -1,0 +1,69 @@
+--- source.orig/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ source/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -103,6 +103,7 @@
+ #include "chrome/browser/web_applications/web_app_provider.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/webui_url_constants.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/omnibox/browser/autocomplete_classifier.h"
+ #include "components/omnibox/browser/autocomplete_controller.h"
+@@ -125,6 +126,7 @@
+ #include "content/public/browser/render_widget_host_observer.h"
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents.h"
++#include "content/public/common/url_constants.h"
+ #include "third_party/blink/public/common/input/web_mouse_event.h"
+ #include "third_party/blink/public/mojom/input/input_event_result.mojom-shared.h"
+ #include "ui/base/clipboard/scoped_clipboard_writer.h"
+@@ -3763,6 +3765,8 @@ constexpr int kFloatingToolbarHeight =
+     helium::kNativeToolbarControlHeight +
+     2 * helium::kNativeToolbarVerticalPadding;
+ constexpr int kGlassControlInset = helium::kNativeToolbarVerticalPadding;
++// The Setup WebUI reserves this space above its scrollable content.
++constexpr int kSetupDragStripHeight = 32;
+ constexpr CGFloat kPageTopDragThreshold = 4;
+ constexpr auto kPageTopDragDecisionTimeout = base::Milliseconds(80);
+ constexpr NSEventModifierFlags kPageTopDragModifiers =
+@@ -4352,6 +4356,15 @@ int BrowserFrameViewMac::NonClientHitTes
+             .Contains(local);
+     if (!in_sidebar && local.y() >= 0 &&
+         local.y() < kFloatingToolbarHeight) {
++      auto* contents = GetBrowserView()->GetActiveWebContents();
++      if (local.y() < kSetupDragStripHeight && !GetWidget()->IsFullscreen() &&
++          contents && !contents->IsFullscreen()) {
++        const GURL& url = contents->GetLastCommittedURL();
++        if (url.SchemeIs(content::kChromeUIScheme) &&
++            url.host() == chrome::kHeliumSetupHost) {
++          return HTCAPTION;
++        }
++      }
+       return HTCLIENT;
+     }
+   }
+--- source.orig/components/helium_onboarding/src/App.svelte
++++ source/components/helium_onboarding/src/App.svelte
+@@ -3,6 +3,7 @@
+     import * as pages from "./pages";
+     import * as Browser from "./lib/browser";
+     import { currentPage, flow, restorePageFromHistory } from "./lib/onboarding-flow";
++    import { platform } from "./lib/platform";
+     import PageNavigation from "./components/PageNavigation.svelte";
+     Browser.setup();
+     const preferences = Browser.preferences;
+@@ -26,7 +27,7 @@
+     });
+ </script>
+ <svelte:window onbeforeunload={warnBeforeLeaving} onpopstate={restorePageFromHistory} />
+-<main>
++<main class:macos={platform.is.macos}>
+     <div class="setup-wallpaper" class:dimmed={$currentPage !== "Welcome"} aria-hidden="true"></div>
+     <PageNavigation />
+     {#each flow as page (page)}
+@@ -38,4 +39,6 @@
+ </main>
+ <style>
+     main { overflow: hidden; position: relative; display: flex; justify-content: center; width: 100vw; min-height: 100dvh; background: var(--setup-background); }
++    /* Keep the native window drag strip above all Setup content. */
++    main.macos :global(.onboarding-page) { top: 32px; height: calc(100% - 32px); }
+ </style>
