@@ -1,0 +1,117 @@
+Index: source/components/sessions/core/session_service_commands.cc
+===================================================================
+--- source.orig/components/sessions/core/session_service_commands.cc
++++ source/components/sessions/core/session_service_commands.cc
+@@ -320,8 +320,7 @@ using SplitIdToSessionSplitTab =
+ SessionWindow* GetWindow(SessionID window_id, IdToSessionWindow* windows) {
+   auto [it, inserted] = windows->try_emplace(window_id);
+   if (inserted) {
+-    it->second = std::make_unique<SessionWindow>();
+-    it->second->window_id = window_id;
++    it->second = std::make_unique<SessionWindow>(window_id);
+   }
+   return it->second.get();
+ }
+@@ -332,8 +331,8 @@ SessionTab* GetTab(SessionID tab_id, IdT
+   DCHECK(tabs);
+   auto [it, inserted] = tabs->try_emplace(tab_id);
+   if (inserted) {
+-    it->second = std::make_unique<SessionTab>();
+-    it->second->tab_id = tab_id;
++    it->second =
++        std::make_unique<SessionTab>(SessionID::InvalidValue(), tab_id);
+   }
+   return it->second.get();
+ }
+@@ -442,8 +441,9 @@ void AddTabsToWindows(IdToSessionTab* ta
+ 
+   for (auto& tab_pair : *tabs) {
+     std::unique_ptr<SessionTab> tab = std::move(tab_pair.second);
+-    if (!tab->window_id.id() || tab->navigations.empty())
++    if (!tab->window_id.is_valid() || tab->navigations.empty()) {
+       continue;
++    }
+ 
+     SessionTab* tab_ptr = tab.get();
+     SessionWindow* window = GetWindow(tab_ptr->window_id, windows);
+Index: source/components/sessions/core/session_types.cc
+===================================================================
+--- source.orig/components/sessions/core/session_types.cc
++++ source/components/sessions/core/session_types.cc
+@@ -17,10 +17,10 @@ namespace sessions {
+ 
+ SessionTab::SessionTab()
+     : window_id(SessionID::NewUnique()),
+-      tab_id(SessionID::NewUnique()),
+-      tab_visual_index(-1),
+-      current_navigation_index(-1),
+-      pinned(false) {}
++      tab_id(SessionID::NewUnique()) {}
++
++SessionTab::SessionTab(SessionID window_id, SessionID tab_id)
++    : window_id(window_id), tab_id(tab_id) {}
+ 
+ SessionTab::~SessionTab() {
+ }
+@@ -39,8 +39,10 @@ SessionSplitTab::~SessionSplitTab() = de
+ 
+ // SessionWindow ---------------------------------------------------------------
+ 
+-SessionWindow::SessionWindow()
+-    : window_id(SessionID::NewUnique()),
++SessionWindow::SessionWindow() : SessionWindow(SessionID::NewUnique()) {}
++
++SessionWindow::SessionWindow(SessionID window_id)
++    : window_id(window_id),
+       visible_on_all_workspaces(false),
+       selected_tab_index(-1),
+       type(TYPE_NORMAL),
+Index: source/components/sessions/core/session_types.h
+===================================================================
+--- source.orig/components/sessions/core/session_types.h
++++ source/components/sessions/core/session_types.h
+@@ -35,6 +35,8 @@ namespace sessions {
+ // SessionTab corresponds to a NavigationController.
+ struct SESSIONS_EXPORT SessionTab {
+   SessionTab();
++  // Use serialized IDs without allocating new IDs for the local session.
++  SessionTab(SessionID window_id, SessionID tab_id);
+ 
+   SessionTab(const SessionTab&) = delete;
+   SessionTab& operator=(const SessionTab&) = delete;
+@@ -62,7 +64,7 @@ struct SESSIONS_EXPORT SessionTab {
+   // NOTE: this is really only useful for the SessionService during
+   // restore, others can likely ignore this and use the order of the
+   // tabs in SessionWindow.tabs.
+-  int tab_visual_index;
++  int tab_visual_index = -1;
+ 
+   // Identifies the index of the current navigation in navigations. For
+   // example, if this is 2 it means the current navigation is navigations[2].
+@@ -74,7 +76,7 @@ struct SESSIONS_EXPORT SessionTab {
+   // NOTE 2: this value can be larger than the size of |navigations|, due to
+   // only valid url's being stored (ie chrome://newtab is not stored). Bounds
+   // checking must be performed before indexing into |navigations|.
+-  int current_navigation_index;
++  int current_navigation_index = -1;
+ 
+   // The tab's group ID, if any.
+   std::optional<tab_groups::TabGroupId> group;
+@@ -83,7 +85,7 @@ struct SESSIONS_EXPORT SessionTab {
+   std::optional<split_tabs::SplitTabId> split_id;
+ 
+   // True if the tab is pinned.
+-  bool pinned;
++  bool pinned = false;
+ 
+   // If non-empty, this tab is an app tab and this is the id of the extension.
+   std::string extension_app_id;
+@@ -165,6 +167,8 @@ struct SESSIONS_EXPORT SessionSplitTab {
+ // Describes a saved window.
+ struct SESSIONS_EXPORT SessionWindow {
+   SessionWindow();
++  // Use the serialized ID without allocating an ID for the local session.
++  explicit SessionWindow(SessionID window_id);
+ 
+   SessionWindow(const SessionWindow&) = delete;
+   SessionWindow& operator=(const SessionWindow&) = delete;
