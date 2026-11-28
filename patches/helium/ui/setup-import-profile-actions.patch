@@ -1,0 +1,504 @@
+--- a/components/helium_onboarding/BUILD.gn
++++ b/components/helium_onboarding/BUILD.gn
+@@ -62,6 +62,7 @@
+     "src/components/ImportPrompt.svelte",
+     "src/components/ImportPermissionIllustration.svelte",
+     "src/components/MacImportNotice.svelte",
++    "src/components/BrowserProfileGroup.svelte",
+     "src/components/ProfileImportOption.svelte",
+     "src/App.svelte",
+     "src/lib/onboarding-flow.ts",
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -217,11 +217,11 @@
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_SKIP" desc="Button to leave the optional import step without starting an import.">
+   Skip
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_CONTINUE" desc="Button to advance setup after a browser profile has been imported.">
+-  Continue
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_DONE" desc="Button to advance setup after a browser profile has been imported.">
++  Done
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_SELECTED" desc="Button that immediately copies data from the selected browser profiles.">
+-  Import selected
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_ACTION" desc="Button on a browser profile row that immediately copies data from that profile.">
++  Import
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_PROGRESS" desc="Status shown while copying data from selected browser profiles.">
+   Importing browser data…
+@@ -229,14 +229,8 @@
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_IMPORTED" desc="Status on a browser profile after its import has completed.">
+   Imported
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_COMPLETE" desc="Status after the importer reports that each selected browser profile has imported data.">
+-  Import complete.
+-</message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_PARTIAL" desc="Status when at least one selected browser profile reported success and at least one reported failure.">
+-  Some profiles couldn’t be imported. Check that you’ve quit the source browsers, then try again.
+-</message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_FAILURE" desc="Status when the selected browser profiles failed to import.">
+-  Couldn’t import the selected profiles. Check that you’ve quit the source browsers, then try again.
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_FAILURE" desc="Status when this browser profile failed to import.">
++  Couldn’t import this profile. Quit the source browser and try again.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_REFRESH" desc="Button to look for browsers again after the user quits another browser or updates access in macOS.">
+   Check again
+--- a/components/helium_onboarding/src/components/BrowserProfileGroup.svelte
++++ b/components/helium_onboarding/src/components/BrowserProfileGroup.svelte
+@@ -34,6 +34,7 @@
+     };
+ 
+     const { browser, profiles }: Props = $props();
++    const browserHeadingId = $props.id();
+ 
+     const icon = $derived(browserIconMap[browser as keyof typeof browserIconMap]);
+     const url = $derived(icon && browserIcons[icon]);
+@@ -47,11 +48,11 @@
+             <IconWorld />
+         {/if}
+     </div>
+-    <h4>{browser}</h4>
++    <h4 id={browserHeadingId}>{browser}</h4>
+ </div>
+ <div class="browser-profiles">
+     {#each profiles as profile (profile.id)}
+-        <ProfileImportOption {profile} />
++        <ProfileImportOption {profile} {browserHeadingId} />
+     {/each}
+ </div>
+ 
+--- a/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte
++++ b/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte
+@@ -38,6 +38,9 @@
+         --line: light-dark(#d9d9df, #48484d);
+         --label: light-dark(#232329, #f5f5f7);
+         --secondary: light-dark(#56565f, #c2c2c9);
++        display: grid;
++        grid-template-rows: repeat(4, minmax(0, auto));
++        aspect-ratio: 1.1;
+         overflow: hidden;
+         border: 1px solid var(--line);
+         border-radius: 12px;
+@@ -51,9 +54,9 @@
+     .picture-browser {
+         display: flex;
+         align-items: center;
+-        gap: 8px;
++        gap: 6px;
+         min-height: 30px;
+-        padding: 4px 12px;
++        padding: 4px 8px;
+         box-sizing: border-box;
+     }
+ 
+@@ -82,9 +85,10 @@
+     }
+ 
+     .picture-browser {
+-        margin-inline-start: 24px;
++        margin-inline-start: 12px;
+         border-top: 1px solid var(--line);
+-        padding-inline-start: 8px;
++        padding-inline-start: 5px;
++        font-size: 12px;
+     }
+ 
+     .picture-browser img {
+--- a/components/helium_onboarding/src/components/MacImportNotice.svelte
++++ b/components/helium_onboarding/src/components/MacImportNotice.svelte
+@@ -57,46 +57,85 @@
+ <svelte:window onfocus={checkOnReturn} />
+ 
+ <ImportNotice tag="aside" title={s.dataImport.macNoticeTitle} dashed>
+-    {#if showPermission}
+-        <ol>
+-            <li>{s.dataImport.macNoticeQuit}</li>
+-            <li>
+-                {#each bodyParts as part}
+-                    {#if part.kind === "linkSettings"}
+-                        <Link href={settingsUrl} onclick={openSettings}>{part.text}</Link>
+-                    {:else}
+-                        {part.text}
+-                    {/if}
+-                {/each}
+-            </li>
+-        </ol>
+-        <ImportPermissionIllustration />
+-    {:else}
+-        <p>{s.dataImport.macNoticeQuit}</p>
+-    {/if}
+-
+-    <div class="notice-actions">
+-        <Button disabled={refreshing || $onboardingImportInProgress} onclick={refresh}>
+-            {#if refreshing}
+-                <Spinner size={18} />
+-            {/if}
+-            {s.dataImport.refresh}
+-        </Button>
++    <div class="recovery" class:illustrated={showPermission}>
++        {#if showPermission}
++            <ol>
++                <li>{s.dataImport.macNoticeQuit}</li>
++                <li>
++                    {#each bodyParts as part}
++                        {#if part.kind === "linkSettings"}
++                            <Link href={settingsUrl} onclick={openSettings}>{part.text}</Link>
++                        {:else}
++                            {part.text}
++                        {/if}
++                    {/each}
++                </li>
++            </ol>
++            <div class="recovery-picture">
++                <ImportPermissionIllustration />
++            </div>
++        {:else}
++            <p>{s.dataImport.macNoticeQuit}</p>
++        {/if}
++
++        <div class="notice-actions">
++            <Button disabled={refreshing || $onboardingImportInProgress} onclick={refresh}>
++                {#if refreshing}
++                    <Spinner size={18} />
++                {/if}
++                {s.dataImport.refresh}
++            </Button>
++        </div>
+     </div>
+ </ImportNotice>
+ 
+ <style>
++    .recovery {
++        display: grid;
++        gap: var(--gap-2);
++    }
++
++    .illustrated {
++        --picture-width: 200px;
++
++        grid-template:
++            "steps picture" max-content
++            "actions picture" 1fr /
++            minmax(0, 1fr) minmax(0, var(--picture-width));
++        column-gap: var(--gap-3);
++    }
++
+     ol {
++        grid-area: steps;
+         display: grid;
+         gap: var(--gap-1);
+-        margin: var(--gap-1) 0;
++        margin: var(--gap-1) 0 0;
+         padding-inline-start: 1.3em;
+         font-size: 15px;
+     }
+ 
++    .recovery-picture {
++        grid-area: picture;
++        align-self: center;
++    }
++
+     .notice-actions {
+         display: flex;
+-        justify-content: flex-end;
+-        margin-top: var(--gap-1);
++        align-self: start;
++    }
++
++    .illustrated .notice-actions {
++        grid-area: actions;
++    }
++
++    @media (max-width: 480px) {
++        .illustrated {
++            grid-template: "steps" "picture" "actions" / minmax(0, 1fr);
++        }
++
++        .recovery-picture {
++            width: min(100%, var(--picture-width));
++            justify-self: end;
++        }
+     }
+ </style>
+--- a/components/helium_onboarding/src/components/PageNavigation.svelte
++++ b/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -131,7 +131,7 @@
+             {#if $currentPage === "Finish"}
+                 {s.button.letsGo}
+             {:else if importPage}
+-                {skipImport ? s.dataImport.skip : s.dataImport.continue}
++                {skipImport ? s.dataImport.skip : s.dataImport.done}
+             {:else}
+                 {s.button.next}
+             {/if}
+--- a/components/helium_onboarding/src/components/ProfileImportOption.svelte
++++ b/components/helium_onboarding/src/components/ProfileImportOption.svelte
+@@ -1,29 +1,42 @@
+ <script lang="ts">
+-    import { Checkbox } from "@imput/helium-prism";
++    import { Button, Spinner } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import type { BrowserProfile } from "../lib/cr";
++    import { importDiscovery, importProfile } from "../lib/browser";
+     import {
++        importingProfileId,
+         onboardingImportInProgress,
+-        selectedProfiles,
+         previouslyImportedProfiles,
+     } from "../lib/onboarding-flow";
+ 
+     type Props = {
+         profile: BrowserProfile;
++        browserHeadingId: string;
+     };
+ 
+-    const { profile }: Props = $props();
++    const { profile, browserHeadingId }: Props = $props();
++    const descriptionId = $props.id();
+ 
+-    const selected = $derived($selectedProfiles.has(profile.id));
+     const imported = $derived($previouslyImportedProfiles.has(profile.id));
+-
+-    const toggle = () => {
+-        if (!selected) {
+-            $selectedProfiles.add(profile.id);
+-        } else {
+-            $selectedProfiles.delete(profile.id);
++    const importing = $derived($importingProfileId === profile.id);
++    const disabled = $derived($onboardingImportInProgress || $importDiscovery.refreshing);
++    let failed = $state(false);
++
++    async function importThisProfile() {
++        if (imported || disabled) return;
++
++        const { id, index, favorites, history, extensions } = profile;
++        $importingProfileId = id;
++        failed = false;
++        try {
++            await importProfile(index, { bookmarks: favorites, history, extensions });
++            $previouslyImportedProfiles.add(id);
++        } catch {
++            failed = true;
++        } finally {
++            $importingProfileId = null;
+         }
+-    };
++    }
+ 
+     const dataList = () => {
+         const options = [];
+@@ -36,56 +49,77 @@
+     };
+ </script>
+ 
+-<Checkbox
+-    class={["profile-option", { selected }]}
+-    checked={selected || imported}
+-    disabled={imported || $onboardingImportInProgress}
+-    onchange={toggle}
+->
+-    <div class="text">
++<div class="profile-option">
++    <div class="text" id={descriptionId}>
+         {#if profile.profileName}
+             <h4>{profile.profileName}</h4>
+         {/if}
+         <p>{dataList()}</p>
+-        {#if imported}
+-            <p>{s.dataImport.imported}</p>
++        {#if importing}
++            <p role="status">{s.dataImport.progress}</p>
++        {:else if failed}
++            <p role="alert">{s.dataImport.failure}</p>
+         {/if}
+     </div>
+-</Checkbox>
++    {#if imported}
++        <span class="imported" role="status">{s.dataImport.imported}</span>
++    {:else}
++        <div class="profile-action">
++            <Button {disabled} aria-describedby={`${browserHeadingId} ${descriptionId}`} onclick={importThisProfile}>
++                {#if importing}
++                    <Spinner size={18} />
++                {/if}
++                {s.dataImport.action}
++            </Button>
++        </div>
++    {/if}
++</div>
+ 
+ <style>
+-    :global(label.checkbox.profile-option) {
+-        position: relative;
++    .profile-option {
++        display: flex;
++        flex-wrap: wrap;
++        align-items: center;
++        justify-content: space-between;
+         width: 100%;
+-        gap: 16px;
+-        padding: 12px 18px;
++        box-sizing: border-box;
++        gap: 8px 12px;
++        padding: 10px 14px 10px 18px;
+         border-radius: 14px;
+         background-color: var(--helium-elevated-7);
+     }
+ 
+-    :global(label.checkbox.profile-option:first-child:not(:only-child)) {
++    .profile-option:first-child:not(:only-child) {
+         border-bottom-left-radius: 6px;
+         border-bottom-right-radius: 6px;
+     }
+ 
+-    :global(label.checkbox.profile-option:last-child:not(:only-child)) {
++    .profile-option:last-child:not(:only-child) {
+         border-top-left-radius: 6px;
+         border-top-right-radius: 6px;
+     }
+ 
+-    :global(label.checkbox.profile-option:not(:only-child, :last-child, :first-child)) {
++    .profile-option:not(:only-child, :last-child, :first-child) {
+         border-radius: 6px;
+     }
+ 
+-    :global(label.checkbox.profile-option.selected) {
+-        box-shadow: 0 0 0 1px var(--primary) inset, 0 0 0 1px var(--primary);
+-    }
+-
+     .text {
+         display: flex;
++        flex: 1 1 7rem;
++        min-width: 0;
+         flex-direction: column;
+         gap: 2px;
+         text-align: left;
++        overflow-wrap: anywhere;
++    }
++
++    .profile-action,
++    .imported {
++        margin-inline-start: auto;
++    }
++
++    .imported {
++        font-size: 14px;
+     }
+ 
+     h4 {
+--- a/components/helium_onboarding/src/lib/onboarding-flow.ts
++++ b/components/helium_onboarding/src/lib/onboarding-flow.ts
+@@ -79,6 +79,6 @@
+ }
+ 
+ export const userChoseHeliumAsDefault = writable(true);
+-export const selectedProfiles = writable(new SvelteSet<number>());
+ export const previouslyImportedProfiles = writable(new SvelteSet<number>());
+-export const onboardingImportInProgress = writable(false);
++export const importingProfileId = writable<number | null>(null);
++export const onboardingImportInProgress = derived(importingProfileId, id => id !== null);
+--- a/components/helium_onboarding/src/pages/DataImport.svelte
++++ b/components/helium_onboarding/src/pages/DataImport.svelte
+@@ -1,18 +1,12 @@
+ <script lang="ts">
+     import { tick } from "svelte";
+-    import { Button, Spinner } from "@imput/helium-prism";
+     import { get } from "svelte/store";
+     import { fade } from "svelte/transition";
+     import { getBoolean, s } from "../lib/strings";
+-    import {
+-        currentPage,
+-        onboardingImportInProgress,
+-        previouslyImportedProfiles,
+-        selectedProfiles,
+-    } from "../lib/onboarding-flow";
++    import { currentPage } from "../lib/onboarding-flow";
+     import { platform } from "../lib/platform";
+     import type { BrowserProfile } from "../lib/cr";
+-    import { importableProfiles, importDiscovery, importProfile } from "../lib/browser";
++    import { importableProfiles, importDiscovery } from "../lib/browser";
+ 
+     import PageHeader from "../components/PageHeader.svelte";
+     import ImportNotice from "../components/ImportNotice.svelte";
+@@ -31,38 +25,6 @@
+     const discovered = $derived($importDiscovery.status === "loaded");
+     const animateDiscovery = get(importDiscovery).status !== "loaded";
+     let importContainer = $state<HTMLDivElement>();
+-    let outcome = $state<"complete" | "partial" | "failed">();
+-
+-    const selection = $derived($importableProfiles.filter(profile => $selectedProfiles.has(profile.id)));
+-    const importing = $derived($onboardingImportInProgress);
+-
+-    async function importSelection() {
+-        if (importing || $importDiscovery.refreshing || !selection.length) {
+-            return;
+-        }
+-
+-        const profiles = selection;
+-        $onboardingImportInProgress = true;
+-        outcome = undefined;
+-        try {
+-            const results = await Promise.allSettled(profiles.map(profile =>
+-                importProfile(profile.index, {
+-                    bookmarks: profile.favorites,
+-                    history: profile.history,
+-                    extensions: profile.extensions,
+-                })
+-            ));
+-            const imported = profiles.filter((_, index) => results[index].status === "fulfilled");
+-            for (const profile of imported) {
+-                $previouslyImportedProfiles.add(profile.id);
+-                $selectedProfiles.delete(profile.id);
+-            }
+-            outcome = imported.length === profiles.length ? "complete" :
+-                imported.length ? "partial" : "failed";
+-        } finally {
+-            $onboardingImportInProgress = false;
+-        }
+-    }
+ 
+     $effect.pre(() => {
+         if (!discovered || !animateDiscovery || !importContainer) {
+@@ -127,27 +89,6 @@
+                     {#each sorted as [browser, profiles] (browser)}
+                         <BrowserProfileGroup {browser} {profiles} />
+                     {/each}
+-                    {#if $importableProfiles.length || outcome}
+-                        <div class="import-selection">
+-                            <Button
+-                                primary
+-                                disabled={!selection.length || importing || $importDiscovery.refreshing}
+-                                onclick={importSelection}
+-                            >
+-                                {#if importing}
+-                                    <Spinner size={18} />
+-                                {/if}
+-                                {s.dataImport.selected}
+-                            </Button>
+-                            {#if importing}
+-                                <p role="status">{s.dataImport.progress}</p>
+-                            {:else if outcome === "complete"}
+-                                <p role="status">{s.dataImport.complete}</p>
+-                            {:else if outcome}
+-                                <p role="alert">{outcome === "partial" ? s.dataImport.partial : s.dataImport.failure}</p>
+-                            {/if}
+-                        </div>
+-                    {/if}
+                     {#if platform.is.macos}
+                         <MacImportNotice showPermission={showMacNotice} />
+                     {/if}
+@@ -202,14 +143,6 @@
+         align-self: start;
+     }
+ 
+-    .import-selection {
+-        display: flex;
+-        flex-direction: column;
+-        align-items: center;
+-        gap: var(--gap-2);
+-        text-align: center;
+-    }
+-
+     .animate {
+         animation: page-in 0.3s 0.05s backwards;
+     }
