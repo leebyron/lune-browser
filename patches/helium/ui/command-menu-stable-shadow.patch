@@ -1,0 +1,234 @@
+--- a/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
++++ b/chrome/browser/ui/helium/helium_command_bar_view_mac.mm
+@@ -7,6 +7,11 @@
+ #import <AppKit/AppKit.h>
+ #import <QuartzCore/QuartzCore.h>
+ 
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstdint>
++
+ #include "base/strings/sys_string_conversions.h"
+ #include "chrome/browser/ui/helium/native_word_navigation_mac.h"
+ #include "chrome/browser/profiles/profile.h"
+@@ -27,7 +32,11 @@
+ namespace {
+ // Allow the diffuse shadow to fade inside the translucent popup window.
+ // Give the downward shadow additional room below the panel.
+-constexpr gfx::Insets kShadowInsets = gfx::Insets::TLBR(120, 152, 184, 152);
++constexpr int kShadowTopInset = 128;
++constexpr int kShadowSideInset = 160;
++constexpr int kShadowBottomInset = 192;
++constexpr gfx::Insets kShadowInsets = gfx::Insets::TLBR(
++    kShadowTopInset, kShadowSideInset, kShadowBottomInset, kShadowSideInset);
+ constexpr int kWidth = 720;
+ constexpr int kWindowSideMargin = 36;
+ constexpr int kInputHeight = 52;
+@@ -83,36 +92,135 @@
+ 
+ }  // namespace
+ 
+-// Cast a diffuse shadow from the panel's rounded silhouette.
++namespace {
++
++constexpr CGFloat kCommandShadowBlur = 64;
++constexpr CGFloat kCommandShadowOffset = 32;
++constexpr int kShadowFalloffSamplesPerPoint = 2;
++constexpr int kShadowFalloffLimit = 160;
++constexpr int kShadowFalloffCenter =
++    kShadowFalloffLimit * kShadowFalloffSamplesPerPoint;
++
++const auto& CommandShadowFalloff() {
++  static const auto falloff = [] {
++    std::array<uint8_t, 2 * kShadowFalloffCenter + 1> result;
++    for (size_t i = 0; i < result.size(); ++i) {
++      const CGFloat distance =
++          (static_cast<CGFloat>(i) - kShadowFalloffCenter) /
++          kShadowFalloffSamplesPerPoint;
++      const CGFloat opacity =
++          .25 * .5 * std::erfc(distance / (std::sqrt(2.) * kCommandShadowBlur));
++      result[i] = std::lround(255 * opacity);
++    }
++    return result;
++  }();
++  return falloff;
++}
++
++CGImageRef CreateCommandShadowImage(CGSize panel, CGSize image_size) {
++  const size_t width = std::ceil(image_size.width);
++  const size_t height = std::ceil(image_size.height);
++  CGColorSpaceRef color_space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
++  const CGBitmapInfo bitmap_info =
++      kCGBitmapByteOrder32Big |
++      static_cast<CGBitmapInfo>(kCGImageAlphaPremultipliedLast);
++  CGContextRef context = CGBitmapContextCreate(
++      nullptr, width, height, 8, 0, color_space, bitmap_info);
++  CGColorSpaceRelease(color_space);
++  if (!context) {
++    return nullptr;
++  }
++
++  auto* pixels = static_cast<uint8_t*>(CGBitmapContextGetData(context));
++  const size_t stride = CGBitmapContextGetBytesPerRow(context);
++  std::fill_n(pixels, stride * height, 0);
++  const CGFloat half_width = panel.width / 2;
++  const CGFloat half_height = panel.height / 2;
++  const CGFloat radius =
++      std::min({static_cast<CGFloat>(kGlassCornerRadius), half_width,
++                half_height});
++  const CGFloat center_x = kShadowSideInset + half_width;
++  const CGFloat center_y = kShadowTopInset + half_height + kCommandShadowOffset;
++  const auto& falloff = CommandShadowFalloff();
++
++  // Use one falloff from the rounded outline. The distance from the outline
++  // determines the shadow's strength, including on a short panel.
++  for (size_t y = 0; y < height; ++y) {
++    const CGFloat dy = std::abs(y + .5 - center_y) - half_height + radius;
++    const CGFloat outside_y = std::max<CGFloat>(dy, 0);
++    uint8_t* row = pixels + y * stride;
++    for (size_t x = 0; x < width; ++x) {
++      const CGFloat dx = std::abs(x + .5 - center_x) - half_width + radius;
++      const CGFloat outside_x = std::max<CGFloat>(dx, 0);
++      const CGFloat distance =
++          std::sqrt(outside_x * outside_x + outside_y * outside_y) +
++          std::min<CGFloat>(std::max(dx, dy), 0) - radius;
++      const int sample = std::clamp<int>(
++          static_cast<int>(distance * kShadowFalloffSamplesPerPoint +
++                           kShadowFalloffCenter + .5),
++          0, falloff.size() - 1);
++      row[4 * x + 3] = falloff[sample];
++    }
++  }
++
++  CGImageRef image = CGBitmapContextCreateImage(context);
++  CGContextRelease(context);
++  return image;
++}
++
++NSVisualEffectView* CreateCommandPopoverEffect(NSRect frame) {
++  NSVisualEffectView* effect = [[NSVisualEffectView alloc] initWithFrame:frame];
++  effect.material = NSVisualEffectMaterialPopover;
++  effect.blendingMode = NSVisualEffectBlendingModeBehindWindow;
++  effect.state = NSVisualEffectStateActive;
++  effect.wantsLayer = YES;
++  effect.layer.cornerRadius = kGlassCornerRadius;
++  effect.layer.masksToBounds = YES;
++  effect.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++  return effect;
++}
++
++}  // namespace
++
++// Draw a continuous shadow around the native material.
+ @interface HeliumCommandMaterial : NSView
+ @end
+ 
+-@implementation HeliumCommandMaterial
++@implementation HeliumCommandMaterial {
++  CALayer* _shadowLayer;
++}
+ - (instancetype)initWithFrame:(NSRect)frame {
+   if ((self = [super initWithFrame:frame])) {
+     self.wantsLayer = YES;
+     self.clipsToBounds = NO;
+-    NSShadow* shadow = [[NSShadow alloc] init];
+-    shadow.shadowColor = [NSColor.blackColor colorWithAlphaComponent:.25];
+-    shadow.shadowBlurRadius = 64;
+-    shadow.shadowOffset = NSMakeSize(0, -32);
+-    self.shadow = shadow;
+-    [self updateShadowPath];
++    _shadowLayer = [CALayer layer];
++    [self.layer insertSublayer:_shadowLayer atIndex:0];
++    [self updateShadow];
+   }
+   return self;
+ }
+ - (void)setFrameSize:(NSSize)size {
+   [super setFrameSize:size];
+-  [self updateShadowPath];
++  [self updateShadow];
+ }
+-- (void)updateShadowPath {
+-  CGPathRef path = CGPathCreateWithRoundedRect(self.bounds, kGlassCornerRadius,
+-                                              kGlassCornerRadius, nullptr);
++- (void)updateShadow {
++  const CGRect bounds = self.bounds;
++  const CGRect frame = CGRectMake(
++      CGRectGetMinX(bounds) - kShadowSideInset,
++      CGRectGetMinY(bounds) - kShadowBottomInset,
++      CGRectGetWidth(bounds) + 2 * kShadowSideInset,
++      CGRectGetHeight(bounds) + kShadowTopInset + kShadowBottomInset);
++  if (CGRectEqualToRect(frame, _shadowLayer.frame)) {
++    return;
++  }
++
++  id shadow = CFBridgingRelease(
++      CreateCommandShadowImage(bounds.size, frame.size));
+   [CATransaction begin];
+   [CATransaction setDisableActions:YES];
+-  self.layer.shadowPath = path;
++  _shadowLayer.frame = frame;
++  _shadowLayer.contents = shadow;
+   [CATransaction commit];
+-  CGPathRelease(path);
+ }
+ @end
+ 
+@@ -439,40 +547,40 @@
+   if (@available(macOS 26, *)) {
+     NSView* material = [[HeliumCommandMaterial alloc] initWithFrame:pane.frame];
+     material.appearance = appearance;
++    // Soften background detail behind the clear material.
++    auto* frost = CreateCommandPopoverEffect(material.bounds);
++    [material addSubview:frost];
++
+     NSView* backdrop = [[NSView alloc] initWithFrame:material.bounds];
+     backdrop.wantsLayer = YES;
+     backdrop.layer.cornerRadius = kGlassCornerRadius;
+     backdrop.layer.backgroundColor =
+         [(dark ? NSColor.blackColor : NSColor.whiteColor)
+-            colorWithAlphaComponent:.8].CGColor;
+-    // Regular glass becomes clearer and can invert its tone on small surfaces.
+-    // Keep this menu's neutral backing at every size so filtering results cannot
+-    // turn the frosted panel into an adaptive transparent pill. Other browser
+-    // chrome still follows the Content aware preference.
++            colorWithAlphaComponent:.32].CGColor;
++    // Retain the profile's neutral backing at every size. Clear glass lets
++    // the command menu supply a consistent shadow as the panel resizes.
+     backdrop.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+     [material addSubview:backdrop];
+     NSGlassEffectView* glass =
+         [[NSGlassEffectView alloc] initWithFrame:material.bounds];
+-    glass.style = NSGlassEffectViewStyleRegular;
++    glass.style = NSGlassEffectViewStyleClear;
+     glass.tintColor = helium::NativeGlassThemeTintColor(browser_view);
+     glass.cornerRadius = kGlassCornerRadius;
+     glass.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+-    glass.contentView = pane;
++    // Blend the glass highlights over the frosting. Put the controls above
++    // both materials so their opacity and contrast stay independent.
++    glass.alphaValue = .3;
++    glass.contentView = [[NSView alloc] initWithFrame:glass.bounds];
+     [material addSubview:glass];
++
++    pane.frame = material.bounds;
++    [material addSubview:pane];
+     native_->material = material;
+   }
+   if (!native_->material) {
+     NSView* material = [[HeliumCommandMaterial alloc] initWithFrame:pane.frame];
+     material.appearance = appearance;
+-    NSVisualEffectView* effect =
+-        [[NSVisualEffectView alloc] initWithFrame:material.bounds];
+-    effect.material = NSVisualEffectMaterialPopover;
+-    effect.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+-    effect.state = NSVisualEffectStateActive;
+-    effect.wantsLayer = YES;
+-    effect.layer.cornerRadius = kGlassCornerRadius;
+-    effect.layer.masksToBounds = YES;
+-    effect.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++    auto* effect = CreateCommandPopoverEffect(material.bounds);
+     pane.frame = effect.bounds;
+     [effect addSubview:pane];
+     helium::AddNativeFallbackSurfaceEdge(effect, kGlassCornerRadius);
