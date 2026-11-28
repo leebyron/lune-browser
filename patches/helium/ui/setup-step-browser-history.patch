@@ -1,0 +1,145 @@
+--- source.orig/components/helium_onboarding/src/App.svelte
++++ source/components/helium_onboarding/src/App.svelte
+@@ -2,7 +2,7 @@
+     import { SvelteSet } from "svelte/reactivity";
+     import * as pages from "./pages";
+     import * as Browser from "./lib/browser";
+-    import { currentPage, flow } from "./lib/onboarding-flow";
++    import { currentPage, flow, restorePageFromHistory } from "./lib/onboarding-flow";
+     import PageNavigation from "./components/PageNavigation.svelte";
+     Browser.setup();
+     const preferences = Browser.preferences;
+@@ -25,7 +25,7 @@
+         }, 200);
+     });
+ </script>
+-<svelte:window onbeforeunload={warnBeforeLeaving} />
++<svelte:window onbeforeunload={warnBeforeLeaving} onpopstate={restorePageFromHistory} />
+ <main>
+     <div class="setup-wallpaper" class:dimmed={$currentPage !== "Welcome"} aria-hidden="true"></div>
+     <PageNavigation />
+--- source.orig/components/helium_onboarding/src/components/PageNavigation.svelte
++++ source/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -95,10 +95,11 @@
+         // Each page confirms only its own choices.
+         if (($currentPage === "Privacy" || $currentPage === "HeliumServices") &&
+             $setupPages.indexOf(page) > currentStep) {
++            const startingPage = $currentPage;
+             working = true;
+             try {
+                 await doNext();
+-                goToPage(page);
++                if ($currentPage === startingPage) goToPage(page);
+             } finally {
+                 working = false;
+             }
+@@ -114,12 +115,13 @@
+     const next = () => {
+         if ($onboardingImportInProgress) return;
+ 
++        const startingPage = $currentPage;
+         working = true;
+         doNext()
+             .catch(() => {})
+             .finally(() => {
+                 working = false;
+-                nextPage();
++                if ($currentPage === startingPage) nextPage();
+             });
+     }
+ </script>
+--- source.orig/components/helium_onboarding/src/lib/onboarding-flow.ts
++++ source/components/helium_onboarding/src/lib/onboarding-flow.ts
+@@ -16,12 +16,7 @@ export const flow = [
+     "Finish"
+ ] as const;
+ 
+-const index = writable(0);
+-
+-export const currentPage = derived(
+-    index,
+-    $index => flow[$index]
+-);
++type SetupPage = typeof flow[number];
+ 
+ const shouldSkip = (page: typeof flow[number], pref = get(preferences)): boolean => {
+     switch (page) {
+@@ -37,43 +32,56 @@ const shouldSkip = (page: typeof flow[nu
+ }
+ 
+ // Dots describe every reachable setup page, including the welcome page.
+-type SetupPage = typeof flow[number];
+ export const setupPages = derived(preferences, pref =>
+     flow.filter(page => !shouldSkip(page, pref))
+ );
+ 
+-export const goToPage = (page: SetupPage) => {
+-    if (get(setupPages).includes(page)) {
+-        if (get(currentPage) === "Welcome" && page !== "Welcome") markIntroSeen();
+-        index.set(flow.indexOf(page));
+-    }
+-};
++function pageFromURL(): SetupPage {
++    const step = new URL(location.href).searchParams.get('step');
++    return get(setupPages).find(page => page === step) ?? "Welcome";
++}
+ 
+-const getPageNumber = (current: number, direction = 1) => {
+-    let next = current + direction;
++const page = writable(pageFromURL());
++export const currentPage = { subscribe: page.subscribe };
+ 
+-    while (
+-        next >= 0 &&
+-        next < flow.length &&
+-        shouldSkip(flow[next])
+-    ) {
+-        next += direction;
+-    }
++export const restorePageFromHistory = () => {
++    const step = pageFromURL();
++    if (step !== "Welcome") markIntroSeen();
++    page.set(step);
++};
++
++export const goToPage = (step: SetupPage) => {
++    const current = get(currentPage);
++    if (step === current || !get(setupPages).includes(step)) return;
++
++    const url = new URL(location.href);
++    if (step === "Welcome") url.searchParams.delete('step');
++    else url.searchParams.set('step', step);
++    history.pushState({ previousSetupPage: current }, '', url);
++    if (step !== "Welcome") markIntroSeen();
++    page.set(step);
++};
+ 
+-    return Math.max(0, Math.min(next, flow.length - 1));
++function adjacentPage(direction: number): SetupPage | undefined {
++    const pages = get(setupPages);
++    return pages[pages.indexOf(get(currentPage)) + direction];
+ }
+ 
+ export const nextPage = () => {
+-    index.update((current) => getPageNumber(current));
+-}
++    const next = adjacentPage(1);
++    if (next) goToPage(next);
++};
+ 
+ export const previousPage = () => {
+-    index.update((current) => getPageNumber(current, -1));
+-}
++    const previous = adjacentPage(-1);
++    if (!previous) return;
++    if (history.state?.previousSetupPage === previous) history.back();
++    else goToPage(previous);
++};
+ 
+ export const ONBOARDING_INTRO_DELAY_MS = 800;
+ 
+-export const hasSeenIntro = writable(false);
++export const hasSeenIntro = writable(get(currentPage) !== "Welcome");
+ export const markIntroSeen = () => {
+     hasSeenIntro.set(true);
+ }
