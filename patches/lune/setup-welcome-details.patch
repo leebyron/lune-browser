@@ -1,0 +1,73 @@
+Index: source/components/helium_onboarding/BUILD.gn
+===================================================================
+--- source.orig/components/helium_onboarding/BUILD.gn	2026-11-27 18:39:34.187870084 -0800
++++ source/components/helium_onboarding/BUILD.gn	2026-11-27 18:42:58.251482255 -0800
+@@ -51,6 +51,7 @@
+     "public/setup-header-icons/point.3.connected.trianglepath.dotted.png",
+     "public/setup-header-icons/questionmark.app.dashed.png",
+     "public/setup-header-icons/square.and.arrow.down.png",
++    "public/setup-header-icons/switch.2.png",
+     "public/Inter-OFL.txt",
+     "public/Syne-OFL.txt",
+     "src/app.css",
+Index: source/components/helium_onboarding/helium_onboarding_strings.grdp
+===================================================================
+--- source.orig/components/helium_onboarding/helium_onboarding_strings.grdp	2026-11-27 18:28:46.026865571 -0800
++++ source/components/helium_onboarding/helium_onboarding_strings.grdp	2026-11-27 18:42:58.277003483 -0800
+@@ -317,7 +317,7 @@
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_UPSTREAM_CREDIT" desc="Credit to the upstream browser on which Lune is based.">
+-  Built on <ph name="BEGIN_LINK_HELIUM">$1</ph>Helium browser<ph name="END_LINK_HELIUM">$2</ph> and <ph name="BEGIN_LINK_UNGOOGLED">$3</ph>ungoogled-chromium<ph name="END_LINK_UNGOOGLED">$4</ph> with thanks to their authors and contributors
++  Built on <ph name="BEGIN_LINK_HELIUM">$1</ph>Helium browser<ph name="END_LINK_HELIUM">$2</ph> and <ph name="BEGIN_LINK_UNGOOGLED">$3</ph>ungoogled-chromium<ph name="END_LINK_UNGOOGLED">$4</ph> with thanks to their authors and contributors.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_PROVIDER" desc="Short disclosure about the Helium-hosted features. The links open the Helium Services project and the provider's privacy policy.">
+   Lune uses <ph name="BEGIN_LINK_SERVICES">$1</ph>Helium Services<ph name="END_LINK_SERVICES">$2</ph>. Helium <ph name="BEGIN_LINK_PRIVACY">$3</ph>does not collect<ph name="END_LINK_PRIVACY">$4</ph> any personal information.
+Index: source/components/helium_onboarding/src/components/WelcomeFooter.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/WelcomeFooter.svelte	2026-11-27 17:17:27.114174761 -0800
++++ source/components/helium_onboarding/src/components/WelcomeFooter.svelte	2026-11-27 18:42:58.300426077 -0800
+@@ -14,7 +14,7 @@
+ 
+ <style>
+     footer { width: min(760px, calc(100vw - 40px)); text-align: center; }
+-    p { font: 400 11px/1.2 Inter,sans-serif; color: var(--secondary); margin: 0; text-wrap: balance; }
+-    .upstream-credit { font-size: 13px; line-height: 20px; margin-bottom: 8px; }
++    p { font: 400 13px/20px Inter,sans-serif; color: var(--secondary); margin: 0; text-wrap: balance; }
++    .upstream-credit { margin-bottom: 8px; }
+     :global(#welcome-footer a) { font: inherit; color: inherit; }
+ </style>
+Index: source/components/helium_onboarding/src/pages/Welcome.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/pages/Welcome.svelte	2026-11-27 17:17:27.120060902 -0800
++++ source/components/helium_onboarding/src/pages/Welcome.svelte	2026-11-27 18:42:58.322082497 -0800
+@@ -1,6 +1,5 @@
+ <script lang="ts">
+     import LuneLogo from "../components/LuneLogo.svelte";
+-    import { IconArrowRight } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { setPref, acceptLatestSchema, openNewTab, setUBlockEnabled } from "../lib/browser";
+     import { currentPage, markIntroSeen, nextPage } from "../lib/onboarding-flow";
+@@ -39,7 +38,9 @@
+         <p class="description">{s.welcome.body}</p>
+         <div class="welcome-actions">
+             <button class="ghost" onclick={useDefaults} disabled={working}>{s.button.useDefaults}</button>
+-            <button class="primary" onclick={next} disabled={working}>{s.button.configure}<IconArrowRight /></button>
++            <button class="primary" onclick={next} disabled={working}>
++                <span class="setup-icon" aria-hidden="true"></span>{s.button.configure}
++            </button>
+         </div>
+         </div>
+     </div>
+@@ -65,9 +66,8 @@
+     .description { font: 400 15px/24px Inter, sans-serif; color: light-dark(#526B65,#B5CBD7); max-width: 440px; margin: 0 auto 28px; text-wrap: balance; }
+     .welcome-actions { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+     button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 11px 20px; border: 0; border-radius: 24px; font: 400 16px/20px Inter,sans-serif; cursor: pointer; }
+-    button :global(svg) { width: 16px; height: 16px; stroke-width: 1.75; }
+-    #welcome-page button.primary { padding-inline: 20px 16px; }
+-    .primary { background: var(--helium-blue); color: var(--white); padding-right: 16px; }
++    .setup-icon { width: 18px; height: 18px; background: currentColor; mask: url("/setup-header-icons/switch.2.png") center / contain no-repeat; }
++    .primary { background: var(--helium-blue); color: var(--white); padding-inline: 16px 20px; }
+     .primary:hover { background: var(--helium-blue-hover); }
+     .ghost { background: transparent; color: light-dark(#234550,#C9D9E3); box-shadow: inset 0 0 0 1px light-dark(#23455059,#C9D9E359); }
+     button:focus-visible { outline: 2px solid var(--helium-blue); outline-offset: 4px; }
