@@ -1,0 +1,67 @@
+--- source.orig/components/helium_onboarding/src/components/PageNavigation.svelte
++++ source/components/helium_onboarding/src/components/PageNavigation.svelte
+@@ -42,7 +42,7 @@
+         SearchEngine: s.search.title,
+         DataImport: s.dataImport.title,
+         PasswordManager: s.password.title,
+-        Finish: s.finish.title,
++        Appearance: s.finish.title,
+     });
+     const currentStep = $derived($setupPages.findIndex(page => page === $currentPage));
+ 
+@@ -79,7 +79,7 @@
+             await setPref("search.suggest_enabled", $preferences["search.suggest_enabled"]);
+             break;
+ 
+-        case "Finish":
++        case "Appearance":
+             chrome.send('setOnboardingAppearance', [false]);
+             await setPref('completed_onboarding', true);
+             openNewTab();
+@@ -139,12 +139,12 @@
+         <Button disabled={working} aria-disabled={$onboardingImportInProgress} primary={!skip} onclick={next}>
+             {#if working}
+                 <Spinner size={18} />
+-            {:else if $currentPage === "Finish"}
++            {:else if $currentPage === "Appearance"}
+                 <IconCheck />
+             {:else}
+                 <IconArrowRight />
+             {/if}
+-            {#if $currentPage === "Finish"}
++            {#if $currentPage === "Appearance"}
+                 {s.button.letsGo}
+             {:else if skip}
+                 {s.button.skip}
+--- source.orig/components/helium_onboarding/src/lib/onboarding-flow.ts
++++ source/components/helium_onboarding/src/lib/onboarding-flow.ts
+@@ -13,7 +13,7 @@ export const flow = [
+     "HeliumServices",
+     "DataImport",
+     "PasswordManager",
+-    "Finish"
++    "Appearance"
+ ] as const;
+ 
+ type SetupPage = typeof flow[number];
+--- source.orig/components/helium_onboarding/src/pages/Finish.svelte
++++ source/components/helium_onboarding/src/pages/Finish.svelte
+@@ -4,7 +4,7 @@
+     import { currentPage } from "../lib/onboarding-flow";
+     import { preferences, setPref, appearance, setColorScheme, setTheme } from "../lib/browser";
+     import PageHeader from "../components/PageHeader.svelte";
+-    const visible = $derived($currentPage === "Finish");
++    const visible = $derived($currentPage === "Appearance");
+     const themes = [
+         {value: 'system', label: s.finish.themeSystem},
+         {value: 'lune', label: s.finish.themeLune},
+--- source.orig/components/helium_onboarding/src/pages/index.ts
++++ source/components/helium_onboarding/src/pages/index.ts
+@@ -4,6 +4,6 @@ export { default as SearchEngine } from
+ export { default as Privacy } from "./Privacy.svelte";
+ export { default as DataImport } from "./DataImport.svelte";
+ export { default as PasswordManager } from "./PasswordManager.svelte";
+-export { default as Finish } from "./Finish.svelte";
++export { default as Appearance } from "./Finish.svelte";
+ 
+ // Add new pages above this line and update the flow in lib/onboarding-flow.ts
