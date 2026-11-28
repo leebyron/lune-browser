@@ -1,0 +1,179 @@
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -232,9 +232,6 @@
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_FAILURE" desc="Status when this browser profile failed to import.">
+   Couldn’t import this profile. Quit the source browser and try again.
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_REFRESH" desc="Button to look for browsers again after the user quits another browser or updates access in macOS.">
+-  Check again
+-</message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_NO_BROWSERS" desc="Notice shown when no previous browsers are available to import data from.">
+   No importable browser profiles found.
+ </message>
+--- a/components/helium_onboarding/src/components/MacImportNotice.svelte
++++ b/components/helium_onboarding/src/components/MacImportNotice.svelte
+@@ -1,13 +1,8 @@
+ <script lang="ts">
+-    import { Button, Link, Spinner } from "@imput/helium-prism";
++    import { Link } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { parseLocalizedString } from "../lib/i18n";
+-    import { currentPage, onboardingImportInProgress } from "../lib/onboarding-flow";
+-    import {
+-        importDiscovery,
+-        openFilesAndFoldersSettings,
+-        refreshImportableProfiles,
+-    } from "../lib/browser";
++    import { openFilesAndFoldersSettings } from "../lib/browser";
+ 
+     import ImportNotice from "./ImportNotice.svelte";
+     import ImportPermissionIllustration from "./ImportPermissionIllustration.svelte";
+@@ -20,44 +15,12 @@
+         "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_FilesAndFolders";
+     const bodyParts = $derived(showPermission ? parseLocalizedString(s.dataImport.macNoticeBody) : []);
+ 
+-    // Refreshing usually changes nothing visible, so keep the spinner up long
+-    // enough for the user to see that it happened.
+-    const MIN_SPINNER_DURATION_MS = 800;
+-
+-    let waiting = $state(false);
+-    let waitingForReturn = false;
+-    const refreshing = $derived(waiting || $importDiscovery.refreshing);
+-
+-    const refresh = async () => {
+-        if (refreshing || $onboardingImportInProgress) {
+-            return;
+-        }
+-        waiting = true;
+-        try {
+-            await Promise.all([
+-                refreshImportableProfiles(),
+-                new Promise(r => setTimeout(r, MIN_SPINNER_DURATION_MS)),
+-            ]);
+-        } finally {
+-            waiting = false;
+-        }
+-    };
+-
+     const openSettings = (event: MouseEvent) => {
+         event.preventDefault();
+-        waitingForReturn = true;
+         openFilesAndFoldersSettings();
+     };
+-
+-    const checkOnReturn = () => {
+-        if (!waitingForReturn) return;
+-        waitingForReturn = false;
+-        if ($currentPage === "DataImport") void refresh();
+-    };
+ </script>
+ 
+-<svelte:window onfocus={checkOnReturn} />
+-
+ <ImportSourceHeading title={s.dataImport.macNoticeTitle} id={headingId}>
+     {#snippet icon()}
+         <span class="question-icon"></span>
+@@ -85,15 +48,6 @@
+         {:else}
+             <p>{s.dataImport.macNoticeQuit}</p>
+         {/if}
+-
+-        <div class="notice-actions">
+-            <Button disabled={refreshing || $onboardingImportInProgress} onclick={refresh}>
+-                {#if refreshing}
+-                    <Spinner size={18} />
+-                {/if}
+-                {s.dataImport.refresh}
+-            </Button>
+-        </div>
+     </div>
+ </ImportNotice>
+ 
+@@ -113,10 +67,7 @@
+     .illustrated {
+         --picture-width: 140px;
+ 
+-        grid-template:
+-            "steps picture" max-content
+-            "actions picture" 1fr /
+-            minmax(0, 1fr) minmax(0, var(--picture-width));
++        grid-template: "steps picture" / minmax(0, 1fr) minmax(0, var(--picture-width));
+         column-gap: var(--gap-3);
+     }
+ 
+@@ -134,18 +85,9 @@
+         align-self: center;
+     }
+ 
+-    .notice-actions {
+-        display: flex;
+-        align-self: start;
+-    }
+-
+-    .illustrated .notice-actions {
+-        grid-area: actions;
+-    }
+-
+     @media (max-width: 480px) {
+         .illustrated {
+-            grid-template: "steps" "picture" "actions" / minmax(0, 1fr);
++            grid-template: "steps" "picture" / minmax(0, 1fr);
+         }
+ 
+         .recovery-picture {
+--- a/components/helium_onboarding/src/pages/DataImport.svelte
++++ b/components/helium_onboarding/src/pages/DataImport.svelte
+@@ -3,10 +3,10 @@
+     import { get } from "svelte/store";
+     import { fade } from "svelte/transition";
+     import { getBoolean, s } from "../lib/strings";
+-    import { currentPage } from "../lib/onboarding-flow";
++    import { currentPage, onboardingImportInProgress } from "../lib/onboarding-flow";
+     import { platform } from "../lib/platform";
+     import type { BrowserProfile } from "../lib/cr";
+-    import { importableProfiles, importDiscovery } from "../lib/browser";
++    import { importableProfiles, importDiscovery, refreshImportableProfiles } from "../lib/browser";
+ 
+     import PageHeader from "../components/PageHeader.svelte";
+     import ImportNotice from "../components/ImportNotice.svelte";
+@@ -16,6 +16,7 @@
+     import BrowserImportGraphic from "../components/BrowserImportGraphic.svelte";
+ 
+     const PROMPT_FADE_DURATION = 80;
++    const DISCOVERY_REFRESH_INTERVAL_MS = 5000;
+ 
+     // The browser only sets this where users can grant access to protected
+     // browsers (macOS 27+).
+@@ -26,6 +27,23 @@
+     const animateDiscovery = get(importDiscovery).status !== "loaded";
+     let importContainer = $state<HTMLDivElement>();
+ 
++    function recheckProfiles() {
++        if (visible && discovered && document.visibilityState === "visible" &&
++            !$onboardingImportInProgress) {
++            void refreshImportableProfiles();
++        }
++    }
++
++    $effect(() => {
++        // Start Import remains the explicit entry point for profile discovery.
++        if (!visible || !discovered) return;
++
++        const timer = window.setInterval(() => {
++            if (document.hasFocus()) recheckProfiles();
++        }, DISCOVERY_REFRESH_INTERVAL_MS);
++        return () => window.clearInterval(timer);
++    });
++
+     $effect.pre(() => {
+         if (!discovered || !animateDiscovery || !importContainer) {
+             return;
+@@ -55,6 +73,8 @@
+     });
+ </script>
+ 
++<svelte:window onfocus={recheckProfiles} />
++
+ <div id="data-import-page" class="onboarding-page" class:visible inert={!visible}>
+     <div
+         id="data-import-container"
