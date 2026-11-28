@@ -1,0 +1,11 @@
+--- source.orig/components/helium_onboarding/src/App.svelte
++++ source/components/helium_onboarding/src/App.svelte
+@@ -39,6 +39,6 @@
+ </main>
+ <style>
+     main { overflow: hidden; position: relative; display: flex; justify-content: center; width: 100vw; min-height: 100dvh; background: var(--setup-background); }
+-    /* Keep the native window drag strip above all Setup content. */
+-    main.macos :global(.onboarding-page) { top: 32px; height: calc(100% - 32px); }
++    /* Scroll focused controls clear of the native drag strip. */
++    main.macos :global(:is(.scrollable-page, #welcome-page)) { scroll-padding-block-start: 32px; }
+ </style>
