@@ -1,0 +1,186 @@
+Index: source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 18:43:31.502132959 -0800
++++ source/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 18:56:44.821975139 -0800
+@@ -3,7 +3,7 @@
+     import { s } from "../lib/strings";
+     import type { BrowserProfile } from "../lib/cr";
+     import { browserIcons } from "../lib/nonfree-icons";
+-    import { importDiscovery, importProfile } from "../lib/browser";
++    import { importProfile } from "../lib/browser";
+     import {
+         importingProfileId,
+         onboardingImportInProgress,
+@@ -42,17 +42,17 @@
+ 
+     const imported = $derived($previouslyImportedProfiles.has(profile.id));
+     const importing = $derived($importingProfileId === profile.id);
+-    const disabled = $derived($onboardingImportInProgress || $importDiscovery.refreshing);
++    const disabled = $derived($onboardingImportInProgress);
+     let failed = $state(false);
+ 
+     async function importThisProfile() {
+         if (imported || disabled) return;
+ 
+-        const { id, index, favorites, history, extensions } = profile;
++        const { id } = profile;
+         $importingProfileId = id;
+         failed = false;
+         try {
+-            await importProfile(index, { bookmarks: favorites, history, extensions });
++            await importProfile(id);
+             $previouslyImportedProfiles.add(id);
+         } catch {
+             failed = true;
+Index: source/components/helium_onboarding/src/lib/browser/importer.ts
+===================================================================
+--- source.orig/components/helium_onboarding/src/lib/browser/importer.ts	2026-11-27 17:30:32.078306577 -0800
++++ source/components/helium_onboarding/src/lib/browser/importer.ts	2026-11-27 18:56:44.796220953 -0800
+@@ -7,10 +7,8 @@
+ 
+ export const importDiscovery = writable<{
+     status: 'initial' | 'loading' | 'loaded' | 'error';
+-    refreshing: boolean;
+ }>({
+     status: 'initial',
+-    refreshing: false,
+ });
+ 
+ enum _HeliumImportType {
+@@ -26,10 +24,22 @@
+ 
+ type Action = () => void;
+ // The import in progress stays at the front until it finishes.
+-const queue: [number, HeliumImportTypes, Action, Action][] = [];
+-
+-const fetchProfiles = async () => {
+-    importableProfilesRaw.set(await browser.initializeImportDialog());
++const queue: [number, Action, Action][] = [];
++let profileScan: Promise<boolean> | undefined;
++let importIndexesCurrent = false;
++
++const fetchProfiles = () => {
++    return profileScan ??= browser.initializeImportDialog().then(profiles => {
++        importIndexesCurrent = true;
++        importableProfilesRaw.set(profiles);
++        return true;
++    }, () => {
++        // Keep the visible cards, but their native indexes may no longer match.
++        importIndexesCurrent = false;
++        return false;
++    }).finally(() => {
++        profileScan = undefined;
++    });
+ }
+ 
+ export const openFilesAndFoldersSettings = () => {
+@@ -37,28 +47,16 @@
+ }
+ 
+ export const loadImportableProfiles = async () => {
+-    importDiscovery.update(d => ({ ...d, status: 'loading' }));
+-
+-    const status = await fetchProfiles().then(
+-        () => 'loaded' as const,
+-        () => 'error' as const,
+-    );
+-    importDiscovery.update(d => ({ ...d, status }));
++    importDiscovery.set({ status: 'loading' });
++    const loaded = await fetchProfiles();
++    importDiscovery.set({ status: loaded ? 'loaded' : 'error' });
+ }
+ 
+-// Re-detects profiles without leaving the loaded state. Skipped while imports
+-// are queued or running, since they reference profiles by index; the queue
+-// refreshes the list itself once it drains.
++// Keep the native list stable while an import is queued or running.
+ export const refreshImportableProfiles = async () => {
+-    if (get(importDiscovery).refreshing || queue.length) {
+-        return;
++    if (!queue.length) {
++        await fetchProfiles();
+     }
+-
+-    importDiscovery.update(d => ({ ...d, refreshing: true }));
+-
+-    // Keep the previous list if detection fails
+-    await fetchProfiles().catch(() => {});
+-    importDiscovery.update(d => ({ ...d, refreshing: false }));
+ }
+ 
+ const convertTasks = (tasks: WhatToImport): HeliumImportTypes => {
+@@ -72,12 +70,30 @@
+     };
+ }
+ 
+-const runNext = () => {
+-    if (queue.length === 0) {
+-        return;
++const advanceQueue = () => {
++    queue.shift();
++    if (queue.length) {
++        void runNext();
+     }
++};
+ 
+-    const [ index, tasks, resolve, reject ] = queue[0];
++const runNext = async () => {
++    const [id, resolve, reject] = queue[0];
++
++    // A scan replaces the native list. Wait for it and use the current index
++    // of the stable profile ID selected by the user.
++    const scan = profileScan ?? (importIndexesCurrent ? undefined : fetchProfiles());
++    if (scan && !await scan) {
++        reject();
++        advanceQueue();
++        return;
++    }
++    const profile = get(importableProfiles).find(profile => profile.id === id);
++    if (!profile) {
++        reject();
++        advanceQueue();
++        return;
++    }
+ 
+     const me = cr.addWebUiListener('import-data-status-changed', (status: cr.ImportDataStatus) => {
+         if (status === cr.ImportDataStatus.FAILED)
+@@ -88,16 +104,16 @@
+             return;
+ 
+         cr.removeWebUiListener(me);
+-        queue.shift();
++        advanceQueue();
+ 
+-        if (queue.length) {
+-            runNext();
+-        } else {
+-            refreshImportableProfiles();
+-        }
++        void refreshImportableProfiles();
+     });
+ 
+-    browser.importData(index, tasks);
++    browser.importData(profile.index, convertTasks({
++        bookmarks: profile.favorites,
++        history: profile.history,
++        extensions: profile.extensions,
++    }));
+ }
+ 
+ export const importableProfiles = derived(importableProfilesRaw, $profiles => {
+@@ -114,12 +130,10 @@
+     extensions: boolean
+ }>;
+ 
+-export const importProfile = (index: number, tasks: WhatToImport) => {
+-    const wrappedTasks = convertTasks(tasks);
+-
++export const importProfile = (id: number) => {
+     return new Promise<void>((resolve, reject) => {
+-        if (queue.push([ index, wrappedTasks, resolve, reject ]) === 1) {
+-            runNext();
++        if (queue.push([id, resolve, reject]) === 1) {
++            void runNext();
+         }
+     });
+ }

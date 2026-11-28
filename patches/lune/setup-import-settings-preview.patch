@@ -1,0 +1,1119 @@
+Index: source/components/helium_onboarding/helium_onboarding_strings.grdp
+===================================================================
+--- source.orig/components/helium_onboarding/helium_onboarding_strings.grdp	2026-11-27 18:45:37.242433278 -0800
++++ source/components/helium_onboarding/helium_onboarding_strings.grdp	2026-11-27 19:06:43.948022124 -0800
+@@ -206,13 +206,13 @@
+   Import from other browsers
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_SUBTITLE" desc="Subtitle of the onboarding screen for importing browser data.">
+-  Transfer your bookmarks, history, and extensions from other browsers.
++  Bring over your bookmarks, history, and extensions.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_PROMPT_PERMISSION" desc="Explanation asking for permission to look for other browsers before choosing data to import.">
+   Allow Helium to look for other browsers on this device so you can choose what to transfer.
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_PROMPT_ALLOW" desc="Instructions to grant access in the macOS permission prompt, if it appears. Allow is the label of the macOS confirmation button.">
+-  If macOS asks, click Allow to give Helium access to your browser data.
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_PROMPT_ALLOW" desc="Instructions to grant access to the source browser in the macOS permission prompt, if it appears.">
++  If asked, allow access to your browser data to import.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_SKIP" desc="Button to leave the optional import step without starting an import.">
+   Skip
+@@ -223,8 +223,8 @@
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_ACTION" desc="Button on a browser profile row that immediately copies data from that profile.">
+   Import
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_PROGRESS" desc="Status shown while copying data from selected browser profiles.">
+-  Importing browser data…
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_PROGRESS" desc="Button label while copying data from a selected browser profile.">
++  Importing…
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_IMPORTED" desc="Status on a browser profile after its import has completed.">
+   Imported
+@@ -241,18 +241,21 @@
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_TITLE" desc="Heading above the macOS browser discovery instructions.">
+   Don't see your browser?
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_QUIT" desc="Instruction to quit the browser the user wants to import from on macOS. Keep the keyboard shortcut.">
+-  Quit that browser with ⌘Q.
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_QUIT" desc="Instruction to quit the browser the user wants to import from on macOS.">
++  Quit the other browser before importing.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_BODY" desc="First step for recovering browser import on macOS. Keep the BEGIN/END placeholder pair around the System Settings link, but move it as needed for a natural translation.">
+   Open <ph name="BEGIN_LINK_SETTINGS">$1</ph>Files &amp; Folders in System Settings<ph name="END_LINK_SETTINGS">$2</ph>.
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_ENABLE" desc="Second step for recovering browser import. The user expands the requesting browser’s entry in macOS Files and Folders, then enables access for the source browser.">
+-  Expand Helium and turn on your browser’s switch.
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_ENABLE" desc="Second step for recovering browser import. Keep the BEGIN/END placeholder pair around the requesting app’s displayed name so its icon appears alongside it.">
++  Expand <ph name="BEGIN_APP_LABEL">$1</ph>Helium.app<ph name="END_APP_LABEL">$2</ph> and turn on your browser’s switch.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_PICTURE_TITLE" desc="Heading of an illustration of the Files and Folders pane in macOS System Settings.">
+   Files &amp; Folders
+ </message>
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_PICTURE_SIDEBAR" desc="The selected Privacy &amp; Security category in an illustration of macOS System Settings.">
++  Privacy &amp; Security
++</message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_PICTURE_APP" desc="macOS System Settings Files and Folders list entry for the browser.">
+   Helium.app
+ </message>
+Index: source/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte	2026-11-27 18:25:59.073684291 -0800
++++ source/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte	2026-11-27 19:10:34.645217428 -0800
+@@ -10,6 +10,7 @@
+         { name: "Firefox.app", icon: browserIcons.firefox },
+         { name: "Google Chrome.app", icon: browserIcons.chrome },
+     ];
++    const sidebarColors = ["#568ee8", "#a178d2", "#e57a7d", "#7c889e"];
+ 
+     let windowElement = $state<HTMLDivElement>();
+     let animating = $state(false);
+@@ -17,188 +18,324 @@
+     $effect(() => {
+         if (!windowElement || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+ 
+-        const observer = new IntersectionObserver(entries => {
+-            if (!entries.some(entry => entry.intersectionRatio >= 0.75)) return;
+-            animating = true;
+-            observer.disconnect();
+-        }, { threshold: 0.75 });
++        const observer = new IntersectionObserver(([entry]) => {
++            animating = entry.intersectionRatio >= 0.65;
++        }, { threshold: 0.65 });
+         observer.observe(windowElement);
+         return () => observer.disconnect();
+     });
+ </script>
+ 
+-<div class="permission-illustration" class:animating bind:this={windowElement}
++<div class="settings-demo" class:animating bind:this={windowElement}
+     role="img" aria-label={s.dataImport.macNoticePictureDescription}>
+-    <div class="window-titlebar" aria-hidden="true">
+-        <span class="window-controls"><i></i><i></i><i></i></span>
+-        <strong>{s.dataImport.macNoticePictureTitle}</strong>
+-    </div>
+-    <div class="permission-list" aria-hidden="true">
+-        <div class="picture-app">
+-            <span class="disclosure"></span>
+-            <img src="/lune-app.svg" alt="" />
+-            <strong>{s.dataImport.macNoticePictureApp}</strong>
++    <div class="permission-illustration" aria-hidden="true">
++        <div class="window-sidebar">
++            <span class="window-controls"><i></i><i></i><i></i></span>
++            <span class="sidebar-search"><i></i></span>
++            {#each sidebarColors as color (color)}
++                <span class="sidebar-item" style:--item-color={color}><i></i><b></b></span>
++            {/each}
++            <span class="sidebar-item selected"><i></i><span class="sidebar-label">{s.dataImport.macNoticePictureSidebar}</span></span>
++            <span class="sidebar-item"><i></i><b></b></span>
+         </div>
+-        {#each browsers as browser (browser.name)}
+-            <div class="picture-browser">
+-                <img src={browser.icon} alt="" />
+-                <span class="browser-name">{browser.name}</span>
+-                <span class="picture-switch"></span>
++        <div class="window-detail">
++            <div class="window-titlebar">
++                <span class="window-navigation"><i></i><i></i></span>
++                <strong>{s.dataImport.macNoticePictureTitle}</strong>
++            </div>
++            <div class="permission-list">
++                <div class="picture-app">
++                    <span class="disclosure"></span>
++                    <img src={browserIcons.arc} alt="" />
++                    <span class="app-name">Arc.app</span>
++                </div>
++                <div class="picture-app">
++                    <span class="disclosure expanded"></span>
++                    <img src="/lune-app.svg" alt="" />
++                    <span class="app-name">{s.dataImport.macNoticePictureApp}</span>
++                </div>
++                {#each browsers as browser (browser.name)}
++                    <div class="picture-browser">
++                        <img src={browser.icon} alt="" />
++                        <span class="app-name">{browser.name}</span>
++                        <span class="picture-switch"></span>
++                    </div>
++                {/each}
+             </div>
+-        {/each}
+-        <span class="picture-cursor"></span>
++        </div>
+     </div>
++    <div class="cursor-path" aria-hidden="true"><span class="picture-cursor"></span></div>
+ </div>
+ 
+ <style>
++    @property --permission-demo-enabled {
++        syntax: "<number>";
++        inherits: true;
++        initial-value: 1;
++    }
++
++    .settings-demo {
++        --demo-duration: 5200ms;
++        position: relative;
++        pointer-events: none;
++    }
++
+     .permission-illustration {
+         color-scheme: light dark;
+-        --pane: light-dark(#f4f4f6, #222224);
+-        --panel: light-dark(#fbfbfc, #2c2c30);
+-        --titlebar: light-dark(#e8e8ed, #37373b);
+-        --line: light-dark(#d6d6dc, #494950);
+-        --label: light-dark(#232329, #f5f5f7);
+-        --secondary: light-dark(#666671, #b6b6bf);
++        --pane: light-dark(#f8f8fa, #232429);
++        --sidebar: light-dark(#e9eaed, #33343b);
++        --panel: light-dark(#f0f1f4, #2b2c33);
++        --line: light-dark(#d8dbe1, #484952);
++        --label: light-dark(#24262f, #f2f2f7);
++        --secondary: light-dark(#727686, #b2b4c4);
+         --switch-on: #0878ef;
+-        --switch-off: light-dark(#c5c5ce, #5f5f69);
+-        --switch-travel: 10px;
+-        --demo-duration: 3200ms;
++        --switch-off: light-dark(#c5c7cf, #616371);
++        --switch-travel: 8px;
+         display: grid;
+-        zoom: 0.7;
+-        grid-template-rows: 32px minmax(0, 1fr);
+-        aspect-ratio: 1.1;
++        grid-template-columns: 31% minmax(0, 1fr);
++        aspect-ratio: 1.5;
+         overflow: hidden;
+         border: 1px solid var(--line);
+-        border-radius: 11px;
++        border-radius: 9px;
+         background: var(--pane);
+-        box-shadow: 0 3px 9px light-dark(#16162435, #0007);
++        box-shadow: 0 4px 13px light-dark(#16162442, #0008);
+         color: var(--label);
+-        font: 13px/1.35 system-ui, sans-serif;
++        font: 9px/1.25 system-ui, sans-serif;
++        text-align: start;
+         text-decoration: none;
+     }
+ 
+     .permission-illustration:dir(rtl) {
+-        --switch-travel: -10px;
++        --switch-travel: -8px;
+     }
+ 
+-    .window-titlebar {
++    .window-sidebar {
+         display: grid;
+-        grid-template-columns: 1fr auto 1fr;
+-        align-items: center;
+-        gap: 5px;
+-        padding-inline: 7px;
+-        border-bottom: 1px solid var(--line);
+-        background: linear-gradient(var(--titlebar), var(--pane));
+-        font-size: 12px;
+-        text-align: center;
++        align-content: start;
++        min-width: 0;
++        gap: 3px;
++        padding: 8px 4px;
++        border-inline-end: 1px solid var(--line);
++        background: var(--sidebar);
+     }
+ 
+     .window-controls {
+         display: flex;
+-        gap: 4px;
++        gap: 3px;
++        margin-inline-start: 3px;
++        margin-block-end: 6px;
+         direction: ltr;
+     }
+ 
+     .window-controls i {
+-        width: 7px;
+-        height: 7px;
++        width: 5px;
++        height: 5px;
+         border-radius: 50%;
+-        background: #ff6059;
+-        box-shadow: inset 0 0 0 1px #0002;
++        background: var(--line);
++        box-shadow: inset 0 0 0 0.5px var(--secondary);
+     }
+ 
+-    .window-controls i:nth-child(2) {
+-        background: #febc2e;
++    .sidebar-search {
++        display: flex;
++        align-items: center;
++        height: 11px;
++        margin-block-end: 2px;
++        padding-inline-start: 3px;
++        border: 1px solid var(--line);
++        border-radius: 6px;
++        background: var(--pane);
++        color: var(--secondary);
+     }
+ 
+-    .window-controls i:nth-child(3) {
+-        background: #28c840;
++    .sidebar-search i {
++        position: relative;
++        width: 4px;
++        height: 4px;
++        border: 0.75px solid currentColor;
++        border-radius: 50%;
+     }
+ 
+-    .permission-list {
+-        position: relative;
++    .sidebar-search i::after {
++        content: "";
++        position: absolute;
++        top: 100%;
++        left: 100%;
++        width: 3px;
++        border-top: 0.75px solid currentColor;
++        transform: rotate(45deg);
++        transform-origin: left;
++    }
++
++    .sidebar-item {
++        display: flex;
++        align-items: center;
++        gap: 3px;
++        min-height: 15px;
++        padding-inline: 3px;
++        border-radius: 3px;
++    }
++
++    .sidebar-item i {
++        flex: 0 0 5px;
++        height: 5px;
++        border-radius: 1.5px;
++        background: var(--item-color, var(--secondary));
++    }
++
++    .sidebar-item b {
++        width: 48%;
++        height: 2px;
++        border-radius: 1px;
++        background: var(--line);
++    }
++
++    .sidebar-item.selected {
++        background: light-dark(#d1d6e4, #4c5368);
++        font-size: 6.3px;
++        font-weight: 650;
++    }
++
++    .sidebar-label {
++        overflow: hidden;
++        text-overflow: ellipsis;
++        white-space: nowrap;
++    }
++
++    .selected i {
++        --item-color: #4389e1;
++    }
++
++    .window-detail {
+         display: grid;
+-        grid-template-rows: repeat(3, minmax(0, 1fr));
+-        margin: 7px;
+-        border: 1px solid var(--line);
+-        border-radius: 8px;
+-        background: var(--panel);
++        grid-template-rows: 26px minmax(0, 1fr);
++        min-width: 0;
+     }
+ 
+-    .picture-app,
+-    .picture-browser {
++    .window-titlebar {
+         display: flex;
+         align-items: center;
+         gap: 5px;
+-        padding-inline: 7px;
+-        box-sizing: border-box;
++        padding-inline: 5px;
++        border-bottom: 1px solid var(--line);
++        font-size: 10px;
++    }
++
++    .window-titlebar strong {
++        line-height: 1.1;
++        overflow-wrap: anywhere;
+     }
+ 
+-    .picture-app img {
+-        width: 16px;
+-        height: 16px;
++    .window-navigation {
++        display: flex;
++        align-items: center;
++        justify-content: center;
++        flex: 0 0 26px;
++        height: 13px;
++        border: 1px solid var(--line);
++        border-radius: 8px;
+     }
+ 
++    .window-navigation i,
+     .disclosure {
+-        width: 6px;
+-        height: 6px;
+-        margin: -3px 2px 0;
++        width: 4px;
++        height: 4px;
+         border: solid var(--secondary);
+-        border-width: 0 1.5px 1.5px 0;
+-        transform: rotate(45deg);
++        border-width: 0 0.9px 0.9px 0;
++        transform: rotate(-45deg);
+         flex-shrink: 0;
+     }
+ 
++    .window-navigation i:first-child {
++        transform: rotate(135deg);
++    }
++
++    .window-navigation i + i {
++        margin-inline-start: 5px;
++        opacity: 0.5;
++    }
++
++    .permission-list {
++        position: relative;
++        display: grid;
++        grid-template-rows: repeat(4, minmax(0, 1fr));
++        margin: 5px 5px 7px;
++        padding-inline: 4px;
++        border-radius: 4px;
++        background: var(--panel);
++    }
++
++    .picture-app,
+     .picture-browser {
+-        margin-inline-start: 7px;
+-        border-top: 1px solid var(--line);
+-        font-size: 11.5px;
+-        --click-time: 896ms;
++        display: flex;
++        align-items: center;
++        gap: 4px;
++        min-width: 0;
+     }
+ 
+-    .picture-browser + .picture-browser {
+-        --click-time: 1792ms;
++    .picture-app + .picture-app,
++    .picture-browser {
++        border-top: 1px solid var(--line);
+     }
+ 
++    .picture-app img,
+     .picture-browser img {
+-        width: 15px;
+-        height: 15px;
++        width: 12px;
++        height: 12px;
+         flex-shrink: 0;
+     }
+ 
+-    .browser-name {
+-        overflow-wrap: anywhere;
++    .disclosure.expanded {
++        margin-block-start: -2px;
++        transform: rotate(45deg);
++    }
++
++    .picture-browser {
++        margin-inline-start: 14px;
++    }
++
++    .app-name {
++        overflow: hidden;
++        text-overflow: ellipsis;
++        white-space: nowrap;
+     }
+ 
+     .picture-switch {
+         position: relative;
+-        width: 27px;
+-        height: 14px;
++        width: 18px;
++        height: 9px;
+         margin-inline-start: auto;
+         border-radius: 99px;
+-        background: var(--switch-on);
++        background: color-mix(in srgb, var(--switch-on) calc(var(--permission-demo-enabled) * 100%), var(--switch-off));
+         flex-shrink: 0;
+     }
+ 
+     .picture-switch::after {
+         content: "";
+         position: absolute;
+-        top: 2px;
+-        inset-inline-start: 2px;
+-        width: 13px;
+-        height: 10px;
+-        border-radius: 99px;
++        inset-block-start: 1px;
++        inset-inline-start: 1.5px;
++        width: 7px;
++        height: 7px;
++        border-radius: 50%;
+         background: white;
+-        transform: translateX(var(--switch-travel));
++        transform: translateX(calc(var(--switch-travel) * var(--permission-demo-enabled)));
++    }
++
++    .cursor-path {
++        /* Align the animation with the list rows while letting it cross the wallpaper. */
++        --cursor-offscreen: calc((100% - 100cqw) / 2 - 28px);
++        position: absolute;
++        inset-block: 32px 8px;
++        inset-inline: 6px;
+     }
+ 
+     .picture-cursor {
+         position: absolute;
++        top: 42%;
++        inset-inline-end: var(--cursor-offscreen);
+         z-index: 1;
+-        opacity: 0;
+-        width: 14px;
+-        height: 20px;
+-        pointer-events: none;
++        width: 12px;
++        height: 17px;
+         transform-origin: top left;
+         filter: drop-shadow(0 0 1px white) drop-shadow(0 1px 1px #0009);
+     }
+@@ -212,37 +349,44 @@
+         clip-path: polygon(0 0, 96% 63%, 58% 66%, 76% 93%, 57% 100%, 37% 72%, 13% 91%);
+     }
+ 
++    .settings-demo:dir(rtl) .picture-cursor {
++        transform-origin: top right;
++    }
++
++    .settings-demo:dir(rtl) .picture-cursor::after {
++        transform: scaleX(-1);
++    }
++
+     @media (prefers-reduced-motion: no-preference) {
+         .animating .picture-cursor {
+-            animation: demonstrate-clicks var(--demo-duration) linear both;
++            animation: demonstrate-clicks var(--demo-duration) ease-in-out infinite;
+         }
+ 
+         .animating .picture-switch {
+-            animation: enable-switch 160ms ease-out var(--click-time) both;
++            animation: toggle-first var(--demo-duration) linear infinite;
+         }
+ 
+-        .animating .picture-switch::after {
+-            animation: slide-knob 160ms ease-out var(--click-time) both;
++        .animating .picture-browser + .picture-browser .picture-switch {
++            animation-name: toggle-second;
+         }
+     }
+ 
+-    @keyframes enable-switch {
+-        from { background: var(--switch-off); }
+-        to { background: var(--switch-on); }
++    @keyframes toggle-first {
++        0%, 22%, 90%, 100% { --permission-demo-enabled: 0; }
++        25%, 89% { --permission-demo-enabled: 1; }
+     }
+ 
+-    @keyframes slide-knob {
+-        from { transform: translateX(0); }
+-        to { transform: translateX(var(--switch-travel)); }
++    @keyframes toggle-second {
++        0%, 48%, 90%, 100% { --permission-demo-enabled: 0; }
++        51%, 89% { --permission-demo-enabled: 1; }
+     }
+ 
+     @keyframes demonstrate-clicks {
+-        0% { top: 28%; inset-inline-end: 42px; opacity: 0; }
+-        9% { opacity: 1; }
+-        23%, 34% { top: 50%; inset-inline-end: 9px; opacity: 1; transform: scale(1); }
+-        28% { top: 50%; inset-inline-end: 9px; transform: scale(0.82); }
+-        51%, 62% { top: 83.333%; inset-inline-end: 9px; opacity: 1; transform: scale(1); }
+-        56% { top: 83.333%; inset-inline-end: 9px; transform: scale(0.82); }
+-        83%, 100% { top: 90%; inset-inline-end: 27px; opacity: 0; }
++        0%, 5% { top: 42%; inset-inline-end: var(--cursor-offscreen); transform: scale(1); }
++        17%, 28% { top: 62.5%; inset-inline-end: 5px; transform: scale(1); }
++        22% { top: 62.5%; inset-inline-end: 5px; transform: scale(0.8); }
++        43%, 55% { top: 87.5%; inset-inline-end: 5px; transform: scale(1); }
++        48% { top: 87.5%; inset-inline-end: 5px; transform: scale(0.8); }
++        74%, 100% { top: 97%; inset-inline-end: var(--cursor-offscreen); transform: scale(1); }
+     }
+ </style>
+Index: source/components/helium_onboarding/src/components/MacImportNotice.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/MacImportNotice.svelte	2026-11-27 18:41:04.750993058 -0800
++++ source/components/helium_onboarding/src/components/MacImportNotice.svelte	2026-11-27 19:10:34.570728732 -0800
+@@ -5,7 +5,6 @@
+     import { openFilesAndFoldersSettings } from "../lib/browser";
+ 
+     import ImportPermissionIllustration from "./ImportPermissionIllustration.svelte";
+-    import ImportSourceHeading from "./ImportSourceHeading.svelte";
+ 
+     const { showPermission }: { showPermission: boolean } = $props();
+     const headingId = $props.id();
+@@ -13,6 +12,7 @@
+     const settingsUrl =
+         "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_FilesAndFolders";
+     const bodyParts = $derived(showPermission ? parseLocalizedString(s.dataImport.macNoticeBody) : []);
++    const enableParts = $derived(showPermission ? parseLocalizedString(s.dataImport.macNoticeEnable) : []);
+ 
+     const openSettings = (event: MouseEvent) => {
+         event.preventDefault();
+@@ -20,48 +20,50 @@
+     };
+ </script>
+ 
+-<ImportSourceHeading title={s.dataImport.macNoticeTitle} id={headingId}>
+-    {#snippet icon()}
+-        <span class="question-icon"></span>
+-    {/snippet}
+-</ImportSourceHeading>
+ <aside class="import-recovery" class:illustrated={showPermission} aria-labelledby={headingId}>
++    <div class="recovery-instructions">
++        <h4 class="recovery-title" id={headingId}>{s.dataImport.macNoticeTitle}</h4>
++        {#if showPermission}
++            <ol class="steps">
++                <li>
++                    {#each bodyParts as part}
++                        {#if part.kind === "linkSettings"}
++                            <Link href={settingsUrl} onclick={openSettings}>{part.text}</Link>
++                        {:else}
++                            {part.text}
++                        {/if}
++                    {/each}
++                </li>
++                <li>
++                    {#each enableParts as part}
++                        {#if part.kind === "appLabel"}
++                            <span class="app-label"><img src="/lune-app.svg" alt="" />{part.text}</span>
++                        {:else}
++                            {part.text}
++                        {/if}
++                    {/each}
++                </li>
++                <li>{s.dataImport.macNoticeQuit}</li>
++            </ol>
++        {:else}
++            <p class="quit-instruction">{s.dataImport.macNoticeQuit}</p>
++        {/if}
++    </div>
+     {#if showPermission}
+-        <ol class="steps">
+-            <li>
+-                {#each bodyParts as part}
+-                    {#if part.kind === "linkSettings"}
+-                        <Link href={settingsUrl} onclick={openSettings}>{part.text}</Link>
+-                    {:else}
+-                        {part.text}
+-                    {/if}
+-                {/each}
+-            </li>
+-            <li>{s.dataImport.macNoticeEnable}</li>
+-            <li>{s.dataImport.macNoticeQuit}</li>
+-        </ol>
+         <a class="recovery-picture" href={settingsUrl} onclick={openSettings}
+             aria-label={s.dataImport.macNoticePictureAction}>
+             <div class="desktop-window">
+                 <ImportPermissionIllustration />
+             </div>
+         </a>
+-    {:else}
+-        <p class="quit-instruction">{s.dataImport.macNoticeQuit}</p>
+     {/if}
+ </aside>
+ 
+ <style>
+-    .question-icon {
+-        width: 24px;
+-        height: 24px;
+-        background-color: currentColor;
+-        mask: url("/setup-header-icons/questionmark.app.dashed.png") center / contain no-repeat;
+-    }
+-
+     .import-recovery {
+         display: grid;
+         width: 100%;
++        margin-block-start: var(--gap-3);
+         border-radius: 16px;
+         overflow: hidden;
+         background-color: var(--helium-elevated-5);
+@@ -69,49 +71,81 @@
+     }
+ 
+     .illustrated {
+-        grid-template-columns: minmax(0, 1fr) 38%;
++        grid-template-columns: minmax(0, 1fr) 43%;
+     }
+ 
++    .recovery-instructions {
++        --marker-width: 16px;
++        --instruction-inset: calc(var(--import-row-inset) + var(--import-icon-size) + var(--import-row-gap) - var(--marker-width));
++
++        display: grid;
++        align-content: center;
++        gap: var(--gap-2);
++        min-width: 0;
++        padding-block: 16px;
++    }
++
++    .recovery-title,
+     .steps,
+     .quit-instruction {
+         margin: 0;
+-        padding: 14px;
+-        padding-inline-start: calc(var(--import-row-inset) + var(--import-icon-size) + var(--import-row-gap));
++        padding-inline-end: 16px;
++        padding-inline-start: var(--instruction-inset);
++    }
++
++    .recovery-title {
++        line-height: 1.2;
+     }
+ 
+     .steps {
+         align-self: center;
+         display: grid;
+         gap: var(--gap-1);
++        padding-inline-start: calc(var(--instruction-inset) + var(--marker-width));
+     }
+ 
+     .steps :global(a) {
+         font: inherit;
+     }
+ 
++    .app-label {
++        color: light-dark(#182f38, #f6fbfc);
++        white-space: nowrap;
++    }
++
++    .app-label img {
++        width: 1em;
++        height: 1em;
++        margin-inline-end: 0.25em;
++        vertical-align: -0.15em;
++    }
++
+     .recovery-picture {
+         display: grid;
+         place-items: center;
+-        padding: 14px 12px;
++        padding: 16px 12px;
++        overflow: hidden;
++        container-type: inline-size;
++        cursor: default;
++        text-decoration: none;
+         color-scheme: light dark;
+         background:
+             radial-gradient(ellipse at 94% -14%, #ffa399 4%, transparent 59%),
+             radial-gradient(ellipse at 3% 116%, #8060f4 8%, transparent 61%),
+             linear-gradient(145deg, #4433a7, #657eed 43%, #49b6e6 77%, #3f55d7);
+-        box-shadow: inset 0 1px 5px #141b4838;
++        box-shadow: inset 0 2px 15px 1px #141b4838;
+     }
+ 
+     .desktop-window {
+-        width: min(100%, 140px);
++        width: min(100%, 276px);
+     }
+ 
+-    .recovery-picture:hover,
+     .recovery-picture:focus-visible {
+         outline: 2px solid white;
+         outline-offset: -4px;
+     }
+ 
+-    @media (max-width: 480px) {
++    @media (max-width: 560px) {
+         .illustrated {
+             grid-template-columns: minmax(0, 1fr);
+         }
+Index: source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 18:56:44.821975139 -0800
++++ source/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 19:11:05.194477455 -0800
+@@ -81,32 +81,28 @@
+         {/if}
+     </div>
+     <div class="text" id={descriptionId}>
+-        <h4>{profile.name}</h4>
+-        <p>
+-            {#if showProfileName && profile.profileName}<bdi>{profile.profileName}</bdi>{": "}{/if}{dataList()}
+-        </p>
+-        {#if importing}
+-            <p role="status">{s.dataImport.progress}</p>
+-        {:else if failed}
++        <h4>{profile.name}{#if showProfileName && profile.profileName}{" ("}<bdi>{profile.profileName}</bdi>){/if}</h4>
++        <p>{dataList()}</p>
++        {#if failed}
+             <p role="alert">{s.dataImport.failure}</p>
+         {/if}
+     </div>
+     <Button
++        class="import-button"
+         primary={!imported}
+         disabled={disabled || imported}
+-        aria-label={imported ? s.dataImport.imported : s.dataImport.action}
++        aria-label={imported ? s.dataImport.imported : importing ? s.dataImport.progress : s.dataImport.action}
+         aria-describedby={descriptionId}
+         onclick={importThisProfile}
+     >
+         <span class="action-label" aria-hidden="true">
+-            <span class="action-state" class:hidden={imported}>
+-                {#if importing}
+-                    <Spinner size={18} />
+-                {:else}
+-                    <span class="import-icon"></span>
+-                {/if}
++            <span class="action-state" class:hidden={imported || importing}>
++                <span class="import-icon"></span>
+                 {s.dataImport.action}
+             </span>
++            <span class="action-state" class:hidden={!importing}>
++                {#if importing}<Spinner size={18} />{/if}
++            </span>
+             <span class="action-state" class:hidden={!imported}>{s.dataImport.imported}</span>
+         </span>
+     </Button>
+@@ -131,13 +127,12 @@
+         place-items: center;
+         width: var(--import-icon-size);
+         aspect-ratio: 1;
+-        border-radius: 8px;
+-        background-color: var(--helium-elevated-10);
+     }
+ 
+     .browser-icon img {
+-        width: 34px;
+-        height: 34px;
++        width: 100%;
++        height: 100%;
++        object-fit: contain;
+     }
+ 
+     .text {
+@@ -149,11 +144,15 @@
+         overflow-wrap: anywhere;
+     }
+ 
++    .profile-option :global(button.button.import-button) {
++        padding-inline: 16px;
++    }
++
+     .action-label {
+         display: grid;
+     }
+ 
+-    /* Keep both labels in the layout so the disabled button keeps its width. */
++    /* Keep the labels in the layout to fix the button width across states. */
+     .action-state {
+         grid-area: 1 / 1;
+         display: flex;
+Index: source/components/helium_onboarding/src/components/ImportPrompt.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ImportPrompt.svelte	2026-11-27 17:30:32.077249615 -0800
++++ source/components/helium_onboarding/src/components/ImportPrompt.svelte	2026-11-27 19:07:46.452917585 -0800
+@@ -1,5 +1,5 @@
+ <script lang="ts">
+-    import { Button, Spinner } from "@imput/helium-prism";
++    import { Button } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import { platform } from "../lib/platform";
+     import { importDiscovery, loadImportableProfiles } from "../lib/browser";
+@@ -12,12 +12,9 @@
+ 
+ <div class="import-prompt">
+     <Button primary disabled={busy} aria-describedby={explanationId} onclick={loadImportableProfiles}>
+-        {#if busy}
+-            <Spinner size={18} />
+-        {/if}
+         {s.button.import}
+     </Button>
+-    <p id={explanationId}>{platform.is.macos ? s.dataImport.promptAllow : s.dataImport.promptPermission}</p>
++    <p class="explanation" id={explanationId}>{platform.is.macos ? s.dataImport.promptAllow : s.dataImport.promptPermission}</p>
+     {#if $importDiscovery.status === "error"}
+         <p role="alert">{s.dataImport.discoveryError}</p>
+     {/if}
+@@ -29,6 +26,12 @@
+         flex-direction: column;
+         align-items: center;
+         gap: var(--gap-2);
++        margin-block-start: var(--gap-3);
+         text-align: center;
+     }
++
++    .import-prompt .explanation {
++        font-size: 13px;
++        line-height: 20px;
++    }
+ </style>
+Index: source/components/helium_onboarding/BUILD.gn
+===================================================================
+--- source.orig/components/helium_onboarding/BUILD.gn	2026-11-27 18:45:37.241107606 -0800
++++ source/components/helium_onboarding/BUILD.gn	2026-11-27 19:05:42.014317715 -0800
+@@ -49,7 +49,6 @@
+     "public/setup-header-icons/magnifyingglass.png",
+     "public/setup-header-icons/paintbrush.pointed.png",
+     "public/setup-header-icons/point.3.connected.trianglepath.dotted.png",
+-    "public/setup-header-icons/questionmark.app.dashed.png",
+     "public/setup-header-icons/square.and.arrow.down.png",
+     "public/setup-header-icons/switch.2.png",
+     "public/Inter-OFL.txt",
+@@ -64,7 +63,6 @@
+     "src/components/ImportPrompt.svelte",
+     "src/components/ImportNotice.svelte",
+     "src/components/ImportPermissionIllustration.svelte",
+-    "src/components/ImportSourceHeading.svelte",
+     "src/components/MacImportNotice.svelte",
+     "src/components/ProfileImportOption.svelte",
+     "src/App.svelte",
+@@ -76,7 +74,6 @@
+     "src/components/WelcomeFooter.svelte",
+     "src/components/LuneLogo.svelte",
+     "src/components/HeliumPartner.svelte",
+-    "src/components/BrowserImportGraphic.svelte",
+     "src/pages/index.ts",
+     "src/pages/Welcome.svelte",
+     "src/pages/SearchEngine.svelte",
+Index: source/components/helium_onboarding/src/components/BrowserImportGraphic.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/BrowserImportGraphic.svelte	2026-11-27 17:17:27.012092567 -0800
++++ /dev/null	1970-01-01 00:00:00.000000000 +0000
+@@ -1,161 +0,0 @@
+-<script lang="ts">
+-    import { browserIcons } from "../lib/nonfree-icons";
+-    import { platform } from "../lib/platform";
+-
+-    const { visible }: { visible: boolean } = $props();
+-
+-    const browsers = [
+-        "firefox",
+-        platform.is.macos ? "dia" : "zen",
+-        "brave",
+-        platform.is.macos ? "safari" : "vivaldi",
+-        "chrome",
+-        "edge",
+-    ];
+-
+-    for (let index = browsers.length - 1; index > 0; index--) {
+-        const other = Math.floor(Math.random() * (index + 1));
+-        [browsers[index], browsers[other]] = [browsers[other], browsers[index]];
+-    }
+-
+-    const slots = [
+-        { x: -0.93, y: 0.05, size: 1.02, opacity: 1 },
+-        { x: 0.93, y: 0.05, size: 1.02, opacity: 1 },
+-        { x: -1.618, y: 0, size: 0.9, opacity: 1 },
+-        { x: 1.618, y: 0, size: 0.9, opacity: 1 },
+-        { x: -2.218, y: -0.05, size: 0.8, opacity: 0.65 },
+-        { x: 2.218, y: -0.05, size: 0.8, opacity: 0.65 },
+-    ];
+-    const icons = slots.map((slot, index) => ({
+-        ...slot,
+-        browser: browsers[index],
+-        delay: 150 + Math.floor(index / 2) * 70,
+-    }));
+-</script>
+-
+-<div class={["browser-reveal", { collapsed: !visible }]} aria-hidden="true">
+-    <div class="icon-stage">
+-        <div class="browser-icon helium-icon">
+-            <img src="/lune-app.svg" alt="" draggable="false" />
+-        </div>
+-        <div class="background-icons">
+-            {#each icons as icon}
+-                <img
+-                    class="browser-icon"
+-                    src={browserIcons[icon.browser]}
+-                    alt=""
+-                    draggable="false"
+-                    style:--offset={icon.x}
+-                    style:--y={icon.y}
+-                    style:--size={icon.size}
+-                    style:--icon-opacity={icon.opacity}
+-                    style:z-index={Math.round(icon.size * 100)}
+-                    style:--reveal-delay={`${icon.delay}ms`}
+-                />
+-            {/each}
+-        </div>
+-    </div>
+-</div>
+-
+-<style>
+-    .browser-reveal {
+-        --icon-size: clamp(44px, 13vw, 96px);
+-        --stage-height: clamp(104px, 26vw, 176px);
+-
+-        position: relative;
+-        height: var(--stage-height);
+-        pointer-events: none;
+-        transition: height var(--resize-duration) var(--resize-easing);
+-
+-        &.collapsed {
+-            height: 0;
+-        }
+-    }
+-
+-    .icon-stage {
+-        position: absolute;
+-        top: 0;
+-        width: 100%;
+-        height: var(--stage-height);
+-        transition: opacity var(--prompt-fade-duration) ease;
+-    }
+-
+-    .collapsed .icon-stage {
+-        opacity: 0;
+-    }
+-
+-    .background-icons {
+-        position: absolute;
+-        inset: 0;
+-        opacity: 0.5;
+-    }
+-
+-    .browser-icon {
+-        --size-px: calc(var(--icon-size) * var(--size));
+-        --position: translate(
+-            calc(var(--offset) * var(--icon-size)),
+-            calc(var(--y) * var(--icon-size))
+-        );
+-
+-        position: absolute;
+-        top: calc(50% - var(--size-px) / 2);
+-        left: calc(50% - var(--size-px) / 2);
+-        width: var(--size-px);
+-        height: var(--size-px);
+-        object-fit: contain;
+-        opacity: var(--icon-opacity);
+-        transform: var(--position);
+-        animation: browser-reveal 0.65s var(--resize-easing) var(--reveal-delay) both;
+-    }
+-
+-    .helium-icon {
+-        --offset: 0;
+-        --y: 0;
+-        --size: 1.316;
+-        --icon-opacity: 1;
+-        --reveal-delay: 0ms;
+-        z-index: 200;
+-        border-radius: 22.321429%;
+-        overflow: hidden;
+-    }
+-
+-    .helium-icon img {
+-        /* Crop the app artwork's 64px transparent inset on its 1024px canvas. */
+-        position: absolute;
+-        width: 114.285714%;
+-        height: 114.285714%;
+-        max-width: none;
+-        top: -7.142857%;
+-        left: -7.142857%;
+-    }
+-
+-    .helium-icon::after {
+-        content: "";
+-        position: absolute;
+-        inset: 0;
+-        border-radius: inherit;
+-        box-shadow: inset 0 1px 0 #ffffff80, inset 0 -1px 0 #00000040;
+-    }
+-
+-    @keyframes browser-reveal {
+-        from {
+-            opacity: 0;
+-            transform: var(--position) translateY(14px) scale(0.85);
+-        }
+-        to {
+-            opacity: var(--icon-opacity);
+-            transform: var(--position);
+-        }
+-    }
+-
+-    @media (prefers-reduced-motion: reduce) {
+-        .browser-reveal,
+-        .icon-stage {
+-            transition: none;
+-        }
+-
+-        .browser-icon {
+-            animation: none;
+-        }
+-    }
+-</style>
+Index: source/components/helium_onboarding/src/pages/DataImport.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/pages/DataImport.svelte	2026-11-27 18:41:04.792404265 -0800
++++ source/components/helium_onboarding/src/pages/DataImport.svelte	2026-11-27 19:02:04.872085335 -0800
+@@ -13,7 +13,6 @@
+     import ImportPrompt from "../components/ImportPrompt.svelte";
+     import MacImportNotice from "../components/MacImportNotice.svelte";
+     import ProfileImportOption from "../components/ProfileImportOption.svelte";
+-    import BrowserImportGraphic from "../components/BrowserImportGraphic.svelte";
+ 
+     const PROMPT_FADE_DURATION = 80;
+     const DISCOVERY_REFRESH_INTERVAL_MS = 5000;
+@@ -82,9 +81,6 @@
+         class={["scrollable-page", { "prompt-only": !discovered, "setup-options-page": discovered }]}
+         style:--prompt-fade-duration={`${PROMPT_FADE_DURATION}ms`}
+     >
+-        {#if animateDiscovery}
+-            <BrowserImportGraphic visible={!discovered} />
+-        {/if}
+         <PageHeader
+             title={s.dataImport.title}
+             subtitle={s.dataImport.subtitle}
+Index: source/components/helium_onboarding/src/components/ImportSourceHeading.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ImportSourceHeading.svelte	2026-11-27 18:39:34.231846219 -0800
++++ /dev/null	1970-01-01 00:00:00.000000000 +0000
+@@ -1,36 +0,0 @@
+-<!--
+-    Copyright 2026 The Lune Authors
+-    Use, redistribute, or modify this file under the terms of the GPL-3.0 license in LICENSE.
+--->
+-<script lang="ts">
+-    import type { Snippet } from "svelte";
+-
+-    const { title, id, icon }: { title: string; id: string; icon: Snippet } = $props();
+-</script>
+-
+-<div class="import-source-heading">
+-    <div class="icon" aria-hidden="true">{@render icon()}</div>
+-    <h4 {id}>{title}</h4>
+-</div>
+-
+-<style>
+-    .import-source-heading {
+-        display: flex;
+-        width: 100%;
+-        box-sizing: border-box;
+-        padding-inline: var(--import-row-inset);
+-        align-items: center;
+-        gap: var(--import-row-gap);
+-    }
+-
+-    .icon {
+-        display: grid;
+-        flex: 0 0 var(--import-icon-size);
+-        height: 28px;
+-        place-items: center;
+-    }
+-
+-    h4 {
+-        line-height: 1;
+-    }
+-</style>

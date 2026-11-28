@@ -1,0 +1,108 @@
+Index: source/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte	2026-11-27 19:10:34.645217428 -0800
++++ source/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte	2026-11-27 19:20:51.436778993 -0800
+@@ -93,6 +93,7 @@
+         --switch-travel: 8px;
+         display: grid;
+         grid-template-columns: 31% minmax(0, 1fr);
++        grid-template-rows: minmax(0, 1fr);
+         aspect-ratio: 1.5;
+         overflow: hidden;
+         border: 1px solid var(--line);
+@@ -111,8 +112,10 @@
+ 
+     .window-sidebar {
+         display: grid;
++        grid-template-columns: minmax(0, 1fr);
+         align-content: start;
+         min-width: 0;
++        min-height: 0;
+         gap: 3px;
+         padding: 8px 4px;
+         border-inline-end: 1px solid var(--line);
+@@ -189,6 +192,14 @@
+         background: var(--line);
+     }
+ 
++    .sidebar-item:nth-of-type(3n + 1) b {
++        width: 62%;
++    }
++
++    .sidebar-item:nth-of-type(3n + 2) b {
++        width: 37%;
++    }
++
+     .sidebar-item.selected {
+         background: light-dark(#d1d6e4, #4c5368);
+         font-size: 6.3px;
+@@ -196,6 +207,7 @@
+     }
+ 
+     .sidebar-label {
++        min-width: 0;
+         overflow: hidden;
+         text-overflow: ellipsis;
+         white-space: nowrap;
+@@ -221,11 +233,15 @@
+     }
+ 
+     .window-titlebar strong {
++        min-width: 0;
+         line-height: 1.1;
+-        overflow-wrap: anywhere;
++        overflow: hidden;
++        text-overflow: ellipsis;
++        white-space: nowrap;
+     }
+ 
+     .window-navigation {
++        position: relative;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+@@ -235,6 +251,14 @@
+         border-radius: 8px;
+     }
+ 
++    .window-navigation::after {
++        content: "";
++        position: absolute;
++        inset-block: 2px;
++        inset-inline-start: 50%;
++        border-inline-start: 1px solid var(--line);
++    }
++
+     .window-navigation i,
+     .disclosure {
+         width: 4px;
+@@ -246,6 +270,7 @@
+     }
+ 
+     .window-navigation i:first-child {
++        border-color: var(--label);
+         transform: rotate(135deg);
+     }
+ 
+@@ -294,6 +319,7 @@
+     }
+ 
+     .app-name {
++        min-width: 0;
+         overflow: hidden;
+         text-overflow: ellipsis;
+         white-space: nowrap;
+Index: source/components/helium_onboarding/src/components/MacImportNotice.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/MacImportNotice.svelte	2026-11-27 19:10:34.570728732 -0800
++++ source/components/helium_onboarding/src/components/MacImportNotice.svelte	2026-11-27 19:20:51.415305817 -0800
+@@ -137,7 +137,8 @@
+     }
+ 
+     .desktop-window {
+-        width: min(100%, 276px);
++        width: 276px;
++        zoom: calc(min(100cqw, 276px) / 276px);
+     }
+ 
+     .recovery-picture:focus-visible {

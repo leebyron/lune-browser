@@ -1,0 +1,96 @@
+Index: source/components/helium_onboarding/helium_onboarding_strings.grdp
+===================================================================
+--- source.orig/components/helium_onboarding/helium_onboarding_strings.grdp	2026-11-27 19:12:08.840466344 -0800
++++ source/components/helium_onboarding/helium_onboarding_strings.grdp	2026-11-27 19:15:04.180101349 -0800
+@@ -217,9 +217,6 @@
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_PROMPT_ALLOW" desc="Instructions to grant access to the source browser in the macOS permission prompt, if it appears.">
+   If asked, allow access to your browser data to import.
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_DONE" desc="Button to advance setup after a browser profile has been imported.">
+-  Done
+-</message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_ACTION" desc="Button on a browser profile row that immediately copies data from that profile.">
+   Import
+ </message>
+Index: source/components/helium_onboarding/src/components/PageNavigation.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/PageNavigation.svelte	2026-11-27 19:12:08.863886445 -0800
++++ source/components/helium_onboarding/src/components/PageNavigation.svelte	2026-11-27 19:15:04.158297421 -0800
+@@ -53,7 +53,6 @@
+             ([, info]) => $extensionStatus[info.extensionId]
+         ))
+     );
+-    const nextDisabled = $derived(working || $onboardingImportInProgress);
+ 
+     const doNext = async () => {
+         switch ($currentPage) {
+@@ -90,6 +89,8 @@
+     };
+ 
+     const navigate = async (page: Parameters<typeof goToPage>[0]) => {
++        if ($onboardingImportInProgress) return;
++
+         // Forward progress-dot navigation confirms this screen just like Next.
+         // Each page confirms only its own choices.
+         if (($currentPage === "Privacy" || $currentPage === "HeliumServices") &&
+@@ -106,7 +107,13 @@
+         }
+     };
+ 
++    const back = () => {
++        if (!$onboardingImportInProgress) previousPage();
++    };
++
+     const next = () => {
++        if ($onboardingImportInProgress) return;
++
+         working = true;
+         doNext()
+             .catch(() => {})
+@@ -123,11 +130,11 @@
+     <WelcomeFooter />
+     {:else}
+     <div id="setup-buttons" class="action-buttons">
+-        <Button disabled={nextDisabled} onclick={previousPage}>
++        <Button disabled={working} aria-disabled={$onboardingImportInProgress} onclick={back}>
+             <IconArrowLeft />
+             {s.button.back}
+         </Button>
+-        <Button disabled={nextDisabled} primary={!skip} onclick={next}>
++        <Button disabled={working} aria-disabled={$onboardingImportInProgress} primary={!skip} onclick={next}>
+             {#if working}
+                 <Spinner size={18} />
+             {:else if $currentPage === "Finish"}
+@@ -139,8 +146,6 @@
+                 {s.button.letsGo}
+             {:else if skip}
+                 {s.button.skip}
+-            {:else if importPage}
+-                {s.dataImport.done}
+             {:else}
+                 {s.button.next}
+             {/if}
+@@ -154,7 +159,8 @@
+                 class:filled={step <= currentStep}
+                 aria-label={pageTitles[page]}
+                 aria-current={page === $currentPage ? 'step' : undefined}
+-                disabled={nextDisabled}
++                disabled={working}
++                aria-disabled={$onboardingImportInProgress}
+                 onclick={() => navigate(page)}
+             >
+                 <span class="step-dot"></span>
+Index: source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 19:11:05.194477455 -0800
++++ source/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 19:15:04.134786695 -0800
+@@ -90,7 +90,8 @@
+     <Button
+         class="import-button"
+         primary={!imported}
+-        disabled={disabled || imported}
++        disabled={importing || imported}
++        aria-disabled={disabled && !importing && !imported}
+         aria-label={imported ? s.dataImport.imported : importing ? s.dataImport.progress : s.dataImport.action}
+         aria-describedby={descriptionId}
+         onclick={importThisProfile}

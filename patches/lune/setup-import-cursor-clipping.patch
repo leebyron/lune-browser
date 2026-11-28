@@ -1,0 +1,86 @@
+Index: source/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte	2026-11-27 19:20:51.436778993 -0800
++++ source/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte	2026-11-27 19:24:27.306765383 -0800
+@@ -76,6 +76,7 @@
+ 
+     .settings-demo {
+         --demo-duration: 5200ms;
++        --demo-scale: calc(min(100cqw, var(--demo-width)) / var(--demo-width));
+         position: relative;
+         pointer-events: none;
+     }
+@@ -92,6 +93,8 @@
+         --switch-off: light-dark(#c5c7cf, #616371);
+         --switch-travel: 8px;
+         display: grid;
++        width: var(--demo-width);
++        zoom: var(--demo-scale);
+         grid-template-columns: 31% minmax(0, 1fr);
+         grid-template-rows: minmax(0, 1fr);
+         aspect-ratio: 1.5;
+@@ -349,10 +352,11 @@
+ 
+     .cursor-path {
+         /* Align the animation with the list rows while letting it cross the wallpaper. */
+-        --cursor-offscreen: calc((100% - 100cqw) / 2 - 28px);
++        --cursor-offscreen: calc((100% - 100cqw) / 2 - 38px);
++        --cursor-over-switch: calc(5px * var(--demo-scale));
+         position: absolute;
+-        inset-block: 32px 8px;
+-        inset-inline: 6px;
++        inset-block: calc(32px * var(--demo-scale)) calc(8px * var(--demo-scale));
++        inset-inline: calc(6px * var(--demo-scale));
+     }
+ 
+     .picture-cursor {
+@@ -360,8 +364,8 @@
+         top: 42%;
+         inset-inline-end: var(--cursor-offscreen);
+         z-index: 1;
+-        width: 12px;
+-        height: 17px;
++        width: calc(12px * var(--demo-scale));
++        height: calc(17px * var(--demo-scale));
+         transform-origin: top left;
+         filter: drop-shadow(0 0 1px white) drop-shadow(0 1px 1px #0009);
+     }
+@@ -409,10 +413,10 @@
+ 
+     @keyframes demonstrate-clicks {
+         0%, 5% { top: 42%; inset-inline-end: var(--cursor-offscreen); transform: scale(1); }
+-        17%, 28% { top: 62.5%; inset-inline-end: 5px; transform: scale(1); }
+-        22% { top: 62.5%; inset-inline-end: 5px; transform: scale(0.8); }
+-        43%, 55% { top: 87.5%; inset-inline-end: 5px; transform: scale(1); }
+-        48% { top: 87.5%; inset-inline-end: 5px; transform: scale(0.8); }
++        17%, 28% { top: 62.5%; inset-inline-end: var(--cursor-over-switch); transform: scale(1); }
++        22% { top: 62.5%; inset-inline-end: var(--cursor-over-switch); transform: scale(0.8); }
++        43%, 55% { top: 87.5%; inset-inline-end: var(--cursor-over-switch); transform: scale(1); }
++        48% { top: 87.5%; inset-inline-end: var(--cursor-over-switch); transform: scale(0.8); }
+         74%, 100% { top: 97%; inset-inline-end: var(--cursor-offscreen); transform: scale(1); }
+     }
+ </style>
+Index: source/components/helium_onboarding/src/components/MacImportNotice.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/MacImportNotice.svelte	2026-11-27 19:20:51.415305817 -0800
++++ source/components/helium_onboarding/src/components/MacImportNotice.svelte	2026-11-27 19:24:27.273490698 -0800
+@@ -123,7 +123,7 @@
+     .recovery-picture {
+         display: grid;
+         place-items: center;
+-        padding: 16px 12px;
++        padding: 16px 18px;
+         overflow: hidden;
+         container-type: inline-size;
+         cursor: default;
+@@ -137,8 +137,8 @@
+     }
+ 
+     .desktop-window {
+-        width: 276px;
+-        zoom: calc(min(100cqw, 276px) / 276px);
++        --demo-width: 276px;
++        width: min(100%, var(--demo-width));
+     }
+ 
+     .recovery-picture:focus-visible {
