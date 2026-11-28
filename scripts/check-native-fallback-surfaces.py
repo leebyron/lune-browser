@@ -23,20 +23,22 @@ surface_start = frame.index('@interface HeliumChromeHitRegion')
 surface_end = frame.index('\n@end', frame.index('@implementation HeliumGlassSurface', surface_start))
 surface = frame[surface_start:surface_end + len('\n@end')]
 surface = surface.replace('if (@available(macOS 26, *))', 'if (@available(macOS 99, *))')
-command_class = command[command.index('@interface HeliumCommandMaterial'):command.index('@interface HeliumCommandResults')]
+command_class = command[command.rindex('namespace {',0,command.index('constexpr CGFloat kCommandShadowBlur')):command.index('@interface HeliumCommandResults')]
 construct = command[command.index('  if (!native_->material) {'):command.index('\n}', command.index('  if (!native_->material) {'))]
-constants = command[command.index('constexpr int kWidth'):command.index('int CommandBarHeight')]
+constants = command[command.index('constexpr int kShadowTopInset'):command.index('constexpr gfx::Insets')] + command[command.index('constexpr int kWidth'):command.index('// The native host handles clicks')]
 radius_source = (args.source / 'chrome/browser/ui/views/helium/frame_corner_radius_mac.mm').read_text()
 radius = radius_source[radius_source.index('int GetSystemWindowRadius()'):]
 legacy_radius = radius.replace('GetSystemWindowRadius()', 'LegacyWindowRadius()').replace('macOS 26, *', 'macOS 99, *')
 code = '''#import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
 #include "chrome/browser/ui/helium/native_result_row_mac.h"
-'''+radius+legacy_radius+constants+edge+'namespace helium {\n'+helper+'}\n'+surface+command_class+'''
+'''+radius+legacy_radius+constants+edge+'namespace helium {\n'+helper+'}\n'+surface+'\n'+command_class+'''
 @interface TestSurface : HeliumGlassSurface
 - (NSView*)material;
 - (NSView*)effect;
@@ -51,12 +53,13 @@ NSView* MakeCommand(NSView* pane, NSAppearance* appearance) {
 '''+construct+'''
  return native.material;
 }
-void CheckShadow(NSView* view, CGFloat opacity, CGFloat blur, CGFloat y_offset) {
+void CheckShadow(NSView* view, CGFloat opacity, CGFloat blur, CGFloat y_offset,
+                 CGRect expected_path) {
  assert(!view.clipsToBounds);
  assert(fabs(view.shadow.shadowColor.alphaComponent - opacity) < .001);
  assert(view.shadow.shadowBlurRadius == blur);
  assert(NSEqualSizes(view.shadow.shadowOffset, NSMakeSize(0, y_offset)));
- assert(CGRectEqualToRect(CGPathGetBoundingBox(view.layer.shadowPath), view.bounds));
+ assert(CGRectEqualToRect(CGPathGetBoundingBox(view.layer.shadowPath), expected_path));
 }
 void CheckEdge(NSView* effect) {
  assert([effect isKindOfClass:NSVisualEffectView.class]);
@@ -91,24 +94,24 @@ int main() { @autoreleasepool {
  TestSurface* surface = [[TestSurface alloc] initWithFrame:NSMakeRect(30,30,300,36)];
  [window.contentView addSubview:surface];
  [surface setRevealFraction:1];
- CheckShadow(surface.material, .05, 10, -3);
+ CheckShadow(surface.material, .05, 10, -3, surface.material.bounds);
  CheckEdge(surface.effect);
  [surface setFrameSize:NSMakeSize(480,200)];
  [surface resizeSubviewsWithOldSize:NSMakeSize(300,36)];
- CheckShadow(surface.material, .05, 10, -3);
+ CheckShadow(surface.material, .05, 10, -3, surface.material.bounds);
  CheckEdge(surface.effect);
  NSView* pane = [[NSView alloc] initWithFrame:NSMakeRect(48,48,600,52)];
  pane.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
  NSView* command = MakeCommand(pane, [NSAppearance appearanceNamed:NSAppearanceNameAqua]);
  [window.contentView addSubview:command];
- CheckShadow(command, .25, 64, -32);
+ assert(!command.clipsToBounds && command.layer.sublayers.firstObject.contents);
  CheckEdge(command.subviews.lastObject);
  assert(NSEqualRects(pane.frame, command.bounds));
  for (NSValue* size in @[[NSValue valueWithSize:NSMakeSize(600,320)],
-                         [NSValue valueWithSize:NSMakeSize(300,164)]]) {
+                         [NSValue valueWithSize:NSMakeSize(300,163)]]) {
   command.frameSize = size.sizeValue;
   [command layoutSubtreeIfNeeded];
-  CheckShadow(command, .25, 64, -32);
+  assert(command.layer.sublayers.firstObject.contents);
   CheckEdge(command.subviews.lastObject);
   assert(NSEqualRects(pane.frame, command.bounds));
  }

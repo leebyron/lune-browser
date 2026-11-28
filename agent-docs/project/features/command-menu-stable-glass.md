@@ -1,8 +1,15 @@
 # Stable command-menu glass
 
-Owner-accepted fix for [issue #27](https://github.com/leebyron/lune-browser/issues/27), November 11, 2026. Both Cmd+T and Cmd+/ use `HeliumCommandBarView` and share this material policy.
+Both Cmd+T and Cmd+/ use `HeliumCommandBarView`. On macOS 26, the current
+material uses native popover frost, a 32% neutral backing, and native Clear
+Liquid Glass at 30% layer opacity. AppKit draws the edge highlights and shading.
+The theme's 5%-alpha tint is applied to the glass. The older macOS material
+uses the native popover fallback. Both use the same
+[continuous shadow](command-bar-corners.md#accepted-behavior).
 
-## Cause and change
+## November 11 material policy
+
+The original fix below was accepted for [issue #27](https://github.com/leebyron/lune-browser/issues/27).
 
 The menu already uses `NSGlassEffectViewStyleRegular`; it does not select Clear when results disappear. Its height changes from the 52 pt input-only state to a five-row panel as results change. Regular AppKit glass itself becomes clearer and can change light/dark tone when its surface becomes small. A headed native comparison reproduced a frosted light large panel and a transparent dark compact panel over the same black backdrop, despite an explicit Aqua appearance.
 

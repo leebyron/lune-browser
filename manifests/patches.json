@@ -10,7 +10,7 @@
   },
   "integration": {
     "component": "macos",
-    "commit": "0e801b90fbe52dfb123988858a540a7fd5ee3f1c",
+    "commit": "6799398f2e68c8e4aacfbac506cf76ed61b51834",
     "patches": [
       {
         "path": "patches/lune/identity.patch",
@@ -1459,6 +1459,10 @@
       {
         "path": "patches/helium/ui/setup-appearance-fragment.patch",
         "sha256": "c566793ac81071cd4d22779b1e54cb64126f9dec66e8c98496dfd21d0fe21870"
+      },
+      {
+        "path": "patches/helium/ui/command-menu-stable-shadow.patch",
+        "sha256": "cf6765844281821efb8bca35420173e5db5b19fc8603a2c1491ea0fc0fe571b1"
       }
     ],
     "ref": "refs/tags/inputs/guided-setup-import-1/macos"
@@ -4769,6 +4773,21 @@
         "0313084589b4a4dbf6cc034dea080d3fbe93397e",
         "f76fdb611cc337fc73187bb70106716eaec26711",
         "0e801b90fbe52dfb123988858a540a7fd5ee3f1c"
+      ]
+    },
+    {
+      "id": "command-menu-stable-shadow",
+      "depends_on": [
+        "command-menu-shadow"
+      ],
+      "patches": [
+        "patches/helium/ui/command-menu-stable-shadow.patch"
+      ],
+      "review_status": "reviewed-port",
+      "rationale": "Keep the Command-T and Command-/ shadow consistent while results change.",
+      "adaptation": "Render one distance-based shadow with a 32 pt downward offset and 64 pt falloff. Use native popover frost and native Clear glass with the original theme tint.",
+      "commits": [
+        "6799398f2e68c8e4aacfbac506cf76ed61b51834"
       ]
     }
   ],

@@ -5,13 +5,14 @@ result-row refinements for [#12](https://github.com/leebyron/lune-browser/issues
 
 ## Accepted behavior
 
-The Command-T and Command-/ palettes cast a diffuse supplemental shadow with
-25% black, a 64 pt native blur radius, and a 32 pt downward offset. The shadow
-follows the glass's 18 pt rounded silhouette as the panel resizes. The
-older-macOS fallback uses the same shadow.
+The Command-T and Command-/ palettes share a continuous shadow with 25% black,
+a 64 pt Gaussian falloff, and a 32 pt downward offset. The distance to the
+offset 18 pt rounded outline determines opacity, keeping the shadow density
+consistent along the top edge when the results change. The older macOS fallback
+uses the same shadow.
 
-The translucent popup reserves 120 pt above the panel, 152 pt on each side, and
-184 pt below it so the shadow and native glass edges can fade. The material
+The translucent popup reserves 128 pt above the panel, 160 pt on each side, and
+192 pt below it so the shadow and native glass edges can fade. The material
 occupies the inner bounds, and clicking the transparent margin dismisses the
 popup.
 
@@ -20,8 +21,10 @@ either side of the browser window. Its top is anchored where a maximum-height
 five-row panel (319 pt) would be vertically centered. Shorter lists keep that top
 edge.
 
-See the [shadow adoption record](../builds/2026-11-25-command-menu-shadow.json)
-for the signed input, paired build checks, and matching website deployment.
+See the [stable shadow adoption record](../builds/2026-11-28-command-menu-stable-shadow.json)
+for the signed input and paired browser checks. The
+[November 25 shadow record](../builds/2026-11-25-command-menu-shadow.json)
+documents the earlier shadow and website deployment.
 
 The empty panel is 52 pt tall. The input uses its native fitting height and is
 vertically centered; the provider pill shares its center. Results start directly

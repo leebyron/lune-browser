@@ -1,0 +1,102 @@
+{
+  "date": "2026-11-28",
+  "scope": "Adopt the reviewed continuous shadow and neutral frosted AppKit material for Command-T and Command-/.",
+  "base_main": "7069df6f931d0e0ed983d2a1f870f046894e07f8",
+  "base_platform": "0e801b90fbe52dfb123988858a540a7fd5ee3f1c",
+  "chromium": "159.0.8154.34",
+  "helium": "83b604ec9cca515a331e9728721a6209e37b6a8d",
+  "platform_commit": "6799398f2e68c8e4aacfbac506cf76ed61b51834",
+  "platform_ref": "refs/tags/inputs/command-menu-stable-shadow-1/macos",
+  "browser_lock_sha256": "719b5e9ce938e9d8a0fac93ca72bb52b11b060fa8faa96d6b015169be5bb168d",
+  "accepted_preview": {
+    "architecture": "arm64",
+    "platform_commit": "eec35d4c35502c1924212717e4aed658a83e5ae3",
+    "framework_sha256": "0ba0b6244b90bd4b4d54a0de69bfc19f1f4c1eb7df79c482b07b6393720b2f58"
+  },
+  "shadow": {
+    "opacity": 0.25,
+    "offset_pt": 32,
+    "falloff_pt": 64
+  },
+  "material": {
+    "neutral_backing_opacity": 0.32,
+    "native_clear_layer_opacity": 0.3,
+    "theme_tint_alpha": 0.05
+  },
+  "repository_tests": {
+    "total": 108,
+    "skipped": 1,
+    "passed": true
+  },
+  "builds": {
+    "arm64": {
+      "arch": "arm64",
+      "execution": "native arm64",
+      "framework_sha256": "52ecbd3e9282dd7e12409a609ed6496db32677199869a9498c8b32b029d23ab9",
+      "chromedriver_sha256": "19adfa6fe4c80ff7b75986a925a90c32814f00a34e6b743e578aa45f1e547f13",
+      "prepared_report_sha256": "88b76085f79133f1a20b60567d5072fc8366fdf0cdca248c6b4b6699357e23a0",
+      "source_parity_sha256": "16bbd14829ccb20e3bcd086d97713ad82fc13285ef5e595742c40315f91ef5f3",
+      "build_duration_seconds": 807.3,
+      "full_source_inventory_unchanged": true,
+      "source_preparation": {
+        "prepared_files": 572671,
+        "prepared_symlinks": 130,
+        "prepared_report_sha256": "88b76085f79133f1a20b60567d5072fc8366fdf0cdca248c6b4b6699357e23a0",
+        "strict_zero_fuzz": true,
+        "baseline_macos": "0e801b90fbe52dfb123988858a540a7fd5ee3f1c",
+        "matching_reviewed_sources": {
+          "chrome/browser/ui/helium/helium_command_bar_view_mac.mm": "992b3ce46ffaa98089b3a41c9d8b99ccf553b6877fca6a6471502284996da0dc",
+          "chrome/browser/ui/helium/native_result_row_mac.h": "ec2d71ef23b8bc3dc0fc34b43493007b14d0928b3b8db2223858e2feee67a72d"
+        },
+        "changed_prepared_sources": [
+          "chrome/browser/ui/helium/helium_command_bar_view_mac.mm"
+        ],
+        "xml_declaration_case_only": 1309
+      },
+      "smoke_sha256": "a0158c168841919f24ba75b8dca3b8590306d76289e348a6919ca5a5bc0488ee",
+      "native_checks": [
+        "command-bar-shadow",
+        "command-menu-glass",
+        "fallback-surfaces"
+      ],
+      "headed_shortcuts_and_dismissal": true,
+      "headed_upper_shadow_one_vs_five": {
+        "max_channel_delta": 0,
+        "mean_channel_delta": 0.0
+      },
+      "headed_focused_and_inactive_material": true
+    },
+    "x86_64": {
+      "arch": "x86_64",
+      "execution": "x86_64 via Rosetta on Apple silicon",
+      "framework_sha256": "1d4ac0b7732e5b59c5e6e0e514fa67c168b9c78f85ec6b2850ca5925c14bf841",
+      "chromedriver_sha256": "db6c09d7ae72847d87bbc4c02749297d9e5efc39270da33e2c02f779a8f6297c",
+      "prepared_report_sha256": "96954fac791c85cc2f303084c0048b157e300a2f634daad464fb63bfe2ba972f",
+      "source_parity_sha256": "456c858b96389dfeaf1bee83918383b37f4949bb9f402fce2da0ad6d270380e3",
+      "build_duration_seconds": 839.69,
+      "full_source_inventory_unchanged": true,
+      "source_preparation": {
+        "prepared_files": 572671,
+        "prepared_symlinks": 130,
+        "prepared_report_sha256": "96954fac791c85cc2f303084c0048b157e300a2f634daad464fb63bfe2ba972f",
+        "strict_zero_fuzz": true,
+        "baseline_macos": "0e801b90fbe52dfb123988858a540a7fd5ee3f1c",
+        "matching_reviewed_sources": {
+          "chrome/browser/ui/helium/helium_command_bar_view_mac.mm": "992b3ce46ffaa98089b3a41c9d8b99ccf553b6877fca6a6471502284996da0dc",
+          "chrome/browser/ui/helium/native_result_row_mac.h": "ec2d71ef23b8bc3dc0fc34b43493007b14d0928b3b8db2223858e2feee67a72d"
+        },
+        "changed_prepared_sources": [
+          "chrome/browser/ui/helium/helium_command_bar_view_mac.mm"
+        ],
+        "xml_declaration_case_only": 0
+      },
+      "smoke_sha256": "6a2387b8c611d320230c8b39081247bda1554169db1050e49668b3447531818f",
+      "native_checks": [
+        "command-bar-shadow",
+        "command-menu-glass",
+        "fallback-surfaces"
+      ],
+      "headed_check_limitation": "The standalone headed fixture found no browser window under Rosetta. The candidate and the prior signed 26.1125.1 Intel build both logged the same toolbar flex order assertion during startup, before invoking the palette. Intel packaged headless smoke and native AppKit fixtures passed."
+    }
+  }
+}
