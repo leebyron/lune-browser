@@ -1,0 +1,970 @@
+Index: source/chrome/browser/importer/BUILD.gn
+===================================================================
+--- source.orig/chrome/browser/importer/BUILD.gn
++++ source/chrome/browser/importer/BUILD.gn
+@@ -17,6 +17,7 @@ source_set("importer") {
+     "importer_lock_dialog.h",
+     "importer_progress_observer.h",
+     "importer_uma.h",
++    "open_tabs_importer.h",
+     "in_process_importer_bridge.h",
+     "profile_writer.h",
+   ]
+@@ -49,6 +50,7 @@ source_set("impl") {
+     "importer_list.cc",
+     "importer_uma.cc",
+     "in_process_importer_bridge.cc",
++    "open_tabs_importer.cc",
+     "profile_writer.cc",
+   ]
+ 
+@@ -69,6 +71,7 @@ source_set("impl") {
+     "//components/favicon/core",
+     "//components/password_manager/core/browser:password_form",
+     "//components/password_manager/core/browser/password_store:password_store_interface",
++    "//components/sessions",
+   ]
+ 
+   if (is_win) {
+Index: source/chrome/browser/importer/chrome_importer_list.cc
+===================================================================
+--- source.orig/chrome/browser/importer/chrome_importer_list.cc
++++ source/chrome/browser/importer/chrome_importer_list.cc
+@@ -13,6 +13,7 @@
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/threading/scoped_blocking_call.h"
+ #include "base/values.h"
++#include "chrome/browser/importer/open_tabs_importer.h"
+ #include "chrome/common/importer/chrome_importer_utils.h"
+ #include "chrome/common/importer/importer_constants.h"
+ #include "chrome/grit/generated_resources.h"
+@@ -36,18 +37,22 @@ void AddChromeToProfiles(
+     auto* name = dict->FindString("name");
+     DCHECK(profile);
+     DCHECK(name);
+-    base::FilePath path = user_data_folder;
+-    if (!ChromeImporterCanImport(path.Append(base::FilePath::StringType(
+-                                     profile->begin(), profile->end())),
+-                                 type, &items)) {
++    const base::FilePath path = user_data_folder.Append(
++        base::FilePath::StringType(profile->begin(), profile->end()));
++    ChromeImporterCanImport(path, type, &items);
++    if (dict->FindBool("openTabs").value_or(false) ||
++        (type == user_data_importer::TYPE_CHROME &&
++         !importer::ReadOpenTabs(type, path).empty())) {
++      items |= importer::kOpenTabs;
++    }
++    if (items == user_data_importer::NONE) {
+       continue;
+     }
+     user_data_importer::SourceProfile chrome;
+     chrome.importer_name = base::UTF8ToUTF16(brand);
+     chrome.importer_type = type;
+     chrome.services_supported = items;
+-    chrome.source_path = user_data_folder.Append(
+-        base::FilePath::StringType(profile->begin(), profile->end()));
++    chrome.source_path = path;
+     chrome.profile = base::UTF8ToUTF16(*name);
+     profiles->push_back(chrome);
+   }
+Index: source/chrome/browser/importer/open_tabs_importer.cc
+===================================================================
+--- /dev/null
++++ source/chrome/browser/importer/open_tabs_importer.cc
+@@ -0,0 +1,58 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/importer/open_tabs_importer.h"
++
++#include <memory>
++#include <set>
++#include <string>
++#include <vector>
++
++#include "build/build_config.h"
++#include "chrome/common/importer/chrome_importer_utils.h"
++#include "components/sessions/core/command_storage_backend.h"
++#include "components/sessions/core/session_service_commands.h"
++#include "components/sessions/core/session_types.h"
++
++namespace importer {
++
++OpenTabsForImport ReadOpenTabs(user_data_importer::ImporterType type,
++                               const base::FilePath& profile_path) {
++#if BUILDFLAG(IS_MAC)
++  if (type == user_data_importer::TYPE_ARC) {
++    return GetArcOpenTabs(profile_path);
++  }
++#endif
++
++  if (type != user_data_importer::TYPE_CHROME) {
++    return {};
++  }
++
++  const auto commands =
++      sessions::CommandStorageBackend::ReadCommandsForImport(profile_path);
++  if (commands.empty()) {
++    return {};
++  }
++  std::vector<std::unique_ptr<sessions::SessionWindow>> windows;
++  SessionID active_window_id = SessionID::InvalidValue();
++  std::string platform_session_id;
++  std::set<SessionID> discarded_window_ids;
++  sessions::RestoreSessionFromCommands(
++      commands, &windows, &active_window_id, &platform_session_id,
++      &discarded_window_ids);
++
++  OpenTabsForImport tabs;
++  for (const auto& window : windows) {
++    for (const auto& tab : window->tabs) {
++      const GURL& url =
++          tab->navigations[tab->normalized_navigation_index()].virtual_url();
++      if (url.is_valid() && url.SchemeIsHTTPOrHTTPS()) {
++        tabs.urls.push_back(url);
++      }
++    }
++  }
++  return tabs;
++}
++
++}  // namespace importer
+Index: source/chrome/browser/importer/open_tabs_importer.h
+===================================================================
+--- /dev/null
++++ source/chrome/browser/importer/open_tabs_importer.h
+@@ -0,0 +1,27 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_IMPORTER_OPEN_TABS_IMPORTER_H_
++#define CHROME_BROWSER_IMPORTER_OPEN_TABS_IMPORTER_H_
++
++#include <cstdint>
++
++#include "chrome/common/importer/open_tabs_for_import.h"
++#include "components/user_data_importer/common/importer_type.h"
++
++namespace base {
++class FilePath;
++}
++
++namespace importer {
++
++// This service is handled in the browser, outside the utility process.
++inline constexpr uint16_t kOpenTabs = 1 << 8;
++
++OpenTabsForImport ReadOpenTabs(user_data_importer::ImporterType type,
++                               const base::FilePath& profile_path);
++
++}  // namespace importer
++
++#endif  // CHROME_BROWSER_IMPORTER_OPEN_TABS_IMPORTER_H_
+Index: source/chrome/browser/ui/webui/settings/BUILD.gn
+===================================================================
+--- source.orig/chrome/browser/ui/webui/settings/BUILD.gn
++++ source/chrome/browser/ui/webui/settings/BUILD.gn
+@@ -296,6 +296,7 @@ source_set("impl") {
+     "//chrome/browser/sync",
+     "//chrome/browser/themes",
+     "//chrome/browser/ui:browser_commands",
++    "//chrome/browser/ui:browser_tabstrip",
+     "//chrome/browser/ui:browser_window_header",
+     "//chrome/browser/ui:chrome_pages",
+     "//chrome/browser/ui:confirm_bubble",
+@@ -319,6 +320,7 @@ source_set("impl") {
+     "//chrome/browser/ui/side_panel",
+     "//chrome/browser/ui/signin",
+     "//chrome/browser/ui/sync",
++    "//chrome/browser/ui/tabs:tab_group",
+     "//chrome/browser/ui/tabs:tab_strip",
+     "//chrome/browser/ui/tabs/saved_tab_groups",
+     "//chrome/browser/ui/toasts",
+Index: source/chrome/browser/ui/webui/settings/brave_import_data_handler.cc
+===================================================================
+--- source.orig/chrome/browser/ui/webui/settings/brave_import_data_handler.cc
++++ source/chrome/browser/ui/webui/settings/brave_import_data_handler.cc
+@@ -5,31 +5,81 @@
+ 
+ #include "chrome/browser/ui/webui/settings/brave_import_data_handler.h"
+ 
++#include <algorithm>
+ #include <memory>
+ #include <string>
+ #include <utility>
++#include <vector>
+ 
+ #include "base/check.h"
+ #include "base/logging.h"
++#include "base/task/thread_pool.h"
+ #include "chrome/browser/importer/brave_external_process_importer_host.h"
+ #include "chrome/browser/importer/importer_list.h"
++#include "chrome/browser/importer/open_tabs_importer.h"
+ #include "chrome/browser/importer/profile_writer.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/browser_tabstrip.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
++#include "chrome/browser/ui/tabs/tab_group_model.h"
++#include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/grit/generated_resources.h"
++#include "components/tab_groups/tab_group_visual_data.h"
++#include "components/tabs/public/tab_group.h"
+ #include "content/public/browser/browser_task_traits.h"
+ #include "content/public/browser/browser_thread.h"
+ #include "content/public/browser/web_contents.h"
++#include "ui/base/l10n/l10n_util.h"
++#include "url/gurl.h"
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "base/apple/foundation_util.h"
+ #include "base/files/file_path.h"
+ #include "base/files/file_util.h"
+-#include "base/task/thread_pool.h"
+-#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/webui/settings/brave_full_disk_access_confirm_dialog_delegate.h"
+ #include "chrome/browser/ui/tab_modal_confirm_dialog.h"
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ namespace {
++
++bool OpenPinnedGroup(BrowserWindowInterface& browser,
++                     const importer::PinnedTabGroupForImport& group) {
++  auto* model = browser.GetTabStripModel();
++  if (!model->SupportsTabGroups()) {
++    return false;
++  }
++
++  std::vector<int> indices;
++  for (const auto& url : group.urls) {
++    auto* contents = chrome::AddAndReturnTabAt(&browser, url, model->count(),
++                                               /*foreground=*/false);
++    if (!contents) {
++      continue;
++    }
++    const int index = model->GetIndexOfWebContents(contents);
++    if (index != TabStripModel::kNoTab) {
++      indices.push_back(index);
++    }
++  }
++  if (indices.empty()) {
++    return false;
++  }
++
++  std::ranges::sort(indices);
++  const auto id = model->AddToNewGroup(indices);
++  const auto color = model->group_model()->GetTabGroup(id)->visual_data()->color();
++  model->ChangeTabGroupVisuals(
++      id, tab_groups::TabGroupVisualData(
++              group.title ? *group.title
++                          : l10n_util::GetStringUTF16(
++                                IDS_HELIUM_ONBOARDING_DATA_IMPORT_ARC_PINNED_TABS),
++              color, /*is_collapsed=*/true),
++      /*is_customized=*/true);
++  model->SetTabGroupPinned(id, true);
++  return true;
++}
++
+ #if BUILDFLAG(IS_MAC)
+ bool HasProperDiskAccessPermission(uint16_t imported_items) {
+   DCHECK(imported_items);
+@@ -73,46 +123,89 @@ void BraveImportDataHandler::StartImport
+   if (!imported_items) {
+     return;
+   }
+-  Profile* profile = Profile::FromWebUI(web_ui());
+ #if BUILDFLAG(IS_MAC)
+   CheckDiskAccess(imported_items, source_profile.source_path,
+                   source_profile.importer_type,
+                   base::BindOnce(&BraveImportDataHandler::StartImportImpl,
+                                  weak_factory_.GetWeakPtr(), source_profile,
+-                                 imported_items, profile));
++                                 imported_items));
+ #else
+-  StartImportImpl(source_profile, imported_items, profile);
++  StartImportImpl(source_profile, imported_items);
+ #endif
+ }
+ 
+ void BraveImportDataHandler::StartImportImpl(
+     const user_data_importer::SourceProfile& source_profile,
++    uint16_t imported_items) {
++  FireWebUIListener("import-data-status-changed", base::Value("inProgress"));
++  if (imported_items & importer::kOpenTabs) {
++    imported_items &= ~importer::kOpenTabs;
++    base::ThreadPool::PostTaskAndReplyWithResult(
++        FROM_HERE, {base::MayBlock()},
++        base::BindOnce(&importer::ReadOpenTabs, source_profile.importer_type,
++                       source_profile.source_path),
++        base::BindOnce(&BraveImportDataHandler::OpenImportedTabs,
++                       weak_factory_.GetWeakPtr(), source_profile,
++                       imported_items));
++    return;
++  }
++  StartDataImport(source_profile, imported_items, /*opened_tabs=*/false);
++}
++
++void BraveImportDataHandler::OpenImportedTabs(
++    const user_data_importer::SourceProfile& source_profile,
++    uint16_t imported_items,
++    importer::OpenTabsForImport tabs) {
++  auto* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
++      web_ui()->GetWebContents());
++  bool opened_tabs = false;
++  if (browser) {
++    for (const auto& group : tabs.pinned_groups) {
++      opened_tabs |= OpenPinnedGroup(*browser, group);
++    }
++    for (const auto& url : tabs.urls) {
++      if (chrome::AddAndReturnTabAt(browser, url,
++                                   browser->GetTabStripModel()->count(),
++                                   /*foreground=*/false)) {
++        opened_tabs = true;
++      }
++    }
++  }
++  StartDataImport(source_profile, imported_items, opened_tabs);
++}
++
++void BraveImportDataHandler::StartDataImport(
++    const user_data_importer::SourceProfile& source_profile,
+     uint16_t imported_items,
+-    Profile* profile) {
++    bool opened_tabs) {
++  if (!imported_items) {
++    OnImportEnded(source_profile, opened_tabs);
++    return;
++  }
+   // If another import is already ongoing, let it finish silently.
+   if (import_observers_.count(source_profile.source_path)) {
+     import_observers_.erase(source_profile.source_path);
+   }
+ 
+-  FireWebUIListener("import-data-status-changed", base::Value("inProgress"));
+-
+-  // Using weak pointers because it destroys itself when finshed.
++  // The host destroys itself when finished.
+   auto* importer_host = new BraveExternalProcessImporterHost();
+   import_observers_[source_profile.source_path] =
+       std::make_unique<BraveImporterObserver>(
+           importer_host, source_profile, imported_items,
+           base::BindRepeating(&BraveImportDataHandler::NotifyImportProgress,
+-                              weak_factory_.GetWeakPtr()));
++                              weak_factory_.GetWeakPtr(), opened_tabs));
+ 
+   importer_host->set_parent_window(
+       web_ui()->GetWebContents()->GetTopLevelNativeWindow());
+   importer_host->set_parent_view(web_ui()->GetWebContents()->GetNativeView());
+ 
++  Profile* profile = Profile::FromWebUI(web_ui());
+   importer_host->StartImportSettings(source_profile, profile, imported_items,
+                                      new ProfileWriter(profile));
+ }
+ 
+ void BraveImportDataHandler::NotifyImportProgress(
++    bool opened_tabs,
+     const user_data_importer::SourceProfile& source_profile,
+     const base::DictValue& info) {
+   const std::string* event = info.FindString("event");
+@@ -123,7 +216,8 @@ void BraveImportDataHandler::NotifyImpor
+       FROM_HERE,
+       base::BindOnce(&BraveImportDataHandler::OnImportEnded,
+                      weak_factory_.GetWeakPtr(), source_profile,
+-                     info.FindBool("did_succeed").value_or(false)));
++                     opened_tabs ||
++                         info.FindBool("did_succeed").value_or(false)));
+ }
+ 
+ void BraveImportDataHandler::HandleImportData(const base::ListValue& args) {
+@@ -145,6 +239,7 @@ void BraveImportDataHandler::OnJavascrip
+   // When the WebUI is unloading, we ignore all further updates from the host as
+   // ImportDataHandler does.
+   import_observers_.clear();
++  weak_factory_.InvalidateWeakPtrs();
+ }
+ 
+ const user_data_importer::SourceProfile&
+Index: source/chrome/browser/ui/webui/settings/brave_import_data_handler.h
+===================================================================
+--- source.orig/chrome/browser/ui/webui/settings/brave_import_data_handler.h
++++ source/chrome/browser/ui/webui/settings/brave_import_data_handler.h
+@@ -15,6 +15,10 @@
+ #include "chrome/browser/ui/webui/settings/import_data_handler.h"
+ #include "content/public/browser/web_contents_observer.h"
+ 
++namespace importer {
++struct OpenTabsForImport;
++}  // namespace importer
++
+ namespace settings {
+ 
+ // This class checks whether Brave has full disk access permission to import
+@@ -49,11 +53,7 @@ class BraveImportDataHandler : public Im
+                    uint16_t imported_items) override;
+ 
+   void StartImportImpl(const user_data_importer::SourceProfile& source_profile,
+-                       uint16_t imported_items,
+-                       Profile* profile);
+-  virtual void NotifyImportProgress(
+-      const user_data_importer::SourceProfile& source_profile,
+-      const base::DictValue& info);
++                       uint16_t imported_items);
+   virtual void OnImportEnded(
+       const user_data_importer::SourceProfile& source_profile,
+       bool did_succeed);
+@@ -77,6 +77,17 @@ class BraveImportDataHandler : public Im
+   bool guide_dialog_is_requested_ = false;
+ #endif
+  private:
++  void OpenImportedTabs(const user_data_importer::SourceProfile& source_profile,
++                        uint16_t imported_items,
++                        importer::OpenTabsForImport tabs);
++  void StartDataImport(const user_data_importer::SourceProfile& source_profile,
++                       uint16_t imported_items,
++                       bool opened_tabs);
++  void NotifyImportProgress(
++      bool opened_tabs,
++      const user_data_importer::SourceProfile& source_profile,
++      const base::DictValue& info);
++
+   std::unordered_map<base::FilePath, std::unique_ptr<BraveImporterObserver>>
+       import_observers_;
+   base::WeakPtrFactory<BraveImportDataHandler> weak_factory_{this};
+Index: source/chrome/browser/ui/webui/settings/import_data_handler.cc
+===================================================================
+--- source.orig/chrome/browser/ui/webui/settings/import_data_handler.cc
++++ source/chrome/browser/ui/webui/settings/import_data_handler.cc
+@@ -26,6 +26,7 @@
+ #include "chrome/browser/importer/external_process_importer_host.h"
+ #include "chrome/browser/importer/importer_list.h"
+ #include "chrome/browser/importer/importer_uma.h"
++#include "chrome/browser/importer/open_tabs_importer.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -174,6 +175,9 @@ void ImportDataHandler::HandleImportData
+   if (*type_dict.FindBool(prefs::kImportDialogExtensions)) {
+     selected_items |= user_data_importer::EXTENSIONS;
+   }
++  if (type_dict.FindBool("import_dialog_tabs").value_or(false)) {
++    selected_items |= importer::kOpenTabs;
++  }
+ 
+   const user_data_importer::SourceProfile& source_profile =
+       importer_list_->GetSourceProfileAt(browser_index);
+@@ -259,6 +263,8 @@ void ImportDataHandler::SendBrowserProfi
+     browser_profile.Set("extensions",
+                         (browser_services & user_data_importer::EXTENSIONS) != 0);
+ 
++    browser_profile.Set("tabs", (browser_services & importer::kOpenTabs) != 0);
++
+     browser_profiles.Append(std::move(browser_profile));
+   }
+ 
+Index: source/chrome/common/importer/chrome_importer_utils.h
+===================================================================
+--- source.orig/chrome/common/importer/chrome_importer_utils.h
++++ source/chrome/common/importer/chrome_importer_utils.h
+@@ -15,6 +15,10 @@
+ #include "components/user_data_importer/common/importer_type.h"
+ #include "extensions/buildflags/buildflags.h"
+ 
++namespace importer {
++struct OpenTabsForImport;
++}  // namespace importer
++
+ namespace base {
+ class FilePath;
+ }  // namespace base
+@@ -37,6 +41,7 @@ base::FilePath GetCometUserDataFolder();
+ 
+ #if BUILDFLAG(IS_MAC)
+ base::ListValue GetArcSourceProfiles(const base::FilePath& user_data_folder);
++importer::OpenTabsForImport GetArcOpenTabs(const base::FilePath& profile_path);
+ // Dia only has Windows/Mac builds
+ base::FilePath GetDiaUserDataFolder();
+ #endif
+Index: source/chrome/common/importer/chrome_importer_utils_mac.mm
+===================================================================
+--- source.orig/chrome/common/importer/chrome_importer_utils_mac.mm
++++ source/chrome/common/importer/chrome_importer_utils_mac.mm
+@@ -10,16 +10,23 @@
+ 
+ #include <algorithm>
+ #include <map>
++#include <optional>
++#include <set>
+ #include <string>
+ #include <string_view>
++#include <utility>
+ #include <vector>
+ 
+ #include "base/apple/foundation_util.h"
+ #include "base/apple/scoped_cftyperef.h"
++#include "base/containers/adapters.h"
+ #include "base/files/file_util.h"
+ #include "base/json/json_reader.h"
+ #include "base/strings/string_util.h"
+ #include "base/strings/sys_string_conversions.h"
++#include "base/strings/utf_string_conversions.h"
++#include "chrome/common/importer/open_tabs_for_import.h"
++#include "url/gurl.h"
+ 
+ namespace {
+ 
+@@ -46,9 +53,121 @@ std::string_view GetArcSpaceProfile(cons
+   return *basename;
+ }
+ 
+-using ArcSpaceNames = std::map<std::string, std::vector<std::string>, std::less<>>;
++using ArcSidebarItems =
++    std::map<std::string_view, const base::DictValue*, std::less<>>;
+ 
+-ArcSpaceNames ReadArcSpaceNames(const base::FilePath& sidebar_path) {
++struct ArcSidebarProfile {
++  std::vector<std::string> space_names;
++  importer::OpenTabsForImport open_tabs;
++  std::vector<GURL> loose_pins;
++};
++
++struct ArcSidebarVisitedItems {
++  std::set<std::string_view> today_tabs;
++  std::set<std::string_view> pinned_folders;
++  std::set<std::string_view> loose_pins;
++};
++
++using ArcSidebarProfiles = std::map<std::string, ArcSidebarProfile, std::less<>>;
++
++const base::ListValue* FindArcSpaceItems(const base::DictValue& space,
++                                        const ArcSidebarItems& items,
++                                        std::string_view section) {
++  for (const char* field : {"newContainerIDs", "containerIDs"}) {
++    const auto* ids = space.FindList(field);
++    if (!ids) {
++      continue;
++    }
++    for (size_t i = 0; i + 1 < ids->size(); i += 2) {
++      const auto& kind = (*ids)[i];
++      const auto* kind_dict = kind.GetIfDict();
++      const auto* kind_name = kind.GetIfString();
++      if ((!kind_name || *kind_name != section) &&
++          (!kind_dict || !kind_dict->FindDict(section))) {
++        continue;
++      }
++      const auto* id = (*ids)[i + 1].GetIfString();
++      const auto container = id ? items.find(*id) : items.end();
++      if (container != items.end()) {
++        return container->second->FindList("childrenIds");
++      }
++    }
++  }
++  return nullptr;
++}
++
++void AppendArcTabUrls(const base::ListValue& children,
++                      const ArcSidebarItems& items,
++                      bool flatten_folders,
++                      std::set<std::string_view>& seen,
++                      std::vector<GURL>& tabs) {
++  std::vector<const base::Value*> pending;
++  auto push_children = [&pending](const base::ListValue& ids) {
++    for (const auto& id : base::Reversed(ids)) {
++      pending.push_back(&id);
++    }
++  };
++  push_children(children);
++  while (!pending.empty()) {
++    const auto* id = pending.back()->GetIfString();
++    pending.pop_back();
++    const auto item = id ? items.find(*id) : items.end();
++    if (item == items.end() || !seen.insert(item->first).second) {
++      continue;
++    }
++    if (item->second->FindDictByDottedPath("data.splitView") ||
++        (flatten_folders && item->second->FindDictByDottedPath("data.list"))) {
++      if (const auto* nested = item->second->FindList("childrenIds")) {
++        push_children(*nested);
++      }
++      continue;
++    }
++    if (const auto* url =
++            item->second->FindStringByDottedPath("data.tab.savedURL")) {
++      GURL tab_url(*url);
++      if (tab_url.is_valid() && tab_url.SchemeIsHTTPOrHTTPS()) {
++        tabs.push_back(std::move(tab_url));
++      }
++    }
++  }
++}
++
++void AppendArcPinnedItems(const base::ListValue& children,
++                          const ArcSidebarItems& items,
++                          ArcSidebarVisitedItems& visited,
++                          ArcSidebarProfile& profile) {
++  base::ListValue loose_items;
++  for (const auto& child : children) {
++    const auto* id = child.GetIfString();
++    const auto item = id ? items.find(*id) : items.end();
++    if (item == items.end()) {
++      continue;
++    }
++    if (!item->second->FindDictByDottedPath("data.list")) {
++      loose_items.Append(*id);
++      continue;
++    }
++    const auto* folder = item->second->FindList("childrenIds");
++    if (!folder || !visited.pinned_folders.insert(*id).second) {
++      continue;
++    }
++
++    std::set<std::string_view> seen_tabs;
++    std::vector<GURL> tabs;
++    AppendArcTabUrls(*folder, items, /*flatten_folders=*/true, seen_tabs, tabs);
++    if (!tabs.empty()) {
++      const auto* title = item->second->FindString("title");
++      profile.open_tabs.pinned_groups.push_back(
++          {title ? base::UTF8ToUTF16(*title) : std::u16string(), std::move(tabs)});
++    }
++  }
++
++  AppendArcTabUrls(loose_items, items, /*flatten_folders=*/false,
++                   visited.loose_pins, profile.loose_pins);
++}
++
++std::optional<ArcSidebarProfiles> ReadArcSidebarProfiles(
++    const base::FilePath& sidebar_path) {
+   std::string content;
+   if (!base::ReadFileToString(sidebar_path, &content)) {
+     return {};
+@@ -68,36 +187,64 @@ ArcSpaceNames ReadArcSpaceNames(const ba
+       base::apple::CFCast<CFStringRef>(machine_id_pref.get());
+   const std::string machine_id =
+       machine_id_string ? base::SysCFStringRefToUTF8(machine_id_string) : "";
+-  ArcSpaceNames names;
++  ArcSidebarProfiles profiles;
++  bool found_space_list = false;
++  std::map<std::string_view, ArcSidebarVisitedItems, std::less<>> visited;
+   for (const auto& container : *containers) {
+     const auto* data = container.GetIfDict();
+     const auto* spaces = data ? data->FindList("spaces") : nullptr;
+     if (!spaces) {
+       continue;
+     }
+-    // The sidebar list alternates Space IDs and their dictionaries.
++    found_space_list = true;
++    ArcSidebarItems items;
++    if (const auto* item_list = data->FindList("items")) {
++      for (size_t i = 0; i + 1 < item_list->size(); i += 2) {
++        const auto* id = (*item_list)[i].GetIfString();
++        const auto* item = (*item_list)[i + 1].GetIfDict();
++        if (id && item) {
++          items.emplace(*id, item);
++        }
++      }
++    }
++    // The sidebar lists alternate IDs and their dictionaries.
+     for (size_t i = 0; i + 1 < spaces->size(); i += 2) {
+       const auto* space = (*spaces)[i + 1].GetIfDict();
+       if (!(*spaces)[i].is_string() || !space) {
+         continue;
+       }
+-      const auto* title = space->FindString("title");
+       const std::string_view id = GetArcSpaceProfile(*space, machine_id);
+-      if (id.empty() || !title) {
++      if (id.empty()) {
+         continue;
+       }
+-      const std::string_view name =
+-          base::TrimWhitespaceASCII(*title, base::TRIM_ALL);
+-      if (name.empty()) {
+-        continue;
++      auto& profile = profiles[std::string(id)];
++      if (const auto* title = space->FindString("title")) {
++        const auto name = base::TrimWhitespaceASCII(*title, base::TRIM_ALL);
++        auto& names = profile.space_names;
++        if (!name.empty() && std::ranges::find(names, name) == names.end()) {
++          names.emplace_back(name);
++        }
++      }
++      auto& visited_items = visited[id];
++      if (const auto* today = FindArcSpaceItems(*space, items, "unpinned")) {
++        AppendArcTabUrls(*today, items, /*flatten_folders=*/false,
++                         visited_items.today_tabs, profile.open_tabs.urls);
+       }
+-      auto& titles = names[std::string(id)];
+-      if (std::ranges::find(titles, name) == titles.end()) {
+-        titles.emplace_back(name);
++      if (const auto* pins = FindArcSpaceItems(*space, items, "pinned")) {
++        AppendArcPinnedItems(*pins, items, visited_items, profile);
+       }
+     }
+   }
+-  return names;
++  for (auto& [id, profile] : profiles) {
++    if (!profile.loose_pins.empty()) {
++      profile.open_tabs.pinned_groups.push_back(
++          {std::nullopt, std::move(profile.loose_pins)});
++    }
++  }
++  if (!found_space_list) {
++    return std::nullopt;
++  }
++  return profiles;
+ }
+ 
+ }  // namespace
+@@ -170,18 +317,37 @@ base::ListValue GetArcSourceProfiles(con
+   if (profiles.empty()) {
+     return profiles;
+   }
+-  const auto names = ReadArcSpaceNames(
++  const auto sidebar = ReadArcSidebarProfiles(
+       user_data_folder.DirName().AppendASCII("StorableSidebar.json"));
++  if (!sidebar) {
++    return profiles;
++  }
++  profiles.EraseIf([&sidebar](const base::Value& profile) {
++    return !sidebar->contains(*profile.GetDict().FindString("id"));
++  });
+   for (auto& profile : profiles) {
+     auto& entry = profile.GetDict();
+-    const auto it = names.find(*entry.FindString("id"));
+-    if (it != names.end()) {
+-      entry.Set("name", base::JoinString(it->second, ", "));
++    const auto& profile_data = sidebar->at(*entry.FindString("id"));
++    if (!profile_data.space_names.empty()) {
++      entry.Set("name", base::JoinString(profile_data.space_names, ", "));
+     }
++    entry.Set("openTabs", !profile_data.open_tabs.empty());
+   }
+   return profiles;
+ }
+ 
++importer::OpenTabsForImport GetArcOpenTabs(
++    const base::FilePath& profile_path) {
++  auto sidebar = ReadArcSidebarProfiles(
++      profile_path.DirName().DirName().AppendASCII("StorableSidebar.json"));
++  if (!sidebar) {
++    return {};
++  }
++  const auto profile = sidebar->find(profile_path.BaseName().value());
++  return profile == sidebar->end() ? importer::OpenTabsForImport()
++                                   : std::move(profile->second.open_tabs);
++}
++
+ base::FilePath GetDiaUserDataFolder() {
+   base::FilePath result = base::apple::GetUserLibraryPath();
+   return result.Append("Application Support").Append("Dia").Append("User Data");
+Index: source/components/helium_onboarding/helium_onboarding_strings.grdp
+===================================================================
+--- source.orig/components/helium_onboarding/helium_onboarding_strings.grdp
++++ source/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -272,6 +272,14 @@ Search engines are sorted by privacy
+   Extensions
+ </message>
+ 
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_TABS" desc="Label for open tabs as an importable data type.">
++  Tabs
++</message>
++
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_ARC_PINNED_TABS" desc="Name of the pinned tab group created for Arc tabs which were pinned outside a folder. Arc is the name of a browser.">
++  Arc Pinned Tabs
++</message>
++
+ <message name="IDS_HELIUM_ONBOARDING_PASSWORD_TITLE" desc="Title of the onboarding screen for choosing a password manager.">
+   Password manager
+ </message>
+Index: source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ProfileImportOption.svelte
++++ source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+@@ -67,6 +67,7 @@
+         if (profile.favorites) options.push(s.dataImport.bookmarks);
+         if (profile.history) options.push(s.dataImport.history);
+         if (profile.extensions) options.push(s.dataImport.extensions);
++        if (profile.tabs) options.push(s.dataImport.tabs);
+ 
+         return options.join(", ");
+     };
+Index: source/components/helium_onboarding/src/lib/browser/importer.ts
+===================================================================
+--- source.orig/components/helium_onboarding/src/lib/browser/importer.ts
++++ source/components/helium_onboarding/src/lib/browser/importer.ts
+@@ -13,6 +13,7 @@ export const importDiscovery = writable<
+ 
+ enum _HeliumImportType {
+     EXTENSIONS = 'import_dialog_extensions',
++    TABS = 'import_dialog_tabs',
+ };
+ 
+ export const HeliumImportType = {
+@@ -66,7 +67,8 @@ const convertTasks = (tasks: WhatToImpor
+         import_dialog_history: !!tasks.history,
+         import_dialog_saved_passwords: !!tasks.savedPasswords,
+         import_dialog_search_engine: !!tasks.searchEngine,
+-        import_dialog_extensions: !!tasks.extensions
++        import_dialog_extensions: !!tasks.extensions,
++        import_dialog_tabs: !!tasks.tabs,
+     };
+ }
+ 
+@@ -113,12 +115,13 @@ const runNext = async () => {
+         bookmarks: profile.favorites,
+         history: profile.history,
+         extensions: profile.extensions,
++        tabs: profile.tabs,
+     }));
+ }
+ 
+ export const importableProfiles = derived(importableProfilesRaw, $profiles => {
+     return $profiles.filter(profile => !profile.name.toLowerCase().includes('html') &&
+-        (profile.favorites || profile.history || profile.extensions));
++        (profile.favorites || profile.history || profile.extensions || profile.tabs));
+ });
+ 
+ export type WhatToImport = Partial<{
+@@ -127,7 +130,8 @@ export type WhatToImport = Partial<{
+     history: boolean,
+     savedPasswords: boolean,
+     searchEngine: boolean,
+-    extensions: boolean
++    extensions: boolean,
++    tabs: boolean,
+ }>;
+ 
+ export const importProfile = (id: number) => {
+Index: source/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
+===================================================================
+--- source.orig/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
++++ source/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
+@@ -121,7 +121,7 @@ const importerListSimple = [
+     [ "Mozilla Firefox", "default release", ff_has ],
+     [ "Zen", "default release", ff_has ],
+ 
+-    [ "Google Chrome", "Your Chrome", chrome_has_favs ],
++    [ "Google Chrome", "Your Chrome", new Set([...chrome_has_favs, "tabs"]) ],
+     [ "Google Chrome Beta", "Your Chrome", chrome_has_favs ],
+     [ "Google Chrome Dev", "Your Chrome", chrome_has_favs ],
+     [ "Google Chrome Canary", "Your Chrome", chrome_has_favs ],
+@@ -132,7 +132,7 @@ const importerListSimple = [
+     [ "Opera", "lalala", chrome_has_favs ],
+     [ "Yandex", "Бла бла бла", chrome_has_favs ],
+     [ "NAVER Whale", "Work", chrome_has ],
+-    [ "Arc", "Person 1", chrome_has ],
++    [ "Arc", "Person 1", new Set([...chrome_has, "tabs"]) ],
+     [ "Dia", "Person 1", chrome_has ],
+     [ "Microsoft Edge", "Profile 1", chrome_has ],
+     [ "Microsoft Edge", "Bill Gates", chrome_has ],
+@@ -154,7 +154,8 @@ const importerList: cr.BrowserProfile[]
+         passwords: features.has('passwords'),
+         search: features.has('search'),
+         autofillFormData: features.has('autofillFormData'),
+-        extensions: features.has('extensions')
++        extensions: features.has('extensions'),
++        tabs: features.has('tabs'),
+     };
+ });
+ 
+Index: source/components/helium_onboarding/src/lib/cr/import_data_browser_proxy.ts
+===================================================================
+--- source.orig/components/helium_onboarding/src/lib/cr/import_data_browser_proxy.ts
++++ source/components/helium_onboarding/src/lib/cr/import_data_browser_proxy.ts
+@@ -21,6 +21,7 @@ export interface BrowserProfile {
+   search: boolean;
+   autofillFormData: boolean;
+   extensions: boolean;
++  tabs: boolean;
+ }
+ 
+ /**
+Index: source/components/sessions/core/command_storage_backend.cc
+===================================================================
+--- source.orig/components/sessions/core/command_storage_backend.cc
++++ source/components/sessions/core/command_storage_backend.cc
+@@ -608,6 +608,20 @@ CommandStorageBackend::ReadLastSessionCo
+   return result;
+ }
+ 
++// static
++std::vector<std::unique_ptr<SessionCommand>>
++CommandStorageBackend::ReadCommandsForImport(const base::FilePath& profile_path) {
++  for (const auto& session : GetSessionFilesSortedByReverseTimestamp(
++           profile_path, SessionType::kSessionRestore, /*encrypted=*/false)) {
++    if (SessionFileReader::GetMarkerStatus(session.path, /*encryptor=*/nullptr) !=
++        CommandStorageReadStatus::kSuccess) {
++      continue;
++    }
++    return SessionFileReader::Read(session.path, /*encryptor=*/nullptr).commands;
++  }
++  return {};
++}
++
+ void CommandStorageBackend::DeleteLastSession() {
+   InitIfNecessary();
+   if (last_session_info_) {
+Index: source/components/sessions/core/command_storage_backend.h
+===================================================================
+--- source.orig/components/sessions/core/command_storage_backend.h
++++ source/components/sessions/core/command_storage_backend.h
+@@ -127,6 +127,11 @@ class SESSIONS_EXPORT CommandStorageBack
+   // Returns the commands from the last session file.
+   ReadCommandsResult ReadLastSessionCommands();
+ 
++  // Read the last saved unencrypted browser session in another profile without
++  // initializing storage or modifying any of its files.
++  static std::vector<std::unique_ptr<SessionCommand>> ReadCommandsForImport(
++      const base::FilePath& profile_path);
++
+   // Deletes the file containing the commands for the last session.
+   void DeleteLastSession();
+ 
+Index: source/chrome/common/importer/BUILD.gn
+===================================================================
+--- source.orig/chrome/common/importer/BUILD.gn
++++ source/chrome/common/importer/BUILD.gn
+@@ -94,6 +94,7 @@ source_set("importer") {
+     "importer_autofill_form_data_entry.h",
+     "importer_bridge.cc",
+     "importer_bridge.h",
++    "open_tabs_for_import.h",
+     "pstore_declarations.h",
+     "scoped_copy_file.cc",
+     "scoped_copy_file.h",
+Index: source/chrome/common/importer/open_tabs_for_import.h
+===================================================================
+--- /dev/null
++++ source/chrome/common/importer/open_tabs_for_import.h
+@@ -0,0 +1,31 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_COMMON_IMPORTER_OPEN_TABS_FOR_IMPORT_H_
++#define CHROME_COMMON_IMPORTER_OPEN_TABS_FOR_IMPORT_H_
++
++#include <optional>
++#include <string>
++#include <vector>
++
++#include "url/gurl.h"
++
++namespace importer {
++
++struct PinnedTabGroupForImport {
++  // Arc's ungrouped pins get a localized title in the destination browser.
++  std::optional<std::u16string> title;
++  std::vector<GURL> urls;
++};
++
++struct OpenTabsForImport {
++  std::vector<GURL> urls;
++  std::vector<PinnedTabGroupForImport> pinned_groups;
++
++  bool empty() const { return urls.empty() && pinned_groups.empty(); }
++};
++
++}  // namespace importer
++
++#endif  // CHROME_COMMON_IMPORTER_OPEN_TABS_FOR_IMPORT_H_
