@@ -1,0 +1,24 @@
+Index: source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 19:15:04.134786695 -0800
++++ source/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 19:38:56.387264707 -0800
+@@ -97,13 +97,14 @@
+         onclick={importThisProfile}
+     >
+         <span class="action-label" aria-hidden="true">
+-            <span class="action-state" class:hidden={imported || importing}>
+-                <span class="import-icon"></span>
++            <span class="action-state" class:hidden={imported}>
++                {#if importing}
++                    <Spinner size={18} />
++                {:else}
++                    <span class="import-icon"></span>
++                {/if}
+                 {s.dataImport.action}
+             </span>
+-            <span class="action-state" class:hidden={!importing}>
+-                {#if importing}<Spinner size={18} />{/if}
+-            </span>
+             <span class="action-state" class:hidden={!imported}>{s.dataImport.imported}</span>
+         </span>
+     </Button>
