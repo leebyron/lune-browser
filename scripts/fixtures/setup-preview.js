@@ -1,6 +1,6 @@
 // Loaded by preview-setup.mjs before the real setup app mounts.
 import '/src/lib/chrome-send-polyfill.ts';
-import { currentPage, flow, goToPage } from '/src/lib/onboarding-flow.ts';
+import { flow } from '/src/lib/onboarding-flow.ts';
 import { uBlockOriginId, WebstoreInstallErrorCode } from '/src/lib/browser/index.ts';
 import {
     ImportDataStatus, sendWithPromise, webUIListenerCallback, webUIResponse,
@@ -8,8 +8,11 @@ import {
 
 const url = new URL(location.href);
 const scenario = url.searchParams.get('scenario') ?? 'fresh';
-const scenarios = ['fresh', 'services-off', 'import-empty', 'import-error', 'import-failure', 'extension-error'];
-const step = url.searchParams.get('step') ?? flow[0];
+const scenarios = [
+    'fresh', 'services-off', 'import-guide', 'import-arc', 'import-empty', 'import-error',
+    'import-failure', 'import-partial', 'extension-error',
+];
+const step = url.hash.slice(1) || flow[0];
 if (!scenarios.includes(scenario) || !flow.includes(step)) {
     throw new Error(`Unknown setup preview step or scenario. Steps: ${flow.join(', ')}. Scenarios: ${scenarios.join(', ')}.`);
 }
@@ -30,6 +33,16 @@ const defaultEngine = engines.defaults.find(engine => engine.default);
 if (defaultEngine) send('setDefaultSearchEngine', [defaultEngine.id]);
 
 let blockerEnabled;
+const exampleProfiles = [
+    { id: 101, index: 0, name: 'Google Chrome', profileName: 'Personal', favorites: true, history: true, extensions: true },
+    { id: 103, index: 2, name: 'Google Chrome', profileName: 'Work', favorites: true, history: true, extensions: false, tabs: true },
+    { id: 102, index: 1, name: 'Mozilla Firefox', profileName: 'Default', favorites: true, history: true, extensions: false },
+];
+const arcProfiles = [
+    { id: 104, index: 3, name: 'Arc', profileName: 'Personal, Projects, Reading', favorites: true, history: true, extensions: true, tabs: true },
+    { id: 105, index: 4, name: 'Arc', profileName: 'Work', favorites: true, history: true, extensions: false },
+    ...exampleProfiles.filter(profile => profile.id !== 101),
+];
 chrome.send = (message, args = []) => {
     const [id, key, value] = args;
     switch (message) {
@@ -60,10 +73,19 @@ chrome.send = (message, args = []) => {
                 setTimeout(() => webUIResponse(id, scenario === 'import-empty', []), 250);
                 return;
             }
+            if (scenario === 'import-arc') {
+                setTimeout(() => webUIResponse(id, true, arcProfiles), 250);
+                return;
+            }
+            if (['import-guide', 'import-failure', 'import-partial'].includes(scenario)) {
+                setTimeout(() => webUIResponse(id, true, exampleProfiles), 250);
+                return;
+            }
             break;
         case 'importData':
         case 'importFromBookmarksFile': {
-            const status = scenario === 'import-failure' ? ImportDataStatus.FAILED : ImportDataStatus.SUCCEEDED;
+            const failed = scenario === 'import-failure' || (scenario === 'import-partial' && id === 1);
+            const status = failed ? ImportDataStatus.FAILED : ImportDataStatus.SUCCEEDED;
             webUIListenerCallback('import-data-status-changed', ImportDataStatus.IN_PROGRESS);
             setTimeout(() => webUIListenerCallback('import-data-status-changed', status), 500);
             return;
@@ -99,12 +121,3 @@ window.open = (target, name, features) => {
     }
     return open(target, name, features);
 };
-
-goToPage(step);
-currentPage.subscribe(page => {
-    // Keep the active step after a Vite full reload, including string edits.
-    const currentUrl = new URL(location.href);
-    if (page === flow[0]) currentUrl.searchParams.delete('step');
-    else currentUrl.searchParams.set('step', page);
-    if (currentUrl.href !== location.href) history.replaceState(history.state, '', currentUrl);
-});

@@ -34,17 +34,20 @@ scenario's original mock preferences. Stop the server with Control-C. Resume by
 passing `.work/setup-preview` as the source. You can also pass a prepared tree
 you own directly and skip the copy. Use `--port` to run another preview alongside it.
 
-Use `?step=Finish` to open Customize Lune directly. The step names are `Welcome`,
+Use `#Appearance` to open Customize Lune directly. The step names are `Welcome`,
 `SearchEngine`, `Privacy`, `HeliumServices`, `DataImport`, `PasswordManager`, and
-`Finish`. Add `&scenario=import-empty` or another scenario to the same URL.
+`Appearance`. Place `?scenario=import-empty` or another scenario before the fragment.
 
 | Scenario | How to reproduce |
 | --- | --- |
 | `fresh` (default) | Walk through setup with simulated search engines, preferences, browser profiles, and extension installs. |
 | `services-off` | Open PasswordManager to see the one-time download notice. |
-| `import-empty` | Open DataImport and click Import to see an empty result. |
-| `import-error` | Open DataImport and click Import to see a discovery error and retry. |
-| `import-failure` | Open DataImport, discover and select a profile, then click Next to exercise a failed import response. |
+| `import-guide` | Click Start Import to discover three example profiles. Click Import on a row to copy that profile. |
+| `import-arc` | Click Start Import to compare Arc profiles with and without saved tabs and see single-profile browser cards. |
+| `import-empty` | Click Start Import to see the empty result and recovery instructions. |
+| `import-error` | Click Start Import to see a discovery error and retry. |
+| `import-failure` | Click Start Import, then try importing a profile twice to check that the button re-enables and the grid stays in place. |
+| `import-partial` | Import the Chrome and Firefox profiles individually. Chrome succeeds and Firefox fails. |
 | `extension-error` | Open PasswordManager and click Install on an available manager. |
 
 Use browser DevTools for narrow viewports, light and dark color schemes, and reduced

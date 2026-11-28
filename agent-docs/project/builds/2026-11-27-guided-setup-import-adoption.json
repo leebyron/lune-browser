@@ -1,0 +1,105 @@
+{
+  "scope": "Main adoption of the reviewed guided browser import and Setup navigation",
+  "base_main": "e24de86c7108b45baa817538b498e0bd2a26dee1",
+  "base_platform": "b306ff7a87e00a0557292478e655ddd75fefe700",
+  "chromium": "159.0.8154.34",
+  "core": "83b604ec9cca515a331e9728721a6209e37b6a8d",
+  "platform_commit": "0e801b90fbe52dfb123988858a540a7fd5ee3f1c",
+  "platform_ref": "refs/tags/inputs/guided-setup-import-1/macos",
+  "browser_lock_sha256": "97054d4c7b9c68df105c18be6b0d04f65072fabc23859ef5a5801bd5c0aba0d0",
+  "composition": "Append the reviewed Setup patches to the current main platform series.",
+  "patch_count": 30,
+  "source_preparation": "Fresh zero-fuzz replay and complete inventory verification for both architectures.",
+  "frontend": {
+    "strict_type_and_vite_checks": "passed",
+    "appearance_preview": {
+      "next_fragment": "#Appearance",
+      "back_forward": true,
+      "reload_deep_link": true,
+      "completes_setup": true
+    }
+  },
+  "orchestration_tests": {
+    "total": 108,
+    "skipped": 1,
+    "passed": true
+  },
+  "builds": {
+    "arm64": {
+      "arch": "arm64",
+      "execution": "native arm64",
+      "framework_sha256": "c86250c6e818a8a4e0076684c173025c0dd55a5958b789bd17f87ce6c887e42b",
+      "chromedriver_sha256": "95dfd0d125f08dde806946b5b911410f5daeacdc61f7c559d942156106bb82cd",
+      "prepared_report_sha256": "64a37441e8d5b8d3df36d2eae8a29763101ba77b9a3590d7db311d92e67c394b",
+      "source_parity_sha256": "e218c9e78b444c89e8a19811cdec9688fe60c173da4252f091fec03a8953b8c3",
+      "build_duration_seconds": 643.94,
+      "full_source_inventory_unchanged": true,
+      "prepared_files": 572671,
+      "prepared_symlinks": 130,
+      "matching_reviewed_files": 48,
+      "removed_sources": 3,
+      "xml_declaration_case_only": [],
+      "smoke_sha256": "9cad7509d251fd6b2a6f36cd744776cd202a1c65321153ef548f8013d0e532a2",
+      "onboarding_sha256": "84cd4943978b7e104e77d3640917bcfbe4b860dc7e823a9f38097fb2fde51b7a",
+      "packaged_appearance": {
+        "next_fragment": "#Appearance",
+        "back_forward": true,
+        "reload_deep_link": true
+      },
+      "import_checks": {
+        "hash_steps": true,
+        "back_forward": true,
+        "safari_absent_from_setup": true,
+        "firefox_session_import": true,
+        "brave_session_import": true,
+        "settings_still_lists_readable_safari": true
+      },
+      "arc_pinned_groups": [
+        "Personal",
+        "Projects",
+        "Projects Folder"
+      ],
+      "arc_nested_bookmarks_after_restart": true,
+      "arc_and_chrome_fixture": "65cebd13facb98ad7c048220ac030be6761caa2eb52e41daeb9de83a9f1a7e08",
+      "no_tabs_after_a_failed_import": true
+    },
+    "x86_64": {
+      "arch": "x86_64",
+      "execution": "x86_64 via Rosetta on Apple silicon",
+      "framework_sha256": "e5b54a8215ba6dfba248ba6cb689b90855554e2d676da090545b9f3c3e8374d8",
+      "chromedriver_sha256": "fe00876b8fa63753f27f9c154983ba1c42e56757d59feb0f3c935bc01977245c",
+      "prepared_report_sha256": "f2d839e08c6278700b8d69412d505b0ad0a61c837f14bcddd4a002116f4cf9b7",
+      "source_parity_sha256": "1ae812a07a486b5bb01756897bd8449f1ff730057cba70cc2b49ccb76edafd87",
+      "build_duration_seconds": 728.4,
+      "full_source_inventory_unchanged": true,
+      "prepared_files": 572671,
+      "prepared_symlinks": 130,
+      "matching_reviewed_files": 48,
+      "removed_sources": 3,
+      "xml_declaration_case_only": [],
+      "smoke_sha256": "5abf040f3750439b6b2daf210e67e095f5093ecef9fe7b6a9f556972c3ab7875",
+      "onboarding_sha256": "0806ddcf5c14956adb75bdb9bbc591aaff3285a2b5ad6da929eebc9dc50bc52d",
+      "packaged_appearance": {
+        "next_fragment": "#Appearance",
+        "back_forward": true,
+        "reload_deep_link": true
+      },
+      "import_checks": {
+        "hash_steps": true,
+        "back_forward": true,
+        "safari_absent_from_setup": true,
+        "firefox_session_import": true,
+        "brave_session_import": true,
+        "settings_still_lists_readable_safari": true
+      },
+      "arc_pinned_groups": [
+        "Personal",
+        "Projects",
+        "Projects Folder"
+      ],
+      "arc_nested_bookmarks_after_restart": true,
+      "arc_and_chrome_fixture": "65cebd13facb98ad7c048220ac030be6761caa2eb52e41daeb9de83a9f1a7e08",
+      "no_tabs_after_a_failed_import": true
+    }
+  }
+}

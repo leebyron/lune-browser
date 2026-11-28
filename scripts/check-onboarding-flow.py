@@ -51,14 +51,14 @@ try:
  report['rootBackground']=js('return [document.documentElement,document.body,document.querySelector("main")].map(e=>getComputedStyle(e).backgroundColor)'); assert len(set(report['rootBackground']))==1
  report['tabTitle']=js('return document.title'); assert report['tabTitle']=='Welcome to Lune'
  report['welcome']=js("return {title:document.querySelector('h1').innerText,body:document.querySelector('.description').innerText,buttons:[...document.querySelectorAll('.welcome-actions button')].map(b=>b.innerText),font:getComputedStyle(document.querySelector('h1')).fontFamily};")
- assert report['welcome']['title']=='setup lune'; assert report['welcome']['buttons']==['Use Defaults','Setup']
+ assert report['welcome']['title']=='setup lune'; assert report['welcome']['buttons']==['Use defaults','Customize']
  report['welcomeStyle']=js("return {background:getComputedStyle(document.querySelector('.setup-wallpaper'),'::before').backgroundImage,animation:getComputedStyle(document.querySelector('.setup-wallpaper'),'::before').animationName,policyLineHeight:getComputedStyle(document.querySelector('.policy')).lineHeight,weight:getComputedStyle(document.querySelector('.primary')).fontWeight,padding:[getComputedStyle(document.querySelector('.primary')).paddingLeft,getComputedStyle(document.querySelector('.primary')).paddingRight],synthesis:getComputedStyle(document.querySelector('.primary')).fontSynthesis,color:getComputedStyle(document.querySelector('.primary')).backgroundColor,credit:getComputedStyle(document.querySelector('.upstream-credit')).fontSize,security:document.querySelector('.updates p')!==null,remoteAssets:performance.getEntriesByType('resource').filter(r=>/^https?:/.test(r.name)).map(r=>r.name)}")
  report['wallpaperScheme']=js("return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'")
  assert f"chrome://setup/wallpaper-{report['wallpaperScheme']}.jpg" in report['welcomeStyle']['background']
  assert report['welcomeStyle']['animation']=='wallpaper-in, wallpaper-rise'
- assert report['welcomeStyle']['policyLineHeight']=='13.2px'
+ assert report['welcomeStyle']['policyLineHeight']=='20px'
  assert report['welcomeStyle']['weight']=='400'
- assert report['welcomeStyle']['padding']==['20px','16px']
+ assert report['welcomeStyle']['padding']==['16px','20px']
  assert js("return [...document.querySelectorAll('.welcome-actions button')].every(b=>getComputedStyle(b).fontSize==='16px' && getComputedStyle(b).fontWeight==='400')")
  assert not report['welcomeStyle']['security']
  assert not report['welcomeStyle']['remoteAssets']
@@ -103,9 +103,10 @@ try:
  assert js("return document.querySelectorAll('.progress-step').length") == 7
  screenshot('services')
  next_();wait("return document.querySelector('#data-import-page.visible')")
- report['importGraphic']=wait("const img=document.querySelector('.helium-icon img'); return img?.complete && img.naturalWidth ? img.getAttribute('src') : false")
- assert report['importGraphic']=='/lune-app.svg'
- assert js("return document.querySelector('#setup-buttons button:last-child').innerText") == 'Next'
+ report['importPrompt']=js("return document.querySelector('#data-import-page .import-prompt button').innerText.trim()")
+ assert report['importPrompt']=='Start Import'
+ assert js("return document.querySelector('#setup-buttons button:last-child').innerText") == 'Skip'
+ assert js('return location.hash') == '#DataImport'
  assert js("return document.querySelector('#setup-buttons button:last-child svg') !== null")
  report['beforeAppearanceWidth']=js('return innerWidth')
  next_();wait("return document.querySelector('#password-manager-page.visible .one-time-notice')")
@@ -118,6 +119,7 @@ try:
  report['appearanceWidth']=js('return innerWidth')
  report['finish']=js("return {title:document.querySelector('#finish-page h2').innerText,buttons:[...document.querySelectorAll('#setup-buttons button')].map(b=>b.innerText)}")
  assert report['finish']['title']=='Customize Lune'
+ assert js('return location.hash') == '#Appearance'
  report['dropdowns']=js("return [...document.querySelectorAll('#finish-page select')].map(s=>({label:s.getAttribute('aria-label'),value:s.value,options:[...s.options].map(o=>({value:o.value,label:o.label}))}))")
  assert [d['label'] for d in report['dropdowns']]==['Appearance','Theme','Tab sidebar','Show toolbar']
  assert [v['label'] for v in report['dropdowns'][1]['options']]==['System','Lune','Custom']

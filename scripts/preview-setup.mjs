@@ -111,7 +111,7 @@ async function main() {
     }
     console.log(`Editing ${project}`);
     server.printUrls();
-    console.log(`  Import fixture: http://127.0.0.1:${port}/?step=DataImport&scenario=import-empty`);
+    console.log(`  Import fixture: http://127.0.0.1:${port}/?scenario=import-empty#DataImport`);
 }
 
 main().catch((error) => {

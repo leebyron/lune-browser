@@ -212,7 +212,7 @@ def check_ui(request, path, internal_icons=False, icon_hashes=None):
                                   ['open source software', 'chrome://credits/']]):
         raise RuntimeError(f'About attribution is incorrect: {about}')
     if onboarding != ('Built on Helium browser and ungoogled-chromium '
-                      'with thanks to their authors and contributors'):
+                      'with thanks to their authors and contributors.'):
         raise RuntimeError(f'Onboarding attribution is incorrect: {onboarding}')
     if js('return document.title;') != 'Welcome to Lune':
         raise RuntimeError('Incorrect setup tab title')
