@@ -1,0 +1,310 @@
+--- a/components/helium_onboarding/BUILD.gn
++++ b/components/helium_onboarding/BUILD.gn
+@@ -49,6 +49,7 @@
+     "public/setup-header-icons/magnifyingglass.png",
+     "public/setup-header-icons/paintbrush.pointed.png",
+     "public/setup-header-icons/point.3.connected.trianglepath.dotted.png",
++    "public/setup-header-icons/questionmark.circle.png",
+     "public/setup-header-icons/square.and.arrow.down.png",
+     "public/Inter-OFL.txt",
+     "public/Syne-OFL.txt",
+@@ -60,7 +61,9 @@
+     "src/lib/browser/setup.ts",
+     "src/lib/browser/index.ts",
+     "src/components/ImportPrompt.svelte",
++    "src/components/ImportNotice.svelte",
+     "src/components/ImportPermissionIllustration.svelte",
++    "src/components/ImportSourceHeading.svelte",
+     "src/components/MacImportNotice.svelte",
+     "src/components/BrowserProfileGroup.svelte",
+     "src/components/ProfileImportOption.svelte",
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -241,14 +241,17 @@
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_DISCOVERY_ERROR" desc="Error shown when looking for browsers fails. The user can retry using the Allow button.">
+   An error occurred. Please try again.
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_TITLE" desc="Title of the macOS-only banner below browser import options.">
+-  Don't see your previous browser?
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_TITLE" desc="Heading above the macOS browser discovery instructions.">
++  Don't see your browser?
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_QUIT" desc="First step for recovering browser import on macOS. Keep the keyboard shortcut.">
+-  Quit your other browser. Switch to it and press ⌘Q.
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_QUIT" desc="Instruction to quit the browser the user wants to import from on macOS. Keep the keyboard shortcut.">
++  Switch to that browser and press ⌘Q to quit it.
+ </message>
+-<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_BODY" desc="Second step for recovering browser import on macOS. Keep the BEGIN/END placeholder pair around the System Settings link, but move it as needed for a natural translation.">
+-  Allow access. Open <ph name="BEGIN_LINK_SETTINGS">$1</ph>Files &amp; Folders in System Settings<ph name="END_LINK_SETTINGS">$2</ph>, expand Helium, and turn on the switch for your browser if it’s listed.
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_BODY" desc="First step for recovering browser import on macOS. Keep the BEGIN/END placeholder pair around the System Settings link, but move it as needed for a natural translation.">
++  Open <ph name="BEGIN_LINK_SETTINGS">$1</ph>Files &amp; Folders in System Settings<ph name="END_LINK_SETTINGS">$2</ph>.
++</message>
++<message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_ENABLE" desc="Second step for recovering browser import. The user expands the requesting browser’s entry in macOS Files and Folders, then enables access for the source browser.">
++  Expand Helium and turn on the switch for your browser if it’s listed.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_DATA_IMPORT_MAC_NOTICE_PICTURE_TITLE" desc="Heading of an illustration of the Files and Folders pane in macOS System Settings.">
+   Files &amp; Folders
+--- a/components/helium_onboarding/src/components/BrowserProfileGroup.svelte
++++ b/components/helium_onboarding/src/components/BrowserProfileGroup.svelte
+@@ -26,6 +26,7 @@
+     import type { BrowserProfile } from "../lib/cr";
+     import { browserIcons } from "../lib/nonfree-icons";
+ 
++    import ImportSourceHeading from "./ImportSourceHeading.svelte";
+     import ProfileImportOption from "./ProfileImportOption.svelte";
+ 
+     type Props = {
+@@ -36,20 +37,19 @@
+     const { browser, profiles }: Props = $props();
+     const browserHeadingId = $props.id();
+ 
+-    const icon = $derived(browserIconMap[browser as keyof typeof browserIconMap]);
+-    const url = $derived(icon && browserIcons[icon]);
++    const iconKey = $derived(browserIconMap[browser as keyof typeof browserIconMap]);
++    const url = $derived(iconKey && browserIcons[iconKey]);
+ </script>
+ 
+-<div class="browser-header">
+-    <div class="browser-icon">
++<ImportSourceHeading title={browser} id={browserHeadingId}>
++    {#snippet icon()}
+         {#if url}
+-            <img src={url} alt="{browser} icon" />
++            <img class="browser-icon" src={url} alt="" />
+         {:else}
+             <IconWorld />
+         {/if}
+-    </div>
+-    <h4 id={browserHeadingId}>{browser}</h4>
+-</div>
++    {/snippet}
++</ImportSourceHeading>
+ <div class="browser-profiles">
+     {#each profiles as profile (profile.id)}
+         <ProfileImportOption {profile} {browserHeadingId} />
+@@ -57,28 +57,9 @@
+ </div>
+ 
+ <style>
+-    .browser-header {
+-        display: flex;
+-        width: 100%;
+-        align-items: center;
+-        gap: var(--gap-2);
+-
+-        & .browser-icon {
+-            width: 28px;
+-            height: 28px;
+-            display: flex;
+-            justify-content: center;
+-            align-items: center;
+-
+-            & img {
+-                width: 28px;
+-                height: 28px;
+-            }
+-        }
+-
+-        & > h4 {
+-            line-height: 1;
+-        }
++    .browser-icon {
++        width: 28px;
++        height: 28px;
+     }
+ 
+     .browser-profiles {
+--- a/components/helium_onboarding/src/components/ImportNotice.svelte
++++ b/components/helium_onboarding/src/components/ImportNotice.svelte
+@@ -3,6 +3,7 @@
+ 
+     type Props = {
+         title?: string;
++        labelledBy?: string;
+         tag?: "div" | "aside";
+         role?: "status" | "alert";
+         dashed?: boolean;
+@@ -10,7 +11,7 @@
+         children: Snippet;
+     };
+ 
+-    const { title, tag = "div", role, dashed, action, children }: Props = $props();
++    const { title, labelledBy, tag = "div", role, dashed, action, children }: Props = $props();
+     const titleId = $props.id();
+ </script>
+ 
+@@ -18,7 +19,7 @@
+     this={tag}
+     class={["import-notice", { dashed }]}
+     {role}
+-    aria-labelledby={title ? titleId : undefined}
++    aria-labelledby={labelledBy ?? (title ? titleId : undefined)}
+ >
+     {#if dashed}
+         <!-- Drawn in SVG since CSS dashed borders can't round or space out dashes. -->
+--- a/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte
++++ b/components/helium_onboarding/src/components/ImportPermissionIllustration.svelte
+@@ -39,6 +39,7 @@
+         --label: light-dark(#232329, #f5f5f7);
+         --secondary: light-dark(#56565f, #c2c2c9);
+         display: grid;
++        zoom: 0.7;
+         grid-template-rows: repeat(4, minmax(0, auto));
+         aspect-ratio: 1.1;
+         overflow: hidden;
+--- /dev/null
++++ b/components/helium_onboarding/src/components/ImportSourceHeading.svelte
+@@ -0,0 +1,34 @@
++<!--
++    Copyright 2026 The Lune Authors
++    Use, redistribute, or modify this file under the terms of the GPL-3.0 license in LICENSE.
++-->
++<script lang="ts">
++    import type { Snippet } from "svelte";
++
++    const { title, id, icon }: { title: string; id: string; icon: Snippet } = $props();
++</script>
++
++<div class="import-source-heading">
++    <div class="icon" aria-hidden="true">{@render icon()}</div>
++    <h4 {id}>{title}</h4>
++</div>
++
++<style>
++    .import-source-heading {
++        display: flex;
++        width: 100%;
++        align-items: center;
++        gap: var(--gap-2);
++    }
++
++    .icon {
++        display: grid;
++        flex: 0 0 28px;
++        height: 28px;
++        place-items: center;
++    }
++
++    h4 {
++        line-height: 1;
++    }
++</style>
+--- a/components/helium_onboarding/src/components/MacImportNotice.svelte
++++ b/components/helium_onboarding/src/components/MacImportNotice.svelte
+@@ -11,8 +11,10 @@
+ 
+     import ImportNotice from "./ImportNotice.svelte";
+     import ImportPermissionIllustration from "./ImportPermissionIllustration.svelte";
++    import ImportSourceHeading from "./ImportSourceHeading.svelte";
+ 
+     const { showPermission }: { showPermission: boolean } = $props();
++    const headingId = $props.id();
+ 
+     const settingsUrl =
+         "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_FilesAndFolders";
+@@ -56,11 +58,15 @@
+ 
+ <svelte:window onfocus={checkOnReturn} />
+ 
+-<ImportNotice tag="aside" title={s.dataImport.macNoticeTitle} dashed>
++<ImportSourceHeading title={s.dataImport.macNoticeTitle} id={headingId}>
++    {#snippet icon()}
++        <span class="question-icon"></span>
++    {/snippet}
++</ImportSourceHeading>
++<ImportNotice tag="aside" labelledBy={headingId} dashed>
+     <div class="recovery" class:illustrated={showPermission}>
+         {#if showPermission}
+             <ol>
+-                <li>{s.dataImport.macNoticeQuit}</li>
+                 <li>
+                     {#each bodyParts as part}
+                         {#if part.kind === "linkSettings"}
+@@ -70,6 +76,8 @@
+                         {/if}
+                     {/each}
+                 </li>
++                <li>{s.dataImport.macNoticeEnable}</li>
++                <li>{s.dataImport.macNoticeQuit}</li>
+             </ol>
+             <div class="recovery-picture">
+                 <ImportPermissionIllustration />
+@@ -90,13 +98,20 @@
+ </ImportNotice>
+ 
+ <style>
++    .question-icon {
++        width: 24px;
++        height: 24px;
++        background-color: currentColor;
++        mask: url("/setup-header-icons/questionmark.circle.png") center / contain no-repeat;
++    }
++
+     .recovery {
+         display: grid;
+         gap: var(--gap-2);
+     }
+ 
+     .illustrated {
+-        --picture-width: 200px;
++        --picture-width: 140px;
+ 
+         grid-template:
+             "steps picture" max-content
+--- a/components/helium_onboarding/src/components/ProfileImportOption.svelte
++++ b/components/helium_onboarding/src/components/ProfileImportOption.svelte
+@@ -61,18 +61,15 @@
+             <p role="alert">{s.dataImport.failure}</p>
+         {/if}
+     </div>
+-    {#if imported}
++    <div class="profile-action" class:complete={imported}>
++        <Button disabled={disabled || imported} aria-describedby={`${browserHeadingId} ${descriptionId}`} onclick={importThisProfile}>
++            {#if importing}
++                <Spinner size={18} />
++            {/if}
++            {s.dataImport.action}
++        </Button>
+         <span class="imported" role="status">{s.dataImport.imported}</span>
+-    {:else}
+-        <div class="profile-action">
+-            <Button {disabled} aria-describedby={`${browserHeadingId} ${descriptionId}`} onclick={importThisProfile}>
+-                {#if importing}
+-                    <Spinner size={18} />
+-                {/if}
+-                {s.dataImport.action}
+-            </Button>
+-        </div>
+-    {/if}
++    </div>
+ </div>
+ 
+ <style>
+@@ -113,12 +110,25 @@
+         overflow-wrap: anywhere;
+     }
+ 
+-    .profile-action,
+-    .imported {
++    .profile-action {
++        display: grid;
++        align-items: center;
+         margin-inline-start: auto;
+     }
+ 
++    /* Preserve the action slot's width across states, including translated labels. */
++    .profile-action > :global(button),
++    .imported {
++        grid-area: 1 / 1;
++    }
++
++    .profile-action.complete > :global(button),
++    .profile-action:not(.complete) .imported {
++        visibility: hidden;
++    }
++
+     .imported {
++        text-align: center;
+         font-size: 14px;
+     }
+ 

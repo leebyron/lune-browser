@@ -17,7 +17,7 @@ helium_resources() {
   python3 "$_main_repo/utils/replace_resources.py" "$_root_dir/resources/lune_resources.txt" "$_root_dir/resources" "$_src_dir"
   render_sf_symbols "$_src_dir/components/helium_onboarding/public/setup-header-icons" \
     point.3.connected.trianglepath.dotted eye.slash magnifyingglass \
-    square.and.arrow.down lock.badge.checkmark paintbrush.pointed
+    square.and.arrow.down lock.badge.checkmark paintbrush.pointed questionmark.circle
   render_sf_symbols "$_src_dir/chrome/browser/resources/side_panel/customize_chrome/icons" \
     circle.lefthalf.filled finder moon paintpalette sun.max
 }
