@@ -1,0 +1,21 @@
+--- source.orig/components/helium_onboarding/src/lib/onboarding-flow.ts
++++ source/components/helium_onboarding/src/lib/onboarding-flow.ts
+@@ -37,7 +37,7 @@ export const setupPages = derived(prefer
+ );
+ 
+ function pageFromURL(): SetupPage {
+-    const step = new URL(location.href).searchParams.get('step');
++    const step = location.hash.slice(1);
+     return get(setupPages).find(page => page === step) ?? "Welcome";
+ }
+ 
+@@ -55,8 +55,7 @@ export const goToPage = (step: SetupPage
+     if (step === current || !get(setupPages).includes(step)) return;
+ 
+     const url = new URL(location.href);
+-    if (step === "Welcome") url.searchParams.delete('step');
+-    else url.searchParams.set('step', step);
++    url.hash = step === "Welcome" ? "" : step;
+     history.pushState({ previousSetupPage: current }, '', url);
+     if (step !== "Welcome") markIntroSeen();
+     page.set(step);
