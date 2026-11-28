@@ -1,0 +1,118 @@
+--- source.orig/chrome/browser/importer/importer_list.cc
++++ source/chrome/browser/importer/importer_list.cc
+@@ -212,7 +212,8 @@ void DetectFirefoxProfiles(
+ 
+ std::vector<user_data_importer::SourceProfile> DetectSourceProfilesWorker(
+     const std::string& locale,
+-    bool include_interactive_profiles) {
++    bool include_interactive_profiles,
++    bool include_safari) {
+   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                 base::BlockingType::MAY_BLOCK);
+ 
+@@ -233,10 +234,14 @@ std::vector<user_data_importer::SourcePr
+ #elif BUILDFLAG(IS_MAC)
+   if (shell_integration::IsFirefoxDefaultBrowser()) {
+     DetectFirefoxProfiles(locale, &profiles);
+-    DetectSafariProfiles(&profiles);
++    if (include_safari) {
++      DetectSafariProfiles(&profiles);
++    }
+     DetectChromeProfiles(&profiles);
+   } else {
+-    DetectSafariProfiles(&profiles);
++    if (include_safari) {
++      DetectSafariProfiles(&profiles);
++    }
+     DetectFirefoxProfiles(locale, &profiles);
+     DetectChromeProfiles(&profiles);
+   }
+@@ -277,14 +282,15 @@ ImporterList::~ImporterList() {
+ void ImporterList::DetectSourceProfiles(
+     const std::string& locale,
+     bool include_interactive_profiles,
+-    base::OnceClosure profiles_loaded_callback) {
++    base::OnceClosure profiles_loaded_callback,
++    bool include_safari) {
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+   base::ThreadPool::PostTaskAndReplyWithResult(
+       FROM_HERE,
+       {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+       base::BindOnce(&DetectSourceProfilesWorker, locale,
+-                     include_interactive_profiles),
++                     include_interactive_profiles, include_safari),
+       base::BindOnce(&ImporterList::SourceProfilesLoaded,
+                      weak_ptr_factory_.GetWeakPtr(),
+                      std::move(profiles_loaded_callback)));
+--- source.orig/chrome/browser/importer/importer_list.h
++++ source/chrome/browser/importer/importer_list.h
+@@ -35,9 +35,11 @@ class ImporterList {
+   // require user interaction to read.
+   // |profiles_loaded_callback|: Assuming this ImporterList instance is still
+   // alive, run the callback when the source profile detection finishes.
++  // |include_safari|: True to check for Safari bookmarks on macOS.
+   void DetectSourceProfiles(const std::string& locale,
+                             bool include_interactive_profiles,
+-                            base::OnceClosure profiles_loaded_callback);
++                            base::OnceClosure profiles_loaded_callback,
++                            bool include_safari = true);
+ 
+   // Returns the number of different source profiles you can import from.
+   size_t count() const { return source_profiles_.size(); }
+--- source.orig/chrome/browser/ui/webui/settings/import_data_handler.cc
++++ source/chrome/browser/ui/webui/settings/import_data_handler.cc
+@@ -33,7 +33,9 @@
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/webui_url_constants.h"
+ #include "content/public/browser/browser_thread.h"
++#include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_ui.h"
+ #include "crypto/hash.h"
+ #include "ui/shell_dialogs/selected_file_info.h"
+@@ -199,12 +201,16 @@ void ImportDataHandler::HandleInitialize
+   CHECK_EQ(1U, args.size());
+   const std::string& callback_id = args[0].GetString();
+ 
++  const bool include_safari =
++      web_ui()->GetWebContents()->GetLastCommittedURL().host() !=
++      chrome::kHeliumSetupHost;
+   importer_list_ = std::make_unique<ImporterList>();
+   importer_list_->DetectSourceProfiles(
+       g_browser_process->GetApplicationLocale(),
+       true,  // include_interactive_profiles
+       base::BindOnce(&ImportDataHandler::SendBrowserProfileData,
+-                     base::Unretained(this), callback_id));
++                     base::Unretained(this), callback_id),
++      include_safari);
+ }
+ 
+ void ImportDataHandler::HandleImportFromBookmarksFile(
+--- source.orig/components/helium_onboarding/src/components/ProfileImportOption.svelte
++++ source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+@@ -25,7 +25,6 @@
+         Chromium: "chromium",
+         Dia: "dia",
+         Opera: "opera",
+-        Safari: "safari",
+         Vivaldi: "vivaldi",
+         Yandex: "yandex",
+         Zen: "zen",
+--- source.orig/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
++++ source/components/helium_onboarding/src/lib/chrome-send-polyfill.ts
+@@ -112,11 +112,10 @@ let importerListLoaded = false;
+ const ff_has = new Set(["autofillFormData", "favorites", "history"]);
+ const chrome_has = new Set(["extensions", "history", "passwords"]);
+ const chrome_has_favs = new Set([...chrome_has, "favorites"]);
+-const safari_has = new Set(["favorites"]);
++const bookmarks_only = new Set(["favorites"]);
+ 
+ const importerListSimple = [
+-    [ "Safari", "", safari_has ],
+-    [ "Bookmarks HTML File", "", safari_has ],
++    [ "Bookmarks HTML File", "", bookmarks_only ],
+ 
+     [ "Mozilla Firefox", "default release", ff_has ],
+     [ "Zen", "default release", ff_has ],
