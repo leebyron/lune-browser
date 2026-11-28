@@ -1,0 +1,87 @@
+Index: source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ProfileImportOption.svelte
++++ source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+@@ -13,11 +13,11 @@
+     type Props = {
+         profile: BrowserProfile;
+         showProfileName: boolean;
+-        onImportFailureChange: (failed: boolean) => void;
+     };
+ 
+-    const { profile, showProfileName, onImportFailureChange }: Props = $props();
++    const { profile, showProfileName }: Props = $props();
+     const descriptionId = $props.id();
++    let importFailed = $state(false);
+ 
+     const browserIconKeys: Partial<Record<string, keyof typeof browserIcons>> = {
+         Arc: "arc",
+@@ -50,12 +50,12 @@
+ 
+         const { id } = profile;
+         $importingProfileId = id;
+-        onImportFailureChange(false);
++        importFailed = false;
+         try {
+             await importProfile(id);
+             $previouslyImportedProfiles.add(id);
+         } catch {
+-            onImportFailureChange(true);
++            importFailed = true;
+         } finally {
+             $importingProfileId = null;
+         }
+@@ -106,6 +106,7 @@
+             <span class="action-state" class:hidden={!imported}>{s.dataImport.imported}</span>
+         </span>
+     </Button>
++    <span class="import-announcement" aria-live="polite">{importFailed ? s.dataImport.failure : ""}</span>
+ </div>
+ 
+ <style>
+@@ -148,6 +149,15 @@
+         padding-inline: 16px;
+     }
+ 
++    .import-announcement {
++        position: absolute;
++        width: 1px;
++        height: 1px;
++        overflow: hidden;
++        clip-path: inset(50%);
++        white-space: nowrap;
++    }
++
+     .action-label {
+         display: grid;
+     }
+Index: source/components/helium_onboarding/src/pages/DataImport.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/pages/DataImport.svelte
++++ source/components/helium_onboarding/src/pages/DataImport.svelte
+@@ -25,7 +25,6 @@
+     const discovered = $derived($importDiscovery.status === "loaded");
+     const animateDiscovery = get(importDiscovery).status !== "loaded";
+     let importContainer = $state<HTMLDivElement>();
+-    let importFailed = $state(false);
+ 
+     function recheckProfiles() {
+         if (visible && discovered && document.visibilityState === "visible" &&
+@@ -109,17 +108,11 @@
+                                     <ProfileImportOption
+                                         {profile}
+                                         showProfileName={profiles.length > 1}
+-                                        onImportFailureChange={(failed) => { importFailed = failed; }}
+                                     />
+                                 {/each}
+                             {/each}
+                         </div>
+                     {/if}
+-                    {#if importFailed}
+-                        <ImportNotice role="alert">
+-                            <p>{s.dataImport.failure}</p>
+-                        </ImportNotice>
+-                    {/if}
+                     {#if platform.is.macos}
+                         <MacImportNotice showPermission={showMacNotice} />
+                     {/if}
