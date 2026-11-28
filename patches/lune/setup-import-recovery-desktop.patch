@@ -1,0 +1,654 @@
+Index: source/components/helium_onboarding/BUILD.gn
+===================================================================
+--- source.orig/components/helium_onboarding/BUILD.gn	2026-11-27 18:09:21.754595899 -0800
++++ source/components/helium_onboarding/BUILD.gn	2026-11-27 18:45:36.897467000 -0800
+@@ -49,7 +49,7 @@
+     "public/setup-header-icons/magnifyingglass.png",
+     "public/setup-header-icons/paintbrush.pointed.png",
+     "public/setup-header-icons/point.3.connected.trianglepath.dotted.png",
+-    "public/setup-header-icons/questionmark.circle.png",
++    "public/setup-header-icons/questionmark.app.dashed.png",
+     "public/setup-header-icons/square.and.arrow.down.png",
+     "public/Inter-OFL.txt",
+     "public/Syne-OFL.txt",
+@@ -65,7 +65,6 @@
+     "src/components/ImportPermissionIllustration.svelte",
+     "src/components/ImportSourceHeading.svelte",
+     "src/components/MacImportNotice.svelte",
+-    "src/components/BrowserProfileGroup.svelte",
+     "src/components/ProfileImportOption.svelte",
+     "src/App.svelte",
+     "src/lib/onboarding-flow.ts",
+Index: source/components/helium_onboarding/src/app.css
+===================================================================
+--- source.orig/components/helium_onboarding/src/app.css	2026-11-27 17:17:27.128530633 -0800
++++ source/components/helium_onboarding/src/app.css	2026-11-27 18:37:04.563589162 -0800
+@@ -81,7 +81,7 @@
+ 
+ /* Give setup cards a consistent soft backdrop without blurring their content. */
+ .onboarding-page :is(.card, .compact-preference, .pm-option,
+-                    .profile-option, .import-notice, .dropdown) {
++                    .profile-option, .import-notice, .import-recovery, .dropdown) {
+     backdrop-filter: blur(4px);
+ }
+ 
+@@ -111,7 +111,8 @@
+ 
+ /* Match card labels and descriptions to the compact preference control. */
+ .onboarding-page .page-content :is(.card, .compact-preference, .pm-option,
+-                                  .profile-option, .import-notice) :is(h4, label) {
++                                  .profile-option, .import-notice) :is(h4, label),
++.onboarding-page .page-content .import-recovery :is(li, .quit-instruction) {
+     font: 400 14px/20px Inter, sans-serif;
+     color: var(--primary);
+ }
+Index: source/components/helium_onboarding/src/components/BrowserProfileGroup.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/BrowserProfileGroup.svelte	2026-11-27 18:09:21.797071641 -0800
++++ /dev/null	1970-01-01 00:00:00.000000000 +0000
+@@ -1,71 +0,0 @@
+-<script lang="ts" module>
+-    const browserIconMap = {
+-        Arc: "arc",
+-        Brave: "brave",
+-        Chromium: "chromium",
+-        Dia: "dia",
+-        Opera: "opera",
+-        Safari: "safari",
+-        Vivaldi: "vivaldi",
+-        Yandex: "yandex",
+-        Zen: "zen",
+-
+-        "Google Chrome": "chrome",
+-        "Google Chrome Beta": "chrome_beta",
+-        "Google Chrome Canary": "chrome_canary",
+-        "Google Chrome Dev": "chrome_dev",
+-        "Microsoft Edge": "edge",
+-        "Mozilla Firefox": "firefox",
+-        "NAVER Whale": "whale",
+-        "Perplexity Comet": "comet",
+-    } as const;
+-</script>
+-
+-<script lang="ts">
+-    import { IconWorld } from "@imput/helium-prism";
+-    import type { BrowserProfile } from "../lib/cr";
+-    import { browserIcons } from "../lib/nonfree-icons";
+-
+-    import ImportSourceHeading from "./ImportSourceHeading.svelte";
+-    import ProfileImportOption from "./ProfileImportOption.svelte";
+-
+-    type Props = {
+-        browser: string;
+-        profiles: BrowserProfile[];
+-    };
+-
+-    const { browser, profiles }: Props = $props();
+-    const browserHeadingId = $props.id();
+-
+-    const iconKey = $derived(browserIconMap[browser as keyof typeof browserIconMap]);
+-    const url = $derived(iconKey && browserIcons[iconKey]);
+-</script>
+-
+-<ImportSourceHeading title={browser} id={browserHeadingId}>
+-    {#snippet icon()}
+-        {#if url}
+-            <img class="browser-icon" src={url} alt="" />
+-        {:else}
+-            <IconWorld />
+-        {/if}
+-    {/snippet}
+-</ImportSourceHeading>
+-<div class="browser-profiles">
+-    {#each profiles as profile (profile.id)}
+-        <ProfileImportOption {profile} {browserHeadingId} />
+-    {/each}
+-</div>
+-
+-<style>
+-    .browser-icon {
+-        width: 28px;
+-        height: 28px;
+-    }
+-
+-    .browser-profiles {
+-        display: flex;
+-        flex-direction: column;
+-        width: 100%;
+-        gap: var(--gap-1);
+-    }
+-</style>
+Index: source/components/helium_onboarding/src/components/ImportNotice.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ImportNotice.svelte	2026-11-27 18:09:21.816175485 -0800
++++ source/components/helium_onboarding/src/components/ImportNotice.svelte	2026-11-27 18:37:04.585280791 -0800
+@@ -3,30 +3,16 @@
+ 
+     type Props = {
+         title?: string;
+-        labelledBy?: string;
+-        tag?: "div" | "aside";
+         role?: "status" | "alert";
+-        dashed?: boolean;
+         action?: Snippet;
+         children: Snippet;
+     };
+ 
+-    const { title, labelledBy, tag = "div", role, dashed, action, children }: Props = $props();
++    const { title, role, action, children }: Props = $props();
+     const titleId = $props.id();
+ </script>
+ 
+-<svelte:element
+-    this={tag}
+-    class={["import-notice", { dashed }]}
+-    {role}
+-    aria-labelledby={labelledBy ?? (title ? titleId : undefined)}
+->
+-    {#if dashed}
+-        <!-- Drawn in SVG since CSS dashed borders can't round or space out dashes. -->
+-        <svg class="dashed-border" aria-hidden="true">
+-            <rect />
+-        </svg>
+-    {/if}
++<div class="import-notice" {role} aria-labelledby={title ? titleId : undefined}>
+     <div class="notice-text">
+         {#if title}
+             <h4 id={titleId}>{title}</h4>
+@@ -38,12 +24,10 @@
+             {@render action()}
+         </div>
+     {/if}
+-</svelte:element>
++</div>
+ 
+ <style>
+     .import-notice {
+-        --border-radius: 14px;
+-
+         display: flex;
+         flex-direction: row;
+         align-items: center;
+@@ -51,40 +35,11 @@
+         width: 100%;
+         box-sizing: border-box;
+         padding: 16px 21px;
+-        border-radius: var(--border-radius);
++        border-radius: 14px;
+         background-color: var(--helium-elevated-7);
+         text-align: left;
+     }
+ 
+-    .dashed {
+-        --stroke-width: 2px;
+-
+-        position: relative;
+-        background-color: var(--helium-elevated-5);
+-    }
+-
+-    .dashed-border {
+-        position: absolute;
+-        inset: 0;
+-        width: 100%;
+-        height: 100%;
+-        overflow: visible;
+-
+-        & rect {
+-            /* Inset by half the stroke so it sits fully inside the box. */
+-            x: calc(var(--stroke-width) / 2);
+-            y: calc(var(--stroke-width) / 2);
+-            width: calc(100% - var(--stroke-width));
+-            height: calc(100% - var(--stroke-width));
+-            rx: calc(var(--border-radius) - var(--stroke-width) / 2);
+-            fill: none;
+-            stroke: var(--helium-elevated-30);
+-            stroke-width: var(--stroke-width);
+-            stroke-dasharray: 6 10;
+-            stroke-linecap: round;
+-        }
+-    }
+-
+     .notice-text {
+         display: flex;
+         flex: 1;
+Index: source/components/helium_onboarding/src/components/ImportSourceHeading.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ImportSourceHeading.svelte	2026-11-27 18:09:21.777998588 -0800
++++ source/components/helium_onboarding/src/components/ImportSourceHeading.svelte	2026-11-27 18:39:34.231846219 -0800
+@@ -17,13 +17,15 @@
+     .import-source-heading {
+         display: flex;
+         width: 100%;
++        box-sizing: border-box;
++        padding-inline: var(--import-row-inset);
+         align-items: center;
+-        gap: var(--gap-2);
++        gap: var(--import-row-gap);
+     }
+ 
+     .icon {
+         display: grid;
+-        flex: 0 0 28px;
++        flex: 0 0 var(--import-icon-size);
+         height: 28px;
+         place-items: center;
+     }
+Index: source/components/helium_onboarding/src/components/MacImportNotice.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/MacImportNotice.svelte	2026-11-27 18:25:59.054145380 -0800
++++ source/components/helium_onboarding/src/components/MacImportNotice.svelte	2026-11-27 18:41:04.750993058 -0800
+@@ -4,7 +4,6 @@
+     import { parseLocalizedString } from "../lib/i18n";
+     import { openFilesAndFoldersSettings } from "../lib/browser";
+ 
+-    import ImportNotice from "./ImportNotice.svelte";
+     import ImportPermissionIllustration from "./ImportPermissionIllustration.svelte";
+     import ImportSourceHeading from "./ImportSourceHeading.svelte";
+ 
+@@ -26,82 +25,95 @@
+         <span class="question-icon"></span>
+     {/snippet}
+ </ImportSourceHeading>
+-<ImportNotice tag="aside" labelledBy={headingId} dashed>
+-    <div class="recovery" class:illustrated={showPermission}>
+-        {#if showPermission}
+-            <ol>
+-                <li>
+-                    {#each bodyParts as part}
+-                        {#if part.kind === "linkSettings"}
+-                            <Link href={settingsUrl} onclick={openSettings}>{part.text}</Link>
+-                        {:else}
+-                            {part.text}
+-                        {/if}
+-                    {/each}
+-                </li>
+-                <li>{s.dataImport.macNoticeEnable}</li>
+-                <li>{s.dataImport.macNoticeQuit}</li>
+-            </ol>
+-            <a class="recovery-picture" href={settingsUrl} onclick={openSettings}
+-                aria-label={s.dataImport.macNoticePictureAction}>
++<aside class="import-recovery" class:illustrated={showPermission} aria-labelledby={headingId}>
++    {#if showPermission}
++        <ol class="steps">
++            <li>
++                {#each bodyParts as part}
++                    {#if part.kind === "linkSettings"}
++                        <Link href={settingsUrl} onclick={openSettings}>{part.text}</Link>
++                    {:else}
++                        {part.text}
++                    {/if}
++                {/each}
++            </li>
++            <li>{s.dataImport.macNoticeEnable}</li>
++            <li>{s.dataImport.macNoticeQuit}</li>
++        </ol>
++        <a class="recovery-picture" href={settingsUrl} onclick={openSettings}
++            aria-label={s.dataImport.macNoticePictureAction}>
++            <div class="desktop-window">
+                 <ImportPermissionIllustration />
+-            </a>
+-        {:else}
+-            <p>{s.dataImport.macNoticeQuit}</p>
+-        {/if}
+-    </div>
+-</ImportNotice>
++            </div>
++        </a>
++    {:else}
++        <p class="quit-instruction">{s.dataImport.macNoticeQuit}</p>
++    {/if}
++</aside>
+ 
+ <style>
+     .question-icon {
+         width: 24px;
+         height: 24px;
+         background-color: currentColor;
+-        mask: url("/setup-header-icons/questionmark.circle.png") center / contain no-repeat;
++        mask: url("/setup-header-icons/questionmark.app.dashed.png") center / contain no-repeat;
+     }
+ 
+-    .recovery {
++    .import-recovery {
+         display: grid;
+-        gap: var(--gap-2);
++        width: 100%;
++        border-radius: 16px;
++        overflow: hidden;
++        background-color: var(--helium-elevated-5);
++        text-align: start;
+     }
+ 
+     .illustrated {
+-        --picture-width: 140px;
++        grid-template-columns: minmax(0, 1fr) 38%;
++    }
+ 
+-        grid-template: "steps picture" / minmax(0, 1fr) minmax(0, var(--picture-width));
+-        column-gap: var(--gap-3);
++    .steps,
++    .quit-instruction {
++        margin: 0;
++        padding: 14px;
++        padding-inline-start: calc(var(--import-row-inset) + var(--import-icon-size) + var(--import-row-gap));
+     }
+ 
+-    ol {
+-        grid-area: steps;
++    .steps {
++        align-self: center;
+         display: grid;
+         gap: var(--gap-1);
+-        margin: var(--gap-1) 0 0;
+-        padding-inline-start: 1.3em;
+-        font-size: 15px;
++    }
++
++    .steps :global(a) {
++        font: inherit;
+     }
+ 
+     .recovery-picture {
+-        grid-area: picture;
+-        display: block;
+-        align-self: center;
+-        border-radius: 8px;
+-        outline-offset: 3px;
++        display: grid;
++        place-items: center;
++        padding: 14px 12px;
++        color-scheme: light dark;
++        background:
++            radial-gradient(ellipse at 94% -14%, #ffa399 4%, transparent 59%),
++            radial-gradient(ellipse at 3% 116%, #8060f4 8%, transparent 61%),
++            linear-gradient(145deg, #4433a7, #657eed 43%, #49b6e6 77%, #3f55d7);
++        box-shadow: inset 0 1px 5px #141b4838;
++    }
++
++    .desktop-window {
++        width: min(100%, 140px);
+     }
+ 
+     .recovery-picture:hover,
+     .recovery-picture:focus-visible {
+-        outline: 2px solid var(--helium-blue);
++        outline: 2px solid white;
++        outline-offset: -4px;
+     }
+ 
+     @media (max-width: 480px) {
+         .illustrated {
+-            grid-template: "steps" "picture" / minmax(0, 1fr);
+-        }
+-
+-        .recovery-picture {
+-            width: min(100%, var(--picture-width));
+-            justify-self: end;
++            grid-template-columns: minmax(0, 1fr);
+         }
+     }
+ </style>
+Index: source/components/helium_onboarding/src/components/ProfileImportOption.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 18:09:21.833283032 -0800
++++ source/components/helium_onboarding/src/components/ProfileImportOption.svelte	2026-11-27 18:43:31.502132959 -0800
+@@ -1,7 +1,8 @@
+ <script lang="ts">
+-    import { Button, Spinner } from "@imput/helium-prism";
++    import { Button, IconWorld, Spinner } from "@imput/helium-prism";
+     import { s } from "../lib/strings";
+     import type { BrowserProfile } from "../lib/cr";
++    import { browserIcons } from "../lib/nonfree-icons";
+     import { importDiscovery, importProfile } from "../lib/browser";
+     import {
+         importingProfileId,
+@@ -11,12 +12,34 @@
+ 
+     type Props = {
+         profile: BrowserProfile;
+-        browserHeadingId: string;
++        showProfileName: boolean;
+     };
+ 
+-    const { profile, browserHeadingId }: Props = $props();
++    const { profile, showProfileName }: Props = $props();
+     const descriptionId = $props.id();
+ 
++    const browserIconKeys: Partial<Record<string, keyof typeof browserIcons>> = {
++        Arc: "arc",
++        Brave: "brave",
++        Chromium: "chromium",
++        Dia: "dia",
++        Opera: "opera",
++        Safari: "safari",
++        Vivaldi: "vivaldi",
++        Yandex: "yandex",
++        Zen: "zen",
++        "Google Chrome": "chrome",
++        "Google Chrome Beta": "chrome_beta",
++        "Google Chrome Canary": "chrome_canary",
++        "Google Chrome Dev": "chrome_dev",
++        "Microsoft Edge": "edge",
++        "Mozilla Firefox": "firefox",
++        "NAVER Whale": "whale",
++        "Perplexity Comet": "comet",
++    };
++    const iconKey = $derived(browserIconKeys[profile.name]);
++    const iconUrl = $derived(iconKey && browserIcons[iconKey]);
++
+     const imported = $derived($previouslyImportedProfiles.has(profile.id));
+     const importing = $derived($importingProfileId === profile.id);
+     const disabled = $derived($onboardingImportInProgress || $importDiscovery.refreshing);
+@@ -50,90 +73,104 @@
+ </script>
+ 
+ <div class="profile-option">
+-    <div class="text" id={descriptionId}>
+-        {#if profile.profileName}
+-            <h4>{profile.profileName}</h4>
++    <div class="browser-icon" aria-hidden="true">
++        {#if iconUrl}
++            <img src={iconUrl} alt="" />
++        {:else}
++            <IconWorld />
+         {/if}
+-        <p>{dataList()}</p>
++    </div>
++    <div class="text" id={descriptionId}>
++        <h4>{profile.name}</h4>
++        <p>
++            {#if showProfileName && profile.profileName}<bdi>{profile.profileName}</bdi>{": "}{/if}{dataList()}
++        </p>
+         {#if importing}
+             <p role="status">{s.dataImport.progress}</p>
+         {:else if failed}
+             <p role="alert">{s.dataImport.failure}</p>
+         {/if}
+     </div>
+-    <div class="profile-action" class:complete={imported}>
+-        <Button disabled={disabled || imported} aria-describedby={`${browserHeadingId} ${descriptionId}`} onclick={importThisProfile}>
+-            {#if importing}
+-                <Spinner size={18} />
+-            {/if}
+-            {s.dataImport.action}
+-        </Button>
+-        <span class="imported" role="status">{s.dataImport.imported}</span>
+-    </div>
++    <Button
++        primary={!imported}
++        disabled={disabled || imported}
++        aria-label={imported ? s.dataImport.imported : s.dataImport.action}
++        aria-describedby={descriptionId}
++        onclick={importThisProfile}
++    >
++        <span class="action-label" aria-hidden="true">
++            <span class="action-state" class:hidden={imported}>
++                {#if importing}
++                    <Spinner size={18} />
++                {:else}
++                    <span class="import-icon"></span>
++                {/if}
++                {s.dataImport.action}
++            </span>
++            <span class="action-state" class:hidden={!imported}>{s.dataImport.imported}</span>
++        </span>
++    </Button>
+ </div>
+ 
+ <style>
+     .profile-option {
+-        display: flex;
+-        flex-wrap: wrap;
++        display: grid;
++        grid-template-columns: var(--import-icon-size) minmax(0, 1fr) auto;
+         align-items: center;
+-        justify-content: space-between;
++        align-self: stretch;
+         width: 100%;
+         box-sizing: border-box;
+-        gap: 8px 12px;
+-        padding: 10px 14px 10px 18px;
+-        border-radius: 14px;
+-        background-color: var(--helium-elevated-7);
++        gap: var(--import-row-gap);
++        padding: 14px var(--import-row-inset);
++        border-radius: 16px;
++        background-color: var(--helium-elevated-5);
+     }
+ 
+-    .profile-option:first-child:not(:only-child) {
+-        border-bottom-left-radius: 6px;
+-        border-bottom-right-radius: 6px;
+-    }
+-
+-    .profile-option:last-child:not(:only-child) {
+-        border-top-left-radius: 6px;
+-        border-top-right-radius: 6px;
++    .browser-icon {
++        display: grid;
++        place-items: center;
++        width: var(--import-icon-size);
++        aspect-ratio: 1;
++        border-radius: 8px;
++        background-color: var(--helium-elevated-10);
+     }
+ 
+-    .profile-option:not(:only-child, :last-child, :first-child) {
+-        border-radius: 6px;
++    .browser-icon img {
++        width: 34px;
++        height: 34px;
+     }
+ 
+     .text {
+         display: flex;
+-        flex: 1 1 7rem;
+         min-width: 0;
+         flex-direction: column;
+         gap: 2px;
+-        text-align: left;
++        text-align: start;
+         overflow-wrap: anywhere;
+     }
+ 
+-    .profile-action {
++    .action-label {
+         display: grid;
+-        align-items: center;
+-        margin-inline-start: auto;
+     }
+ 
+-    /* Preserve the action slot's width across states, including translated labels. */
+-    .profile-action > :global(button),
+-    .imported {
++    /* Keep both labels in the layout so the disabled button keeps its width. */
++    .action-state {
+         grid-area: 1 / 1;
++        display: flex;
++        align-items: center;
++        justify-content: center;
++        gap: var(--gap-1);
+     }
+ 
+-    .profile-action.complete > :global(button),
+-    .profile-action:not(.complete) .imported {
++    .hidden {
+         visibility: hidden;
+     }
+ 
+-    .imported {
+-        text-align: center;
+-        font-size: 14px;
+-    }
+-
+-    h4 {
+-        color: var(--primary);
+-        font-size: 17px;
++    .import-icon {
++        width: 18px;
++        height: 18px;
++        flex-shrink: 0;
++        background-color: currentColor;
++        mask: url("/setup-header-icons/square.and.arrow.down.png") center / contain no-repeat;
+     }
+ </style>
+Index: source/components/helium_onboarding/src/pages/DataImport.svelte
+===================================================================
+--- source.orig/components/helium_onboarding/src/pages/DataImport.svelte	2026-11-27 18:15:33.096200044 -0800
++++ source/components/helium_onboarding/src/pages/DataImport.svelte	2026-11-27 18:41:04.792404265 -0800
+@@ -12,7 +12,7 @@
+     import ImportNotice from "../components/ImportNotice.svelte";
+     import ImportPrompt from "../components/ImportPrompt.svelte";
+     import MacImportNotice from "../components/MacImportNotice.svelte";
+-    import BrowserProfileGroup from "../components/BrowserProfileGroup.svelte";
++    import ProfileImportOption from "../components/ProfileImportOption.svelte";
+     import BrowserImportGraphic from "../components/BrowserImportGraphic.svelte";
+ 
+     const PROMPT_FADE_DURATION = 80;
+@@ -79,7 +79,7 @@
+     <div
+         id="data-import-container"
+         bind:this={importContainer}
+-        class={["scrollable-page", { "prompt-only": !discovered }]}
++        class={["scrollable-page", { "prompt-only": !discovered, "setup-options-page": discovered }]}
+         style:--prompt-fade-duration={`${PROMPT_FADE_DURATION}ms`}
+     >
+         {#if animateDiscovery}
+@@ -105,10 +105,15 @@
+                         <ImportNotice role="status">
+                             <p>{s.dataImport.noBrowsers}</p>
+                         </ImportNotice>
++                    {:else}
++                        <div class="setup-options-grid">
++                            {#each sorted as [browser, profiles] (browser)}
++                                {#each profiles as profile (profile.id)}
++                                    <ProfileImportOption {profile} showProfileName={profiles.length > 1} />
++                                {/each}
++                            {/each}
++                        </div>
+                     {/if}
+-                    {#each sorted as [browser, profiles] (browser)}
+-                        <BrowserProfileGroup {browser} {profiles} />
+-                    {/each}
+                     {#if platform.is.macos}
+                         <MacImportNotice showPermission={showMacNotice} />
+                     {/if}
+@@ -128,7 +133,6 @@
+         );
+ 
+         height: calc-size(auto, min(size, 100%));
+-        max-width: 600px;
+         box-sizing: border-box;
+         padding-bottom: var(--import-footer-clearance);
+         scroll-padding-bottom: var(--import-footer-clearance);
+@@ -152,6 +156,10 @@
+     }
+ 
+     .import-content {
++        --import-row-inset: 16px;
++        --import-icon-size: 42px;
++        --import-row-gap: var(--gap-3);
++
+         display: grid;
+     }
+ 
