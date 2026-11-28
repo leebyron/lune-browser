@@ -1,0 +1,224 @@
+Index: source/chrome/browser/importer/chrome_importer_list.cc
+===================================================================
+--- source.orig/chrome/browser/importer/chrome_importer_list.cc	2026-11-27 18:33:45.140867058 -0800
++++ source/chrome/browser/importer/chrome_importer_list.cc	2026-11-27 18:34:24.750171259 -0800
+@@ -5,6 +5,8 @@
+ 
+ #include "chrome/browser/importer/importer_list.h"
+ 
++#include <utility>
++
+ #include "base/check.h"
+ #include "base/files/file_path.h"
+ #include "base/strings/strcat.h"
+@@ -80,12 +82,17 @@
+           base::FilePath::StringType(FILE_PATH_LITERAL("Local State")))),
+       GetCanaryUserDataFolder(), kGoogleChromeBrowserCanary,
+       user_data_importer::TYPE_CHROME);
+-
+-  AddChromeToProfiles(
+-      profiles,
+-      GetChromeSourceProfiles(GetArcUserDataFolder().Append(
+-          base::FilePath::StringType(FILE_PATH_LITERAL("Local State")))),
+-      GetArcUserDataFolder(), kArcBrowser, user_data_importer::TYPE_ARC);
++#endif
++#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
++  const auto arc_user_data = GetArcUserDataFolder();
++#if BUILDFLAG(IS_MAC)
++  auto arc_profiles = GetArcSourceProfiles(arc_user_data);
++#else
++  auto arc_profiles = GetChromeSourceProfiles(
++      arc_user_data.AppendASCII("Local State"), /*prefer_last_used=*/true);
++#endif
++  AddChromeToProfiles(profiles, std::move(arc_profiles), arc_user_data,
++                      kArcBrowser, user_data_importer::TYPE_ARC);
+ #endif
+ #if BUILDFLAG(IS_MAC)
+   AddChromeToProfiles(
+Index: source/chrome/common/importer/chrome_importer_utils.cc
+===================================================================
+--- source.orig/chrome/common/importer/chrome_importer_utils.cc	2026-11-27 18:33:45.141115017 -0800
++++ source/chrome/common/importer/chrome_importer_utils.cc	2026-11-27 18:34:24.794277477 -0800
+@@ -133,7 +133,8 @@
+ }  // namespace
+ 
+ base::ListValue GetChromeSourceProfiles(
+-    const base::FilePath& local_state_path) {
++    const base::FilePath& local_state_path,
++    bool prefer_last_used) {
+   base::ListValue profiles;
+   if (base::PathExists(local_state_path)) {
+     std::string local_state_content;
+@@ -146,6 +147,8 @@
+ 
+     const auto* profile_dict = local_state_dict->FindDict("profile");
+     if (profile_dict) {
++      const auto* last_used =
++          prefer_last_used ? profile_dict->FindString("last_used") : nullptr;
+       const auto* last_active_profiles =
+           profile_dict->FindList("last_active_profiles");
+ 
+@@ -175,7 +178,11 @@
+           if (active_time) {
+             entry.Set("active_time", *active_time);
+           }
+-          profiles.Append(std::move(entry));
++          if (last_used && value.first == *last_used) {
++            profiles.Insert(profiles.begin(), base::Value(std::move(entry)));
++          } else {
++            profiles.Append(std::move(entry));
++          }
+         }
+       }
+     }
+Index: source/chrome/common/importer/chrome_importer_utils.h
+===================================================================
+--- source.orig/chrome/common/importer/chrome_importer_utils.h	2026-11-27 18:33:45.141242101 -0800
++++ source/chrome/common/importer/chrome_importer_utils.h	2026-11-27 18:34:24.773715645 -0800
+@@ -36,6 +36,7 @@
+ #endif
+ 
+ #if BUILDFLAG(IS_MAC)
++base::ListValue GetArcSourceProfiles(const base::FilePath& user_data_folder);
+ // Dia only has Windows/Mac builds
+ base::FilePath GetDiaUserDataFolder();
+ #endif
+@@ -53,7 +54,8 @@
+ #if BUILDFLAG(IS_LINUX)
+ base::FilePath GetOperaSnapUserDataFolder();
+ #endif
+-base::ListValue GetChromeSourceProfiles(const base::FilePath& local_state);
++base::ListValue GetChromeSourceProfiles(const base::FilePath& local_state,
++                                        bool prefer_last_used = false);
+ bool ChromeImporterCanImport(const base::FilePath& profile,
+                              user_data_importer::ImporterType type,
+                              uint16_t* services_supported);
+Index: source/chrome/common/importer/chrome_importer_utils_mac.mm
+===================================================================
+--- source.orig/chrome/common/importer/chrome_importer_utils_mac.mm	2026-11-27 18:33:45.141358185 -0800
++++ source/chrome/common/importer/chrome_importer_utils_mac.mm	2026-11-27 18:35:37.710864108 -0800
+@@ -8,8 +8,99 @@
+ 
+ #include "chrome/common/importer/chrome_importer_utils.h"
+ 
++#include <algorithm>
++#include <map>
++#include <string>
++#include <string_view>
++#include <vector>
++
+ #include "base/apple/foundation_util.h"
++#include "base/apple/scoped_cftyperef.h"
+ #include "base/files/file_util.h"
++#include "base/json/json_reader.h"
++#include "base/strings/string_util.h"
++#include "base/strings/sys_string_conversions.h"
++
++namespace {
++
++// Synced custom profiles are identified by both device and directory.
++std::string_view GetArcSpaceProfile(const base::DictValue& space,
++                                    std::string_view local_machine_id) {
++  const auto* profile = space.FindDict("profile");
++  if (!profile) {
++    return {};
++  }
++  if (profile->FindBool("default").value_or(false)) {
++    return "Default";
++  }
++  const auto* custom = profile->FindDictByDottedPath("custom._0");
++  if (!custom || local_machine_id.empty()) {
++    return {};
++  }
++  const auto* machine_id = custom->FindString("machineID");
++  const auto* basename = custom->FindString("directoryBasename");
++  if (!machine_id || !basename ||
++      !base::EqualsCaseInsensitiveASCII(*machine_id, local_machine_id)) {
++    return {};
++  }
++  return *basename;
++}
++
++using ArcSpaceNames = std::map<std::string, std::vector<std::string>, std::less<>>;
++
++ArcSpaceNames ReadArcSpaceNames(const base::FilePath& sidebar_path) {
++  std::string content;
++  if (!base::ReadFileToString(sidebar_path, &content)) {
++    return {};
++  }
++  const auto sidebar =
++      base::JSONReader::ReadDict(content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
++  const auto* containers =
++      sidebar ? sidebar->FindListByDottedPath("sidebar.containers") : nullptr;
++  if (!containers) {
++    return {};
++  }
++
++  base::apple::ScopedCFTypeRef<CFPropertyListRef> machine_id_pref(
++      CFPreferencesCopyAppValue(CFSTR("machineID"),
++                                CFSTR("company.thebrowser.Browser")));
++  const auto machine_id_string =
++      base::apple::CFCast<CFStringRef>(machine_id_pref.get());
++  const std::string machine_id =
++      machine_id_string ? base::SysCFStringRefToUTF8(machine_id_string) : "";
++  ArcSpaceNames names;
++  for (const auto& container : *containers) {
++    const auto* data = container.GetIfDict();
++    const auto* spaces = data ? data->FindList("spaces") : nullptr;
++    if (!spaces) {
++      continue;
++    }
++    // The sidebar list alternates Space IDs and their dictionaries.
++    for (size_t i = 0; i + 1 < spaces->size(); i += 2) {
++      const auto* space = (*spaces)[i + 1].GetIfDict();
++      if (!(*spaces)[i].is_string() || !space) {
++        continue;
++      }
++      const auto* title = space->FindString("title");
++      const std::string_view id = GetArcSpaceProfile(*space, machine_id);
++      if (id.empty() || !title) {
++        continue;
++      }
++      const std::string_view name =
++          base::TrimWhitespaceASCII(*title, base::TRIM_ALL);
++      if (name.empty()) {
++        continue;
++      }
++      auto& titles = names[std::string(id)];
++      if (std::ranges::find(titles, name) == titles.end()) {
++        titles.emplace_back(name);
++      }
++    }
++  }
++  return names;
++}
++
++}  // namespace
+ 
+ base::FilePath GetChromeUserDataFolder() {
+   base::FilePath result = base::apple::GetUserLibraryPath();
+@@ -66,6 +157,24 @@
+   return result.Append("Application Support").Append("Arc").Append("User Data");
+ }
+ 
++base::ListValue GetArcSourceProfiles(const base::FilePath& user_data_folder) {
++  auto profiles = GetChromeSourceProfiles(
++      user_data_folder.AppendASCII("Local State"), /*prefer_last_used=*/true);
++  if (profiles.empty()) {
++    return profiles;
++  }
++  const auto names = ReadArcSpaceNames(
++      user_data_folder.DirName().AppendASCII("StorableSidebar.json"));
++  for (auto& profile : profiles) {
++    auto& entry = profile.GetDict();
++    const auto it = names.find(*entry.FindString("id"));
++    if (it != names.end()) {
++      entry.Set("name", base::JoinString(it->second, ", "));
++    }
++  }
++  return profiles;
++}
++
+ base::FilePath GetDiaUserDataFolder() {
+   base::FilePath result = base::apple::GetUserLibraryPath();
+   return result.Append("Application Support").Append("Dia").Append("User Data");
