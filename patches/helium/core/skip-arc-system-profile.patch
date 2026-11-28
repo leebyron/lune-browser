@@ -1,0 +1,18 @@
+Index: source/chrome/common/importer/chrome_importer_utils_mac.mm
+===================================================================
+--- source.orig/chrome/common/importer/chrome_importer_utils_mac.mm	2026-11-27 18:35:37.710864108 -0800
++++ source/chrome/common/importer/chrome_importer_utils_mac.mm	2026-11-27 19:35:14.786538211 -0800
+@@ -160,6 +160,13 @@
+ base::ListValue GetArcSourceProfiles(const base::FilePath& user_data_folder) {
+   auto profiles = GetChromeSourceProfiles(
+       user_data_folder.AppendASCII("Local State"), /*prefer_last_used=*/true);
++  // Arc can register this internal profile under a numbered directory.
++  profiles.EraseIf([](const base::Value& profile) {
++    constexpr std::string_view kArcSystemProfile = "__ARC_SYSTEM_PROFILE";
++    const auto& entry = profile.GetDict();
++    return *entry.FindString("id") == kArcSystemProfile ||
++           *entry.FindString("name") == kArcSystemProfile;
++  });
+   if (profiles.empty()) {
+     return profiles;
+   }
