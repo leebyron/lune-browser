@@ -1,0 +1,180 @@
+Index: source/chrome/browser/importer/BUILD.gn
+===================================================================
+--- source.orig/chrome/browser/importer/BUILD.gn
++++ source/chrome/browser/importer/BUILD.gn
+@@ -74,6 +74,10 @@ source_set("impl") {
+     "//components/sessions",
+   ]
+ 
++  if (is_mac) {
++    libs = [ "compression" ]
++  }
++
+   if (is_win) {
+     sources += [ "firefox_profile_lock_win.cc" ]
+   } else {
+Index: source/chrome/browser/importer/chrome_importer_list.cc
+===================================================================
+--- source.orig/chrome/browser/importer/chrome_importer_list.cc
++++ source/chrome/browser/importer/chrome_importer_list.cc
+@@ -41,7 +41,7 @@ void AddChromeToProfiles(
+         base::FilePath::StringType(profile->begin(), profile->end()));
+     ChromeImporterCanImport(path, type, &items);
+     if (dict->FindBool("openTabs").value_or(false) ||
+-        (type == user_data_importer::TYPE_CHROME &&
++        (type != user_data_importer::TYPE_ARC &&
+          !importer::ReadOpenTabs(type, path).empty())) {
+       items |= importer::kOpenTabs;
+     }
+Index: source/chrome/browser/importer/importer_list.cc
+===================================================================
+--- source.orig/chrome/browser/importer/importer_list.cc
++++ source/chrome/browser/importer/importer_list.cc
+@@ -11,6 +11,7 @@
+ #include "base/task/thread_pool.h"
+ #include "base/threading/scoped_blocking_call.h"
+ #include "build/build_config.h"
++#include "chrome/browser/importer/open_tabs_importer.h"
+ #include "chrome/browser/shell_integration.h"
+ #include "chrome/common/importer/firefox_importer_utils.h"
+ #include "chrome/common/importer/importer_bridge.h"
+@@ -201,6 +202,9 @@ void DetectFirefoxProfiles(
+     // macOSes, so don't promise an import service that can't be delivered.
+     firefox.services_supported |= user_data_importer::PASSWORDS;
+ #endif
++    if (!importer::ReadOpenTabs(firefox.importer_type, detail.path).empty()) {
++      firefox.services_supported |= importer::kOpenTabs;
++    }
+     firefox.locale = locale;
+     profiles->push_back(firefox);
+   }
+Index: source/chrome/browser/importer/open_tabs_importer.cc
+===================================================================
+--- source.orig/chrome/browser/importer/open_tabs_importer.cc
++++ source/chrome/browser/importer/open_tabs_importer.cc
+@@ -7,6 +7,8 @@
+ #include <memory>
+ #include <set>
+ #include <string>
++#include <string_view>
++#include <utility>
+ #include <vector>
+ 
+ #include "build/build_config.h"
+@@ -15,17 +17,115 @@
+ #include "components/sessions/core/session_service_commands.h"
+ #include "components/sessions/core/session_types.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include <compression.h>
++
++#include <optional>
++
++#include "base/containers/span.h"
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/json/json_reader.h"
++#include "base/numerics/byte_conversions.h"
++#include "base/values.h"
++#endif
++
+ namespace importer {
+ 
++#if BUILDFLAG(IS_MAC)
++namespace {
++
++constexpr size_t kMaxFirefoxSessionSize = 64 * 1024 * 1024;
++
++std::optional<base::DictValue> ReadFirefoxSession(
++    const base::FilePath& path) {
++  constexpr std::string_view kMagic("mozLz40\0", 8);
++  constexpr size_t kHeaderSize = kMagic.size() + sizeof(uint32_t);
++  std::string compressed;
++  if (!base::ReadFileToStringWithMaxSize(path, &compressed,
++                                       kMaxFirefoxSessionSize) ||
++      compressed.size() <= kHeaderSize || !compressed.starts_with(kMagic)) {
++    return std::nullopt;
++  }
++
++  const auto bytes = base::as_byte_span(compressed);
++  const uint32_t size =
++      base::U32FromLittleEndian(bytes.subspan<kMagic.size(), sizeof(uint32_t)>());
++  if (size == 0 || size > kMaxFirefoxSessionSize) {
++    return std::nullopt;
++  }
++
++  const auto payload = bytes.subspan(kHeaderSize);
++  std::string json(size, '\0');
++  auto buffer = base::as_writable_byte_span(json);
++  if (compression_decode_buffer(buffer.data(), buffer.size(), payload.data(),
++                                payload.size(), nullptr,
++                                COMPRESSION_LZ4_RAW) != size) {
++    return std::nullopt;
++  }
++  return base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
++}
++
++OpenTabsForImport ReadFirefoxOpenTabs(const base::FilePath& profile) {
++  // Prefer Firefox's clean session, then its active recovery snapshots.
++  for (const auto* name : {"sessionstore.jsonlz4",
++                           "sessionstore-backups/recovery.jsonlz4",
++                           "sessionstore-backups/recovery.baklz4",
++                           "sessionstore-backups/previous.jsonlz4"}) {
++    const auto session = ReadFirefoxSession(profile.AppendASCII(name));
++    const auto* windows = session ? session->FindList("windows") : nullptr;
++    if (!windows) {
++      continue;
++    }
++
++    OpenTabsForImport result;
++    for (const auto& window : *windows) {
++      const auto* window_data = window.GetIfDict();
++      const auto* tabs = window_data ? window_data->FindList("tabs") : nullptr;
++      if (!tabs || window_data->FindBool("isPrivate").value_or(false)) {
++        continue;
++      }
++      for (const auto& tab : *tabs) {
++        const auto* tab_data = tab.GetIfDict();
++        const auto* entries = tab_data ? tab_data->FindList("entries") : nullptr;
++        const int selected =
++            tab_data ? tab_data->FindInt("index").value_or(0) : 0;
++        if (!entries || selected <= 0 ||
++            static_cast<size_t>(selected) > entries->size()) {
++          continue;
++        }
++
++        const auto* entry = (*entries)[selected - 1].GetIfDict();
++        const auto* url = entry ? entry->FindString("url") : nullptr;
++        if (url) {
++          GURL current_url(*url);
++          if (current_url.is_valid() && current_url.SchemeIsHTTPOrHTTPS()) {
++            result.urls.push_back(std::move(current_url));
++          }
++        }
++      }
++    }
++    return result;
++  }
++  return {};
++}
++
++}  // namespace
++#endif  // BUILDFLAG(IS_MAC)
++
+ OpenTabsForImport ReadOpenTabs(user_data_importer::ImporterType type,
+                                const base::FilePath& profile_path) {
+ #if BUILDFLAG(IS_MAC)
+   if (type == user_data_importer::TYPE_ARC) {
+     return GetArcOpenTabs(profile_path);
+   }
++  if (type == user_data_importer::TYPE_FIREFOX) {
++    return ReadFirefoxOpenTabs(profile_path);
++  }
+ #endif
+ 
+-  if (type != user_data_importer::TYPE_CHROME) {
++  if (type != user_data_importer::TYPE_CHROME &&
++      type != user_data_importer::TYPE_BRAVE) {
+     return {};
+   }
+ 
